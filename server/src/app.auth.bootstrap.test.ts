@@ -14,12 +14,6 @@ import { MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
 import { call, PASSWORD_ENV, cookiesOf } from "./testHelpers/passwordAuth";
 import { appWithAuth, parseConfiguredAuth } from "./fixtures/appWithAuth";
 
-// The CAPACITYLENS_MODE flag (opts.authMode/auth). The load-bearing assertion set: off is
-// byte-for-byte today (the whole existing app.test.ts suite already enforces that by running
-// unchanged; these tests add the /api/auth/me surface and the absence of the Better Auth
-// routes); password gates every data route on a real session; sso issues a
-// provider redirect; any misconfiguration refuses to boot via AuthConfigError.
-
 function parseJsonObject(res: LightMyRequestResponse): object {
   const value: unknown = JSON.parse(res.body);
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -68,7 +62,7 @@ const SSO_ENV = {
 };
 
 const SETUP_TOKEN = "unit-test-owner-setup-token-0123456789abcdef";
-/** PASSWORD_ENV but with the open-signup escape removed → default-closed posture. */
+
 const CLOSED_SIGNUP_ENV: Record<string, string> = {
   ...PASSWORD_ENV,
   CAPACITYLENS_SETUP_TOKEN: SETUP_TOKEN,
@@ -309,7 +303,6 @@ const BOOTSTRAP_PASSWORD = "operator-managed-bootstrap-password";
 const CLOSED_ENV: Record<string, string> = { ...PASSWORD_ENV };
 delete CLOSED_ENV.CAPACITYLENS_ALLOW_OPEN_SIGNUP;
 
-/** authFromEnv + migrations on a fresh in-memory DB, ready for createBootstrapAdmin. */
 async function bootstrapFixture(env: Record<string, string> = CLOSED_ENV) {
   const db = openDb(":memory:");
   const { mode, auth } = createAuthFromEnvironment(db, env);
@@ -391,9 +384,7 @@ function registerBootstrapCredentialPolicyTests(): void {
   });
 
   it("keeps minPasswordLength at the shared floor ALWAYS — flagged boot or not, empty table or not", async () => {
-    // The fix (review remediation): the instance-wide floor is never bent. The bootstrap's 5-char
-    // password is created through a different path (auth.createCredentialUser(), bypassing the sign-up route
-    // entirely: see createBootstrapAdmin) instead of lowering this option.
+    // Bootstrap credential creation must never lower the public signup password minimum.
     const { auth } = await bootstrapFixture();
     expect(parseConfiguredAuth(auth).options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH);
     const seeded = await bootstrapFixture();
@@ -407,9 +398,7 @@ function registerBootstrapCredentialPolicyTests(): void {
   it("REJECTS a 5-char sign-up password during a boot where the bootstrap just ran (the floor is never bent for anything else)", async () => {
     const { db, mode, auth } = await bootstrapFixture();
     await createBootstrapAdmin(db, mode, auth, () => {});
-    // Same DB, open self-registration so the sign-up route (not the bootstrap's internalAdapter
-    // path) is reachable. This is exactly the "operator's own reset" / "sign-up that boot" case
-    // the finding called out: it must not inherit any lowered floor.
+    // Keep public signup reachable to prove bootstrap credential creation leaves its password floor intact.
     const open = createAuthFromEnvironment(db, {
       ...CLOSED_ENV,
       CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
@@ -480,7 +469,7 @@ function registerBootstrapLifecycleTests(): void {
     const lines: string[] = [];
     expect(await createBootstrapAdmin(db, mode, auth, (l) => lines.push(l))).toBe("skipped");
     expect(lines).toEqual(["capacitylens-server: --create-owner-admin-admin skipped: users already exist"]);
-    // No second account, no throw.
+
     expect(countUsers(db)).toBe(1);
   });
 

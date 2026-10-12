@@ -7,9 +7,7 @@ import type { ReauthAction, ReauthResult } from "./reauthCoordinator";
 import type { AuthProviderInfo, AuthUser } from "./authContext";
 import { m } from "@/i18n";
 
-// Defect B, the "Confirm it's you" step-up dialog. Better Auth's client is mocked so we can drive a
-// success / failure without a network. The dialog resolves the coordinator on success (which the
-// wrapper turns into a retry) and shows the failure inline without closing.
+// The dialog stays open on failed authentication and resolves the shared waiting request only after authentication succeeds or is cancelled.
 
 const signInEmail = vi.fn();
 const signInSocial = vi.fn();
@@ -95,7 +93,7 @@ describe("ReauthDialog password step-up", () => {
     await waitFor(() =>
       expect(signInEmail).toHaveBeenCalledWith({ email: "owner@acme.test", password: "correct horse" }),
     );
-    // Dialog gone (pending cleared) and the coordinator resolved an authenticated result (the wrapper will retry).
+
     await waitFor(() => expect(screen.queryByRole("heading", { name: "Confirm it's you" })).not.toBeInTheDocument());
     await waitFor(() => expect(settled).toEqual({ kind: "authenticated" }));
     expect(isReauthPending()).toBe(false);
@@ -144,7 +142,7 @@ describe("ReauthDialog password rejection", () => {
     expect(alert).toHaveTextContent("Invalid email or password.");
     expect(password).toHaveAttribute("aria-invalid", "true");
     expect(password).toHaveAttribute("aria-describedby", alert.id);
-    // Still open, still pending. The user can try again.
+
     expect(screen.getByRole("heading", { name: "Confirm it's you" })).toBeInTheDocument();
     expect(isReauthPending()).toBe(true);
   });
@@ -414,7 +412,6 @@ describe("ReauthDialog dismissal guards", () => {
   });
 });
 
-// Small helper so the "triggers the dialog" test reads cleanly: fire the request without awaiting it.
 function resolveReauthLater() {
   void requestReauth();
 }

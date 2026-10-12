@@ -1,11 +1,6 @@
-// The one true rate-limit env parser, extracted so the production guard and the limiter cannot
-// diverge on what CAPACITYLENS_RATE_LIMIT means. It lives in its own leaf module (no imports) so
-// productionGuard.ts can share it without pulling in the whole Fastify app (app.ts), an import
-// cycle the guard must stay clear of, since index.ts consults the guard before building the app.
+// Share the strict parser between production posture and runtime configuration so a malformed value cannot mean different limits.
 
-/**
- * Bounds max rate limit so resource use remains predictable under load.
- */
+/** Defines the maximum accepted requests per minute in programmatic and environment configuration. */
 export const MAX_RATE_LIMIT = 1_000_000;
 
 /** Normalize a programmatic rate limit with the same bounds used by the environment parser. */

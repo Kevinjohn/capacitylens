@@ -476,10 +476,7 @@ describe("isValidISODate", () => {
   });
 
   it("rejects a NON-STRING even when it stringifies to a valid-looking date", () => {
-    // The `typeof s !== 'string'` guard must fire first: parseDate() throws on a non-string
-    // (`.split` on a number/array), so dropping the guard would surface a throw instead of a
-    // clean `false`. An array like ['2026-06-01'] String()-coerces to a matching shape, so only
-    // the type check, not the regex, protects the parse.
+    // Non-string values must fail before regex matching so coercible arrays cannot masquerade as valid dates.
     expect(isValidISODate(null)).toBe(false);
     expect(isValidISODate(20260601)).toBe(false);
     expect(isValidISODate(["2026-06-01"])).toBe(false);
@@ -540,7 +537,6 @@ describe("validateDateRange", () => {
     expect(validateDateRange("2026-06-01", "2026-6-5").ok).toBe(false);
     expect(validateDateRange("2026-13-01", "2026-12-01").ok).toBe(false);
     expect(validateDateRange("2026-02-30", "2026-03-05").ok).toBe(false);
-    // and the rejection names the calendar-date rule (not some other error)
     expect(validateDateRange("2026-13-01", "2026-12-01").errors[0]).toMatch(/valid calendar dates/i);
   });
 });
@@ -797,7 +793,6 @@ function registerDisciplineCascadeTests(): void {
     const next = deleteDisciplineCascade(data, "d1", CASCADE_REVISION);
     expect(next.disciplines.map((d) => d.id)).toEqual(["d2"]);
     expect(assertEntityById(next.resources, "r2").disciplineId).toBe("d2");
-    // r1 was in d1 → ungrouped, but kept as a whole record (not blanked to {})
     const r1 = assertEntityById(next.resources, "r1");
     expect(r1.disciplineId).toBeUndefined();
     expect(r1.role).toBe("Senior Designer");

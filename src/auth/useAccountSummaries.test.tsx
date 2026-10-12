@@ -19,18 +19,7 @@ vi.mock("@/data/offlineCache", async (importOriginal) => {
   };
 });
 
-// The AccountPicker's data source. These tests pin the fetch contract's three distinct
-// answers, in particular the malformed-200 case (the bug this pins: a 200 whose JSON body is not
-// an array used to coerce to `[]`, a fake "no accounts" that blanked the picker, where every
-// other failure reported null / keep-what-you-have):
-//   - a real array        -> the validated list ([] only for a genuine empty array; off-spec rows
-//                            are dropped with a console.warn breadcrumb, partial corruption is
-//                            handled-but-logged, never silent)
-//   - a non-OK response   -> null (keep what you have)
-//   - a 200 non-array body -> null too, same stance, with a console.warn breadcrumb
-//   - a nonempty array where every row is off-spec -> null too (malformed, not "no accounts",
-//                            an [] here would blank the picker over a broken response)
-// plus the hook-level consequence: a null read leaves store.accountSummaries untouched.
+// Only a genuine empty array may clear the picker. Malformed responses or an array with no valid rows preserve the existing list; mixed responses keep valid rows and log discarded entries.
 
 afterEach(() => {
   useStore.setState({ activeAccountId: null });
@@ -189,10 +178,7 @@ function createCachedResponseClassificationTests() {
 
 function createMalformedResponseClassificationTests() {
   it('a NONEMPTY array whose rows are ALL malformed -> null (keep what you have, NOT a fake "no accounts") + a warn', async () => {
-    // The regression this pins: [null] used to map/filter to [], which the hook treated as a genuine
-    // empty list and blanked the picker, contradicting the "[] is reserved for a genuine empty
-    // array" contract. All-rows-invalid is a malformed response, so it reports null like the
-    // non-array case (the hook then leaves the existing list untouched).
+    // An array containing only invalid entries is a malformed response, not evidence that no companies exist. It must preserve the current picker list.
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.stubGlobal(
       "fetch",
@@ -204,7 +190,6 @@ function createMalformedResponseClassificationTests() {
   });
 
   it('an id-only row is malformed too: [{"id":"a"}] -> null, not []', async () => {
-    // Suppress the expected malformed-response warning.
     vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.stubGlobal(
       "fetch",
@@ -403,7 +388,6 @@ describe("refreshAccountSummaries — shared request ordering", () => {
   createCompletenessRefreshTests();
 });
 
-/** Mounts the hook bare. It renders nothing; the observable effect is on the store. */
 function HookHost() {
   useAccountSummaries();
   return null;
@@ -429,7 +413,6 @@ function createYieldingHookTest() {
 
 function createMalformedHookTests() {
   it("store.accountSummaries is preserved when /api/accounts 200s with a non-array body", async () => {
-    // Suppress the expected malformed-response warning.
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const existing = [{ id: "a1", name: "Studio A", role: "owner" as const }];
     useStore.getState().setAccountSummaries({ list: existing });
@@ -457,9 +440,7 @@ function createMalformedHookTests() {
 
 function createMembershipHookTest() {
   it("store.accountSummaries is preserved when /api/accounts 200s with an all-malformed array ([null])", async () => {
-    // Same stance as the non-array case above, via the all-rows-dropped -> null path: an array of
-    // junk must not read as "no accounts" and blank the picker.
-    // Suppress the expected malformed-response warning.
+    // An array with no valid rows is not evidence that the company directory is empty.
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const existing = [{ id: "a1", name: "Studio A", role: "owner" as const }];
     useStore.getState().setAccountSummaries({ list: existing });

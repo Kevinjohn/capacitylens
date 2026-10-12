@@ -93,8 +93,7 @@ export class AuthTransactionGate {
     for (const resume of pending) resume();
   }
 
-  /** Take the gate in the same turn that found it free; waking resumes every waiter, so a check
-   * separated from its update by an await would let two waiters in at once. */
+  // Acquire in the same turn as the readiness check so resumed waiters cannot take the same slot.
   async #acquire(ready: () => boolean, take: () => void): Promise<void> {
     while (!ready()) await new Promise<void>((resume) => this.#wakers.add(resume));
     take();

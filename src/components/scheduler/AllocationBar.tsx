@@ -17,7 +17,6 @@ import type { BarLayout } from "./schedulerModel";
 import { useAllocationGesture } from "./useAllocationGesture";
 import { roundToHundredths } from "@/lib/roundToHundredths";
 
-/** Hours/day display rounds repeating days-mode rescaling values without changing stored hours. */
 function resolveKeyboardMode(event: React.KeyboardEvent): "move" | "resize-start" | "resize-end" {
   if (event.altKey) return "resize-start";
   if (event.shiftKey) return "resize-end";
@@ -71,15 +70,9 @@ function buildAriaLabel({ bar, canEdit, hideHours, label, showTaskFieldInSchedul
 
 function useBarAriaLabel(input: AriaLabelInput) {
   const { bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel } = input;
-  // The dates in this name are formatted inside the memo, so the style has to be a dependency:
-  // without it the name keeps its old format until something else invalidates the memo. Today that
-  // happens by accident, changing the account rebuilds `state.data`, then the view-model, then
-  // `bar`: but the accident is not the guarantee, and a bar name is what a screen-reader user
-  // hears while dragging.
+  // Date style is an explicit name dependency because its module-level formatter mirror cannot trigger memo invalidation by itself.
   const dateStyle = useDateStyle();
-  // The name cannot change mid-gesture, so memoise it instead of rebuilding it on every pointermove
-  // render. The date formatters read the active style from a module-level mirror rather than an
-  // argument, so the linter cannot see that dependency.
+  // Memoise formatting so pointer-only updates reuse the accessible name. Date style is a real dependency even though the formatter reads it from a module mirror.
   return useMemo(
     () => buildAriaLabel({ bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the style is a real input to the name

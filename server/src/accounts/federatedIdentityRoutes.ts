@@ -18,7 +18,7 @@ function requireFederatedLink(auth: Auth): NonNullable<Auth["beginFederatedLink"
   return auth.beginFederatedLink;
 }
 
-/** Keep provider repair restricted to an installation with a configured company provider. */
+// Provider repair is available only when this installation has a configured company provider.
 function requireCompanyProvider(auth: Auth, reply: FastifyReply): Auth["defaultCompanyProvider"] | undefined {
   if (!auth.defaultCompanyProvider) {
     reply.code(400).send({ error: "No company provider is configured." });
@@ -57,6 +57,7 @@ function registerProviderRoutes(app: FastifyInstance, dependencies: FederatedIde
       const links = identity.inspectProviderLinks(requireAuthenticatedUser(req).id, provider.id);
       return { provider, connected: links.length > 0, verified: links.length === 1 && links[0]?.verified === true };
     } catch (error) {
+      // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
       return fail(reply, error);
     }
   });
@@ -120,6 +121,7 @@ async function beginProviderLink(
     if (result.setCookies.length > 0) reply.header("set-cookie", result.setCookies);
     return { url: result.url };
   } catch (error) {
+    // Surface provider-link failures through the route boundary so protocol responses and diagnostics remain consistent.
     return sendProviderLinkFailure(req, reply, error);
   }
 }
@@ -150,6 +152,7 @@ async function correctEmail(req: RouteRequest, reply: FastifyReply, dependencies
     await correctPrincipalEmail(req, dependencies, { accountId, userId, email });
     return reply.code(204).send();
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return dependencies.fail(reply, error);
   }
 }
@@ -246,6 +249,7 @@ async function removeFederatedLink(
     await removePrincipalFederatedLink(req, dependencies, { accountId, userId, coordinate });
     return reply.code(204).send();
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return dependencies.fail(reply, error);
   }
 }

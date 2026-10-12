@@ -109,8 +109,7 @@ const corsOrigin = process.env.CAPACITYLENS_CORS_ORIGIN ?? DEFAULT_CORS;
 // Single-company cap (see AppOptions.multiAccount), off by default, so a fresh real deploy starts
 // capped to the first company it creates until the operator deliberately opts in to more.
 const multiAccount = process.env.CAPACITYLENS_MULTI_ACCOUNT === "1";
-// HSTS only, emitted when CAPACITYLENS_HTTPS=1, or (unless "0") when the public URL is https,
-// since HSTS over plain HTTP is harmful. The other helmet baseline headers are on regardless.
+// Emit HSTS only for the browser-facing HTTPS origin; other baseline security headers apply independently.
 const https = resolveHttps(accountEnv);
 const log = process.env.CAPACITYLENS_LOG === "1";
 const healthDeep = process.env.CAPACITYLENS_HEALTH_DEEP === "1";
@@ -219,6 +218,7 @@ try {
   }
   stopStartupIfRequested({ startupSignals, openDb: db });
 } catch (e) {
+  // Close any opened database and report a startup refusal instead of serving after migration or auth-control setup failed.
   closeDbSafely(db);
   refuseToStart(e instanceof Error ? e.message : String(e));
 }
@@ -255,10 +255,8 @@ try {
       assertCompanyProviderCutoverReady({ providerIds: companyProviders, identity, administration });
     });
   }
-  // First-run owner bootstrap, after the auth tables exist, before the app serves a request. In
-  // off/sso mode createBootstrapAdmin throws AuthConfigError (the flag is meaningless there),
-  // which this catch frames as a legible refusal; with users already present it logs one
-  // "skipped" line and boot continues (deliberately not an error, see its TSDoc).
+  // Bootstrap requires password mode and completed auth migrations.
+  // A populated user table is an idempotent skip; configuration errors reach the startup refusal boundary.
   if (bootstrapAdmin) await createBootstrapAdmin(db, authMode, auth);
   if (process.env.CAPACITYLENS_SEED_DEMO === "1") seedIfUninitialized(db, seedForCurrentWeek());
   stopStartupIfRequested({ startupSignals, openDb: db });
@@ -274,6 +272,7 @@ try {
     );
   }
 } catch (e) {
+  // Report failed auth migration, seeding or bootstrap as a startup refusal before requests are served.
   refuseToStart(e instanceof Error ? e.message : String(e));
 }
 

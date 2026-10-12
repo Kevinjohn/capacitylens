@@ -34,8 +34,7 @@ interface GesturePreview {
   deltaDays: number;
   deltaY: number;
   targetResourceId: ID | null;
-  // The snapped range is computed once where the pointer is handled. `null` means that a
-  // zero-column resize keeps the view-model's existing placement.
+
   dates: DateRange | null;
 }
 
@@ -72,8 +71,6 @@ interface ReadPreviewDatesInput {
   destination: Pick<LaneSnapshot, "id"> | null;
 }
 
-/** The snapped range for this frame, judged in the lane the pointer is over. A reassignment also
- * carries the dragged bar's own week, which is what sizes the range. */
 function readPreviewDates({ bar, runtime, input, destination }: ReadPreviewDatesInput) {
   const resourceId = bar.allocation.resourceId;
   const previewDays = resolveMemoisedWorkingDays(runtime.previewDaysRef.current, destination?.id ?? resourceId);
@@ -99,10 +96,7 @@ function previewGesture(options: ControllerOptions, runtime: GestureRuntime, inp
       : null;
   const destination = target && target.id !== resourceId ? target : null;
   const { result, previewDays } = readPreviewDates({ bar, runtime, input, destination });
-  // A drop the commit will refuse must not be drawn as a reassignment: the preview would show the
-  // destination's re-placement, then snap back on release. Fall back to the range this drag would
-  // produce on the bar's own row, so it keeps following the pointer sideways while the row under it
-  // refuses the drop, suppressing the range entirely froze the bar's horizontal tracking.
+  // A refused reassignment previews the source-row range so the bar continues following horizontal movement without painting a destination placement that commit rejects.
   const blocked = isPreviewDropBlocked({
     workingDays: previewDays,
     result,
@@ -319,6 +313,7 @@ function saveKeyboardGesture(
     announceCapacity(readCapacityAnnouncement(bar.allocation.resourceId));
     scheduleFocus(bar.allocation.id, activeAccountId);
   } catch (error) {
+    // Surface a refused gesture commit so preview feedback cannot imply that a rejected move saved.
     setNotice(error instanceof Error ? resolveErrorMessage(error) : m.scheduler_toast_move_disallowed(), "error");
   }
 }

@@ -7,13 +7,11 @@ import type { LocalAccountAdminPort } from "../sqliteAccountAdminPort";
 
 const WORKSPACE_ERASURE_SNAPSHOT_MAX_ATTEMPTS = 3;
 
-/** Shared single-company-cap gate for provisionWorkspace's tx callback and
- * provisionWorkspaceInExistingTransaction: evaluate provisioning authority in the current
- * transaction and throw the same FORBIDDEN shape on refusal. Split from the Owner-membership
- * provisioning call (unlike this check, that write's position relative to product-data creation is
- * externally observable, audit/outbox row ordering, so provisionWorkspace's tx callback keeps its
- * original decision -> provisionProductData() -> provisionOwnerMembershipInTx interleaving instead
- * of both steps being fused into one helper call). */
+/**
+ * Rejects workspace provisioning when the current transaction’s authority check refuses it.
+ * The caller owns the transaction and controls product and membership write ordering; this helper performs no writes.
+ * @throws AccountContractError when authority refuses provisioning.
+ */
 export function assertWorkspaceProvisioningAllowedInTx(
   administration: LocalAccountAdminPort,
   input: {
@@ -80,12 +78,11 @@ interface WithMembershipSnapshotRetryInput<T> {
   onAttemptsExhausted: () => never;
 }
 
-/** Shared scaffold for the membership-snapshot lock-retry algorithm duplicated by eraseWorkspace's
- * `eraseWithMembershipSnapshot` and withWorkspaceErasureLocks' `runWithSnapshot`: snapshot principal
- * ids, acquire locks over them, re-snapshot under lock in case a mutation slipped in while waiting,
- * and retry with the enlarged set, bounded by WORKSPACE_ERASURE_SNAPSHOT_MAX_ATTEMPTS. Callers keep
- * their own exhausted-retries error (one throws with commandId, one without, see call sites), so
- * that error is supplied as a factory rather than unified here. */
+/**
+ * Runs an operation while holding locks for a stable workspace membership snapshot.
+ * Retries with newly observed principals, then calls onAttemptsExhausted if the snapshot remains unstable.
+ * Propagates lock, callback, and exhaustion failures; callers supply workspace and principal lock keys.
+ */
 export async function withMembershipSnapshotRetry<T>({
   lock,
   currentPrincipalIds,

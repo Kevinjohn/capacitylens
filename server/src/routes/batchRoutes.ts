@@ -148,28 +148,14 @@ function createBatchHandler(dependencies: BatchRouteDependencies) {
     // account slices the request can actually touch; an ordered empty batch deliberately has no
     // slice but still reaches the lightweight sync-sequence transaction below.
     const affectedAccountIds = listAffectedAccountIds(ops);
-    // Pre-scan before the transaction opens so the batch is rejected as a whole (one 403, no
-    // partial write) if any op targets an account the caller may not write. A scoped PUT derives
-    // its accountId from op.row.accountId, a scoped DELETE from op.accountId. The unscoped
-    // Account deletion is accepted only by the dedicated erasure route and was rejected during
-    // shape validation above, so the generic sync path can never turn a bad diff into tenant
-    // destruction. An accounts
-    // PUT that is an UPDATE gates 'write'; an accounts PUT that is a CREATE is refused outright
-    // when auth is on (→ POST /api/orgs, see REPLY_ERRORS.accountCreateClosed) and stays open only
-    // in off mode, where the single-company cap (accountCreateCapped) can still deny it, either
-    // refusal fails the whole batch, see below. In off mode authorize
-    // short-circuits true, so the whole loop is a no-op pass for authz; the cap check is not part of that no-op, it runs
-    // regardless of authMode.
-    // Evaluate the single-company cap against the batch's projected state, not once per op
-    // against the same pre-transaction snapshot. Two distinct account creates in an empty DB
-    // must be rejected together rather than both passing and committing.
+    // Authorize every affected tenant before mutation, then recheck after acquiring locks.
+    // Generic account creation is trusted-local only and respects the batch’s projected company count.
+    // Account erasure remains on its dedicated route so a sync diff cannot delete a tenant.
     const hasAccountOperations = ops.some((op) => op.table === "accounts");
     const accountProjection = hasAccountOperations
       ? projectBatchAccounts(db, ops)
       : { count: 0, createsFinalAccount: false };
-    // Authenticated account creation is closed on this generic sync route (the loop below
-    // returns REPLY_ERRORS.accountCreateClosed). In trusted-local mode, project the *whole* batch
-    // before starting the transaction so two creates cannot both pass against the same empty DB.
+    // Project the whole trusted-local batch so two company creates cannot both pass against one empty snapshot.
     if (authMode === "off" && accountProjection.createsFinalAccount && !multiAccount && accountProjection.count > 1) {
       return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE });
     }
@@ -213,6 +199,7 @@ function createBatchHandler(dependencies: BatchRouteDependencies) {
         drainProductAudit: dependencies.drainProductAudit,
       });
     } catch (error) {
+      // Preserve an already-sent refusal, report stale writes as conflicts, and redact other failures after transactional work has unwound.
       return sendBatchError(reply, error, dependencies);
     }
   };

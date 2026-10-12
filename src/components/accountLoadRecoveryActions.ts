@@ -3,8 +3,7 @@ import { transitionAccount } from "@/auth/accountTransition";
 import { useStore } from "@/store/useStore";
 import { m } from "@/i18n";
 
-/** The recovery screen's only exit: leave a company whose data failed to load. A silent failure
- * here would leave the user stuck on a blocking full-screen stage with no visible next step. */
+// Surface failures while leaving an unavailable company so the blocking recovery view always has an exit.
 type ChooseAnotherAccountAfterLoadFailureOptions = { accountRoute: boolean; navigate: NavigateFunction };
 /** Leaves the failed account route and selects another accessible account. */
 export async function chooseAnotherAccountAfterLoadFailure({

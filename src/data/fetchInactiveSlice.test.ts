@@ -26,7 +26,7 @@ describe("fetchInactiveSlice", () => {
     expect(url).toContain(`/api/state?accountId=${encodeURIComponent("a 1")}&includeInactive=1`);
     expect(init.credentials).toBe("include");
     expect(init.signal).toBeInstanceOf(AbortSignal);
-    // migrate() ran: the raw table map came back normalized as a full AppData.
+
     expect(data.accounts.map((a) => a.id)).toEqual(["a 1"]);
   });
 
@@ -54,7 +54,7 @@ describe("fetchInactiveSlice", () => {
       (e: unknown) => e,
     );
     expect(err).toBeInstanceOf(InactiveSliceHttpError);
-    expect((err as InactiveSliceHttpError).status).toBe(403); // callers branch on this (403 self-hide)
+    expect((err as InactiveSliceHttpError).status).toBe(403);
     expect((err as InactiveSliceHttpError).serverMessage).toBeUndefined();
   });
 

@@ -4,12 +4,7 @@ import type { ISODate } from "@capacitylens/shared/types/entities";
 
 const BOUNDARY_SEARCH_MS = 36 * 60 * 60 * 1000;
 
-/** Milliseconds until the configured calendar zone first reports a different date. The binary
- * search naturally handles 23/25-hour daylight-saving days and non-hour timezone offsets.
- * Every probe goes through the same zone resolver the rendered date does (`todayISO`, which
- * caches one formatter per zone), so the timer can never land on a boundary the displayed date
- * disagrees with, and a bad stored zone degrades to todayISO's local date, making this measure
- * the next local midnight instead of crashing or arming a runaway timer. */
+/** Computes the next date boundary through the same timezone resolver used for display, so daylight-saving changes and fallback zones cannot desynchronize the timer. */
 export function resolveMillisecondsUntilNextCalendarDate(timeZone: string, now = Date.now()): number {
   const dateAt = (instant: number): ISODate => todayISO(timeZone, instant);
   const currentDate = dateAt(now);
@@ -55,7 +50,5 @@ export function useCalendarToday(timeZone: string): ISODate {
     };
   }, [timeZone]);
 
-  // Re-evaluate on every forced or incidental render. This also updates synchronously when the
-  // active account changes zones, before the replacement effect arms its next boundary timer.
   return todayISO(timeZone);
 }

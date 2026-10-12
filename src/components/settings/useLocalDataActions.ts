@@ -39,6 +39,7 @@ function useClearLocalStorageAction(setNotice: StoreState["setNotice"]) {
       await clearAllOfflineData();
       clearCapacitylensLocalStorage();
     } catch (cause) {
+      // Release cleanup controls and surface the failure so partial local cleanup is not mistaken for completion.
       clearActionLock.current = false;
       setClearBusy(false);
       setConfirmingClear(false);
@@ -79,10 +80,12 @@ function createToggleOffline(input: LocalDataActionInput, offlineAction: ReturnT
           }
           input.setNotice(next ? m.settings_offline_enabled_notice() : m.settings_offline_disabled_notice(), "info");
         } catch (cause) {
+          // Failed offline enablement must roll back the opt-in before reporting the original failure.
           if (next) {
             try {
               await setOfflineReadEnabled(false);
             } catch (rollbackError) {
+              // Preserve both enablement and rollback failures so incomplete cleanup is diagnosable.
               throw new AggregateError([cause, rollbackError], m.settings_offline_cleanup_incomplete(), {
                 cause: rollbackError,
               });

@@ -25,9 +25,7 @@ function parseEmailMetadata(row: Record<string, unknown>): Pick<InvitePreview, "
   return { emailBound, emailHint };
 }
 
-// Map the accept endpoint's status codes to the surfaced message. 404/409/410 are the documented
-// invite outcomes (unknown / already-used / expired); the server's JSON `{ error }` body carries a
-// friendly sentence we prefer, with a safe fallback per status when the body is missing/unreadable.
+// Prefer the server's safe invitation refusal message; use status-specific copy when the optional body cannot be read.
 /** Prefers the server message, then maps an invitation failure status to user-facing copy. */
 export function resolveMessageForStatus(status: number, bodyError: string | undefined): string {
   if (bodyError) return bodyError;

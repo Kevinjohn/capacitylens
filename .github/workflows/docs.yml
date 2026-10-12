@@ -35,9 +35,7 @@ permissions:
 
 jobs:
   build:
-    # Validation only: VitePress fails the build on dead links, and the
-    # standalone postprocess fails on any URL it cannot make relative. The
-    # readable copy ships committed in docs/ — nothing is deployed from here.
+    # Validate the committed standalone site with dead-link and relative-URL checks; deployment uses the committed output.
     name: Build documentation site
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -48,15 +46,9 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm run docs:build
       - name: Check the committed site matches its sources
-        # docs/ is committed, and it is what readers open — the build is not
-        # deployed from here. A source change whose rebuild was never committed
-        # would otherwise ship silently: the site still builds, and the unit
-        # tests that inspect docs/ would keep passing against the stale HTML.
+        # Require a committed rebuild so changed sources cannot ship with stale generated HTML.
         run: |
-          # --porcelain, not `git diff`: a build that emits a file nobody
-          # committed (a new asset, a renamed hashed stylesheet) leaves it
-          # untracked, which git diff does not see — and that file is exactly
-          # the kind that is missing from the site readers open.
+          # Porcelain status includes newly emitted untracked assets, which git diff would miss.
           if [ -n "$(git status --porcelain -- docs)" ]; then
             # Which files, and then the actual hunks: a file count alone says
             # nothing about whether the cause is real staleness or a build

@@ -1,19 +1,6 @@
-# Dependabot writes its pull-request bodies from registry metadata, and a base-image
-# digest supplies none: "Bumps node from `6f7b03f` to `ba849c6`" is the whole
-# description. Nothing there says whether the application moved, what the tag is, or
-# what merging it implies. `dependabot.yml` has no body template to fix that with, so
-# this workflow adds a summary comment instead.
-#
-# The metadata is parsed from Dependabot's own commit rather than read through
-# `dependabot/fetch-metadata`. That action derives the previous version from the
-# "Bumps X from A to B." line with a numeric pattern, which a backtick-wrapped digest
-# does not match, so the digest update — the case this exists for — reaches it with an
-# empty previous version. Parsing the commit directly keeps the digests and removes a
-# third-party dependency from a workflow that holds a write token.
-#
-# `pull_request` with an explicit `permissions` block is the documented way to give a
-# Dependabot-triggered run write access; `pull_request_target` is not needed and would
-# widen the trust boundary for nothing.
+# Registry metadata does not describe image-digest changes, so publish a summary from Dependabot’s authored commit.
+# Numeric previous-version parsing misses backtick-wrapped digests; parsing directly also avoids another write-token dependency.
+# Use pull_request with explicit permissions to keep the trust boundary narrow.
 
 name: Dependabot summary
 

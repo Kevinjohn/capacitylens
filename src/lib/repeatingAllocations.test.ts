@@ -339,7 +339,7 @@ describe("repeatingAllocationAdvisory", () => {
       timeOffAllocations: 0,
       nonEffectiveStartAllocations: 0,
     });
-    // Same load, no draft covering its day: nothing is over.
+
     expect(
       repeatingAllocationAdvisory({
         resource: fullResource(),
@@ -377,7 +377,7 @@ describe("repeatingAllocationAdvisory load accounting", () => {
         closures: [],
       }),
     ).toEqual({
-      overCapacityAllocations: 0, // 4 + 4 fits exactly in an 8h day, on every occurrence
+      overCapacityAllocations: 0,
       timeOffAllocations: 0,
       nonEffectiveStartAllocations: 0,
     });
@@ -521,9 +521,9 @@ describe("repeatingAllocationAdvisory zero-load and external resources", () => {
   it("counts monthly starts outside the effective week, including draft 0, but excludes ignored occurrences", () => {
     const resource = fullResource({ workingDays: [1] });
     const drafts = [
-      baseDraft({ startDate: "2026-06-01", endDate: "2026-06-01" }), // Monday
-      baseDraft({ startDate: "2026-07-01", endDate: "2026-07-06" }), // Wednesday
-      baseDraft({ startDate: "2026-08-01", endDate: "2026-08-03" }), // Saturday
+      baseDraft({ startDate: "2026-06-01", endDate: "2026-06-01" }),
+      baseDraft({ startDate: "2026-07-01", endDate: "2026-07-06" }),
+      baseDraft({ startDate: "2026-08-01", endDate: "2026-08-03" }),
       baseDraft({ startDate: "2026-09-01", endDate: "2026-09-01", ignoreWeekends: true }),
     ];
 

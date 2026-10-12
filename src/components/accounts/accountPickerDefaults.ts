@@ -17,10 +17,7 @@ export const DEFAULT_TIMEZONE = DEFAULT_TIME_ZONE;
 /** Default language for a newly created account. */
 export const DEFAULT_LANGUAGE = "en";
 
-/** Validate the untrusted 2xx body of POST /api/orgs, same stance as useAccountSummaries'
- * `toSummary` (the server is external input; never trust an `as` cast). Returns null when the
- * body is unusable (not an object, or id/name missing/empty). The caller must then treat the
- * create as "succeeded, but id unknown", not as a failure (see createOrgOnServer). */
+/** Validates the company-creation response. An unusable 2xx payload still represents a confirmed create, so the caller must reconcile the directory instead of inviting a duplicate create. */
 export function parseCreatedAccount(body: unknown): { id: string; name: string } | null {
   if (typeof body !== "object" || body === null) return null;
   const bodyRecord = body as { id?: unknown; name?: unknown };

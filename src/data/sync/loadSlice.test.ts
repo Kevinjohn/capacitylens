@@ -17,7 +17,7 @@ afterEach(() => {
 describe("loadAll repair write", () => {
   it("leaves a newer load's offline read-only state alone when an older repair finishes", async () => {
     const account = makeAccount({ id: "a-older" });
-    // No Internal client, so the load must write a repair before it goes online.
+
     const payload = { ...emptyAppData(), accounts: [account] };
     const state = new SyncState("http://api.test", async () => Response.json(payload));
     let releaseRepair: () => void = () => {};
@@ -39,7 +39,6 @@ describe("loadAll repair write", () => {
     );
     await repairRequested;
 
-    // A newer load starts and falls back to a cached slice, which is read-only.
     state.loadGen += 1;
     setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: 123 });
 

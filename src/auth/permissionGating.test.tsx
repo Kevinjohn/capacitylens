@@ -6,8 +6,7 @@ import type { ReactNode } from "react";
 import { PermissionContext } from "./permissionContext";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-// AllocationBar now uses a provider-less TooltipRoot (the single TooltipProvider is hoisted to
-// SchedulerGrid), so isolated bar renders here must supply their own provider.
+// Isolated AllocationBar renders need a tooltip provider.
 const render = (ui: ReactNode, options?: Omit<RenderOptions, "wrapper">) =>
   rtlRender(ui, { wrapper: TooltipProvider, ...options });
 import { AddButton, ListPage } from "@/components/common/ui";
@@ -21,14 +20,7 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation } from "@capacitylens/shared/types/entities";
 import type { Role } from "@capacitylens/shared/domain/access";
 
-// Client permission gating. Two halves:
-//   1) the useCanEdit affordance gate (ListPage Add, AllocationBar grips), and the off/local
-//      regression guard (provider absent / role null → fully editable, byte-identical to today);
-//   2) the store's defense-in-depth viewer guard (a viewer's add*/update*/delete* no-ops + notices;
-//      null/editor/owner permit).
-// The server 403 is the true backstop; this suite only covers the client UX + the local guard.
-
-/** Render `ui` inside a PermissionContext fixed to `role` (null = no provider equivalent / off/local). */
+// Verify UI affordances and the store's local guard; server authorization remains authoritative.
 function withRole(role: Role | null, ui: ReactNode) {
   return render(<PermissionContext.Provider value={{ role }}>{ui}</PermissionContext.Provider>);
 }
@@ -39,8 +31,6 @@ beforeEach(() => {
   useStore.getState().setActiveRole(null);
   useStore.getState().setNotice(null);
 });
-
-// useCanEdit affordance gate.
 
 describe("useCanEdit gates the ListPage create affordance", () => {
   const onAdd = vi.fn();
@@ -55,7 +45,7 @@ describe("useCanEdit gates the ListPage create affordance", () => {
     expect(screen.getByRole("button", { name: "Add client" })).toBeInTheDocument();
   });
 
-  it('REGRESSION GUARD: role null (OFF/local/not-fetched) keeps the "Add" button', () => {
+  it('role null keeps the "Add" button outside masquerade', () => {
     withRole(null, <ListPage title="Clients" addLabel="Add client" onAdd={onAdd} />);
     expect(screen.getByRole("button", { name: "Add client" })).toBeInTheDocument();
   });
@@ -77,8 +67,6 @@ describe("useCanEdit gates direct AddButton create affordances", () => {
     expect(screen.getByRole("button", { name: "New company" })).toBeInTheDocument();
   });
 });
-
-// AllocationBar viewer → display-only (no resize grips).
 
 describe("useCanEdit gates the AllocationBar resize grips", () => {
   const GEOM = buildColumnGeometry(eachDayISO("2026-06-01", "2026-06-30"), 48, {
@@ -112,7 +100,7 @@ describe("useCanEdit gates the AllocationBar resize grips", () => {
     withRole("viewer", <AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
     expect(screen.queryByTestId("resize-start")).not.toBeInTheDocument();
     expect(screen.queryByTestId("resize-end")).not.toBeInTheDocument();
-    // Display-only: role="img", not the interactive "button" an editor bar carries.
+
     expect(screen.getByTestId("allocation-bar")).toHaveAttribute("role", "img");
   });
 
@@ -123,14 +111,12 @@ describe("useCanEdit gates the AllocationBar resize grips", () => {
     expect(screen.getByTestId("allocation-bar")).toHaveAttribute("role", "button");
   });
 
-  it("REGRESSION GUARD: role null / no provider keeps the grips (default-editable)", () => {
+  it("role null / no provider keeps the grips outside masquerade", () => {
     render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
     expect(screen.getByTestId("resize-start")).toBeInTheDocument();
     expect(screen.getByTestId("resize-end")).toBeInTheDocument();
   });
 });
-
-// Store defense-in-depth viewer guard.
 
 describe("store viewer guard (defense-in-depth) no-ops a viewer mutation", () => {
   beforeEach(() => resetStoreWithAccount());
@@ -143,7 +129,6 @@ describe("store viewer guard (defense-in-depth) no-ops a viewer mutation", () =>
     expect(useStore.getState().data.resources).toHaveLength(0);
     expect(useStore.getState().notice?.message).toMatch(/read-only/i);
 
-    // Seed a row directly (bypass the guard) so update/delete have a target, then prove they no-op.
     useStore.getState().setActiveRole(null);
     const seeded = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Seeded" })));
     expect(useStore.getState().data.resources).toHaveLength(1);
@@ -160,7 +145,7 @@ describe("store viewer guard (defense-in-depth) no-ops a viewer mutation", () =>
     expect(useStore.getState().data.resources).toHaveLength(1);
   });
 
-  it.each([null, "editor", "owner", "admin"] as const)("role %s PERMITS the mutation", (role) => {
+  it.each([null, "editor", "owner", "admin"] as const)("role %s permits the mutation outside masquerade", (role) => {
     useStore.getState().setActiveRole(role);
     const r = requireCreated(useStore.getState().addResource(makeResourceDraft()));
     expect(useStore.getState().data.resources.some((x) => x.id === r.id)).toBe(true);

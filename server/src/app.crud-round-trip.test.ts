@@ -39,7 +39,7 @@ function createCrudCreationTests(): void {
     expect(s.activities).toHaveLength(1);
     expect(s.resources).toHaveLength(1);
     expect(s.allocations).toHaveLength(1);
-    // Round-trips exactly: both weekday JSON arrays + omitted optionals survive.
+
     expect(withoutRevision(readFirstResource(s.resources))).toEqual(
       withoutRevision({
         ...person("r1", "a1"),
@@ -215,19 +215,19 @@ function createCrudResourceMutationTests(): void {
 function createCrudScopingTests(): void {
   it("refuses to re-home an existing row to another account (accountId is immutable)", async () => {
     const { app } = freshApp();
-    // C1 in a1.
+
     await scaffold(app);
     await post(app, "accounts", account("a2"));
     // PATCH and PUT that try to move c1 into a2 are indistinguishable from an absent row.
     expect((await patch({ app, entity: "clients", id: "c1", payload: { accountId: "a2" } })).statusCode).toBe(404);
     expect((await put({ app, entity: "clients", id: "c1", payload: { ...client("c1", "a2") } })).statusCode).toBe(404);
-    // …and c1 stays in a1.
+
     expect(readFirstClient(await readStateClients(app)).accountId).toBe("a1");
   });
 
   it("scopes a non-lifecycle delete to its owning account", async () => {
     const { app } = freshApp();
-    // C1 belongs to a1.
+
     await scaffold(app);
     await post(app, "accounts", account("a2"));
     await post(app, "disciplines", {
@@ -238,7 +238,7 @@ function createCrudScopingTests(): void {
       sortOrder: 0,
       ...meta(),
     });
-    // Asserting the wrong account refuses with 404 and leaves the row in place…
+
     expect(
       (
         await call(app, {
@@ -248,7 +248,7 @@ function createCrudScopingTests(): void {
       ).statusCode,
     ).toBe(404);
     expect((await readValidatedState(app)).disciplines).toHaveLength(1);
-    // …the correct owner deletes it.
+
     expect(
       (
         await call(app, {
@@ -277,9 +277,9 @@ function createCrudPersistenceTests(): void {
       },
     });
     const after = readFirstClient(await readStateClients(app));
-    // Everything else updates.
+
     expect(after.name).toBe("Renamed");
-    // But createdAt is preserved.
+
     expect(after.createdAt).toBe(original);
   });
 
@@ -287,7 +287,7 @@ function createCrudPersistenceTests(): void {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
     expect((await call(app, { method: "GET", url: "/api/meta" })).json()).toEqual({ hasData: true });
-    // User empties everything.
+
     await del({ app, entity: "accounts", id: "a1" });
     expect((await readValidatedState(app)).accounts).toHaveLength(0);
     // Still "initialised", a reload must not mistake an emptied dataset for a fresh one.
@@ -311,7 +311,7 @@ function createCrudUpsertTests(): void {
     // replaying a batch after a partial failure).
     const replay = await put({ app, entity: "clients", id: "c1", payload: c });
     expect(replay.statusCode).toBe(200);
-    // A changed body overwrites.
+
     expect(
       (
         await put({
@@ -406,7 +406,7 @@ describe("generic delete accountId query", () => {
     const response = await call(app, { method: "DELETE", url: "/api/disciplines/d1" });
     expect(response.statusCode).toBe(400);
     expect(response.json()).toEqual({ error: REPLY_ERRORS.accountIdRequiredForScopedDelete });
-    // Not deleted.
+
     expect((await readValidatedState(app)).disciplines).toHaveLength(1);
   });
 
@@ -425,7 +425,7 @@ describe("generic delete accountId query", () => {
     const response = await call(app, { method: "DELETE", url: "/api/disciplines/d1?accountId=a1&accountId=a2" });
     expect(response.statusCode).toBe(400);
     expect(response.json()).toEqual({ error: REPLY_ERRORS.accountIdRequiredForScopedDelete });
-    // Not deleted.
+
     expect((await readValidatedState(app)).disciplines).toHaveLength(1);
   });
 });

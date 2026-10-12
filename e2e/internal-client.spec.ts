@@ -7,10 +7,7 @@ test.describe("Internal client", () => {
     page,
   }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
-    // Internal is a behind-the-scenes data anchor; it does not appear in the management list…
     await expect(page.getByTestId("client-row").filter({ hasText: "Internal" })).toHaveCount(0);
-    // …while normal clients are listed with their Edit/Archive affordances (the row's
-    // destructive action archives; Internal has no such row, so it cannot be archived from here).
     const queenRow = page.getByTestId("client-row").filter({ hasText: "Queen" });
     await expect(queenRow).toBeVisible();
     await expect(queenRow.getByRole("button", { name: /^Edit / })).toBeVisible();
@@ -26,8 +23,6 @@ test.describe("Internal client", () => {
     await selectShadOption(page.getByLabel("Client"), { label: "Internal" });
     await page.getByRole("button", { name: "Save" }).click();
 
-    // …and it still functions as a binding target: a project bound to Internal resolves its client
-    // label to "Internal", even though Internal isn't a row in the Clients list.
     await expect(page.getByTestId("project-row").filter({ hasText: "Quarterly planning" })).toContainText("· Internal");
   });
 
@@ -35,7 +30,6 @@ test.describe("Internal client", () => {
     await openApp(page, "Wayne Enterprises", "/activities");
     await page.getByRole("button", { name: "Add activity" }).click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Team retro");
-    // Internal kind → project picker is hidden; the activity is project-less and buckets under Internal.
     await page.getByRole("radio", { name: "Internal" }).click();
     await expect(page.getByLabel("Project")).toHaveCount(0);
     await page.getByRole("button", { name: "Save" }).click();
@@ -51,14 +45,10 @@ test.describe("Internal client", () => {
     // 8–10 June) is on-screen.
     await setZoom(page, 4);
     await resetSchedulerScroll(page);
-    // A clearly project-owned bar (LexCorp / Metropolis Rebrand) is visible before filtering…
     await expect(page.getByTestId("allocation-bar").filter({ hasText: "Brand System" })).toBeVisible();
-    // …and the project-less all-projects "Design" booking is too (assigned to Barry Allen's row).
     const barryRow = page.getByTestId("scheduler-row").filter({ hasText: "Barry Allen" });
     const internalDesignBar = barryRow.getByTestId("allocation-bar").filter({ hasText: "Design" });
     await expect(internalDesignBar).toBeVisible();
-    // Filtering by the Internal client keeps the project-less work (it derives client = Internal)
-    // and hides project work owned by other clients (Brand System under LexCorp is gone).
     await selectShadOption(page.getByLabel("Filter by client"), {
       label: "Internal",
     });

@@ -293,8 +293,6 @@ function applyAvailabilityFilter({ groups, hasAvailability }: ApplyAvailabilityF
     .filter((group) => group.rows.length > 0);
 }
 
-// The model keeps eligibility, grouping, filtering and blocks-mode orchestration together so
-// every displayed period follows the same scoped calculation path.
 /** Projects scoped scheduling data into period and resource capacity results. */
 export function buildCapacityOverviewModel({
   data,
@@ -321,7 +319,7 @@ export function buildCapacityOverviewModel({
       .map((resource) => resource.id),
   );
   const indexes = buildIndexes({ data, eligible, includeTentative, timeOff });
-  // Derived like the schedule's bands: Studio/Supplementary only once a Supplementary person exists.
+
   const groupByEngagement = hasSupplementaryResources(data.resources);
   const groups = buildRows({
     seeds: buildGroupSeeds({ data, eligible, disciplinesEnabled, groupByEngagement }),

@@ -17,10 +17,9 @@ import { rememberRevisions } from "./snapshot";
 import type { SyncState } from "./SyncState";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
-// The server 400-rejects a batch DELETE of a lifecycle entity (clients/projects/resources/activities), those
-// deletions must converge through the dedicated archive route instead (see archiveLifecycleRow).
-// Partition an op set into the atomic-batch ops and the lifecycle deletes the caller drives
-// out-of-band by archiving (see drain/flushUnload).
+// Lifecycle disappearances must archive through dedicated routes because ordinary
+// batch deletion would bypass retained tombstones.
+/** Partitions operations into ordinary batch writes and lifecycle disappearances that must archive separately. */
 export function splitLifecycleDeletes(ops: Op[]): {
   batchOps: Op[];
   lifecycleDeletes: Op[];
@@ -34,14 +33,17 @@ export function splitLifecycleDeletes(ops: Op[]): {
   return { batchOps, lifecycleDeletes };
 }
 
+/** Builds a stable lifecycle identity from table and row ID; neither may contain a NUL separator. */
 export function buildLifecycleKey(op: Pick<Op, "table" | "id">): string {
   return buildRowKey(op.table, op.id);
 }
 
+/** Detects a PUT whose row this sync session archived, so it must restore before descendant writes. */
 export function isRememberedLifecycleReappearance(state: SyncState, op: Op): boolean {
   return op.method === "PUT" && isLifecycleEntityKey(op.table) && state.archivedBySync.has(buildLifecycleKey(op));
 }
 
+/** Returns parent-first restore operations for rows remembered as archived that reappear in the target. */
 export function listRememberedLifecycleRestoreOps(state: SyncState, target: AppData): Op[] {
   // Nothing was ever archived by this session, so no reappearance can need reversing, skip the
   // whole-lifecycle-table scan (the common case on every save).
@@ -57,6 +59,7 @@ export function listRememberedLifecycleRestoreOps(state: SyncState, target: AppD
   return ops;
 }
 
+/** Updates remembered lifecycle archives from the server-confirmed keys for the supplied operations. */
 export function rememberLifecycleArchives(state: SyncState, ops: Op[], confirmed: ReadonlySet<string>): void {
   for (const op of ops) {
     const key = buildLifecycleKey(op);
@@ -99,6 +102,9 @@ export async function restoreRememberedLifecycleRows(
   return restored;
 }
 
+/** Restores a lifecycle row and returns its authoritative active receipt.
+ * @throws LifecycleRestoreError when the server refuses or cannot prove the restored row; reload before replaying writes.
+ */
 export async function unarchiveLifecycleRow(state: SyncState, op: Op): Promise<Entity> {
   const rowAccountId = isRecord(op.row) && typeof op.row.accountId === "string" ? op.row.accountId : undefined;
   const res = await state.request(`${state.baseUrl}/api/${op.table}/${encodeURIComponent(op.id)}/unarchive`, {
@@ -109,10 +115,8 @@ export async function unarchiveLifecycleRow(state: SyncState, op: Op): Promise<E
     }),
     credentials: "include",
   });
-  // Unarchive is a destructive-write reversal and goes through `state.request` (raw fetchImpl), not
-  // apiFetch, so it must check the audit-degradation header itself, mirroring the batch path below.
-  // Announced synchronously (no `defer`): background sync raises no competing success notice, and
-  // the caller may throw on the very next line.
+  // This route bypasses apiFetch, so surface audit degradation explicitly. Background
+  // sync has no competing success notice, allowing synchronous announcement.
   noteAuditWarning(res);
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
@@ -138,26 +142,7 @@ export async function unarchiveLifecycleRow(state: SyncState, op: Op): Promise<E
   return body as unknown as Entity;
 }
 
-// Converge a sync-originated lifecycle-entity disappearance (clients/projects/resources/activities) by archiving
-// the row through the dedicated POST /api/{table}/{id}/archive route. It cannot ride the atomic batch
-// (POST /api/batch 400-rejects a lifecycle DELETE op, to keep the retained-tombstone data-lifecycle
-// from being bypassed).
-//
-// Policy: ARCHIVE-only from the sync layer (deliberately not soft-delete): a lifecycle DELETE that
-// originates from ordinary syncing (e.g. undo of a just-synced create) parks the row as archived on
-// the server. Archive is action 'write', allowed to every role that can create the row (editor+) and
-// never freshness-gated, so background sync, which has no re-auth/step-up UI, can always complete it.
-// It is also reversible (unarchive restores the row). Soft-delete and purge are deliberately not
-// emitted by sync: soft-delete is irreversible (for resources it destroys PII via obfuscateResource,
-// and there is no tombstone→active restore path in shared/src/domain/lifecycle.ts), admin-gated and
-// freshness/step-up gated. It stays a deliberate UI action only. A successful archive is remembered
-// for this in-memory history session so redo can route the id through unarchive before any generic
-// writes. The row otherwise lingers in the account's archived list; the local view already hides it.
-//
-// Idempotent/convergent status handling: only a 409 explicitly coded `already_inactive` (a retry
-// after a partial success or a concurrent archive) and a 404 (row already gone from this account)
-// are the intended out-of-active end state. Other 409 conflicts, including protected rows, remain
-// surfaced failures. A thrown fetch (network/abort) also propagates so the save retries when healthy.
+/** Reversibly archives a sync-originated disappearance. Successful responses confirm archival; among failures, only already_inactive conflicts and the API row-absence envelope prove convergence. Other failures reject for the caller to surface. Remember confirmed archives so redo restores parents before descendant writes. */
 export async function archiveLifecycleRow(
   state: SyncState,
   op: Op,
@@ -175,25 +160,17 @@ export async function archiveLifecycleRow(
     requestOptions,
     options.keepalive ? null : API_REQUEST_TIMEOUT_MS,
   );
-  // Same gap as unarchiveLifecycleRow above: this dedicated route bypasses apiFetch, so the
-  // audit-degradation header on this destructive write would otherwise be silently dropped.
-  // Announced synchronously (no `defer`) for the same reason as unarchive.
+  // This route bypasses apiFetch, so it must surface audit degradation explicitly.
   noteAuditWarning(res);
-  // A response body can only be read once, and every failure arm below wants the same two views of
-  // it: the raw text (createSafeResponseError attaches it as the diagnostic cause) and its best-effort
-  // JSON envelope. Read and parse each exactly once, here, before branching on status.
-  //
-  // The parse is deliberately allowed to fail without surfacing: an unreadable CONFLICT body cannot
-  // prove convergence and is surfaced by the throw below; and since a proxy or missing route can
-  // also return 404, only the API's exact row-absence envelope proves the lifecycle intent has
-  // converged: anything else likewise falls through to a throw.
+  // Read the body once for diagnostics and envelope validation. An unreadable envelope
+  // cannot prove archival converged, so the response remains a surfaced failure.
   const detail = res.ok ? "" : await res.text().catch(() => "");
   let envelope: Record<string, unknown> | null;
   try {
     const parsed: unknown = detail ? JSON.parse(detail) : null;
     envelope = isRecord(parsed) ? parsed : null;
   } catch {
-    // Unparseable body, left null, which every arm below treats as "unproven" and surfaces.
+    // An unreadable envelope cannot prove convergence and remains a surfaced failure.
     envelope = null;
   }
   recordArchiveResponse({ state, op, res, detail, envelope });

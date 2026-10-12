@@ -77,6 +77,7 @@ function persistNewTimeOff(options: {
     }
     return true;
   } catch (error) {
+    // Release the accepted-submission marker before propagating failure so later attempts are not suppressed.
     options.acceptedSubmission.current = false;
     throw error;
   }
@@ -99,6 +100,7 @@ function buildTimeOffDraftsForSave(
   try {
     return buildRepeatedTimeOffDrafts(baseDraft, options.repeatUntil, options.repeat).drafts;
   } catch (error) {
+    // Route repeat-generation failures to the appropriate form field rather than letting them escape submit.
     return resolveRepeatFailure(baseDraft.startDate, error, options.fail);
   }
 }
@@ -147,6 +149,7 @@ export function saveTimeOff(options: SaveTimeOffOptions): void {
     }
     options.onClose();
   } catch (error) {
+    // Surface failed time-off persistence without closing a form whose data was not saved.
     options.fail(null, error instanceof Error ? resolveErrorMessage(error) : m.form_timeoff_err_save_failed());
   }
 }

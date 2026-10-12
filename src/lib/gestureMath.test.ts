@@ -3,10 +3,7 @@ import { applyGesture } from "./gestureMath";
 import type { DateRange } from "./gestureMath";
 import type { Weekday } from "@capacitylens/shared/types/entities";
 
-// Pixel→day snapping no longer lives here: the drag hook derives the day delta from the
-// ColumnGeometry inverse (geom.indexAt), so each endpoint snaps to a column independently,
-// correct even across narrowed weekend columns. See columnGeometry.test.ts. applyGesture
-// (the weekend-aware date math) is unchanged and still owned here.
+// Geometry owns endpoint-to-column snapping; this suite exercises working-calendar date placement.
 
 const range: DateRange = { startDate: "2026-05-10", endDate: "2026-05-12" };
 
@@ -50,15 +47,11 @@ describe("applyGesture: move", () => {
 });
 
 describe("applyGesture: move across resources with different working weeks", () => {
-  // 2026-08-13 is a Thursday, 08-14 a Friday, 08-17 a Monday, 08-18 a Tuesday.
-  // "Mid" works Tue/Wed/Thu. Neither Friday nor Monday; "full" works Mon-Fri.
   const mid = [2, 3, 4] as Weekday[];
   const monToFri = [1, 2, 3, 4, 5] as Weekday[];
   const wholeWeek = [0, 1, 2, 3, 4, 5, 6] as Weekday[];
 
   it("shrinks a range whose duration the origin measured in fewer working days", () => {
-    // Thu 13 - Tue 18 is two working days for Mid. Dropped on Mon-Fri it must stay two days
-    // (Thu, Fri), not be re-read as the four days Mon-Fri sees between those same dates.
     expect(
       applyGesture({
         mode: "move",
@@ -81,8 +74,6 @@ describe("applyGesture: move across resources with different working weeks", () 
   });
 
   it("reads a whole-week origin's duration as calendar days and re-places them as working days", () => {
-    // A seven-day week is not weekend-aware, so Thu 13 - Tue 18 is six calendar days. Six working
-    // days on Mon-Fri run Thu 13 through Thu 20.
     expect(
       applyGesture({
         mode: "move",
@@ -94,7 +85,6 @@ describe("applyGesture: move across resources with different working weeks", () 
   });
 
   it("re-places a working-day duration as calendar days on a whole-week destination", () => {
-    // Thu 13 - Tue 18 is four working days on Mon-Fri; four calendar days from Thu 13 end Sun 16.
     expect(
       applyGesture({
         mode: "move",
@@ -106,8 +96,6 @@ describe("applyGesture: move across resources with different working weeks", () 
   });
 
   it("snaps the start against the DESTINATION while taking the duration from the ORIGIN", () => {
-    // Diagonal: one column right lands on Fri 14, which Mid does not work, so the start snaps
-    // forward to Tue 18. The duration is still the two working days Mon-Fri measured.
     expect(
       applyGesture({
         mode: "move",
@@ -119,9 +107,6 @@ describe("applyGesture: move across resources with different working weeks", () 
   });
 
   it("preserves the calendar span when the origin sees no working days in the range", () => {
-    // Fri 14 - Sun 16: zero working days for Mid, so there is no duration to carry across. The
-    // destination does work the Friday, so measuring under it instead would collapse this to a
-    // single day, the discriminating case for which week is consulted.
     expect(
       applyGesture({
         mode: "move",
@@ -133,9 +118,6 @@ describe("applyGesture: move across resources with different working weeks", () 
   });
 
   it("snaps the start onto the destination's week even when the origin carries no duration", () => {
-    // Fri 14 alone: zero working days for Mid, so nothing is carried. Dragging it one column right
-    // lands on Sat 15, which Mon-Fri does not work. The commit would refuse it. The destination's
-    // week decides the start whatever the origin measured, so this must reach Mon 17.
     expect(
       applyGesture({
         mode: "move",
@@ -229,25 +211,24 @@ describe("applyGesture: resize-end", () => {
   });
 });
 
-const wd = { workingDays: [1, 2, 3, 4, 5] as Weekday[] }; // Mon–Fri
-// Reference weekdays in May 2026: 11=Mon, 15=Fri, 16=Sat, 17=Sun, 18=Mon, 22=Fri.
+const wd = { workingDays: [1, 2, 3, 4, 5] as Weekday[] };
 
 function registerWeekendAwareResizeScenarios(): void {
   it("resize-end dragging into a weekend snaps forward to the next working day", () => {
-    const r: DateRange = { startDate: "2026-05-11", endDate: "2026-05-15" }; // Mon–Fri
-    // +1 calendar day lands on Sat 05-16; snap forward to Mon 05-18 (no weekend at the edge).
+    const r: DateRange = { startDate: "2026-05-11", endDate: "2026-05-15" };
+
     expect(applyGesture({ mode: "resize-end", range: r, deltaDays: 1, options: wd }).endDate).toBe("2026-05-18");
   });
 
   it("resize-end dragging left onto a weekend snaps backward to a working day", () => {
-    const r: DateRange = { startDate: "2026-05-11", endDate: "2026-05-18" }; // Mon–Mon
-    // -1 from Mon 05-18 = Sun 05-17; snap backward to Fri 05-15.
+    const r: DateRange = { startDate: "2026-05-11", endDate: "2026-05-18" };
+
     expect(applyGesture({ mode: "resize-end", range: r, deltaDays: -1, options: wd }).endDate).toBe("2026-05-15");
   });
 
   it("resize-start dragging onto a weekend snaps to a working day", () => {
-    const r: DateRange = { startDate: "2026-05-18", endDate: "2026-05-22" }; // Mon–Fri
-    // -1 from Mon 05-18 = Sun 05-17; snap backward to Fri 05-15.
+    const r: DateRange = { startDate: "2026-05-18", endDate: "2026-05-22" };
+
     expect(applyGesture({ mode: "resize-start", range: r, deltaDays: -1, options: wd }).startDate).toBe("2026-05-15");
   });
 
@@ -259,18 +240,16 @@ function registerWeekendAwareResizeScenarios(): void {
   });
 
   it("resize-start over-dragged past a WEEKEND end pins to a working day (no zero-span)", () => {
-    // 2026-06-01 Mon … 2026-06-06 Sat. The end is a Saturday.
     const r: DateRange = { startDate: "2026-06-01", endDate: "2026-06-06" };
     const out = applyGesture({ mode: "resize-start", range: r, deltaDays: 99, options: wd });
-    expect(out.startDate).toBe("2026-06-05"); // Friday, not the Saturday end (was: 06-06, 0 working days)
+    expect(out.startDate).toBe("2026-06-05");
     expect(out.endDate).toBe("2026-06-06");
   });
 
   it("resize-end over-dragged past a WEEKEND start pins to a working day", () => {
-    // 2026-06-07 Sun … 2026-06-12 Fri. The start is a Sunday.
     const r: DateRange = { startDate: "2026-06-07", endDate: "2026-06-12" };
     const out = applyGesture({ mode: "resize-end", range: r, deltaDays: -99, options: wd });
-    expect(out.endDate).toBe("2026-06-08"); // Monday, not the Sunday start
+    expect(out.endDate).toBe("2026-06-08");
     expect(out.startDate).toBe("2026-06-07");
   });
 }
@@ -303,9 +282,7 @@ function registerWeekendAwareResizeEdgeScenarios(): void {
   });
 
   it("resize-start with a zero delta (no drag) is a no-op, even resting on a non-working day", () => {
-    // No actual drag happened (deltaDays 0), weekend-awareness must not kick in and snap a
-    // start that was already sitting on a non-working day away from its current position.
-    const r: DateRange = { startDate: "2026-06-06", endDate: "2026-06-10" }; // Sat … Wed
+    const r: DateRange = { startDate: "2026-06-06", endDate: "2026-06-10" };
     expect(applyGesture({ mode: "resize-start", range: r, deltaDays: 0, options: wd })).toEqual({
       startDate: "2026-06-06",
       endDate: "2026-06-10",
@@ -313,7 +290,7 @@ function registerWeekendAwareResizeEdgeScenarios(): void {
   });
 
   it("resize-end with a zero delta (no drag) is a no-op, even resting on a non-working day", () => {
-    const r: DateRange = { startDate: "2026-06-03", endDate: "2026-06-06" }; // Wed … Sat
+    const r: DateRange = { startDate: "2026-06-03", endDate: "2026-06-06" };
     expect(applyGesture({ mode: "resize-end", range: r, deltaDays: 0, options: wd })).toEqual({
       startDate: "2026-06-03",
       endDate: "2026-06-06",
@@ -321,8 +298,6 @@ function registerWeekendAwareResizeEdgeScenarios(): void {
   });
 
   it("resize-start dragging FORWARD onto a weekend snaps forward (not backward) to a working day", () => {
-    // 2026-05-15 Fri … 2026-05-22 Fri, +1 day lands the start on Sat 05-16. A forward drag
-    // (deltaDays > 0) must snap forward to Mon 05-18, not backward to Fri 05-15.
     const r: DateRange = { startDate: "2026-05-15", endDate: "2026-05-22" };
     expect(applyGesture({ mode: "resize-start", range: r, deltaDays: 1, options: wd }).startDate).toBe("2026-05-18");
   });

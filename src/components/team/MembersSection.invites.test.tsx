@@ -41,13 +41,6 @@ vi.mock("@/auth/accountTransition", () => ({
   startMasquerade: accountTransitionMocks.startMasquerade,
 }));
 
-// MembersSection is the Team & access management UI. It renders only in auth-on + server mode and
-// self-gates via a 403 on the members read. These tests mock apiConfig (so isServerConfigured() is
-// true) and fetch, and assert the owner-only affordances are hidden for an admin (no owner option, no
-// controls on the Owner row), ownership changes only through transfer, and a 403 renders nothing.
-
-// Make the section "enabled": a configured server. The real module reads import.meta.env, which the
-// test env leaves unset; mocking it is the clean way to flip server mode on.
 vi.mock("@/data/apiConfig", () => ({
   API_BASE: "http://api.test",
   isServerConfigured: () => true,
@@ -87,7 +80,6 @@ function fillAddressedInvite(): void {
   fireEvent.change(screen.getByTestId("invite-preauth"), { target: { value: "diana@example.test" } });
 }
 
-// A pending invite whose create resolves after its dialog was closed or reset.
 const LATE_INVITE = {
   id: "inv-late",
   role: "editor",
@@ -190,11 +182,7 @@ function registerInviteCopyControlTests(): void {
 function registerInviteMintTests(): void {
   it("shows the invite link ONCE on a 201, built from the returned token", async () => {
     const user = userEvent.setup();
-    // Creating an invite fires a fire-and-forget reloadInvites() right after, whose result feeds
-    // reconcileMintedInvite. The POST must return an `id` (as a real server does) so that reconcile
-    // ties the write-once link to it and the reload below is what proves the link survives, a
-    // response missing `id` would leave mintedLink.inviteId null, and the null-guard in
-    // reconcileMintedInvite would keep the link regardless of whether reconciliation itself works.
+    // Return an invite ID so the authoritative list refresh actually exercises minted-link reconciliation; without it the no-ID fallback would retain the link regardless of the refresh.
     let invites: Record<string, unknown>[] = [];
     let invitesReads = 0;
     const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }], {
@@ -226,12 +214,9 @@ function registerInviteMintTests(): void {
     expect(link).toHaveTextContent("/invite/TOK123");
     expect(useStore.getState().notice).toBeNull();
 
-    // The post-create reload confirms the invite is still pending, so the write-once link must
-    // survive it, this is the reconciliation path the test's name actually promises.
     await waitFor(() => expect(invitesReads).toBeGreaterThanOrEqual(2));
     expect(screen.getByTestId("invite-link")).toHaveTextContent("/invite/TOK123");
 
-    // Closing the dialog ends the one-time display: reopening shows an empty form, not the link.
     closeInviteDialog();
     fireEvent.click(screen.getByTestId("invite-open"));
     await screen.findByRole("dialog", { name: "Invite someone" });
@@ -240,7 +225,7 @@ function registerInviteMintTests(): void {
 
   it("discards the link of a create that resolves after the dialog closed and says so", async () => {
     const pending: { respond?: (response: Response) => void } = {};
-    // The late invite stays pending, so only the dialog close can clear its link.
+
     let invites: Record<string, unknown>[] = [];
     let invitesReads = 0;
     vi.stubGlobal(
@@ -280,7 +265,7 @@ function registerInviteMintTests(): void {
 function registerInviteResetTests(): void {
   it("discards the link of a create that resolves after the page went read-only", async () => {
     const pending: { respond?: (response: Response) => void } = {};
-    // The late invite stays pending, so only the reset can clear its link.
+
     let invites: Record<string, unknown>[] = [];
     let invitesReads = 0;
     vi.stubGlobal(

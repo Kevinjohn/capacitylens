@@ -1,7 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-// Same mocking style as LoginScreen.test.tsx / ReauthDialog.test.tsx: authClient is Better Auth's
-// client, isolated so this test never talks to a real server.
 const signInSocial = vi.fn();
 vi.mock("./authClient", () => ({
   authClient: {

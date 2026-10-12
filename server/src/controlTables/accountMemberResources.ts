@@ -229,6 +229,7 @@ function persistLink(input: SetLinkInput, revision: string): void {
       )
       .run(input.accountId, input.userId, input.resourceId, revision, input.now, input.now);
   } catch (cause) {
+    // Translate only the resource-occupancy uniqueness race into a recoverable conflict; other storage faults must roll back unchanged.
     const detail = cause instanceof Error ? cause.message : "";
     if (
       detail.includes(

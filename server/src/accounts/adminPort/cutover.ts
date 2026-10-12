@@ -185,9 +185,7 @@ export function createCutover(
         canAdministerAccount(role, "manage-members"),
       );
       if (!allowed) return { allowed: false, reason: "insufficient-authority" };
-      // This arm converts existing account administration into a new Owner grant. Apply the same
-      // step-up boundary as membership and invitation administration after proving the role, so a
-      // lower-privilege caller still receives the ordinary authority refusal.
+      // Provisioning a new Owner requires fresh assurance after role authorization succeeds.
       assertAdministrativeAssurance({ actor, trustedLocal });
       return { allowed: true };
     },

@@ -20,10 +20,7 @@ import { useServerImport } from "./import-export/useServerImport";
 // Refuse files past this size before reading them into memory (self-DoS guard).
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 
-// Order + labels for the "what's in this file" import summary. Each `label` is a render-time
-// getter (`() => m.key()`), not a pre-resolved string (the nav LINKS / option-getter pattern):
-// this list is module-scope, so resolving `m.key()` here would freeze the label to the
-// load-time locale. The getter defers it to render, summarize() calls each at its call site.
+// Store message getters so import-summary labels follow the active locale at render time.
 const SUMMARY: [keyof AppData, () => string][] = [
   ["resources", () => m.data_summary_resources()],
   ["disciplines", () => m.data_summary_disciplines()],
@@ -136,6 +133,7 @@ function useExportAction() {
       }
       downloadTextFile("capacitylens-data.json", serializeData(exported));
     } catch (error) {
+      // Report the export failure instead of suggesting that an incomplete or unavailable backup was saved.
       if (error instanceof InactiveSliceHttpError) {
         setNotice(error.serverMessage ?? m.data_export_failed({ status: error.status }), "error");
       } else if (error instanceof InactiveSliceShapeError) {
@@ -179,6 +177,7 @@ function usePendingImport(
       if (selection !== selectionRef.current || useStore.getState().activeAccountId !== activeAccountId) return;
       setPending({ accountId: activeAccountId, data: parsed, name: file.name });
     } catch (error) {
+      // Only the latest file selection may report a parse failure, or a stale read could overwrite a newer import choice.
       if (selection !== selectionRef.current) return;
       setNotice(resolveErrorMessage(error) || m.data_err_invalid_json({ app: APP_NAME }), "error");
     }
@@ -197,6 +196,7 @@ function confirmLocalImport(
   try {
     ({ imported, skipped } = importData(incoming));
   } catch (error) {
+    // Surface failed local import and stop before suggesting a successful replacement.
     setNotice(resolveErrorMessage(error) || m.data_import_failed({ status: 0 }), "error");
     return;
   }
@@ -265,17 +265,7 @@ function DataToolControls({
 
 /** Offers scoped data export and guarded import for the active account. */
 export function ImportExport() {
-  // Export only the active account's planning data. The `accounts` list itself is deliberately
-  // omitted: import re-stamps records into whichever account is active and preserves that
-  // destination's identity, calendar, language, scheduling and visibility settings.
-  // Deliberately the raw useScopedData, not useActiveScopedData: the export must not apply the
-  // view-only active filter. It serializes whatever the store actually holds. In the demo build the store
-  // is the whole device blob, so archived + soft-deleted rows are retained in the backup. In server
-  // mode the store is hydrated from the active-only per-account read (readSlice `includeInactive:false`),
-  // so those rows are not present client-side. They remain in the server DB and belong to the
-  // complete per-tenant export / the admin "Archived & deleted" view, not this client-side
-  // snapshot. Using the raw hook keeps this export decoupled from the view-hiding rule (and complete in
-  // the demo build); the normal views use the active-only projection, this export does not.
+  // Exports exclude the account row because import preserves the destination company settings. Demo exports include the full local slice; privileged server exports fetch inactive rows, while other roles export their visible active slice.
   const importData = useStore((state) => state.importData);
   const setNotice = useStore((state) => state.setNotice);
   const role = useRole();
@@ -288,9 +278,7 @@ export function ImportExport() {
   // `role === null` stays importable. That is the off/demo/no-provider regression guard
   // (see permissionContext.ts); the server 403 remains the authoritative backstop either way.
   const canImport = !serverMode || role === null || canSeePrivateNames(role);
-  // A parsed-but-not-yet-applied import, awaiting the user's confirmation. Import
-  // is a full replace, so we never apply it silently: confirm first, and the
-  // apply goes through the undoable history path so ⌘Z restores the old data.
+  // A full-slice replacement needs explicit confirmation. Demo imports can be undone; server imports replace the authoritative slice without local undo.
   const {
     pending: pendingImport,
     readFile,
@@ -319,9 +307,6 @@ export function ImportExport() {
   };
 
   return (
-    // Lives in a Settings card, not the sidebar: a full-slice export/replace is a
-    // once-in-a-while administrative act, and it was crowding the day-to-day destinations. The
-    // enclosing SettingsSection owns the heading, help and disclosure, so this renders controls only.
     <div className="flex flex-col gap-3" data-testid="settings-data-tools">
       <DataToolControls
         canImport={canImport}
@@ -331,11 +316,7 @@ export function ImportExport() {
         onFile={(file) => void readFile(file)}
       />
 
-      {/* The import UI lock (see importBusy above): a non-dismissable blocking dialog for the few
-          seconds of POST + re-hydrate. onClose is a deliberate no-op, visibility is owned by
-          importBusy alone, so Escape/backdrop cannot dismiss it. The body carries tabIndex={0} so
-          the Modal's Tab-trap engages (it no-ops on a panel with zero focusables) and initial
-          focus lands on the status text for screen readers. */}
+      {/* The progress dialog stays open until the import and authoritative reload settle. Its no-op dismissal handler prevents Escape or backdrop interaction from exposing a stale slice. */}
       {importBusy && <ImportProgress requiresReload={importRequiresReload} />}
 
       {pendingImport && canImport && (

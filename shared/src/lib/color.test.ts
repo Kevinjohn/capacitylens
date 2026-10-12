@@ -14,7 +14,6 @@ import {
 import type { BarColorMaps } from "./color";
 import type { Allocation, Client, Project, Resource, Activity } from "../types/entities";
 
-// Build the id→entity maps resolveBarColor consumes, from plain arrays.
 function maps(
   over: { activities?: Activity[]; projects?: Project[]; clients?: Client[]; resources?: Resource[] } = {},
 ): BarColorMaps {

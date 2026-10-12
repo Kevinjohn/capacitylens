@@ -122,6 +122,7 @@ export function useProviderConnection({ provider, busy, setBusy }: UseProviderCo
       if (!response.ok || typeof result?.url !== "string") throw new Error("Invalid identity-link response.");
       window.location.assign(result.url);
     } catch (cause) {
+      // Log provider-link transport failures and restore the security form without exposing raw provider internals.
       console.error("SecuritySection: identity-provider link failed", cause);
       setError(m.settings_sso_connect_error());
       setBusy(false);

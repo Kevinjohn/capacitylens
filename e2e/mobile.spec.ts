@@ -96,7 +96,6 @@ test.describe("landscape phone", () => {
     await projects.click();
     await expect(page).toHaveURL(/\/projects$/);
 
-    // Icon mode remains device-global after reload and account selection.
     await page.reload();
     await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();
     await expect(page.getByTestId("app-sidebar")).toHaveAttribute("data-state", "collapsed");

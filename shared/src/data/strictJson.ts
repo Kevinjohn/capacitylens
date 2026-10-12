@@ -6,7 +6,8 @@ const NUMBER_CHAR = /[0-9eE+.-]/;
 
 type Frame = { keys: Set<string> | null };
 
-/** Reject excessive nesting, duplicate decoded object keys, and non-finite or unsafe-integer numbers. */
+/** Reject ambiguous or over-complex untrusted JSON before parsing.
+ * @throws Error for excessive nesting, duplicate decoded keys, nonfinite numbers or unsafe integers; JSON.parse still owns syntax validation. */
 export function assertUnambiguousJson(source: string): void {
   const frames: Frame[] = [];
   for (let i = 0; i < source.length;) {

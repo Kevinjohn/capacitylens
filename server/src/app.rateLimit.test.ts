@@ -44,7 +44,6 @@ describe("CAPACITYLENS_RATE_LIMIT on", () => {
     expect((await stateReq(app)).statusCode).toBe(200);
     const third = await stateReq(app);
     expect(third.statusCode).toBe(429);
-    // Canonical API { error } shape.
     expect(third.json()).toEqual({ error: "Rate limit exceeded." });
   });
 

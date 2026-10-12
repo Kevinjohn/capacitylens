@@ -1,19 +1,8 @@
 import { useEffect, useState } from "react";
 
-// A re-render alarm for lists whose rows change meaning when a deadline passes, an invite that
-// becomes "expired", a tombstone that becomes purgeable. Those rows are derived from `Date.now()`,
-// and React has no reason to re-render when wall-clock time moves, so without an alarm the row keeps
-// claiming "expires in 2 minutes" until something unrelated re-renders the section. Two Settings
-// sections had grown the same timer machine; this is that machine, once.
-//
-// Deliberately not a ticking clock: one timeout armed for the one deadline that matters next, so an
-// idle Settings tab does no periodic work at all.
-
-/** `setTimeout`'s 32-bit signed delay ceiling. A larger delay overflows in the browser and fires
- * immediately (and then repeatedly, once per re-armed render) instead of far in the future, so a
- * distant deadline must be clamped rather than passed through. A clamped wake is not the deadline:
- * the timer re-arms itself for the remainder (see below) rather than reporting a boundary that has
- * not been crossed. */
+// Clamp distant deadlines because browser timeout delays above the signed 32-bit
+// ceiling overflow into immediate callbacks. A clamped wake must re-arm without
+// claiming the deadline has passed.
 const MAX_TIMEOUT_DELAY = 2_147_483_647;
 
 interface DeadlineClockInput {
@@ -27,28 +16,20 @@ interface DeadlineClockInput {
  * Initially `readNow()` at mount. `pickNextDeadline` is asked, on every render, which deadline matters next
  * given the clock the hook is about to return; while it answers non-null the hook arms a single
  * timeout for that instant, and when the timeout fires the clock is re-read and the component
- * re-renders. Any `now`-derived state (expired / purgeable / "in 3 days") is therefore recomputed
- * exactly when it changes and not before. Answer `null` when nothing is pending. No timer is armed.
+ * re-renders. Any `now`-derived state is recomputed when the deadline passes, subject to browser
+ * timer throttling. Answer `null` when nothing is pending to leave no timer armed.
  *
- * Passing the clock in is what makes the chain self-sustaining. The caller's picker is nearly always
- * a `reduce` over rows that filters out deadlines already in the past, and the only clock that
- * filter may be compared against is this one: filtering against a fresh `Date.now()` would drop a
- * deadline the clock has not reached yet (the row would never be told it expired), and filtering
- * against a clock the caller holds separately makes each hook's state the other's input. The
- * circularity both call sites had grown independently.
+ * The picker compares deadlines with this clock. Using a fresh wall-clock reading could exclude a
+ * deadline before this state reaches it, leaving the component without the render that marks it due.
  *
  * `pickNextDeadline` does not need to be stable, and inline arrows are the expected call shape: the effect
  * depends on the picked instant, not on the function, so a new closure every render arms nothing new.
  * It must be pure. It runs during render, possibly more than once.
  *
- * A deadline further out than {@link MAX_TIMEOUT_DELAY} wakes the timer early; that wake re-arms for
- * the remainder inside the effect rather than advancing the clock, because a clock advanced before
- * the deadline would be a re-render with nothing to show, and, since the picked instant would be
- * unchanged, the effect would not re-run to arm the next leg.
+ * A clamped wake checks the deadline and re-arms inside the callback when time remains. Advancing
+ * the clock early would leave `nextAt` unchanged, so the effect would not run again to arm the next interval.
  *
- * This hook does not re-arm on `visibilitychange`/`pageshow`: a backgrounded tab may have its timers
- * throttled, so a deadline can be observed late after a long sleep. That is the behaviour both call
- * sites ship today and changing it is a product decision, not a refactor.
+ * Background tabs may throttle timers, so a deadline can be observed late after the tab resumes.
  *
  * @param input.pickNextDeadline - given the current clock, the next deadline as ms since epoch, or `null` if none.
  * @param input.readNow - reads the current time as ms since epoch.
@@ -62,13 +43,12 @@ export function useDeadlineClock({ pickNextDeadline, readNow }: DeadlineClockInp
     if (nextAt === null) return;
     let timer = 0;
     const arm = () => {
-      // `+ 1` nudges the wake-up strictly past the boundary: firing at exactly `nextAt` can leave a
-      // `deadline > now` comparison still true (and, for a deadline reached in the same tick, arm a
-      // zero-delay timer that re-renders without any state change).
+      // Wake strictly after the boundary because expiration consumers and the re-arm guard require
+      // the clock to be greater than nextAt.
       timer = window.setTimeout(
         () => {
           if (readNow() <= nextAt) {
-            arm(); // clamped (or an early-firing timer): the deadline is still ahead, wait out the rest
+            arm();
             return;
           }
           setClock(readNow());

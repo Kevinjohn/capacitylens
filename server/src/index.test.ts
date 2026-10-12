@@ -174,10 +174,7 @@ async function acceptsNamedCompanyConnection(): Promise<void> {
   }
 }
 
-// Each `boot` is a full entrypoint spawn through tsx with a 10 s budget of its own, and the SSO
-// refusal case boots twice. The per-test budget must cover the spawn budgets, not vitest's 5 s
-// default: on the shared CI runner the two-boot case already sat near that default before the
-// server module graph grew.
+// The SSO refusal case spawns two entrypoints; the test timeout must cover both child-process budgets.
 describe("server entrypoint startup refusals", { timeout: 30_000 }, () => {
   it("refuses a direct SSO-only flip without a verified provider link", async () => {
     const { database, directory } = await createSsoCutoverDatabase();

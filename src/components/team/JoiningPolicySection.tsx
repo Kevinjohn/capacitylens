@@ -116,6 +116,7 @@ function JoiningPolicyEditor({ settings, onSave }: Extract<JoiningPolicySectionP
       await onSave({ policy, approvedDomains: domains });
       setDomainsText(domains.join("\n"));
     } catch {
+      // Keep the joining-policy save failure visible so an unconfirmed policy change is not treated as saved.
       setError("save-failed");
     } finally {
       setSaving(false);
@@ -190,6 +191,7 @@ export function JoiningPolicySection(props: JoiningPolicySectionProps) {
       await navigator.clipboard.writeText(link);
       setCopyStatus("copied");
     } catch {
+      // Show copy failure so users do not assume the private link reached the clipboard.
       setCopyStatus("failed");
     }
   }

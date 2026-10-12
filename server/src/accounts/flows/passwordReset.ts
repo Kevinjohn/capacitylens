@@ -120,6 +120,7 @@ async function compensateAuthorityChange(
   try {
     await context.identity.revokePasswordResetCeremony({ targetPrincipalId, ceremonyId: ceremony.ceremonyId, command });
   } catch (revokeError) {
+    // Record the unresolved reset ceremony and surface compensation failure so operators can reconcile the still-live capability.
     recordTerminalOutcome(revokeError, () =>
       context.persistTerminalOutcome(
         () =>

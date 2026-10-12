@@ -17,7 +17,7 @@ function registerTargetCalendarTest() {
     const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
-    // Source works every day (not weekend-aware); target works Mon–Fri (weekend-aware).
+
     const src = requireCreated(
       st.addResource({
         kind: "person",
@@ -44,7 +44,7 @@ function registerTargetCalendarTest() {
         color: "#4",
       }),
     );
-    // A single-day allocation on Friday 2026-06-05, on the source resource.
+
     const a = requireCreated(
       st.addAllocation({
         resourceId: src.id,
@@ -73,7 +73,7 @@ function registerTargetCalendarTest() {
 
     const bar = screen.getByTestId("allocation-bar");
     fireEvent.pointerDown(bar, { clientX: 24, clientY: 25, button: 0 });
-    // Dropping on the destination shifts the allocation forward one day.
+
     document.dispatchEvent(new MouseEvent("pointermove", { clientX: 72, clientY: 125, bubbles: true }));
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 72, clientY: 125, bubbles: true }));
 
@@ -134,18 +134,14 @@ function registerTargetCalendarTest() {
 }
 
 function registerSourceCalendarTest() {
-  // June 2026: 06-04 is a Thursday, 06-05 a Friday, 06-08 a Monday, 06-09 a Tuesday.
-  // This person works Tuesday through Thursday, so Friday and Monday are unavailable.
   const midWeek = [2, 3, 4] as const;
   const monToFri = [1, 2, 3, 4, 5] as const;
 
-  /** The bar is drawn inset inside its column span, so its rendered width is not the raw geometry
-   * width. Use the same geometry owner as production rather than reimplementing the formula. */
+  // Use the production geometry owner because rendered bars are inset within their column span.
   const renderedWidth = (from: string, to: string) => {
     return buildAllocationBarInset(GEOM.xForDateInGeom(from), GEOM.widthForDates(from, to)).insetWidth;
   };
 
-  /** The bar's rendered left edge, from the same shared geometry owner as production. */
   const renderedLeft = (from: string, to: string) =>
     buildAllocationBarInset(GEOM.xForDateInGeom(from), GEOM.widthForDates(from, to)).insetLeft;
 
@@ -160,8 +156,7 @@ function registerSourceCalendarTest() {
     const dst = requireCreated(
       st.addResource(makeResourceDraft({ name: "Full", role: "Dev", color: "#4", workingDays: [...monToFri] })),
     );
-    // Two of Mid's working days (Thu 06-04 and Tue 06-09), drawn across the six calendar days
-    // between them because Mid works neither Friday nor Monday.
+
     const a = requireCreated(
       st.addAllocation({
         resourceId: src.id,
@@ -207,7 +202,6 @@ function registerSourceCalendarTest() {
       document.dispatchEvent(new MouseEvent("pointermove", { clientX: startX, clientY: 125, bubbles: true }));
     });
 
-    // The preview already shows the shrunk two-day span, so the bar does not jump on release.
     expect(parseFloat((bar as HTMLElement).style.width)).toBeCloseTo(renderedWidth("2026-06-04", "2026-06-05"), 5);
 
     act(() => {
@@ -216,17 +210,14 @@ function registerSourceCalendarTest() {
 
     const moved = getStoredAllocation(a.id);
     expect(moved.resourceId).toBe(dst.id);
-    // Two working days measured on Mid, re-placed on Full: Thursday and Friday.
+
     expect([moved.startDate, moved.endDate]).toEqual(["2026-06-04", "2026-06-05"]);
-    // The duration is preserved in working days, so the load per day is untouched.
+
     expect(moved.hoursPerDay).toBe(8);
   });
 
   it("a reassignment the drop will refuse previews nothing, so the bar does not stretch then snap back", () => {
-    // Mon 2026-06-08 - Fri 06-12 on a Mon-Fri person, dropped straight onto a Tue/Wed/Thu person.
-    // The unchanged Monday start is not one of theirs, so the commit refuses the drop; drawing the
-    // range it would otherwise take (five of their working days, running to 06-18) would stretch
-    // the bar to twice its width and then snap it back on release.
+    // A refused drop must preview the source-row range, not a destination range that would snap back after rejection.
     const st = useStore.getState();
     const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
@@ -337,7 +328,7 @@ function registerSourceCalendarTest() {
 
     const bar = screen.getByTestId("allocation-bar");
     const startX = GEOM.xForDateInGeom("2026-06-08") + 10;
-    // Mon 06-15 is not one of Tue/Wed/Thu, so the drop is still refused.
+
     const movedX = GEOM.xForDateInGeom("2026-06-15") + 10;
     fireEvent.pointerDown(bar, { clientX: startX, clientY: 25, button: 0 });
     act(() => {
@@ -494,7 +485,7 @@ function registerWeekendPreviewTests() {
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
     const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
-    // Mon–Fri allocation 06-01..06-05 (5 working days) → a 5-calendar-day-wide bar.
+
     const a = requireCreated(
       st.addAllocation({
         resourceId: r.id,
@@ -517,14 +508,14 @@ function registerWeekendPreviewTests() {
     const bar = screen.getByTestId("allocation-bar");
 
     fireEvent.pointerDown(bar, { clientX: 10, clientY: 10, button: 0 });
-    // Move +1 day, crosses the weekend, so the commit extends the end (Fri → following Mon).
+
     act(() => {
       document.dispatchEvent(new MouseEvent("pointermove", { clientX: 10 + dayWidth, clientY: 10, bubbles: true }));
     });
     // The preview width reflects the extended 7-day span (06-02..06-08), not the raw 5-day
     // bar: matching what the commit produces, so the bar doesn't jump on release.
     const previewedWidth = parseFloat((bar as HTMLElement).style.width);
-    // The drag spans roughly seven days after the inset, rather than five.
+
     expect(previewedWidth).toBeGreaterThan(6 * dayWidth - 12);
   });
 

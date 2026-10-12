@@ -71,10 +71,7 @@ describe("errorMessage", () => {
 });
 
 describe("domainErrorMessage", () => {
-  // Every `DomainErrorCode` (bar `date_span_too_long`, covered separately below) maps to its own
-  // fixed, translated string. Pinning the exact text, not just "is a non-empty string", kills
-  // both the StringLiteral mutants on the case labels and the ConditionalExpression mutants that
-  // collapse a case into an unconditional fallthrough.
+  // Assert each domain code’s exact translated copy so one code cannot silently fall through to another message.
   const fixedMessageCases: Array<[DomainErrorCode, string]> = [
     ["record_wrong_account", "That record does not belong to the active company."],
     ["reference_wrong_account", "That change references data outside the active company."],
@@ -108,15 +105,13 @@ describe("domainErrorMessage", () => {
   });
 
   it("keeps every code distinct so no two cases share a fallen-through message", () => {
-    // Guards against a case label being deleted/blanked out (StringLiteral mutant) and silently
-    // falling through to whichever case happens to sit above it in source order.
+    // A missing case must not silently reuse another domain code’s message.
     const messages = fixedMessageCases.map(([, expected]) => expected);
     expect(new Set(messages).size).toBe(messages.length);
   });
 
   it("interpolates the formatted span limit into date_span_too_long", () => {
-    // MAX_SPAN_DAYS is 36_500; toLocaleString("en-GB") groups thousands with a comma, so this
-    // pins both the ObjectLiteral (the `{ max }` payload) and StringLiteral ("en-GB") mutants.
+    // Pin grouped span-cap copy so interpolation and number formatting stay consistent.
     expect(resolveDomainErrorMessage("date_span_too_long")).toBe(
       `Date span cannot exceed ${MAX_SPAN_DAYS.toLocaleString("en-GB")} calendar days.`,
     );
@@ -130,16 +125,12 @@ describe("errorMessage edge cases around the plain-object statusText branch", ()
   });
 
   it("falls back to generic for a whitespace-only statusText", () => {
-    // Distinguishes the real `statusText.trim()` truthiness check from a mutant that reads
-    // `statusText` directly (untrimmed), which would treat "   " as a usable message.
+    // Whitespace-only status text must not replace the user-facing fallback.
     expect(resolveErrorMessage({ statusText: "   " })).toBe("An unexpected error occurred.");
   });
 
   it("ignores a truthy non-object error even when it carries a statusText property", () => {
-    // A function is truthy but `typeof fn === "function"`, not "object", so the real
-    // `error && typeof error === "object"` guard must skip it. A mutant that hard-codes this
-    // check to `true`, or loosens `&&` to `||`, would instead read the property below and leak
-    // it back out.
+    // Function properties must not be treated as error-object messages.
     const fn = (): void => undefined;
     (fn as unknown as { statusText?: string }).statusText = "leaked from a function";
     expect(resolveErrorMessage(fn)).toBe("An unexpected error occurred.");

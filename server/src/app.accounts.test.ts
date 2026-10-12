@@ -11,10 +11,7 @@ import type { AppData } from "@capacitylens/shared/types/entities";
 import type { AuditRecord, AuditSink } from "./audit";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
-// Endpoint coverage: GET /api/accounts + the new ?accountId= form of GET /api/state, in both
-// off (trusted-local, no gate) and auth-on (membership-existence guard) postures. The no-arg
-// GET /api/state whole read must stay byte-for-byte (backward-compat), asserted here and by the
-// whole existing app.test.ts suite running unchanged.
+// Scoped state reads enforce account membership; trusted-local mode also permits the whole-dataset read.
 
 const TS = "2026-01-01T00:00:00.000Z";
 const meta = () => ({ createdAt: TS, updatedAt: TS });
@@ -36,7 +33,6 @@ const project = (id: string, accountId: string, clientId: string) => ({
   ...meta(),
 });
 
-/** Two accounts, each with a client + project, seeded directly via insertAll (parent-first). */
 function seedTwo(db: Db): void {
   const data: AppData = {
     ...emptyAppData(),
@@ -128,22 +124,19 @@ describe("OFF mode — GET /api/accounts + GET /api/state?accountId=", () => {
 describe("auth-on (password) — membership-existence guard", () => {
   it("a member reads their account slice (200); a non-member is 403; /api/accounts lists only memberships", async () => {
     const { app, db } = await appWithAuth();
-    // Seed two accounts (directly, account creation flows aren't under test here).
+
     seedTwo(db);
     const { cookie, userId } = await signUp(app, "member@capacitylens.dev");
-    // Make the login an active member of a1 only (as an editor, asserted on /api/accounts below).
+
     upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
 
-    // Their account → 200 slice scoped to a1.
     const ok = await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie } });
     expect(ok.statusCode).toBe(200);
     expect(readStateIds(ok).accountIds).toEqual(["a1"]);
 
-    // A non-member account → 403 before any data leaves the DB.
     const denied = await call(app, { method: "GET", url: "/api/state?accountId=a2", headers: { cookie } });
     expect(denied.statusCode).toBe(403);
 
-    // /api/accounts returns only their membership (a1) with the caller's role, not the full account list.
     const accts = await call(app, { method: "GET", url: "/api/accounts", headers: { cookie } });
     expect(accts.statusCode).toBe(200);
     expect(accts.json()).toEqual([{ id: "a1", name: "Studio a1", role: "editor" }]);
@@ -168,7 +161,7 @@ describe("PATCH /api/accounts/:id foreign-accountId parity with PUT", () => {
       url: "/api/accounts/a2",
       payload: { ...account("a2"), accountId: "a1" },
     });
-    // OwnsRow concealment, the established PUT contract.
+
     expect(put.statusCode).toBe(404);
 
     const patch = await app.inject({
@@ -176,13 +169,12 @@ describe("PATCH /api/accounts/:id foreign-accountId parity with PUT", () => {
       url: "/api/accounts/a2",
       payload: { name: "Renamed", accountId: "a1" },
     });
-    // Parity: same assertion, same rejection.
+
     expect(patch.statusCode).toBe(404);
     const row = db.prepare(`SELECT name FROM accounts WHERE id = 'a2'`).get() as { name: string };
-    // Nothing was applied.
+
     expect(row.name).toBe("Studio a2");
 
-    // A PATCH without any accountId assertion keeps working:
     const plain = await app.inject({
       method: "PATCH",
       url: "/api/accounts/a2",

@@ -31,10 +31,8 @@ import { createSqliteAccountStore } from "./accountStore";
 // row restamped", not on the literal timestamp.
 
 const ACCOUNT = "a1";
-/** A second, untouched tenant: every case below must leave its rows exactly as seeded. */
 const OTHER_ACCOUNT = "a2";
 const SEEDED_AT = "2026-01-01T00:00:00.000Z";
-/** The revision the TS cascades stamp on survivors, any value later than SEEDED_AT works. */
 const REV = "2026-06-01T00:00:00.000Z";
 const meta = { createdAt: SEEDED_AT, updatedAt: SEEDED_AT };
 
@@ -108,12 +106,7 @@ const off = (id: string, resourceId: string, accountId = ACCOUNT) => ({
   ...meta,
 });
 
-/**
- * One account whose graph exercises every cascade edge at once, including the awkward ones:
- * an activity that belongs to project p3 but sits in a phase of p1 (survives a p1 delete with its
- * phaseId unbound), an internal activity with no project in that same phase, placeholders bound to
- * two different projects, and allocations/time off hanging off the resources.
- */
+// Interleave project and phase references so the parity fixture exercises cascade edges that are easy to miss.
 function seed(): AppData {
   const d = emptyAppData() as unknown as Record<string, unknown[]>;
   seedCatalog(d);
@@ -147,7 +140,6 @@ function seed(): AppData {
   return d as unknown as AppData;
 }
 
-/** The FK columns whose clearing (SET NULL / unbind) is part of each table's cascade contract. */
 const FK_COLUMNS = {
   accounts: [],
   clients: ["accountId"],
@@ -162,11 +154,7 @@ const FK_COLUMNS = {
 
 type Survivors = Record<string, Array<Record<string, unknown>>>;
 
-/**
- * The comparable shape of a post-delete dataset: per table, the surviving rows by id with their FK
- * columns (absent normalised to null, since the DB omits an optional column the TS side sets to
- * `undefined`) and, when `withRestamps`, whether the row's updatedAt moved off the seeded value.
- */
+// Normalize absent foreign keys to null because SQLite omits them while AppData uses undefined.
 type SurvivorsOptions = { data: AppData; withRestamps: boolean };
 function survivors({ data, withRestamps }: SurvivorsOptions): Survivors {
   const source = data as unknown as Record<string, Array<Record<string, unknown>>>;
@@ -194,11 +182,6 @@ function withSeededDb<T>(use: (db: Db) => T): T {
   }
 }
 
-/**
- * Run the same delete both ways and compare the survivors.
- * @param sql  the real database path, a purge through the AccountStore, or a plain deleteRow for a
- * table with no lifecycle purge (where only the FK clauses act).
- */
 function expectParity(
   transform: (data: AppData) => AppData,
   sql: (db: Db) => void,

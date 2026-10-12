@@ -33,9 +33,7 @@ function ClosureItems({ closures, onEdit, onDelete }: ClosureItemsProps) {
   return (
     <ItemGroup className="rounded-md border bg-card">
       {closures.map((closure, index) => {
-        // The buttons' accessible names carry the row's own visible range, so speaking what is on
-        // screen addresses the button a voice-control user is looking at (see dateDisplay.ts's
-        // "COLLAPSE IN ACCESSIBLE NAMES" for when a name states both endpoints in full instead).
+        // Include the row's visible date range in each action's accessible name so voice input identifies the correct closure.
         const range = formatShortDateRange(closure.startDate, closure.endDate);
         const labelContext = { name: closure.name, range };
         return (

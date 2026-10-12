@@ -226,7 +226,7 @@ function exportFile(accountId: string) {
       activities: [activity({ id: "src-t", accountId, projectId: "src-p" })],
       allocations: [
         allocation({ id: "src-al", accountId, resourceId: "src-r", activityId: "src-t" }),
-        // Dropped: dangling activity.
+
         allocation({ id: "bad", accountId, resourceId: "src-r", activityId: "no-activity" }),
       ],
       timeOff: [],
@@ -297,15 +297,15 @@ async function testImportWithFreshIds(): Promise<void> {
   });
   expect(res.statusCode).toBe(200);
   const out = readImportSummary(res);
-  // Client, project, resource, activity, 1 valid allocation.
+
   expect(out.imported).toBe(5);
-  // The dangling allocation.
+
   expect(out.skipped).toBe(1);
   const s = await readValidatedState(app);
   const proj = readFirstProject(s.projects);
   expect(proj.id).not.toBe("src-p");
   expect(proj.accountId).toBe("a1");
-  // FK rewired to the new project id.
+
   expect(readFirstProjectId(s.activities)).toBe(proj.id);
   expect(s.allocations).toHaveLength(1);
 }
@@ -466,7 +466,7 @@ async function testDanglingImportForeignKeys(): Promise<void> {
       accounts: [],
       clients: [],
       disciplines: [],
-      // Dropped: missing client.
+
       projects: [project("dp", "x", "ghost-client")],
       phases: [
         {
@@ -478,9 +478,9 @@ async function testDanglingImportForeignKeys(): Promise<void> {
         },
         // Dropped.
       ],
-      // Kept, discipline unbound.
+
       resources: [{ ...person("dr", "x"), disciplineId: "ghost-disc" }],
-      // Kept, unbound to a general activity.
+
       activities: [activity({ id: "dt", accountId: "x", projectId: "ghost-project" })],
       allocations: [],
       timeOff: [],
@@ -497,10 +497,10 @@ async function testDanglingImportForeignKeys(): Promise<void> {
   expect(s.projects).toHaveLength(0);
   expect(s.phases).toHaveLength(0);
   expect(s.activities).toHaveLength(1);
-  // Unbound so general activity.
+
   expect(readFirstProjectId(s.activities)).toBeUndefined();
   expect(s.resources).toHaveLength(1);
-  // Unbound discipline.
+
   expect(readFirstResource(s.resources).disciplineId).toBeUndefined();
 }
 

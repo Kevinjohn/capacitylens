@@ -93,11 +93,7 @@ const NONEMPTY_CAPACITYLENS = JSON.stringify({
 
 type Page = import("@playwright/test").Page;
 
-/**
- * Import and export live in a Settings card, so every import now
- * starts by opening Settings. Clicking the link while already on `/settings` is a harmless no-op,
- * which keeps this callable from any starting page.
- */
+// Open Settings before importing so this helper works from any application route.
 const importFile = async (page: Page, name: string, body: string) => {
   await page.getByRole("link", { name: "Settings", exact: true }).click();
   if (!(await page.getByTestId("settings-data-tools").isVisible())) {
@@ -111,7 +107,6 @@ const importFile = async (page: Page, name: string, body: string) => {
   });
 };
 
-/** Back to the schedule, where the seeded/imported rows are asserted. */
 const openSchedule = (page: Page) => page.getByRole("link", { name: "Schedule", exact: true }).click();
 
 // Covers US-DAT-02..04 and demo first-load seeding. Export round-trip and reset-on-reload behavior
@@ -140,7 +135,6 @@ function registerImportShowsConfirmationReplacesAllTest() {
     await expect(dialog).toContainText(/undo this with/i);
     await dialog.getByRole("button", { name: "Cancel" }).click();
 
-    // The seeded resource remains after the import is canceled.
     await openSchedule(page);
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
   });
@@ -153,7 +147,6 @@ function registerConfirmingImportReplacesDatasetRestoresTest() {
     await importFile(page, "incoming.json", NONEMPTY_CAPACITYLENS);
     await page.getByRole("alertdialog", { name: "Import data?" }).getByRole("button", { name: "Replace data" }).click();
 
-    // Replaced → the linked imported graph renders and seeded-only data is gone.
     await openSchedule(page);
     await expect(page.getByText("Imported Person")).toBeVisible();
     await expect(page.getByTestId("allocation-bar").filter({ hasText: "Imported Activity" })).toBeVisible();
@@ -185,9 +178,7 @@ function registerRejectsNonCapacitylensFileNoticeTest() {
     await openApp(page);
     await importFile(page, "random.json", JSON.stringify({ hello: "world" }));
 
-    // Surfaces the specific parseData reason for a JSON object with no CapacityLens keys, not a generic
-    // catch-all. Shown via a Sonner error toast now (was the hand-rolled Toast's role="alert");
-    // assert on the message text, which is Sonner-DOM-agnostic.
+    // Assert the specific refusal message so changing toast markup does not weaken error coverage.
     await expect(page.getByText(/not CapacityLens data/i)).toBeVisible();
     await openSchedule(page);
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
@@ -199,9 +190,6 @@ function registerRejectsEMPTYCapacitylensFileWouldTest() {
     await openApp(page);
     await importFile(page, "empty.json", EMPTY_CAPACITYLENS);
 
-    // No confirmation dialog, an error notice naming the specific reason (a CapacityLens-shaped but
-    // empty file → would silently wipe the account), and the seeded data is preserved. The notice
-    // is a Sonner error toast now; assert on its message text (Sonner-DOM-agnostic).
     await expect(page.getByText(/no CapacityLens records/i)).toBeVisible();
     await expect(page.getByRole("alertdialog", { name: "Import data?" })).toHaveCount(0);
     await openSchedule(page);

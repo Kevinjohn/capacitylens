@@ -44,7 +44,6 @@ function renderView(
   );
 }
 
-/** The capability tick list is collapsed by default; every assertion about it must open it. */
 function showCapabilities(): void {
   fireEvent.click(screen.getByTestId("capabilities-toggle"));
 }

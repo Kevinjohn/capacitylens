@@ -10,7 +10,6 @@ const rowsReference = (record: Record<string, unknown>, table: string, field: st
       (row as Record<string, unknown>)[field] !== "",
   );
 
-/** One foreign key a returned `child` row can use to point at a row in `parent`. */
 type FkEdge = {
   [K in AppDataKey]: {
     child: K;
@@ -45,11 +44,8 @@ const FK_EDGES = [
   { child: "allocations", parent: "activities", field: "activityId" },
 ] as const satisfies readonly FkEdge[];
 
-// Compile-completeness guard in the same idiom as SCOPED_KEYS/IMPORTED_FIELDS: the accounts parent
-// used to be derived by iterating SCOPED_KEYS, so a new scoped table would automatically have been
-// covered. Enumerating the edges gives up that automatism, and this witness buys it back, adding a
-// scoped table without its `accountId` edge above fails the build instead of silently letting a
-// version-skewed server drop `accounts` while that table's rows still reference it.
+// Require an accountId edge for every scoped table at compile time so missing-table
+// compatibility cannot silently remove a referenced account table.
 type MissingAccountScopeEdge = Exclude<
   ScopedEntityKey,
   Extract<(typeof FK_EDGES)[number], { parent: "accounts" }>["child"]

@@ -95,11 +95,8 @@ const ALPHABET: readonly ModelOperation[] = [
 const nextRevision = (previous?: string): string =>
   new Date(Math.max(SERVER_NOW, previous === undefined ? 0 : Date.parse(previous) + 1)).toISOString();
 
-/**
- * The deliberately naive specification: apply each operation to one plain object, in order, and
- * restore attribution immediately after that operation. It shares no code with the projection or
- * database implementation. A request-level validation failure rolls the atomic batch back.
- */
+// This reference applies operations to plain objects without sharing projection or database implementation.
+// Validation failure rolls back the entire reference batch.
 function interpret(sequence: readonly ModelOperation[]): { accepted: boolean; state: ModelState } {
   const initial: ModelState = {
     activity: { ...INITIAL_ACTIVITY },
@@ -208,6 +205,7 @@ function createSequentialInterpretationTest(): void {
         expect(actualAllocation).toEqual(expected.state.allocation ?? null);
         expect(receiptRewrites).toEqual(expected.state.rewrite ? [expected.state.rewrite] : []);
       } catch (error) {
+        // Collect each sequence’s assertion failure so the model run reports all mismatches through the final assertion.
         failures.push(
           `${sequence.map((operation) => operation.label).join(" → ")}: ${error instanceof Error ? error.message : String(error)}`,
         );

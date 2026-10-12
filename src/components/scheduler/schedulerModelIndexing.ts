@@ -39,13 +39,7 @@ export function resolveFirstDateIndexAtOrAfter(dates: ISODate[], target: ISODate
   return lowerIndex;
 }
 
-/** Bucket date-ranged rows (allocations, time off) onto the dates the model will actually ask about:
- * each row is listed under every queried date its [startDate, endDate] covers. A per-day capacity
- * lookup then passes only the handful of rows that touch that day instead of rescanning the
- * resource's whole list, making the day loop O(dates + coverage) rather than O(dates × rows), the
- * same trick `buildCapacityAdvisory` documents in capacity.ts. Insertion order inside each bucket follows
- * `rows`, so the hours capacity.ts sums are added in the same order as a full scan and the result is
- * bit-for-bit identical (float addition is not associative). */
+/** Indexes each row under the queried dates it covers so capacity lookup reads only overlapping rows. Preserve source insertion order because floating-point sums depend on it. */
 export function bucketByCoveredDate<T extends { startDate: ISODate; endDate: ISODate }>(
   rows: T[],
   dates: ISODate[],
@@ -64,11 +58,7 @@ export function bucketByCoveredDate<T extends { startDate: ISODate; endDate: ISO
   return byDate;
 }
 
-/** Index rows (allocations, time off) by the resource they belong to, so building a row is a Map
- * lookup instead of a full-array scan per resource. `include` avoids an intermediate filtered
- * array, while `visit` observes every source row before filtering. Insertion order inside each
- * bucket follows `rows`, which the capacity sums below depend on (float addition is not
- * associative). */
+/** Indexes rows by resource, preserving input order. The visit callback sees each source row before inclusion filtering, so diagnostics are not lost. */
 export function groupByResourceId<T extends { resourceId: ID }>(
   rows: T[],
   options: {

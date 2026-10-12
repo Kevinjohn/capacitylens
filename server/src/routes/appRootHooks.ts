@@ -39,6 +39,7 @@ function resolveCorsOrigins(corsOrigin: string): Set<string> {
         try {
           parsed = new URL(configuredOrigin);
         } catch (cause) {
+          // Refuse malformed credentialed CORS configuration before serving requests, retaining the URL parse cause.
           throw new Error(`Invalid CORS origin ${JSON.stringify(configuredOrigin)}: expected a bare HTTP(S) origin.`, {
             cause,
           });
@@ -115,6 +116,7 @@ function installBoundedJsonParser(app: FastifyInstance): void {
       if (!req.url.startsWith("/api/auth/")) assertUnambiguousJson(source);
       void defaultParser(req, source, done);
     } catch (cause) {
+      // Classify invalid UTF-8 or ambiguous JSON as a client parse refusal so malformed bytes never reach write handlers.
       const error = new Error(cause instanceof Error ? cause.message : "Invalid JSON input.") as Error & {
         code: string;
         statusCode: number;
@@ -165,6 +167,7 @@ function createSecurityEvent({ app, options, logOn }: CreateSecurityEventOptions
       const safeEvent = typeof event.path === "string" ? { ...event, path: redactSecretUrl(event.path) } : event;
       options.securityLog?.(safeEvent);
     } catch (error) {
+      // Surface telemetry-transport failure through local diagnostics without failing the request it was meant to report.
       if (logOn) app.log.error(error, "security event logging failed");
       else console.error("capacitylens-server: security event logging failed");
     }
@@ -212,11 +215,9 @@ function installConnectionHooks(
   });
 }
 
-/** Hold the authentication transaction gate for each API request, from arrival until the response
- * closes, so the request's writes never meet a library transaction left open across an await.
- * Fastify binds body parsing to the request's async context, so the slot stays visible to a library
- * transaction the handler starts. The slot spans the whole request, so a long-lived streaming route
- * would stall every sign-in. */
+// Hold the auth transaction gate from arrival through response closure so library awaits cannot overlap application writes.
+// Keep body parsing in the request context so transactions can yield their own shared slot.
+// A streaming response holds this gate until it closes and can block authentication work.
 function installAuthTransactionGate(app: FastifyInstance, db: Db): void {
   const gate = authTransactionGateFor(db);
   app.addHook("onRequest", function holdAuthTransactionGate(req, reply, done) {
@@ -230,6 +231,8 @@ function installAuthTransactionGate(app: FastifyInstance, db: Db): void {
   });
 }
 
+/** Installs request parsing, transaction coordination, security telemetry and error-response boundaries on the root app.
+ * Root ownership preserves these boundaries for plugin routes and not-found responses. */
 export function installRootHooks({ app, db, runtime, config, options }: InstallRootHooksInput) {
   const { auditDrainer, repliesWithAuditDrain } = runtime;
   const { logOn, rateLimitMax } = config;
@@ -240,8 +243,7 @@ export function installRootHooks({ app, db, runtime, config, options }: InstallR
   // Fail-closed: an omitted corsOrigin locks to the localhost allow-list, not a wildcard.
   const corsOrigin = options.corsOrigin ?? DEFAULT_CORS;
   const corsOrigins = resolveCorsOrigins(corsOrigin);
-  // 500s with logging on go through the request-scoped logger (one parseable JSON line,
-  // correlated with the request); off keeps today's bare console.error.
+  // Route 500 diagnostics through the request logger when enabled; otherwise use console.error.
   const sendFail = (reply: FastifyReply, error: unknown) =>
     fail(reply, error, logOn ? (e: unknown) => reply.log.error(e) : undefined);
   const accountFail = (reply: FastifyReply, error: unknown) => {

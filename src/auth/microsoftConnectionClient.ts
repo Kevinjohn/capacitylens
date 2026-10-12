@@ -47,6 +47,7 @@ function parseProviderUrl(value: unknown): string {
   try {
     url = new URL(value, window.location.href);
   } catch (error) {
+    // Treat an unusable provider continuation URL as an upstream failure so the caller can surface the connection error safely.
     throw new MicrosoftConnectionError(502, { cause: error });
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") throw new MicrosoftConnectionError(502);

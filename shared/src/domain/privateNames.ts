@@ -26,12 +26,17 @@ export function privateCodeNameFallback(id: unknown): string {
   return `Confidential #${shortIdTag(id)}`;
 }
 
+const CODE_NAME_QUOTES = new Set(['"', "“", "”"]);
+
 /** Strip quotation marks a user may have typed around a code name. Quotes are display chrome, not data. */
 export function normalizeCodeName(value: string): string {
-  return value
-    .trim()
-    .replace(/^["“”]+|["“”]+$/gu, "")
-    .trim();
+  // Index scan rather than an end-anchored regex, which backtracks quadratically on long quote runs.
+  const trimmed = value.trim();
+  let start = 0;
+  let end = trimmed.length;
+  while (start < end && CODE_NAME_QUOTES.has(trimmed.charAt(start))) start++;
+  while (end > start && CODE_NAME_QUOTES.has(trimmed.charAt(end - 1))) end--;
+  return trimmed.slice(start, end).trim();
 }
 
 /** Code names always render inside straight double quotation marks. */

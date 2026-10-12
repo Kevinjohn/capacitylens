@@ -88,7 +88,6 @@ export const scopedData = (accountId: string, over: Partial<AppData>): AppData =
     ],
   });
 
-// Drop known table keys from a slice to simulate an older server omitting them (rolling-deploy skew).
 /** Removes selected table keys to model an older server response. */
 export const omitKeys = (data: AppData, ...keys: string[]): Record<string, unknown> =>
   Object.fromEntries(Object.entries(data).filter(([key]) => !keys.includes(key)));
@@ -181,7 +180,6 @@ export const required = <T>(value: T | null | undefined, message = "expected tes
   return value;
 };
 
-/** The verified `/me` snapshot every offline scenario is cached against. */
 const OFFLINE_IDENTITY: OfflineAuthSnapshot = {
   authMode: "password-only",
   user: {
@@ -208,7 +206,6 @@ export async function withOfflineCache(run: () => Promise<void>): Promise<void> 
   }
 }
 
-// Helper: pull the parsed ops array out of a recorded /api/batch POST.
 /** Extracts parsed operations from a recorded batch fetch call. */
 export const batchOps = (call: unknown[] | undefined): ReceiptOp[] => {
   if (!call) throw new Error("expected a recorded batch call");

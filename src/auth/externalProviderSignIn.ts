@@ -2,10 +2,7 @@ import { authClient } from "./authClient";
 import { buildExternalSignInErrorUrl } from "./externalSignInError";
 import type { AuthProviderInfo } from "./authContext";
 
-// Only imported from LoginScreen.tsx and ReauthDialog.tsx. Both are React.lazy chunks in
-// AuthProvider, and importing authClient here (the same way those two files already do) keeps this
-// module inside the same lazy-loading boundary: Better Auth's client still never enters the main
-// bundle just because sign-in/re-auth dispatch was factored out.
+// Keep provider dispatch inside lazy authentication entry points so importing the shared operation does not load the auth client in the initial bundle.
 
 /** The one piece both LoginScreen's initial sign-in and ReauthDialog's step-up re-auth share:
  * starting an external provider flow with the current URL as the redirect target on success and

@@ -77,11 +77,7 @@ export function useOwnerSetup({
 }) {
   const [name, setName] = useState("");
   const [setupToken, setSetupToken] = useState("");
-  // Flips true the moment our owner-setup submit is refused because someone else's setup
-  // already won the race (server's live per-request gate, see server/src/auth.ts). needsSetup
-  // is a one-time snapshot from page load, so a second tab/operator can still see the create-owner
-  // form after the workspace is bootstrapped; this local override forces the ordinary sign-in
-  // form instead of leaving the loser stuck on a dead-end create-owner form. Never flips back.
+  // Another setup attempt can consume the first-owner gate after the boot snapshot was read. A refusal switches this form to ordinary sign-in.
   const [setupClosed, setSetupClosed] = useState(false);
   const createOwner = async (e: FormEvent) => {
     e.preventDefault();
@@ -105,12 +101,7 @@ export function useOwnerSetup({
         fetchOptions: { headers: { [SETUP_TOKEN_HEADER]: cleanSetupToken } },
       });
       if (failure) {
-        // The live per-request gate (server/src/auth.ts) closes the instant a user exists, so a
-        // second tab/operator racing our own first-run setup gets refused with this exact typed
-        // code: Better Auth's disableSignUp shape, reused verbatim by our hook. That's the one
-        // failure that isn't really "your input was wrong": someone else already finished setup,
-        // so drop out of setup mode into ordinary sign-in rather than leave the loser stuck on a
-        // dead-end create-owner form with no recovery but a manual reload.
+        // A setup-gate refusal means another owner already exists, so return to ordinary sign-in rather than treating it as invalid input.
         if (failure.code === "EMAIL_PASSWORD_SIGN_UP_DISABLED") {
           setError(m.login_setup_taken());
           setSetupClosed(true);

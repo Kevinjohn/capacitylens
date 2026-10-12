@@ -2,18 +2,7 @@ import { normalizeAccountWorkingDays } from "../accountWorkingDays";
 import { CAPACITY_OVERVIEW_ACCESS_VALUES, DATE_STYLES, SCHEDULING_MODES } from "../../types/entities";
 import type { Account } from "../../types/entities";
 
-/**
- * Every optional boolean preference on an account. Each is dropped rather than persisted when a
- * hand-edited value isn't a real boolean, so its absence reads back as the documented default on
- * the client, which differs per field and is what `Account` documents:
- * disciplinesEnabled            absent = true  (disciplines shown)
- * placeholdersEnabled           absent = false (placeholders hidden out of the box)
- * externalEnabled               absent = false (external resources hidden out of the box)
- * inlineActivityCreateEnabled   absent = false (inline "Add activity" hidden)
- * showTaskFieldInSchedule       absent = false (allocation task hidden)
- * Dropping junk, rather than coercing it, is what keeps a `false`-defaulting flag from turning on
- * because someone typed "no" into the file.
- */
+// Drop malformed boolean preferences so each reader uses its declared default instead of coercing strings such as "no" to true.
 const ACCOUNT_BOOLEAN_FIELDS = [
   "disciplinesEnabled",
   "placeholdersEnabled",
@@ -22,7 +11,6 @@ const ACCOUNT_BOOLEAN_FIELDS = [
   "showTaskFieldInSchedule",
 ] as const satisfies readonly AccountBooleanField[];
 
-/** Every boolean-valued optional preference declared on `Account`. */
 type AccountBooleanField = {
   [K in keyof Account]-?: boolean extends NonNullable<Account[K]> ? K : never;
 }[keyof Account];
@@ -33,16 +21,7 @@ type MissingAccountBooleanField = Exclude<AccountBooleanField, (typeof ACCOUNT_B
 const accountBooleanFieldsAreComplete: MissingAccountBooleanField extends never ? true : never = true;
 void accountBooleanFieldsAreComplete;
 
-/**
- * Optional account fields constrained to a fixed value set. Anything outside it is dropped:
- * schedulingMode: absence reads as 'hourly', the original behaviour.
- * language: English-only for now; absence reads as 'en'.
- * capacityOverviewAccess: absence reads as owner/admin-only access.
- * dateStyle: absence reads as 'day-month', the historical format.
- */
-/** Every Account property whose type is a finite string union, plus `language`, which is
- * intentionally typed as `string` until additional locales are supported. The mapped type makes
- * a new enum-valued Account field fail the build until its allowed values are added below. */
+// Require allowed-value lists for finite-string fields; include `language` explicitly because its type is `string`.
 type AccountEnumField =
   | "language"
   | {
@@ -70,8 +49,7 @@ export function sanitizeAccount(record: Record<string, unknown>, storedWeekStart
   sanitizeTimezone(record);
   const repairWeekStartsOn = sanitizeWeekStartsOn(record, storedWeekStartsOn);
   record.workingDays = normalizeAccountWorkingDays(record.workingDays, repairWeekStartsOn === 0 ? 0 : 1);
-  // Drop rather than coerce: see ACCOUNT_BOOLEAN_FIELDS / ACCOUNT_ENUM_FIELDS above for the
-  // per-field default each absence reads back as.
+  // Remove invalid values; readers apply defaults when optional fields are absent.
   sanitizeOptionalPreferences(record);
   return record;
 }
@@ -100,7 +78,7 @@ function sanitizeTimezone(record: Record<string, unknown>): void {
   try {
     new Intl.DateTimeFormat(undefined, { timeZone: record.timezone });
   } catch {
-    // Imported invalid time zones are removed so the account can use its default.
+    // Invalid time zones are removed so the account can use its default.
     delete record.timezone;
   }
 }

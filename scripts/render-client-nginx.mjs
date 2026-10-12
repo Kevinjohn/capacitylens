@@ -16,6 +16,7 @@ export function parseClientApiOrigin(apiValue, demoValue) {
   try {
     parsed = new URL(raw);
   } catch (error) {
+    // Surface URL parsing with its cause because an invalid API origin must refuse the build.
     throw new Error("VITE_CAPACITYLENS_API must be an absolute HTTP(S) origin.", { cause: error });
   }
   if (

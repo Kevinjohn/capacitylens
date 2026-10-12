@@ -14,22 +14,18 @@ test.describe("fake sign-in (cosmetic demo gate)", () => {
     await freezeBrowserDate(page);
     await page.goto("/");
 
-    // The demo sign-in is the first screen, the picker is walled off behind it.
     await expect(page.getByRole("heading", { name: "Choose an account" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
 
-    // No popup, no password: clicking the account advances to the picker.
     await page.getByTestId("fake-sign-in").click();
     await expect(page.getByRole("heading", { name: "Choose a company" })).toBeVisible();
     await expect(page.getByText("Signed in as Bruce Wayne")).toBeVisible();
 
-    // Pick a company → the schedule and its non-blocking first-use orientation.
     await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();
     await expect(page.getByRole("heading", { name: "How CapacityLens works" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Schedule" })).toBeVisible();
 
-    // Accessibility oracle while the orientation and ordinary app remain available together.
     const introResults = await new AxeBuilder({ page }).analyze();
     const introBlocking = introResults.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
     expect(
@@ -54,12 +50,10 @@ test.describe("fake sign-in (cosmetic demo gate)", () => {
     await page.getByTestId("fake-sign-in").click();
     await expect(page.getByRole("heading", { name: "Choose a company" })).toBeVisible();
 
-    // The sign-in persists (device-global): a reload lands straight on the picker.
     await page.reload();
     await expect(page.getByRole("heading", { name: "Choose a company" })).toBeVisible();
     await expect(page.getByTestId("fake-sign-in")).toHaveCount(0);
 
-    // Sign out from the picker → back behind the demo sign-in, and it sticks on reload.
     await page.getByRole("button", { name: "Sign out" }).click();
     await expect(page.getByRole("heading", { name: "Choose an account" })).toBeVisible();
     await page.reload();

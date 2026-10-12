@@ -26,9 +26,7 @@ const capacityAdvisoryMock = vi.hoisted(() =>
   })),
 );
 
-// Both entry points share one mock: the repeat path advises against a batch-shared load bucket
-// (`buildCapacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
-// care only about the advisory verdicts the modal renders.
+// Single and repeat advisory paths share one verdict stub so these modal tests exercise presentation rather than load calculations.
 vi.mock("@/lib/capacity", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/capacity")>()),
   buildCapacityAdvisory: capacityAdvisoryMock,
@@ -108,12 +106,10 @@ describe("AllocationModal Enter key submission", () => {
       />,
     );
 
-    // Type an activity name into the inline "add new activity" input and press Enter
     await user.click(screen.getByLabelText("New activity name"));
     await user.type(screen.getByLabelText("New activity name"), "Brand new activity");
     await user.keyboard("{Enter}");
 
-    // The activity should have been created, modal not closed
     expect(onClose).not.toHaveBeenCalled();
     const activities = useStore.getState().data.activities;
     expect(activities.find((activity) => activity.name === "Brand new activity")).toMatchObject({ kind: "internal" });

@@ -28,8 +28,7 @@ function currentCacheNamespace(): string {
   return `${window.location.origin}|api:${window.location.origin}`;
 }
 
-/** Open the offline database the way the module under test does, creating both stores when the
- * scenario writes before any production code has. Every raw helper below shares it. */
+// Create both stores when fixtures write before production has opened the database.
 function openTestDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 2);
@@ -312,7 +311,7 @@ describe("offline tenant cache cross-tab boundaries", () => {
   registerTenantCacheHooks();
   it("observes offline preference and cleanup boundaries from another tab", async () => {
     localStorage.removeItem("capacitylens/offlineRead");
-    await cacheAuthSnapshot(authSnapshot("user-a")); // establishes the live page's identity scope
+    await cacheAuthSnapshot(authSnapshot("user-a"));
     const preferenceChanged = vi.fn();
     const unsubscribe = subscribeOfflinePreference(preferenceChanged);
 

@@ -9,11 +9,7 @@ import { formatShortDate } from "@/lib/dateDisplay";
 import { resolveRepeatPattern } from "@/lib/repeatingAllocations";
 import type { RepeatSelection } from "@/lib/repeatingAllocations";
 
-// The allocation form's decision layer, lifted out of AllocationModal so the rules can be read (and
-// tested) without a render. Nothing here touches React or the store: the modal supplies the already-
-// derived view of its own state, and gets back either the first problem to report or the end date to
-// persist. Message wording still lives here because a rule and the sentence that explains it are the
-// same decision, the modal only routes the result into `fail`.
+// The pure draft boundary returns the first field problem or derived end date, leaving the modal to display the result and commit through the store.
 
 /** The first rule a draft breaks: the field to focus (null = form-level) and what to say. */
 export interface AllocationDraftProblem {
@@ -56,9 +52,7 @@ type CountFieldInput = Pick<
 >;
 type Fail = (field: AllocationDraftProblem["field"], message: AllocationDraftProblem["message"]) => void;
 
-/** The Start + "Days over" pair the two span modes share. The date-domain message is distinct from
- * the plain range one: near year 9999 the cap is the calendar itself, not MAX_SPAN_DAYS, and
- * telling the user "max 36,500" there would be a lie. */
+// Distinguish the date-domain boundary from the product span cap so near-year-9999 input receives truthful guidance.
 function validateCountField(
   { startDate, validDaysOver, spanFitsDateDomain, spanLimitedByDateDomain, maximumDaysOver }: CountFieldInput,
   fail: Fail,
@@ -189,17 +183,10 @@ export function validateAllocationDraft(input: AllocationDraftValidationInput, f
   // External and hourly allocations both use the raw Start/End inputs. Validate this once so
   // neither mode can persist a range the advisory deliberately refuses to enumerate.
   if (!validateTypedDateRange(input, fail)) return false;
-  // Blocks and days derive their end date from the same (start, days-over) pair. Days then adds
-  // its own work-volume field on top.
+
   if (!validateModeFields(input, fail)) return false;
   if (!validateRepeat(input, fail)) return false;
-  // Single anti-silent-clamp guard for every load-carrying mode (days + hourly; external is a
-  // 0-load span and blocks derive a safe block load, so both are excluded). The store clamps an
-  // allocation's load into [0, MAX_HOURS_PER_DAY] and collapses a non-finite value to 0, so a
-  // derived load that's NaN (a part-typed "Days over" → hoursPerDayFor returns NaN) or above the
-  // cap (an Enter-submit before the field's on-blur clamp) would silently save the wrong volume.
-  // Require a finite load in (0, MAX_HOURS_PER_DAY] instead, so the preview ("…h/day") is exactly
-  // what saves, failing to the field the user can act on in each mode.
+  // Reject non-finite or over-limit derived load before persistence clamps it, so saving cannot silently reduce the entered work volume.
   return validateEffectiveHours(input, fail);
 }
 

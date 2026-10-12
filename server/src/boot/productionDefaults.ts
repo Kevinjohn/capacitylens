@@ -13,13 +13,11 @@ const UNSET_DEFAULTS: ReadonlyArray<readonly [string, string]> = [
   ["CAPACITYLENS_AUDIT_STDOUT", "1"],
 ];
 
-/** Directory of a file-backed database, or null for an in-memory or URI database. */
 function databaseDirectory(databasePath: string): string | null {
   if (databasePath === "" || databasePath === ":memory:" || databasePath.startsWith("file:")) return null;
   return dirname(databasePath);
 }
 
-/** Origin of the configured public URL, or null when it is unset or unparseable. */
 function publicOrigin(publicUrl: string | undefined): string | null {
   const trimmed = publicUrl?.trim();
   return trimmed && URL.canParse(trimmed) ? new URL(trimmed).origin : null;

@@ -60,7 +60,7 @@ function requireAccountActor(req: FastifyRequest): NonNullable<FastifyRequest["a
   return req.accountActor;
 }
 
-/** Resolve real membership first, then substitute only the active account's masquerade target role. */
+// Resolve real membership before substituting a permitted masquerade role for its active account.
 function createEffectiveRoleResolver(runtime: AppRuntime): ResolveEffectiveRole {
   const { accountAdminPort, endMasquerade, masquerades } = runtime;
   return function resolveEffectiveRole(req, accountId) {
@@ -133,10 +133,8 @@ function requireFreshSession(
   securityEvent: RootHelpers["securityEvent"],
 ): boolean {
   if (action === "read" || action === "write" || optsOutOfFreshness(options)) return true;
-  // Privileged actions fail closed when their session timestamp is absent or malformed. A fresh
-  // sign-in always restores access by minting a dated session, so this cannot permanently lock out
-  // an administrator. Date.parse of the empty fallback is NaN, which fails the finite check.
-  // The inclusive deadline matches session-activity enforcement: the bound is the last safe instant.
+  // Sensitive actions fail closed on missing session timestamps; a fresh sign-in creates a dated session.
+  // The fresh-session deadline is exclusive, matching idle-expiry rejection at the boundary.
   const sessionCreatedAtMs = Date.parse(req.user?.sessionCreatedAt ?? "");
   const timestampMissing = !Number.isFinite(sessionCreatedAtMs);
   if (!timestampMissing && Date.now() - sessionCreatedAtMs < ACCOUNT_SESSION_FRESH_AGE_SECONDS * 1000) return true;
@@ -156,13 +154,8 @@ function requireFreshSession(
   return false;
 }
 
-/**
- * Decide whether this request may perform an action on an account. Trusted-local mode returns
- * before any membership read. Authenticated mode resolves the request principal's active
- * membership (or active masquerade target), then applies membership, capability and fresh-session
- * checks in that order. Authentication/backend failures are handled by the upstream preHandler;
- * this seam sends only its established 403 response, or the row-concealing 404 for non-members.
- */
+// Resolve active membership before capability and freshness checks; off mode performs no membership lookup.
+// Authentication failures are handled upstream, while this boundary sends authorization refusals.
 function createAuthorize({ authMode, resolveEffectiveRole, securityEvent }: AuthorizeInput) {
   return function authorize(input: AuthorizeRouteInput): AuthorizationResult {
     // Trusted-local mode is a no-op allow-all: neither the membership port nor `can` may run.
@@ -174,13 +167,12 @@ function createAuthorize({ authMode, resolveEffectiveRole, securityEvent }: Auth
     }
     const { role } = resolved;
     if (role === null) return denyMissingRole(input, securityEvent);
-    // Members and lower roles cannot perform this action.
     if (!can(role, input.action)) return denyInsufficientRole(input, role, securityEvent);
     return requireFreshSession(input, securityEvent) ? { kind: "allowed", role } : { kind: "denied" };
   };
 }
 
-/** Gated writes alone pay the role lookup; invalid or ended account context hides gated fields. */
+// Resolve visibility only for gated fields; missing or ended account context must hide them.
 function createFieldVisibility(
   authMode: ReturnType<typeof resolveAppConfig>["authMode"],
   resolveRole: ResolveEffectiveRole,
@@ -196,7 +188,7 @@ function createFieldVisibility(
   };
 }
 
-/** Apply read confidentiality to write, conflict and lifecycle response echoes. */
+// A write echo is also a read and must preserve the current actor’s field confidentiality.
 function redactWriteEcho(
   table: string,
   row: Record<string, unknown>,

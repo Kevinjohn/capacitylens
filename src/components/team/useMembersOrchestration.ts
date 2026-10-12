@@ -282,12 +282,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
       (directoryState.directory.kind === "error" && directoryState.directory.content.kind === "unavailable");
     if (offline.readOnly || unauthorized) resetInviteDraft();
   }, [directoryState.directory, offline.readOnly, resetInviteDraft]);
-  // The server is the only authority on candidate eligibility. Order them the way Resources orders
-  // its active people so the selector cannot look different from the management list, but never
-  // filter by the store: the Resources model refreshes on a visible poll while the directory
-  // refetches after every mutation, so intersecting the two hides a candidate the server accepts
-  // and reports a live link as inactive until the poll catches up. Anything Resources has not
-  // listed yet keeps the server's own order behind the rows it has.
+  // Candidate eligibility comes from the server; local Resources state affects only presentation order. Never intersect the candidate set with a potentially stale local roster.
   const resourceListModel = useResourceListModel();
   const resourceOrder = new Map(resourceListModel.people.map((resource, index) => [resource.id, index]));
   const resourceCandidates = [...directoryState.resourceCandidates].sort(

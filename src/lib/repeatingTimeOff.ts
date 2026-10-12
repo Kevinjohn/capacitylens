@@ -51,6 +51,7 @@ export function buildRepeatedTimeOffDrafts(
     try {
       return { ...baseDraft, startDate, endDate: addDaysISO(startDate, duration - 1) };
     } catch (error) {
+      // Translate date overflow into a field-domain failure while allowing unrelated programming errors to propagate.
       if (error instanceof RangeError) {
         throw new RepeatingDateError("invalid-date", "Repeated time off extends beyond the supported ISO date range.");
       }

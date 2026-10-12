@@ -94,12 +94,8 @@ function createBeforeRequestHook(options: RequestHookOptions) {
   } = options;
 
   return createAuthMiddleware(async (context) => {
-    // Resolve a presented session once at the Better Auth pipeline boundary. Endpoint session
-    // middleware reuses context.context.session, and /get-session can return it directly, so idle
-    // enforcement no longer causes a wrapper lookup followed by the endpoint's second lookup.
-    // Do not couple inactivity enforcement to Better Auth's internal session-cookie suffix. Any
-    // presented cookie may be a session under a newer provider version; resolving it is the
-    // fail-closed compatibility posture, while a truly cookieless public request still skips work.
+    // Resolve a presented session once at the Better Auth boundary so middleware can reuse the idle-checked result.
+    // Any cookie may carry a session; do not depend on a library cookie-name suffix.
     const activeHookSession = await resolveActiveHookSession(context, options);
     if (activeHookSession !== undefined) {
       context.context.session = activeHookSession;
@@ -142,8 +138,7 @@ function createBeforeRequestHook(options: RequestHookOptions) {
         },
       };
     }
-    // The exact refusal Better Auth's own disableSignUp emits (sign-up.mjs, 1.6.23), so the client
-    // and tests see one unchanged error shape regardless of which gate closed the door.
+    // Preserve Better Auth’s signup-disabled error contract so callers receive the same refusal shape from either gate.
     throw APIError.from("BAD_REQUEST", {
       message: "Email and password sign up is not enabled",
       code: "EMAIL_PASSWORD_SIGN_UP_DISABLED",

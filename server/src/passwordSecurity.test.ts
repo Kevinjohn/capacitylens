@@ -68,6 +68,7 @@ describe("OWASP password storage profile", () => {
       assertNoContextSpecificPassword("CapacityLens-is-great-2026");
       expect.unreachable("context-specific password should be rejected");
     } catch (error) {
+      // Inspect the expected password-policy rejection so the test verifies its stable code and useful message.
       expect(error).toMatchObject({
         code: "PASSWORD_CONTEXT_REJECTED",
       });

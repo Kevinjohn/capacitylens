@@ -24,7 +24,6 @@ const meta = () => ({ createdAt: TS, updatedAt: TS });
 
 const account = (id: string) => ({ id, name: `Studio ${id}`, color: "#3b82f6", ...meta() });
 
-/** Seed one pre-existing account directly (so "an account already exists" holds). */
 function seedOne(db: Db): void {
   const d = emptyAppData() as unknown as Record<string, unknown[]>;
   d.accounts = [account("a1")];
@@ -42,7 +41,6 @@ function readStringField(response: LightMyRequestResponse, field: string): strin
   return body[field];
 }
 
-/** Assert the org `accountId` was created with a built-in Internal client and `userId` as Owner. */
 function assertUsableOrg(db: Db, accountId: string, userId: string): void {
   const state = readState(db);
   const acc = state.accounts.find((a) => a.id === accountId);
@@ -175,14 +173,14 @@ function registerAuthOnBootstrapTests(): void {
     // default once any account exists (see the "default cap" describe block); this test is about the
     // `allowed` authz matrix (owner-of-existing may provision more), so it opts out of the cap.
     const { app, db } = await appWithAuth({ multiAccount: true });
-    // First-run: no accounts.
+
     expect(readState(db).accounts).toHaveLength(0);
     const { cookie, userId } = await signUp(app, "founder@capacitylens.dev");
 
     const first = await createOrg(app, { name: "First Studio" }, { cookie });
     expect(first.statusCode, first.body).toBe(201);
     const id1 = readStringField(first, "id");
-    // Account + Internal + Owner, atomically.
+
     assertUsableOrg(db, id1, userId);
 
     // Now an Owner of an existing account, the same user creates a second org (owner-of-existing path),
@@ -222,14 +220,14 @@ function registerNullOrganizationBodyTest(): void {
 function registerAuthOnMembershipTests(): void {
   it("existing-account stranger DENIED: no owner/admin membership -> 403 and the account is NOT created", async () => {
     const { app, db } = await appWithAuth();
-    // An account already exists.
+
     seedOne(db);
-    // Holds no membership.
+
     const { cookie } = await signUp(app, "stranger@capacitylens.dev");
 
     const res = await createOrg(app, { name: "Sneaky Studio" }, { cookie });
     expect(res.statusCode).toBe(403);
-    // Nothing created.
+
     expect(readState(db).accounts.map((a) => a.id)).toEqual(["a1"]);
   });
 
@@ -361,7 +359,6 @@ describe("POST /api/orgs (P1.8) — bootstrap token", () => {
   });
 
   it("the token path is DISABLED when the env is unset: even the matching-looking header is 403", async () => {
-    // BootstrapToken undefined.
     const { app, db } = await appWithAuth();
     seedOne(db);
     const { cookie } = await signUp(app, "noenv@capacitylens.dev");
@@ -379,9 +376,9 @@ describe("POST /api/orgs (P1.8) — OFF mode (trusted-local)", () => {
     // deployment-shape policy, not an authz rule; see the "default cap" describe block for the
     // off-mode-does-not-bypass case). This test is about off's trusted-local authz no-op, so it
     // opts out of the cap to keep exercising the pre-existing "an account already exists" scenario.
-    // AuthMode defaults to 'off'.
+
     const app = createApp(db, { multiAccount: true });
-    // Even with an account already present, off mode allows (trusted-local).
+
     seedOne(db);
 
     const res = await createOrg(app, { name: "Local Co" });
@@ -398,7 +395,6 @@ describe("POST /api/orgs (P1.8) — atomicity", () => {
     const { app, db } = await appWithAuth({ multiAccount: true });
     const { cookie, userId } = await signUp(app, "rollback@capacitylens.dev");
 
-    // First create succeeds and fixes the account id.
     const ok = await createOrg(app, { name: "Real Org" }, { cookie });
     expect(ok.statusCode, ok.body).toBe(201);
     const id = readStringField(ok, "id");
@@ -407,13 +403,13 @@ describe("POST /api/orgs (P1.8) — atomicity", () => {
     // Re-POST with the same explicit id: inserting the account row hits a PRIMARY KEY conflict, so the
     // tx throws and rolls back. No second Internal client, no membership churn, account list unchanged.
     const dup = await createOrg(app, { id, name: "Dup Org" }, { cookie });
-    // Constraint failure -> caller-fault 400.
+
     expect(dup.statusCode).toBe(400);
     const after = readState(db);
     expect(after.accounts.map((a) => a.id).sort()).toEqual(before.accounts.map((a) => a.id).sort());
-    // Still exactly one Internal.
+
     expect(after.clients.filter((c) => c.accountId === id)).toHaveLength(1);
-    // Membership unchanged.
+
     expect(getMemberRole(db, id, userId)).toBe("owner");
   });
 });
@@ -427,7 +423,6 @@ describe("POST /api/orgs (P1.8) — single-company cap (default multiAccount: fa
   const CAP_MESSAGE = "This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.";
 
   it("first company on a zero-account instance still succeeds (201, unchanged)", async () => {
-    // MultiAccount defaults to false; zero accounts.
     const { app } = await appWithAuth();
     const { cookie } = await signUp(app, "first-org-cap@capacitylens.dev");
     const res = await createOrg(app, { name: "First Studio" }, { cookie });
@@ -435,9 +430,8 @@ describe("POST /api/orgs (P1.8) — single-company cap (default multiAccount: fa
   });
 
   it("2nd company via an owner of an existing account -> 403 policy message, NOT 201", async () => {
-    // MultiAccount defaults to false.
     const { app, db } = await appWithAuth();
-    // An account already exists.
+
     seedOne(db);
     const { cookie, userId } = await signUp(app, "owner-cap@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId, role: "owner", status: "active", createdAt: TS });
@@ -446,13 +440,13 @@ describe("POST /api/orgs (P1.8) — single-company cap (default multiAccount: fa
     expect(res.statusCode).toBe(403);
     expect(res.json()).toMatchObject({ error: CAP_MESSAGE, code: "FORBIDDEN" });
     expect(readStringField(res, "commandId")).toEqual(expect.any(String));
-    // Nothing created.
+
     expect(readState(db).accounts.map((a) => a.id)).toEqual(["a1"]);
   });
 
   it("2nd company via a MATCHING bootstrap token -> 403 policy message (the token authorises WHO, not WHETHER)", async () => {
     const TOKEN = "a-very-long-random-bootstrap-token-value-0123456789";
-    // MultiAccount defaults to false.
+
     const { app, db } = await appWithAuth({ bootstrapToken: TOKEN });
     seedOne(db);
     const { cookie } = await signUp(app, "operator-cap@capacitylens.dev");
@@ -466,7 +460,7 @@ describe("POST /api/orgs (P1.8) — single-company cap (default multiAccount: fa
 
   it("2nd company in OFF mode -> 403 policy message (OFF is trusted-local for authz, but the cap is NOT an authz rule)", async () => {
     const db = openDb(":memory:");
-    // AuthMode defaults to 'off'; multiAccount defaults to false.
+
     const app = createApp(db);
     seedOne(db);
 
@@ -478,12 +472,8 @@ describe("POST /api/orgs (P1.8) — single-company cap (default multiAccount: fa
   });
 });
 
-// GET /api/auth/me `canCreateAccount` must mirror the POST /api/orgs gate (userMayCreateAccount +
-// the cap), the bug this pins: the flag used to come from the instance cap alone, so an auth-on
-// editor / membership-less user was shown a "New company" affordance whose POST always 403'd. All
-// auth-on cases run with multiAccount: true so the cap never masks the who tier under test; the
-// bootstrap-token arm is deliberately absent (curl-only, it never lights the flag; see
-// userMayCreateAccount's doc comment).
+// The creation affordance must match the route’s role and company-cap checks.
+// Enable multiAccount here to isolate role authorization; operator bootstrap tokens never enable the browser affordance.
 const getAuthState = (app: FastifyInstance, cookie?: string) =>
   call(app, { method: "GET", url: "/api/auth/me", ...(cookie ? { headers: { cookie } } : {}) });
 
@@ -496,7 +486,7 @@ async function assertEditorCannotCreateAccount(): Promise<void> {
   const res = await getAuthState(app, cookie);
   expect(res.statusCode).toBe(200);
   expect(res.json()).toMatchObject({ multiAccount: true, canCreateAccount: false });
-  // The flag and the gate agree: the create it would advertise is exactly the one that 403s.
+
   const post = await createOrg(app, { name: "Editor Org" }, { cookie });
   expect(post.statusCode).toBe(403);
 }
@@ -540,7 +530,6 @@ describe("GET /api/auth/me — canCreateAccount mirrors the /api/orgs gate", () 
   });
 
   it("auth-on, ZERO accounts -> canCreateAccount:true (first-run bootstrap, even with no membership)", async () => {
-    // MultiAccount defaults to false; zero accounts.
     const { app } = await appWithAuth();
     const { cookie } = await signUp(app, "bootstrap-flag@capacitylens.dev");
 
@@ -552,7 +541,7 @@ describe("GET /api/auth/me — canCreateAccount mirrors the /api/orgs gate", () 
   it("OFF mode + multiAccount -> canCreateAccount:true (trusted-local, no membership tier)", async () => {
     const db = openDb(":memory:");
     seedOne(db);
-    // AuthMode defaults to 'off'.
+
     const app = createApp(db, { multiAccount: true });
     const res = await getAuthState(app);
     expect(res.statusCode).toBe(200);
@@ -562,7 +551,7 @@ describe("GET /api/auth/me — canCreateAccount mirrors the /api/orgs gate", () 
   it("anon caller on an auth-on instance: the 401 shape carries NO capability flags", async () => {
     const { app, db } = await appWithAuth({ multiAccount: true });
     seedOne(db);
-    // No cookie.
+
     const res = await getAuthState(app);
     expect(res.statusCode).toBe(401);
     expect(res.json()).not.toHaveProperty("canCreateAccount");

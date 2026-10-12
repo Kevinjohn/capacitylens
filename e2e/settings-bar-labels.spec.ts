@@ -19,7 +19,6 @@ test.describe("Allocation bar labels", () => {
     await expect(clientSwitch).toHaveAttribute("aria-checked", "true");
     await expect(projectSwitch).toHaveAttribute("aria-checked", "true");
 
-    // Client off → bars keep the project context only.
     await clientSwitch.click();
     await expect(clientSwitch).toHaveAttribute("aria-checked", "false");
     await page.getByRole("link", { name: "Schedule" }).click();
@@ -27,7 +26,6 @@ test.describe("Allocation bar labels", () => {
     await expect(bar).toContainText("Project Watchtower · Wireframes");
     await expect(bar).not.toContainText("Queen Consolidated");
 
-    // Project off too → just the activity name.
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await page.getByRole("switch", { name: "Show project name" }).click();
     await page.getByRole("link", { name: "Schedule" }).click();

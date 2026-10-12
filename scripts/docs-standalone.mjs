@@ -14,7 +14,6 @@
 // JS bundles. The same output still works when served over HTTP (GitHub
 // Pages), because relative links resolve the same way there.
 //
-// Run via `pnpm run docs:build`, which chains it after `vitepress build`.
 
 import { readdirSync, readFileSync, writeFileSync, copyFileSync, rmSync, existsSync } from "node:fs";
 import { join, relative, dirname, resolve, sep } from "node:path";
@@ -100,18 +99,21 @@ let pages = 0;
 for (const file of files.filter((f) => f.endsWith(".html"))) {
   const pageDir = dirname(file);
   let html = readFileSync(file, "utf8");
+  // VitePress scripts go except for small inline enhancements tagged with data-cl-keep. They need
+  // no bundle or network request under file://, and one rewrites the hosted 404 home link for
+  // file:// access. Repeat until stable so a removal cannot splice a new tag from its neighbours.
+  for (let previous; previous !== html;) {
+    previous = html;
+    html = html.replace(/<script\b([^>]*)>[\s\S]*?<\/script\b[^>]*>/gi, (tag, attrs) =>
+      attrs.includes("data-cl-keep") ? tag : "",
+    );
+  }
 
   html = html
-    // VitePress scripts go except for small inline enhancements tagged with
-    // data-cl-keep. They need no bundle or network request under file://, and
-    // one rewrites the hosted 404 home link for file:// access.
-    .replace(/<script\b([^>]*)>[\s\S]*?<\/script>/g, (tag, attrs) => (attrs.includes("data-cl-keep") ? tag : ""))
-    // Preloads for assets the scripts would have used.
     .replace(/<link rel="modulepreload"[^>]*>/g, "")
     .replace(/<link rel="preload"[^>]*>/g, "")
     // The stylesheet preload combo needs the plain form once scripts are gone.
     .replace(/rel="preload stylesheet"/g, 'rel="stylesheet"')
-    // Absolute URLs → page-relative ones.
     .replace(/(href|src)="(\/capacitylens\/[^"]*|\/capacitylens)"/g, (_, attr, url) => {
       const [path, hash] = (url.endsWith("/capacitylens") ? url + "/" : url).split("#");
       return `${attr}="${toRelative(pageDir, path)}${hash ? "#" + hash : ""}"`;

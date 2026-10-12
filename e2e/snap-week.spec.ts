@@ -12,27 +12,21 @@ import {
 
 test.use({ contextOptions: { reducedMotion: "reduce" }, viewport: { width: 1440, height: 800 } });
 
-// Covers US-SET-09. The week snap (always on, no Settings control) floors the schedule's left edge
-// back to the current week's first day after a free scroll settles, so a stray nudge can't park the
-// view on a Tue/Wed. With the test-only override off, the nudge sticks. Independent of Feature 1's
-// always-on navigation snap (zoom / Prev-Next / date-picker), which is not under test here.
+// Idle week snapping floors free scroll to the account’s week start. Navigation snapping is covered separately.
 test.describe("Week snap", () => {
   test("a stray scroll nudge snaps back to the week start", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 1);
 
-    // Pre-condition: the left edge opens flush on the week start (Monday, default weekStartsOn).
     // Poll, not a single read: under parallel load (Firefox especially) the zoom-click scroll +
     // header layout can still be settling on the first probe, sampling a transient sub-pixel
     // boundary that reads as the adjacent weekend column. Polling retries until it settles on the
     // known-correct Monday; a genuinely drifted grid never settles and times out (not vacuous).
     await expect.poll(async () => (await probe(page)).leftWeekday).toBe("Mon");
 
-    // Nudge ~2.5 weekday columns so the left edge would sit on a Wed/Thu.
     await nudge(page, 2.5);
     await waitForWeekSnap(page);
 
-    // The floor-snap has pulled the left edge back to this week's Monday.
     await expect.poll(async () => (await probe(page)).leftWeekday).toBe("Mon");
   });
 
@@ -40,21 +34,13 @@ test.describe("Week snap", () => {
     await openApp(page);
     await setZoom(page, 1);
 
-    // The frozen browser date is Wednesday, 3 June 2026, so the default Monday week begins on 1 June.
-    // Read the settled left edge after zoom to confirm the schedule opens on that Monday.
     const mondayDate = await settledLeftDate(page);
     expect(mondayDate).toMatch(/Mon$/);
 
-    // Nudge 4.5 weekday columns forward → the left edge lands on a Fri (Jun 5), which is past the
-    // half-week. A nearest implementation would round forward to next Monday (Jun 8 → "8Mon"); a
-    // correct floor pulls back to this week's Monday (Jun 1 → "1Mon"). This is the distinguishing
-    // case the old ~2.5-column (Wed) test couldn't make, since there floor == nearest.
+    // A Friday nudge distinguishes floor-to-this-week from nearest-week snapping, which would choose next Monday.
     await nudge(page, 4.5);
     await waitForWeekSnap(page);
 
-    // The decisive assertion: same Monday date (floored back), not next Monday (rounded forward).
-    // Poll the settled left edge onto the captured Monday, the floor-not-nearest oracle (it would
-    // never settle to "1Mon" if the snap rounded forward to "8Mon"), so polling does not weaken it.
     await expect.poll(async () => settledLeftDate(page), { timeout: 15_000 }).toBe(mondayDate);
   });
 
@@ -65,10 +51,8 @@ test.describe("Week snap", () => {
     await page.getByRole("button", { name: "Switch company" }).click();
     await page.getByRole("button", { name: "New company" }).click();
     await page.getByLabel("Company name").fill("Sunday Co");
-    // Select Sunday as the new company week start.
     await page.getByRole("radio", { name: "Sunday" }).click();
     await page.getByRole("button", { name: "Create company" }).click();
-    // A post-create intro may precede the app; click through if it's up.
     await waitForAppLanding(page, page.locator("#main"));
 
     // Turn "Minimise weekends" off (device pref): with it on, a week-start Sunday is a (collapsed)
@@ -81,10 +65,8 @@ test.describe("Week snap", () => {
     await page.getByRole("button", { name: "Hide checklist", expanded: true }).click();
     await setZoom(page, 1);
 
-    // The left edge now opens flush on a Sunday (the week start), not a Monday.
     await expect.poll(async () => (await probe(page)).leftWeekday).toBe("Sun");
 
-    // Nudge ~2.5 columns off the Sunday, let the idle settle, and confirm it floors back to Sunday.
     await nudge(page, 2.5);
     await waitForWeekSnap(page);
     // Poll the settle on the known-correct Sunday (parallel-load Firefox can still be settling on a

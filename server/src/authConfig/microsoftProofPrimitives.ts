@@ -151,6 +151,7 @@ export function assertMicrosoftReturnUrl(value: string, origins: ReadonlySet<str
   try {
     parsed = new URL(value);
   } catch (error) {
+    // A malformed return URL is caller input, so report a typed 400 proof refusal with its parse cause.
     throw new MicrosoftProofError("INVALID_CALLBACK_URL", 400, { cause: error });
   }
   if (!origins.has(parsed.origin) || parsed.username || parsed.password) {

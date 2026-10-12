@@ -49,19 +49,14 @@ export interface AppOptions {
   internalTlsFingerprintSha256?: string;
   /** Gate POST /api/test/reset, only enabled for auth-off tests / explicit local dev opt-in. */
   allowReset?: boolean;
-  /** CAPACITYLENS_LOG=1: structured per-request logging (Fastify's bundled pino, JSON on
-   * stdout: method/path/status/latency), and the 500-path error log routed through the
-   * request-scoped logger. Default off = exactly today's behaviour (startup line +
-   * console.error on 500s). */
+  /** Enables structured request logging and routes server errors through the request logger. */
   log?: boolean;
   /** Test seam: where the JSON log lines go when `log` is on (default stdout). */
   logStream?: { write(msg: string): void };
   /** Structured security-event destination. The entrypoint emits JSONL to stdout for forwarding;
    * tests/factory consumers default to a no-op. Must never throw into a request. */
   securityLog?: (event: Record<string, unknown>) => void;
-  /** CAPACITYLENS_HEALTH_DEEP=1: /api/health also proves the DB answers a constant-work read:
-   * 200 { ok, db: true }, or 503 { ok: false } when the read throws. Default off =
-   * today's unconditional { ok: true } (Playwright's webServer probe depends on it). */
+  /** Enables a constant-work database health read; failures return 503 instead of reporting healthy. */
   healthDeep?: boolean;
   /** Optional scheduled-backup health provider. Present only when backups are configured; kept as
    * a callback because the entrypoint starts the scheduler after Fastify construction. */
@@ -117,26 +112,15 @@ export interface AppOptions {
    * never affected: the cap is create-time only, so a genuinely multi-company instance (this flag
    * on, or a DB seeded before the cap existed) keeps serving normally. */
   multiAccount?: boolean;
-  /** CAPACITYLENS_BOOTSTRAP_TOKEN: a shared secret that, when sent as the
-   * `x-capacitylens-bootstrap-token` request header on `POST /api/orgs`, authorises
-   * constrained org-creation even for a caller who is not yet an Owner/Admin of any
-   * account (e.g. an operator provisioning the second account on an instance that already
-   * has one). Default undefined = the token path is disabled: an unset/empty token can
-   * never match, so `POST /api/orgs` then allows only first-run (zero accounts) or an
-   * existing Owner/Admin (or off mode). The compare is constant-time + length-checked so
-   * it leaks neither the token's length nor its bytes by timing. Note: the token now
-   * presumes a multi-account instance. It only ever matters once opts.multiAccount is
-   * also true, since the single-company cap above denies every create (token or not)
-   * while the instance is capped to one company. */
+  /** Enables constrained company creation via x-capacitylens-bootstrap-token on POST /api/orgs.
+   * Unset or empty tokens never authorize creation. The single-company cap still applies.
+   * Token comparison requires matching non-empty byte sequences and uses timingSafeEqual.
+   */
   bootstrapToken?: string;
-  /** The API is reached over HTTPS, so host-only HSTS is safe to emit. Default false here:
-   * HSTS (Strict-Transport-Security) is only valid over HTTPS and is actively harmful over
-   * plain HTTP, a browser that caches an HSTS directive received on http:// would force
-   * https:// on a host that has no TLS, breaking it. The entrypoint (index.ts) derives it:
-   * CAPACITYLENS_HTTPS=1/0 decides explicitly, otherwise an https public URL turns it on,
-   * because that URL means TLS fronts the public origin. Off ⇒ helmet emits no HSTS header;
-   * all other helmet baseline headers (nosniff, CSP, Referrer-Policy, X-Frame-Options)
-   * are on regardless, as they are pure improvements with no HTTPS precondition. */
+  /** Enables host-only HSTS for the browser-facing HTTPS origin.
+   * The entrypoint derives this from CAPACITYLENS_HTTPS or an HTTPS public URL.
+   * Enable only when clients can use HTTPS; omit it for a plain HTTP deployment.
+   */
   https?: boolean;
   /** CAPACITYLENS_AUDIT: the append-only JSONL audit sink. On-by-default is decided at
    * the index.ts layer (which builds a fileAuditSink from env, or a noop when =off); this factory
@@ -162,11 +146,7 @@ export function createApp(db: Db, options: AppOptions = {}): FastifyInstance {
     bodyLimit: BODY_LIMIT,
     requestTimeout: REQUEST_TIMEOUT_MS,
     connectionTimeout: CONNECTION_TIMEOUT_MS,
-    // CAPACITYLENS_LOG=1 turns on Fastify's bundled pino (JSON to stdout; no new dependency).
-    // On always attaches the redact config (both branches) so a secret can never reach the
-    // logs: see LOG_REDACT_PATHS. Off ⇒ logger disabled entirely, today's behaviour, byte for byte.
-    // requestLoggerOptions also owns invite-token masking and URL query/fragment removal and reconstructs Fastify's request
-    // serializer so method/hostname/remote address remain available without emitting headers.
+    // Redaction must remain enabled for both logging destinations so headers, invite tokens and URL queries cannot expose secrets.
     logger: config.logOn ? createRequestLoggerOptions(options.logStream) : false,
   });
   const rootHelpers = installRootHooks({ app, db, runtime, config, options });

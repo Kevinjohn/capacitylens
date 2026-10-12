@@ -166,28 +166,10 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   // their availability an explicit effect dependency for the active-descendant repair below.
   const [inputElement, setInputElement] = useState<HTMLInputElement | null>(null);
   const [listElement, setListElement] = useState<HTMLDivElement | null>(null);
-  // Build the full item list (kept verbatim, capacitylens's own fuzzyFilter drives results, not cmdk's
-  // internal filter, hence `shouldFilter={false}` below). Memoised so the fuzzy filter over all data
-  // does not re-run on every render: cmdk churns the controlled `value` on each pointer-move (→
-  // re-render), and the active-row change must not re-run the filter. Keyed on the real inputs only.
+  // Palette filtering depends on data and the query, not the changing active-result value, so pointer navigation must not rebuild search results.
   const items: PaletteItem[] = usePaletteItems(query, onClose);
 
-  // Group items by section for rendering (one CommandGroup per section).
-
-  // Repair the combobox's `aria-activedescendant`. cmdk hardcodes it from its own `selectedItemId`,
-  // which it fails to populate on the controlled-`value` path (the value-change handler short-circuits
-  // once a controlled value is present), so the input names no active descendant, breaking the
-  // combobox SR pattern. cmdk's element ids are its internal `useId`s (we can't pass our own, its
-  // `id` wins over props), so we read the active option's real id straight off the DOM and write it
-  // onto the input ourselves. cmdk marks exactly one option `aria-selected="true"` (the active row),
-  // so we match that single option by its selected state. No need to also cross-check `data-value`
-  // against our controlled `activeValue` (redundant, and it breaks the auto-selected first row whose
-  // value our state hasn't caught up to yet). cmdk may establish its initial selection after our
-  // parent layout effect, and later changes its internal row without necessarily rendering this
-  // component. Observe only list selection/child mutations so the repair follows both paths. React
-  // won't clobber it because cmdk keeps emitting the same `null` (null → null is a no-op diff).
-  // Repair only the focused input: it is the element whose active descendant assistive technology
-  // reads. Do not mirror this relationship onto the non-focusable listbox.
+  // Controlled cmdk selection does not reliably publish aria-activedescendant. Mirror the selected option's actual DOM id onto the focused input, observing list selection changes because cmdk can update without rendering this component.
   useActiveDescendant(inputElement, listElement);
 
   return (

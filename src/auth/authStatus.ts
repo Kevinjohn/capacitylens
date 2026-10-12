@@ -35,10 +35,7 @@ export type AuthStatusResult =
       hadUnsavedChanges: boolean;
     };
 
-// A 'pass' AuthStatusResult that fails open on the single-company-per-instance fields (see authContext.ts):
-// used for every branch below that can't read a trustworthy canCreateAccount/multiAccount off the
-// wire (an off-spec body, a non-401 non-ok response, or a network failure), the server 403 remains
-// the real enforcer, so "unknown" must never hide a legitimate "New company" affordance.
+// Demo/open entry uses permissive creation defaults; an unreadable live-auth response remains behind the retryable authentication error boundary.
 /** Builds the auth result used when server access metadata is unavailable. */
 export function buildOpenAuthResult(authMode: AccountMode, user: AuthUser | null): AuthStatusResult {
   return {
@@ -54,8 +51,6 @@ export function buildOpenAuthResult(authMode: AccountMode, user: AuthUser | null
   };
 }
 
-// Narrowing guards for the untrusted /api/auth/me response body (see fetchAuthStatus). The server
-// is external input. We validate its shape rather than trusting an `as` cast.
 /** Checks whether an untrusted value is a supported account auth mode. */
 export function isAuthMode(value: unknown): value is AccountMode {
   return value === "off" || value === "password-only" || value === "sso-only" || value === "password-and-sso";
@@ -107,12 +102,9 @@ export function parseAuthProviders(value: unknown): AuthProviderInfo[] {
   }
   return providers;
 }
-/** Reads a boolean field off the untrusted body, using the supplied compatibility fallback when it's
- * absent or not a boolean, covers an older server that predates these fields as well as a
- * malformed response. See `AuthContextValue.canCreateAccount` (authContext.ts) for why "unknown"
- * means "allowed": the server 403 is the authoritative enforcer, this only gates a UI affordance. */
+
 type ResolveBooleanFieldOptions = { value: unknown; fallback: boolean };
-/** Uses a boolean auth-status field or its compatibility fallback. */
+/** Unknown boolean metadata uses the supplied compatibility fallback because the server remains authoritative for creation permission. */
 export function resolveBooleanField({ value, fallback }: ResolveBooleanFieldOptions): boolean {
   return typeof value === "boolean" ? value : fallback;
 }

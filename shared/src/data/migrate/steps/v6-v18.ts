@@ -8,16 +8,14 @@ export function migrateV6toV7(data: Record<string, unknown>): Record<string, unk
   return data;
 }
 
-/** v7 → v8 added Account.internalColourMode. No transform is needed: absence deliberately means
- * grey, and sanitizeAccount drops malformed present values at the server boundary. */
+/** Preserve v7 data unchanged for v8, whose optional Account.internalColourMode preference is now retired. */
 export function migrateV7toV8(data: Record<string, unknown>): Record<string, unknown> {
   return data;
 }
 
-/** v8 → v9 added the optional per-account schedule view prefs showInternalProjects /
- * showInternalActivities / inlineActivityCreateEnabled. No transform is needed: read sites define
- * each optional preference's current fallback, while sanitizeAccount drops malformed present values
- * at the server boundary, exactly the v7→v8 precedent. */
+/** Preserve v8 data unchanged for v9, which introduced optional schedule visibility and inline-creation preferences.
+ * Current readers supply the inlineActivityCreateEnabled default. The retired showInternalProjects and
+ * showInternalActivities fields are excluded by the server write-column whitelist. */
 export function migrateV8toV9(data: Record<string, unknown>): Record<string, unknown> {
   return data;
 }
@@ -60,8 +58,7 @@ export function migrateV11toV12(data: Record<string, unknown>): Record<string, u
   return { ...data, resources };
 }
 
-/** v12 → v13 adds optional Account.groupResourcesByEngagement. No transform is needed: absence
- * deliberately reads as true, and sanitizeAccount drops malformed present values. */
+/** Preserve v12 data unchanged for v13, whose optional Account.groupResourcesByEngagement preference is now retired. */
 export function migrateV12toV13(data: Record<string, unknown>): Record<string, unknown> {
   return data;
 }
@@ -91,7 +88,7 @@ export function migrateV14toV15(data: Record<string, unknown>): Record<string, u
 }
 
 /** v15 → v16 widens TimeOff.resourceId to nullable so one row can represent company-wide time
- * off. Existing personal rows already have the current shape and remain byte-for-byte unchanged. */
+ * off. Existing personal rows already have the v16 shape and remain byte-for-byte unchanged. */
 export function migrateV15toV16(data: Record<string, unknown>): Record<string, unknown> {
   return data;
 }

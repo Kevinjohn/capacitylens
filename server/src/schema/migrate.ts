@@ -37,22 +37,8 @@ export function renameLegacyActivityTables(db: Db): void {
   }
 }
 
-/**
- * Bring an existing DB's tables up to the current shape in place. node:sqlite never
- * re-runs CREATE TABLE on an existing table, so a file written by an older schema
- * would otherwise keep the old columns/constraints and break (e.g. seeding a general
- * activity hit `NOT NULL constraint failed: activities.projectId`).
- *
- * Introspection-gated and idempotent: it inspects the live shape (PRAGMA table_info) and
- * acts only when something is missing, so a fresh / current / :memory: DB falls straight
- * through with no transaction. It is also generic. Every additive optional column in the
- * current spec is added automatically, so a new optional field never silently drifts
- * between the client schema and the server DB (the old version-gated pass froze after the
- * first migration and would skip later additions). SQLite can't ALTER-ADD a NOT NULL
- * column to existing rows, so a required addition still needs an explicit step (like the
- * activities rebuild below). Runs with foreign keys OFF (openDb enables them afterwards) so the
- * activities rebuild's drop/rename is safe.
- */
+// Use the selected historical contract for optional-column repair; released migrations must not absorb later fields.
+// Required activity-column changes need a table rebuild with rows preserved and foreign keys rechecked.
 function migrateSchemaVersion(
   db: Db,
   tableSpecs: Record<string, TableSpec>,
@@ -67,10 +53,7 @@ function migrateSchemaVersion(
       }
     }
   }
-  // activities needs a rebuild when an old-shape constraint is still present: projectId was once
-  // NOT NULL (before general, no-project activities), and `kind` is a required column added in v4
-  // that SQLite can't ALTER-ADD as NOT NULL to a table with rows. Either condition → rebuild
-  // to the current shape (nullable projectId, kind backfilled from projectId presence).
+  // Rebuild the immutable baseline activity shape when projectId is required or kind is absent.
   const activitiesHadKind = hasColumn(db, "activities", "kind");
   const needsActivitiesRebuild = isNotNull(db, "activities", "projectId") || !activitiesHadKind;
   // Skip the transaction when the schema already matches the current shape.
@@ -114,20 +97,9 @@ export function migrateSchema(db: Db): void {
   );
 }
 
-/** Rebuild the `activities` table (the SQLite-docs 'create new + copy + drop + rename' approach,
- * simplified, since there are no indexes/triggers/views to carry over; see the assumption below) to bring
- * it to the pre-v36 shape, with a
- * nullable projectId and a required `kind` column, while preserving rows + the foreign keys
- * other tables hold against activities(id). The target DDL mirrors the pre-v36 `activities` block
- * in SCHEMA_V8_SQL; v36 adds the lifecycle columns explicitly afterward.
- * `kind` is preserved when the source schema already has it. Only genuinely pre-kind schemas
- * derive it from projectId presence ('project' versus 'repeatable').
- *
- * Assumption (true today, verified): `activities` has no indexes, triggers, or extra constraints
- * beyond the inline column ones. The drop+rename silently discards any such auxiliary object, so
- * if one is ever added to `activities`, this rebuild must be updated to recreate it after the rename,
- * otherwise a migration would quietly lose it. (If that risk grows, gate with a PRAGMA index_list
- * check that throws on anything unexpected.) */
+// Rebuild to the immutable pre-v36 activity shape while retaining source kind values.
+// Only pre-kind rows derive kind from project presence. Recreate auxiliary indexes, triggers and constraints after drop/rename; otherwise the migration would discard them.
+// Preserve released migration behavior and recheck foreign keys before commit.
 function rebuildActivitiesTable(db: Db, sourceHasKind: boolean): void {
   const kindExpression = sourceHasKind
     ? "kind"

@@ -169,7 +169,7 @@ function applyPut(parameters: OperationParameters, op: BatchPutOp): void {
   revisions.push({ table, id, createdAt: clean.createdAt as string, updatedAt: clean.updatedAt as string });
 }
 
-// ARCHIVE uses the same ordered-write rejection and redacted current row as direct mutations.
+// Archive uses the same ordered-write rejection and redacted current row as direct mutations.
 function rejectStaleArchive(
   parameters: OperationParameters,
   op: BatchArchiveOp,

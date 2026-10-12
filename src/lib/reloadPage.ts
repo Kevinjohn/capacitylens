@@ -1,7 +1,4 @@
-/** Reload through a testable boundary for recovery states that must discard stale in-memory data:
- * a completed import, and post-sign-in invite recovery (reloading the same bearer URL so the invite
- * is reviewed by the new session). The one boundary for `location.reload()`, so jsdom-backed tests
- * can assert the reboot without attempting to navigate. */
+/** Reloads the page to discard stale in-memory recovery state through a testable navigation boundary. */
 export function reloadPage(): void {
   window.location.reload();
 }

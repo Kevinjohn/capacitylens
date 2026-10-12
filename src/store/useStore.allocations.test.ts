@@ -351,7 +351,7 @@ describe("updateAllocation clamp ordering", () => {
     state().updateAllocation(allocation.id, { hoursPerDay: 99 });
 
     expect(state().data.allocations.find(({ id }) => id === allocation.id)).toMatchObject({
-      hoursPerDay: 24, // clamped into [0,24] like creation and import, not rejected
+      hoursPerDay: 24,
     });
     expect(state().notice).toBeNull();
   });
@@ -359,7 +359,7 @@ describe("updateAllocation clamp ordering", () => {
   it("still rejects a non-zero-hours write onto an external resource after clamping", () => {
     const { draft } = allocationSetup();
     const allocation = requireCreated(state().addAllocation(draft({})));
-    // Flip the resource to external behind the store's back (legacy data path):
+
     useStore.setState((s) => ({
       data: {
         ...s.data,
@@ -372,6 +372,6 @@ describe("updateAllocation clamp ordering", () => {
     expect(() => state().updateAllocation(allocation.id, { hoursPerDay: 99 })).toThrow(/external/);
 
     const row = state().data.allocations.find(({ id }) => id === allocation.id);
-    expect(row?.hoursPerDay).not.toBe(0); // unchanged: the domain rule still rejects post-clamp
+    expect(row?.hoursPerDay).not.toBe(0);
   });
 });

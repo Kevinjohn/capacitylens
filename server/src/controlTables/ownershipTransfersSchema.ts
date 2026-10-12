@@ -173,34 +173,14 @@ function normalizeSql(sql: string): string {
     .trim();
 }
 
-/**
- * Verify the workflow table after migration and on every open.
- *
- * This table sits outside AppData/TABLES, so `schema.ts` cannot cover it, and it is installed at
- * v41, so the historical `assertControlTablesCurrent` cannot either (migration v24 runs that
- * assertion against a v23 database, where a v41 table is correctly absent). It therefore gets its
- * own assertion, in the same shape as `assertAuditOutboxCurrent`.
- *
- * The live index is checked by its full definition, not merely its presence: an index that existed
- * but had lost its partial predicate would still satisfy a presence check while silently permitting
- * a second live request, the one thing this table exists to prevent.
- */
-/** The v41 migration runner. It lives beside the frozen DDL it executes rather than inline in the
- * ledger, because `db/migrations/index.ts` has no headroom under the 400-line ceiling and
- * `db/migrations/definitions.ts` may not depend on a control table. The runner sits outside the
- * checksum (`defineMigration` hashes version, name and definition only) so its home is free.
- *
- * Assert while the migration transaction still owns both the DDL and the ledger write, so a
- * malformed pre-existing IF-NOT-EXISTS object rolls the step back rather than leaving the live
- * slot unguarded. A control-plane table, so no AppData schema moves and EXPORT_SCHEMA_VERSION
- * stays put. */
+/** Runs the immutable v41 transfer DDL and asserts its storage shape before the migration commits. */
 export function runOwnershipTransfersV41(db: Db): void {
   db.exec(OWNERSHIP_TRANSFER_REQUESTS_V41_SQL);
   assertOwnershipTransfersCurrent(db);
 }
 
-/**
- * Rejects a transfer table that does not match the current schema definition.
+/** Rejects any transfer-table or live-index shape that cannot preserve the workflow contract.
+ * Checks full definitions because object presence alone cannot establish the unique live slot.
  */
 export function assertOwnershipTransfersCurrent(db: Db): void {
   assertTableColumns({

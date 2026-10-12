@@ -83,19 +83,13 @@ const account = (id: string) => ({
   ...meta(),
 });
 
-/** Seed one pre-existing account directly. */
 function seedOne(db: Db): void {
   const d = emptyAppData() as unknown as Record<string, unknown[]>;
   d.accounts = [account("a1")];
   insertAll(db, d as unknown as AppData);
 }
 
-/**
- * Flip a Better Auth user's `emailVerified` flag directly in the DB (the `user` table; column is an
- * INTEGER 0/1). A fresh email+password sign-up is unverified, so this is how the tests
- * obtain a verified principal: the next getSession reads the live user row (Better Auth joins it
- * fresh), so normalizeSessionUser then reports emailVerified=true.
- */
+// Set the stored verification flag so the next uncached session read exercises verified-identity admission.
 function verifyUserEmail(db: Db, email: string): void {
   db.prepare(`UPDATE user SET emailVerified = 1 WHERE email = ?`).run(email);
 }
@@ -146,7 +140,7 @@ function registerOwnerInviteCreationTest(): void {
     };
     expect(atRest.tokenHash).not.toBe(token);
     expect(JSON.stringify(db.prepare(`SELECT * FROM invites`).all())).not.toContain(token);
-    // The row landed in the control table, unused, with a future expiry.
+
     const stored = readInvite(db, token);
     expect(stored.accountId).toBe("a1");
     expect(stored.role).toBe("editor");
@@ -583,13 +577,12 @@ function registerInviteConsumptionTests(): void {
     const created = await addressedInviter(app, { cookie: a.cookie })("editor", "joiner@capacitylens.dev");
     const token = readResponseString(created, "token");
 
-    // User B (no prior membership) accepts.
     const b = await signUp(app, "joiner@capacitylens.dev");
     expect(getMemberRole(db, "a1", b.userId)).toBeNull();
     const res = await acceptReq(app, token, { cookie: b.cookie });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ accountId: "a1", role: "editor" });
-    // Role bound, token stamped used.
+
     expect(getMemberRole(db, "a1", b.userId)).toBe("editor");
     expect(readInvite(db, token).usedAt).not.toBeNull();
   });
@@ -614,7 +607,6 @@ function registerInviteConsumptionTests(): void {
     expect(usedAtAfterFirst).not.toBeNull();
     expect(getMemberRole(db, "a1", b.userId)).toBe("viewer");
 
-    // Second accept (same token, same user) is rejected and changes nothing.
     const second = await acceptReq(app, token, { cookie: b.cookie });
     expect(second.statusCode).toBe(409);
     expect(readInvite(db, token).usedAt).toBe(usedAtAfterFirst);
@@ -663,7 +655,7 @@ function registerInviteExpiryTests(): void {
     const res = await acceptReq(app, "expired-token-xyz", { cookie: b.cookie });
     expect(res.statusCode).toBe(410);
     expect(getMemberRole(db, "a1", b.userId)).toBeNull();
-    // Not consumed.
+
     expect(readInvite(db, "expired-token-xyz").usedAt).toBeNull();
   });
 }
@@ -883,7 +875,7 @@ describe("POST /api/invites/:token/signup — password invite onboarding", () =>
 describe("invites — OFF mode (trusted-local)", () => {
   it("create + accept work and bind the DEMO_USER membership", async () => {
     const db = openDb(":memory:");
-    // AuthMode defaults to 'off'.
+
     const app = buildApp(db);
     seedOne(db);
 
@@ -891,7 +883,7 @@ describe("invites — OFF mode (trusted-local)", () => {
       accountId: "a1",
       role: "editor",
     });
-    // Off = allow-all, minted as DEMO_USER's act.
+
     expect(created.statusCode).toBe(201);
     const token = readResponseString(created, "token");
 
@@ -926,7 +918,7 @@ function registerVerifiedPreauthMatchTest(): void {
   it("preauth + verified + EXACT (normalized) match → true (case/whitespace folded by store-time normalize)", () => {
     // preauthEmail is stored already normalized; the user email is normalized inside the helper, so a
     // differently-cased / padded live email still matches the normalized stored value.
-    // = 'carol@example.com'.
+
     const stored = normalizeEmail("Carol@Example.com");
     expect(
       preauthInviteAllows({
@@ -1007,9 +999,9 @@ function registerNormalizedPreauthCreationTest(): void {
     expect(res.statusCode).toBe(201);
     const body = readResponseObject(res);
     const token = readString(body.token, "response body.token");
-    // Echoed normalized.
+
     expect(body.preauthEmail).toBe("friend@example.com");
-    // Stored normalized.
+
     expect(readInvite(db, token).preauthEmail).toBe("friend@example.com");
   });
 }
@@ -1219,14 +1211,13 @@ function registerPreauthRefusalTests(): void {
     const created = await addressedInviter(app, { cookie: a.cookie })("editor", "expected@capacitylens.dev");
     const token = readResponseString(created, "token");
 
-    // Wrong-email caller, even if verified, is rejected.
     const b = await signUp(app, "wrong@capacitylens.dev");
     verifyUserEmail(db, "wrong@capacitylens.dev");
     const res = await acceptReq(app, token, { cookie: b.cookie });
     expect(res.statusCode).toBe(403);
-    // No bind.
+
     expect(getMemberRole(db, "a1", b.userId)).toBeNull();
-    // Not consumed, still live for the right caller.
+
     expect(readInvite(db, token).usedAt).toBeNull();
   });
 }
@@ -1294,11 +1285,10 @@ function registerVerifiedPreauthAcceptanceTest(): void {
 function registerOffModePreauthAcceptanceTest(): void {
   it("OFF mode skips the preauth check — a preauth invite binds DEMO_USER (trusted-local)", async () => {
     const db = openDb(":memory:");
-    // AuthMode defaults to 'off'.
+
     const app = buildApp(db);
     seedOne(db);
 
-    // Even a preauth invite for an unrelated email binds DEMO_USER in off (the gate is skipped).
     const created = await addressedInviter(app)("admin", "someone-else@capacitylens.dev");
     expect(created.statusCode).toBe(201);
     const token = readResponseString(created, "token");
@@ -1337,7 +1327,7 @@ describe("invites are excluded from the AppData path", () => {
     expect(res.statusCode).toBe(200);
     const state = res.json() as Record<string, unknown>;
     expect(state).not.toHaveProperty("invites");
-    // Belt-and-braces: the table name and the token secret must appear nowhere in the wire state.
+
     expect(JSON.stringify(state)).not.toContain("invites");
     expect(JSON.stringify(state)).not.toContain("secret-invite-token");
     expect(readState(db) as unknown as Record<string, unknown>).not.toHaveProperty("invites");
@@ -1345,7 +1335,7 @@ describe("invites are excluded from the AppData path", () => {
 
   it("is not a known entity for generic CRUD (GET 404, POST 404 — never a listing/persist)", async () => {
     const app = buildApp(openDb(":memory:"));
-    // No GET /api/:entity route exists -> Fastify 404 (never a 200 listing the invites table).
+
     const get = await app.inject({
       method: "GET",
       url: "/api/invites/some-token",
@@ -1355,7 +1345,7 @@ describe("invites are excluded from the AppData path", () => {
     expect([404, 405]).toContain(get.statusCode);
     const post = await app.inject({
       method: "POST",
-      // A control table proper -> generic CRUD refuses it.
+
       url: "/api/account_members",
       payload: {
         accountId: "a",

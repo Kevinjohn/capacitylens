@@ -16,9 +16,7 @@ type ResetPasswordContext = Pick<
   "auditUnlessReplayed" | "authMode" | "authorize" | "command" | "fail" | "flows" | "requireMembership"
 >;
 
-/**
- * Validates and executes an administrator’s password reset for another member.
- */
+/** Issues a reset ceremony for an authorized member, including the caller when permitted. */
 export async function resetPassword(
   req: FastifyRequest<MemberRoute>,
   reply: FastifyReply,
@@ -37,8 +35,7 @@ export async function resetPassword(
   const { accountId, userId } = req.params;
   if (!authorize({ req, reply, accountId, action: "manageMembers" })) return;
   if (!allowsPasswordSignIn(authMode)) {
-    // 'sso': the IdP owns sign-in, resetting a local password is meaningless there. 'off':
-    // trusted-local, no credential model (and no UI shows the button), a clear 400 either way.
+    // Password reset is unavailable when the configured mode does not support password sign-in.
     return reply.code(400).send({
       error: REPLY_ERRORS.passwordResetUnavailable,
     });
@@ -68,6 +65,7 @@ export async function resetPassword(
     });
     return reply.code(201).send({ token: ceremony.token, expiresAt: ceremony.expiresAt });
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return accountFail(reply, error);
   }
 }
@@ -84,9 +82,7 @@ type RevokeMemberSessionsContext = Pick<
   | "requireMembership"
 >;
 
-/**
- * Applies member sessions only after the relevant account API checks have passed.
- */
+/** Revokes the target member’s sessions after identity-global authority and freshness checks. */
 export async function revokeMemberSessions(
   req: FastifyRequest<MemberRoute>,
   reply: FastifyReply,
@@ -133,6 +129,7 @@ export async function revokeMemberSessions(
     });
     return reply.code(204).send();
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return accountFail(reply, error);
   }
 }

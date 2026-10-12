@@ -85,6 +85,7 @@ export function useSettingsViewController() {
     try {
       updateAccount(activeAccount.id, patch);
     } catch (error) {
+      // Surface the rejected settings write so controls cannot imply a saved value.
       setNotice(resolveErrorMessage(error), "error");
     }
   };

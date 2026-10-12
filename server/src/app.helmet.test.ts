@@ -3,12 +3,8 @@ import type { FastifyInstance } from "fastify";
 import { createApp } from "./app";
 import { openDb } from "./db";
 
-// Baseline security headers from @fastify/helmet: an API-only server returns JSON,
-// so a strict CSP is safe. These headers are pure hardening and on by default: nosniff,
-// a CSP carrying frame-ancestors 'none' + connect-src 'self', a no-referrer Referrer-Policy,
-// and X-Frame-Options: DENY for legacy browsers. HSTS is the one header gated off by default
-// (opts.https / CAPACITYLENS_HTTPS=1) because it is only valid over real HTTPS; this server
-// typically runs HTTP behind a TLS-terminating proxy, where HSTS would be harmful.
+// The API emits restrictive security headers by default. Enable HSTS only when the browser-facing
+// deployment uses HTTPS, including HTTPS terminated by a reverse proxy.
 
 const health = (app: FastifyInstance) => app.inject({ method: "GET", url: "/api/health" });
 
@@ -35,7 +31,7 @@ describe("baseline security headers (helmet, on by default)", () => {
     const csp = (await health(app)).headers["content-security-policy"];
     expect(csp).not.toContain("upgrade-insecure-requests");
     expect(csp).not.toContain("unsafe-inline");
-    // ...while the intended directives are still present.
+
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("connect-src 'self'");
     expect(csp).toContain("report-uri /api/security/csp-report");
@@ -73,7 +69,6 @@ describe("P2.7 privacy posture — CSP forbids browser egress (connect-src is se
   // wildcard) to connect-src or default-src, this test fails. Pairs with the dependency-denylist
   // half in src/test/privacy-posture.test.ts to form the full no-egress proof. See docs-src/security/privacy.md.
 
-  /** Pull a single directive's full segment ("connect-src 'self'") out of the CSP header. */
   const directive = (csp: string, name: string): string | undefined =>
     csp
       .split(";")
@@ -84,9 +79,9 @@ describe("P2.7 privacy posture — CSP forbids browser egress (connect-src is se
     const csp = (await health(createApp(openDb(":memory:")))).headers["content-security-policy"];
     expect(typeof csp).toBe("string");
     const connect = directive(csp as string, "connect-src");
-    // Exact value: 'self' is the only allowed source.
+
     expect(connect).toBe("connect-src 'self'");
-    // Belt-and-braces: prove no external scheme/host/wildcard crept into the segment.
+
     expect(connect).not.toContain("http");
     expect(connect).not.toContain("https://");
     expect(connect).not.toContain("*");

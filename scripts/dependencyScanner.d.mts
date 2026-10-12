@@ -20,5 +20,8 @@ export function parseDependencies(
 /** Resolve repository-relative and workspace imports without loading their modules. */
 export function resolveDependency(specifier: string | null, filename: string, root: string): DependencyResolution;
 
-/** Read effective package compiler settings once. Throws for missing or invalid configurations. */
+/**
+ * Reads effective package compiler settings once.
+ * @throws When project configuration is missing, invalid or inherits unreadable configuration.
+ */
 export function createDependencyParser(root: string): (source: string, filename: string) => DependencyEdge[];

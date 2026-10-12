@@ -36,6 +36,7 @@ export function ForgotPassword() {
       if (response.ok) setPhase("sent");
       else setError(m.login_failed());
     } catch {
+      // Surface a transport failure inline so password recovery remains retryable without reporting whether the address exists.
       setError(m.login_network_error());
     } finally {
       setBusy(false);

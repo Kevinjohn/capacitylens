@@ -19,9 +19,7 @@ import { assertStrictWriteFields } from "./strict";
 /** Account calendar/locale facts become immutable after their first valid stored value. */
 export const IMMUTABLE_ACCOUNT_FIELDS = ["language", "weekStartsOn", "timezone"] as const;
 
-/** Required domain values the import sanitiser is allowed to invent, but a direct API writer must
- * supply explicitly. Referential fields remain with validateWrite so callers retain its precise
- * domain error codes and messages. */
+// Ordinary API writers must supply required domain values that imports are permitted to repair.
 const DIRECT_WRITE_REQUIRED_FIELDS: Partial<Record<ScopedEntityKey, readonly string[]>> = {
   disciplines: ["name", "sortOrder"],
   resources: ["kind", "role", "employmentType", "workingHoursPerDay", "workingDays", "color"],

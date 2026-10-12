@@ -91,6 +91,7 @@ export function registerMicrosoftProofRoutes({
       });
       return reply.code(200).header("set-cookie", result.setCookies).send({ url: result.url });
     } catch (error) {
+      // Return known proof-start failures with their typed status and safe message; unexpected faults must reach the root error boundary.
       return sendError(reply, error);
     }
   });
@@ -104,6 +105,7 @@ export function registerMicrosoftProofRoutes({
       const result = await proof.confirm(toWebHeaders(req.headers), parsed.value);
       return reply.code(200).header("set-cookie", result.setCookies).send({ url: result.url });
     } catch (error) {
+      // Return known confirmation failures with their typed status so the browser can recover; unexpected faults must still escape.
       return sendError(reply, error);
     }
   });
@@ -112,6 +114,7 @@ export function registerMicrosoftProofRoutes({
       await proof.resend(toWebHeaders(req.headers));
       return reply.code(200).send({ ok: true });
     } catch (error) {
+      // Return known resend failures with their typed status so unavailable mail is visible; unexpected faults must still escape.
       return sendError(reply, error);
     }
   });

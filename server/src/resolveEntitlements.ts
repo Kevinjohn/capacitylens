@@ -1,5 +1,3 @@
-// Every account currently has unlimited entitlements.
-
 /** The current entitlement contract for an account. */
 export interface Entitlements {
   unlimited: true;

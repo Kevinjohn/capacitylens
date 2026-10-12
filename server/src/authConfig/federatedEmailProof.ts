@@ -27,7 +27,7 @@ function captureVerifiedFacts(input: ProviderFact): { subject: string; email: st
   return { subject: input.subject, email };
 }
 
-/** True when this proof would disable an active Owner through an address restriction. */
+// Proving an address must not disable an active owner through a company address restriction.
 function conflictsWithOwnerAccess(db: Db, principalId: string, email: string): boolean {
   const owner = db
     .prepare(
@@ -96,6 +96,7 @@ export function recordPasswordEmailProof(db: Db, principalId: string, email: str
   });
 }
 
+/** Records only the Google subject and address proven by the current callback’s exact verified-email claim. */
 export function captureGoogleEmailProof(
   db: Db,
   profile: { sub?: unknown; email?: unknown; email_verified?: unknown },

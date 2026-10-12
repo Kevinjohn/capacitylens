@@ -54,11 +54,7 @@ import {
 // Keep extra headroom local to this file in both shard and coverage runs.
 vi.setConfig({ testTimeout: 15_000 });
 
-// openDb only ran CREATE TABLE IF NOT EXISTS, so a file written by an older schema
-// kept its old columns/constraints forever and broke after a model change. These
-// tests synthesize such an old file by hand and prove openDb's migrateSchema upgrades
-// it in place. (A normal e2e/fresh run never exercises this, a new DB already has the
-// current shape, so the migration is a no-op there and would give false confidence.)
+// Exercise existing on-disk schemas: fresh databases already have current columns and cannot prove upgrade behavior.
 
 const TS = "2026-01-01T00:00:00.000Z";
 const V26_MIGRATION = {
@@ -136,8 +132,7 @@ const V40_MIGRATION = {
   name: "add-account-date-style",
   checksum: "5523524112cbd00936ed3fff90c0e00e142472abf78122e39dbc32f3bf59e2cc",
 } as const;
-/** The two newest account-preference steps. Spread into expectations rather than listed twice, so
- * the next account column does not push one of these enumerations past the 60-line function cap. */
+// Reuse the account-preference migration pair in expected plans to keep those expectations consistent.
 const NEWEST_ACCOUNT_MIGRATIONS = [V39_MIGRATION, V40_MIGRATION] as const;
 const V41_MIGRATION = {
   version: 41,
@@ -531,7 +526,7 @@ const V25_TO_CURRENT_MIGRATIONS = [
   V51_MIGRATION,
   V52_MIGRATION,
 ] as const;
-/** The same list without its v25 head, what a database rolled back to v25 still has pending. */
+// A database at v25 has every later migration pending.
 const V26_TO_CURRENT_MIGRATIONS = V25_TO_CURRENT_MIGRATIONS.slice(1);
 const fixture = (name: string): string => join(process.cwd(), "src", "fixtures", "databases", name);
 const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25, 34, 42, 46] as const;
@@ -559,7 +554,7 @@ function copyFixture(name: string): { path: string; cleanup: () => void } {
       try {
         unlinkSync(path + suffix);
       } catch {
-        /* not present */
+        // Fixture cleanup is best-effort; a prior cleanup may already have removed the database or sidecar.
       }
     }
   };
@@ -666,9 +661,7 @@ function writeOldDb(path: string): void {
   old.close();
 }
 
-/** Released CapacityLens databases carry the account→client→project→work chain. Focused drift
- * fixtures reproduce that legacy fingerprint so discriminator coverage remains independent from
- * the particular account-column drift each test is exercising. */
+// Legacy drift fixtures need the released account/client/project chain so schema discrimination remains independent of the tested column.
 function addLegacyCompanionTables(db: DatabaseSync): void {
   db.exec(`
     CREATE TABLE clients (
@@ -722,7 +715,7 @@ function mutateCurrentDatabase(
       try {
         unlinkSync(path + suffix);
       } catch {
-        /* not present */
+        // Fixture cleanup is best-effort; a prior cleanup may already have removed the database or sidecar.
       }
     }
   };
@@ -739,6 +732,7 @@ function mutateCurrentDatabase(
     }
     return { path, cleanup };
   } catch (error) {
+    // Remove the failed fixture copy and rethrow so a setup failure cannot leave a database artifact behind.
     cleanup();
     throw error;
   }
@@ -777,8 +771,7 @@ function dropResourceAvailabilityFields(db: DatabaseSync): void {
     "ALTER TABLE resources DROP COLUMN avatarUrl; ALTER TABLE resources DROP COLUMN firstAvailableDate; ALTER TABLE resources DROP COLUMN lastAvailableDate;",
   );
   db.exec("ALTER TABLE accounts DROP COLUMN capacityOverviewAccess;");
-  // Every fixture that winds a current database back below v38 winds past v40 on the way, so the
-  // newest account column comes off here too, the same accumulation v39 made when it landed.
+  // Fixtures below v38 also predate dateStyle and must omit it before planning the upgrade.
   db.exec("ALTER TABLE accounts DROP COLUMN dateStyle;");
 }
 
@@ -1179,7 +1172,7 @@ describe("schema migration of an existing on-disk DB", () => {
         try {
           unlinkSync(path + suffix);
         } catch {
-          /* not present */
+          // Fixture cleanup is best-effort; a prior cleanup may already have removed the database or sidecar.
         }
       }
     }
@@ -1270,13 +1263,12 @@ function registerV13ColourMigrationTest(): void {
         try {
           unlinkSync(path + suffix);
         } catch {
-          /* not present */
+          // Fixture cleanup is best-effort; a prior cleanup may already have removed the database or sidecar.
         }
       }
     };
     cleanup();
     try {
-      // Fresh DB: already at the current version (v13 is a no-op here).
       const db = openDb(path);
       // #7cd9e4 is not a preset. Its nearest preset is #7adae3 (see shared color.test.ts for the
       // same fixture, pinned there against the full palette).
@@ -1373,7 +1365,7 @@ describe("schema migration of an existing on-disk DB", () => {
         try {
           unlinkSync(path + suffix);
         } catch {
-          /* not present */
+          // Fixture cleanup is best-effort; a prior cleanup may already have removed the database or sidecar.
         }
       }
     };
@@ -1402,7 +1394,6 @@ describe("schema migration of an existing on-disk DB", () => {
       ).toBe(DB_SCHEMA_VERSION);
       upgraded.close();
 
-      // Idempotent: reopening an already-migrated DB plans no further migrations.
       const reopened = openDb(path);
       expect(planDatabaseMigrations(reopened).migrations).toEqual([]);
       reopened.close();
@@ -1423,7 +1414,7 @@ describe("schema migration of an existing on-disk DB", () => {
         try {
           unlinkSync(path + suffix);
         } catch {
-          /* not present */
+          // Fixture cleanup is best-effort; a prior cleanup may already have removed the database or sidecar.
         }
       }
     };
@@ -1440,7 +1431,6 @@ describe("schema migration of an existing on-disk DB", () => {
       expect(cols).toEqual(
         expect.arrayContaining(["showInternalProjects", "showInternalActivities", "inlineActivityCreateEnabled"]),
       );
-      // The pre-existing account survived untouched; the newly-added columns read back absent.
       const acct = getRow(upgraded, "accounts", "a1");
       expect(acct?.name).toBe("Studio");
       expect(acct?.showInternalProjects).toBeUndefined();
@@ -1475,15 +1465,14 @@ describe("schema migration of an existing on-disk DB", () => {
         try {
           unlinkSync(path + suffix);
         } catch {
-          /* not present, fine */
+          // Fixture cleanup is best-effort; a prior cleanup may already have removed the database or sidecar.
         }
       }
     };
     cleanup();
     try {
       writeOldDb(path);
-      // The legacy fixture also lacks required allocation foreign keys. Additive column migration
-      // must not bless that drift: startup now fails closed and names the relational mismatch.
+      // Additive migration must not bless missing allocation foreign keys; startup must name the relational mismatch.
       expect(() => openDb(path)).toThrow(/foreign-key mismatch/i);
     } finally {
       cleanup();
@@ -1494,21 +1483,16 @@ describe("schema migration of an existing on-disk DB", () => {
 describe("schema migration of an existing on-disk DB", () => {
   it("seeds a never-initialised DB once, and NOT after the user empties it (no demo re-seed)", () => {
     const db = openDb(":memory:");
-    // Fresh DB: uninitialised → seeds.
     expect(isInitialized(db)).toBe(false);
     expect(seedIfUninitialized(db, seed())).toBe(true);
     expect(isInitialized(db)).toBe(true);
     expect(readState(db).accounts.length).toBeGreaterThan(0);
-    // Second boot of the same DB: already initialised → no re-seed.
     expect(seedIfUninitialized(db, seed())).toBe(false);
 
-    // The user deletes all their data (cascade empties every scoped table; _meta survives).
     for (const a of readState(db).accounts) deleteRow(db, "accounts", a.id);
     expect(isEmpty(readState(db))).toBe(true);
-    // ...but still initialised.
     expect(isInitialized(db)).toBe(true);
-    // The regression guard: a boot against the empty-but-initialised DB must not re-seed
-    // (gating on isEmpty(), the old bug, would have resurrected the demo dataset here).
+    // An initialized database must stay empty after deliberate deletion; startup must not resurrect demo data.
     expect(seedIfUninitialized(db, seed())).toBe(false);
     expect(isEmpty(readState(db))).toBe(true);
     db.close();
@@ -1561,17 +1545,14 @@ describe("schema migration of an existing on-disk DB", () => {
 
 describe("schema migration of an existing on-disk DB", () => {
   it("generically ADDs a missing OPTIONAL column with no hard-coded migration step", () => {
-    // An old `disciplines` table missing the optional `color` column. There is no
-    // hard-coded rule for disciplines.color, so this proves the migration is generic,
-    // a future additive optional field is picked up from the spec automatically (the old
-    // version-gated pass would have frozen and left the column missing).
+    // Optional-column drift must be repaired through the owning schema specification, including disciplines.color.
     const path = join(tmpdir(), `capacitylens-migrate-gen-${process.pid}-${Date.now()}.db`);
     const cleanup = () => {
       for (const suffix of ["", "-wal", "-shm"]) {
         try {
           unlinkSync(path + suffix);
         } catch {
-          /* not present, fine */
+          // Fixture cleanup is best-effort; a prior cleanup may already have removed the database or sidecar.
         }
       }
     };
@@ -1586,7 +1567,6 @@ describe("schema migration of an existing on-disk DB", () => {
       old.exec(`INSERT INTO accounts VALUES ('a1','Studio','#111','${TS}','${TS}');`);
       old.close();
 
-      // Generic pass adds disciplines.color.
       const db = openDb(path);
       expect(() =>
         insertRow(db, "disciplines", {
@@ -1609,26 +1589,21 @@ describe("schema migration of an existing on-disk DB", () => {
 
 describe("schema migration of an existing on-disk DB", () => {
   it("throws a clear, column-naming error when an existing DB lacks a now-REQUIRED column", () => {
-    // The flip side of the generic optional-add: an old `accounts` table that predates a
-    // required column (here `color`). CREATE TABLE IF NOT EXISTS won't backfill it and
-    // migrateSchema only auto-adds optional columns. A NOT NULL addition can't be ALTER-ADDed
-    // to existing rows, so it needs an explicit rebuild step that doesn't exist yet. Rather than
-    // let that drift surface later as a cryptic "no column named color" on the first write (or
-    // silently read back undefined), openDb's assertSchemaCurrent must fail fast and name it.
+    // A missing required column cannot be guessed by the optional-column repair.
+    // Startup must name the schema mismatch before accepting writes.
     const path = join(tmpdir(), `capacitylens-migrate-req-${process.pid}-${Date.now()}.db`);
     const cleanup = () => {
       for (const suffix of ["", "-wal", "-shm"]) {
         try {
           unlinkSync(path + suffix);
         } catch {
-          /* not present, fine */
+          // Fixture cleanup is best-effort; a prior cleanup may already have removed the database or sidecar.
         }
       }
     };
     cleanup();
     try {
       const old = new DatabaseSync(path);
-      // accounts without the required `color` column (predates it).
       old.exec(`CREATE TABLE accounts (
         id TEXT PRIMARY KEY, name TEXT NOT NULL, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
       );`);
@@ -1811,14 +1786,13 @@ describe("schema migration of an existing on-disk DB", () => {
 
 describe("schema migration of an existing on-disk DB", () => {
   it("accounts.timezone and accounts.weekStartsOn are added by migration", () => {
-    // An old accounts table without the new optional columns.
     const path = join(tmpdir(), `capacitylens-migrate-tz-${process.pid}-${Date.now()}.db`);
     const cleanup = () => {
       for (const suffix of ["", "-wal", "-shm"]) {
         try {
           unlinkSync(path + suffix);
         } catch {
-          /* fine */
+          // Fixture cleanup is best-effort; a prior cleanup may already have removed the database or sidecar.
         }
       }
     };
@@ -1837,7 +1811,6 @@ describe("schema migration of an existing on-disk DB", () => {
       old.close();
 
       const db = openDb(path);
-      // After migration, both new optional columns exist and round-trip.
       insertRow(db, "accounts", {
         id: "a2",
         name: "New Studio",
@@ -1850,7 +1823,6 @@ describe("schema migration of an existing on-disk DB", () => {
       const row = getRow(db, "accounts", "a2");
       expect(row?.timezone).toBe("Europe/Paris");
       expect(row?.weekStartsOn).toBe(0);
-      // The old row (without the new fields) reads back without them.
       const old2 = getRow(db, "accounts", "a1");
       expect(old2?.timezone).toBeUndefined();
       expect(old2?.weekStartsOn).toBeUndefined();
@@ -1863,14 +1835,13 @@ describe("schema migration of an existing on-disk DB", () => {
 
 describe("schema migration of an existing on-disk DB", () => {
   it("accounts.placeholdersEnabled and accounts.externalEnabled are added by migration", () => {
-    // An old accounts table without the two new optional view-pref columns.
     const path = join(tmpdir(), `capacitylens-migrate-flags-${process.pid}-${Date.now()}.db`);
     const cleanup = () => {
       for (const suffix of ["", "-wal", "-shm"]) {
         try {
           unlinkSync(path + suffix);
         } catch {
-          /* fine */
+          // Fixture cleanup is best-effort; a prior cleanup may already have removed the database or sidecar.
         }
       }
     };
@@ -1891,8 +1862,6 @@ describe("schema migration of an existing on-disk DB", () => {
       old.close();
 
       const db = openDb(path);
-      // After migration, both new optional columns exist and round-trip a present boolean, as does
-      // the v16 inline-activity preference added by the migration chain.
       insertRow(db, "accounts", {
         id: "a2",
         name: "New Studio",
@@ -1928,7 +1897,7 @@ describe("schema migration of an existing on-disk DB", () => {
         try {
           unlinkSync(path + suffix);
         } catch {
-          /* not present, fine */
+          // Fixture cleanup is best-effort; a prior cleanup may already have removed the database or sidecar.
         }
       }
     };
@@ -3538,7 +3507,7 @@ describe("schema migration of an existing on-disk DB", () => {
         try {
           unlinkSync(path + suffix);
         } catch {
-          /* not present */
+          // Fixture cleanup is best-effort; a prior cleanup may already have removed the database or sidecar.
         }
       }
     }
@@ -3565,7 +3534,7 @@ describe("schema migration of an existing on-disk DB", () => {
         try {
           unlinkSync(path + suffix);
         } catch {
-          /* not present */
+          // Fixture cleanup is best-effort; a prior cleanup may already have removed the database or sidecar.
         }
       }
     }
@@ -3616,7 +3585,7 @@ describe("schema migration of an existing on-disk DB", () => {
         try {
           unlinkSync(path + suffix);
         } catch {
-          /* not present */
+          // Fixture cleanup is best-effort; a prior cleanup may already have removed the database or sidecar.
         }
       }
     }
@@ -3806,7 +3775,7 @@ describe("migration ledger checksum supersession (v11 alpha-line amendment)", ()
         try {
           unlinkSync(path + suffix);
         } catch {
-          /* not present */
+          // Fixture cleanup is best-effort; a prior cleanup may already have removed the database or sidecar.
         }
       }
     };
@@ -3820,14 +3789,11 @@ describe("migration ledger checksum supersession (v11 alpha-line amendment)", ()
         createdAt: TS,
         updatedAt: TS,
       });
-      // Model the already-upgraded install: rewrite v11 to the checksum the previous build stamped.
       seeded.prepare(`UPDATE ${DATABASE_MIGRATION_TABLE} SET checksum = ? WHERE version = 11`).run(OLD_V11_CHECKSUM);
       seeded.close();
 
-      // The real boot path (openDb → planDatabaseMigrations → assertMigrationHistory) must not throw.
       const rebooted = openDb(path);
       expect(planDatabaseMigrations(rebooted).migrations).toEqual([]);
-      // Subsequent behaviour is normal: the data is intact and the DB stays writable.
       expect(readState(rebooted).accounts.find((a) => a.id === "a1")?.name).toBe("Studio");
       insertRow(rebooted, "accounts", {
         id: "a2",
@@ -4005,7 +3971,6 @@ describe("v13 migration is self-contained (frozen palette folded into the checks
     // The definition folds in the joined frozen-palette hex list so the migration checksum covers the
     // exact palette the repair snaps to. A future shared-palette edit can't silently change v13.
     expect(V13_DEFINITION).toContain(V13_FROZEN_PRESET_COLORS.join(","));
-    // Spot-check a representative preset is in the digest.
     expect(V13_DEFINITION).toContain("#7adae3");
   });
 
@@ -4040,9 +4005,9 @@ describe("init failure is not masked by the cleanup PRAGMA", () => {
     try {
       initializeOpenDb(db, ":memory:");
     } catch (e) {
+      // Capture the surfaced initialization error so the test verifies cleanup did not replace the original application-ID failure.
       thrown = e instanceof Error ? e.message : String(e);
     }
-    // Original, not "connection broken during cleanup".
     expect(thrown).toMatch(/application_id/);
     real.close();
   });

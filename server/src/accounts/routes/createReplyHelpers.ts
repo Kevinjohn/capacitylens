@@ -68,24 +68,14 @@ export function createReplyHelpers(dependencies: AccountRouteDependencies): Acco
     if (extra && !wasAccountCommandReplayed(result)) audit(reply, record);
   };
 
-  // Member management.
-  // Owner/Admin list / change-role / revoke members of their account, plus list / revoke outstanding
-  // invites. Every route gates through the same authorize seam (cross-tenant → 403 automatically):
-  // members under 'manageMembers', invites under 'manageInvites' (both admin-tier). The pure shared
-  // guards (canManageMemberRole / canRemoveMember) keep Owner outside ordinary role and removal
-  // operations for every actor. Owner changes are not ordinary member mutations: the single
-  // Owner moves only through the transactional transfer endpoint, while a partial unique index and
-  // boot assertion enforce exactly one Owner for every member-bearing company. Off mode
-  // (trusted-local) has no real member model, so the list routes return empty and mutation routes
-  // explicitly report the unavailable capability instead of claiming an inert request committed.
+  // Trusted-local mode has no member identity model, so member mutations must report unavailable
+  // rather than acknowledge an inert write.
   const rejectTrustedLocalMemberMutation = (reply: FastifyReply): unknown =>
     reply.code(400).send({
       error: REPLY_ERRORS.trustedLocalMemberManagement,
     });
 
-  // Gate shared by every member-mutation route below: admin-tier authorize() first (it sends its own
-  // 403/404 on failure), then off mode's "no real member model" refusal. Same order/short-circuit as
-  // each call site had inline.
+  // Check account authority before reporting trusted-local capability availability.
   const authorizeMemberMutation = ({
     req,
     reply,

@@ -17,6 +17,7 @@ export function restrictIdentifiedDatabasePermissions(db: Db): void {
     chmodSync(path, 0o600);
     // WAL/SHM may not exist until the first write; the process umask protects later files.
   } catch (cause) {
+    // Refuse use of a database whose private mode could not be established, retaining the filesystem cause.
     throw new Error(`Could not restrict database permissions at "${path}".`, {
       cause,
     });

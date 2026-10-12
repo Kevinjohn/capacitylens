@@ -5,7 +5,7 @@ import { SettingsSection } from "./SettingsSection";
 
 import type { StoreState } from "@/store/useStore";
 import { BAR_LABEL_MESSAGES, THEME_MESSAGES, UTILIZATION_MESSAGES } from "./settingsLabels";
-/** Edits device and account appearance preferences with their proper ownership. */
+/** Edits this device's theme, bar-label and utilisation-display preferences. */
 export function SettingsAppearanceSection({
   barLabelPrefs: barLabelPreferences,
   setBarLabelPref: setBarLabelPreference,
@@ -40,7 +40,6 @@ export function SettingsAppearanceSection({
 
       <SettingsSection title={m.settings_utilisation_heading()} help={m.settings_utilisation_intro()}>
         <div className="flex flex-col gap-3">
-          {/* The per-discipline figure has nothing to attach to when disciplines are off. */}
           {buildLabelOptions(buildLabels(UTILIZATION_MESSAGES))
             .filter((option) => disciplinesEnabled || option.value !== "showDiscipline")
             .map((option) => (

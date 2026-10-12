@@ -15,21 +15,7 @@ export type TeamAccessResult<T> =
   | { kind: "unknown"; status: number; message: string | null }
   | { kind: "invalid"; status: number; message: string };
 
-/**
- * The sentence to show a user for a non-ok {@link TeamAccessResult}: the server's own message when a
- * rejection carried one, otherwise the caller's per-operation fallback.
- *
- * Only `kind: 'rejected'` is server-authored refusal ("that member is the last owner"), so only that
- * kind's message is preferred. `unknown` (the write may or may not have landed) and `invalid` (we
- * could not decode the body) carry messages that describe our uncertainty, not the user's problem,
- * and the caller's fallback stays the better sentence for them, which is exactly what every Team &
- * access call site already open-codes. An empty-string message falls back too: a blank toast is a
- * worse outcome than a generic one.
- *
- * @param result   - the outcome returned by any {@link teamAccessClient} method.
- * @param fallback - the caller's own operation-specific sentence, already localised.
- * @returns the message to surface; never empty as long as `fallback` isn't.
- */
+/** Uses the server message only for a decoded rejection; ambiguous or undecodable outcomes use the operation fallback. An empty rejection message also falls back. */
 export function resolveRejectionMessage<T>(result: TeamAccessResult<T>, fallback: string): string {
   return result.kind === "rejected" && result.message ? result.message : fallback;
 }

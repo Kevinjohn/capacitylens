@@ -183,6 +183,7 @@ export function createJoiningProviderIntent(input: {
         ],
       };
     } catch (cause) {
+      // Invalidate this unusable intent before surfacing provider-start failure so its browser bearer cannot be replayed.
       cancelJoinIntent(db, intent.nonceHash, Date.now());
       throw cause;
     }

@@ -29,7 +29,6 @@ describe("packLanes", () => {
   });
 
   it("treats touching inclusive ends as overlapping (separate lanes)", () => {
-    // a ends 05-03, b starts 05-03 -> they share day 05-03 -> must not share a lane
     const r = packLanes([iv("a", "2026-05-01", "2026-05-03"), iv("b", "2026-05-03", "2026-05-05")]);
     expect(r.laneCount).toBe(2);
     expect(laneOf(r, "a")).toBe(0);
@@ -56,11 +55,10 @@ describe("packLanes", () => {
     // every other item's day-index. Valid items still pack correctly.
     const r = packLanes([iv("bad", "", ""), iv("a", "2026-05-01", "2026-05-03"), iv("b", "2026-05-05", "2026-05-08")]);
     expect(laneOf(r, "a")).toBe(0);
-    expect(laneOf(r, "b")).toBe(0); // a and b don't overlap -> share a lane
-    expect(laneOf(r, "bad")).toBe(0); // unpositionable -> parked in lane 0
-    // If the origin picked up the bad record's empty startDate instead of the first valid
-    // one, every dayIndex would come back NaN and a/b would also be parked without ever
-    // touching laneEnds, dropping laneCount to 0.
+    // Invalid dates must not establish the packing origin or suppress valid intervals.
+    expect(laneOf(r, "b")).toBe(0);
+    expect(laneOf(r, "bad")).toBe(0);
+
     expect(r.laneCount).toBe(1);
   });
 
@@ -82,7 +80,7 @@ describe("packLanes", () => {
     expect(r.lanes).toHaveLength(2);
     expect(laneOf(r, "a")).toBe(0);
     expect(laneOf(r, "b")).toBe(0);
-    expect(r.laneCount).toBe(0); // both unpositionable -> laneEnds never touched
+    expect(r.laneCount).toBe(0);
   });
 });
 
@@ -102,14 +100,13 @@ describe("packLanes — ordering and reuse", () => {
   });
 
   it("breaks a startDate tie by endDate ascending", () => {
-    // a and b share a startDate; b's shorter endDate must sort first. c only overlaps
-    // whichever of a/b is processed second, so the resulting lanes pin down the order.
-    const a = iv("a", "2026-05-01", "2026-05-10"); // long
-    const b = iv("b", "2026-05-01", "2026-05-03"); // short, same start
+    // Equal starts need a deterministic shorter-end tie-break before greedy packing.
+
+    const a = iv("a", "2026-05-01", "2026-05-10");
+    const b = iv("b", "2026-05-01", "2026-05-03");
     const c = iv("c", "2026-05-04", "2026-05-12");
     const result = packLanes([a, b, c]);
-    // Correct order: b (end 05-03) first -> lane 0, a (end 05-10) second -> lane 1
-    // (overlaps b's old lane end), c third -> reuses lane 0 (free once b ended).
+
     expect(laneOf(result, "b")).toBe(0);
     expect(laneOf(result, "a")).toBe(1);
     expect(laneOf(result, "c")).toBe(0);
@@ -134,17 +131,16 @@ describe("packLanes — ordering and reuse", () => {
 
 describe("packLanes — invalid records and updates", () => {
   it("parks a record with an unparseable endDate without corrupting laneEnds", () => {
-    // Only the end is invalid (start is fine), so `s` is finite and `e` is not, this
-    // distinguishes the `||` from a mutated `&&` in the unpositionable check.
+    // Validate both endpoints; a valid start cannot make an invalid end positionable.
     const r = packLanes([iv("a", "2026-05-01", "")]);
     expect(laneOf(r, "a")).toBe(0);
-    expect(r.laneCount).toBe(0); // never reached laneEnds.push
+    expect(r.laneCount).toBe(0);
   });
 
   it("updates laneEnds when reusing a lane, so a later item sees the new end", () => {
     const a = iv("a", "2026-05-01", "2026-05-03");
-    const b = iv("b", "2026-05-05", "2026-05-10"); // reuses a's lane (no overlap)
-    const c = iv("c", "2026-05-06", "2026-05-12"); // overlaps b, must not reuse that lane
+    const b = iv("b", "2026-05-05", "2026-05-10");
+    const c = iv("c", "2026-05-06", "2026-05-12");
     const result = packLanes([a, b, c]);
     expect(laneOf(result, "a")).toBe(0);
     expect(laneOf(result, "b")).toBe(0);
@@ -159,7 +155,6 @@ describe("packLanes — invalid records and updates", () => {
   });
 
   it("packs a staircase back down to 2 lanes", () => {
-    // a[1-5], b[2-6] overlap (2 lanes). c[6-9] starts after a ends -> reuses lane 0.
     const r = packLanes([
       iv("a", "2026-05-01", "2026-05-05"),
       iv("b", "2026-05-02", "2026-05-06"),

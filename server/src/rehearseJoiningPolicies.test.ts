@@ -103,6 +103,7 @@ describe("joining policy rehearsal failures", () => {
       try {
         anonymise(db);
       } catch (error) {
+        // Capture the rejected source-domain data so assertions verify the diagnostic is useful without exposing the private value.
         failure = error;
       }
       expect(failure).toBeInstanceOf(Error);

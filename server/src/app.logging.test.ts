@@ -10,10 +10,7 @@ import { call, PASSWORD_ENV, signUp } from "./testHelpers/passwordAuth";
 import { redactSecretUrl } from "./routes/appLogging";
 import type { Db } from "./db";
 
-// The CAPACITYLENS_LOG flag (opts.log): on gives structured per-request JSON via Fastify's
-// bundled pino and routes the 500-path error through the request logger; off is byte-for-
-// byte today's behaviour (no request logs, bare console.error on 500s). The logStream
-// seam exists only so these tests can read the JSON lines instead of stdout.
+// Capture structured request logs in memory to assert that unexpected errors retain diagnostics without leaking response details.
 
 function createLogCapture(): { lines: string[]; stream: { write(msg: string): void } } {
   const lines: string[] = [];
@@ -93,14 +90,14 @@ describe("CAPACITYLENS_LOG on", () => {
     const { lines, stream } = createLogCapture();
     const db = openDb(":memory:");
     const app = createApp(db, { log: true, logStream: stream });
-    // /api/state now throws so the 500 redaction funnel.
+
     db.close();
     const res = await app.inject({ method: "GET", url: "/api/state" });
     expect(res.statusCode).toBe(500);
-    // Body still generic.
+
     expect(res.json()).toEqual({ error: "Internal server error." });
     expect(consoleError).not.toHaveBeenCalled();
-    // Pino error line carries the real cause.
+
     expect(lines.join("")).toContain('"level":50');
   });
 });
@@ -171,7 +168,7 @@ describe("CAPACITYLENS_LOG redaction (P0.5.5)", () => {
       },
     });
     const out = lines.join("");
-    // The request was logged.
+
     expect(out).toContain('"url":"/api/health"');
     expect(out).not.toContain("SENTINEL_AUTH");
     expect(out).not.toContain("SENTINEL_C");
@@ -185,7 +182,7 @@ describe("CAPACITYLENS_LOG invite-token URL redaction (P1.9)", () => {
     const { lines, stream } = createLogCapture();
     const app = createApp(openDb(":memory:"), { log: true, logStream: stream });
     const TOKEN = "SENTINEL_LIVE_INVITE_TOKEN";
-    // The token is unknown → the route 404s, but the request is logged with the URL we care about.
+
     const res = await app.inject({
       method: "POST",
       url: `/api/invites/${TOKEN}/accept`,
@@ -193,9 +190,9 @@ describe("CAPACITYLENS_LOG invite-token URL redaction (P1.9)", () => {
     });
     expect(res.statusCode).toBe(404);
     const out = lines.join("");
-    // Masked path logged.
+
     expect(out).toContain('"url":"/api/invites/[redacted]/accept"');
-    // The live token never reaches the log.
+
     expect(out).not.toContain(TOKEN);
   });
 
@@ -327,7 +324,7 @@ describe("security-event client identity", () => {
 describe("CAPACITYLENS_LOG off (default)", () => {
   it("emits no request logs at all", async () => {
     const { lines, stream } = createLogCapture();
-    // Stream ignored when off.
+
     const app = createApp(openDb(":memory:"), { logStream: stream });
     await app.inject({ method: "GET", url: "/api/health" });
     expect(lines).toEqual([]);

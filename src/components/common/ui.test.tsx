@@ -80,7 +80,7 @@ function registerButtonAppearanceTests() {
 
   it("renders primary variant by default", () => {
     render(<Button>Primary</Button>);
-    // Primary has a specific class; just verify it renders without crashing and text is there
+
     const button = screen.getByRole("button", { name: "Primary" });
     expect(button).toBeInTheDocument();
     // Opacity must switch immediately when disabled clears. Transitioning every property briefly
@@ -363,7 +363,7 @@ function registerModalDirtyStateTests() {
         <input aria-label="field" />
       </Modal>,
     );
-    // Edit a field → dialog is dirty.
+
     fireEvent.input(screen.getByLabelText("field"), { target: { value: "x" } });
     const backdrop = getRequiredElement<HTMLElement>(document, '[data-slot="dialog-overlay"]');
     await user.click(backdrop);
@@ -568,7 +568,6 @@ function registerModalFooterTests() {
   });
 
   it("keeps focus stable and restores it when onClose identity churns mid-open", () => {
-    // Simulate a real trigger having focus before the dialog opens.
     const trigger = document.createElement("button");
     document.body.appendChild(trigger);
     trigger.focus();
@@ -589,7 +588,7 @@ function registerModalFooterTests() {
     expect(document.activeElement).toBe(first);
 
     second.focus();
-    // Parent re-renders with a brand-new onClose (as a store mutation would cause).
+
     rerender(
       <Modal title="Churn" onClose={() => {}}>
         {body}
@@ -1107,7 +1106,7 @@ function registerColorFieldBasicTests(BLUE: string, RED: string) {
   it("renders a trigger labelled with the current value and no swatches until opened", () => {
     render(<ColorField label="Brand colour" value={BLUE} onChange={vi.fn()} />);
     expect(screen.getByRole("button", { name: `Brand colour (${resolveColorName(BLUE)})` })).toBeInTheDocument();
-    // Popup is closed → preset swatches are not in the DOM.
+
     expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
 
@@ -1151,7 +1150,7 @@ function registerColorFieldBasicTests(BLUE: string, RED: string) {
     await user.click(screen.getByRole("button", { name: `Colour (${resolveColorName(BLUE)})` }));
     await user.click(screen.getByRole("radio", { name: resolveColorName(RED) }));
     expect(onChange).toHaveBeenCalledWith(RED);
-    // Picking closes the popup.
+
     expect(screen.queryByRole("radio", { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
 }

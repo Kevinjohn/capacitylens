@@ -5,21 +5,8 @@ import { BASE } from "./base.mjs";
 import { generateDocumentationComponentId } from "./generateDocumentationComponentId.mts";
 import { ports } from "../../scripts/ports.mjs";
 
-// The docs site. Built with `pnpm run docs:build` into the committed docs/ folder.
-// Each role guide (Scheduler, Owner, Admin, Tech) has its own ordered sidebar. The
-// longest matching path wins where a guide reuses a page from another directory.
-// Escape and Tab close an open screenshot lightbox. Opening, closing by click, and all
-// the styling are pure CSS (see lightbox.mts); these keystrokes are the only
-// part CSS cannot express, so it is retained in the standalone build with the
-// data-cl-keep marker that scripts/docs-standalone.mjs looks for. The generated
-// 404 page uses the same script to make its hosted home link work from file://.
-//
-// It is a pure enhancement, deliberately: it adds a way to close the lightbox
-// and takes nothing away, so a reader with JavaScript off, or a copy of the
-// pages that lost the script somewhere, still gets the click-to-close lightbox
-// exactly as before. Inline rather than a bundle, because a separate .js file
-// would be a network request the file:// build cannot rely on.
-// Read measured source at build time; generated pages keep this inline script.
+// Standalone pages retain this inline keyboard handler because file:// copies cannot depend on a separate bundle.
+// Click-to-close still works through CSS when JavaScript is unavailable.
 const escapeClosesLightbox = readFileSync(new URL("../../scripts/docs-lightbox.js", import.meta.url), "utf8").trimEnd();
 
 // VitePress is Vite, so `docs:dev` would default to 5173 and `docs:preview` to 4173, the exact
@@ -166,6 +153,7 @@ const introductionSidebar = [
   },
 ];
 
+/** Configures the standalone documentation site, preserving disk-openable links and deterministic build output. */
 export default defineConfig({
   vue: {
     features: {
@@ -186,19 +174,8 @@ export default defineConfig({
   // turns the build into standalone pages that open straight from disk, where
   // extensionless URLs would need a server to rewrite them.
   cleanUrls: false,
-  // Commit the standalone pages to the repository-root docs/ directory.
-  // Run `pnpm run docs:build` after changing anything under docs-src/.
   outDir: "../docs",
-  // Disable this because standalone output removes the VitePress client bundle
-  // that fills the timestamp, leaving a "Last updated:" label with no date.
-  //
-  // It also made the build unreproducible: the baked timestamp is the last
-  // commit touching that page's .md, so the same sources built on a CI runner
-  // (where the checkout is shallow and every file maps to one ephemeral merge
-  // commit) produced different bytes than the same build run locally. That is
-  // what the docs workflow's freshness check exists to catch, and it cannot
-  // distinguish a genuinely stale commit from this. Restoring the date means
-  // rendering it at build time, not turning this back on.
+  // Standalone pages omit the client bundle that renders lastUpdated; Git timestamps also differ between full and shallow checkouts.
   lastUpdated: false,
 
   // Deliberately light-only: plain white page, dark text, like classic docs sites.

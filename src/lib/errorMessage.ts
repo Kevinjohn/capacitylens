@@ -5,9 +5,8 @@ import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 
 // One entry per DomainErrorCode. The values are uncalled message references. This table is built
 // once at import and Paraglide resolves the active locale at call time, so storing resolved strings
-// here would freeze every message to the import-time language. `Record<DomainErrorCode, …>` (not a
-// Partial or an index signature) is what keeps this exhaustive: adding a code without a message
-// fails tsc when a code has no message.
+// here would freeze every message to the import-time language. The Record type makes omissions a
+// type error.
 const DOMAIN_ERROR_MESSAGES: Record<DomainErrorCode, () => string> = {
   record_wrong_account: m.domain_error_record_wrong_account,
   reference_wrong_account: m.domain_error_reference_wrong_account,
@@ -37,8 +36,7 @@ const DOMAIN_ERROR_MESSAGES: Record<DomainErrorCode, () => string> = {
   date_required: m.domain_error_date_required,
   date_invalid: m.domain_error_date_invalid,
   date_reversed: m.domain_error_date_reversed,
-  // The one non-uniform entry: this message interpolates the span cap, so it needs a wrapper
-  // rather than a bare reference. The cap is formatted at call time for the same locale reason.
+  // This message interpolates the span cap, so it needs a wrapper rather than a bare reference.
   date_span_too_long: () => m.domain_error_date_span_too_long({ max: MAX_SPAN_DAYS.toLocaleString("en-GB") }),
   time_off_resource_invalid: m.domain_error_time_off_resource_invalid,
   time_off_resource_inactive: m.domain_error_time_off_resource_inactive,
@@ -51,14 +49,11 @@ const DOMAIN_ERROR_MESSAGES: Record<DomainErrorCode, () => string> = {
 /** Resolves a domain error code to its localised user-facing message. */
 export const resolveDomainErrorMessage = (code: DomainErrorCode): string => DOMAIN_ERROR_MESSAGES[code]();
 
-/** Normalise anything thrown (an Error, a bare string, a React Router ErrorResponse, …)
+/** Normalize anything thrown (an Error, a bare string, a React Router ErrorResponse, …)
  * to a human message, so a non-Error throw never renders a blank screen.
  *
- * @remarks This is intentionally total. Every input maps to a string and it can never throw
- * (`m.error_unexpected()` returns a plain string, preserving that guarantee). It's the standard
- * sink for `catch` blocks across the app, so do not wrap it in its own try/catch (there is nothing
- * to guard, and a wrapper would only add noise). The generic fallback resolves through Paraglide
- * at call time so it follows the active locale. */
+ * @remarks This function returns the localized fallback when an unsupported or hostile value
+ * cannot be read safely. Callers can use it as the catch sink without another guard. */
 export function resolveErrorMessage(error: unknown): string {
   try {
     if (error instanceof DomainError) return resolveDomainErrorMessage(error.code);
@@ -71,7 +66,7 @@ export function resolveErrorMessage(error: unknown): string {
       if (typeof statusText === "string" && statusText.trim()) return statusText;
     }
   } catch {
-    // Hostile proxies can throw from instanceof, `in`, or property reads. This is the catch sink,
+    // Hostile proxies can throw from instanceof or property reads. This is the catch sink,
     // so even those values must reduce to the generic message rather than escaping.
   }
   return m.error_unexpected();

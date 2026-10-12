@@ -2,10 +2,7 @@
 //
 //   node scripts/with-lane.mjs playwright test
 //
-// The claim happens HERE, before the child starts, because the alternative does not work: a
-// Playwright globalSetup runs after playwright.config.ts has already materialised its ports, and
-// `pnpm run gate` has no setup hook at all. Claiming in the launcher means every configuration file
-// only has to read CAPACITYLENS_PORT_LANE, which is already fixed by the time it is evaluated.
+// Claim before starting the child because configuration files resolve ports before global setup can run.
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { mirrorChildExit } from "./devProcesses.mjs";
@@ -32,6 +29,7 @@ function release() {
   try {
     claim.release();
   } catch (error) {
+    // Report release failure without replacing the child’s result; a later claim can inspect and reclaim the stale reservation.
     console.error(`with-lane: releasing lane ${claim.lane} failed: ${error.message}`);
   }
 }
@@ -41,6 +39,7 @@ try {
     await assertLaneFree(claim.lane);
   }
 } catch (error) {
+  // Release our reservation and surface occupied-port failures before starting a child.
   release();
   console.error(error.message);
   process.exit(1);

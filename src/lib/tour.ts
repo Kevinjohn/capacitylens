@@ -1,21 +1,9 @@
-// The role tour uses the current role's segment and lower-role stops. It explains where
-// permitted work happens without opening forms or asking the user to perform tasks.
-//
-// Anchors: the scheduler's existing `data-testid` hooks plus the sidebar's `data-nav="<route>"`
-// attribute (carried by both the open-menu links and the collapsed icon rail, so the selector
-// matches whichever variant is rendered). driver.js renders a step whose element is missing as a
-// centred popover rather than throwing, so a hidden anchor degrades gracefully.
-//
-// Copy resolves through Paraglide at call time (startTour builds the steps on each invocation),
-// so the active account's locale applies, same deferred-resolution rule as AppShell's LINKS.
-// Popover colours are themed to the app tokens in `index.css` (see the `.driver-popover` block).
+// Build role-aware tour stops at launch so permissions and locale are current.
+// Shared navigation anchors support both sidebar states; a missing anchor degrades
+// to a centered popover without opening a form.
 
-// driver.css is imported in main.tsx (before index.css, the override order matters; see the
-// comment there), not here.
-//
-// driver.js itself (~25kB) is imported lazily below (inside startTour), not at module top level:
-// this file is reachable from the eagerly-loaded GettingStarted card, so a static import would land
-// the whole library in the main chunk for a click-only feature nearly nobody triggers per session.
+// Load the click-only tour library lazily so it does not enlarge the eager app chunk.
+// Import its CSS before app styles so theme overrides retain precedence.
 import type { Role } from "@capacitylens/shared/domain/access";
 import { m } from "@/i18n";
 import { buildRoleTour } from "./tourSteps";
@@ -109,6 +97,7 @@ async function runTour({ role, navigate, serverMode }: TourInput): Promise<void>
       tour.drive();
       finishIfDestroyed();
     } catch (error) {
+      // Disconnect the observer before rejecting failed tour setup so the caller can reopen its launch control without a leaked observer.
       observer?.disconnect();
       reject(error);
     }

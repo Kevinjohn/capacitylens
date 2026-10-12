@@ -34,6 +34,7 @@ function attempt(action: () => void): AttemptResult {
     action();
     return { kind: "success" };
   } catch (error) {
+    // Return the failure to the initialization cleanup coordinator so every cleanup can run without losing the original error.
     return { kind: "failure", error };
   }
 }
@@ -202,6 +203,7 @@ function restrictDatabaseFilePermissions(path: string): void {
       if (existsSync(file)) chmodSync(file, 0o600);
     }
   } catch (cause) {
+    // Refuse the live handle if any existing SQLite file cannot be made private, preserving its filesystem cause.
     throw new Error(`Could not restrict SQLite file permissions at "${path}".`, { cause });
   }
 }
@@ -216,12 +218,7 @@ export function initializeOpenDb(db: Db, path: string, hooks: DatabaseMigrationH
   initializeWithForeignKeysDisabled(db, () => initializeSchema(db, plan, hooks));
   assertForeignKeyIntegrity(db);
   restrictDatabaseFilePermissions(path);
-  // initializeOpenDb is the only schema-change boundary (migrations + ALTERs happen only here).
-  // node:sqlite Statement objects freeze their column set at prepare time, so any statement cached
-  // while migrations were still running (e.g. migration 8's loadState call, prepared while the
-  // schema was still at v8) must be discarded here, otherwise it keeps returning its stale,
-  // pre-ALTER column list forever. Dropping the handle's cache before returning guarantees every
-  // statement callers see cached afterward is prepared against the final, fully-migrated schema.
+  // Discard statements prepared during migration so later reads cannot reuse pre-migration column sets.
   statementCaches.delete(db);
   return plan;
 }
@@ -234,9 +231,11 @@ export function openDb(path: string): Db {
     initializeOpenDb(db, path);
     return db;
   } catch (error) {
+    // Close the failed handle before rethrowing initialization failure so callers cannot retain a partially initialized database.
     try {
       db.close();
     } catch (cleanupError) {
+      // Log this secondary close failure without replacing the initialization error that the outer catch rethrows.
       console.error("capacitylens-server: failed to close SQLite after open failure", cleanupError);
     }
     throw error;

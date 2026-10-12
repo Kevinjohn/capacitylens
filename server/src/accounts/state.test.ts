@@ -28,11 +28,11 @@ interface ExpectedAccountFailure {
   code: AccountErrorCode;
   retryable: boolean;
 }
-
 function expectAccountFailure(run: () => unknown, expected: ExpectedAccountFailure): void {
   try {
     run();
   } catch (error) {
+    // Capture the expected failure for assertions; the test must still fail if the operation unexpectedly succeeds.
     expect(error).toBeInstanceOf(AccountContractError);
     if (!(error instanceof AccountContractError)) throw error;
     expect(error.failure.code).toBe(expected.code);

@@ -38,22 +38,19 @@ test.describe("CRUD + demo lifecycle", () => {
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByText("RoundTrip Co")).toBeVisible();
 
-    // Import and export live in a Settings card.
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await page.getByRole("button", { name: "Import and export", exact: true }).click();
     const downloadPromise = page.waitForEvent("download");
     await page.getByTestId("export-data").click();
     const file = await (await downloadPromise).path();
 
-    // Let the debounced in-memory write settle, then reload to restore the seed.
     await page.waitForTimeout(400);
-    // Clear device preferences and reload -> reseeds without our client.
+    // Reload restores the demo seed because account data is intentionally memory-only.
     await page.evaluate(() => localStorage.clear());
     await openApp(page);
     await page.getByRole("link", { name: "Clients" }).click();
     await expect(page.getByText("RoundTrip Co")).toHaveCount(0);
 
-    // Import the file, then confirm the replacement in the dialog.
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await page.getByRole("button", { name: "Import and export", exact: true }).click();
     await page.getByTestId("import-input").setInputFiles(file);

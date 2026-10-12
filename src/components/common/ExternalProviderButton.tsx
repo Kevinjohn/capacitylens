@@ -140,7 +140,7 @@ function GoogleMark() {
   );
 }
 
-/** Microsoft logo geometry and colours follow Microsoft's identity-platform branding guidance. */
+// Preserve Microsoft’s published mark geometry and colors for consistent provider identification.
 function MicrosoftMark() {
   return (
     <svg viewBox="0 0 21 21" aria-hidden="true" data-testid="microsoft-mark" className="size-[21px]">
@@ -152,7 +152,7 @@ function MicrosoftMark() {
   );
 }
 
-/** GitHub's Invertocat silhouette, from the source-owned Primer Octicons mark. */
+// Preserve the source-owned Invertocat mark for consistent provider identification.
 function GitHubMark() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" data-testid="github-mark" className="size-5 fill-current">

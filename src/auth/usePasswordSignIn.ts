@@ -42,9 +42,7 @@ export function usePasswordSignIn({
       }
       onSignedIn();
     } catch (error) {
-      // Better Auth returns an auth failure as { error } (handled above). A throw here is a
-      // pre-response network/transport error, without this catch `busy` stayed true forever (button
-      // stuck disabled, no message). Surface a generic message + reset busy; log the real cause.
+      // A transport failure must restore the sign-in controls and surface a generic message while logging its cause.
       console.error("LoginScreen: password sign-in request failed", error);
       setError(m.login_network_error());
       setBusy(false);

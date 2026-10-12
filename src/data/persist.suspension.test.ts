@@ -16,8 +16,7 @@ import { deferredSignal, requireCallback, recordingAdapter, a2Slice, attachActiv
 
 beforeEach(() => {
   localStorage.clear();
-  // Seeds a single account and makes it active, so the add* calls below
-  // (which now require an active account) work.
+  // Seed an active account because store additions require an account scope.
   resetStoreWithAccount();
 });
 
@@ -39,15 +38,14 @@ function heldFirstSaveAdapter() {
 describe("flushPendingWrites (the import seam)", () => {
   it("lands a pending debounced edit and reports clean; reports NOT clean while a write is failed", async () => {
     const { adapter, saveAll } = recordingAdapter(a2Slice());
-    const detach = await attachActiveA2({ adapter: adapter, debounceMs: 300 }); // genuinely debounced
+    const detach = await attachActiveA2({ adapter: adapter, debounceMs: 300 });
     saveAll.mockClear();
 
-    useStore.getState().addClient({ name: "Pending", color: "#222222" }); // parked in the debounce
+    useStore.getState().addClient({ name: "Pending", color: "#222222" });
     expect(saveAll).not.toHaveBeenCalled();
-    expect(await flushPendingWrites()).toEqual({ kind: "clean" }); // flushed + landed
+    expect(await flushPendingWrites()).toEqual({ kind: "clean" });
     expect(saveAll).toHaveBeenCalledTimes(1);
 
-    // A failing write makes the seam report dirty. The import path must refuse to proceed.
     saveAll.mockRejectedValueOnce(new Error("server down"));
     useStore.getState().addClient({ name: "Doomed", color: "#333333" });
     await expect(flushPendingWrites()).resolves.toMatchObject({ kind: "failed", error: new Error("server down") });
@@ -59,21 +57,19 @@ describe("flushPendingWrites (the import seam)", () => {
   });
 
   it('loops until QUIESCENT — an edit landing mid-flush is also flushed before "clean" is reported', async () => {
-    // Writes are unsuspended during the flush's await, so an edit can arm a fresh debounce whose
-    // save outlives a single round. A one-shot flush returned "clean" while that save was still
-    // on the wire, the import POST then raced it against the pre-import snapshot.
+    // Edits arriving during an awaited flush must also settle before import reports the store clean.
     const { adapter, releaseFirst, saveAll } = heldFirstSaveAdapter();
     const detach = await attachActiveA2({ adapter, debounceMs: 300 });
 
-    useStore.getState().addClient({ name: "First", color: "#222222" }); // parked in the debounce
-    const flush = flushPendingWrites(); // consumes it → round-trip A, held open
+    useStore.getState().addClient({ name: "First", color: "#222222" });
+    const flush = flushPendingWrites();
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalledTimes(1));
     expect(saveAll).toHaveBeenCalledTimes(1);
 
-    useStore.getState().addClient({ name: "Mid-flush", color: "#333333" }); // lands during A's await
+    useStore.getState().addClient({ name: "Mid-flush", color: "#333333" });
     releaseFirst();
     expect(await flush).toEqual({ kind: "clean" });
-    // The flush swept the mid-flush edit too before reporting clean. Nothing left on the wire.
+
     expect(saveAll).toHaveBeenCalledTimes(2);
     expect((saveAll.mock.calls[1]?.[0] as AppData).clients.some((c) => c.name === "Mid-flush")).toBe(true);
     detach();
@@ -186,12 +182,12 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
 
   it("parks an edit made while suspended (nothing sent) and re-schedules it on resume when no reload ran", async () => {
     const { adapter, saveAll } = recordingAdapter(a2Slice());
-    const detach = await attachActiveA2({ adapter: adapter }); // immediate saves
+    const detach = await attachActiveA2({ adapter: adapter });
     saveAll.mockClear();
 
     const resume = suspendServerWrites();
     useStore.getState().addClient({ name: "Mid-import", color: "#222222" });
-    expect(saveAll).not.toHaveBeenCalled(); // parked, not sent
+    expect(saveAll).not.toHaveBeenCalled();
 
     // The suspending operation failed before any reload (e.g. the POST was refused): the slice is
     // unchanged, so the parked edit saves on resume, losing it would be a silent drop, no notice.
@@ -212,7 +208,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
 
     const resume = suspendServerWrites();
     useStore.getState().addClient({ name: "Mid-import", color: "#222222" });
-    expect(await refreshActiveAccountSlice("a2")).toEqual({ kind: "reloaded" }); // the post-import re-hydrate
+    expect(await refreshActiveAccountSlice("a2")).toEqual({ kind: "reloaded" });
     resume();
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalledTimes(1));
 
@@ -240,15 +236,14 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     const resume = suspendServerWrites();
     useStore.getState().addClient({ name: "Mid-import", color: "#222222" });
     resume({ dropParkedEdits: true });
-    expect(saveAll).not.toHaveBeenCalled(); // never re-scheduled
-    expect(onError.mock.calls.some(([e]) => e instanceof ReloadDiscardedEditError)).toBe(true); // surfaced, not silent
+    expect(saveAll).not.toHaveBeenCalled();
+    expect(onError.mock.calls.some(([e]) => e instanceof ReloadDiscardedEditError)).toBe(true);
     detach();
   });
 
   it("an edit during the (a′) flush await is parked, rebased after load, and saved", async () => {
-    // Pre-fix, an edit arriving while the entry flush was awaited re-armed a debounce timer at
-    // depth 0; the timer fired mid-load, its save was silently eaten by the seedGen guard, and the
-    // (c) check couldn't see it, a silent loss. The suspension now covers the whole sequence.
+    // Suspend writes across the entry flush and load so mid-flush edits cannot save against
+    // a baseline that the pending reload will replace.
     vi.useFakeTimers();
     let releaseSave: () => void = () => undefined;
     let detach: (() => void) | null = null;
@@ -264,15 +259,15 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
         });
       });
       const onError = vi.fn();
-      detach = await attachActiveA2({ adapter: { loadAll, saveAll }, debounceMs: 300, onError: onError }); // genuinely debounced
+      detach = await attachActiveA2({ adapter: { loadAll, saveAll }, debounceMs: 300, onError: onError });
 
-      useStore.getState().addClient({ name: "Pre-reload", color: "#222222" }); // pending, debounced
-      const refresh = refreshActiveAccountSlice("a2"); // (a′) flushes it → saveAll held open
-      await saveStarted.promise; // the flush is on the wire
+      useStore.getState().addClient({ name: "Pre-reload", color: "#222222" });
+      const refresh = refreshActiveAccountSlice("a2");
+      await saveStarted.promise;
 
-      useStore.getState().addClient({ name: "During flush", color: "#333333" }); // arrives mid-flush-await
-      await vi.advanceTimersByTimeAsync(300); // a re-armed timer would have fired
-      expect(saveAll).toHaveBeenCalledTimes(1); // parked instead
+      useStore.getState().addClient({ name: "During flush", color: "#333333" });
+      await vi.advanceTimersByTimeAsync(300);
+      expect(saveAll).toHaveBeenCalledTimes(1);
 
       requireCallback(releaseSave, "pending save release")();
       expect(await refresh).toEqual({ kind: "reloaded" });
@@ -288,10 +283,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
   });
 
   it("a FAILED load re-schedules an edit parked during it — nothing strands unsaved until the next reload", async () => {
-    // Pre-fix, a parked edit survived a loadAll throw with no timer, no retry, and
-    // failedSinceSuccess=false: the online/visible re-attempts declined it and it sat unsaved
-    // indefinitely. The finally-resume re-schedules it: slice + snapshot are unchanged, so the
-    // save diffs self-vs-self and is correct.
+    // Resume a parked edit after a failed load because the prior slice and baseline remain paired.
     let release: (() => void) | null = null;
     let hold = false;
     const slice = a2Slice();
@@ -309,12 +301,12 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     hold = true;
     const refresh = refreshActiveAccountSlice("a2");
     await vi.waitFor(() => expect(release).toBeTypeOf("function"));
-    useStore.getState().addClient({ name: "Mid-failed-reload", color: "#222222" }); // parked
+    useStore.getState().addClient({ name: "Mid-failed-reload", color: "#222222" });
     requireCallback(release, "failed reload release")();
     expect(await refresh).toEqual({ kind: "failed" });
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalledTimes(1));
 
-    expect(saveAll).toHaveBeenCalledTimes(1); // re-scheduled on resume
+    expect(saveAll).toHaveBeenCalledTimes(1);
     expect((saveAll.mock.calls[0]?.[0] as AppData).clients.some((c) => c.name === "Mid-failed-reload")).toBe(true);
     detach();
   });
@@ -342,15 +334,15 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     hold = true;
     const refresh = refreshActiveAccountSlice("a2");
     await vi.waitFor(() => expect(release).toBeTypeOf("function"));
-    useStore.getState().addClient({ name: "Mid-reload", color: "#222222" }); // parked
+    useStore.getState().addClient({ name: "Mid-reload", color: "#222222" });
     window.dispatchEvent(new Event("pagehide"));
-    expect(saveAll).toHaveBeenCalledTimes(1); // keepalive-flushed, not dropped
+    expect(saveAll).toHaveBeenCalledTimes(1);
     expect(saveAll.mock.calls[0]?.[1]).toEqual({ unload: true });
     expect((saveAll.mock.calls[0]?.[0] as AppData).clients.some((c) => c.name === "Mid-reload")).toBe(true);
 
     requireCallback(release, "reload release")();
     expect(await refresh).toEqual({ kind: "reloaded" });
-    // The page survived: the reload rebases the parked edit and performs a normal confirmed save.
+
     expect(saveAll).toHaveBeenCalledTimes(2);
     expect((saveAll.mock.calls[1]?.[0] as AppData).clients.some((c) => c.name === "Mid-reload")).toBe(true);
     expect(onError).not.toHaveBeenCalled();
@@ -358,9 +350,8 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
   });
 
   it("a failed keepalive during the pre-load window is followed by a normal rebased save", async () => {
-    // Pre-fix, the hidden-tab flush consumed `pending` before dataAtLoad was snapshotted; when the
-    // swallowed keepalive then failed and the page survived, every signal at (c) read clean and
-    // the edit vanished with zero surface.
+    // Teardown must retain the parked edit until confirmation so a failed keepalive on a
+    // surviving page remains visible to reload reconciliation.
     let releaseLoad: (() => void) | null = null;
     let hold = false;
     const slice = a2Slice();
@@ -383,8 +374,8 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     hold = true;
     const refresh = refreshActiveAccountSlice("a2");
     await vi.waitFor(() => expect(releaseLoad).toBeTypeOf("function"));
-    useStore.getState().addClient({ name: "Hidden-tab edit", color: "#222222" }); // parked
-    window.dispatchEvent(new Event("pagehide")); // keepalive dispatched, and rejects
+    useStore.getState().addClient({ name: "Hidden-tab edit", color: "#222222" });
+    window.dispatchEvent(new Event("pagehide"));
 
     requireCallback(releaseLoad, "reload release")();
     expect(await refresh).toEqual({ kind: "reloaded" });
@@ -417,11 +408,11 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     saveAll.mockClear();
 
     hold = true;
-    const refresh = refreshActiveAccountSlice("a2"); // load held open
+    const refresh = refreshActiveAccountSlice("a2");
     await vi.waitFor(() => expect(release).toBeTypeOf("function"));
-    useStore.getState().setActiveAccount(null); // sign-out: token bump, loads nothing
-    // A data write lands while the superseded load is still on the wire (e.g. a mutation that was
-    // already dispatched at sign-out), parked under the refresh's still-held suspension.
+    // A mutation already dispatched at sign-out can settle while the superseded load still holds suspension.
+    useStore.getState().setActiveAccount(null);
+
     useStore.getState().replaceAll({
       ...useStore.getState().data,
       clients: [
@@ -523,10 +514,10 @@ describe("mid-reload edits are rebased onto the fresh server slice", () => {
     saveAll.mockClear();
 
     hold = true;
-    const refresh = refreshActiveAccountSlice("a2"); // e.g. a focus refresh, held open on the wire
+    const refresh = refreshActiveAccountSlice("a2");
     await vi.waitFor(() => expect(release).toBeTypeOf("function"));
-    useStore.getState().addClient({ name: "Mid-reload", color: "#222222" }); // immediate-save mode…
-    expect(saveAll).not.toHaveBeenCalled(); // …yet nothing was sent: writes are suspended during the load
+    useStore.getState().addClient({ name: "Mid-reload", color: "#222222" });
+    expect(saveAll).not.toHaveBeenCalled();
 
     requireCallback(release, "refresh release")();
     expect(await refresh).toEqual({ kind: "reloaded" });

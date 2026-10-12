@@ -165,6 +165,7 @@ describe("getOwned", () => {
     let error: unknown;
     try {
       getOwned(data, A1, "clients", "c1");
+      // Capture the failure so the test can assert its domain code.
     } catch (caught) {
       error = caught;
     }
@@ -234,7 +235,7 @@ const registerUnchangedParentIdOnUpdatePart6 = () => {
       projects: [project("p1", A1, "c1")],
     };
     const existing = activity({ id: "t1", accountId: A1, projectId: "p1", phaseId: "ph-old" });
-    const merged = { ...existing, phaseId: "ph-new" }; // changed → must resolve, and it can't
+    const merged = { ...existing, phaseId: "ph-new" };
     expect(() => assertScopedRefs(data, A1, "activities", merged, existing)).toThrow(
       "Activity phase must belong to this company.",
     );
@@ -367,7 +368,7 @@ const registerAssertScopedRefsPart3 = () => {
       ...base(),
       clients: [client("c1", A1)],
       projects: [project("p1", A1, "c1"), project("p2", A1, "c1")],
-      phases: [phase("ph1", A1, "p1")], // a phase of p1
+      phases: [phase("ph1", A1, "p1")],
     };
     // Activity is bound to p2 but references p1's phase, double-bound to two projects.
     expect(() =>
@@ -554,7 +555,7 @@ const registerAssertScopedRefsPart8 = () => {
   });
 
   it("validates an activity’s projectId FK with its OWN message when a dangling project is referenced", () => {
-    const data = { ...base(), clients: [client("c1", A1)] }; // no projects at all
+    const data = { ...base(), clients: [client("c1", A1)] };
     expect(() => assertScopedRefs(data, A1, "activities", { projectId: "ghost" })).toThrow(
       "Activity must reference a project in this company.",
     );
@@ -596,7 +597,7 @@ const registerAssertScopedRefsPart9 = () => {
   });
 
   it("validates a resource’s disciplineId FK with its own message (dangling discipline throws)", () => {
-    const data = { ...base(), disciplines: [discipline("d1", A2)] }; // discipline is in another account
+    const data = { ...base(), disciplines: [discipline("d1", A2)] };
     expect(() => assertScopedRefs(data, A1, "resources", { disciplineId: "d1" })).toThrow(
       "Resource discipline must belong to this company.",
     );
@@ -953,10 +954,10 @@ const registerAssertResourceKindAllowsDependentsPart2 = () => {
       ...base(),
       resources: [person("r1", A1), person("other", A1)],
       allocations: [
-        allocation({ id: "al", accountId: A1, resourceId: "other", activityId: "t1", overrides: { hoursPerDay: 8 } }), // belongs to a different resource
-        allocation({ id: "al2", accountId: A2, resourceId: "r1", activityId: "t1", overrides: { hoursPerDay: 8 } }), // same resource id, different account
+        allocation({ id: "al", accountId: A1, resourceId: "other", activityId: "t1", overrides: { hoursPerDay: 8 } }),
+        allocation({ id: "al2", accountId: A2, resourceId: "r1", activityId: "t1", overrides: { hoursPerDay: 8 } }),
       ],
-      timeOff: [timeOff({ id: "to", accountId: A2, resourceId: "r1" })], // same resource id, different account
+      timeOff: [timeOff({ id: "to", accountId: A2, resourceId: "r1" })],
     };
     expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "external")).not.toThrow();
   });
@@ -1178,9 +1179,9 @@ const registerRemapAndValidateImportPart1 = (incoming: () => AppData) => {
     const p = data.projects[0];
     const t = data.activities[0];
     if (p === undefined || t === undefined) throw new Error("Import must retain the project and activity.");
-    expect(p.id).not.toBe("src-p"); // fresh id
-    expect(p.accountId).toBe(A1); // stamped active account
-    expect(t.projectId).toBe(p.id); // FK rewired to the new project id
+    expect(p.id).not.toBe("src-p");
+    expect(p.accountId).toBe(A1);
+    expect(t.projectId).toBe(p.id);
     expect(data.clients[0]?.id).not.toBe("src-c");
   });
 
@@ -1276,8 +1277,8 @@ const registerRemapAndValidateImportPart3 = (incoming: () => AppData) => {
       timeOff: [timeOff({ id: "to-dangling", accountId: "src-acct", resourceId: "no-such-resource" })],
     };
     const { data, skipped } = remapAndValidateImport(base(), A1, bad, TS);
-    expect(data.allocations).toHaveLength(1); // only the valid one survives
-    expect(skipped).toBe(3); // 2 bad allocations + 1 dangling time-off
+    expect(data.allocations).toHaveLength(1);
+    expect(skipped).toBe(3); // The rejected rows are two invalid allocations and one dangling time-off entry.
   });
 };
 
@@ -1448,8 +1449,8 @@ const registerRemapAndValidateImportPart8 = () => {
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
     expect(data.allocations).toHaveLength(1);
-    expect(data.allocations[0]?.hoursPerDay).toBe(0); // load coerced, capacity-free resource
-    expect(data.timeOff).toHaveLength(0); // external time-off dropped
+    expect(data.allocations[0]?.hoursPerDay).toBe(0);
+    expect(data.timeOff).toHaveLength(0);
   });
 
   it("obfuscates personal data on an imported deleted resource", () => {
@@ -1547,10 +1548,10 @@ const registerRemapAndValidateImportPart10 = () => {
     // the optional-FK records survive, unbound.
     const handEdited: AppData = {
       ...emptyAppData(),
-      projects: [project("p-orphan", "src", "ghost-client")], // dropped: client absent
-      phases: [phase("ph-orphan", "src", "ghost-project")], // dropped: project absent
-      resources: [{ ...person("r1", "src"), disciplineId: "ghost-disc" }], // kept, unbound
-      activities: [activity({ id: "t1", accountId: "src", projectId: "ghost-project", phaseId: "ghost-phase" })], // kept, unbound to general
+      projects: [project("p-orphan", "src", "ghost-client")],
+      phases: [phase("ph-orphan", "src", "ghost-project")],
+      resources: [{ ...person("r1", "src"), disciplineId: "ghost-disc" }],
+      activities: [activity({ id: "t1", accountId: "src", projectId: "ghost-project", phaseId: "ghost-phase" })],
     };
     const { data, imported, skipped } = remapAndValidateImport(base(), A1, handEdited, TS);
     expect(data.projects).toHaveLength(0);
@@ -1558,11 +1559,11 @@ const registerRemapAndValidateImportPart10 = () => {
     expect(data.resources).toHaveLength(1);
     expect(data.resources[0]?.disciplineId).toBeUndefined();
     expect(data.activities).toHaveLength(1);
-    expect(data.activities[0]?.projectId).toBeUndefined(); // unbound → project-less activity
-    expect(data.activities[0]?.phaseId).toBeUndefined(); // a project-less activity carries no phase
-    expect(data.activities[0]?.kind).toBe("repeatable"); // a project activity that loses its project becomes repeatable
-    expect(imported).toBe(2); // resource + activity
-    expect(skipped).toBe(2); // project + phase
+    expect(data.activities[0]?.projectId).toBeUndefined();
+    expect(data.activities[0]?.phaseId).toBeUndefined();
+    expect(data.activities[0]?.kind).toBe("repeatable");
+    expect(imported).toBe(2); // The imported rows are the repaired resource and activity.
+    expect(skipped).toBe(2); // Missing required parents drop the project and phase.
   });
 
   it("keeps an allocation to an unbound placeholder when its activity is general", () => {
@@ -1571,14 +1572,14 @@ const registerRemapAndValidateImportPart10 = () => {
     // allocatable to anyone, placeholders included.
     const handEdited: AppData = {
       ...emptyAppData(),
-      resources: [placeholder("ph", "src", "ghost-project")], // unbinds (project absent)
-      activities: [activity({ id: "t-general", accountId: "src", projectId: "ghost-project" })], // unbinds to a general activity
+      resources: [placeholder("ph", "src", "ghost-project")],
+      activities: [activity({ id: "t-general", accountId: "src", projectId: "ghost-project" })],
       allocations: [allocation({ id: "al", accountId: "src", resourceId: "ph", activityId: "t-general" })],
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
     expect(data.resources[0]?.projectId).toBeUndefined();
     expect(data.activities[0]?.projectId).toBeUndefined();
-    expect(data.allocations).toHaveLength(1); // unbound placeholder + general activity is allowed
+    expect(data.allocations).toHaveLength(1);
   });
 };
 
@@ -1589,15 +1590,15 @@ const registerRemapAndValidateImportPart11 = () => {
     const handEdited: AppData = {
       ...emptyAppData(),
       clients: [client("c", "src")],
-      projects: [project("p", "src", "c")], // survives → t-proj stays project-bound
+      projects: [project("p", "src", "c")],
       activities: [activity({ id: "t-proj", accountId: "src", projectId: "p" })],
-      resources: [placeholder("ph", "src", "ghost-project")], // unbinds (project absent)
+      resources: [placeholder("ph", "src", "ghost-project")],
       allocations: [allocation({ id: "al", accountId: "src", resourceId: "ph", activityId: "t-proj" })],
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
     expect(data.resources[0]?.projectId).toBeUndefined();
-    expect(data.activities[0]?.projectId).toBe(data.projects[0]?.id); // activity stays bound
-    expect(data.allocations).toHaveLength(0); // placeholder rule drops the allocation
+    expect(data.activities[0]?.projectId).toBe(data.projects[0]?.id);
+    expect(data.allocations).toHaveLength(0);
   });
 
   it("gives duplicate source ids DISTINCT fresh ids (no primary-key collision)", () => {
@@ -1609,10 +1610,10 @@ const registerRemapAndValidateImportPart11 = () => {
       ],
     };
     const { data, imported } = remapAndValidateImport(base(), A1, dup, TS);
-    expect(imported).toBe(2); // the auto-added built-in Internal is infrastructure, not counted
+    expect(imported).toBe(2); // Built-in Internal rows are infrastructure and do not contribute to the import count.
     const brought = data.clients.filter((c) => c.accountId === A1 && !c.builtin);
     expect(brought).toHaveLength(2);
-    expect(new Set(brought.map((c) => c.id)).size).toBe(2); // two distinct ids, not one shared id
+    expect(new Set(brought.map((c) => c.id)).size).toBe(2);
     expect(brought.map((c) => c.name).sort()).toEqual(["First", "Second"]);
   });
 };
@@ -1636,7 +1637,7 @@ const registerRemapAndValidateImportPart12 = () => {
       projects: [project("src-p", "src", "src-c")],
     };
     const { data, imported, skipped } = remapAndValidateImport(base(), A1, withBuiltin, TS);
-    expect(imported).toBe(2); // the real (non-builtin) client + project, not the builtin (would be 3)
+    expect(imported).toBe(2); // Only the regular client and project contribute to the import count.
     expect(skipped).toBe(0);
     // Exactly one builtin lands for A1 (the kept imported one), and it is not in the genuine count;
     // the one real non-builtin client (src-c) lands alongside it.
@@ -1688,9 +1689,9 @@ const registerRemapAndValidateImportPart13 = () => {
     const { data } = remapAndValidateImport(base(), A1, collide, TS);
     const proj = data.projects.find((p) => p.accountId === A1);
     const cli = data.clients.find((c) => c.accountId === A1);
-    expect(proj).toBeDefined(); // Not dropped (old global map dropped it)
+    expect(proj).toBeDefined();
     expect(cli).toBeDefined();
-    expect(proj?.clientId).toBe(cli?.id); // clientId re-linked to the imported client, not the discipline
+    expect(proj?.clientId).toBe(cli?.id);
   });
 
   it("stamps fresh createdAt/updatedAt on imported records (the store/server owns the clock)", () => {
@@ -1718,13 +1719,13 @@ const registerRemapAndValidateImportPart14 = () => {
       ...emptyAppData(),
       clients: [client("c", "src")],
       projects: [project("p1", "src", "c"), project("p2", "src", "c")],
-      phases: [phase("ph1", "src", "p1")], // a phase of p1
-      activities: [activity({ id: "t", accountId: "src", projectId: "p2", phaseId: "ph1" })], // bound to p2 but referencing p1's phase
+      phases: [phase("ph1", "src", "p1")],
+      activities: [activity({ id: "t", accountId: "src", projectId: "p2", phaseId: "ph1" })], // The activity’s phase belongs to a different project, so import must unbind it.
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
     const t = data.activities.find((x) => x.accountId === A1);
-    expect(t?.projectId).toBeDefined(); // activity keeps its surviving project
-    expect(t?.phaseId).toBeUndefined(); // the incoherent phase is unbound
+    expect(t?.projectId).toBeDefined();
+    expect(t?.phaseId).toBeUndefined();
   });
 
   it("imports zero records for an empty dataset (caller refuses the wipe)", () => {
@@ -1786,7 +1787,7 @@ const registerRemapAndValidateImportPart16 = () => {
     const { data } = remapAndValidateImport(base(), A1, incoming, TS);
     const brought = data.clients.find((c) => c.accountId === A1 && c.name === "NoId");
     expect(brought).toBeDefined();
-    expect(brought?.id).toBeTruthy(); // a real fresh id, not undefined
+    expect(brought?.id).toBeTruthy();
   });
 
   it("KEEPS a resource’s valid discipline and a placeholder’s valid project (does not over-unbind)", () => {
@@ -1803,8 +1804,8 @@ const registerRemapAndValidateImportPart16 = () => {
     const r = data.resources.find((x) => x.accountId === A1);
     const proj = data.projects.find((x) => x.accountId === A1);
     const disc = data.disciplines.find((x) => x.accountId === A1);
-    expect(r?.disciplineId).toBe(disc?.id); // valid discipline kept + remapped
-    expect(r?.projectId).toBe(proj?.id); // valid placeholder project kept + remapped
+    expect(r?.disciplineId).toBe(disc?.id);
+    expect(r?.projectId).toBe(proj?.id);
     expect(r).toMatchObject({ workingDays: [1, 2, 3, 4, 5], halfDays: [] });
   });
 };
@@ -1840,9 +1841,9 @@ const registerRemapAndValidateImportPart17 = () => {
     const t = data.activities.find((x) => x.accountId === A1);
     const proj = data.projects.find((x) => x.accountId === A1);
     const ph = data.phases.find((x) => x.accountId === A1);
-    expect(t?.kind).toBe("project"); // not re-classified to repeatable
-    expect(t?.projectId).toBe(proj?.id); // project kept
-    expect(t?.phaseId).toBe(ph?.id); // coherent phase kept
+    expect(t?.kind).toBe("project");
+    expect(t?.projectId).toBe(proj?.id);
+    expect(t?.phaseId).toBe(ph?.id);
   });
 };
 
@@ -1857,8 +1858,8 @@ const registerRemapAndValidateImportPart18 = () => {
     };
     const { data } = remapAndValidateImport(base(), A1, incoming, TS);
     const t = data.activities.find((x) => x.accountId === A1);
-    expect(t?.kind).toBe("internal"); // kind preserved
-    expect(t?.projectId).toBeUndefined(); // project stripped, a project-less kind carries neither
+    expect(t?.kind).toBe("internal");
+    expect(t?.projectId).toBeUndefined();
     expect(t?.phaseId).toBeUndefined();
   });
 
@@ -1899,13 +1900,13 @@ const registerRemapAndValidateImportPart19 = () => {
           builtin: true,
         },
       ],
-      projects: [project("p", "src", "b2")], // under the second (folded-away) builtin
+      projects: [project("p", "src", "b2")], // The project references the duplicate built-in client that import folds away.
     };
     const { data } = remapAndValidateImport(base(), A1, incoming, TS);
     const builtins = data.clients.filter((c) => c.accountId === A1 && c.builtin);
-    expect(builtins).toHaveLength(1); // duplicates folded to one
+    expect(builtins).toHaveLength(1);
     const proj = data.projects.find((p) => p.accountId === A1);
-    expect(proj).toBeDefined(); // rewired to the kept Internal ⇒ survives the required-FK drop
+    expect(proj).toBeDefined();
     expect(proj?.clientId).toBe(builtins[0]?.id);
   });
 };
@@ -1934,7 +1935,7 @@ const registerRemapAndValidateImportPart20 = () => {
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
     const a = data.allocations.find((x) => x.accountId === A1);
-    expect(a).toBeDefined(); // kept (repaired), not dropped
+    expect(a).toBeDefined();
     expect(a?.startDate).toBe("2026-06-01");
     expect(a?.endDate).toBe("2026-06-05");
   });

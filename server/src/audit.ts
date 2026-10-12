@@ -3,19 +3,9 @@ export { createFileAuditSink } from "./audit/createFileAuditSink";
 export { createCompositeAuditSink, createNoopAuditSink, createStreamAuditSink } from "./audit/sinks";
 export { AUDIT_RECOVERY_SCAN_BYTES, MAX_AUDIT_BYTES } from "./audit/types";
 export type { AuditDeliveryMetadata, AuditEntry, AuditRecord, AuditSink, FileAuditSinkOptions } from "./audit/types";
-// Append-only JSONL audit sink (flag CAPACITYLENS_AUDIT, on by default, opt-out =off).
-// It records one legacy product AuditRecord per AppData mutation plus normalized AccountAuditEvent
-// entries emitted by cross-port account flows. Server-mode only: the sink lives in the server (built in
-// index.ts from env), so the default local/no-server deploy never runs it, buildApp's factory
-// defaults to noopAuditSink(), keeping the default deploy and every test byte-identical unless a
-// sink is explicitly passed.
-//
-// The primary invariant: no raw PII ever reaches a line. `changedFields` is field names only
-// (Object.keys of the wire body/row); a value, a row, or a request body must never be handed to
-// append(). Names + ids are operational metadata (who changed what, when); values are tenant PII
-// (a time-off note, a person's name) and are deliberately excluded. Product callers compute
-// changedFields with `Object.keys`; AccountFlows emits fixed field names and command correlation.
-// Neither path passes a request body, row, bearer, credential, token or claim set.
+// The audit sink receives metadata-only product and account events.
+// Never pass row values, request bodies, bearer tokens, credentials or claims to append.
+// changedFields contains field names; principal and entity IDs identify the operation.
 /**
  * Parse the audit config from env. On by default (`CAPACITYLENS_AUDIT !== 'off'`), the deliberate
  * flag-off exception to the repo's usual fail-closed default, because an audit trail you forgot to

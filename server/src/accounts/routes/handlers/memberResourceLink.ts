@@ -74,6 +74,7 @@ export async function setMemberResourceLink(
     try {
       linkFailure(error);
     } catch (failure) {
+      // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
       return context.fail(reply, failure);
     }
   }
@@ -104,6 +105,7 @@ export async function clearMemberResourceLink(
     try {
       linkFailure(error);
     } catch (failure) {
+      // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
       return context.fail(reply, failure);
     }
   }
@@ -127,6 +129,7 @@ export async function dismissMemberResourceLinkException(
     });
     return reply.code(204).send();
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return context.fail(reply, error);
   }
 }

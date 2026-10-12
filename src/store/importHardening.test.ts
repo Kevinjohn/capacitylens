@@ -22,12 +22,12 @@ function registerImportHardening1(): void {
       ],
     } as unknown as AppData;
     s().importData(incoming);
-    // Exclude the guaranteed built-in Internal client; the two imported clients each get a fresh id.
+
     const ids = s()
       .data.clients.filter((c) => c.accountId === DEFAULT_ACCOUNT_ID && !c.builtin)
       .map((c) => c.id);
     expect(ids).toHaveLength(2);
-    expect(new Set(ids).size).toBe(2); // distinct
+    expect(new Set(ids).size).toBe(2);
   });
 }
 
@@ -117,7 +117,7 @@ function registerImportHardening3(): void {
       ],
     } as unknown as AppData;
     const summary = s().importData(incoming);
-    // 4 entities + 1 valid allocation kept; 1 allocation dropped.
+
     expect(summary.imported).toBe(5);
     expect(summary.skipped).toBe(1);
   });
@@ -136,7 +136,6 @@ function registerImportHardening4(): void {
 
 function registerImportHardening5(): void {
   it("does not create a second builtin Internal client on import; re-points an Internal-owned project at the existing one", () => {
-    // The active account already has its builtin Internal client.
     s().replaceAll({
       ...emptyAppData(),
       accounts: [{ id: DEFAULT_ACCOUNT_ID, createdAt: "t", updatedAt: "t", name: "Test Co", color: "#111111" }],
@@ -153,7 +152,7 @@ function registerImportHardening5(): void {
       ],
     });
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
-    // An imported file carrying its own builtin Internal client + a project owned by it.
+
     const incoming = {
       ...emptyAppData(),
       clients: [
@@ -180,13 +179,12 @@ function registerImportHardening5(): void {
       ],
     } as unknown as AppData;
     s().importData(incoming);
-    // Import replaces the account slice, so exactly one builtin remains (the imported one, kept as
-    // the account's Internal), never two. Its name stays the reserved "Internal".
+
     const builtins = s().data.clients.filter((c) => c.builtin && c.accountId === DEFAULT_ACCOUNT_ID);
     expect(builtins).toHaveLength(1);
     const builtin = requireValue(builtins[0], "imported internal client");
     expect(builtin.name).toBe("Internal");
-    // The imported Internal-owned project survived and points at that single Internal client.
+
     const proj = s().data.projects.find((p) => p.name === "Internal Project");
     expect(proj).toBeTruthy();
     expect(requireValue(proj, "imported internal project").clientId).toBe(builtin.id);

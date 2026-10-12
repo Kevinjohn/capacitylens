@@ -69,19 +69,8 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     revokeSession(req, reply, context),
   );
 
-  // Invite create: mint a single-use, expiring link that pre-sets a role for `accountId`.
-  // Body: { accountId, role, expiresAt? }. Gated 'manageInvites' (admin+ of that account) via the
-  // same authorize seam every permissioned route uses. Off mode is the allow-all no-op (the token
-  // is minted as DEMO_USER's act), auth-on requires admin-tier membership of `accountId` (a
-  // cross-tenant stranger → 403). The token is a 32-byte CSPRNG value, base64url-encoded; it is the
-  // only secret here, so it is never logged (it's returned in the body to the authorised caller and
-  // nowhere else).
-  //
-  // An optional `preauthEmail` may be attached: a non-empty, email-shaped value is stored
-  // normalized (trim+lowercase) and turns this into a pre-authorised invite that the accept route
-  // binds only for a caller whose verified email matches it (see preauthInviteAllows). Absent/empty
-  // ⇒ stored as null ⇒ a link invite in trusted-local mode. Addressed invitations are
-  // emailed when SMTP is configured; the copy-link flow remains available.
+  // The invitation bearer authorizes onboarding and must never enter logs. Addressed invitations
+  // bind redemption to the normalized email; trusted-local mode also permits unaddressed links.
   app.post("/api/invites", async (req, reply) => createInvitation(req, reply, context));
   app.get<AccountRoute>("/api/accounts/:accountId/joining-policy", async (req, reply) =>
     readJoiningPolicy(req, reply, context),
@@ -98,16 +87,9 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     previewInvitation(req, reply, context),
   );
 
-  // Invite accept: a signed-in caller redeems a link, binding the invited role to their
-  // membership. No authorize() call. The membership is the output of this route, not a precondition
-  // (requireUser upstream already proved a real session, or attached DEMO_USER in off mode). The
-  // token-state checks are the gate: unknown → 404, already-used → 409, expired → 410. An
-  // email-preauth gate follows those and precedes the bind: a non-null preauthEmail must match the
-  // caller's email; SSO also requires the IdP's verified-email assertion, while password mode uses
-  // possession of the addressed invite as verification. A null preauthEmail is the link path
-  // (any signed-in caller). On success the membership upsert and
-  // the single-use stamp commit in one transaction (atomic bind), and markInviteUsed's
-  // `usedAt IS NULL` clause double-guards single-use against a concurrent race.
+  // Invitation redemption grants membership, so existing membership cannot be a precondition.
+  // The administration port validates the bearer and identity, then commits membership and token
+  // consumption atomically.
   app.post<InvitationTokenRoute>("/api/invites/:token/accept", async (req, reply) =>
     acceptInvitation(req, reply, context),
   );
@@ -119,9 +101,6 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     signupInvitation(req, reply, context),
   );
 
-  // List members. Joins the membership rows with Better Auth user identity (name/email, read only
-  // here, only for this authorized admin). isSelf marks the caller's own row (the client derives its
-  // role from it). A missing name/email degrades to null, never a throw.
   app.get<AccountRoute>("/api/accounts/:accountId/members", async (req, reply) => listMembers(req, reply, context));
   app.get<AccountRoute>("/api/accounts/:accountId/resource-avatars", async (req, reply) =>
     listResourceAvatars(req, reply, context),
@@ -163,29 +142,17 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     enableMemberAccess(req, reply, context),
   );
 
-  // Revoke a member. 404 non-member; 403 by the pure guard (the Owner is never removable here).
-  // 204 on success.
   app.delete<MemberRoute>("/api/accounts/:accountId/members/:userId", async (req, reply) =>
     removeMember(req, reply, context),
   );
 
-  // Ownership transfer: the three-step consent ceremony that replaced the one-click
-  // hand-over. The Owner nominates, the nominated Admin consents, the same Owner gives final
-  // approval, so ownership never moves on one person's say-so, and the nominee is never made
-  // responsible for a company without agreeing to it.
-  //
-  // Seven explicit routes, not a generic state patch: each step has a different authorised caller.
-  // All seven gate on 'actOnOwnershipTransfer' at admin tier, deliberately: the nominee acts at
-  // Admin tier, and a demoted former Owner must still be able to replay their own command. Owner
-  // authority and participant identity are asserted by the port inside its transaction, where the
-  // membership facts are still true. Every command carries `expectedRevision`, so a command formed
-  // against an earlier acceptance cycle cannot apply to a later one.
+  // Ownership moves only after the Owner nominates, the nominee consents, and the same Owner approves.
+  // Each ownership-transfer step has a distinct participant policy enforced inside the port transaction.
+  // Row commands require the expected revision so consent from an earlier cycle cannot authorize a later one.
   app.get<AccountRoute>("/api/accounts/:accountId/ownership-transfer", async (req, reply) =>
     readOwnershipTransfer(req, reply, context),
   );
 
-  // Nominate, or replace an existing nomination atomically by naming it. Body
-  // { toUserId, expectedRequestId?, expectedRevision? }.
   app.post<AccountRoute>("/api/accounts/:accountId/ownership-transfer", async (req, reply) =>
     initiateOwnershipTransfer(req, reply, context),
   );
@@ -214,20 +181,14 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
     async (req, reply) => completeOwnershipTransfer(req, reply, context),
   );
 
-  // The nominating Owner withdrawing the whole nomination.
   app.delete<OwnershipTransferRequestRoute>(
     "/api/accounts/:accountId/ownership-transfer/:requestId",
     async (req, reply) => cancelOwnershipTransfer(req, reply, context),
   );
 
-  // Reset password: mint a single-use, 24h reset link token for a member. The app supports
-  // optional self-service email, but this admin operation hands the link over out-of-band,
-  // exactly like an invite. Gated 'manageMembers' + the account policy's identity-administration guard (an
-  // admin must never reset an owner; a reset link is an account-takeover capability, so this is
-  // the same escalation door the no-admin→owner-grant rule closes). Password mode only: 'sso'
-  // delegates credentials to the IdP (400, not a crash), and off has no credentials at all. The
-  // token rides Better Auth's own verification store (single-use, expiring) and is write-once:
-  // returned exactly here, never listed or read back (the same posture as the invite token).
+  // A password-reset bearer can take over an identity. The flow therefore checks the actor’s
+  // authority across every company the target can enter and requires fresh session assurance.
+  // Reset issuance is available only when password sign-in is enabled.
   app.post<MemberRoute>("/api/accounts/:accountId/members/:userId/reset-password", async (req, reply) =>
     resetPassword(req, reply, context),
   );

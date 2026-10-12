@@ -10,8 +10,7 @@ import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from "@/test/f
 
 beforeEach(() => {
   localStorage.clear();
-  // Seeds a single account and makes it active, so the add* calls below
-  // (which now require an active account) work.
+  // Seed an active account because store additions require an account scope.
   resetStoreWithAccount();
 });
 
@@ -24,19 +23,19 @@ describe("bootstrap", () => {
     });
     expect(useStore.getState().hydrated).toBe(true);
     expect(useStore.getState().data.resources.length).toBeGreaterThan(0);
-    // the seed is also persisted on first run
+
     expect((await adapter.loadAll()).resources.length).toBeGreaterThan(0);
     detach();
   });
 
   it("does not re-seed after the user has cleared all their data", async () => {
     const adapter = new InMemoryDemoAdapter();
-    await adapter.saveAll(emptyAppData()); // user deleted everything; empty is persisted
+    await adapter.saveAll(emptyAppData());
     const detach = await bootstrap(useStore, adapter, {
       debounceMs: 0,
       seedIfEmpty: seed(),
     });
-    expect(useStore.getState().data.resources).toHaveLength(0); // seed must not come back
+    expect(useStore.getState().data.resources).toHaveLength(0);
     detach();
   });
 
@@ -47,7 +46,7 @@ describe("bootstrap", () => {
     const errors: unknown[] = [];
     vi.spyOn(adapter, "saveAll").mockImplementation(async (d) => {
       calls += 1;
-      if (calls === 1) throw new Error("quota exceeded"); // the seed write fails
+      if (calls === 1) throw new Error("quota exceeded");
       return realSave(d);
     });
 
@@ -57,10 +56,11 @@ describe("bootstrap", () => {
       onError: (e) => errors.push(e),
     });
 
-    expect(useStore.getState().hydrated).toBe(true); // app still renders
-    expect(errors).toHaveLength(1); // the failure surfaced (would flip the banner)
-    // Bootstrap deliberately leaves company selection at the picker. Choose the seeded tenant, then
-    // prove persistence is still attached: a later edit persists via the now-working adapter.
+    // Bootstrap leaves company selection at the picker; selecting the seed allows a later edit
+    // to prove persistence remains attached after the initial save failure.
+    expect(useStore.getState().hydrated).toBe(true);
+    expect(errors).toHaveLength(1);
+
     const seededAccount = useStore.getState().data.accounts[0];
     if (!seededAccount) throw new Error("expected bootstrap to retain the seeded account");
     useStore.getState().setActiveAccount(seededAccount.id);
@@ -139,11 +139,10 @@ describe("bootstrap", () => {
     });
 
     expect(useStore.getState().hydrated).toBe(true);
-    expect(useStore.getState().data.clients).toHaveLength(1); // loaded data kept, not discarded
+    expect(useStore.getState().data.clients).toHaveLength(1);
     expect(useStore.getState().data.clients[0]?.name).toBe("Loaded");
-    expect(useStore.getState().data.resources).toHaveLength(0); // Not re-seeded (data exists)
+    expect(useStore.getState().data.resources).toHaveLength(0);
 
-    // Persistence is attached: a later edit still saves.
     useStore.getState().addClient({ name: "Later", color: "#222222" });
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalled());
     detach();
@@ -152,7 +151,7 @@ describe("bootstrap", () => {
     useStore.getState().setLoadError(false);
     useStore.getState().setConnectionError(false);
     const saveAll = vi.fn().mockResolvedValue(undefined);
-    // A server-backed adapter whose load fails (server down / network error).
+
     const adapter: PersistenceAdapter = {
       loadAll: () => Promise.reject(new LoadError("unavailable", "server down")),
       saveAll,
@@ -163,11 +162,10 @@ describe("bootstrap", () => {
       seedIfEmpty: seed(),
     });
 
-    // Routed to the retry screen, not the corrupt-data reset UI.
     expect(useStore.getState().connectionError).toBe(true);
     expect(useStore.getState().loadError).toBe(false);
     expect(useStore.getState().hydrated).toBe(true);
-    expect(useStore.getState().data.resources).toHaveLength(0); // rendered empty, not seeded
+    expect(useStore.getState().data.resources).toHaveLength(0);
 
     // No autosave attached: an edit must not be pushed as a destructive diff to a
     // server that merely returned once.

@@ -1,9 +1,7 @@
 import { APP_DATA_WRITE_ORDER } from "@capacitylens/shared/types/entities";
 import type { AppData, Entity } from "@capacitylens/shared/types/entities";
 
-// The pure diff/apply core of server sync, extracted from ServerSyncAdapter so the
-// snapshot-to-REST-ops logic can be read and tested in isolation from the network
-// adapter. No I/O here, just two pure functions over AppData snapshots.
+// Pure snapshot diffs and operation replay keep sync ordering separate from network I/O.
 
 // Parent-before-child: every create/update must follow its foreign-key targets.
 // Deletes use the reverse (child-before-parent). The emitted batch runs all upserts
@@ -13,6 +11,7 @@ const UPSERT_ORDER = APP_DATA_WRITE_ORDER;
 
 type TableKey = (typeof UPSERT_ORDER)[number];
 
+/** A snapshot-diff operation; scoped deletion carries its owning account and revision so ordering cannot cross tenants or newer edits. */
 export interface Op {
   method: "PUT" | "DELETE";
   table: TableKey;
@@ -103,18 +102,10 @@ function diffTable(table: TableKey, possibleBases: readonly AppData[], next: App
   return { upserts, deletes: collectSingleBaseDeletes(table, baseIndex, nextById) };
 }
 
-/** Compute the ordered operations that turn `prev` into `next`, applied as one
- * transactional batch. Upserts run parent-first, then deletes run child-first. An
- * entity is an "upsert" when it's new or its updatedAt changed (the store bumps
- * updatedAt on every edit, so it's a reliable change marker); a "delete" when it's
- * gone from `next`.
- *
- * Order is load-bearing: all upserts precede all deletes. Reparent + delete in one
- * batch (e.g. move project P from client C1→C2, then delete C1) must apply P's new
- * clientId before C1 is deleted, otherwise C1's `ON DELETE CASCADE` removes P (still
- * bound to C1 in the DB) and its unmodified descendants, which carry no upsert op and
- * would be lost. Doing upserts first lets the cascade find nothing to take.
- * Exported for unit tests. */
+/** Computes revision-based upserts and removals between snapshots. Parent-first
+ * upserts precede child-first deletes so reparented children survive old-parent cascades.
+ * Ordinary operations commit atomically; lifecycle removals archive separately.
+ */
 export function diffOps(previous: AppData, next: AppData): Op[] {
   return diffOpsFromPossibleBases([previous], next);
 }
@@ -133,19 +124,15 @@ export function diffOpsFromPossibleBases(possibleBases: readonly AppData[], next
     upserts.push(...tableDiff.upserts);
     deletes.push(...tableDiff.deletes);
   }
-  // upserts parent-first, then deletes child-first (reverse table order).
+
   deletes.reverse();
   return [...upserts, ...deletes];
 }
 
-/** Apply a set of (already-confirmed) ops to a base snapshot, returning a new AppData.
- *
- * Diff-replay utility, exported for unit tests. It is not wired into a partial-advance sync path:
- * `ServerSyncAdapter.drain()` relies on batch atomicity. A batch either fully applies or throws,
- * so on success `lastSynced` advances to the whole target (see drain), and there is no production
- * caller that advances `lastSynced` by only-the-ops-that-landed. If a per-op partial-advance
- * recovery is ever added, this is the building block; until then, don't assume sync recovers
- * row-by-row from a partial flush. */
+/** Applies operations immutably to a migrated baseline. Refresh reconciliation uses
+ * replay to rebase edits made during a load onto its authoritative slice.
+ * @throws When a baseline table is not an array.
+ */
 export function applyOps(base: AppData, ops: Op[]): AppData {
   const next = {} as Record<TableKey, Entity[]>;
   // Same invariant as diffOps: `base` is post-migrate, so every table is an array; and `ops` are
@@ -158,12 +145,8 @@ export function applyOps(base: AppData, ops: Op[]): AppData {
     }
     next[table] = [...rows];
   }
-  // Position index per touched table, built lazily (same idiom as ServerSyncAdapter.rebaseForWire):
-  // a run of PUTs into one table costs O(ops + rows) instead of a linear findIndex each. An entry
-  // records the first position holding an id, exactly what findIndex returned, and the whole
-  // table's index is dropped whenever a mutation can move or re-label rows (a DELETE re-filters the
-  // array; a PUT whose row carries a different id than the op renames a slot), so the next lookup
-  // rebuilds from the live array rather than trusting a stale position.
+  // Lazy per-table position maps keep repeated PUTs linear. Discard an index after
+  // deletion or row renaming so later lookups cannot use moved positions.
   const indexByTable = new Map<TableKey, Map<string, number>>();
   for (const op of ops) {
     applyOpInPlace({ next, indexByTable }, op);

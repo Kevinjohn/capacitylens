@@ -13,12 +13,8 @@ import type { MemberConfirmationAction } from "./memberConfirmationCopy";
 import { MemberResourceDialog, MemberResourceLink } from "./MemberResourceLink";
 import { MemberActionsDialog } from "./MemberActionsDialog";
 
-/**
- * Which of a row's controls the viewer may see. Pure and shared by both member tables, so the
- * collapsed inactive group can never end up offering a different set of actions from the main one.
- * The client gate is courtesy only, the server refuses each of these regardless.
- */
-// These predicates mirror the distinct server actions presented in one row.
+// Share affordance policy across active and inactive rows so grouping cannot change the actions offered. The server independently authorizes each operation.
+
 // eslint-disable-next-line complexity
 function buildMemberAffordances(
   myRole: Role | undefined,
@@ -38,8 +34,7 @@ function buildMemberAffordances(
     member.membershipPresent !== false &&
     !!myRole &&
     canEditAnyMemberRole(myRole, member.role);
-  // Remove, by contrast, is status-agnostic on both sides: deleting a non-active membership is a
-  // normal administrative act and must not require reinstating it first.
+  // Inactive memberships can be removed without reinstatement.
   const mayRemove = member.membershipPresent !== false && !!myRole && canRemoveMember(myRole, member.role);
   const mayChangeStatus = !!myRole && canChangeMemberStatus(myRole, member.role, member.isSelf);
   // The server decision includes auth mode, cross-account and self protections.
@@ -55,9 +50,7 @@ function buildMemberAffordances(
   };
 }
 
-/** A full-width action in the member-actions dialog. Keeping these as ordinary buttons avoids a
- * second menu/focus model inside the dialog; destructive actions still open their existing
- * confirmation dialogs. */
+// Use ordinary buttons inside the dialog to avoid nesting another menu and focus model.
 function MemberMenuItem({
   label,
   ariaLabel,
@@ -298,10 +291,6 @@ export function MemberRow({
   workspaceId: string | null;
   reload(): void;
 }) {
-  // One row renderer for both tables: the dialog's actions, the pencil's gate and the status badge are
-  // identical wherever the row is drawn; only the grouping differs.
-  // NB: the row var is `member`, not `m`, because `m` is the imported i18n message catalogue;
-  // shadowing it would make `m.settings_*()` resolve against the Member.
   const affordances = buildMemberAffordances(myRole, member);
   const memberLabel = resolveMemberLabel(member);
   return (

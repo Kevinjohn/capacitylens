@@ -140,6 +140,7 @@ function claimInvitation(context: InvitationRedemptionContext, input: ClaimInvit
   try {
     markInviteUsed(context.db, input.token, now);
   } catch (error) {
+    // Surface a concurrent token-consumption race as the stable invitation-used failure; unexpected storage errors still abort the transaction.
     if (error instanceof InviteAlreadyUsedError) {
       throw createAccountFailure("INVITATION_USED", "This invite has already been used.", input.command.commandId);
     }

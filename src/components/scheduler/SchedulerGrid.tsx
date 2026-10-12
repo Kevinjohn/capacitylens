@@ -272,12 +272,8 @@ function SchedulerGridFooter({
   );
 }
 
-/**
- * The scroll container's contribution to the grid's shared geometry variables: the measured sticky
- * header, and the timeline area actually on screen. Each size is published only once it has been
- * measured. A still-unmeasured `0` would clamp every visible-portion overlay to nothing, whereas
- * an absent variable falls back to not clamping at all (see visibleSpanInsets).
- */
+// Publish viewport dimensions only after measurement; an unmeasured zero would hide
+// visible-span overlays instead of allowing their unclamped fallback.
 function buildViewportVariables({
   stickyHeaderHeight,
   timelineWidth,

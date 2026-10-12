@@ -6,17 +6,8 @@ import type { Db } from "./db";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { signUp } from "./testHelpers/passwordAuth";
 
-// "Retire the open shared dataset": in the hosted (auth-on) posture
-// there must be zero unauthenticated /api access. The requireUser preHandler (app.ts) is the single
-// chokepoint: every /api/* route except /api/health + /api/auth/* must 401 a no-session request,
-// and the 401 body must be the plain no-data error (the open shared dataset never serialises). This
-// suite is the consolidated 401-matrix proof; it makes no-session requests (it never attaches a
-// session cookie). Off stays the trusted-local self-hoster default (asserted at the end). This suite
-// closes the hosted door without flipping the auth-off-by-default invariant.
-//
-// NB: the behaviour already exists (the requireUser chokepoint). This is the
-// test that pins it as a contract, plus the defensive guard that any future /api route
-// without auth coverage is a one-line add to the matrix below (and a visible omission if forgotten).
+// Hosted mode must reject unauthenticated application routes before tenant data is serialized.
+// Health and authentication routes remain publicly reachable; off mode remains trusted-local.
 
 const TS = "2026-01-01T00:00:00.000Z";
 const client = { id: "c1", accountId: "a1", name: "Ferris", color: "#3b82f6", createdAt: TS, updatedAt: TS };
@@ -48,17 +39,11 @@ async function createAuthenticatedApp(): Promise<{ app: FastifyInstance; db: Db 
   };
 }
 
-/** Build an off (trusted-local) app. No authMode ⇒ off; allowReset on to mirror
- * createAuthenticatedApp. */
 function createTrustedLocalApp(): FastifyInstance {
   return createApp(openDb(":memory:"), { allowReset: true });
 }
 
-// Every /api/* route except /api/health + /api/auth/* must 401 unauthenticated in the hosted posture.
-// This table is the contract: a future /api route is one line to add here, and a missing
-// line is a visible gap. Each entry is a no-session request (no cookie attached). Per the spec, the
-// route families covered are: the read endpoints; the generic per-entity CRUD; batch; import; orgs;
-// the invite flow; the member/invite management routes; and the test-only reset.
+// Application routes must require a session in hosted mode, including test-only reset routes.
 const BLOCKED_ROUTES: ReadonlyArray<{ name: string; opts: InjectOptions }> = [
   { name: "GET /api/accounts", opts: { method: "GET", url: "/api/accounts" } },
   { name: "GET /api/state?accountId=", opts: { method: "GET", url: "/api/state?accountId=a1" } },
@@ -105,9 +90,6 @@ describe("P1.17 retire the open shared dataset — hosted (auth-on) posture serv
     const { app } = await createAuthenticatedApp();
     const res = await readResponse(app, opts);
     expect(res.statusCode).toBe(401);
-    // The retire proof: the blocked body is the plain requireUser 401. The open shared dataset is
-    // never served. (requireUser's 401 is exactly `{ error: 'Sign in to continue.' }`, note it has
-    // no `authMode` key, which distinguishes it from the /api/auth/me 401 handled by the auth layer.)
     expect(res.json()).toEqual({ error: "Sign in to continue." });
   });
 
@@ -172,16 +154,11 @@ describe("P1.17 retire the open shared dataset — hosted (auth-on) posture serv
 });
 
 describe("P1.17 — OFF stays the trusted-local self-hoster default (auth-off-by-default invariant intact)", () => {
-  // Retiring the open dataset closes the hosted door; it does not flip the global off default.
-  // Off = trusted-local: the open shared dataset is the deliberate self-hoster default, so an
-  // unauthenticated request is not 401'd (requireUser attaches DEMO_USER and continues). This pins
-  // off as unchanged.
+  // Off mode is trusted-local and attaches the demo principal to unauthenticated application requests.
   it("representative unauthenticated reads are NOT 401 in OFF (DEMO_USER, open dataset served)", async () => {
     const app = createTrustedLocalApp();
-    // No cookie, no session, yet off serves these (the open shared dataset is the default deploy).
     expect((await readResponse(app, { method: "GET", url: "/api/accounts" })).statusCode).not.toBe(401);
     expect((await readResponse(app, { method: "GET", url: "/api/state?accountId=a1" })).statusCode).not.toBe(401);
-    // No-arg whole read retained in off.
     expect((await readResponse(app, { method: "GET", url: "/api/state" })).statusCode).toBe(200);
   });
 });

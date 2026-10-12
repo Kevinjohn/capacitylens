@@ -53,7 +53,7 @@ describe("parseText (optional fields)", () => {
 
   it('defaults the field to "name" when no options are given', () => {
     const fail = vi.fn();
-    expect(parseText("   ", fail)).toBeNull(); // default required: true, so blank fails
+    expect(parseText("   ", fail)).toBeNull();
     expect(fail).toHaveBeenCalledWith("name", m.validation_name_required());
   });
 
@@ -79,9 +79,9 @@ describe("parseText (optional fields)", () => {
     const fail = vi.fn();
     const atLimit = "a".repeat(MAX_NAME_LENGTH);
     const overLimit = "a".repeat(MAX_NAME_LENGTH + 1);
-    expect(parseText(atLimit, fail)).toBe(atLimit); // exactly at cap: not too long
+    expect(parseText(atLimit, fail)).toBe(atLimit);
     expect(fail).not.toHaveBeenCalled();
-    expect(parseText(overLimit, fail)).toBeNull(); // one over: too long
+    expect(parseText(overLimit, fail)).toBeNull();
     expect(fail).toHaveBeenCalledWith("name", m.validation_text_too_long());
   });
 

@@ -20,7 +20,6 @@ describe("batch op-count cap (MAX_BATCH_OPS)", () => {
     const res = await batch(app, ops);
     expect(res.statusCode).toBe(400);
     expect(readErrorResponse(res).error).toContain(String(MAX_BATCH_OPS));
-    // Nothing written.
     expect((await readValidatedState(app)).accounts).toHaveLength(0);
   });
 
@@ -62,7 +61,6 @@ describe("null-id rejection (POST/batch without id → 400)", () => {
     });
     expect(res.statusCode).toBe(400);
     expect(readErrorResponse(res).error).toMatch(/id/);
-    // nothing persisted
     expect((await readValidatedState(app)).accounts).toHaveLength(0);
   });
 
@@ -92,8 +90,6 @@ describe("null-id rejection (POST/batch without id → 400)", () => {
 
   it("batch PUT op with a missing/non-string id is rejected with 400", async () => {
     const { app } = freshApp();
-    // A batch op whose id field is not a string, the batch handler rejects it before
-    // it can reach sanitizeWrite (typeof id !== 'string' check).
     const res = await call(app, {
       method: "POST",
       url: "/api/batch",
@@ -113,10 +109,7 @@ describe("null-id rejection (POST/batch without id → 400)", () => {
 });
 
 describe("absent/null request body on generic writes → 400, not 500", () => {
-  // POST /api/:entity used to dereference the body (body.accountId! for a scoped table,
-  // sanitizeWrite's assertIdPresent for accounts) before any 400 classification could run, so a
-  // missing/null body crashed as an unclassified TypeError → statusFor → 500. /api/batch and
-  // /api/import already guard `!body` this way; the generic routes now match.
+  // Generic write routes must reject absent or null bodies before dereferencing fields, so malformed input returns 400.
   it("POST /api/resources with no body/Content-Type is 400, not 500", async () => {
     const { app } = freshApp();
     const res = await call(app, { method: "POST", url: "/api/resources" });
@@ -137,8 +130,7 @@ describe("absent/null request body on generic writes → 400, not 500", () => {
   });
 
   it("POST /api/accounts with no body/Content-Type is 400, not 500", async () => {
-    // Regression for the accounts branch specifically: it skips the scoped-table authorize
-    // dereference and instead crashed inside sanitizeWrite's assertIdPresent (row.id on null/undefined).
+    // Accounts skip scoped-table authorization, so their body validation must reject null independently.
     const { app } = freshApp();
     const res = await call(app, { method: "POST", url: "/api/accounts" });
     expect(res.statusCode).toBe(400);
@@ -157,9 +149,7 @@ describe("absent/null request body on generic writes → 400, not 500", () => {
     expect(res.json()).toEqual({ error: "A request body is required." });
   });
 
-  // The sibling handler: PATCH /api/:entity/:id ran entirely inside a try/catch, but a null body
-  // still surfaced as 500. AccountFieldsFrozen's `field in incoming` throws on null, and the
-  // caught TypeError isn't a ValidationError/constraint-failed, so statusFor mapped it to 500.
+  // PATCH must reject null before testing frozen fields; an unclassified TypeError would become a 500.
   it("PATCH /api/accounts/:id with a literal JSON null body is 400, not 500", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
@@ -181,7 +171,3 @@ describe("absent/null request body on generic writes → 400, not 500", () => {
     expect(res.json()).toEqual({ error: "A request body is required." });
   });
 });
-
-// Seed the fixture account + dependency chain, then write each entity via POST and
-// GET it back via /api/state. Deep-equal catches any column that is present in the
-// spec but not round-tripping correctly (NULL/optional handling, JSON encode/decode).

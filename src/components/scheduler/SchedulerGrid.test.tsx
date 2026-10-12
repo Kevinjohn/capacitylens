@@ -32,7 +32,7 @@ function fittedSchedulerGridOffsets() {
     cells.slice(0, index).reduce((sum, cell) => sum + Number.parseFloat(cell.style.width), 0);
   return {
     week: x(7),
-    // A mid-week nudge: Wed of week 2 (origin index 9). It floors back to that week's Monday.
+
     nudge: x(9),
     snapped: x(7),
   };
@@ -58,7 +58,7 @@ beforeEach(() => {
   useStore.getState().replaceAll(dataset());
   useStore.getState().setActiveAccount(ACC);
   useStore.getState().setOriginDate("2026-06-01");
-  // Wide columns make the grid geometry deterministic for these assertions.
+
   useStore.getState().setZoom(1);
   useStore.getState().setDrawMode("work");
   useStore.getState().setUtilizationPref({ key: "showTotal", value: true });
@@ -79,8 +79,7 @@ describe("SchedulerGrid", () => {
   it("positions a bar by start date with inclusive width", () => {
     renderGrid();
     const bar = screen.getByTestId("allocation-bar");
-    // origin === start -> left is just the visual inset; width is a positive multiple of
-    // the (responsive) dayWidth. Exact px geometry is covered by schedulerModel.test.
+
     expect(bar.style.left).toBe(`${LAYOUT.barInset}px`);
     expect(Number.parseInt(bar.style.width, 10)).toBeGreaterThan(0);
     expect(bar).toHaveAttribute("data-status", "confirmed");
@@ -150,7 +149,7 @@ describe("SchedulerGrid", () => {
     expect(screen.getByRole("grid", { name: "Resource schedule" })).toBeInTheDocument();
     expect(screen.getAllByRole("row").length).toBeGreaterThan(0);
     expect(screen.getByRole("rowheader", { name: /Bruce/ })).toBeInTheDocument();
-    // Row totals must remain available to screen readers.
+
     expect(screen.getByText(/1 allocation\./)).toBeInTheDocument();
   });
 
@@ -186,7 +185,6 @@ describe("SchedulerGrid", () => {
   });
 
   it("marks over-allocated days and shows a utilization figure", () => {
-    // Bruce has 8h on 06-01..06-02; add 4h more on 06-01 -> 12h > 8h available.
     useStore.getState().addAllocation({
       resourceId: "r1",
       activityId: "t1",
@@ -264,7 +262,7 @@ describe("SchedulerGrid", () => {
     expect(band.contains(labelLayer)).toBe(false);
     expect(labelLayer.parentElement).toBe(band.parentElement);
     expect(labelLayer.getAttribute("style")).toContain("z-index: var(--z-index-scheduler-closure-label)");
-    // Its vertical placement is the viewport clamp, not the old fixed group-header offset.
+
     const labelBox = screen.getByTestId("scheduler-closure-label-box");
     expect(labelBox.style.top).toBe(buildVisibleSpanInsets("y", "0px", "var(--band-height)").leading);
     expect(within(firstRow).getByTestId("timeoff-block")).toBeInTheDocument();
@@ -295,8 +293,7 @@ describe("SchedulerGrid", () => {
     const grid = screen.getByTestId("scheduler-grid");
 
     act(() => useStore.getState().jumpToResource("r1"));
-    // The first row sits directly under one discipline header, whose height follows the active
-    // density: the store default is Compact off (roomy), so assert the roomy geometry.
+
     expect(grid.scrollTop).toBe(SCHEDULER_DENSITY.groupHeaderHeight);
     expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true);
 
@@ -354,7 +351,6 @@ describe("SchedulerGrid visible-window utilisation", () => {
           accountId: ACC,
           startDate: "2026-06-01",
           endDate: "2026-06-05",
-          // The first week starts at full utilization.
         }),
         makeAllocation({
           id: "w2",
@@ -362,7 +358,6 @@ describe("SchedulerGrid visible-window utilisation", () => {
           startDate: "2026-06-08",
           endDate: "2026-06-12",
           hoursPerDay: 4,
-          // The second week drops to half utilization.
         }),
         makeAllocation({
           id: "w34",
@@ -370,15 +365,12 @@ describe("SchedulerGrid visible-window utilisation", () => {
           startDate: "2026-06-15",
           endDate: "2026-06-26",
           hoursPerDay: 2,
-          // Weeks three and four use quarter utilization.
         }),
-        // wk5–8 idle
       ],
     });
   }
 
-  // Anchor the timeline and the focus date at Mon 2026-06-01 so the visible window starts there
-  // (leftEdgeIdx stays -1 in jsdom, the container is never measured, so the % anchors at focusDate).
+  // Pin origin and focus dates because jsdom leaves the container unmeasured and the visible window otherwise falls back to the current focus date.
   const renderAtZoom = (zoom: 1 | 2 | 4 | 8) => {
     useStore.getState().replaceAll(densityDataset());
     useStore.getState().setActiveAccount(ACC);
@@ -391,7 +383,6 @@ describe("SchedulerGrid visible-window utilisation", () => {
   const overallPct = () => Number.parseInt(screen.getByTestId("overall-utilization").textContent, 10);
 
   it("the week-range toggle changes the overall % to reflect EXACTLY the visible span", () => {
-    // 1w → 40/40 = 100%; 2w → 60/80 = 75%; 4w → 80/160 = 50%; 8w → 80/320 = 25%.
     const v1 = renderAtZoom(1);
     expect(overallPct()).toBe(100);
     v1.unmount();
@@ -521,23 +512,13 @@ describe("SchedulerGrid filters", () => {
   });
 });
 
-// Feature 2 (the week snap, always on for users), the scroll-idle floor wired through
-// onScroll. The pure floor math is unit-tested in resolveWeekStartSnapTarget.test.ts; here we pin the component
-// wiring: the debounce, the drag-freeze respect, the convergence no-op, and the unmount cleanup.
-//
-// jsdom never lays the grid out (clientWidth === 0), so the geometry effect and the scroll-idle snap
-// both early-return (see the "leftEdgeIdx stays -1 in jsdom" note above). We therefore (1) mock
-// clientWidth/clientHeight so timelineWidth > 0 and didScroll flips, (2) run rAF synchronously so
-// onScroll's body executes inside the dispatched scroll event, and (3) drive WEEK_SNAP_IDLE_MS with
-// fake timers. Minimise-weekends is forced off; the fitted grid may distribute a few remainder
-// pixels across its columns, so the tests read the rendered integer offsets instead of duplicating
-// that geometry here.
+// Scroll-snap integration needs measured viewport dimensions, synchronous animation frames, and fake idle timers because jsdom does not lay out the grid. Read actual fitted offsets so remainder pixels stay owned by geometry.
 let schedulerRafSpy: { mockRestore(): void };
 
 function installSchedulerSnapHooks() {
   beforeEach(() => {
     vi.useFakeTimers();
-    // Make the grid measure so timelineWidth > 0 (didScroll flips) and the snap actually runs.
+
     Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 1200 });
     Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get: () => 600 });
     // Run the onScroll rAF synchronously so its body executes within the dispatched scroll event; the
@@ -546,9 +527,9 @@ function installSchedulerSnapHooks() {
       cb(0);
       return 1;
     });
-    // Uniform columns → predictable week-multiple offsets.
+
     useStore.getState().setMinimiseWeekends(false);
-    // Anchor both origin and focus on Mon 2026-06-01 so first-paint scrollLeft (focusX) is 0.
+
     useStore.setState((st) => ({
       ui: { ...st.ui, originDate: "2026-06-01", focusDate: "2026-06-01", zoom: 1, collapsedGroups: [] },
     }));
@@ -576,19 +557,17 @@ describe("SchedulerGrid — week snap (Feature 2 wiring)", () => {
     const { nudge, snapped } = fittedSchedulerGridOffsets();
 
     scrollSchedulerGridTo(nudge);
-    // Snap waits for the idle period before changing scroll position.
+
     expect(grid.scrollLeft).toBe(nudge);
     act(() => {
       vi.advanceTimersByTime(50);
-      // This advance remains inside the idle window.
     });
     expect(grid.scrollLeft).toBe(nudge);
 
     act(() => {
       vi.advanceTimersByTime(100);
-      // The total advance passes WEEK_SNAP_IDLE_MS.
     });
-    // Snapping returns to the second week's Monday.
+
     expect(grid.scrollLeft).toBe(snapped);
     view.unmount();
   });
@@ -603,27 +582,23 @@ describe("SchedulerGrid — week snap (Feature 2 wiring)", () => {
     const grid = screen.getByTestId("scheduler-grid");
     const { nudge, snapped, week } = fittedSchedulerGridOffsets();
 
-    // The first scroll arms the idle timer.
     scrollSchedulerGridTo(nudge);
     act(() => {
       vi.advanceTimersByTime(40);
-      // At 40 ms, the idle timer must still be pending.
     });
     expect(grid.scrollLeft).toBe(nudge);
-    // A second scroll cancels the first timer and starts a new idle window.
+
     scrollSchedulerGridTo(nudge + week);
     act(() => {
       vi.advanceTimersByTime(40);
-      // At 80 ms, the replacement timer must still be pending.
     });
-    // A replacement timer must not snap early.
+
     expect(grid.scrollLeft).toBe(nudge + week);
 
     act(() => {
       vi.advanceTimersByTime(120);
-      // At 200 ms, the replacement timer has elapsed.
     });
-    // Snapping returns to the third week's Monday.
+
     expect(grid.scrollLeft).toBe(snapped + week);
     view.unmount();
   });
@@ -638,7 +613,7 @@ describe("SchedulerGrid — week snap (Feature 2 wiring)", () => {
     act(() => {
       vi.advanceTimersByTime(500);
     });
-    // Disabled snapping must leave the scroll offset unchanged.
+
     expect(grid.scrollLeft).toBe(nudge);
     view.unmount();
   });
@@ -649,9 +624,7 @@ describe("SchedulerGrid — week snap (Feature 2 wiring)", () => {
     const grid = screen.getByTestId("scheduler-grid");
     const { nudge } = fittedSchedulerGridOffsets();
 
-    // Establish a mid-week horizontal position while snapping is disabled, then enable it.
-    // The next event changes scrollTop only and must not reinterpret that existing scrollLeft as a
-    // fresh horizontal gesture.
+    // A vertical-only scroll must not restart horizontal snapping at an existing mid-week offset.
     scrollSchedulerGridTo(nudge);
     act(() => useStore.setState({ weekSnapEnabled: true }));
     act(() => {
@@ -675,14 +648,13 @@ describe("SchedulerGrid — week snap (Feature 2 wiring)", () => {
     const grid = screen.getByTestId("scheduler-grid");
     const { nudge } = fittedSchedulerGridOffsets();
 
-    // A scroll arms the snap timer before dragging begins.
     scrollSchedulerGridTo(nudge);
-    // A drag begins before the idle elapses; the timeout re-checks live draggingAllocationId and bails.
+
     act(() => useStore.setState({ draggingAllocationId: "x" }));
     act(() => {
       vi.advanceTimersByTime(500);
     });
-    // Dragging must suppress the pending snap.
+
     expect(grid.scrollLeft).toBe(nudge);
     view.unmount();
   });
@@ -693,7 +665,6 @@ describe("SchedulerGrid — week snap (Feature 2 wiring)", () => {
     const grid = screen.getByTestId("scheduler-grid");
     const { week } = fittedSchedulerGridOffsets();
 
-    // A Monday offset needs no snap or scroll write.
     scrollSchedulerGridTo(week);
     act(() => {
       vi.advanceTimersByTime(500);
@@ -708,12 +679,10 @@ describe("SchedulerGrid — week snap (Feature 2 wiring)", () => {
     const grid = screen.getByTestId("scheduler-grid");
     const { nudge } = fittedSchedulerGridOffsets();
 
-    // Arm the snap before unmounting.
     scrollSchedulerGridTo(nudge);
-    // Unmounting must clear the pending snap timer.
+
     view.unmount();
-    // Advancing past the idle must not throw or write (the timer was cleared). The detached node's
-    // scrollLeft stays at the nudged value.
+
     expect(() =>
       act(() => {
         vi.advanceTimersByTime(500);

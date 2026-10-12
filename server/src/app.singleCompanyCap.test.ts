@@ -40,7 +40,6 @@ function readAccountRows(response: LightMyRequestResponse): Record<string, unkno
   return rows;
 }
 
-/** One pre-existing account ('a1') so "the cap is at capacity" holds (accountCount === 1). */
 function atCapDb(): Db {
   const db = openDb(":memory:");
   insertAll(db, { ...emptyAppData(), accounts: [account("a1")] } satisfies AppData);
@@ -260,16 +259,13 @@ function registerBatchMixedTest(): void {
       url: "/api/batch",
       payload: {
         ops: [
-          // An UPDATE, would pass alone.
           { method: "PUT", table: "accounts", id: "a1", row: account("a1", "Renamed") },
-          // A CREATE, capped.
           { method: "PUT", table: "accounts", id: "brandNew6", row: account("brandNew6") },
         ],
       },
     });
     expect(res.statusCode).toBe(403);
     expect(res.json()).toEqual({ error: CAP_MESSAGE });
-    // Pre-scan rejected the batch before the tx opened, a1 was not renamed.
     expect(readAccountRows(await call(app, { method: "GET", url: "/api/state?accountId=a1" }))[0]?.name).toBe(
       account("a1").name,
     );

@@ -18,13 +18,6 @@ vi.mock("@/auth/accountTransition", () => ({
   startMasquerade: accountTransitionMocks.startMasquerade,
 }));
 
-// MembersSection is the Team & access management UI. It renders only in auth-on + server mode and
-// self-gates via a 403 on the members read. These tests mock apiConfig (so isServerConfigured() is
-// true) and fetch, and assert the owner-only affordances are hidden for an admin (no owner option, no
-// controls on the Owner row), ownership changes only through transfer, and a 403 renders nothing.
-
-// Make the section "enabled": a configured server. The real module reads import.meta.env, which the
-// test env leaves unset; mocking it is the clean way to flip server mode on.
 vi.mock("@/data/apiConfig", () => ({
   API_BASE: "http://api.test",
   isServerConfigured: () => true,
@@ -77,7 +70,7 @@ describe("MembersSection — self-gate", () => {
   it("renders NOTHING when the members read returns 403 (viewer/editor)", async () => {
     vi.stubGlobal("fetch", mockApi({ status: 403 }));
     const { container } = renderSection();
-    // Give the effect a tick to resolve the 403, then assert nothing rendered.
+
     await waitFor(() => expect(container.querySelector('[data-testid="members-section"]')).toBeNull());
     expect(screen.queryByRole("heading", { name: "Members" })).not.toBeInTheDocument();
   });

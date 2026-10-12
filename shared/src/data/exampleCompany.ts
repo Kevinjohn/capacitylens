@@ -43,7 +43,7 @@ function buildDisciplines(stamp: Stamp) {
   };
 }
 
-/** A person's colour derives from their discipline. */
+// A person inherits their discipline colour so example data obeys the same rule as ordinary resource writes.
 function buildPerson(stamp: Stamp, discipline: Discipline, who: { name: string; role: string }) {
   return {
     id: newId(),

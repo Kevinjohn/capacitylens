@@ -1,6 +1,4 @@
-// Fully-populated test fixtures. Every optional field set to a non-default value.
-// Used by the server round-trip tests (server/src/app.test.ts) and available for
-// future app-level tests. Pure data, no behaviour.
+// Fixtures use present, non-default optional values so server round-trip tests prove those values survive persistence.
 import { externalCapacityDefaults, placeholderCapacityDefaults } from "../types/entities";
 import { NEUTRAL_COLOR } from "../lib/color";
 import type {
@@ -31,7 +29,7 @@ export const FIXTURE_ACCOUNT: Account = {
   language: "en",
   disciplinesEnabled: false,
   // Both true (the non-default, absent reads as false/hidden) so the server round-trip test
-  // proves the new optional boolean columns persist a present value, not just absence.
+  // proves the optional boolean columns persist a present value, not just absence.
   placeholdersEnabled: true,
   externalEnabled: true,
   // Inline creation defaults false; keeping the explicit value exercises boolean persistence.
@@ -54,7 +52,7 @@ export const FIXTURE_CLIENT: Client = {
   // A generic fixture must remain a regular client: the built-in Internal client can only be
   // created and repaired by the account lifecycle path.
   // Lifecycle timestamps set to present (non-default-absent) values so the server round-trip test
-  // proves the new optional archivedAt/deletedAt columns persist a present value, not just absence.
+  // proves the optional archivedAt/deletedAt columns persist a present value, not just absence.
   archivedAt: TS1,
   deletedAt: TS2,
   createdAt: TS1,
@@ -82,7 +80,7 @@ export const FIXTURE_PROJECT: Project = {
   isPrivate: true,
   codeName: "Fixture Aurora",
   // Lifecycle timestamps set to present (non-default-absent) values so the server round-trip test
-  // proves the new optional archivedAt/deletedAt columns persist a present value, not just absence.
+  // proves the optional archivedAt/deletedAt columns persist a present value, not just absence.
   archivedAt: TS1,
   deletedAt: TS2,
   createdAt: TS1,
@@ -115,7 +113,7 @@ export const FIXTURE_RESOURCE: Resource = {
   color: "#3ace6b",
   isFavourite: true,
   // Lifecycle timestamps set to present (non-default-absent) values so the server round-trip test
-  // proves the new optional archivedAt/deletedAt columns persist a present value, not just absence.
+  // proves the optional archivedAt/deletedAt columns persist a present value, not just absence.
   archivedAt: TS1,
   deletedAt: TS2,
   createdAt: TS1,

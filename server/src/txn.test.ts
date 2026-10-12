@@ -227,7 +227,6 @@ describe("rollback-failure quarantine", () => {
         throw original;
       }),
     ).toThrow(original);
-    // Still usable.
     expect(tx(db, () => "ok")).toBe("ok");
   });
 });

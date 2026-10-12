@@ -47,8 +47,9 @@ export interface DayCapacity {
   over: boolean;
 }
 
-/** Allocated vs. available hours for one resource-day, with the `over` flag (allocated > available).
- * @remarks Assumes finite, non-negative hours (see the top-of-file precondition). */
+/** Allocated and available hours for one resource-day; over means allocated exceeds capacity beyond numeric tolerance.
+ * @remarks Requires finite non-negative hours, as documented in capacity/primitives.ts.
+ */
 export function buildDayCapacity({
   resource,
   date,
@@ -115,7 +116,8 @@ export function resolveUtilizationFromCapacity(days: Iterable<DayCapacity>): num
   let allocated = 0;
   let available = 0;
   for (const day of days) {
-    if (day.available === 0) continue; // not a working day. Neither side counts
+    // Skip days with no available capacity so neither their availability nor their booked hours enter visible utilisation.
+    if (day.available === 0) continue;
     allocated += day.allocated;
     available += day.available;
   }

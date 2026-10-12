@@ -173,13 +173,8 @@ function createAccountRuntime({ db, config, options, accountAudit }: CreateAccou
 /** Builds shared runtime services for application routes. */
 export function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppConfig>, options: AppOptions) {
   const { application, auditSink } = config;
-  // Recover records committed before a prior process stopped between SQLite COMMIT and delivery.
-  // A sink failure remains a soft health signal and leaves the oldest row queued for the next
-  // request/restart; malformed durable rows throw because silently skipping one would break the
-  // completeness contract the outbox exists to provide.
-  // Account coordinators write stable event ids through the same durable outbox as product
-  // mutations. Their append boundary means "durably accepted", not "already delivered"; the
-  // response hook below performs best-effort delivery after any enclosing transaction commits.
+  // Recover committed audit records before serving requests. Failed sink delivery leaves them queued and reports degraded health.
+  // Malformed durable records must fail loudly; account append means durable outbox acceptance, not sink delivery.
   const { auditDrainer, repliesWithAuditDrain, accountAudit, audit, drainProductAudit, commitProductAudit } =
     createAuditRuntime({ db, auditSink });
   const accountRuntime = createAccountRuntime({ db, config, options, accountAudit });
@@ -193,10 +188,8 @@ export function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppCon
     accountFlows,
     memberResources,
   } = accountRuntime;
-  // Deep mode prepares the trivial read once, here in the synchronous factory body while
-  // the DB is known-open; a later closed/corrupt/locked DB makes get() throw at request
-  // time, which is exactly the signal the uptime monitor needs (a bare { ok: true } from
-  // a server whose DB is broken is a lie).
+  // Prepare the constant-work probe once; a failure to execute it must report unavailable health.
+  // SELECT 1 is a liveness probe and does not recheck database integrity.
   const healthStmt = options.healthDeep === true ? db.prepare("SELECT 1") : null;
   const diagnosticsSchemaStatement = db.prepare("PRAGMA user_version");
 

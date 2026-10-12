@@ -9,10 +9,7 @@ export interface PersistenceRegistration {
   hasUnsavedWrites: () => boolean;
 }
 
-/**
- * One owner for the currently attached persistence lifecycle. Public seams delegate to this
- * instance instead of coordinating four independent module-global callbacks.
- */
+// Owns the currently attached persistence lifecycle so public seams share one coordinator.
 class PersistenceCoordinator {
   private registration: PersistenceRegistration | null = null;
 

@@ -3,15 +3,15 @@ import { MAX_SPAN_DAYS } from "./schedulingDays";
 import type { DomainErrorCode } from "../domain/errors";
 import type { Activity, Allocation, AppData, ID, ISODate, Resource } from "../types/entities";
 
-// Referential-integrity rules and cascade-delete transforms. All pure: cascade helpers return a
-// new AppData rather than mutating. Callers that own a clock may pass an updatedAt revision for
-// surviving rows whose foreign key is cleared, so synchronization observes the relationship edit.
+// Keep referential-integrity validation and cascade transforms pure. Cascades return a new AppData.
+// FK-clearing cascades require an updatedAt revision so synchronization observes surviving relationship edits.
 
 /**
  * Length of a Gregorian calendar month, leap years included. `month` is 1-based and must already
  * be 1–12 (callers range-check first, see `isValidISODate` below and repeatingDates' typed
  * wrapper). Exported so the calendar-validity check here and repeatingDates' month arithmetic
  * share one leap rule; two copies could drift on a century year (1900 vs 2000).
+ * @throws RangeError when month is not an integer from 1 through 12; callers must range-check it first.
  */
 export function daysInMonth(year: number, month: number): number {
   const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
@@ -142,8 +142,7 @@ export function validateDateRange(startDate?: ISODate | null, endDate?: ISODate 
         message: "End date cannot be before the start date.",
       },
     ]);
-  // O(1), before any caller can materialise one entry per calendar day. This boundary is shared by
-  // store writes, server writes and import repair for both allocations and time off.
+  // Enforce the span bound before callers can allocate one entry per day.
   if (daysInclusive(startDate, endDate) > MAX_SPAN_DAYS) {
     return toResult([
       {
@@ -155,10 +154,6 @@ export function validateDateRange(startDate?: ISODate | null, endDate?: ISODate 
   return toResult([]);
 }
 
-/**
- * Placeholder rule: a placeholder is bound to one project and may only take allocations whose
- * effective project matches that binding. Unattributed work remains assignable to any resource.
- */
 /** Resolve the project a booking counts toward. Allocation attribution takes precedence over the
  * activity's project because repeatable activities are project-less and attribute each booking. */
 export function effectiveProjectId(
@@ -181,7 +176,8 @@ export function withoutAllocationAttribution<T extends object>(row: T, updatedAt
   return cleared;
 }
 
-/** Check that a placeholder is assigned only to its own project; people and externals are unrestricted. Pure. */
+/** Check that a project-attributed placeholder allocation matches its bound project.
+ * Unattributed work is assignable to any resource; people and externals are unrestricted by this rule. Pure. */
 export function validateAllocationAssignment(resource: Resource, projectId: ID | undefined): ValidationResult {
   const issues: ValidationIssue[] = [];
   // Only placeholders are project-restricted. `person` and `external` are intentionally
@@ -202,22 +198,10 @@ export function validateAllocationAssignment(resource: Resource, projectId: ID |
   return toResult(issues);
 }
 
-// Cascade deletes.
-//
-// Every `delete*Cascade` below is pure: it returns a new `AppData` and never mutates its input.
-// Pushing onto the undo stack is the store's job. The required revision makes every caller stamp
-// surviving FK edits while these transforms express the referential consequences of a delete (which
-// children are removed vs. unbound), mirroring the server's ON DELETE CASCADE / SET NULL rules so
-// the local and server paths can't diverge. Safe to compose/test in isolation.
-//
-// These entity cascades are deliberately ID-scoped, not account-scoped. Entity ids are table-global
-// identities: SQLite enforces each table's primary key globally, generated ids are UUIDs (the one
-// deterministic Internal id incorporates accountId), and import remapping produces fresh global ids.
-// Callers still authorize/locate the target in its account before invoking a cascade, but repeating
-// the account predicate on every descendant would imply that duplicate same-table ids are supported
-// when the persistence and import contracts explicitly forbid them. `deleteAccountCascade` is the
-// distinct account-scoped transform: its target is an account id and it intentionally removes every
-// scoped row carrying that accountId rather than following one entity identity through foreign keys.
+// Cascades return a new AppData without mutating the input.
+// Entity IDs are table-global; callers must first authorize the root within its account.
+// FK-clearing cascades require a revision so sync observes surviving relationship changes.
+// Account deletion removes scoped rows by accountId rather than by an entity subtree.
 
 /** Delete a resource and its allocations + time off. Pure, returns a new AppData. */
 export function deleteResourceCascade(data: AppData, resourceId: ID): AppData {
@@ -252,20 +236,9 @@ export function deletePhaseCascade(data: AppData, phaseId: ID, updatedAt: string
   };
 }
 
-/**
- * The project-rooted half of both cascades below: given every project id being removed, drop those
- * projects + their phases + their activities (and those activities' allocations) and unbind what
- * survives. Callers add only their own root row removal.
- *
- * Single pass: collect every removed id first, then filter each table once, rather than
- * re-copying the whole tree per project. Keeping one implementation is also what guarantees the
- * client cascade can't drift from N × the project cascade.
- *
- * Phases go with their project. Any surviving activity that pointed at one of them (e.g.
- * legacy/incoherent data) must have its phaseId unbound, never left dangling, mirroring the
- * server FK's ON DELETE SET NULL on activities.phaseId. A placeholder bound to a removed project
- * is likewise unbound, not deleted.
- */
+// Share project-subtree traversal so client and project deletion apply identical cascade rules.
+// Collect removed IDs before filtering each table once.
+// Clear surviving activity and placeholder references to removed parents to avoid dangling links.
 function dropProjectSubtree(data: AppData, removedProjectIds: Set<ID>, updatedAt: string): AppData {
   const removedPhaseIds = new Set(
     data.phases.filter((phase) => removedProjectIds.has(phase.projectId)).map((phase) => phase.id),
@@ -304,13 +277,18 @@ function dropProjectSubtree(data: AppData, removedProjectIds: Set<ID>, updatedAt
   };
 }
 
-/** Delete a project: drops its phases + activities + those activities' allocations, unbinds a surviving activity's phase and any placeholder bound to it. Pure, returns a new AppData. */
+/** Delete a project subtree and its allocations.
+ * Surviving activity phase links and matching project links are cleared.
+ * Returns a new `AppData`.
+ */
 export function deleteProjectCascade(data: AppData, projectId: ID, updatedAt: string): AppData {
   return dropProjectSubtree(data, new Set([projectId]), updatedAt);
 }
 
-/** Delete a client and everything beneath it (projects → phases → activities → allocations), unbinding
- * surviving phases/placeholders as needed. Pure, returns a new AppData. */
+/** Delete a client and its project subtree.
+ * Surviving activity phase links and matching project links are cleared.
+ * Returns a new `AppData`.
+ */
 export function deleteClientCascade(data: AppData, clientId: ID, updatedAt: string): AppData {
   const removedProjectIds = new Set(
     data.projects.filter((project) => project.clientId === clientId).map((project) => project.id),

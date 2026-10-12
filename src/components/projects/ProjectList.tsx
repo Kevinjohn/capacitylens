@@ -14,10 +14,7 @@ import { buildProjectArchiveImpactCopy, safeArchiveImpact } from "@/lib/archiveI
 import { createClientProjectDisplayNameComparator } from "@/lib/displayOrder";
 import { ArchivedEntitySection } from "@/components/common/ArchivedEntitySection";
 
-/** Build the archive-confirm message for a project, appending the allocation-count cascade warning
- * when the project has active allocations that archiving would pull out of the schedule. Uses
- * safeArchiveImpact (not archiveImpact directly) so a project that stopped being active between
- * dialog-open and render renders the base message instead of throwing during render. */
+// A concurrently inactive project must render the base confirmation message instead of throwing, so use safeArchiveImpact.
 function buildProjectArchiveMessage(data: AppData, project: Project): string {
   const name = project.isPrivate === true ? nameForQuotedContext(project.name) : project.name;
   const base = m.list_projects_archive_message({ name });
@@ -70,8 +67,7 @@ export function ProjectList() {
     [clients, data.projects],
   );
   const clientsById = useMemo(() => new Map(clients.map((client) => [client.id, client])), [clients]);
-  // The per-row action archives (soft-delete is reached from the inline archive section);
-  // `archive` branches server/local + reloads the active slice in server mode (see useLifecycleActions).
+
   const { archive } = useLifecycleActions();
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<Project>();
 

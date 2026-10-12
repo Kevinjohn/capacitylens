@@ -149,19 +149,12 @@ export function createRowBuilder({
   const hasTimelineIntersection = createTimelineIntersection(days);
 
   return function buildRow(resource: Resource): RowModel {
-    // This resource's data, pre-grouped above; capacity then scans only its own
-    // allocations/time-off, not the whole dataset per day (was O(res×days×allocs)).
     const allAllocations = (allocationsByResource.get(resource.id) ?? []).filter(includeRenderableDateRange);
     const resourceTimeOff = timeOffByResource.get(resource.id) ?? [];
     const isExternal = isExternalResource(resource);
-    // Resolve the company/personal intersection once for the whole row. Capacity, creation
-    // blocking, visible utilisation and overSoon all reuse this discriminated result.
+
     const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDays);
-    // A row is "dimmed" when a work filter (client/project or the activity lens) is active and
-    // this resource has no matching bar in the displayed timeline. We still show their full
-    // real load (so you can see who's free to staff), just visually de-emphasised. Deriving this
-    // from the exact matching bar set means off-timeline and otherwise hidden matches cannot
-    // create a full-opacity, zero-bar "ghost" row that escapes the show-unmatched filter.
+    // Determine dimming from matching bars inside the displayed timeline so hidden or off-timeline work cannot create an empty full-opacity row. Unmatched staffing rows retain their real load.
     const matchingVisibleAllocations = allAllocations
       .filter(allocationFilters.allocVisible)
       .filter(hasTimelineIntersection);
@@ -183,18 +176,12 @@ export function createRowBuilder({
     });
     const capacity = capacitySourceFor({ resource, allocations: allAllocations, resourceTimeOff, effectiveWeek });
     const daySummary = buildDayStates({ resource, days, blocksMode, closures: data.closures, effectiveWeek, capacity });
-    // Starved rows draw no blocks (see CapacitySource); tracked rows share the company
-    // array and reuse one side untouched when the other is empty, same as mergeTimeOff.
+
     const personalTimeOffBlocks = resourceTimeOff
       .filter(hasTimelineIntersection)
       .map((entry) => buildTimeOffBlock(entry, geometry));
     const timeOff: TimeOffBlock[] = capacity.tracked ? personalTimeOffBlocks : NO_TIME_OFF_BLOCKS;
-    // The displayed utilisation % runs over the visible window [visStart, visEnd]; the
-    // `overSoon` red flag runs over the fixed forward window [overStart, overEnd], two
-    // deliberately separate signals (see the param doc above). Utilisation ignores zero-capacity
-    // days in its denominator; overSoon follows the strict per-day allocated > available rule, so
-    // a time-off day or an opted-in weekend can trip it while a merely-spanned weekend still cannot
-    // (weekend-aware allocated hours are zero). Starved rows answer 0 / never over.
+    // Visible utilisation excludes dates with no available capacity; overSoon independently detects overload in its fixed forward window. Untracked externals report neither signal.
     const utilization = capacity.resolveUtilizationOver(visibleDays);
     const overSoon = capacity.isOverOn(overDays);
     return {

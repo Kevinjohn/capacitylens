@@ -25,7 +25,7 @@ import {
   resolveAttributedProject,
   INTERNAL_PROJECT_SELECTION,
 } from "./allocationModalSelection";
-/** Tables the resource, project and activity pickers read. */
+
 type TargetData = Pick<AppData, "activities" | "clients" | "phases" | "projects" | "resources">;
 
 interface TargetInput {
@@ -238,6 +238,7 @@ function useAddInlineActivity({
       setActivityId(activity.value.id);
       setNewActivityName("");
     } catch (error) {
+      // Report inline-creation failure without treating the new target as successfully selected.
       fail(null, error instanceof Error ? error.message : m.form_allocation_err_save_failed());
     }
   };
@@ -302,11 +303,7 @@ export function useAllocationTargetState(input: TargetInput) {
   const fieldState = useTargetFieldState(seed);
   const { resourceId, projectSelection, activityId, setActivityId } = fieldState;
   const { newActivityName, setNewActivityName, setInlineActivityOption } = fieldState;
-  // Placeholders and externals are each gated behind a per-account pref (both default off). When
-  // off, drop them from the assignee picker, except the allocation's currently-selected resource
-  // (risk A): keep a hidden placeholder/external in the options when it's the one already assigned,
-  // so editing shows the correct value in the chooser instead of silently reassigning the work to
-  // someone else on save.
+  // Keep an allocation's current assignee available during editing even when the company hides that resource kind, or saving could silently reassign the work.
   const choices = useTargetChoices({ ...input, ...fieldState, resourcesById });
   const { changeAssignee, changeProject } = useTargetChangeHandlers({ ...fieldState, resourcesById, clear });
   const addInlineActivity = useAddInlineActivity({

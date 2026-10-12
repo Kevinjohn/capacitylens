@@ -19,8 +19,6 @@ function assertDefined<T>(value: T | undefined, label: string): T {
   return value;
 }
 
-// Two accounts, with a client + project + activity + resource filed under B so we can
-// try (and fail) to touch them while acting as A.
 function twoAccountData(): AppData {
   return makeAppData({
     accounts: [makeAccount({ id: A, name: "Company A" }), makeAccount({ id: B, name: "Company B" })],
@@ -52,7 +50,7 @@ function twoAccountData(): AppData {
 
 beforeEach(() => {
   s().replaceAll(twoAccountData());
-  s().setActiveAccount(A); // act as Company A throughout
+  s().setActiveAccount(A);
   s().setActiveRole(null);
   expect(s().activeAccountId).toBe(A);
 });
@@ -100,8 +98,6 @@ describe("active-account replacement invariant", () => {
   });
 
   it("rejects scoped writes when a non-null active id has no loaded account row", () => {
-    // Exercise the mutation backstop independently from replaceAll's picker fallback. Direct state
-    // injection models any future caller that publishes transient identity state out of order.
     s().setAccountSummaries({ list: [] });
     useStore.setState({ activeAccountId: "missing-account" });
 
@@ -187,16 +183,13 @@ function registerAccountOwnershipTests(): void {
 
 function registerEntityOwnershipTests(): void {
   it("refuses to archive a row owned by another account (cross-account lifecycle throw, no cascade)", () => {
-    // The removal path is now the lifecycle machine (archive → soft-delete → purge), not an immediate
-    // hard-delete. A lifecycle action targeting a row owned by another account is a tenancy violation:
-    // getOwned throws a display-safe message (a cross-account id, unlike a stale/non-existent one).
-    // The foreign row stays untouched (still active) and nothing cascades.
+    // Cross-account lifecycle targets must fail ownership checks without touching the foreign row or its dependents.
     expect(() => s().archiveEntity("projects", "pB")).toThrow(/does not belong to the active company/i);
     const proj = assertDefined(
       s().data.projects.find((p) => p.id === "pB"),
       "project pB",
     );
-    expect(proj.archivedAt).toBeUndefined(); // unchanged: not archived across the tenant boundary
+    expect(proj.archivedAt).toBeUndefined();
     expect(s().data.activities.find((t) => t.id === "tB")).toBeDefined();
   });
 
@@ -302,13 +295,13 @@ describe("foreign-key refs must stay in the active account", () => {
 
 describe("unknown account selection while on the picker", () => {
   it("surfaces the not-found notice even when activeAccountId is already null", () => {
-    s().setActiveAccount(null); // on the picker
+    s().setActiveAccount(null);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
     s().setActiveAccount("company-does-not-exist");
 
-    expect(s().activeAccountId).toBeNull(); // still safe: picker
-    expect(s().notice).toMatchObject({ tone: "error" }); // but no longer silent
+    expect(s().activeAccountId).toBeNull();
+    expect(s().notice).toMatchObject({ tone: "error" });
     warn.mockRestore();
   });
 

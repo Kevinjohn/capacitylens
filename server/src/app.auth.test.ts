@@ -17,12 +17,6 @@ import { finishAccountCommand, reserveAccountCommand } from "./accounts/state";
 import { call, PASSWORD_ENV, cookiesOf } from "./testHelpers/passwordAuth";
 import { appWithAuth, parseConfiguredAuth } from "./fixtures/appWithAuth";
 
-// The CAPACITYLENS_MODE flag (opts.authMode/auth). The load-bearing assertion set: off is
-// byte-for-byte today (the whole existing app.test.ts suite already enforces that by running
-// unchanged; these tests add the /api/auth/me surface and the absence of the Better Auth
-// routes); password gates every data route on a real session; sso issues a
-// provider redirect; any misconfiguration refuses to boot via AuthConfigError.
-
 const TS = "2026-01-01T00:00:00.000Z";
 const account = {
   id: "a1",
@@ -112,8 +106,7 @@ function registerAuthOffSurfaceTests(): void {
     const app = createApp(openDb(":memory:"));
     const me = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(me.statusCode).toBe(200);
-    // multiAccount/canCreateAccount (single-company cap capability flags): a fresh, empty DB and
-    // default opts (multiAccount unset) reports the flag off but creation still open (zero accounts).
+
     expect(me.json()).toEqual({
       authMode: "off",
       user: DEMO_USER,
@@ -121,7 +114,7 @@ function registerAuthOffSurfaceTests(): void {
       multiAccount: false,
       canCreateAccount: true,
     });
-    // Off is trusted-local, so the demo principal is verified with a clearly-local email.
+
     expect(parseAuthUserResponse(me)).toMatchObject({
       email: "demo@capacitylens.local",
       emailVerified: true,
@@ -424,7 +417,7 @@ describe("CAPACITYLENS_MODE password", () => {
     expect((await call(app, { method: "GET", url: "/api/health" })).statusCode).toBe(200);
     const me = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(me.statusCode).toBe(401);
-    // The login screen needs the mode.
+
     expect(parseResponseAuthMode(me)).toBe("password-only");
   });
 });
@@ -718,10 +711,11 @@ function registerAuthModeRefusalTests(): void {
     try {
       createAuthFromEnvironment(db, { ...PASSWORD_ENV, CAPACITYLENS_SECRET: tooShort });
     } catch (err) {
+      // Capture the expected failure for assertions; the test must still fail if the operation unexpectedly succeeds.
       thrown = err;
     }
     expect(thrown).toBeInstanceOf(AuthConfigError);
-    // Message names the requirement + actual length, and never leaks the secret value.
+
     expect((thrown as Error).message).toContain(String(MIN_BETTER_AUTH_SECRET_LENGTH));
     expect((thrown as Error).message).not.toContain(tooShort);
   });
@@ -730,7 +724,7 @@ function registerAuthModeRefusalTests(): void {
 function registerCredentialAndDiscoveryConfigurationTests(): void {
   it("password mode with an exactly-32-char secret passes the length gate", () => {
     const db = openDb(":memory:");
-    // PASSWORD_ENV has a valid URL; a 32-char secret must not trip the length check.
+
     expect(() =>
       createAuthFromEnvironment(db, {
         ...PASSWORD_ENV,

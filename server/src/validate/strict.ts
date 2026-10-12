@@ -118,6 +118,7 @@ function assertField({ table, field, value, row }: WriteField): void {
     try {
       new Intl.DateTimeFormat(undefined, { timeZone: value });
     } catch {
+      // Reject an unsupported supplied time zone as caller input instead of allowing an Intl exception to become a server failure.
       reject(field, "must be a supported time zone");
     }
     return;

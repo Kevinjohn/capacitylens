@@ -56,8 +56,7 @@ export interface PurgeLifecycleResult {
   removedCounts: Partial<Record<ScopedEntityKey, number>>;
 }
 
-// One UNION ALL query in place of one SELECT COUNT(*) per SCOPED_KEYS table: same predicate per
-// branch, same admin-only before/after-purge counts, same Record<ScopedEntityKey, number> shape.
+// Count each tenant slice in one statement so purge accounting avoids one database call per table.
 const SCOPED_ROW_COUNTS_SQL = SCOPED_KEYS.map(
   (table) => `SELECT '${table}' AS tableName, COUNT(*) AS count FROM ${table} WHERE accountId = ?`,
 ).join("\n  UNION ALL\n  ");
@@ -169,21 +168,11 @@ function purgeOwnedRow(
   deleteRow(db, entity, id);
 }
 
-// Tenant-scoping storage seam. Permissioned routes use these accountId-keyed reads, validation
-// lookups and lifecycle operations where the storage boundary adds tenant ownership or projection.
-// Generic mutations and whole-slice import remain explicit SQLite operations in their owning paths;
-// this interface is intentionally not a complete or transparently replaceable database abstraction.
-//
-// The no-cross-tenant invariant (mirrors the account-boundary contract): no caller may
-// issue a cross-tenant query. Every method is keyed by a single accountId and returns/writes only
-// that account's data; readSlice's predicates and the owned lifecycle operations enforce it at the
-// SQL layer. A method that could touch more than one account breaks this seam's contract.
-
 /**
- * The account-scoped storage seam for tenant-isolated reads, validation and lifecycle operations.
- *
- * Every method is keyed by a single `accountId` and operates on only that account's data. The
- * interface records that isolation contract without pretending to abstract every database access.
+ * Provides tenant-scoped reads and lifecycle writes, plus internal validation lookups.
+ * Read and lifecycle methods operate on the named account. Validation lookups may inspect a row
+ * globally so validators can enforce ownership on referenced rows; they
+ * must never be exposed directly as a tenant read API.
  */
 export interface AccountStore {
   /**
@@ -225,15 +214,8 @@ export interface AccountStore {
 }
 
 /**
- * Build the shared-SQLite {@link AccountStore} used by permissioned routes.
- *
- * `readSlice` delegates to db.ts's {@link readSlice} (`WHERE accountId = ?` on all scoped tables +
- * accounts-by-id). Lifecycle methods use owned point reads, one-row upserts, bounded dependent-note
- * updates and database cascades with explicit nullable-survivor revisions. No method issues a
- * cross-tenant query.
- *
- * @param db  The open SQLite handle this store reads from / writes to.
- * @returns A {@link AccountStore} bound to `db`.
+ * Builds SQLite-backed tenant reads and lifecycle writes with internal cross-tenant validation lookups.
+ * Lifecycle writes preserve ownership and restamp survivors whose nullable references are cleared.
  */
 // Keep the complete scoped-storage surface visible in its factory return.
 // eslint-disable-next-line max-lines-per-function
@@ -241,10 +223,7 @@ export function createSqliteAccountStore(
   db: Db,
   removeResourceLink: (accountId: string, resourceId: string) => void = () => undefined,
 ): AccountStore {
-  // Single query + fromRow, replacing an id-only SELECT followed by one getRow point lookup per
-  // id (N+1). Same WHERE predicate as before, so it hits the same idx_allocations_{field} index and
-  // returns rows in the same order the old id-loop preserved, verified empirically, since neither
-  // form carries an ORDER BY of its own.
+  // Read related allocations in one query to avoid a database lookup per allocation.
   const listRelatedAllocations = (field: "resourceId" | "activityId", accountId: string, id: string): Allocation[] =>
     (db.prepare(`SELECT * FROM allocations WHERE accountId = ? AND ${field} = ?`).all(accountId, id) as Row[]).map(
       (row) => fromRow(resolveTable("allocations"), row) as unknown as Allocation,

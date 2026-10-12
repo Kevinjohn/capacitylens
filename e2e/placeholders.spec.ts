@@ -8,12 +8,9 @@ import { openApp } from "./browserTestSupport";
 test.describe("Placeholders (per-account pref, default off)", () => {
   test("hidden by default: the seeded placeholder is absent from the schedule and Resources list", async ({ page }) => {
     await openApp(page);
-    // No placeholder lane on the schedule (real people only, both Placeholders and External are
-    // per-account prefs that default off, so neither band shows out of the box).
     await expect(page.locator('[data-resource-id="r-ph-designer"]')).toHaveCount(0);
     await expect(page.getByTestId("scheduler-row").filter({ hasText: "Placeholder" })).toHaveCount(0);
 
-    // Resources page: no Placeholders section, no "Add placeholder" button.
     await page.getByRole("link", { name: "Resources" }).click();
     await expect(page.getByRole("heading", { name: "Placeholders" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Add placeholder" })).toHaveCount(0);
@@ -24,13 +21,10 @@ test.describe("Placeholders (per-account pref, default off)", () => {
   }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     const toggle = page.getByRole("switch", { name: "Show placeholders" });
-    // Placeholder visibility is off by default.
     await expect(toggle).toHaveAttribute("aria-checked", "false");
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-checked", "true");
 
-    // Resources page now shows the Placeholders section + the seeded placeholder ("Placeholder",
-    // role "Senior Designer" in the secondary text).
     await page.getByRole("link", { name: "Resources" }).click();
     await expect(page.getByRole("heading", { name: "Placeholders" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Add placeholder" })).toBeVisible();
@@ -49,15 +43,12 @@ test.describe("Placeholders (per-account pref, default off)", () => {
       .getByTestId("scheduler-row")
       .filter({ has: page.locator('[data-resource-id="r-ph-designer"]') });
     const header = phScheduleRow.getByRole("rowheader");
-    // The schedule row uses the literal name Placeholder.
     await expect(header.getByText("Placeholder", { exact: true })).toBeVisible();
-    // The schedule row displays a question-mark avatar.
     await expect(header.getByText("?", { exact: true })).toBeVisible();
   });
 
   test("the choice survives navigation in the current demo session", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
-    // → on
     await page.getByRole("switch", { name: "Show placeholders" }).click();
     await page.getByRole("link", { name: "Schedule" }).click();
     await page.getByRole("link", { name: "Settings", exact: true }).click();

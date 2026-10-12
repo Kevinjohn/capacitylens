@@ -1,6 +1,3 @@
-// The cases that make unattended-failure reporting worth having, and the ones that make it
-// annoying enough to be switched off. Both are worth pinning.
-
 import test from "node:test";
 import assert from "node:assert/strict";
 

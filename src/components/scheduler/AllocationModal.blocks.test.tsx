@@ -17,15 +17,12 @@ const capacityAdvisoryMock = vi.hoisted(() =>
   })),
 );
 
-// Both inputs carry a proposal; only the single-allocation path carries otherAllocations.
 const lastAdvisoryOthers = () => {
   const input = capacityAdvisoryMock.mock.calls.at(-1)?.[0];
   return input && "otherAllocations" in input ? input.otherAllocations : undefined;
 };
 
-// Both entry points share one mock: the repeat path advises against a batch-shared load bucket
-// (`buildCapacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
-// care only about the advisory verdicts the modal renders.
+// Single and repeat advisory paths share one verdict stub so these modal tests exercise presentation rather than load calculations.
 vi.mock("@/lib/capacity", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/capacity")>()),
   buildCapacityAdvisory: capacityAdvisoryMock,
@@ -58,7 +55,6 @@ describe("AllocationModal blocks mode", () => {
       />,
     );
 
-    // Blocks drops every load field. No End, no Hours/day, no Days of work.
     expect(screen.queryByLabelText("End")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Hours / day")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Days of work")).not.toBeInTheDocument();
@@ -71,7 +67,7 @@ describe("AllocationModal blocks mode", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(onClose).toHaveBeenCalled();
-    // 10 working days from Mon 2026-06-01 lands on Fri 2026-06-12; load is 0.
+
     expect(useStore.getState().data.allocations[0]).toMatchObject({
       startDate: "2026-06-01",
       endDate: "2026-06-12",
@@ -105,7 +101,6 @@ describe("AllocationModal blocks mode", () => {
         />,
       );
 
-    // Hourly mode: the stored load counts as-is.
     const hourly = renderCreate();
     expect(lastAdvisoryOthers()).toEqual([expect.objectContaining({ hoursPerDay: 8 })]);
     hourly.unmount();
@@ -151,7 +146,7 @@ describe("AllocationModal blocks mode", () => {
     enableBlocks();
     const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
     const user = userEvent.setup();
-    // Grid hands a 5-working-day span (Mon 06-01 … Fri 06-05).
+
     render(
       <AllocationModal
         kind="create"

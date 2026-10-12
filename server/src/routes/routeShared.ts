@@ -83,20 +83,16 @@ export const isLifecycleEntity = isLifecycleEntityKey;
 export const ownsRow = (existing: { accountId?: unknown } | undefined, accountId: unknown): boolean =>
   !existing || existing.accountId === accountId;
 
-/**
- * The stale-write predicate (optimistic concurrency), shared by the direct PUT route and the batch
- * PUT loop so the two paths can never drift. An existing-row replacement must echo the exact
- * server revision; a caller-authored future value is not evidence of freshness. Partial PATCH may
- * omit the precondition for compatibility, but a supplied malformed or mismatched value conflicts.
+/** Detects a mismatched revision instant for an existing row.
+ * Full replacements require a valid matching precondition; PATCH may omit it for compatibility.
+ * Missing rows and corrupt stored revisions do not conflict, allowing creation or metadata repair.
  */
 export function isStaleWrite(input: StaleWriteInput): input is StaleWriteInput & { existing: Record<string, unknown> } {
   const { existing, row, requirePrecondition = true } = input;
 
   // Conflict callers use the narrowed input.existing for successor checks and redacted echoes.
   if (existing === undefined) return false;
-  // A corrupt stored revision must remain repairable rather than write-bricked. Incoming full-row
-  // writes, however, require a valid exact precondition; PATCH retains its documented omission-only
-  // compatibility path while rejecting an explicitly malformed value.
+  // Corrupt stored revisions must remain repairable, so this predicate cannot demand a matching precondition until storage has a valid revision.
   if (typeof existing.updatedAt !== "string" || !Number.isFinite(Date.parse(existing.updatedAt))) return false;
   if (typeof row.updatedAt !== "string" || !Number.isFinite(Date.parse(row.updatedAt))) {
     return requirePrecondition || Object.hasOwn(row, "updatedAt");

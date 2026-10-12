@@ -57,6 +57,7 @@ describe("rowCodec", () => {
         updatedAt: "u",
       });
     } catch (error) {
+      // Capture the corrupt-cell error so assertions verify the damaged location is reported without the cell value.
       caught = error;
     }
 

@@ -9,7 +9,6 @@ import { LAYOUT } from "./layout";
 import type { ColumnGeometry } from "./columnGeometry";
 import { buildVisibleSpanInsets } from "./visibleSpanInsets";
 
-/** Same visible-portion clamp the allocation bars and closure bands use, over a month span. */
 const MONTH_LABEL_INSETS = buildVisibleSpanInsets("x", "var(--month-start)", "var(--month-width)");
 
 interface Span {
@@ -21,11 +20,9 @@ interface Span {
   start: number;
 }
 
-/** Group visible days into calendar-month spans. */
 function buildMonthSpans(days: string[]): Span[] {
   const spans: Span[] = [];
   days.forEach((day, i) => {
-    // The month key uses year and month so adjacent years remain distinct.
     const key = day.slice(0, 7);
     const last = spans[spans.length - 1];
     if (last && last.key === key) last.days += 1;
@@ -34,7 +31,6 @@ function buildMonthSpans(days: string[]): Span[] {
   return spans;
 }
 
-/** Group visible days into weeks (new block on the week-start day or at the window start). */
 function buildWeekBlocks(days: string[], weekStartsOn: 0 | 1): Span[] {
   const blocks: Span[] = [];
   days.forEach((day, i) => {
@@ -153,8 +149,6 @@ function DateMonthTier({ months, geometry, alignVisibleMonths }: DateMonthTierPr
   );
 }
 
-// Memoised: its props (the memoised `days` array + the memoised `geom`) are stable
-// across data mutations, so it stops re-rendering ~120 cells on every store change.
 /** Renders date and week labels for the visible schedule columns. */
 export const DateHeader = memo(function DateHeader({
   days,
@@ -164,27 +158,21 @@ export const DateHeader = memo(function DateHeader({
   today,
 }: {
   days: string[];
-  // Per-column geometry: cell/month/week widths come from here so they track the
-  // (possibly narrowed) weekend columns instead of a single scalar.
+
   geom: ColumnGeometry;
   visibleWeeks: WeeksZoom;
   weekStartsOn: 0 | 1;
   today: string;
 }) {
-  // The header switches between daily columns and weekly blocks at this zoom.
   const showDays = geometry.perDayColumns;
   const showWeekday = geometry.showWeekdayLabels;
   // The 1/2-week views have enough room to place labels at the visible month segment's start.
   // At compact zooms that treatment would leave too little room, so keep the bounded sticky label.
   const alignVisibleMonths = visibleWeeks <= 2 && showWeekday;
   const totalWidth = geometry.totalWidth;
-  // Width of a span [start, start+days-1] from the real per-column widths.
+
   const resolveSpanWidth = (span: Span) => geometry.spanWidth(span.start, span.start + span.days - 1);
-  // Month/week groupings depend on `days`, recompute on the day set changing, not on a pure
-  // dayWidth (zoom) change that only re-widths the same blocks. `formatMonthYear` reads "MMM yyyy"
-  // at every style, so the month spans are style-independent; the week labels are not.
-  // Subscribing here is also what wakes this component at all: it is `memo()`d, and its props are
-  // stable across the account write that carries a date-format change.
+  // Month grouping depends on visible dates, while formatted week labels also depend on date style. The style subscription wakes this memoized header for account-format changes.
   const dateStyle = useDateStyle();
   const months = useMemo(() => buildMonthSpans(days), [days]);
   // `buildWeekBlocks` formats its labels through `formatDayMonth`, which reads the active style
@@ -193,9 +181,7 @@ export const DateHeader = memo(function DateHeader({
   const weeks = useMemo(() => buildWeekBlocks(days, weekStartsOn), [days, weekStartsOn, dateStyle]);
 
   return (
-    /* Column 2 of the scheduler grid: the timeline date header (col 1 is the sticky utilisation
-       column header in SchedulerGrid). aria-colindex=2 matches the gridcells/rowheaders below so the
-       grid's declared 2-column structure (aria-colcount=2) is consistent (WCAG 1.3.1). */
+    // The date header uses column index 2 to match the timeline cells and the grid's two-column accessibility model.
     <div
       role="columnheader"
       aria-colindex={2}
@@ -203,17 +189,10 @@ export const DateHeader = memo(function DateHeader({
       className="relative flex h-full shrink-0 flex-col"
       style={{ width: totalWidth }}
     >
-      {/* Month tier, padding-driven height (not a fixed px) so it scales with font size.
-          Wide 1/2-week views position an absolute wrapper over the intersection of the month
-          and visible timeline. useSchedulerViewport publishes scrollLeft as a CSS variable,
-          letting the browser track that wrapper without a React render per scroll pixel.
-          Compact zooms retain the bounded sticky label: no overflow-hidden ancestor in that
-          branch, because it would trap position:sticky. */}
+      {/* Month labels follow scroll offsets through CSS variables so scrolling does not rerender them. Compact labels must avoid overflow-hidden ancestors, which would trap sticky positioning. */}
       <DateMonthTier months={months} geometry={geometry} alignVisibleMonths={alignVisibleMonths} />
 
-      {/* Week / day tier. flex-auto (basis auto, not flex-1's basis 0) so the cells'
-          real height counts toward the header, otherwise the date + weekday lines
-          overflow the row and get clipped, while still filling any slack height. */}
+      {/* Use flex-auto so weekday content contributes to header height instead of overflowing a zero-basis row. */}
       {showDays ? (
         <DateDayTier days={days} geometry={geometry} weekStartsOn={weekStartsOn} today={today} />
       ) : (

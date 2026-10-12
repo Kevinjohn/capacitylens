@@ -128,6 +128,7 @@ function createServerApplication(input: ServerRuntimeInput): {
     }
     return { app, backups: backupController };
   } catch (error) {
+    // Close SQLite and remove startup listeners before reporting the fatal application or backup startup failure.
     closeDbSafely(input.db);
     input.startupSignals.dispose();
     refuseToStart(

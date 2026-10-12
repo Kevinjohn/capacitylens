@@ -256,7 +256,6 @@ describe("canManageMemberRole delegates to canEditAnyMemberRole without changing
         for (const next of ROLES) {
           const label = `${actor}->${target}=>${next}`;
           expect(canManageMemberRole(actor, target, next), label).toBe(oracle(actor, target, next));
-          // …and that decision is exactly the standing check and the destination check.
           expect(canManageMemberRole(actor, target, next), label).toBe(
             canEditAnyMemberRole(actor, target) && next !== "owner",
           );

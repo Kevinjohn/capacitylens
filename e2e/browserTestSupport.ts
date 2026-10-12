@@ -2,17 +2,9 @@ import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { WEEK_SNAP_IDLE_MS } from "../src/lib/schedulerConfig";
 
-// The seed dataset covers the first half of June 2026. The over-allocated day is
-// 3-4 June and every demo bar falls between 1-9 June. The scheduler is anchored to
-// "today": the default origin snaps to the current week's Monday and the utilisation
-// window runs forward from today. So once the real wall-clock drifts past that window
-// the seeded bars scroll into the past and off-screen, and every spec that clicks,
-// hovers or drags a seed bar (or asserts the 3-4 June over-marker) starts failing for
-// reasons that have nothing to do with the code under test. Freeze Date/Date.now to a
-// date inside the seed window so the suite is deterministic whenever it runs. Do not use
-// Playwright's page.clock here: in Firefox it virtualises requestAnimationFrame too, and its
-// timer pump can fire a pending scheduler scroll frame during React's Strict Mode layout-effect
-// replay. Noon gives a wide margin against host/browser timezone offsets.
+// Freeze browser Date inside the June seed window so scheduler tests remain independent of the wall clock.
+// Keep timers native because Firefox clock emulation can run pending scroll frames during Strict Mode layout replay.
+// Noon leaves a margin for host and browser time-zone differences.
 const FIXED_NOW = "2026-06-03T12:00:00";
 
 /** Disables the free-scroll week snap before each page load so a test can keep the grid parked mid-week.
@@ -41,10 +33,13 @@ export async function computedStyles<const Properties extends readonly string[]>
   }, properties);
 }
 
-/** Reach a target through real keyboard navigation. `:focus-visible` depends on input modality, so
+/**
+ * Reach a target through real keyboard navigation. `:focus-visible` depends on input modality, so
  * programmatic focus does not reproduce a keyboard user and can diverge across browsers. For a
  * roving-tabindex group, the selected item is the group's tab stop. Call this helper before any
- * mouse interaction in the test, or `:focus-visible` will not match. */
+ * mouse interaction in the test, or `:focus-visible` will not match.
+ * @throws An error named FocusByKeyboardError when the target is not reached within 100 Tab presses.
+ */
 export async function focusByKeyboard(page: Page, target: Locator): Promise<number> {
   const maxTabPresses = 100;
   for (let tabPresses = 1; tabPresses <= maxTabPresses; tabPresses += 1) {
@@ -122,8 +117,9 @@ export async function disableCssMotion(page: Page): Promise<void> {
   );
 }
 
-/** A locator's bounding box, or throw if it isn't rendered (Playwright returns null instead of
- * failing, so geometry assertions need an explicit guard). */
+/** Returns the rendered bounding box.
+ * @throws Error when the locator has no rendered box, so geometry assertions cannot proceed with null.
+ */
 export async function boundingBoxOrThrow(
   locator: Locator,
 ): Promise<{ x: number; y: number; width: number; height: number }> {
@@ -212,14 +208,12 @@ export async function waitForAppLanding(page: Page, landedOn: Locator): Promise<
 // server-backed login with exactly one valid company may skip it on a browser reload, but
 // activeAccountId itself remains unpersisted. Almost every core spec wants the seeded company, so
 // they navigate through `openApp` instead of `goto('/')`.
-/** Opens a seeded company at the requested path and clears sign-in, picker, and intro gates. */
+/** Opens a seeded company at the requested path and dismisses optional non-blocking orientation after the app shell mounts. */
 export async function openApp(page: Page, company = "Wayne Enterprises", path = "/"): Promise<void> {
   // Must precede goto so the app reads the frozen date on its first render.
   await freezeBrowserDate(page);
   await page.goto(path);
-  // A cosmetic demo "fake sign-in" gate now precedes the company picker in the default
-  // (auth-off) deploy. It is skipped once "signed in" (the flag persists), so wait for
-  // whichever screen this load lands on, and click through the sign-in if it's up.
+  // A persisted demo sign-in flag can bypass this gate, so wait for either sign-in or the company picker.
   const signIn = page.getByTestId("fake-sign-in");
   const companyButton = page.getByRole("button", { name: company, exact: true });
   await signIn.or(companyButton).first().waitFor();
@@ -229,22 +223,15 @@ export async function openApp(page: Page, company = "Wayne Enterprises", path = 
   // Picking an account leaves the URL intact, so a deep link like `/resources`
   // still lands on that route once the tenant gate clears.
   await companyButton.click();
-  // A post-login "What CapacityLens is" intro page now follows the company pick; click through it
-  // if it's up. The "already in the app" sentinel is the AppShell's `#main` landmark (see
-  // waitForAppLanding's doc comment for why #main and not role=main or the nav link).
+  // Wait for the mounted app shell before dismissing its optional non-blocking orientation.
   await waitForAppLanding(page, page.locator("#main"));
 }
 
-// Getting-started and onboarding specs need a fresh company. They use the picker's "New company"
-// form instead of `openApp`, which selects an existing company. The flow is split so a spec can
-// inspect or change the initial fields before submission: `openNewCompanyForm` opens the form, and
-// `createCompany` fills the name, submits, and clears the same post-create intro gate as `openApp`.
 /** Opens the new-company form without submitting it, so specs can inspect its initial fields. */
 export async function openNewCompanyForm(page: Page): Promise<void> {
   // Must precede goto so the app reads the frozen date on its first render.
   await freezeBrowserDate(page);
   await page.goto("/");
-  // Same cosmetic demo "fake sign-in" gate as `openApp`, ahead of the picker here too.
   const signIn = page.getByTestId("fake-sign-in");
   const newCompany = page.getByRole("button", { name: "New company" });
   await signIn.or(newCompany).first().waitFor();
@@ -252,9 +239,7 @@ export async function openNewCompanyForm(page: Page): Promise<void> {
   await newCompany.click();
 }
 
-/** Fill in the company name on an already-open create-company form (see `openNewCompanyForm`),
- * submit it, and clear through to the app, including the same post-create intro gate as
- * `openApp`, so callers land with `#main` visible. */
+/** Submits an already-open company form and dismisses optional orientation after #main is visible. */
 export async function createCompany(page: Page, name: string): Promise<void> {
   await page.getByLabel("Company name").fill(name);
   await page.getByRole("button", { name: "Create company" }).click();
@@ -263,8 +248,7 @@ export async function createCompany(page: Page, name: string): Promise<void> {
   await expect(appMain).toBeVisible();
 }
 
-/** Land in a brand-new empty company (through the fake-sign-in, picker create form, and intro
- * gates) in one call, for specs that don't need to touch the create form itself. */
+/** Creates an empty demo company through cosmetic sign-in and the picker, then dismisses optional orientation. */
 export async function openNewCompany(page: Page, name: string): Promise<void> {
   await openNewCompanyForm(page);
   await createCompany(page, name);
@@ -278,8 +262,12 @@ export interface SchedulerGeometryProbe {
   weekdayWidth: number;
 }
 
-/** Read settled scheduler geometry through semantic test hooks. Shared by every scroll/zoom spec so
- * sticky-column measurement, double-rAF settling and weekday-width selection cannot drift. */
+/**
+ * Read settled scheduler geometry through semantic test hooks. Shared by every scroll/zoom spec so
+ * sticky-column measurement, double-rAF settling and weekday-width selection cannot drift.
+ * The scheduler grid, resource header and date tier must be mounted.
+ * @throws When required DOM hooks are absent, rather than returning a substitute measurement.
+ */
 export async function probeSchedulerGeometry(page: Page): Promise<SchedulerGeometryProbe> {
   return page.evaluate(async () => {
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));

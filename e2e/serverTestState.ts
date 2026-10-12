@@ -9,7 +9,6 @@ import { serverTestApiOrigin } from "../scripts/playwrightRunMode.mjs";
 /** Resolves the server API origin for lane tests or the rehearsal same-origin stack. */
 export const API = serverTestApiOrigin(ports().dbApi);
 
-/** Selects the request context and whether resetServer restores demo seed data. */
 type ResetServerOptions = { request: APIRequestContext; withSeed?: boolean };
 /** Wipes the server database and optionally restores demo seed data. */
 export async function resetServer({ request, withSeed = true }: ResetServerOptions): Promise<void> {
@@ -39,7 +38,9 @@ export async function serverState(request: APIRequestContext): Promise<
   return res.json();
 }
 
-/** Returns a table's rows or throws when the server response omits that table. */
+/** Returns the named table’s rows without changing the server state.
+ * @throws Error when the response omits the table; callers must not treat an omitted table as empty.
+ */
 export function requireStateRows<T extends Awaited<ReturnType<typeof serverState>>>(
   state: T,
   table: keyof T,

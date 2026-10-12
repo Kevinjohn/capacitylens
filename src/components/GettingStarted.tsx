@@ -259,6 +259,7 @@ function useCompanyDismissal(accountId: string, pathname: string, setNotice: (me
       setDismissed(true);
       setConfirmOpen(false);
     } catch {
+      // A failed dismissal must remain visible so onboarding is not presented as durably dismissed.
       console.error("GettingStarted: dismissal could not be saved");
       setNotice(m.gs_dismiss_failed(), "error");
       setConfirmOpen(false);

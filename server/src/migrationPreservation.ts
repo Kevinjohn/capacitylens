@@ -8,6 +8,7 @@ interface SnapshotTable {
   primaryKey: string[];
   rows: SnapshotRow[];
 }
+/** Captures table keys and cell values used to verify data preservation across database migrations. */
 export type MigrationValueSnapshot = Record<string, SnapshotTable>;
 
 const EXCLUDED_TABLES = new Set(["_meta", DATABASE_MIGRATION_TABLE]);
@@ -125,12 +126,9 @@ function approvedAddition(table: string, row: SnapshotRow, fromVersion: number):
   );
 }
 
-/** Column removals the migration chain deliberately makes. Every entry needs a version-scoped,
- * reviewed justification. An empty list means no populated column may ever disappear unexamined.
- * Renames are modelled as removal+addition and must be approved on the removal side too. */
+// A populated removed column requires a version-scoped approved migration rule.
 function approvedColumnRemoval(): boolean {
-  // Intentionally empty: no populated column removal is classified yet. Future migrations that
-  // deliberately drop a populated column must add a version-scoped, reviewed entry here.
+  // No populated column removals are approved by this preservation contract.
   return false;
 }
 

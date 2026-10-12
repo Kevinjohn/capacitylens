@@ -10,8 +10,10 @@ import type { ID, ISODate } from "@capacitylens/shared/types/entities";
 /** Date interval and stable identifier supplied to the lane packer. */
 export interface Interval {
   id: ID;
-  startDate: ISODate; // inclusive
-  endDate: ISODate; // inclusive
+  /** Inclusive calendar start. */
+  startDate: ISODate;
+  /** Inclusive calendar end. */
+  endDate: ISODate;
 }
 
 /** Packed interval with its assigned lane index. */
@@ -41,15 +43,13 @@ export function packLanes(items: Interval[]): PackResult {
   // ISO "YYYY-MM-DD" strings sort lexicographically as dates.
   const sorted = [...items].sort(compareIntervals);
 
-  // Origin = the first valid calendar start (a bad record sorts first but must
-  // not become the origin, or it would NaN-poison every other item's day-index).
+  // Use a valid start when available so one malformed date cannot invalidate every interval offset.
   const origin = sorted.find((interval) => isValidISODate(interval.startDate))?.startDate ?? sorted[0]?.startDate;
   if (origin === undefined) return { lanes: [], laneCount: 0 };
-  // The origin is invariant, so parse it once instead of letting `dayIndex` re-parse it for both
-  // ends of every interval. An unparseable origin (every record bad) yields an Invalid Date, so
-  // every offset below is NaN and every item takes the same lane-0 fallback as before.
+  // Parse the shared origin once. An unparseable origin makes offsets non-finite, so records use lane 0.
   const originDate = parseISO(origin);
-  const laneEnds: number[] = []; // inclusive endDay of the last item placed in each lane
+
+  const laneEnds: number[] = [];
   const lanes: LaneItem[] = [];
 
   for (const interval of sorted) {
@@ -61,7 +61,7 @@ export function packLanes(items: Interval[]): PackResult {
       lanes.push({ id: interval.id, lane: 0 });
       continue;
     }
-    let lane = laneEnds.findIndex((end) => end < startIndex); // first lane free strictly before this starts
+    let lane = laneEnds.findIndex((end) => end < startIndex);
     if (lane === -1) {
       lane = laneEnds.length;
       laneEnds.push(endIndex);

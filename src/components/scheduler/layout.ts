@@ -6,14 +6,11 @@ import type { LaneLayout } from "@/lib/lanePacking";
 export const LAYOUT = {
   barHeight: 26,
   laneGap: 4,
-  // Horizontal breathing room on each side of an allocation bar so it doesn't run
-  // flush against the day gridlines. Purely visual, gesture math is unaffected.
-  // Expect to tweak this; it's the single knob for the bar's left/right gap.
+  // The horizontal inset is visual only; gesture range math uses the full column span.
   barInset: 5,
-  // A little extra vertical room per row so the left-column content (avatar, name,
-  // and the stacked +/% control) breathes, also gives the 2-cell control space to sit.
+
   rowPadding: 10,
-  // Wider resource column so names/roles aren't cramped and the +/% box has room.
+
   leftColWidth: 256,
   // Floor for the sticky header row, applied as min-height (not a hard height) so
   // the two-tier date header can grow to fit its content, and keep fitting when the
@@ -22,13 +19,7 @@ export const LAYOUT = {
   groupHeaderHeight: 30,
 };
 
-/**
- * Resolve the rendered allocation-bar geometry inside its raw column span.
- *
- * The inset is capped for narrow bars so the visible bar never collapses to zero width. Keeping
- * this calculation beside the scheduler's fixed geometry gives production and interaction tests
- * one owner for the bar's visual width and left edge.
- */
+/** Insets a bar within its raw span, capping the inset so narrow bars keep a visible width. */
 export function buildAllocationBarInset(left: number, width: number) {
   const inset = Math.min(LAYOUT.barInset, width / 3);
   return { insetLeft: left + inset, insetWidth: Math.max(1, width - inset * 2) };
@@ -41,30 +32,11 @@ export const laneLayout: LaneLayout = {
   rowPadding: LAYOUT.rowPadding,
 };
 
-// Schedule density. LAYOUT above is the base (tight) geometry; the rendered schedule multiplies its
-// vertical gaps out into the roomier layout below, which is the only density the product ships.
-//
-// Three deliberate rules, all owner decisions:
-//
-//  1. barHeight never scales. The bar is content, not spacing, growing it would restyle every
-//     allocation and change how much of a label fits, where the ask was room between things.
-//  2. groupHeaderHeight never scales either. A discipline band holds one short label and nothing
-//     else, so padding it out just makes a tall empty stripe rather than a calmer one.
-//  3. The gap between two stacked allocations gets its own, larger multiplier. At the shared scale
-//     it moves 4px → 8px, which is swamped by the row padding either side of it and reads as "that
-//     gap never changed". LANE_GAP_SCALE lifts it to 16px so two overlapping projects visibly
-//     separate: just under the 20px of padding above and below, so the row still groups as one.
-//
-// X-axis geometry (barInset, leftColWidth) is deliberately untouched: the timeline's horizontal
-// budget is already the scarce one.
-//
-// TOOLBAR_* and NAV_* are the base rhythm in px for the schedule toolbar and the left-hand nav,
-// matching the Tailwind utilities they replace (py-2/gap-y-2, and the sidebar's gap-1/gap-2/p-2).
-// They live here so one knob moves every vertical gap in the app shell and nothing drifts.
+// Density scales vertical gaps while retaining bar and discipline-label sizes. Stacked allocations need a larger gap multiplier than row padding so overlaps remain distinct; horizontal dimensions stay fixed to preserve timeline space.
 /** Scale factor applied to scheduler density presets. */
 export const DENSITY_SCALE = 2;
 
-/** The stacked-allocation gap scales harder than everything else, see rule 3 above. */
+/** Scale applied to the gap between stacked allocations so neighboring bookings remain distinct. */
 export const LANE_GAP_SCALE = 4;
 
 const TOOLBAR_PAD_Y = 8;
@@ -79,7 +51,7 @@ const resolveRoomySize = (value: number, scale: number = DENSITY_SCALE): number 
 export interface SchedulerDensity {
   laneGap: number;
   rowPadding: number;
-  /** Discipline band header. Never scaled by design, see rule 2 above. */
+  /** Fixed discipline-band height, independent of row-spacing density. */
   groupHeaderHeight: number;
   /** Height of the left column's identity band, exactly one lane band, so the name/avatar stays
    * aligned with the first bar however tall a multi-allocation row grows. Mirrors the single-lane
@@ -90,15 +62,13 @@ export interface SchedulerDensity {
    * SchedulerToolbar documents. */
   toolbarPadY: number;
   toolbarGapY: number;
-  /** Left-hand nav rhythm, in px: gap between menu items, block padding of each section, and the
-   * gap between sections/footer rows. Item height is untouched (content, per rule 1), so the
-   * collapsed icon rail, which pins each button to a square, is unaffected. */
+  /** Vertical sidebar spacing preserves square icon-rail buttons. */
   navMenuGapY: number;
   navSectionPadY: number;
   navSectionGapY: number;
 }
 
-/** The schedule's vertical geometry: the base layout with its gaps scaled by the rules above. */
+/** Builds the scheduler's fixed vertical spacing and navigation rhythm. */
 export function buildSchedulerDensity(): SchedulerDensity {
   const rowPadding = resolveRoomySize(LAYOUT.rowPadding);
   return {

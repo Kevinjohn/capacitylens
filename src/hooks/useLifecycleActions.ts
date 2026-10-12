@@ -13,31 +13,15 @@ import { API_BULK_TIMEOUT_MS } from "@/data/requestTimeout";
 import { notifyInactiveDataChanged } from "@/data/inactiveDataEvents";
 import type { ReauthAction } from "@/auth/reauthCoordinator";
 
-// The dispatch seam for the Active → Archived → Soft-deleted → Purged lifecycle is shared by
-// management lists, inline archive sections, and Settings. It owns the server/local branch and
-// post-mutation reload.
-//
-// Behavior:
-//   • server mode (`isServerConfigured()` true): lifecycle mutations are server-authoritative so the
-//     interlocks (delete-needs-archived, purge tier + 30-day grace, resource-name PII obfuscation)
-//     stay enforced server-side. The UI posts the dedicated route and then reloads the active slice;
-//     those routes write the
-//     DB out-of-band from the snapshot-diff sync, so without a reload the scheduler/lists wouldn't
-//     reflect the change and the adapter's diff snapshot would desync (next ordinary edit would emit a
-//     spurious/garbage delta). On a non-OK response we surface `body.error` (a <30d purge → 409, a
-//     non-admin purge / non-member → 403) and never crash. HTTP 408/5xx cannot prove whether an
-//     intermediary returned after commit, so those enter the same authoritative-reload recovery as
-//     a thrown transport failure before another destructive attempt is allowed.
-//   • demo build (`isServerConfigured()` false, VITE_CAPACITYLENS_DEMO=1): the UI calls the store action, which mutates the
-//     local `data` blob immediately through the same mutate()/undo machinery (no fetch, no reload).
-//     We wrap it in try/catch and surface the throw. These are the store's deliberate display-safe
-//     integrity throws (builtin-Internal guard, illegal-transition backstop), exactly the ones the UI
-//     pre-gates with the shared can* predicates but must still surface if they fire.
+// Lifecycle writes use dedicated server routes and then reload through persistence
+// coordination to keep the store and sync baseline paired. Uncertain write outcomes
+// require authoritative recovery before another destructive attempt. Demo builds
+// use the same domain transitions locally.
 
 /** A lifecycle transition verb. Mirrors the four dedicated server routes + the four store actions. */
 export type LifecycleVerb = "archive" | "unarchive" | "delete" | "purge";
 
-/** A timeout or server/intermediary failure cannot prove whether the dispatched write committed. */
+// A timeout or intermediary failure cannot prove whether the dispatched write committed.
 function isLifecycleOutcomeUnknown(response: Response): boolean {
   return response.status === 408 || response.status >= 500;
 }
@@ -58,37 +42,15 @@ export interface LifecycleActions {
   purge: (entity: LifecycleEntity, id: string) => Promise<void>;
 }
 
-/**
- * Re-hydrate the active account's slice from the server after a server-mode lifecycle route call, so
- * the active views (scheduler / lists) reflect the out-of-band DB write and the adapter's diff
- * snapshot is re-seeded (else the next ordinary edit would emit a spurious cross-snapshot delta).
- *
- * Reuse, not a hand-roll: this goes through the persist orchestrator
- * ({@link refreshActiveAccountSlice} → persist.ts `refreshActive`), the same sequence tenant switches
- * and refresh-on-focus use. It flushes a still-debounced ordinary edit and awaits any in-flight save
- * before reloading, and skips the reload entirely while a save is in a failed state. A bare
- * `loadAll` + `replaceAll` here would race those: an edit inside the debounce window when the reload
- * lands would be replaced by the server slice and the snapshot re-seeded under it, so the queued save
- * diffs to zero ops and the edit is silently, permanently lost. (When the reload is skipped on a
- * failed save, the lifecycle change is already committed server-side, it appears on the next
- * successful refresh; preserving the un-persisted edit wins.)
- *
- * The bare-reload fallback runs when no orchestrator is attached: normally unit tests and
- * pre-bootstrap, but also production after a bootstrap hard failure leaves server persistence
- * unattached. With no orchestrator there is no debounce/retry state to clobber. The demo build
- * never calls this (its store actions already mutate `data`).
- */
+// Reload through the persistence orchestrator so pending ordinary edits settle before
+// a lifecycle write reseeds the baseline. An unattached fallback has no queued writes
+// to race; a failed save preserves the optimistic edit until recovery.
 type LifecycleReloadOutcome =
   { kind: "reloaded" } | { kind: "skipped" } | { kind: "failed" } | { kind: "stale-account" };
 
 async function reloadFromServer(accountId: string): Promise<LifecycleReloadOutcome> {
-  // Stale-tenant guard: the lifecycle POST may resolve after the user switched company, so re-read
-  // the current active account and skip the reload when it no longer matches the account the
-  // mutation ran in. The mutation already committed server-side (it shows on that account's next
-  // hydration); the slice for the new tenant is being loaded by the switch orchestrator, and this
-  // stale reload must not fight it. The bare fallback below would install the old tenant's slice
-  // under the new active id (cross-tenant display → cross-tenant writes). persist.ts's
-  // refreshActive carries the same guard at its own altitude; this one also covers the fallback.
+  // A lifecycle POST can finish after a company switch. Check ownership before reload
+  // so its old tenant slice cannot replace the current tenant, including the unattached fallback.
   if (useStore.getState().activeAccountId !== accountId) return { kind: "stale-account" };
   // Anything but 'unattached' means the orchestrator owned the call, including 'skipped' (a
   // failed save's edits win; the committed change appears on the next successful refresh) and
@@ -153,6 +115,7 @@ async function reconcileLifecycleFailure({
     );
     return true;
   } catch (reloadError) {
+    // If authoritative recovery fails after an uncertain mutation, retain the reload-required block so another destructive attempt cannot race unknown server state.
     if (useStore.getState().activeAccountId !== activeAccountId) return false;
     const message = `The lifecycle request had an unknown outcome and could not be reconciled. Reload before retrying. ${resolveErrorMessage(reloadError)} Original request: ${resolveErrorMessage(cause)}`;
     reloadRequiredByAccount.set(activeAccountId, message);
@@ -205,6 +168,7 @@ async function dispatchServerLifecycle(
     }
     return true;
   } catch (cause) {
+    // Reconcile the lifecycle result using whether mutation was confirmed so a refresh failure cannot be mistaken for a refused write.
     return reconcileLifecycleFailure({ context: context, mutationConfirmed: mutationConfirmed, cause: cause });
   }
 }
@@ -225,19 +189,14 @@ function dispatchLocalLifecycle(
   try {
     actions[verb](entity, id);
   } catch (cause) {
+    // Surface local lifecycle rejection so the calling event does not throw without user feedback.
     setNotice(resolveErrorMessage(cause), "error");
   }
 }
 
-/**
- * The lifecycle dispatch hook. Returns {@link LifecycleActions} whose methods branch
- * server-vs-local per the module header. An optional `onReloaded` callback fires after a successful
- * server-mode mutation + reload, the admin section passes a `reloadKey` bump so its own
- * `?includeInactive=1` list re-fetches (the MembersSection idiom); the lists pass nothing (the active
- * view already re-renders off the reloaded store `data`).
- *
- * @param onReloaded - optional; called once after each successful server-mode mutation completes its
- * reload, so a caller maintaining its own inactive-row list can re-fetch it.
+/** Returns lifecycle actions that serialize server mutations with authoritative reloads
+ * or apply domain transitions locally in demo builds. onReloaded fires after confirmed
+ * server mutation and refresh so an independently loaded inactive list can refetch.
  */
 export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
   const mutationQueue = useRef<Promise<void>>(Promise.resolve());
@@ -281,8 +240,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
             dispatchLocal(verb, entity, id);
           }
         } catch (e) {
-          // Preserve the public never-reject contract even if a configuration seam or future
-          // dispatch branch throws outside the existing server/local error boundaries.
+          // Preserve the never-reject contract if dispatch or configuration fails outside the inner operation boundary.
           setNotice(resolveErrorMessage(e), "error");
         }
       };
@@ -297,9 +255,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
     [dispatchServer, dispatchLocal, setNotice],
   );
 
-  // One memo, not four callbacks inside a fresh object literal: the returned object identity is now
-  // stable too, so a consumer that passes the whole surface down (ArchivedSection) or lists it in a
-  // dependency array doesn't re-render on every render of this hook's owner.
+  // Stabilize the returned surface so consumers do not rerender solely because its object identity changes.
   return useMemo<LifecycleActions>(
     () => ({
       archive: (entity, id) => run("archive", entity, id),

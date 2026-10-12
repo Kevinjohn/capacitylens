@@ -1,30 +1,7 @@
 import type { AppData, Client, ID, ISOTimestamp } from "../types/entities";
 
-// The built-in "Internal" pseudo-client. It is a real, persisted {@link Client} (it carries an
-// `accountId` and a primary-key id like any other), not a virtual/sentinel id, so it can own
-// real projects, and a project-less internal/all-projects activity buckets under it for display +
-// filtering. Exactly one per account, marked by the `builtin: true` flag. Identify it at runtime by
-// the flag, never by a hard-coded id formula: import-remap (remapAndValidateImport) mints fresh ids,
-// so any id we wrote would not survive a round-trip. The flag does. See DECISIONS.md.
-//
-// The single-internal invariant (canonical doc; cited from each enforcement point).
-// "Exactly ONE built-in Internal client per account" is one policy enforced at three points, one per
-// write path, deliberate defence-in-depth, not accidental duplication. They use three different
-// mechanisms because the three write contracts differ structurally; they cannot collapse into one
-// shared assert:
-//   1. Store strip, public client CRUD (src/store/useStore.ts addClient/updateClient). `builtin`
-//      is excluded from Draft/Patch<Client> at the type level and deleted at runtime, so public CRUD
-//      can never carry the flag at all. There is nothing to reject against: the rule is "never set
-//      it," minted only by the privileged seed / addAccount / migrate paths.
-//   2. Import fold, bulk replace (remapAndValidateImport in shared/src/domain/mutations.ts). Import
-//      replaces the whole account slice, so there is no surviving "existing" to reject against, it
-//      reconciles instead: keep the first imported builtin (re-stamping its active canonical fields)
-//      and remap every other builtin's id onto it so their dependents re-point. `applyInternalClientRepairs` then
-//      synthesises one if the file carried none.
-//   3. Server reject, direct API (server/src/validate.ts validateWrite). The API is the integrity
-//      boundary and is the only path that can set `builtin: true` against live, persisted state, so
-//      it is the only one that does a true "is there already one?" check and rejects a second
-//      ({@link wouldAddSecondBuiltin}).
+// Each account has one persisted Internal client, identified by `builtin` because import remapping changes IDs.
+// Public CRUD strips the flag, imports reconcile duplicates, and server writes reject a second built-in client.
 
 /** The display name of the built-in Internal client (also recognised on import/migrate). */
 export const INTERNAL_CLIENT_NAME = "Internal";
@@ -33,11 +10,9 @@ export const INTERNAL_CLIENT_NAME = "Internal";
  * palette, distinct from NEUTRAL_COLOR which is reserved for external resources). */
 export const INTERNAL_CLIENT_COLOR = "#2d75da";
 
-/**
- * Return a deterministic repair revision that differs from, and never precedes, the row's current
- * revision. Migration deliberately supplies a fixed clock value, so assigning `now` directly can
- * leave the revision unchanged (or move it backwards) and make updatedAt-based sync miss the repair.
- */
+// Return a deterministic repair revision that differs from, and never precedes, the row's current
+// revision. Migration deliberately supplies a fixed clock value, so assigning `now` directly can
+// leave the revision unchanged (or move it backwards) and make updatedAt-based sync miss the repair.
 function repairRevision(current: ISOTimestamp, now: ISOTimestamp): ISOTimestamp {
   const currentMs = Date.parse(current);
   const nowMs = Date.parse(now);
@@ -116,12 +91,7 @@ export function wouldAddSecondBuiltin(clients: Client[], accountId: ID, id: ID):
   return existing !== undefined && existing.id !== id;
 }
 
-/**
- * Does the retained Internal row still differ from its canonical form? One copy of the predicate,
- * because {@link applyInternalClientRepairs} must decide two things with exactly the same test: whether
- * any repair is needed at all, and whether an individual row's `updatedAt` must be bumped. The two
- * must stay in lockstep, see the comment at the bump site.
- */
+// Use the same canonical-field predicate for repair detection and revision bumps so sync observes every repaired row.
 function needsInternalClientRepair(client: Client): boolean {
   return (
     client.name !== INTERNAL_CLIENT_NAME ||
@@ -232,15 +202,11 @@ function rewireDuplicateProjects(
 }
 
 /**
- * Ensure every account in `data` has exactly one built-in Internal client. When legacy/corrupt data
- * contains duplicates, the generated id is preferred, otherwise the oldest/id-first row is retained;
- * projects are rewired to it and the extras are removed. Returns the same reference when no repair
- * is needed.
- *
- * The web store and server account-create routes also mint an Internal atomically. This helper is
- * the load/import backstop for legacy or externally seeded data.
- *
- * @param now timestamp stamped on newly-created rows and used as the floor for repair revisions.
+ * Ensure each account has one built-in Internal client without mutating data.
+ * Prefer the generated id when duplicates exist, otherwise retain the oldest/id-first row; rewire projects and remove extras.
+ * Returns the same reference when no repair is needed. Load/import uses this backstop after privileged account creation.
+ * @param now timestamp for new rows and the floor for repair revisions.
+ * @throws RangeError when a required repair revision cannot advance beyond the supported timestamp range; no repaired result is returned.
  */
 export function applyInternalClientRepairs(data: AppData, now: ISOTimestamp): AppData {
   const added: Client[] = [];

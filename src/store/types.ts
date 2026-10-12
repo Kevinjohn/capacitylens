@@ -22,38 +22,18 @@ export type MasqueradeRuntimeState =
     }
   | { kind: "active" | "ending"; state: MasqueradeState; generation: number };
 
-/**
- * A toast message + severity. Three tones, mapped to two dismissal behaviours by the AppShell
- * bridge (see the `notice` field below and AppShell's Sonner effect):
- *  - `'info'`: a transient confirmation (e.g. "Allocation moved"); auto-dismisses after ~4s.
- *  - `'warning'`: a non-error advisory the user must notice because it reports a data-mutating
- *    side-effect (e.g. a days-mode resize whose derived hours were clamped, truncating work).
- *    Persists until dismissed (no fixed short timer) with a close affordance, WCAG 2.2.1 Timing
- *    Adjustable: a fixed 4s timer on the sole signal of a silent truncation fails Level A. Styled
- *    on the neutral surface (not the danger affordance), since the operation succeeded.
- *  - `'error'`: a failure; persists until dismissed (an error that vanishes unread is useless)
- *    and carries the danger `.toast-error` accent.
+/** A user notice and severity. Info auto-dismisses; warnings and errors remain until
+ * dismissed so consequential advisories and failures can be read. Warnings use the
+ * neutral treatment and errors use the danger accent.
  */
 export interface Notice {
   message: string;
   tone: "info" | "warning" | "error";
 }
 
-/**
- * The minimal per-login account summary that drives the AccountPicker, the server-sourced
- * list of accounts this login may open. Mirrors the provider-neutral workspace summary returned by
- * `GET /api/accounts`; the browser alias stays product-named and server modules remain outside the
- * client build.
- *
- * This is kept separate from `data.accounts`: in server mode `data` holds only the active account's
- * slice (one account), so the picker, which must list all the login's tenants, reads `accountSummaries`
- * instead. In the demo build the two are kept in lockstep (summaries derived from `data.accounts`).
- *
- * @property id    The `accountId` a subsequent `GET /api/state?accountId=…` hydrates.
- * @property name  The company name shown in the picker.
- * @property role  The caller's role for this account (off/demo supply 'owner' = full access).
- * @property roleStatus Whether the server supplied a trustworthy role. An unavailable role keeps
- * the account selectable but must never be presented as the fail-closed Viewer projection.
+/** A directory entry for a company the current identity may open. Server entries stay
+ * separate from the active-only tenant slice; demo entries derive from data.accounts.
+ * An unavailable role keeps the company selectable without claiming Viewer access.
  */
 export interface AccountSummary {
   id: ID;
@@ -69,7 +49,6 @@ export interface ImportSummary {
   skipped: number;
 }
 
-// Re-exported for convenience.
 export type { WeeksZoom };
 
 /** What a draw-on-a-lane gesture creates. */
@@ -77,15 +56,20 @@ export type DrawMode = "work" | "timeoff";
 
 /** UI state that controls scheduler zoom, range, and interaction modes. */
 export interface SchedulerUI {
-  zoom: WeeksZoom; // number of weeks visible; day-column width is derived from it
+  /** Number of visible weeks used to derive column width. */
+  zoom: WeeksZoom;
   originDate: ISODate;
   rangeDays: number;
-  focusDate: ISODate; // the date the grid scrolls to when recenterToken bumps
-  drawMode: DrawMode; // draw-to-create makes an allocation ('work') or time off
+  /** Date brought into view by a recenter request. */
+  focusDate: ISODate;
+  /** Entity kind created by a lane draw gesture. */
+  drawMode: DrawMode;
   selectedAllocationId: ID | null;
   filters: Filters;
-  collapsedGroups: string[]; // discipline group keys that are collapsed
-  recenterToken: number; // bumped to ask the grid to scroll focusDate back into view
+  /** Keys of collapsed discipline groups. */
+  collapsedGroups: string[];
+  /** Token that requests focusDate be brought back into view. */
+  recenterToken: number;
   /** Transient resource-row jump. Each request starts unconsumed; SchedulerGrid consumes it only
    * after finding and scrolling the row, so a temporarily hidden row can retry without replaying
    * after success. Token-per-request supports repeated jumps to the same id. Never persisted or
@@ -139,20 +123,12 @@ export interface StoreState extends StoreEntityActions {
    * and a connection-error screen offers a retry. Clearing local storage (the
    * StorageRecovery path) can't recover a server-backed app, so the two are kept apart. */
   connectionError: boolean;
-  /** User message (e.g. a rejected drag, or a clamp advisory) + its severity, as one value so the
-   * two can't desync. 'info' auto-dismisses (~4s); 'warning' and 'error' persist until dismissed,
-   * 'warning' for a data-mutating advisory the user must notice (a fixed short timer on it fails
-   * WCAG 2.2.1), 'error' for a failure (an error that vanishes before it's read is useless). See
-   * {@link Notice}. Null = no notice. */
+  /** Current user notice, or null. Dismissal and treatment follow Notice. */
   notice: Notice | null;
-  /** Latest screen-reader capacity announcement (WCAG 4.1.3) + a monotonically-rising `seq`.
-   * A keyboard-committed allocation edit (move/resize) recomputes over-capacity, which mutates the
-   * silent per-row sr-only summary while focus stays on the bar, leaving a screen-reader user with
-   * no feedback that their own edit flipped a day to over. AllocationBar fires `announceCapacity`
-   * after such an edit; SchedulerGrid renders one polite aria-live region from this. The `seq`
-   * guarantees re-announcement even when consecutive edits yield the same text (an aria-live region
-   * re-reads only on a content change). Transient: never persisted, never on the undo stack. Pointer
-   * drags do not set this. They give sighted feedback and would be noise for everyone. Null = none yet. */
+  /** Latest keyboard capacity announcement and sequence token. The token makes equal
+   * consecutive messages announce again. Pointer gestures do not publish announcements.
+   * Transient and excluded from persistence and undo history.
+   */
   srAnnouncement: { text: string; seq: number } | null;
   /** True while any registered form/operation has unsaved work, drives the unsaved-changes guards
    * (modal backdrop/Escape, beforeunload). Derived from source ownership, never persisted. */
@@ -185,19 +161,14 @@ export interface StoreState extends StoreEntityActions {
    * `readStoredWeekSnapOverride`). The navigation snap (zoom / Prev-Next / date-picker) is
    * independent of this flag. */
   weekSnapEnabled: boolean;
-  /** Cosmetic demo "fake sign-in" state, gates a Google-style demo sign-in screen before
-   * the account picker so a viewer sees "log in first, then pick a company". Device-global
-   * like `theme` (own localStorage key, not in AppData/export), defaults off (signed out).
-   * Not real auth. The real seam is `src/auth/`; the gate is active only when that auth is
-   * off. See `src/components/FakeSignIn.tsx`. */
+  /** Cosmetic sign-in state for explicit demo builds with authentication off. Device-only
+   * and persisted separately from account data; false means cosmetically signed out.
+   */
   fakeSignedIn: boolean;
-  /** The caller's resolved {@link Role} for the active account, or null. Set by PermissionProvider
-   * once it resolves the role from `GET /api/accounts`; null in off/local/not-fetched.
-   * Transient (never persisted, never on the undo stack). It powers only the defense-in-depth
-   * mutation guard below (assertCanWrite): a scoped mutation no-ops when this is exactly 'viewer',
-   * so an ungated affordance or an optimistic write that the server would 403 can't desync local
-   * state. The server 403 is the true security backstop. This is UX/defense-in-depth, not
-   * the access boundary, which is why any non-'viewer' value (incl. null = off/local) stays editable. */
+  /** Current company role or a fail-closed Viewer projection while role resolution is
+   * pending or unavailable. Null applies when identity roles are not applicable.
+   * Transient; the store guard supplements independent server authorization.
+   */
   activeRole: Role | null;
   /** Why a fail-closed Viewer projection is active. Keeps mutation notices factual while role
    * resolution is pending/unavailable; transient and never persisted. */
@@ -266,9 +237,9 @@ export interface StoreState extends StoreEntityActions {
   setMinimiseWeekends: (value: boolean) => void;
   /** Set the cosmetic fake-sign-in state: persist and update state. */
   setFakeSignedIn: (value: boolean) => void;
-  /** Set the active account's resolved role, called by PermissionProvider whenever it
-   * resolves/changes the role (incl. back to null on off/local/account-switch). Plain transient
-   * state: never persisted, never on the undo stack. Drives only the defense-in-depth write guard. */
+  /** Publishes the current role or fail-closed Viewer projection and its resolution status.
+   * Transient and excluded from persistence and undo history.
+   */
   setActiveRole: (role: Role | null, status?: "not-applicable" | "pending" | "resolved" | "unavailable") => void;
   /** Invalidate all client projections derived from account membership. */
   invalidateMemberships: () => void;
@@ -276,9 +247,9 @@ export interface StoreState extends StoreEntityActions {
   setMasquerade: (state: MasqueradeRuntimeState) => void;
   /** Empty both undo and redo stacks. */
   clearUndoHistory: () => void;
-  /** Sign out of the cosmetic demo: drop the active company and the "back" breadcrumb, then
-   * clear the device-global flag so the demo sign-in shows again. Cosmetic only, never
-   * touches the real auth seam (`src/auth/`); both call sites are guarded by `authMode === 'off'`. */
+  /** Signs out of cosmetic demo chrome, clearing company selection, the back target and
+   * the device sign-in flag. Real authentication remains owned by the auth boundary.
+   */
   signOutDemo: () => void;
   /** Restore the previous data snapshot, if any. */
   undo: () => void;

@@ -16,6 +16,7 @@ export function registerServerFixtureCleanup(): {
       try {
         await app.close();
       } catch (error) {
+        // Collect this app-close failure so all fixtures are attempted and the test receives one aggregate cleanup failure.
         errors.push(error);
       }
     }
@@ -24,6 +25,7 @@ export function registerServerFixtureCleanup(): {
       try {
         db.close();
       } catch (error) {
+        // Collect this database-close failure so remaining handles are closed before the aggregate cleanup error is thrown.
         errors.push(error);
       }
     }

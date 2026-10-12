@@ -6,8 +6,7 @@ import { PersonScheduleEntry } from "./PersonScheduleEntry";
 
 describe("PersonScheduleEntry", () => {
   it("leaves the year off a range that stays inside one", () => {
-    // The compact entry is deliberately terse; only a range crossing a year boundary is allowed to
-    // spend width on the year, and this is the case that proves the rest still cannot.
+    // Compact schedule entries include years only when needed to distinguish the date range.
     const entry: PersonScheduleAllocationEntry = {
       kind: "allocation",
       key: "allocation:a2",
@@ -60,8 +59,7 @@ describe("PersonScheduleEntry", () => {
     expect(item).toHaveAttribute("data-entry-id", "allocation:a1");
     expect(within(item).getByText("Prototype discovery")).toBeVisible();
     expect(within(item).getByText("Project Gotham · Wayne Enterprises")).toBeVisible();
-    // The fixture crosses a year boundary, so both years show: "28 Dec – 8 Jan" would read as a
-    // span of days rather than the eleven-day one it is.
+    // A range crossing New Year must show both years so its chronology stays unambiguous.
     expect(within(item).getByText("28 Dec 2026 – 8 Jan 2027 · 6.25h/day")).toBeVisible();
     expect(within(item).queryByText(/Confirmed|Series through/)).not.toBeInTheDocument();
     expect(within(item).getByText(/Review the research/)).toHaveClass("whitespace-pre-wrap");

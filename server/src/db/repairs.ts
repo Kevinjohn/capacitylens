@@ -60,7 +60,7 @@ export function ensureInternalClients(db: Db): void {
   });
 }
 
-/** Every-boot data repair for alpha-era rows written before an empty company week became invalid. */
+/** Repairs stored empty company working-day selections to the supported default on database open. */
 export function repairEmptyAccountWorkingDays(db: Db): void {
   const rows = db.prepare(`SELECT id, weekStartsOn FROM accounts WHERE workingDays = '[]'`).all() as Array<{
     id: string;
@@ -98,6 +98,8 @@ export function reactivateBuiltinInternalClientsV22(db: Db): void {
   }
 }
 
+/** Verifies that the frozen v22 repair left no inactive built-in Internal client.
+ * @throws When an inactive protected row remains; migration must not commit that result. */
 export function assertBuiltinInternalClientsActiveV22(db: Db): void {
   const inactive = db
     .prepare(
@@ -111,11 +113,7 @@ export function assertBuiltinInternalClientsActiveV22(db: Db): void {
   }
 }
 
-/**
- * Released, palette-frozen v13 mapper. Its historical parser accepts per-chunk hexadecimal prefixes
- * and one embedded `#`, unlike the exact shared mapper. Preserve that checksummed compatibility
- * behavior; DECISIONS.md records why already-upgraded values cannot be reconstructed or corrected.
- */
+// Preserve the shipped v13 parser and palette because its checksum promises reproducible repairs.
 function snapToFrozenPresetV13(value: string | null): string {
   if (typeof value !== "string") return V13_FALLBACK_PRESET_COLOR;
   const normalized = value.trim().toLowerCase();
@@ -146,8 +144,7 @@ function hexToRgbV13(hex: string): [number, number, number] | null {
   const c = hex.replace("#", "");
   // Require six digits so short and overlong legacy values cannot be mis-sliced.
   if (c.length !== 6) return null;
-  // Historical and frozen: parseInt accepts a valid prefix in each chunk. Do not tighten this shipped
-  // parser in place; future frozen parsers must validate the complete /^#[0-9a-f]{6}$/i shape first.
+  // Preserve parseInt prefix acceptance in this shipped v13 parser; tightening it would change an immutable repair.
   const r = parseInt(c.slice(0, 2), 16);
   const g = parseInt(c.slice(2, 4), 16);
   const b = parseInt(c.slice(4, 6), 16);

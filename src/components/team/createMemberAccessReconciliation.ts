@@ -111,6 +111,7 @@ async function reloadAuthorizedDirectory({
     setNotice(m.settings_members_reconcile_directory({ message }), "warning");
     return { kind: "ready" };
   } catch (error) {
+    // Return a typed failed reconciliation result so its owner can decide the visible recovery policy.
     return { kind: "failed", error };
   }
 }
@@ -203,9 +204,8 @@ export function createMemberAccessReconciliation({
   replaceAuthorizedDirectory,
   reconcileMintedInvite,
 }: MemberAccessDependencies) {
-  /** Re-resolve every caller-owned projection after a possible self-role mutation. The role badge
-   * and affordances fail closed immediately via membershipRevision; the tenant slice is then fetched
-   * again under the new server role so confidential fields from the old projection cannot linger. */
+  // Revalidate role and tenant projections after a possible self-role mutation so
+  // confidential fields from the old projection cannot linger.
   const refreshCallerAccess = createRefreshCallerAccess({
     activeAccountId,
     invalidateMemberships,

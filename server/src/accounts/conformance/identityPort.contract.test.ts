@@ -281,10 +281,7 @@ function registerPasswordAndRevocationTests(setup: () => Promise<Harness>): void
   });
 }
 
-/**
- * One provider-neutral executable contract. Every implementation runs the same assertions; an
- * adapter may omit a capability only by returning the contract's explicit fail-closed error.
- */
+// Every provider implementation runs this contract; unsupported capabilities must fail closed explicitly.
 function identityPortContract(name: string, createHarness: HarnessFactory): void {
   describe(`IdentityPort contract: ${name}`, () => {
     let harness: Harness | null = null;
@@ -514,7 +511,7 @@ describe("revocation window race", () => {
       recordSessionAssurance({ db, sessionId: handle, principalId: created.id, assurance: "password" });
       return handle;
     };
-    // Visible before revocation.
+
     seedSession("before");
     // Simulates a sign-in landing inside the provider-revocation window.
     seedSession("window");
@@ -536,7 +533,7 @@ describe("revocation window race", () => {
     if (typeof remaining !== "object" || !("n" in remaining) || typeof remaining.n !== "number") {
       throw new Error("expected numeric assurance count");
     }
-    // No orphaned assurance, including the in-window session.
+
     expect(remaining.n).toBe(0);
     db.close();
   });

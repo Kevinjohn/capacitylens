@@ -12,10 +12,7 @@ function dispatchAnchorClick(this: HTMLAnchorElement): void {
   this.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
 }
 
-// ImportExport now branches on the persistence mode (demo = the undoable store import;
-// server = the atomic, owner-gated POST /api/import). Mock apiConfig with a mutable flag
-// (the AccountPicker.test pattern) so each block pins the mode it exercises; the legacy
-// import tests below are the demo-build behaviour.
+// Demo imports exercise undoable local replacement; server imports exercise the authoritative atomic endpoint. The fixture switches persistence mode explicitly.
 const serverFlag = { on: false };
 const reloadMock = vi.hoisted(() => ({ reloadPage: vi.fn() }));
 vi.mock("@/data/apiConfig", () => ({
@@ -187,7 +184,6 @@ describe("ImportExport – Import", () => {
 
     fireEvent.change(input);
 
-    // Allow the async file.text() + parse to settle, then confirm the replace.
     fireEvent.click(await screen.findByRole("button", { name: "Replace data" }));
 
     expect(useStore.getState().data.resources.length).toBeGreaterThan(0);
@@ -247,13 +243,11 @@ describe("ImportExport – Import", () => {
 
 describe("ImportExport – Import", () => {
   it("shows a confirmation summary and does NOT replace data until confirmed", async () => {
-    // Keep existing data available to verify that import requires confirmation.
     useStore.getState().replaceAll(seed());
     const before = useStore.getState().data.clients.length;
     render(<ImportExport />);
 
-    // Import a partial file (only the resources section). It would replace the whole
-    // active-account slice, so the user must confirm first; nothing is applied until then.
+    // A partial import still replaces the complete active-company slice, so confirmation must precede applying it.
     const partial = JSON.stringify({
       schemaVersion: 2,
       data: {
@@ -284,11 +278,9 @@ describe("ImportExport – Import", () => {
     fireEvent.change(input);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    // The dialog is open and data is still intact (nothing applied yet).
     expect(screen.getByText(/replaces this company.s data/i)).toBeInTheDocument();
     expect(useStore.getState().data.clients).toHaveLength(before);
 
-    // Cancelling leaves the data untouched.
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(useStore.getState().data.clients).toHaveLength(before);
   });
@@ -296,8 +288,7 @@ describe("ImportExport – Import", () => {
 
 describe("ImportExport – Import", () => {
   it("import is undoable with ⌘Z (routes through the history stack)", async () => {
-    // Active-account data: a non-empty import replaces the active account's slice (the
-    // two added resources → the one imported), so ⌘Z restores the originals.
+    // Undo must restore the whole pre-import slice after a confirmed demo replacement.
     useStore.getState().addResource(makeResourceDraft({ name: "Alice" }));
     useStore.getState().addResource(makeResourceDraft({ name: "Bob" }));
     const before = useStore.getState().data.resources.length;
@@ -326,11 +317,11 @@ describe("ImportExport – Import", () => {
     fireEvent.change(input);
     await new Promise((resolve) => setTimeout(resolve, 0));
     fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
-    // Import replaces the existing resource set.
+
     expect(useStore.getState().data.resources).toHaveLength(1);
 
     useStore.getState().undo();
-    // Undo restores the prior resource set.
+
     expect(useStore.getState().data.resources).toHaveLength(before);
   });
 });
@@ -367,22 +358,21 @@ describe("ImportExport – Import", () => {
     Object.defineProperty(input, "files", { value: [file], writable: false });
 
     fireEvent.change(input);
-    // Confirm explicitly before checking the failed import.
+
     fireEvent.click(await screen.findByRole("button", { name: "Replace data" }));
 
     const notice = useStore.getState().notice;
     expect(notice?.message).toMatch(/no records imported/i);
-    // A failed import must not suggest an undo action.
+
     expect(notice?.message).not.toMatch(/undo/i);
     expect(notice?.tone).toBe("error");
-    // A failed import must preserve the prior edit.
+
     expect(useStore.getState().data.clients.map((c) => c.name)).toContain("Real Edit");
   });
 });
 
 describe("ImportExport – Import", () => {
   it("rejects a CapacityLens-shaped file with zero records (no dialog, no wipe)", async () => {
-    // Invalid imports must preserve the existing data.
     useStore.getState().replaceAll(seed());
     render(<ImportExport />);
 
@@ -395,15 +385,12 @@ describe("ImportExport – Import", () => {
     fireEvent.change(input);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    // No confirmation dialog appears, an error notice naming the specific reason (empty CapacityLens
-    // file → no records) is shown, and data is preserved.
     expect(screen.queryByRole("button", { name: "Replace data" })).toBeNull();
     expect(useStore.getState().notice?.message).toMatch(/no CapacityLens records/i);
     expect(useStore.getState().data.resources.length).toBeGreaterThan(0);
   });
 
   it("surfaces a notice (and keeps the data) when the file is not valid CapacityLens JSON", async () => {
-    // Invalid imports must preserve the existing data.
     useStore.getState().replaceAll(seed());
     render(<ImportExport />);
 
@@ -416,14 +403,12 @@ describe("ImportExport – Import", () => {
     fireEvent.change(input);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    // Invalid JSON now surfaces parseData's specific "That file isn't valid JSON." message.
     expect(useStore.getState().notice?.message).toMatch(/valid JSON/i);
-    // Parsing failure must preserve existing resources.
+
     expect(useStore.getState().data.resources.length).toBeGreaterThan(0);
   });
 });
 
-// Helper for the server-mode block: select a file and confirm the replace dialog.
 async function importAndConfirm(json: string) {
   const file = new File([json], "incoming.json", { type: "application/json" });
   const input = screen.getByTestId("import-input");
@@ -617,7 +602,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     // that the authoritative slice was reloaded.
     expect(useStore.getState().data).toBe(before);
     await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/imported 3 records/i));
-    // Server imports must not suggest local undo.
+
     expect(useStore.getState().notice?.message).not.toMatch(/undo|⌘Z/i);
   });
 });
@@ -720,8 +705,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
 describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
   beforeEach(setupServerMode);
   it("a committed import whose re-hydrate FAILS reports the honest stale-view message, not success", async () => {
-    // The import POST committed but the follow-up slice load broke: claiming "Imported 3 records"
-    // over a view still rendering pre-import data would be a lie, say both halves honestly.
+    // A confirmed import and a failed follow-up refresh are different outcomes; the UI must not present stale pre-import data as a completed recovery.
     refreshOverride.value = { kind: "failed" };
     vi.stubGlobal(
       "fetch",
@@ -838,7 +822,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     expect(useStore.getState().dirtyForm).toBe(true);
     expect(screen.getByTestId("import-data")).toBeDisabled();
     expect(screen.getByTestId("export-data")).toBeDisabled();
-    // Escape must not dismiss the lock, visibility is owned by importBusy alone.
+
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.getByTestId("import-busy")).toBeInTheDocument();
 
@@ -880,7 +864,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     await importAndConfirm(incoming());
 
     await waitFor(() => expect(useStore.getState().notice?.tone).toBe("error"));
-    // Give any (wrong) follow-up success notice a chance to land, then assert the warning held.
+
     await new Promise((r) => setTimeout(r, 10));
     expect(useStore.getState().notice?.message).toMatch(/could not be saved/i);
     expect(useStore.getState().notice?.message).not.toMatch(/imported 3 records/i);
@@ -890,9 +874,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
 describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
   beforeEach(setupServerMode);
   it("a zero-record 200 UN-commits: the server refused the replace, so the parked-edit resume re-schedules (no drop)", async () => {
-    // The server returns 200 {imported:0} without replacing the slice (its replace is gated on
-    // imported > 0). Treating that as committed made resume DROP a parked edit, destroying a
-    // perfectly saveable edit over a replacement that never happened.
+    // A 200 response with imported:0 leaves the server slice unchanged, so resuming persistence must preserve parked edits.
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -1031,7 +1013,7 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     );
     expect(screen.getByTestId("import-data")).toBeInTheDocument();
     unmount();
-    // Without a provider, the UI leaves import visible; the server still authorizes the request.
+
     render(<ImportExport />);
     expect(screen.getByTestId("import-data")).toBeInTheDocument();
   });

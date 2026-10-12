@@ -216,11 +216,12 @@ function sendTransitionResponse({
     if (response === undefined) throw new Error("Lifecycle write completed without a response.");
     return reply.code(200).send(response);
   } catch (error) {
+    // Preserve typed lifecycle refusals and conflicts while routing unexpected transition failures through the shared redaction boundary.
     return sendLifecycleFailure(reply, error, dependencies.fail);
   }
 }
 
-/** Register one lifecycle mutation through the shared guard→read→transition→write→audit pipeline. */
+// Apply lifecycle mutations through one guard, transition, write and audit boundary.
 function registerTransition(
   app: FastifyInstance,
   dependencies: LifecycleRouteDependencies,

@@ -119,6 +119,7 @@ export async function listMembers(req: FastifyRequest<AccountRoute>, reply: Fast
     });
     return reply.code(200).send({ members, signInTrackingEnabled: tracking.enabled, resourceCandidates });
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return accountFail(reply, error);
   }
 }
@@ -135,6 +136,7 @@ export async function listResourceAvatars(
   try {
     return reply.code(200).send({ avatars: await context.memberResources.listAvatarProjection(accountId) });
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return context.fail(reply, error);
   }
 }
@@ -173,6 +175,7 @@ export async function setMemberSignInTracking(
     }
     return reply.code(200).send({ enabled: result.enabled });
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return accountFail(reply, error);
   }
 }
@@ -223,6 +226,7 @@ export async function changeMemberRole(
     });
     return reply.code(200).send({ userId: changed.principalId, role: changed.role });
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return accountFail(reply, error);
   }
 }
@@ -274,6 +278,7 @@ export async function changeMemberStatus(
       .code(200)
       .send({ userId: changed.principalId, status: nextStatus, accessDisabled: changed.accessDisabled === true });
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return accountFail(reply, error);
   }
 }
@@ -312,6 +317,7 @@ export async function enableMemberAccess(
     });
     return reply.code(200).send({ userId, accessDisabled: changed.accessDisabled === true });
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return context.fail(reply, error);
   }
 }
@@ -357,6 +363,7 @@ export async function removeMember(
     });
     return reply.code(204).send();
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return accountFail(reply, error);
   }
 }

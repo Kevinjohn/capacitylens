@@ -7,10 +7,8 @@ import { addDaysISO, todayISO } from "@capacitylens/shared/lib/dateMath";
 import type { Resource } from "@capacitylens/shared/types/entities";
 import { makeResourceDraft, requireValue, resetStoreWithAccount } from "@/test/fixtures";
 
-// Store-level coverage for the data-lifecycle actions (the demo-build / off path): archiveEntity /
-// unarchiveEntity / softDeleteEntity / purgeEntity. They compose the pure shared lifecycle helpers and
-// mutate the local `data` blob through the same mutate()/undo machinery as the CRUD actions, so these
-// specs mirror the existing store-test idiom (resetStoreWithAccount + s().data assertions).
+// Exercise local demo lifecycle transitions at the store boundary; server-backed
+// auth-off deployments use dedicated server routes.
 
 const s = () => useStore.getState();
 const requireById = <T extends { id: string }>(rows: readonly T[], id: string, context: string) =>
@@ -24,11 +22,8 @@ beforeEach(() => {
   s().clearFilters();
 });
 
-// A correctly-typed person draft (Weekday[] working days). The original name is the subject of the
-// soft-delete PII-scrub assertion below.
 const personDraft = makeResourceDraft({ name: "Ada Lovelace" });
 
-/** A timestamp older than the purge grace window (so canPurge passes). */
 const longAgoISO = () => addDaysISO(todayISO(), -(PURGE_MIN_AGE_DAYS + 1)) + "T00:00:00.000Z";
 
 describe("archiveEntity", () => {
@@ -40,13 +35,10 @@ describe("archiveEntity", () => {
     const row = requireById(s().data.resources, r.id, "archived resource");
     expect(row.archivedAt).toBeTruthy();
     expect(lifecycleStatus(row)).toBe("archived");
-    // updatedAt is re-stamped to a fresh ISO timestamp. Deterministic: assert the shape (a valid ISO
-    // instant), not time progression, a same-millisecond run made the old `>=` check tautological +
-    // a real-timer sleep made it flaky. archivedAt being set already proves the archive landed.
+    // Assert valid revision shape without timing sleeps so same-millisecond execution stays deterministic.
     expect(typeof row.updatedAt).toBe("string");
-    expect(new Date(row.updatedAt).toISOString()).toBe(row.updatedAt); // round-trips → a valid ISO instant
+    expect(new Date(row.updatedAt).toISOString()).toBe(row.updatedAt);
 
-    // Present in the raw data, absent from the active-only projection (and the live active hook source).
     expect(s().data.resources.some((x) => x.id === r.id)).toBe(true);
     expect(activeOnly(s().data).resources.some((x) => x.id === r.id)).toBe(false);
   });
@@ -98,7 +90,7 @@ describe("unarchiveEntity", () => {
     const row = requireById(s().data.resources, r.id, "unarchived resource");
     expect(row.archivedAt).toBeUndefined();
     expect(lifecycleStatus(row)).toBe("active");
-    // Restored into the active view.
+
     expect(activeOnly(s().data).resources.some((x) => x.id === r.id)).toBe(true);
   });
 
@@ -111,7 +103,7 @@ describe("unarchiveEntity", () => {
 function registerSoftDeleteGuardsAndResourceScrubTests() {
   it("throws unless the row is archived first (prior-archival rule)", () => {
     const r = requireCreated(s().addResource(personDraft));
-    // Active, not archived → cannot delete directly.
+
     expect(() => s().softDeleteEntity("resources", r.id)).toThrow(/archived first/i);
     expect(requireValue(s().data.resources[0], "resource")).not.toHaveProperty("deletedAt");
   });
@@ -155,7 +147,7 @@ function registerSoftDeleteGuardsAndResourceScrubTests() {
     expect(lifecycleStatus(row)).toBe("deleted");
     expect(row.deletedAt).toBeTruthy();
     expect(row.name).toMatch(/^Removed person #/);
-    expect(row.name).not.toContain("Ada"); // the original name is gone
+    expect(row.name).not.toContain("Ada");
   });
 }
 
@@ -265,18 +257,16 @@ function registerResourcePurgeTests() {
   it("does NOT purge a tombstone deleted < 30 days ago — fires a notice instead", () => {
     const r = requireCreated(s().addResource(personDraft));
     s().archiveEntity("resources", r.id);
-    s().softDeleteEntity("resources", r.id); // deletedAt = now (well within the grace window)
+    s().softDeleteEntity("resources", r.id);
 
     s().purgeEntity("resources", r.id);
-    expect(s().data.resources.some((x) => x.id === r.id)).toBe(true); // still present
+    expect(s().data.resources.some((x) => x.id === r.id)).toBe(true);
     expect(s().notice?.tone).toBe("error");
     expect(s().notice?.message).toMatch(/30 days/i);
   });
 
   it("purges a tombstone deleted ≥ 30 days ago AND cascades its children", () => {
-    // Seed a resource with an allocation, then back-date the soft-delete past the grace window so
-    // canPurge passes. Build the deleted state directly (the store owns the clock, so we can't fake
-    // "30 days ago" through the live actions) and re-activate the account.
+    // Construct an aged tombstone directly to exercise purge eligibility without waiting for the grace period.
     const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
@@ -293,7 +283,6 @@ function registerResourcePurgeTests() {
     );
     expect(s().data.allocations).toHaveLength(1);
 
-    // Mark the resource as a soft-deleted tombstone aged past the window (directly on the blob).
     const old = longAgoISO();
     const data = s().data;
     s().replaceAll({
@@ -305,8 +294,8 @@ function registerResourcePurgeTests() {
     s().setActiveAccount(requireValue(data.accounts[0], "account").id);
 
     s().purgeEntity("resources", r.id);
-    expect(s().data.resources.some((x) => x.id === r.id)).toBe(false); // row removed
-    expect(s().data.allocations.some((x) => x.id === a.id)).toBe(false); // child allocation cascaded out
+    expect(s().data.resources.some((x) => x.id === r.id)).toBe(false);
+    expect(s().data.allocations.some((x) => x.id === a.id)).toBe(false);
   });
 }
 
@@ -339,7 +328,7 @@ function registerClientPurgeTest() {
     expect(d.projects).toHaveLength(0);
     expect(d.activities).toHaveLength(0);
     expect(d.allocations).toHaveLength(0);
-    expect(d.resources).toHaveLength(1); // resources are not cascaded by a client purge
+    expect(d.resources).toHaveLength(1);
   });
 }
 
@@ -384,8 +373,7 @@ describe("purgeEntity", () => {
 });
 
 describe("built-in Internal client is protected from every lifecycle action", () => {
-  // resetStoreWithAccount seeds an account with no clients, so mint the builtin via addAccount (the
-  // privileged path), matching internalClient.test.ts.
+  // Mint Internal through the privileged account path so lifecycle guards exercise the reserved client.
   const seedWithInternal = () => {
     s().replaceAll({ ...s().data, accounts: [], clients: [] });
     const a = s().addAccount({ name: "Ferris Co", color: "#6366f1" });
@@ -399,7 +387,7 @@ describe("built-in Internal client is protected from every lifecycle action", ()
     expect(() => s().archiveEntity("clients", internal.id)).toThrow(/built in/i);
     expect(() => s().softDeleteEntity("clients", internal.id)).toThrow(/built in/i);
     expect(() => s().purgeEntity("clients", internal.id)).toThrow(/built in/i);
-    // Still present and active throughout.
+
     expect(internalClientFor(s().data.clients, internal.accountId)).toBeDefined();
     expect(lifecycleStatus(requireById(s().data.clients, internal.id, "active Internal client"))).toBe("active");
   });
@@ -407,23 +395,22 @@ describe("built-in Internal client is protected from every lifecycle action", ()
 
 describe("viewer guard no-ops every lifecycle action (defense-in-depth)", () => {
   it("archive / unarchive / softDelete / purge all no-op for a viewer", () => {
-    // Seed an archived row as an editor, then flip to viewer and prove no transition lands.
     const r = requireCreated(s().addResource(personDraft));
     s().archiveEntity("resources", r.id);
     const archivedAt = s().data.resources[0]?.archivedAt;
 
     s().setActiveRole("viewer");
     s().unarchiveEntity("resources", r.id);
-    expect(s().data.resources[0]?.archivedAt).toBe(archivedAt); // unchanged: still archived
+    expect(s().data.resources[0]?.archivedAt).toBe(archivedAt);
 
-    s().archiveEntity("resources", r.id); // already archived; a viewer must no-op before the throw
+    s().archiveEntity("resources", r.id);
     expect(s().data.resources[0]?.archivedAt).toBe(archivedAt);
 
     s().softDeleteEntity("resources", r.id);
-    expect(requireValue(s().data.resources[0], "resource")).not.toHaveProperty("deletedAt"); // no tombstone
+    expect(requireValue(s().data.resources[0], "resource")).not.toHaveProperty("deletedAt");
 
     s().purgeEntity("resources", r.id);
-    expect(s().data.resources.some((x) => x.id === r.id)).toBe(true); // still present
+    expect(s().data.resources.some((x) => x.id === r.id)).toBe(true);
     expect(s().notice?.message).toMatch(/read-only/i);
   });
 });

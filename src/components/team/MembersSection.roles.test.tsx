@@ -30,13 +30,6 @@ vi.mock("@/auth/accountTransition", () => ({
   startMasquerade: accountTransitionMocks.startMasquerade,
 }));
 
-// MembersSection is the Team & access management UI. It renders only in auth-on + server mode and
-// self-gates via a 403 on the members read. These tests mock apiConfig (so isServerConfigured() is
-// true) and fetch, and assert the owner-only affordances are hidden for an admin (no owner option, no
-// controls on the Owner row), ownership changes only through transfer, and a 403 renders nothing.
-
-// Make the section "enabled": a configured server. The real module reads import.meta.env, which the
-// test env leaves unset; mocking it is the clean way to flip server mode on.
 vi.mock("@/data/apiConfig", () => ({
   API_BASE: "http://api.test",
   isServerConfigured: () => true,
@@ -119,9 +112,7 @@ function registerAdminInviteTests(members: RawMember[]): void {
   });
 
   it("rejects an invitation pre-authorisation email containing disallowed characters", async () => {
-    // Regression: the inline check used to only compare UTF-16 .length against MAX_EMAIL_LENGTH
-    // and never screened for disallowed characters, so an emoji/zero-width address that stayed
-    // under the length cap slipped past client-side validation. isAccountEmail() rejects it.
+    // Email validation must reject disallowed characters independently of the length cap.
     const user = userEvent.setup();
     vi.stubGlobal("fetch", mockApi(members));
     renderSection();
@@ -192,12 +183,10 @@ function registerAdminMemberControlTests(members: RawMember[]): void {
 
     const ownerRow = await waitForMemberRow(/theowner@x\.io/);
     expect(ownerRow).toBeTruthy();
-    // No pencil on the owner row for an admin, and no gear either: with reset/revoke/status/remove
-    // all forbidden against an Owner the menu has nothing left to offer, so it is not rendered.
+
     expect(within(ownerRow).queryByTestId("member-edit")).not.toBeInTheDocument();
     expect(within(ownerRow).queryByTestId("member-menu")).not.toBeInTheDocument();
 
-    // The editor row, by contrast, is manageable by the admin.
     const editorRow = await waitForMemberRow(/theeditor@x\.io/);
     expect(within(editorRow).getByTestId("member-edit")).toBeInTheDocument();
     await chooseMemberAction(userEvent.setup(), editorRow, "member-remove");
@@ -360,7 +349,7 @@ function registerAdminRoleChangeTests(members: RawMember[]): void {
     ).toBeInTheDocument();
     fireEvent.keyDown(within(dialog).getByRole("combobox"), { key: "ArrowDown" });
     fireEvent.click(screen.getByRole("option", { name: "Viewer" }));
-    // The summary explains the consequence, and choosing a role is still only a draft.
+
     expect(within(dialog).getByTestId("member-role-summary")).toHaveTextContent(/Read-only schedule access/);
     expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/members/theeditor"), expect.anything());
 
@@ -473,7 +462,7 @@ describe("MembersSection — owner affordances", () => {
 
     const soleOwnerRow = await waitForMemberRow(/me@x\.io/);
     expect(within(soleOwnerRow).getByTestId("member-role")).toHaveTextContent(m.settings_member_sole_owner_protected());
-    // No pencil (the role is not editable) and no gear: nothing in it would be permitted.
+
     expect(within(soleOwnerRow).queryByTestId("member-edit")).not.toBeInTheDocument();
     expect(within(soleOwnerRow).queryByTestId("member-menu")).not.toBeInTheDocument();
   });

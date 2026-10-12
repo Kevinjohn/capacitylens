@@ -1,21 +1,6 @@
-/**
- * CSS insets that keep an overlay inside the part of a span the scroll container can actually show.
- *
- * The scheduler paints its whole timeline into one `overflow-auto` container, so a span (an
- * allocation bar, a company-closure band) routinely starts far outside the visible window. An
- * overlay anchored to the span's own edge scrolls away with it, leaving long-running work
- * unlabelled. Clamping the overlay to the intersection of the span and the viewport keeps it on
- * screen, and does it declaratively: the scroll container publishes its offsets as custom
- * properties (one writer for the whole grid), each span publishes its own start and size, and the
- * browser re-resolves the clamp every frame with no per-span scroll listener.
- *
- * The frozen resource column cancels out on the x axis: the published scroll offset and a bar's
- * own left are both measured from the timeline origin, and the published visible width already
- * excludes the column. A span whose `left` includes the column offset (the closure band) must
- * therefore still publish its timeline-relative start here.
- */
+// Visible overlays clamp to the span/viewport intersection through shared CSS scroll variables, avoiding per-span listeners. Publish timeline-relative coordinates; the frozen resource column is already excluded from visible width.
 
-/** Wide enough to disable the clamp; applies only before the scroll container has been measured. */
+// Disable clamping until the viewport is measured so overlays do not disappear on first paint.
 const UNMEASURED_VIEWPORT = "100000px";
 
 const AXIS_VARIABLES = {

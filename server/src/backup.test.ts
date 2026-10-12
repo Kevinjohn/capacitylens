@@ -75,7 +75,7 @@ const syncTestPath = (path: string): void => {
   }
 };
 
-/** A fake clock that advances one second per call, so every snapshot gets a unique name. */
+// Advance the fixture clock so snapshots receive distinct names.
 function tickingClock(start = new Date("2026-06-13T00:00:00")) {
   let t = start.getTime();
   return () => new Date((t += 1000));
@@ -444,6 +444,7 @@ function registerUncreatableBackupDirectoryTest(): void {
     try {
       startBackups({ db, config: { dir, intervalMin: 60, keep: 48 } });
     } catch (error) {
+      // Capture the startup failure so assertions verify the operator-facing path and filesystem diagnosis.
       failure = error;
     }
 
@@ -483,7 +484,6 @@ function registerOpenableSnapshotTest(): void {
     await backups.stop();
 
     expect(snapshots(dir).length).toBeGreaterThanOrEqual(1);
-    // The snapshot opens through the same openDb (schema assert included) and holds the data.
     const restored = readState(openDb(file));
     expect(restored.accounts.length).toBeGreaterThan(0);
     expect(restored.accounts.map((a) => a.name)).toContain("Wayne Enterprises");
@@ -674,8 +674,7 @@ function registerInvalidSnapshotRejectionTest(): void {
     const log = vi.fn();
     const backups = startBackups({ db, config: { dir, intervalMin: 60, keep: 1 }, log, now: tickingClock() });
 
-    // Queue behind the start-up shot and retain this second, verified snapshot as the sole known-
-    // good recovery point. The invalid attempt below would previously replace it under keep=1.
+    // Preserve this verified recovery point: a failed snapshot must not replace it under keep=1.
     const healthy = await backups.snapshotNow();
     expect(snapshots(dir)).toEqual([basename(healthy)]);
 
@@ -712,7 +711,6 @@ function registerMonotonicSnapshotNameTest(): void {
     await backups.stop();
 
     expect(a).not.toBe(b);
-    // Start-up shot + 2 manual = 3 distinct files despite identical clock readings.
     await vi.waitFor(() => expect(snapshots(dir)).toHaveLength(3));
   });
 }
@@ -736,7 +734,6 @@ function registerInFlightIntervalSkipTest(): void {
       await backups.stop();
       vi.useRealTimers();
     }
-    // Let the in-flight start-up snapshot settle: exactly one file, none from the skipped tick.
     await vi.waitFor(() => expect(snapshots(dir)).toHaveLength(1));
   });
 }
@@ -745,7 +742,6 @@ function registerIntervalSnapshotTest(): void {
   it("the interval timer keeps snapshotting until stop()", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
-    // 0.0005 min = 30ms, the injected tiny interval from the activity spec.
     const backups = startBackups({
       db,
       config: { dir, intervalMin: 0.0005, keep: 48 },
@@ -776,7 +772,6 @@ function registerStartupSnapshotDrainTest(): void {
     expect(files).toHaveLength(1);
     const snapshot = files[0];
     if (!snapshot) throw new Error("Expected one completed snapshot.");
-    // The file was complete before stop() resolved. It opens and holds the data.
     const restored = readState(openDb(join(dir, snapshot)));
     expect(restored.accounts.map((a) => a.name)).toContain("Wayne Enterprises");
   });
@@ -799,7 +794,6 @@ function registerRestartFilenameCollisionTest(): void {
     await second.stop();
 
     expect(after).not.toBe(before);
-    // Two files per instance (start-up shot + manual), all four distinct, nothing clobbered.
     await vi.waitFor(() => expect(snapshots(dir)).toHaveLength(4));
   });
 }
@@ -819,10 +813,8 @@ function registerExistingFilenameCollisionTest(): void {
     const written = await backups.snapshotNow();
     await backups.stop();
 
-    // The occupied name was never reused, let alone overwritten.
     expect(written).not.toBe(occupied);
     expect(readFileSync(occupied, "utf8")).toBe("PRE-EXISTING SNAPSHOT — MUST SURVIVE");
-    // Start-up shot + manual both landed on fresh names past the collision (…-002 / …-003).
     await vi.waitFor(() =>
       expect(readdirSync(dir).filter((f) => /^capacitylens-(?:utc-)?\d{8}-\d{6}(-\d{3})?\.db$/.test(f))).toHaveLength(
         4,
@@ -855,7 +847,6 @@ function registerStaleTempFileSweepTest(): void {
     expect(files).not.toContain("capacitylens-20260613-000000-000.db.tmp");
     expect(files).toContain("capacitylens-20260613-000000-001.db.tmp");
     expect(files).toContain("not-a-snapshot.txt");
-    // The sweep is name-scoped: the finished start-up snapshot itself is untouched.
     expect(snapshots(dir)).toHaveLength(1);
   });
 }
@@ -863,11 +854,8 @@ function registerStaleTempFileSweepTest(): void {
 function registerUnstatableStartupEntryTest(): void {
   it("the start-up sweep skips (never throws on) an entry it cannot stat, and still boots", async () => {
     const dir = tempDir();
-    // A dangling symlink makes statSync throw ENOENT, the same failure shape as a tmp file a
-    // sibling process removes between the readdir and the stat. startBackups() runs at module
-    // top level with no guard above it, so an unguarded throw here would kill the daemon at
-    // boot; the sweep must warn, skip the entry, and carry on (named to sort first, so an
-    // unguarded loop would have aborted before reaching the genuinely stale file below).
+    // A dangling symlink models a file disappearing between enumeration and stat.
+    // The sweep must surface that entry’s failure and continue to later stale files.
     symlinkSync(join(dir, "does-not-exist"), join(dir, "capacitylens-20260101-000000-000.db.tmp"));
     const stale = join(dir, "capacitylens-20260102-000000-000.db.tmp");
     writeFileSync(stale, "torn write from a crash");
@@ -878,8 +866,6 @@ function registerUnstatableStartupEntryTest(): void {
     await backups.stop();
 
     expect(log).toHaveBeenCalledWith(expect.stringContaining("start-up sweep skipped"));
-    // The bad entry was an isolated skip: the stale tmp beyond it was still swept, and the
-    // boot completed all the way to the start-up snapshot.
     expect(readdirSync(dir)).not.toContain("capacitylens-20260102-000000-000.db.tmp");
     expect(snapshots(dir)).toHaveLength(1);
   });
@@ -902,7 +888,6 @@ function registerRetentionRemovalFailureTest(): void {
 
     expect(log).toHaveBeenCalledWith(expect.stringContaining("retention failed to remove"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("backup written"));
-    // The unremovable entry is skipped in place (retried next prune), not a fatal.
     expect(readdirSync(dir)).toContain("capacitylens-20200101-000000-000.db");
   });
 }
@@ -960,12 +945,9 @@ function registerConcurrentSnapshotSerializationTest(): void {
     await backups.stop();
     order.push("stop");
 
-    // stop() resolved only after both queued snapshots finished, in submission order, so the
-    // shutdown path (which closes the DB right after stop()) can never undercut a running write.
     expect(order).toEqual(["a", "b", "stop"]);
     const [fileA, fileB] = await Promise.all([a, b]);
     expect(fileA).not.toBe(fileB);
-    // Start-up shot + 2 manual = 3 distinct, complete files: each opens and holds the data.
     const files = snapshots(dir);
     expect(files).toHaveLength(3);
     for (const f of files) {
@@ -992,15 +974,11 @@ function registerShutdownSnapshotRefusalTest(): void {
       return f;
     });
     const stopped = backups.stop().then(() => order.push("stop"));
-    // Chained while stop() is already draining: the pre-fix stop() awaited only the promise it
-    // captured at the moment of the await, so a call here would run after stop() resolved,
-    // i.e. under the DB close. It is refused instead, loudly, and writes nothing.
+    // Reject snapshots once shutdown begins so they cannot run after the database drain completes.
     await expect(backups.snapshotNow()).rejects.toThrow(/snapshot refused during shutdown/);
     await stopped;
 
-    // stop() resolved only after the whole accepted chain finished.
     expect(order).toEqual(["a", "stop"]);
-    // Start-up shot + the one accepted call; the refused call left no file (or temp) behind.
     expect(snapshots(dir)).toHaveLength(2);
     expect(readdirSync(dir).filter((f) => f.endsWith(".tmp"))).toHaveLength(0);
     expect(await a).toMatch(/\.db$/);

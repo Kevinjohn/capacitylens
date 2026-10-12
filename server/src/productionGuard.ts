@@ -2,19 +2,8 @@ import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { parseAuthMode, BOOTSTRAP_ADMIN_EMAIL } from "./auth";
 import { parseRateLimit, MAX_RATE_LIMIT } from "./rateLimit";
 
-// Production safety interlock. Once NODE_ENV=production, the development/open posture
-// must actually be retired: running with auth off in
-// production would expose the open/demo dataset (DEMO_USER, no login) to the world. This
-// module is the pure predicate the entrypoint consults. Like bootGuard's resetForbidden, it
-// is a deliberate fail-closed safety interlock and is therefore not behind an opt-in flag
-// (defaulting a guard to off defeats it). The only escape is the explicit
-// CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION, which downgrades the auth-off refusal to a loud
-// warning: it never silences the concern.
-//
-// Active only when NODE_ENV==='production'. Dev / e2e / self-host runs (where NODE_ENV is
-// never 'production') are returned untouched (empty arrays), exactly as bootGuard leaves
-// them. That no-op is the load-bearing "self-hosters unaffected" guarantee: the open posture
-// stays a first-class supported mode everywhere except a NODE_ENV=production process.
+// Production must refuse authenticated-service misconfiguration before opening storage.
+// Explicit trusted-open opt-in downgrades the off-mode refusal to a warning; outside production the guard is a no-op.
 
 /**
  * The outcome of evaluating the production safety contract against an environment.
@@ -56,6 +45,7 @@ function inspectAuthentication(
   try {
     mode = parseAuthMode(environment.CAPACITYLENS_MODE);
   } catch (error) {
+    // Collect invalid sign-in configuration as a fatal refusal so posture evaluation remains total and startup reports the reason.
     refusals.push(error instanceof Error ? error.message : String(error));
   }
   if (mode === "off" && environment.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION === "1") {
@@ -159,11 +149,7 @@ export function evaluateProductionPosture(environment: ProductionEnvironment): P
   const result = { refusals, warnings };
   const mode = inspectAuthentication(environment, result);
   inspectAuthenticationHardening(environment, mode, warnings);
-  // Validate with the same parser the limiter uses (parseRateLimit), not a looser Number()+isSafeInteger
-  // check. A divergent check let ' 100 ', '1e3' and '2000000' pass the guard while parseRateLimit maps
-  // them to 0 (off), so production could boot claiming a hardened posture with rate limiting silently
-  // disabled. Any value the parser resolves to 0 (unset, '0', a sign/decimal/whitespace/exponent, or a
-  // value over the cap) is a refusal; the message states the exact accepted shape so the operator can fix it.
+  // Production posture and the limiter must use the same strict rate-limit parser.
   inspectOperationalHardening(environment, result);
 
   // Production concerns are evaluated regardless of auth mode by the helper above.

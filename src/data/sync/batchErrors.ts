@@ -1,16 +1,9 @@
 import type { DomainErrorCode } from "@capacitylens/shared/domain/errors";
 
-/**
- * Thrown when POST /api/batch answers **409**, the server's optimistic-concurrency conflict
- * signal (a stale `updatedAt`; ordered browser batches enforce this even when generic optimistic
- * concurrency is explicitly disabled; body `{ error, current }`, see the server's StaleWriteError
- * arm). A typed error, not the generic batch failure, because the
- * persist layer must treat it differently: retrying the same stale diff is deterministic futility
- * (the server will 409 it forever), so persist.ts resolves a conflict by reloading the active
- * slice (server wins, the documented interim policy until a conflict UI exists).
- */
+/** A sync failure requiring an authoritative reload before another write may proceed. */
 export abstract class BatchReconciliationError extends Error {}
 
+/** A stale-revision batch conflict that requires authoritative reload before another write. */
 export class BatchConflictError extends BatchReconciliationError {
   /** The server's copy of the conflicted row, when the 409 body carried one (best-effort parse). */
   readonly current?: unknown;
@@ -76,6 +69,7 @@ export class BatchTooLargeError extends Error {
   }
 }
 
+/** A teardown save refused before dispatch because its payload exceeded the keepalive budget. */
 export class KeepaliveNotDispatchedError extends Error {
   constructor(message: string) {
     super(message);
@@ -85,8 +79,10 @@ export class KeepaliveNotDispatchedError extends Error {
 
 // The shared client/server limit; see shared/src/data/transfer.ts. An over-limit diff fails whole.
 export { MAX_BATCH_OPS } from "@capacitylens/shared/data/transfer";
+/** Maximum serialized teardown body accepted before dispatch, leaving room below the browser quota. */
 export const KEEPALIVE_BODY_BUDGET = 60 * 1024;
 // Fetch keepalive quotas are shared by every in-flight request in the page. Reserve a conservative
 // allowance for each request's method, URL and headers instead of spending the entire quota on
 // bodies and assuming sibling lifecycle archives are free.
+/** Conservative reserve for other teardown requests when estimating the page keepalive allowance. */
 export const KEEPALIVE_REQUEST_OVERHEAD_BUDGET = 1024;

@@ -26,16 +26,10 @@ export {
   hasNonArrayKnownTable,
 } from "./migrate/detect";
 
-// Turns whatever was persisted (any version, or garbage) into a complete,
-// current-shape AppData, plus the import-path shape guards that decide whether a
-// blob is even CapacityLens before we let migrate() near it. This is mostly normalize-shape
-// (coerce every known table to an array via normalize()), not a general version-
-// migration engine: there is exactly one structural transform (v1 → v2, below). The
-// v2 → v3 added `accountId` and needs no separate step here.
-// (main.tsx), so older keys are orphaned rather than read, and the import path stamps
-// `accountId` on every incoming row (see useStore.importData).
+// Normalize supported persisted shapes and apply their versioned transforms before repairing Internal clients.
+// Import callers validate the outer shape first so unrelated JSON cannot become an empty dataset.
 
-/** One versioned step: run `apply` when the blob predates `version`. */
+// Run each step only when the input schema version predates its target version.
 interface MigrationStep {
   readonly version: number;
   readonly apply: (data: Record<string, unknown>) => Record<string, unknown>;
@@ -69,7 +63,7 @@ const POST_REPAIR_BASE_STEPS: readonly MigrationStep[] = [
   { version: 14, apply: migrateV13toV14 },
   // Repeat-series identity is forward-only and requires no legacy transform.
   { version: 15, apply: migrateV14toV15 },
-  // Nullable time-off resource IDs are preserved by the current shape.
+  // Nullable time-off resource IDs pass through this step; import repair rejects invalid time-off rows.
   { version: 16, apply: migrateV15toV16 },
   // Invalid legacy rows are removed by import repair, not this version step.
   { version: 17, apply: (data) => data },
@@ -109,9 +103,13 @@ export interface MigrationWithRepairBase {
 }
 
 /**
- * Migrate a value while retaining the pre-Internal-repair state. Server hydration uses this base to
- * persist raw-to-repaired operations before acknowledging the repaired snapshot; ordinary import and
- * local persistence callers should continue to use {@link migrate}.
+ * Migrate a value without mutating it while retaining the pre-Internal-repair state.
+ * Server hydration persists raw-to-repaired operations from this base before acknowledging the repaired snapshot.
+ * Ordinary import and local persistence callers use migrate.
+ * @throws InvalidSchemaVersionError for malformed version markers or UnsupportedSchemaVersionError for newer schemas.
+ * @throws Error when the migration-step ceiling is inconsistent.
+ * @throws RangeError when a required Internal-client repair revision cannot advance beyond the supported timestamp range.
+ * A throw means no migrated result was returned; do not acknowledge or persist a repaired snapshot.
  */
 export function migrateWithRepairBase(raw: unknown): MigrationWithRepairBase {
   // Runtime half of the invariant above: cheap to check on every call, and it stops corrupt
@@ -154,7 +152,12 @@ export function migrateWithRepairBase(raw: unknown): MigrationWithRepairBase {
   };
 }
 
-/** Migrate any supported persisted or exported shape to current {@link AppData}. Pure. */
+/** Migrate a supported persisted or exported shape to current AppData without mutating the input.
+ * @throws InvalidSchemaVersionError for malformed version markers or UnsupportedSchemaVersionError for newer schemas.
+ * @throws Error when the migration-step ceiling is inconsistent.
+ * @throws RangeError when a required Internal-client repair revision cannot advance beyond the supported timestamp range.
+ * A throw means no migrated result was returned; do not acknowledge or persist a repaired snapshot.
+ */
 export function migrate(raw: unknown): AppData {
   return migrateWithRepairBase(raw).data;
 }

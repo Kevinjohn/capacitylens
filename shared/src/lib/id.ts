@@ -3,8 +3,8 @@
  * `crypto` API directly.
  *
  * **Runtime requirement:** `crypto.randomUUID` needs a *secure context* in the browser
- * (HTTPS or localhost) and Node 19+ / a modern runtime. `@capacitylens/shared` is published, so an
- * embedder could load it somewhere `crypto` is absent.
+ * (HTTPS or localhost) and an implementation of crypto.randomUUID.
+ * The private workspace package supports Node 24 or newer; a browser must provide the API in a secure context.
  *
  * @throws {Error} a clear message if `crypto.randomUUID` is unavailable, rather than a cryptic
  * native `TypeError`. We deliberately do **not** fall back to `Math.random`: the import-remap

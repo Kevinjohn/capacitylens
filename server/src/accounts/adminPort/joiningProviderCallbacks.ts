@@ -11,6 +11,7 @@ import { hashJoiningValue } from "./joiningIntentSecrets";
 import { createJoiningProviderIntent } from "./joiningProviderIntent";
 import { federatedCallbackCapture } from "../../authConfig/captureContexts";
 
+/** Contains the verified provider subject and email captured for the current joining callback. */
 export interface JoiningProviderFacts {
   providerId: "google" | "github";
   subject: string;
@@ -36,6 +37,7 @@ export function currentJoiningProviderFacts(providerId: string | null): JoiningP
   return null;
 }
 
+/** Signals that the joining callback must stop and return the named public failure. */
 export class JoiningProviderCallbackError extends Error {
   constructor(
     readonly code = "company_join_expired",
@@ -60,6 +62,7 @@ function assertCallbackIntent(db: Db, capture: CallbackContext): JoinIntent {
   try {
     assertJoinIntentTargetLive(db, intent);
   } catch (error) {
+    // Surface failed target-policy checks as a joining callback failure so admission stops without exposing internal policy details.
     throw new JoiningProviderCallbackError("company_join_policy_changed", { cause: error });
   }
   return intent;
@@ -123,7 +126,7 @@ export function createJoiningProviderCallbacks(input: {
     return capture;
   }
 
-  /** Called only from user.create.before while this exact provider callback is active. */
+  // New-identity admission is valid only inside this exact provider callback’s user-create hook.
   function admitsNewIdentity(input: {
     email?: string;
     emailVerified?: boolean;
@@ -156,12 +159,12 @@ export function createJoiningProviderCallbacks(input: {
         .get(intent.accountId, intent.email);
       return !restricted;
     } catch {
-      // Admission stays closed when the restriction lookup fails.
+      // Keep admission closed when intent validation or the restriction lookup fails.
       return false;
     }
   }
 
-  /** Better Auth has now persisted the provider subject and the v48 proof trigger atomically. */
+  // Bind membership only after the provider subject and durable email proof have committed together.
   function bindSession(input: { principalId: string; facts: JoiningProviderFacts | null }): void {
     const capture = joiningProviderCallbackCapture.getStore();
     if (!capture) return;

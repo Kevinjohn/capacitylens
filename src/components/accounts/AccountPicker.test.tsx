@@ -12,7 +12,6 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
 import { resolveBrowserTimeZone } from "@/lib/timezones";
 
-// Mutable API configuration lets server-mode tests opt in while the rest exercise demo-store paths.
 const serverFlag = vi.hoisted(() => ({ on: false }));
 vi.mock("@/data/apiConfig", () => ({
   API_BASE: "",
@@ -27,7 +26,6 @@ vi.mock("@/auth/accountTransition", () => ({
   }),
 }));
 
-/** Render with the single-company capability and the real context's remaining off-mode defaults. */
 type WithCanCreateAccountOptions = { canCreateAccount: boolean; ui: ReactNode };
 function withCanCreateAccount({ canCreateAccount, ui }: WithCanCreateAccountOptions) {
   return render(
@@ -46,7 +44,6 @@ function withCanCreateAccount({ canCreateAccount, ui }: WithCanCreateAccountOpti
   );
 }
 
-/** Seed both account data and the server-sourced summaries the picker renders. */
 function seedAccounts(...accounts: ReturnType<typeof makeAccount>[]) {
   useStore.getState().replaceAll(makeAppData({ accounts }));
   useStore
@@ -91,7 +88,7 @@ describe("AppShell account gate", () => {
     renderShell();
     expect(screen.getByText("Choose a company")).toBeInTheDocument();
     expect(screen.getByText("Wayne Enterprises")).toBeInTheDocument();
-    // The main nav is gated away until a company is chosen.
+
     expect(screen.queryByRole("link", { name: "Schedule" })).not.toBeInTheDocument();
   });
 
@@ -147,7 +144,7 @@ function registerCreateAndActivateTests() {
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
     expect(useStore.getState().data.accounts.map((a) => a.name)).toContain("Stark Industries");
-    // Creating activates it.
+
     const created = requireAccount("Stark Industries");
     expect(useStore.getState().activeAccountId).toBe(created.id);
   });
@@ -171,7 +168,7 @@ function registerCreateAndActivateTests() {
     expect(screen.getByLabelText("Company name")).not.toHaveAccessibleDescription(
       "You can change the company name later; the calendar choices below are fixed after creation.",
     );
-    // The three frozen-after-creation fields render with concrete defaults.
+
     expect(screen.getByRole("radio", { name: "Monday" })).toHaveAttribute("aria-checked", "true");
     const tz = screen.getByLabelText("Timezone");
     expect(tz).toHaveTextContent(/(?:GMT|UTC|London)/);
@@ -181,7 +178,6 @@ function registerCreateAndActivateTests() {
     expect(screen.getByRole("combobox", { name: "Language" })).toHaveTextContent("English");
     expect(screen.getByRole("group", { name: "Language" })).not.toHaveAccessibleDescription();
 
-    // Change the two editable-at-creation ones, then create.
     await user.click(screen.getByRole("radio", { name: "Sunday" }));
     fireEvent.keyDown(tz, { key: "ArrowDown" });
     fireEvent.click(screen.getByRole("option", { name: /Europe\/London/ }));
@@ -192,9 +188,7 @@ function registerCreateAndActivateTests() {
     expect(created.weekStartsOn).toBe(0);
     expect(created.timezone).toBe("Europe/London");
     expect(created.language).toBe("en");
-    // 15s, not the 5s default: this is the file's heaviest userEvent sequence (dialog + radio +
-    // listbox + 9 typed keystrokes, ~0.6s on dev hardware) and it deterministically exceeded 5s
-    // on contended CI runners (gate run 29868452988, twice) while every other test passed.
+    // This interaction needs a longer timeout on contended CI because its modal, listbox, and typing sequence is slower than a single-field test.
   }, 15_000);
 
   it("detects the browser zone, searches friendly names, and selects it with the keyboard", async () => {
@@ -286,8 +280,7 @@ function registerDeleteConfirmationTests() {
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveTextContent(/Delete company\?/i);
 
-    // Friction on the one irreversible action: Delete is armed only once the exact
-    // name is typed.
+    // Company erasure requires exact-name confirmation because it cannot be undone.
     const deleteBtn = within(dialog).getByRole("button", { name: "Delete" });
     expect(deleteBtn).toBeEnabled();
     expect(deleteBtn).toHaveAttribute("aria-disabled", "true");
@@ -315,7 +308,7 @@ function registerServerListMembershipTests() {
     useStore.getState().setAccountSummaries({
       list: [
         { id: "a1", name: "Active Co", role: "owner" },
-        // The invited account is not part of the loaded account data.
+
         { id: "a2", name: "Other Co", role: "editor" },
       ],
     });
@@ -381,7 +374,7 @@ function registerServerListAccessTests() {
 function registerUnloadedAccountActivationTest() {
   it("activates an account whose slice is NOT loaded (existence via summaries)", async () => {
     const user = userEvent.setup();
-    // `data` is empty (no slice loaded yet, the pre-load state), but the summary exists.
+
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setAccountSummaries({ list: [{ id: "a2", name: "Other Co", role: "editor" }] });
     render(<AccountPicker />);
@@ -392,7 +385,6 @@ function registerUnloadedAccountActivationTest() {
   });
 }
 
-/** A fetch stub returning `response` for every call; records (url, init) pairs. */
 function stubFetch(response: { ok: boolean; status: number; body?: unknown }) {
   const fetchMock = vi.fn(async () => ({
     ok: response.ok,
@@ -433,16 +425,16 @@ function registerServerCreateRequestTest() {
     expect(url).toBe("/api/orgs");
     expect(init.method).toBe("POST");
     expect(init.credentials).toBe("include");
-    // The three frozen fields ride in the body as concrete values.
+
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
     expect(body.name).toBe("Stark Industries");
     expect(body.weekStartsOn).toBe(1);
     expect(body.timezone).toBe(resolveBrowserTimeZone());
     expect(body.schedulingMode).toBe("days");
     expect(body.inlineActivityCreateEnabled).toBe(false);
-    // Summary seeded (the picker lists it; setActiveAccount validated against it)…
+
     expect(useStore.getState().accountSummaries.map((a) => a.id)).toContain("org-1");
-    // …and no local addAccount ran (the slice arrives via the switch orchestrator's loadAll, not here).
+
     expect(useStore.getState().data.accounts).toHaveLength(0);
   });
 }
@@ -465,7 +457,6 @@ function registerServerCreateUnusableBodyTest() {
     await user.type(screen.getByLabelText("Company name"), "Stark Industries");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
-    // The company appears via the refetch (the picker list), the form is gone, and no error shows.
     expect(await screen.findByText("Stark Industries")).toBeInTheDocument();
     await waitFor(() =>
       expect(useStore.getState().notice).toMatchObject({
@@ -477,7 +468,7 @@ function registerServerCreateUnusableBodyTest() {
     expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.map((c) => c[0] as unknown as string)).toContain("/api/accounts");
-    // No activation: the create response carried no trustworthy id.
+
     expect(useStore.getState().activeAccountId).toBeNull();
     expect(useStore.getState().accountSummaries.map((a) => a.id)).toEqual(["org-9"]);
   });
@@ -598,9 +589,7 @@ function registerServerCreateTransportFailureTest() {
 
 function registerServerDeleteUnloadedTest() {
   it("deletes an UNLOADED company via DELETE /api/accounts/:id and drops its summary", async () => {
-    // The regression this guards: the local deleteAccount cascade diffs the loaded slice only, so a
-    // company whose slice isn't in `data` would emit no ops, delete nothing server-side, and
-    // resurrect on the next summaries refetch. Server mode must call the dedicated route instead.
+    // Deleting an unloaded company must use the dedicated server route because local snapshot diffs cannot represent erasing its unknown slice.
     serverFlag.on = true;
     const user = userEvent.setup();
     const fetchMock = stubFetch({ ok: true, status: 204 });
@@ -625,9 +614,7 @@ function registerServerDeleteUnloadedTest() {
 
 function registerServerDeleteInFlightTest() {
   it("disarms Delete while the DELETE is in flight (double-click sends ONE request)", async () => {
-    // The regression this guards: without the in-flight guard a double-click sends a second DELETE,
-    // which can race the first command and raise a spurious in-progress retry error
-    // toast right after a successful delete.
+    // Only one company-deletion command may be in flight; another click must not race it or report a spurious rejection after success.
     serverFlag.on = true;
     const user = userEvent.setup();
     let resolveDelete!: (v: { ok: boolean; status: number; json: () => Promise<unknown> }) => void;
@@ -647,7 +634,6 @@ function registerServerDeleteInFlightTest() {
     const deleteBtn = within(dialog).getByRole("button", { name: "Delete" });
     await user.click(deleteBtn);
 
-    // In flight: the busy prop disarms the button; a second click must not send a second DELETE.
     expect(deleteBtn).toBeDisabled();
     await user.click(deleteBtn);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -778,14 +764,8 @@ function registerServerDeletePermissionsTest() {
 }
 
 describe("AccountPicker — refreshAuth after org create/delete (canCreateAccount stays fresh)", () => {
-  // The server recomputes canCreateAccount per request from mutable state (account count +
-  // membership roles), so the picker re-asks /api/auth/me after every org create/delete. These
-  // tests mount the real AuthProvider (the mocked apiConfig above puts it in server mode) so the
-  // whole loop is exercised: boot /me → snapshot, mutate, refetched /me → the flipped value
-  // reaches the picker's affordances. Without the re-ask, deleting the only company on a capped
-  // instance stranded the user on an inviteless empty state with no "New company" button.
+  // Company creation or deletion changes the server creation capability, so the picker must recheck it before showing further creation actions.
 
-  /** One JSON response in the shape the picker's fetch paths consume. */
   const jsonRes = (status: number, body: unknown) => ({ ok: status < 400, status, json: async () => body });
 
   it("after a successful DELETE, /api/auth/me is refetched and a flipped canCreateAccount re-surfaces the New company button", async () => {
@@ -810,7 +790,6 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
       </AuthProvider>,
     );
 
-    // Boot snapshot: capped, no create affordance while the one company exists.
     expect(await screen.findByText("Only Co")).toBeInTheDocument();
     expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument();
 
@@ -819,8 +798,6 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
     await user.type(within(dialog).getByLabelText(/Type/i), "Only Co");
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
 
-    // The refetched /me flips canCreateAccount → the button (and the empty two-choice state)
-    // come back without a manual reload, the dead end this pins against.
     expect(await screen.findByLabelText("Company name")).toBeInTheDocument();
     expect(screen.queryByTestId("company-empty-options")).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.filter((c) => c[0] === "/api/auth/me")).toHaveLength(2);
@@ -851,7 +828,7 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBe("org-1"));
-    // The refetched /me now reports the cap, the flipped value reaches the picker (button gone).
+
     await waitFor(() => expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument());
     expect(fetchMock.mock.calls.filter((c) => c[0] === "/api/auth/me")).toHaveLength(2);
   });
@@ -863,7 +840,7 @@ describe("AccountPicker — single-company-per-instance policy (canCreateAccount
     withCanCreateAccount({ canCreateAccount: false, ui: <AccountPicker /> });
     expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "New company" })).not.toBeInTheDocument();
-    // The subtitle must not promise a create affordance that isn't rendered.
+
     expect(screen.getByText("Choose a company to plan.")).toBeInTheDocument();
     expect(screen.queryByText("Choose a company to plan, or create another one.")).not.toBeInTheDocument();
   });

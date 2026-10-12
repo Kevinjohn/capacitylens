@@ -12,7 +12,7 @@ export interface AccessRestriction {
   createdAt: string;
 }
 
-/** Stopped-server repair may read an older schema; a missing table at its declared version is corruption. */
+// Stopped-server repair can read an older schema; a table missing from a version that declares it is corruption.
 function tableAvailable(
   db: Db,
   table: "account_access_restrictions" | "identity_email_proofs",

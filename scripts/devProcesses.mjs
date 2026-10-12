@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { closeSync, openSync, unlinkSync, writeFileSync } from "node:fs";
 import net from "node:net";
 
+/** Refuses unsupported Node versions by reporting the supplied message and exiting with status 1. */
 export function requireNode24(message) {
   const major = Number(process.versions.node.split(".")[0]);
   if (Number.isInteger(major) && major >= 24) return;
@@ -9,6 +10,7 @@ export function requireNode24(message) {
   process.exit(1);
 }
 
+/** Probes the IPv4 loopback port, returning false for connection errors or a one-second timeout. */
 export function portInUse(port) {
   return new Promise((resolve) => {
     const socket = net
@@ -72,6 +74,11 @@ function waitForExit(child, timeoutMs) {
   });
 }
 
+/**
+ * Attempts to stop a detached child process tree, escalating from SIGTERM to SIGKILL after the grace period.
+ * Resolution does not guarantee exit if the force timeout expires.
+ * @throws When a non-racing signal failure occurs.
+ */
 export async function terminateProcessTree(child, options = {}) {
   if (!processTreeRunning(child)) return;
   const graceMs = options.graceMs ?? 2_000;
@@ -82,15 +89,24 @@ export async function terminateProcessTree(child, options = {}) {
   await waitForExit(child, forceMs);
 }
 
+/**
+ * Attempts to terminate all supplied detached process trees concurrently; see terminateProcessTree for timeout guarantees.
+ * @throws When any child termination rejects.
+ */
 export function terminateProcessTrees(children, options) {
   return Promise.all(children.map((child) => terminateProcessTree(child, options)));
 }
 
+/**
+ * Creates an exclusive ownership file and returns an idempotent release callback.
+ * @throws When the file already exists or ownership-file I/O fails.
+ */
 export function acquireExclusiveFile(path) {
   const descriptor = openSync(path, "wx", 0o600);
   try {
     writeFileSync(descriptor, `${process.pid}\n`);
   } catch (error) {
+    // Remove the incomplete ownership file and rethrow so a failed publisher cannot leave a false live lock.
     closeSync(descriptor);
     unlinkSync(path);
     throw error;
@@ -103,6 +119,7 @@ export function acquireExclusiveFile(path) {
     try {
       unlinkSync(path);
     } catch (error) {
+      // Another cleanup may already have removed the lock; every other unlink failure must surface.
       if (error.code !== "ENOENT") throw error;
     }
   };

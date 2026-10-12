@@ -2,10 +2,7 @@ import type { AppOptions } from "../app";
 import { createApp } from "../app";
 import { openDb } from "../db";
 import type { Db } from "../db";
-// API integration tests: drive the real Fastify app + a real (in-memory) node:sqlite
-// DB via inject(). Covers CRUD, whole-state read, cascade deletes, import round-trip,
-// migration reuse, and the validation rules, which run the same shared domain-core
-// the client uses, so passing here proves "server validation == client validation".
+// API fixtures exercise the real Fastify and SQLite boundaries with deterministic domain rows.
 
 /**
  * Fixed timestamp shared by fixtures that need deterministic creation and update dates.
@@ -221,6 +218,3 @@ export const closure = (id: string, accountId: string, name = "Christmas shutdow
   endDate: "2026-12-27",
   ...meta(),
 });
-
-// app.inject's overloads resolve to a union that hides statusCode/json; this wrapper
-// pins the single Promise-returning shape so call sites stay terse.

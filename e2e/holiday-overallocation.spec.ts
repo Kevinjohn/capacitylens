@@ -55,11 +55,9 @@ test("modal edits, drag and repeat creation show work on holiday as over allocat
   const clarkLane = page.locator('[data-resource-id="r-nike"]');
   const dianaLane = page.locator('[data-resource-id="r-pam"]');
 
-  // A holiday with no allocation is unavailable but not over capacity.
   await expect(dianaLane.getByTestId("timeoff-block")).toBeVisible();
   await expect(dianaLane.getByTestId("over-marker")).toHaveCount(0);
 
-  // Route 1: edit an existing allocation's dates directly onto Bruce's seeded holiday.
   await bruceLane.getByTestId("allocation-bar").filter({ hasText: "Visual Design" }).click();
   const editor = page.getByRole("dialog", { name: "Edit allocation" });
   await editor.getByLabel("Start Date").fill("2026-06-10");
@@ -68,7 +66,6 @@ test("modal edits, drag and repeat creation show work on holiday as over allocat
   await markerOnFirstTimeOff(bruceLane);
   await page.screenshot({ path: testInfo.outputPath("issue_283_after.png") });
 
-  // Route 2: drag Clark's existing five-day allocation directly onto his five-day holiday.
   const clarkBar = clarkLane.getByTestId("allocation-bar").filter({ hasText: "CMS Review" });
   const [barBox, holidayBox] = await Promise.all([
     clarkBar.boundingBox(),
@@ -84,7 +81,6 @@ test("modal edits, drag and repeat creation show work on holiday as over allocat
   await page.mouse.up();
   await markerOnFirstTimeOff(clarkLane);
 
-  // Route 3: a generated weekly occurrence lands on Diana's holiday.
   await page.getByRole("button", { name: "Add allocation for Diana Prince" }).click();
   const create = page.getByRole("dialog", { name: "New allocation" });
   await selectShadOption(create.getByLabel("Project", { exact: true }), "p-acme");
@@ -126,7 +122,6 @@ test("editing a zero-load block onto time off shows the visible and non-colour c
   const clarkLane = page.locator('[data-resource-id="r-nike"]');
   const dianaLane = page.locator('[data-resource-id="r-pam"]');
 
-  // Zero-load blocks on ordinary dates are clean, and time off without a block is not red.
   await expect(bruceLane.getByTestId("over-marker")).toHaveCount(0);
   await expect(clarkLane.getByTestId("over-marker")).toHaveCount(0);
   await expect(dianaLane.getByTestId("timeoff-block")).toBeVisible();

@@ -43,9 +43,7 @@ jobs:
 
   dependency-review:
     name: Dependency review
-    # Compares the dependency manifests a push added to `main`. Without a pull-request
-    # event the action has no base to diff against, so the refs are passed explicitly.
-    # Skipped when `before` is the all-zero SHA (branch creation and force pushes).
+    # Supply push refs because dependency review has no pull-request base. A zero before SHA provides no range.
     if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -186,9 +184,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      # The explicit no-login posture, deliberately chosen: production now defaults to
-      # password-only, so this job opts in to the open instance and leaves every optional
-      # hardening off to document that posture's residual surface.
+      # This job explicitly selects auth-off to record the residual surface of the relaxed posture.
       CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1"
       CAPACITYLENS_MODE: "off"
     steps:

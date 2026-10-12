@@ -25,8 +25,7 @@ export function awaitTx(tx: IDBTransaction, errorMessage: string, abortMessage: 
   });
 }
 
-/** Settle on a single request. No abort handler: an aborted transaction fires the request's own
- * error event, so these read paths reject exactly as they did with a hand-written promise. */
+/** Settles on request success or failure. Transaction aborts also fire the request error event. */
 export function awaitRequest<T>(request: IDBRequest<T>, failureMessage: string): Promise<T> {
   return new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
@@ -92,9 +91,7 @@ export function openOfflineDb(): Promise<IDBDatabase> {
   });
 }
 
-/** Physically enforce the retention boundary whenever this page next touches the cache. Browsers
- * cannot run application JavaScript while the site is closed, so open/write maintenance is the
- * earliest reliable cleanup point after seven days have elapsed. */
+// Enforce retention on the next cache operation because a closed site cannot schedule reliable cleanup.
 function sweepExpiredRecords(db: IDBDatabase): Promise<void> {
   const now = Date.now();
   const tx = db.transaction(STORE_NAME, "readwrite");

@@ -73,6 +73,7 @@ async function confirmPassword(email: string, state: ReauthState) {
     }
     completeReauth({ reauthenticated: true });
   } catch (error) {
+    // Log the transport cause and release busy state so failed re-authentication does not strand waiting controls.
     console.error("ReauthDialog: password re-auth request failed", error);
     state.setError(m.login_network_error());
     state.setBusy(false);
@@ -96,6 +97,7 @@ async function reauthWithProvider(provider: AuthProviderInfo, state: ReauthState
       state.setBusy(false);
     }
   } catch (error) {
+    // A thrown provider request failed before confirmed handoff; log it and restore retryable dialog state.
     console.error("ReauthDialog: SSO re-auth request failed", error);
     state.setPendingProvider(null);
     state.setError(m.login_network_error());

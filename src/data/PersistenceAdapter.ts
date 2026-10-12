@@ -9,7 +9,6 @@ export interface AllocationRewriteRevision {
   flushedUpdatedAt: ISOTimestamp;
 }
 
-// Persistence contract shared by the in-memory demo and server-backed application.
 /** Load and save contract implemented by local and server-backed persistence. */
 export interface PersistenceAdapter {
   /** Load persisted data. `accountId` (server adapter only) loads only that account's scoped slice
@@ -17,9 +16,10 @@ export interface PersistenceAdapter {
    * bootstrap without live identity). `skipRemoteRead` seeds an empty server snapshot for a
    * live-authenticated pre-pick bootstrap. The in-memory demo adapter ignores both arguments. */
   loadAll(accountId?: string, options?: { skipRemoteRead?: boolean }): Promise<AppData>;
-  /** Persist the whole dataset. `opts.unload` signals a page-teardown flush: an async
-   * adapter must then dispatch every write up-front (a sequential await-loop would only
-   * get the first request out before the event loop dies). Synchronous adapters ignore it. */
+  /** Saves the next complete application state. An unload save dispatches its ordered final
+   * state before awaiting confirmation so teardown cannot abandon later writes.
+   * Ordinary saves await confirmation.
+   */
   saveAll(data: AppData, options?: { unload?: boolean }): Promise<void>;
   /** Optional server-rewrite bridge. Receipts identify the client revision they committed so the
    * persistence coordinator can decline to rewrite a row edited while the batch was in flight. */
@@ -34,9 +34,7 @@ export interface PersistenceAdapter {
   hasExisting?(): Promise<boolean>;
 }
 
-/** How a load failure can be recovered from. Tenant data is server-owned, so normal failures are
- * `unavailable` and recover by retrying. `corrupt` remains for adapters/tests that detect a damaged
- * payload rather than silently accepting it. */
+// Normal remote load failures recover by retrying; a corrupt payload requires a distinct recovery surface.
 type LoadErrorKind = "corrupt" | "unavailable";
 
 /** Thrown by an adapter's loadAll when stored data couldn't be read. The `kind`

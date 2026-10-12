@@ -210,6 +210,7 @@ function useArchivedRowsData({ server, mayPurge, activeAccountId, localData, set
         setServerRows({ accountId: activeAccountId, reloadKey, rows: listInactiveRows(body) });
         setGate("shown");
       } catch (error) {
+        // Discard stale reads; hide the inactive section on authorization refusal, but surface other failures rather than presenting an empty archive.
         if (!isCurrent()) return;
         setServerRows(null);
         if (error instanceof InactiveSliceHttpError && error.status === 403) {

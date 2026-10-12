@@ -5,8 +5,6 @@ import type { DragResizePreviewInput } from "./useDragResize";
 import type { DragMode } from "@/lib/gestureMath";
 
 interface HarnessProps {
-  // A uniform-grid stand-in for the lane's geometry inverse: clientX → day index at 48px/day,
-  // origin at clientX 0. So a 48px move snaps to a 1-day delta, exactly as before.
   indexAtClientX?: (clientX: number) => number;
   onPreview?: (input: DragResizePreviewInput) => void;
   onCommit: (mode: DragMode, deltaDays: number, pointer: { clientX: number; clientY: number }) => void;
@@ -42,7 +40,7 @@ function Harness({
 }
 
 beforeEach(() => {
-  // Clean up any stray document listeners between tests
+  // jsdom lacks pointer capture; this mock tracks captured IDs for cancellation tests.
   const capturedPointers = new WeakMap<HTMLElement, Set<number>>();
   HTMLElement.prototype.setPointerCapture = vi.fn(function (this: HTMLElement, pointerId: number) {
     const pointers = capturedPointers.get(this) ?? new Set<number>();
@@ -67,11 +65,9 @@ function registerDragResizeScenarios(): void {
     const body = screen.getByTestId("body");
     const dragTarget = screen.getByTestId("drag-target");
 
-    // Start drag on the body span (no data-handle => 'move' mode)
     fireEvent.pointerDown(body, { clientX: 0, clientY: 10, button: 0, pointerId: 1 });
     expect(dragTarget.hasPointerCapture(1)).toBe(true);
 
-    // Movement below the threshold does not preview.
     document.dispatchEvent(new PointerEvent("pointermove", { clientX: 3, clientY: 12, pointerId: 1, bubbles: true }));
     expect(onPreview).not.toHaveBeenCalled();
 
@@ -84,7 +80,6 @@ function registerDragResizeScenarios(): void {
       pointer: { clientX: 48, clientY: 25 },
     });
 
-    // Release
     document.dispatchEvent(new PointerEvent("pointerup", { clientX: 48, clientY: 25, pointerId: 1, bubbles: true }));
 
     expect(onCommit).toHaveBeenCalledWith("move", 1, expect.objectContaining({ clientX: 48 }));
@@ -99,10 +94,8 @@ function registerDragResizeScenarios(): void {
 
     const body = screen.getByTestId("body");
 
-    // Pointer down
     fireEvent.pointerDown(body, { clientX: 100, button: 0, pointerId: 1 });
 
-    // Pointer up at the same position (no movement)
     document.dispatchEvent(new PointerEvent("pointerup", { clientX: 100, pointerId: 1, bubbles: true }));
 
     expect(onClick).toHaveBeenCalledTimes(1);
@@ -118,13 +111,10 @@ function registerDragResizeHandleScenario(): void {
 
     const endHandle = screen.getByTestId("handle-end");
 
-    // Start drag on end handle
     fireEvent.pointerDown(endHandle, { clientX: 0, button: 0, pointerId: 1 });
 
-    // Move 48px (1 day worth)
     document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, pointerId: 1, bubbles: true }));
 
-    // Release
     document.dispatchEvent(new PointerEvent("pointerup", { clientX: 48, pointerId: 1, bubbles: true }));
 
     expect(onCommit).toHaveBeenCalledWith("resize-end", 1, expect.objectContaining({ clientX: 48 }));
@@ -141,10 +131,10 @@ function registerDragResizeCancellationScenarios(): void {
 
     const body = screen.getByTestId("body");
     fireEvent.pointerDown(body, { clientX: 100, button: 0, pointerId: 1 });
-    // Cancel before crossing the 4px threshold (e.g. the browser took the pointer to scroll).
+
     document.dispatchEvent(new PointerEvent("pointercancel", { clientX: 101, pointerId: 1, bubbles: true }));
 
-    expect(onCancel).toHaveBeenCalledTimes(1); // armed gesture aborted → consumer is notified
+    expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onClick).not.toHaveBeenCalled();
     expect(onCommit).not.toHaveBeenCalled();
   });
@@ -172,7 +162,6 @@ function registerDragResizeButtonScenarios(): void {
 
     const body = screen.getByTestId("body");
 
-    // Right-click (button=2) should be ignored
     fireEvent.pointerDown(body, { clientX: 0, button: 2, pointerId: 1 });
     document.dispatchEvent(new PointerEvent("pointermove", { clientX: 96, pointerId: 1, bubbles: true }));
     document.dispatchEvent(new PointerEvent("pointerup", { clientX: 96, pointerId: 1, bubbles: true }));

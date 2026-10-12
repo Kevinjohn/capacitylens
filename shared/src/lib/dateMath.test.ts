@@ -63,18 +63,11 @@ describe("dateMath", () => {
   });
 
   it("eachDayISO is empty for ANY end-before-start range, not just adjacent reversals", () => {
-    // Guards the single-parse rewrite's cursor loop against an off-by-one that would make a
-    // far-reversed range return something instead of [] (the `count <= 0` guard runs before
-    // the loop ever starts, so this must be empty regardless of how far end precedes start).
     expect(eachDayISO("2026-06-15", "2026-01-01")).toEqual([]);
   });
 
-  it("eachDayISO steps correctly across a month boundary (stepwise addDays, not a single re-parse)", () => {
-    // The rewritten loop advances one calendar day at a time from a single parsed `start`, this
-    // pins that stepping through Jan 31 -> Feb 1 (and into a leap-day Feb) is byte-identical to the
-    // old per-iteration re-parse.
+  it("eachDayISO steps correctly across a month boundary", () => {
     expect(eachDayISO("2026-01-30", "2026-02-02")).toEqual(["2026-01-30", "2026-01-31", "2026-02-01", "2026-02-02"]);
-    // 2024 is a leap year: Feb 28 -> Feb 29 -> Mar 1.
     expect(eachDayISO("2024-02-27", "2024-03-01")).toEqual(["2024-02-27", "2024-02-28", "2024-02-29", "2024-03-01"]);
   });
 });
@@ -85,32 +78,21 @@ describe("dateMath range predicates", () => {
   });
 
   it("weekdayOf returns 0=Sun … 6=Sat", () => {
-    // This date falls on Sunday.
     expect(weekdayOf("2026-05-31")).toBe(0);
-    // This date falls on Monday.
     expect(weekdayOf("2026-06-01")).toBe(1);
-    // This date falls on Friday.
     expect(weekdayOf("2026-05-29")).toBe(5);
   });
 
   it("startOfWeekISO snaps back to the week start Monday (default)", () => {
-    // Week of 2026-06-01 (Mon) … 2026-06-07 (Sun).
-    // Monday maps to itself.
     expect(startOfWeekISO("2026-06-01")).toBe("2026-06-01");
-    // Wednesday maps back to Monday.
     expect(startOfWeekISO("2026-06-03")).toBe("2026-06-01");
-    // Sunday maps back to the previous Monday.
     expect(startOfWeekISO("2026-06-07")).toBe("2026-06-01");
-    // Sunday maps back to the prior Monday across the month boundary.
     expect(startOfWeekISO("2026-05-31")).toBe("2026-05-25");
   });
 
   it("startOfWeekISO respects weekStartsOn=0 (Sunday)", () => {
-    // 2026-06-11 is a Thursday; Sunday of that week is 2026-06-07
     expect(startOfWeekISO("2026-06-11", 0)).toBe("2026-06-07");
-    // 2026-06-07 is a Sunday; start of week is itself
     expect(startOfWeekISO("2026-06-07", 0)).toBe("2026-06-07");
-    // 2026-06-08 is a Monday; Sunday before it is 2026-06-07
     expect(startOfWeekISO("2026-06-08", 0)).toBe("2026-06-07");
   });
 
@@ -123,10 +105,8 @@ describe("dateMath range predicates", () => {
 
   it("rangesOverlap is inclusive at both ends of both ranges", () => {
     expect(rangesOverlap("2026-05-01", "2026-05-31", "2026-05-10", "2026-05-12")).toBe(true);
-    // Touching edges count as an overlap in both directions.
     expect(rangesOverlap("2026-05-01", "2026-05-10", "2026-05-10", "2026-05-20")).toBe(true);
     expect(rangesOverlap("2026-05-10", "2026-05-20", "2026-05-01", "2026-05-10")).toBe(true);
-    // A one-day gap on either side does not.
     expect(rangesOverlap("2026-05-01", "2026-05-09", "2026-05-10", "2026-05-20")).toBe(false);
     expect(rangesOverlap("2026-05-21", "2026-05-30", "2026-05-10", "2026-05-20")).toBe(false);
   });
@@ -153,7 +133,6 @@ describe("todayISO", () => {
   });
 
   it("returns the correct date for zones on both sides of midnight", () => {
-    // We can't control the clock in unit tests easily, so just check format + it doesn't throw.
     expect(() => todayISO("Pacific/Auckland")).not.toThrow();
     expect(() => todayISO("America/Los_Angeles")).not.toThrow();
     expect(() => todayISO("Etc/GMT")).not.toThrow();
@@ -172,12 +151,7 @@ describe("todayISO with a fixed clock", () => {
     });
 
     it("resolves the date in the GIVEN zone, not the local one — even when they disagree", () => {
-      // At this instant, Pacific/Kiritimati (UTC+14) has already ticked over to the
-      // 15th while every plausible CI/dev machine zone (UTC-12 .. UTC+14, but not
-      // literally Kiritimati) still reads the 14th. A mutant that swaps the locale,
-      // drops the timeZone option, or blanks out the year/month/day field options all
-      // make the Intl call throw or silently ignore the zone, either way falling back
-      // to the (wrong, one-day-off) local date.
+      // The UTC instant is still June 14, while Kiritimati is already on June 15.
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-06-14T20:00:00Z"));
       expect(todayISO("Pacific/Kiritimati")).toBe("2026-06-15");
@@ -221,11 +195,7 @@ describe("todayISO with mocked out-of-range years", () => {
     }
 
     it("throws RangeError (not a silent pseudo-ISODate) when the resolved year is outside the four-digit domain", async () => {
-      // Intl gives `year: "numeric"` parts, not zero-padded/four-digit, so a system clock
-      // outside years 1000-9999 would otherwise assemble a garbage string like "99-06-15" that
-      // silently poisons the module's load-bearing lexicographic YYYY-MM-DD comparisons instead
-      // of surfacing as the upstream-validation bug it is. Mock the formatter output directly
-      // since we can't actually move the system clock to year 99 in a unit test.
+      // Mock malformed formatter output to verify that an out-of-domain year is rejected.
       vi.spyOn(Intl, "DateTimeFormat").mockImplementation(function FakeDateTimeFormat() {
         return {
           formatToParts: () => [
@@ -463,9 +433,7 @@ describe("endDateForWorkingDays edge cases", () => {
   });
 
   it("matches a brute-force day-scan across a matrix of starts/patterns/counts", () => {
-    // The O(1) closed form must be byte-for-byte identical to the obvious day-by-day
-    // scan it replaced, so cross-check it against that scan as an independent oracle
-    // over every start weekday, several working-week shapes, and a wide count range.
+    // Compare the closed form with an independent day-by-day oracle across starts and workweek shapes.
     const reference = (start: string, count: number, workingDays: Weekday[]): string => {
       const distinctWorkingDays = new Set(workingDays);
       if (count <= 0 || distinctWorkingDays.size === 0 || distinctWorkingDays.size >= 7) {
@@ -483,21 +451,16 @@ describe("endDateForWorkingDays edge cases", () => {
       return addDaysISO(start, maxScan - 1);
     };
     const patterns: Weekday[][] = [
-      // This pattern uses the standard Monday-to-Friday workweek.
       [1, 2, 3, 4, 5],
-      // This pattern includes only Saturday and Sunday.
       [0, 6],
-      // This pattern includes Monday, Wednesday, and Friday.
       [1, 3, 5],
-      // This pattern includes Tuesday only.
       [2],
-      // This pattern repeats Monday to check duplicate weekdays.
+      // Repeated weekdays count only once.
       [1, 1, 1],
-      // This pattern includes every day except Sunday.
+      // This pattern includes every day except Saturday.
       [0, 1, 2, 3, 4, 5],
     ];
     for (let s = 0; s < 7; s++) {
-      // The loop checks the range from every start weekday.
       const start = addDaysISO("2026-06-01", s);
       for (const pattern of patterns) {
         for (let count = 1; count <= 40; count++) {

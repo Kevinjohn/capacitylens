@@ -42,30 +42,12 @@ export function migrateSingleOwnerControlPlaneV10(db: Db): void {
   });
 }
 
-/**
- * Role-tier ranking for the ownerless-repair promotion below, `owner > admin > editor > viewer`.
- * Mirrors shared/domain/access.ts's private `ROLE_RANK`; that constant is not exported and `shared/`
- * is off the server's SQL path, so the ordering is re-stated here as a SQL `CASE` and kept in
- * lock-step by being byte-identical to it. An unknown role sorts below viewer (`-1`) so a corrupt
- * value can never win the promotion. Passed a table alias (e.g. `promoted`) and emits the ranked
- * integer for that row's `role`.
- */
+// Keep the SQL tier order aligned with account policy; unknown roles rank below viewer and cannot win promotion.
 const roleTierSql = (alias: string): string =>
   `CASE ${alias}.role WHEN 'owner' THEN 3 WHEN 'admin' THEN 2 WHEN 'editor' THEN 1 WHEN 'viewer' THEN 0 ELSE -1 END`;
 
-/**
- * Loudly record one v11 ownerless-account promotion. There is no request-scoped audit sink or
- * `securityLog` at boot (those are wired into buildApp per-request; a migration only has the raw
- * `Db`), so `console` is the established surface here, the same fallback app.ts/audit.ts use when
- * their sink is unavailable. Every promotion emits a structured `capacitylens.security` line so an
- * operator can see who was handed Owner authority by an upgrade; a promotion of a member below admin
- * (an editor or, in the documented last-resort, a viewer) is the sensitive case and additionally
- * escalates to `console.error` naming the account and member, surfacing, never swallowing (§1).
- *
- * @param accountId     The ownerless account being repaired.
- * @param userId        The member promoted to Owner.
- * @param promotedFrom  The member's role before promotion (admin | editor | viewer).
- */
+// Boot-time promotions have no request audit sink, so console records every authority change.
+// A promotion from below admin also uses the error surface for operator review.
 function reportOwnerlessPromotion(accountId: string, userId: string, promotedFrom: Role): void {
   const belowAdmin = promotedFrom === "editor" || promotedFrom === "viewer";
   const record = JSON.stringify({
@@ -132,10 +114,7 @@ export function reportOwnerlessPromotionsV11(promotions: readonly OwnerlessPromo
  */
 export function migrateOwnerlessControlPlaneV11(db: Db): OwnerlessPromotionV11[] {
   return tx(db, () => {
-    // One promotion target per ownerless account: the active member no other active member outranks,
-    // where "outranks" = strictly higher role tier, or the same tier but an earlier membership. This
-    // extends the previous earliest-membership NOT EXISTS with the tier comparison, so exactly one row
-    // per ownerless account qualifies (userId is unique per account, so the tie-break is total).
+    // Choose the active member with highest role tier, then earliest join time and principal ID, so each ownerless account has one target.
     const targets = db
       .prepare(
         `

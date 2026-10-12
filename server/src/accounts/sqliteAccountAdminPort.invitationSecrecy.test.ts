@@ -621,8 +621,7 @@ function registerStaleInvitationReplayTest(): void {
       command,
     });
 
-    // The replay guard re-evaluates authority before re-disclosing the write-once token. Freshness
-    // is no longer part of that check, so the same command replays from an aged-out session…
+    // Replaying a secret requires current authority; ordinary invitation administration does not require freshness.
     const replayed = await port.createInvitation({
       actor: { ...actor, fresh: false },
       workspaceId: "workspace-1",

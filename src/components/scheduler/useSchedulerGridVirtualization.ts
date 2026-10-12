@@ -38,26 +38,7 @@ function resolveTimelineBounds(days: readonly string[]) {
   return { timelineStart: days[0], timelineEnd: days[days.length - 1] };
 }
 
-/**
- * The week-grid scheduler: the helicopter view of who's busy/free. Two non-obvious
- * mechanisms run here, read this before touching the scroll/render path.
- *
- * **1. Vertical virtualization.** The model (groups → rows) is flattened into one ordered
- * `items` list (group headers + the rows of expanded groups), then each item's height is
- * measured (`heights`), prefix-summed by `buildLayout`, and `resolveVirtualWindow` picks the
- * on-screen slice (`{first, last}`) for the current `scrollTop`/viewport height. Only that slice
- * is in the DOM; the vertical space of every skipped item is reserved by an aria-hidden spacer
- * div sized to the gap between consecutive rendered items, so the scrollbar geometry stays
- * correct (drop the spacers and the scroll height collapses, so the thumb and every offset would
- * be wrong). `heights`/`layout` are memoised on the item set, so a scroll frame only runs the
- * cheap edge-scan, not a full re-measure.
- *
- * **2. Drag pinning.** Vertical windowing continues to follow scrolling during a drag so newly
- * visible rows become drop targets. If the source row leaves that window, it is rendered as one
- * additional disjoint item at its real layout offset; this keeps the AllocationBar's document
- * pointer listeners mounted without rendering every intervening row. Horizontal date geometry
- * remains frozen until the gesture ends.
- */
+/** Derives row and group heights once per model, then renders the viewport slice while reserving skipped space. During drag, a source row outside that slice remains mounted at its layout offset so its pointer listeners survive scrolling; horizontal geometry stays frozen. */
 export function useSchedulerGridVirtualization({
   model,
   ui,
@@ -67,10 +48,7 @@ export function useSchedulerGridVirtualization({
 }: UseSchedulerGridVirtualizationInput) {
   const consumeResourceJump = useStore((state) => state.consumeResourceJump);
   const draggingAllocationId = useStore((state) => state.draggingAllocationId);
-  // Flatten the visible model into one ordered list of renderable items (group
-  // headers + the rows of expanded groups) so the grid can window them vertically:
-  // at small scale everything renders; past a viewport's worth, only the on-screen
-  // slice is in the DOM (the rest is reserved by top/bottom spacers).
+
   const items = useMemo(() => flattenVisibleItems(model, ui.collapsedGroups), [model, ui.collapsedGroups]);
 
   // Heights + their prefix-sum depend only on the item set (model/collapse), not on
@@ -95,9 +73,6 @@ export function useSchedulerGridVirtualization({
     [data.closures, timelineEnd, timelineStart],
   );
 
-  // Scroll a specific resource row into view when jumpToResource fires (command
-  // palette "jump to person"). Mirrors the recenterToken pattern. Uses layout.tops
-  // (prefix-sum of row heights) to find the vertical offset.
   const scrollToResource = ui.scrollToResource;
   useEffect(() => {
     if (!scrollToResource || scrollToResource.consumed || !scrollRef.current) return;

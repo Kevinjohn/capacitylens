@@ -9,7 +9,6 @@ import { InviteMemberPanel } from "./InviteMemberPanel";
 type InvitePanelProps = React.ComponentProps<typeof InviteMemberPanel>;
 type DialogProps = "inviteDialogOpen" | "openInviteDialog" | "closeInviteDialog";
 
-// The dialog's open state is owned by the caller; hold it here as MembersSection's hook does.
 function InvitePanelHarness(props: Omit<InvitePanelProps, DialogProps>) {
   const [open, setOpen] = useState(false);
   return (

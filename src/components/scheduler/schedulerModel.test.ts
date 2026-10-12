@@ -73,7 +73,6 @@ function buildCompanyWorkingWeekRow(data: AppData, accountWorkingDays: Weekday[]
 }
 
 describe("#257 characterization: company-off tint/capacity agreement", () => {
-  // Company closure also zeroes scheduled and available capacity.
   it("tints a company-closed Friday unavailable with zero available capacity", () => {
     const data = dataset();
     const resource = requireValue(
@@ -177,7 +176,6 @@ it("keeps discipline groups while ordering engagement partitions and externals d
   ]);
   expect(requireValue(model[2], "external group").rows.map((row) => row.resource.name)).toEqual(["Zeta", "Ferris"]);
 
-  // The same people with nobody Supplementary: the partition is derived, so the list goes flat.
   const studioOnly = {
     ...data,
     resources: data.resources.map((resource) => ({ ...resource, engagement: "studio" as const })),
@@ -196,8 +194,7 @@ it("keeps discipline groups while ordering engagement partitions and externals d
   );
 });
 
-// dataset() + one external party booked on a project activity over a weekend (zero-capacity for a
-// person), plus a stray time-off row, to prove externals carry no capacity signals at all.
+// External rows exclude capacity cues even for zero-availability dates and stray time-off records.
 
 function registerBuildSchedulerModelTest1() {
   it("groups by discipline and positions bars (no filters)", () => {
@@ -209,7 +206,7 @@ function registerBuildSchedulerModelTest1() {
       "a1 bar",
     );
     expect(a1.x).toBe(0);
-    // Two inclusive days at 48 pixels each determine the rendered width.
+
     expect(a1.width).toBe(96);
   });
 }
@@ -248,8 +245,7 @@ function registerBuildSchedulerModelTest2() {
 function registerBuildSchedulerModelTest3() {
   it("orders people before placeholders within a discipline (regardless of data order)", () => {
     const d = dataset();
-    // A placeholder listed before a person in the same discipline. The model must
-    // still surface the person first.
+
     d.resources = [
       makeResource({
         id: "ph",
@@ -299,7 +295,7 @@ function registerBuildSchedulerModelTest4(withPlaceholder: () => AppData) {
     });
     const ids = off.flatMap((g) => g.rows).map((r) => r.resource.id);
     expect(ids).not.toContain("ph");
-    // The placeholder's allocation is unreferenced, not errored. No bar for it anywhere.
+
     expect(allBars(off).map((b) => b.allocation.id)).not.toContain("a-ph");
   });
 }
@@ -327,9 +323,7 @@ function registerBuildSchedulerModelTest5(withPlaceholder: () => AppData) {
 
 function registerBuildSchedulerModelTest6(withPlaceholder: () => AppData) {
   it("placeholdersEnabled OFF excludes placeholders from per-discipline utilisation", () => {
-    // Per-discipline utilisation is the mean of row.utilization over group.rows (SchedulerGrid).
-    // The Design discipline holds r1 (a person) and ph (a placeholder); a hidden placeholder is
-    // simply absent from group.rows, so its load can't leak into the discipline average.
+    // Hidden placeholders must not contribute to group utilisation because averages use only modeled capacity rows.
     const off = buildSchedulerModel({
       data: withPlaceholder(),
       geom: geom,
@@ -365,10 +359,9 @@ function registerBuildSchedulerModelTest6(withPlaceholder: () => AppData) {
       on.find((g) => g.title === "Design"),
       "Design group with placeholders shown",
     );
-    // The placeholder is fully booked over the window while r1 is lighter, so including it (on)
-    // raises the discipline average above the placeholders-off figure.
+
     expect(avg(designOn.rows)).toBeGreaterThan(avg(designOff.rows));
-    // And off the discipline has only the one person row.
+
     expect(designOff.rows.map((r) => r.resource.id)).toEqual(["r1"]);
   });
 }
@@ -381,14 +374,13 @@ function registerBuildSchedulerModelTest7() {
       model.flatMap((g) => g.rows).find((r) => r.resource.id === "r1"),
       "r1 scheduler row",
     );
-    // a1 (8h×2) + a2 (4h×2, tentative) = 24h over 40 available -> 0.6, unaffected by the filter
+
     expect(r1.utilization).toBeCloseTo(0.6);
   });
 }
 
 function registerBuildSchedulerModelTest8() {
   it("displayed utilisation % follows the VISIBLE window (visStart/visEnd), not the whole timeline", () => {
-    // The visible window is 6/3–6/4, where r1 has 4h × 2 working days / (8h × 2) = 0.5.
     const model = buildSchedulerModel({
       data: dataset(),
       geom: geom,
@@ -407,7 +399,7 @@ function registerBuildSchedulerModelTest8() {
       "r1 scheduler row",
     );
     expect(r1.utilization).toBeCloseTo(0.5);
-    // The visible model (bars/day-states) still covers the full `days` range, unaffected by the window.
+
     expect(r1.dayStates.length).toBe(days.length);
   });
 }
@@ -415,7 +407,7 @@ function registerBuildSchedulerModelTest8() {
 function registerBuildSchedulerModelTest9() {
   it("overSoon stays on the FIXED forward window — independent of the visible window", () => {
     const d = dataset();
-    // Stack a second 8h allocation on r1's 6/1–6/2 (8 + 8 > 8 available -> over on those days).
+
     d.allocations.push({
       id: "a4",
       accountId: "acct-test",
@@ -428,8 +420,7 @@ function registerBuildSchedulerModelTest9() {
       hoursPerDay: 8,
       status: "confirmed",
     });
-    // Visible window 6/3–6/4 has no over day, but the fixed overSoon window 6/1–6/2 does, overSoon
-    // must read the fixed window, so r1 is flagged even though the visible window is clean.
+    // overSoon uses its fixed forward window even when the visible utilisation window contains no conflict.
     const rows = buildSchedulerModel({
       data: d,
       geom: geom,
@@ -454,7 +445,6 @@ function registerBuildSchedulerModelTest9() {
         rows.find((r) => r.resource.id === "r2"),
         "r2 scheduler row",
       ).overSoon,
-      // An eight-hour allocation equals the eight-hour availability and is not over capacity.
     ).toBe(false);
   });
 }
@@ -527,8 +517,6 @@ function registerBuildSchedulerModelTest12(
   buildLens: (filters?: ReturnType<typeof buildEmptyFilters>) => GroupModel[],
 ) {
   it("activity lens: a specific activity id limits bars to that activity", () => {
-    // Default (showUnmatched off): non-matching rows collapse out and matching rows show only
-    // their matching bars. (With showUnmatched on, dimmed rows show full real load by design.)
     const bars = buildLens({ ...buildEmptyFilters(), activityId: "t-rep" })
       .flatMap((g) => g.rows)
       .flatMap((r) => r.bars)
@@ -568,7 +556,6 @@ function registerBuildSchedulerModelTest15(
   buildLens: (filters?: ReturnType<typeof buildEmptyFilters>) => GroupModel[],
 ) {
   it("activity lens: dims (and by default hides) rows with no work on the filtered activity", () => {
-    // activityKind 'repeatable' matches only r2's a-rep. By default (showUnmatched off) r1 collapses out.
     const rows = buildLens({
       ...buildEmptyFilters(),
       activityKind: "repeatable",
@@ -579,8 +566,6 @@ function registerBuildSchedulerModelTest15(
 
 function registerBuildSchedulerModelTest16() {
   it("dims (not hides) a resource with no work on the active project when showUnmatched is opted in", () => {
-    // r1 works on p1; r2 has only p2 work → with showUnmatched on, r2 is dimmed but
-    // still shown (its a3 bar) so you can see it's available to staff onto p1.
     const rows = build({
       filters: {
         ...buildEmptyFilters(),
@@ -605,7 +590,6 @@ function registerBuildSchedulerModelTest16() {
 
 function registerBuildSchedulerModelTest17() {
   it("hides the unmatched (unallocated) rows by default", () => {
-    // emptyFilters() ships showUnmatched: false, filtering collapses to matching rows.
     const rows = build({ filters: { ...buildEmptyFilters(), projectId: "p1" } }).flatMap((g) => g.rows);
     expect(rows.map((r) => r.resource.id)).toEqual(["r1"]);
   });
@@ -613,9 +597,7 @@ function registerBuildSchedulerModelTest17() {
 
 function registerBuildSchedulerModelTest18() {
   it("does not leave a full-opacity zero-bar ghost row when the only match is a hidden tentative allocation", () => {
-    // r1's only p2 work (a2) is tentative; with hideTentative it's hidden, so r1 has no
-    // visible match. It must be treated as unmatched (dimmed), and filtered out when
-    // showUnmatched is off, not rendered as a full-opacity row with zero bars.
+    // Tentative work hidden by the filter cannot count as a visible match and leave an empty full-opacity row.
     const filters = {
       ...buildEmptyFilters(),
       projectId: "p2",
@@ -903,9 +885,6 @@ function registerBuildSchedulerModelTests() {
 
   registerBuildSchedulerModelTest3();
 
-  // dataset() + a placeholder in Design with an overbooking allocation, to prove the per-account
-  // placeholdersEnabled flag hides the row and drops its load from utilisation when off.
-
   registerBuildSchedulerModelTest4(buildPlaceholderData);
 
   registerBuildSchedulerModelTest5(buildPlaceholderData);
@@ -921,9 +900,6 @@ function registerBuildSchedulerModelTests() {
   registerBuildSchedulerModelTest10();
 
   registerBuildSchedulerModelTest11();
-
-  // dataset() + project-less activities (one internal, one all-projects) with an allocation each, so the
-  // activity lens has something to filter. r1 picks up an internal bar, r2 an all-projects one.
 
   registerBuildSchedulerModelTest12(buildLens);
 
@@ -958,50 +934,39 @@ function registerBuildSchedulerModelTests() {
 
 describe("buildSchedulerModel", registerBuildSchedulerModelTests);
 
-// Visible-window utilisation: the displayed % is computed over [visStart, visEnd] and so must change
-// exactly with the 1/2/4/8-week range toggle. The fixture below books a different density each week so
-// the four numbers genuinely differ (no coincidental equality), and an exact-span boundary booking
-// proves the inclusive end (no off-by-one). A single Mon–Fri resource, 8h/day → 40h/week capacity.
+// Use distinct booking density in each zoom window so visible utilisation must change when the window changes. An inclusive-edge booking separately pins the end boundary.
 function registerMovedSchedulerTests11381(utilOver: (visEnd: string) => number) {
   it("1 week → 100% (week-1 density only)", () => {
-    // Forty allocated hours over forty available hours gives full utilization.
     expect(utilOver("2026-06-07")).toBeCloseTo(1.0);
   });
 }
 
 function registerMovedSchedulerTests11382(utilOver: (visEnd: string) => number) {
   it("2 weeks → 75% (weeks 1–2)", () => {
-    // Sixty allocated hours over eighty available hours gives 75% utilization.
     expect(utilOver("2026-06-14")).toBeCloseTo(0.75);
   });
 }
 
 function registerMovedSchedulerTests11383(utilOver: (visEnd: string) => number) {
   it("4 weeks → 50% (weeks 1–4)", () => {
-    // Eighty allocated hours over 160 available hours gives 50% utilization.
     expect(utilOver("2026-06-28")).toBeCloseTo(0.5);
   });
 }
 
 function registerMovedSchedulerTests11384(utilOver: (visEnd: string) => number) {
   it("6 weeks → 33% (weeks 1–6, weeks 5–6 idle)", () => {
-    // 6-week inclusive end = visStart 06-01 + (6×7 − 1 = 41 days) = 07-12. Booked hours are weeks 1–4
-    // only (40 + 20 + 10 + 10 = 80); weeks 5–6 are unbooked. Capacity = 6 weeks × 40h = 240. 80/240.
-    // Eighty allocated hours over 240 available hours gives one-third utilization.
     expect(utilOver("2026-07-12")).toBeCloseTo(1 / 3);
   });
 }
 
 function registerMovedSchedulerTests11385(utilOver: (visEnd: string) => number) {
   it("8 weeks → 25% (weeks 1–8, second half idle)", () => {
-    // Eighty allocated hours over 320 available hours gives 25% utilization.
     expect(utilOver("2026-07-26")).toBeCloseTo(0.25);
   });
 }
 
 function registerMovedSchedulerTests11386(utilOver: (visEnd: string) => number) {
   it("the five zoom spans produce five DISTINCT numbers (the toggle genuinely recalculates)", () => {
-    // One per ZOOM_LEVELS entry (1/2/4/6/8 weeks): 100 / 75 / 50 / 33 / 25.
     const nums = [
       utilOver("2026-06-07"),
       utilOver("2026-06-14"),
@@ -1015,13 +980,9 @@ function registerMovedSchedulerTests11386(utilOver: (visEnd: string) => number) 
 
 function registerMovedSchedulerTests11387(buildBoundaryModel: (id: string, allocationDate: ISODate) => GroupModel[]) {
   it("inclusive-end boundary: a booking on the visible window LAST day counts; the day AFTER does not", () => {
-    // Unbooked base fixture so only the boundary booking moves the number. Window = 1 week
-    // [06-01, 06-07]; capacity 40h. An 8h booking on the last working day before/at the edge
-    // counts; a booking the day after the inclusive end (06-08, a Monday) is outside and excluded.
-    // 06-05 (Friday) is inside [06-01, 06-07]: 8h on one working day → 8 / 40 = 0.2.
     const inModel = buildBoundaryModel("in", "2026-06-05");
     expect(inModel.flatMap((g) => g.rows)[0]?.utilization).toBeCloseTo(0.2);
-    // 06-08 (Monday) is the day after the inclusive end → outside the window → 0%.
+
     const afterModel = buildBoundaryModel("af", "2026-06-08");
     expect(afterModel.flatMap((g) => g.rows)[0]?.utilization).toBe(0);
   });
@@ -1034,7 +995,6 @@ function buildVisibleWindowDensityData(): AppData {
     activities: [makeActivity({ accountId: "acct-test", name: "T1" })],
     resources: [makeResource({ id: "r1", accountId: "acct-test", name: "Dana", role: "Designer", color: "#4" })],
     allocations: [
-      // Week 1 (06-01..06-07): 8h/day Mon–Fri → 40/40 = 100%.
       makeAllocation({
         id: "w1",
         accountId: "acct-test",
@@ -1042,7 +1002,7 @@ function buildVisibleWindowDensityData(): AppData {
         endDate: "2026-06-05",
         hoursPerDay: 8,
       }),
-      // Week 2 (06-08..06-14): 4h/day Mon–Fri → 20/40 = 50%.
+
       makeAllocation({
         id: "w2",
         accountId: "acct-test",
@@ -1050,7 +1010,7 @@ function buildVisibleWindowDensityData(): AppData {
         endDate: "2026-06-12",
         hoursPerDay: 4,
       }),
-      // Weeks 3–4 (06-15..06-26): 2h/day Mon–Fri → 10/40 each.
+
       makeAllocation({
         id: "w34",
         accountId: "acct-test",
@@ -1058,7 +1018,6 @@ function buildVisibleWindowDensityData(): AppData {
         endDate: "2026-06-26",
         hoursPerDay: 2,
       }),
-      // Weeks 5–8 (06-29..07-26): unbooked → 0%.
     ],
     timeOff: [],
   };
@@ -1113,13 +1072,6 @@ function registerVisibleWindowUtilisationTests() {
       },
     });
 
-  // 8 weeks of timeline starting Mon 2026-06-01, anchored at the left edge (visStart = 06-01).
-  // Monday
-  // 8 weeks (56 days) exactly
-
-  // Build with the visible window [winStart, visEnd], a no-op fixed overSoon window, and read r1's %.
-
-  // Inclusive end = visStart + (zoom*7 - 1): 1w → +6, 2w → +13, 4w → +27, 8w → +55.
   registerMovedSchedulerTests11381(utilOver);
   registerMovedSchedulerTests11382(utilOver);
   registerMovedSchedulerTests11383(utilOver);
@@ -1135,13 +1087,13 @@ describe("displayed utilisation % over the visible window (1/2/4/8 weeks)", regi
 function registerMovedSchedulerTests12741(buildExt: (options?: BuildExtOptions) => GroupModel[]) {
   it("renders external resources in a neutral band that is ALWAYS last", () => {
     const model = buildExt();
-    // Discipline bands first, then the external band, never interleaved.
+
     expect(model.map((g) => g.key)).toEqual(["d-design", "d-dev", "external"]);
     const last = model[model.length - 1];
     expect(last).toBeDefined();
     if (!last) throw new Error("Expected the external resource group.");
     expect(last.title).toBe("External / 3rd party");
-    // The unassigned item uses the neutral color.
+
     expect(last.color).toBe("#9ca3af");
     expect(last.rows.map((r) => r.resource.id)).toEqual(["ext1"]);
   });
@@ -1173,7 +1125,7 @@ function registerMovedSchedulerTests12743(buildExt: (options?: BuildExtOptions) 
 function registerMovedSchedulerTests12744(buildExt: (options?: BuildExtOptions) => GroupModel[]) {
   it("disciplines off → external STILL forms its own trailing band after the people", () => {
     const model = buildExt({ disciplinesEnabled: false });
-    // The studio-only resource rows remain flat and appear alongside the external resource.
+
     expect(model).toHaveLength(2);
     expect(model[0]?.title).toBe("Resources");
     expect(model[0]?.rows.map((r) => r.resource.id).sort()).toEqual(["r1", "r2"]);
@@ -1187,7 +1139,7 @@ function registerMovedSchedulerTests12745(buildExt: (options?: BuildExtOptions) 
     const off = buildExt({ disciplinesEnabled: true, externalEnabled: false });
     const ids = off.flatMap((g) => g.rows).map((r) => r.resource.id);
     expect(ids).not.toContain("ext1");
-    // The external's allocation is unreferenced, not errored. No bar for it anywhere.
+
     expect(
       off
         .flatMap((g) => g.rows)
@@ -1199,11 +1151,9 @@ function registerMovedSchedulerTests12745(buildExt: (options?: BuildExtOptions) 
 
 function registerMovedSchedulerTests12746(buildExt: (options?: BuildExtOptions) => GroupModel[]) {
   it("externalEnabled OFF drops the (now-empty) External band header entirely (risk #2)", () => {
-    // The trailing external band must not render as an empty header when externals are hidden, the
-    // model's `rows.length > 0` filter drops the whole group, so no 'external' key survives.
     const off = buildExt({ disciplinesEnabled: true, externalEnabled: false });
     expect(off.map((g) => g.key)).not.toContain("external");
-    // And with disciplines off too, only the Studio group remains (no empty external band).
+
     const offFlat = buildExt({ disciplinesEnabled: false, externalEnabled: false });
     expect(offFlat.map((g) => g.key)).not.toContain("external");
     expect(offFlat).toHaveLength(1);
@@ -1261,22 +1211,20 @@ describe("external / 3rd-party band", () => {
   registerMovedSchedulerTests12747(buildExt);
 });
 
-// dataset() + a built-in Internal client that owns a real project (pInt), plus a project-less
-// internal activity. Both bucket under Internal: filtering by the Internal client id must show
-// (a) the project-less activity and (b) the Internal-owned project's activity.
+// The Internal client filter includes both its own project activities and project-less internal work, whose client identity is derived.
 function withInternal(): AppData {
   const d = dataset();
   d.clients.push(
     makeClient({ id: "c-internal", accountId: "acct-test", name: "Internal", color: "#9c3ace", builtin: true }),
   );
-  // A real project owned by the Internal client, with a project activity on it.
+
   d.projects.push(
     makeProject({ id: "pInt", accountId: "acct-test", name: "Internal Project", clientId: "c-internal", color: "#6" }),
   );
   d.activities.push(
     makeActivity({ id: "tIntProj", accountId: "acct-test", name: "Internal Proj Activity", projectId: "pInt" }),
   );
-  // A project-less internal activity (derives client = Internal in the view-model).
+
   d.activities.push({
     id: "tIntNoProj",
     accountId: "acct-test",
@@ -1285,7 +1233,7 @@ function withInternal(): AppData {
     name: "Admin",
     kind: "internal",
   });
-  // r1 books both; a3 (under p1/Ferris) is unrelated to Internal.
+
   d.allocations.push(
     makeAllocation({ id: "aIntProj", accountId: "acct-test", activityId: "tIntProj", hoursPerDay: 4 }),
     makeAllocation({
@@ -1388,8 +1336,7 @@ function registerMovedSchedulerTests14851(
 ) {
   it("filtering by the Internal client shows BOTH the project-less activity AND the Internal-owned project activity", () => {
     const model = buildInternal({ ...buildEmptyFilters(), clientId: internalId });
-    // aIntProj (under the Internal-owned project pInt) + aIntNoProj (project-less, derived Internal);
-    // a3 (under Ferris's p1) and the other Ferris work are excluded.
+
     expect(internalBarIds(model)).toEqual(["aIntNoProj", "aIntProj"]);
   });
 }
@@ -1400,7 +1347,7 @@ function registerMovedSchedulerTests14852(
 ) {
   it("a project-less activity is NOT shown when filtering by a different (non-Internal) client", () => {
     const model = buildInternal({ ...buildEmptyFilters(), clientId: "c1" });
-    // Only Ferris (c1) work, never the project-less internal activity.
+
     expect(internalBarIds(model)).not.toContain("aIntNoProj");
     expect(internalBarIds(model)).not.toContain("aIntProj");
   });
@@ -1566,8 +1513,6 @@ function buildInternalAndRepeatableData(): AppData {
   return d;
 }
 
-// Internal work is always shown: internal-client projects, internal-kind activities and all-projects
-// work (attributed or not) each keep their bars alongside ordinary project work.
 describe("internal-work bars", () => {
   it("shows every internal and all-projects bar alongside ordinary work", () => {
     const ids = barIds(
@@ -1585,14 +1530,11 @@ describe("internal-work bars", () => {
   });
 });
 
-// The scheduler renders the active-only projection (SchedulerGrid reads useActiveScopedData,
-// which runs the same shared `activeOnly` exercised here). Prove that an archived resource and a
-// soft-deleted resource produce no lanes when the data is passed through `activeOnly`, while the
-// active resources still do, pinning the production seam, not a re-implementation of the filter.
+// Exercise the shared active-only projection before modeling so retained inactive rows cannot create normal schedule lanes.
 function registerMovedSchedulerTests17941(withNonActive: () => AppData, buildActive: (data: AppData) => GroupModel[]) {
   it("RAW data renders the archived + deleted lanes; the active-only projection does NOT", () => {
     const d = withNonActive();
-    // Sanity: without the projection, all four people + their bars render (the filter is what hides them).
+
     const raw = buildSchedulerModel({
       data: d,
       geom: geom,
@@ -1609,18 +1551,17 @@ function registerMovedSchedulerTests17941(withNonActive: () => AppData, buildAct
     const rawResourceIds = raw.flatMap((g) => g.rows).map((r) => r.resource.id);
     expect(rawResourceIds).toEqual(expect.arrayContaining(["r1", "r2", "r-arch", "r-del"]));
 
-    // With activeOnly: the archived + soft-deleted lanes are gone; the active ones remain.
     const model = buildActive(d);
     const resourceIds = model.flatMap((g) => g.rows).map((r) => r.resource.id);
-    // Only people active in this account appear in the model.
+
     expect(resourceIds).toEqual(["r1", "r2"]);
     expect(resourceIds).not.toContain("r-arch");
     expect(resourceIds).not.toContain("r-del");
-    // No bars for the dropped resources (their allocations have nowhere to land).
+
     const barIdsAll = barIds(model);
     expect(barIdsAll).not.toContain("a-arch");
     expect(barIdsAll).not.toContain("a-del");
-    // Their now-empty discipline bands are dropped entirely (no empty Ops / QA headers).
+
     expect(model.map((g) => g.title)).not.toContain("Ops");
     expect(model.map((g) => g.title)).not.toContain("QA");
   });
@@ -1628,8 +1569,6 @@ function registerMovedSchedulerTests17941(withNonActive: () => AppData, buildAct
 
 function registerMovedSchedulerTests17942(buildActive: (data: AppData) => GroupModel[]) {
   it("hides scheduled work beneath an archived client", () => {
-    // An active project whose client is archived, plus an active activity on it, booked to r1.
-    // The retained storage rows must not leak into the normal scheduler projection.
     const d = dataset();
     d.clients.push({
       id: "c-arch",
@@ -1696,7 +1635,6 @@ function buildNonActiveResourceData(): AppData {
     },
   );
   d.resources.push(
-    // archived (archivedAt set), must not render.
     makeResource({
       id: "r-arch",
       accountId: "acct-test",
@@ -1706,7 +1644,7 @@ function buildNonActiveResourceData(): AppData {
       disciplineId: "d-ops",
       color: "#6",
     }),
-    // soft-deleted (deletedAt set), must not render.
+
     makeResource({
       id: "r-del",
       accountId: "acct-test",
@@ -1718,7 +1656,7 @@ function buildNonActiveResourceData(): AppData {
       color: "#7",
     }),
   );
-  // A booking on each non-active resource. The lane and its bars must drop together.
+
   d.allocations.push(
     makeAllocation({ id: "a-arch", accountId: "acct-test", resourceId: "r-arch" }),
     makeAllocation({ id: "a-del", accountId: "acct-test", resourceId: "r-del" }),
@@ -1741,9 +1679,6 @@ function registerActiveOnlySchedulerTests() {
         externalEnabled: true,
       },
     });
-
-  // dataset() has active people r1 (Design) + r2 (Development). Add an archived person and a
-  // soft-deleted person, each in their own discipline so a dropped lane also empties its band.
 
   registerMovedSchedulerTests17941(buildNonActiveResourceData, buildActive);
 

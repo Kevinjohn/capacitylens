@@ -19,6 +19,7 @@ function useToolbarHistory() {
     try {
       action();
     } catch (error) {
+      // Surface a rejected toolbar mutation instead of letting it escape its event handler.
       setNotice(resolveErrorMessage(error), "error");
     }
   };

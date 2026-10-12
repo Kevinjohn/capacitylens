@@ -54,21 +54,16 @@ const AccountView = lazy(() =>
   import("./components/account/AccountView").then((module) => ({ default: module.AccountView })),
 );
 const HelpView = lazy(() => import("./components/HelpView").then((module) => ({ default: module.HelpView })));
-// Invite accept: its own top-level route, outside AppShell's tenant/account gate so the safe
-// preview and invite-specific onboarding render before a company is selected. AuthProvider carves
-// this route out of the password login wall: an unauthenticated visitor signs in on the invite page,
-// reloads onto the same URL, then explicitly accepts as that identity. Lazy so the chunk loads only
-// when an invite link is actually opened.
+// Keep invite acceptance outside the tenant gate so a new identity can inspect and
+// accept an invitation before selecting a company. Load its route only when opened.
 const InviteAccept = lazy(() =>
   import("./components/invites/InviteAccept").then((module) => ({ default: module.InviteAccept })),
 );
 const JoinCompany = lazy(() =>
   import("./components/join/JoinCompany").then((module) => ({ default: module.JoinCompany })),
 );
-// Password reset is a top-level route outside AppShell, like InviteAccept, but unlike
-// an invite it must render for a visitor with no session (they're locked out; that's the point), so
-// AuthProvider carves /reset-password/ out of the login wall (see the status 'login' branch there).
-// Lazy for the same bundle reason: the chunk loads only when a reset link is actually opened.
+// Keep password reset outside tenant and login gates so a visitor without a session
+// can redeem a reset link.
 const ResetPassword = lazy(() => import("./auth/ResetPassword").then((module) => ({ default: module.ResetPassword })));
 
 /** Shows a localized loading status while route access is unresolved. */
@@ -104,7 +99,6 @@ export function CapacityOverviewRoute() {
   return decision === "allowed" ? <CapacityOverviewView /> : <Navigate to="/" replace />;
 }
 
-// Diagnostics is Owner/Admin-only, with the Overview route's pending and auth-off handling.
 /** Renders diagnostics only for authorized owners or administrators. */
 export function DiagnosticsRoute() {
   const decision = useDiagnosticsAccessDecision();
@@ -134,16 +128,13 @@ export const router = createBrowserRouter([
   {
     path: "/",
     element: <AppShell />,
-    // A render error in AppShell or any child route bubbles to this boundary and shows
-    // the branded recovery screen, otherwise the data router renders its bland default.
+    // Surface render failures through the branded recovery boundary.
     errorElement: <RouteError />,
     children: [
       { index: true, element: <SchedulerView /> },
       { path: "overview", element: <CapacityOverviewRoute /> },
       { path: "resources", element: <ResourceList /> },
-      // External / 3rd parties moved into the Resources tab (behind the per-account
-      // `externalEnabled` setting). Keep the old path so saved bookmarks don't 404, redirect
-      // it to /resources rather than leaving a dangling lazy chunk.
+      // Preserve the legacy external-resource bookmark by redirecting it to Resources.
       { path: "external", element: <Navigate to="/resources" replace /> },
       { path: "disciplines", element: <DisciplineRoute /> },
       { path: "clients", element: <ClientList /> },
@@ -158,11 +149,8 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    // Invite accept is a sibling of AppShell, not a child: AppShell's
-    // tenant gate would otherwise show the AccountPicker before this page ever ran. It carries its
-    // own errorElement + Suspense boundary (AppShell provides those only for its children). The
-    // surrounding AuthProvider (main.tsx) provides identity state and lets this token-scoped
-    // onboarding page render before a session exists.
+    // This public route owns its loading and error boundaries because the tenant shell
+    // cannot wrap onboarding before a company is selected.
     path: PUBLIC_AUTH_ENTRY_PATHS.invitation,
     errorElement: <RouteError />,
     element: (
@@ -181,9 +169,8 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    // Password reset is a sibling of AppShell for the same reason as /invite (no tenant gate),
-    // with its own errorElement + Suspense. AuthProvider additionally lets this path through the
-    // login wall, the visitor redeeming a reset link is exactly the person who cannot sign in.
+    // This public recovery route needs its own loading and error boundaries because
+    // visitors redeeming reset links may have no session or company.
     path: PUBLIC_AUTH_ENTRY_PATHS.passwordReset,
     errorElement: <RouteError />,
     element: (

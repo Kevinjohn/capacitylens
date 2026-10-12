@@ -128,9 +128,8 @@ async function loadRemoteSlice(
   { accountId, myGen }: LoadRequest,
 ): Promise<AppData> {
   try {
-    // Every request carries credentials so auth-enabled servers see the Better Auth session cookie.
-    // With auth off, same-origin requests send no cookies; the server pairs reflected CORS origins
-    // with Allow-Credentials.
+    // Include credentials so authenticated servers receive the session cookie on same-origin
+    // and permitted cross-origin requests.
     const url =
       accountId !== undefined
         ? `${state.baseUrl}/api/state?accountId=${encodeURIComponent(accountId)}`
@@ -154,40 +153,15 @@ async function loadRemoteSlice(
       return empty;
     }
     if (!res.ok) throw new Error(`Failed to load state (${res.status})`);
-    // An HTML body (the SPA-fallback index.html or a proxy error page, a reachable case now an
-    // empty-env server-default build can hit a backend-less same-origin host) starts with '<', so
-    // native res.json() runs JSON.parse and rejects with a SyntaxError. That rejection is caught
-    // below and mapped to LoadError('unavailable') → the connection-error screen; it does not reach
-    // migrate(). So migrate() only ever sees a body that already parsed as JSON.
+    // Treat non-JSON server responses as unavailable so recovery retries the remote read
+    // instead of migrating a proxy page or clearing local data.
     const json: unknown = await res.json();
-    // Deployment contract (rolling deploy, new client, older server): a version-skewed older
-    // server may omit a table key this newer client already knows about. A missing key is
-    // tolerated on both read paths (the unscoped migrate()/normalize hydrates it empty, and the
-    // scoped path pre-fills it empty below so parseAccountSlice hydrates it empty too), so a
-    // new-client/old-server skew is not a total outage on every deploy, and an account switch or
-    // scoped load during a version-skew window no longer throws "incomplete state payload". But a
-    // key that is present and not an array is a corrupt/incomplete payload masquerading as empty
-    // data, so it stays a hard failure on both paths. (Same principle as the import path's
-    // hasNonArrayKnownTable: repair within a record, reject a structurally broken one, never coerce
-    // a broken table to [] and report it as success.) The cross-tenant (wrong accountId) checks
-    // inside parseAccountSlice keep their full strictness regardless.
-    // A missing known key is tolerated (hydrated empty) but diagnosable: warn once per load, naming
-    // every omitted table. A rolling-deploy skew (new client, older server) is the expected benign
-    // cause; the same warning against a same-version server is the signal that a proxy or server bug
-    // silently dropped a table, without this it would load as "empty" invisibly and be undiagnosable.
-    // Scoped path: pre-fill any missing known table as an empty array so parseAccountSlice
-    // hydrates it empty instead of hard-failing "incomplete" (its per-key Array.isArray check treats
-    // an absent key as a reject). We do this in the scoped branch rather than in parseAccountSlice
-    // itself because other callers of that validator (fetchInactiveSlice's backup/export path) rely
-    // on its full-completeness contract. Present-but-non-array was already rejected above; the
-    // accountId cross-tenant checks still run at full strictness on the real rows.
+    // Missing tables may hydrate empty only when no retained row references them.
+    // Present non-array tables and cross-tenant rows remain failures. Warn on omissions
+    // so compatible version skew is observable; complete backup reads keep stricter validation.
     const loaded = parseLoadedState(json, accountId);
-    // Re-seed the diff snapshot to the slice we just loaded (atomic with the load, see the
-    // method doc). A switch orchestrator calling loadAll(newId) gets lastSynced === the new
-    // account's slice, so the immediately-following saveAll diffs new-vs-new = zero ops, never
-    // cross-account deletes. Generation-guarded: a superseded load (a newer loadAll started
-    // while this fetch was in flight) must not seed. Its slice is discarded by persist.ts's
-    // token guard, and seeding here anyway would desync snapshot from data (see loadGen).
+    // Pair the loaded slice with its baseline only while this generation owns hydration,
+    // so a superseded response cannot make a later save diff across tenants.
     await applyLiveLoadEffects({ state, saveAll, loaded, myGen, accountId });
     return loaded.data;
   } catch (e) {
@@ -255,6 +229,9 @@ export async function hydrateFromOfflineCache(
   return null;
 }
 
+/** Reads the server’s validated hasData metadata.
+ * @throws When transport, HTTP status or response shape cannot establish the answer.
+ */
 export async function readHasExistingData(state: SyncState): Promise<boolean> {
   const res = await state.request(`${state.baseUrl}/api/meta`, {
     credentials: "include",

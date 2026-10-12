@@ -73,24 +73,10 @@ export interface Auth {
   ensureProviderBindings: () => void;
   /** Verify every configured issuer/provider alias without writing (operator preflight). */
   assertProviderBindings?: () => void;
-  /** Create a user + credential account as one SQLite transaction, bypassing the
-   * public sign-up route entirely (and with it, the route's minPasswordLength check,
-   * internalAdapter.createUser never validates password shape, only the sign-up.mjs handler
-   * does). This is why the instance-wide minPasswordLength floor no longer needs to be bent for
-   * the bootstrap boot (see the comment on minPasswordLength below authFromEnv).
-   *
-   * Deliberately the only way to reach Better Auth's internalAdapter from outside this module,
-   * earlier this exposed hashPassword/createUser/linkAccount as three independently callable
-   * methods, an interface shape that invited a future caller to create a user with no credential
-   * (an orphaned row that permanently locks out the bootstrap: {@link countUsers} > 0 forever,
-   * with no sign-in-able account). This method owns hash → user → credential-link sequencing
-   * and the transaction boundary, so that hazard can't recur. An optional local correlation
-   * callback joins another same-database write (the invitation command's principal coordinate)
-   * to that transaction. Resolves once Better Auth's async init context ($context) is ready;
-   * nothing else should call it. Every other caller goes through the narrow api surface above.
-   *
-   * @throws when hashing or any transaction participant fails; SQLite rolls every credential and
-   * correlation write back before the failure escapes.
+  /** Creates the user, credential link and optional correlation write in one SQLite transaction.
+   * Callers must validate password policy first because this path bypasses the public sign-up handler.
+   * Hashing completes before the transaction so concurrent requests do not encounter an open transaction across an await.
+   * @throws When hashing or a participant fails; transaction failures roll back all credential and correlation writes.
    */
   createCredentialUser: (input: CreateCredentialUserInput) => Promise<{ id: string }>;
   /** Remove a just-created credential identity when a later invite claim cannot commit. */
@@ -140,15 +126,9 @@ export const DEFAULT_ACCOUNT_APPLICATION: BoundApplication = {
 };
 
 /**
- * The normalized session principal the whole server depends on (membership lookups,
- * `/api/auth/me`, invite binding), decoupled from Better Auth's richer user type.
- *
- * `emailVerified` is the IdP-asserted verified-email flag. It defaults to `false` when a
- * provider omits it (see {@link buildSessionUser}): an unverifiable provider is treated as
- * unverified. SSO email-preauthorised invites bind a session only when `emailVerified === true`;
- * password deployments instead treat possession of the addressed invite as the verification
- * ceremony because they have no outbound email-verification service. Never widen the SSO check to
- * "truthy" or default this flag to `true`.
+ * Represents provider-neutral session identity used for authorization and invitation binding.
+ * Missing verified-email claims default to false. SSO invitations require the exact true value;
+ * password invitations establish address proof through possession of the addressed invite.
  */
 export interface SessionUser {
   id: string;

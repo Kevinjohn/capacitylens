@@ -38,7 +38,6 @@ function isSwitchSuccessful(outcome: RefreshOutcome, accountId: string | null): 
 }
 
 /** Store and persistence operations required to switch masquerade accounts safely. */
-/** Store and persistence operations required to switch masquerade accounts safely. */
 export interface MasqueradeControllerDependencies {
   flush: () => Promise<FlushPendingWritesResult>;
   suspend: () => ResumeWrites;
@@ -104,6 +103,7 @@ export class MasqueradeController {
         return this.fail("The member view started, but its data could not be loaded. Retry or end the masquerade.");
       }
     } catch (error) {
+      // A failed target projection must remain visible only to its owning masquerade generation.
       if (!this.ownsRuntime(generation, "starting")) return false;
       console.error("Masquerade target projection could not be loaded", error);
       return this.fail("The member view started, but its data could not be loaded. Retry or end the masquerade.");
@@ -130,6 +130,7 @@ export class MasqueradeController {
     try {
       flush = await this.dependencies.flush();
     } catch (error) {
+      // Release the pending start claim and show the save failure only while this start generation still owns the UI.
       if (this.startPendingGeneration !== generation) return false;
       this.startPendingGeneration = null;
       if (this.generation !== generation) return false;
@@ -140,6 +141,7 @@ export class MasqueradeController {
     try {
       state = await this.dependencies.api.start(accountId, targetUserId);
     } catch (error) {
+      // Preserve start-generation ownership while surfacing a refused or failed masquerade start.
       return this.failOwnedStart(generation, error);
     }
     if (!this.ownsRuntime(generation, "starting")) return false;
@@ -160,6 +162,7 @@ export class MasqueradeController {
         return this.fail("The member view could not be loaded.");
       }
     } catch (error) {
+      // Keep a failed projection retry visible without letting an older generation overwrite the current view.
       if (!this.ownsRuntime(generation, runtime.kind)) return false;
       console.error("Masquerade projection retry failed", error);
       return this.fail("The member view could not be loaded.");
@@ -252,6 +255,7 @@ export class MasqueradeController {
       useStore.getState().setMasquerade({ kind: "inactive" });
       return { kind: "inactive" };
     } catch (error) {
+      // Return a typed failed outcome only to the owning end generation so stale completions cannot change current recovery state.
       if (!this.ownsRuntime(generation, "ending")) return { kind: "superseded" };
       this.fail(error instanceof Error ? error.message : failureMessage);
       return { kind: "failed" };
@@ -293,6 +297,7 @@ export class MasqueradeController {
         return;
       }
     } catch (error) {
+      // A completed remote end still needs visible recovery if reloading the real account fails.
       if (!this.ownsRuntime(generation, "ending")) return;
       console.error("The real account projection could not be restored", error);
       this.fail("The masquerade ended, but the real account view could not be restored. Retry.");

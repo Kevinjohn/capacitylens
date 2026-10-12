@@ -143,6 +143,7 @@ function createProviderSignIn({
         });
         window.location.assign(result.data.url);
       } catch {
+        // Release provider busy state and show the verification failure so the sign-in screen remains retryable.
         setPendingProvider(null);
         setError(m.microsoft_verify_action_failed());
         setBusy(false);
@@ -160,6 +161,7 @@ function createProviderSignIn({
         setBusy(false);
       }
     } catch (error) {
+      // Log the transport cause and restore retryable sign-in controls without displaying raw provider internals.
       console.error("LoginScreen: SSO sign-in request failed", error);
       setPendingProvider(null);
       setError(m.login_network_error());

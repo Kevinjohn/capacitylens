@@ -2,8 +2,6 @@ import { memo } from "react";
 import { resolveAccessibleBarColors } from "@capacitylens/shared/lib/color";
 import { Avatar as ShadAvatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-// CapacityLens colour and avatar compositions.
-
 /** Shows a preset colour without changing its semantic value. */
 export function ColorSwatch({ color }: { color: string }) {
   return (

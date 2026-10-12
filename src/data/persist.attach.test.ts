@@ -14,8 +14,7 @@ import { requireCallback, a2Slice, attachActiveA2 } from "./__tests__/persistTes
 
 beforeEach(() => {
   localStorage.clear();
-  // Seeds a single account and makes it active, so the add* calls below
-  // (which now require an active account) work.
+  // Seed an active account because store additions require an account scope.
   resetStoreWithAccount();
 });
 
@@ -351,11 +350,11 @@ it("attachPersistence a successful save settling after detach cannot call the ol
 
 it("attachPersistence flushes a pending debounced write on pagehide (so a tab close does not lose it)", async () => {
   const adapter = new InMemoryDemoAdapter();
-  const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 300 }); // debounced, not immediate
+  const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 300 });
   useStore.getState().addClient({ name: "Ferris", color: "#1" });
-  expect((await adapter.loadAll()).clients).toHaveLength(0); // still inside the debounce window
+  expect((await adapter.loadAll()).clients).toHaveLength(0);
   window.dispatchEvent(new Event("pagehide"));
-  expect((await adapter.loadAll()).clients).toHaveLength(1); // flushed synchronously
+  expect((await adapter.loadAll()).clients).toHaveLength(1);
   detach();
 });
 
@@ -402,14 +401,14 @@ it("attachPersistence keeps a newer failed teardown snapshot dirty when an older
     });
 
     useStore.getState().addClient({ name: "First", color: "#111111" });
-    await vi.advanceTimersByTimeAsync(300); // first normal save is now in flight
-    useStore.getState().addClient({ name: "Latest", color: "#222222" }); // still debounced
-    window.dispatchEvent(new Event("pagehide")); // newer teardown save rejects
+    await vi.advanceTimersByTimeAsync(300);
+    useStore.getState().addClient({ name: "Latest", color: "#222222" });
+    window.dispatchEvent(new Event("pagehide"));
     await Promise.resolve();
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "keepalive dropped" }));
     expect(hasUnsavedPersistenceWrites()).toBe(true);
 
-    requireCallback(releaseFirst, "first save release")(); // the older success must not cancel the newer snapshot's retry
+    requireCallback(releaseFirst, "first save release")();
     await Promise.resolve();
     await vi.advanceTimersByTimeAsync(1000);
 
@@ -484,8 +483,6 @@ it("attachPersistence keeps a lifecycle-only pagehide deletion dirty until its a
 });
 
 it("attachPersistence reports a failed write via onError, then a recovered write via onSuccess", async () => {
-  // A transient write failure (e.g. server unreachable) should fire onError; the
-  // next successful write must fire onSuccess so the caller can clear the banner.
   const adapter = new InMemoryDemoAdapter();
   const realSave = adapter.saveAll.bind(adapter);
   let calls = 0;
@@ -537,12 +534,12 @@ it("attachPersistence retries a failed write in the background without waiting f
     });
 
     useStore.getState().addClient({ name: "Retry Me", color: "#333333" });
-    await vi.advanceTimersByTimeAsync(0); // first attempt → fails, schedules retry
+    await vi.advanceTimersByTimeAsync(0);
     expect(calls).toBe(1);
     expect(onSuccess).not.toHaveBeenCalled();
     expect(readPersistenceDiagnosticsSnapshot()).toMatchObject({ savesFailed: 1, retriesArmed: 1 });
 
-    await vi.advanceTimersByTimeAsync(1000); // first backoff (2^0 * 1000ms) → succeeds
+    await vi.advanceTimersByTimeAsync(1000);
     expect(calls).toBe(2);
     expect(onSuccess).toHaveBeenCalled();
     expect((await adapter.loadAll()).clients.some((c) => c.name === "Retry Me")).toBe(true);
@@ -574,12 +571,10 @@ it("attachPersistence re-attempts a write stranded after the retry budget is spe
     });
 
     useStore.getState().addClient({ name: "Stranded", color: "#444444" });
-    await vi.advanceTimersByTimeAsync(0); // initial attempt fails
-    await vi.advanceTimersByTimeAsync(60_000); // 1+2+4+8+16s backoffs all fail → budget exhausted
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(60_000);
     expect(onSuccess).not.toHaveBeenCalled();
 
-    // A bare `online` while still failing would also be gated by failedSinceSuccess; here
-    // the connection truly returns, so the re-attempt lands.
     online = true;
     window.dispatchEvent(new Event("online"));
     await vi.advanceTimersByTimeAsync(0);
@@ -598,7 +593,7 @@ it("attachPersistence does NOT re-write on an online event when nothing is stran
   useStore.getState().addClient({ name: "Synced", color: "#555555" });
   await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
   const callsAfterSync = saveAll.mock.calls.length;
-  // No prior failure → an online event is a no-op (gated on failedSinceSuccess).
+
   window.dispatchEvent(new Event("online"));
   expect(saveAll.mock.calls.length).toBe(callsAfterSync);
   detach();

@@ -9,7 +9,6 @@ export { FROZEN_REPLY_MESSAGES } from "@capacitylens/shared/api/replyMessages";
 
 /** Canonical client-facing messages used by route error responses. */
 export const REPLY_ERRORS = {
-  // Generic transport and server failures.
   internalServerError: "Internal server error.",
   constraintViolation: "That change references missing data or conflicts with an existing record.",
   requestBodyTooLarge: "Request body is too large.",
@@ -22,13 +21,11 @@ export const REPLY_ERRORS = {
   crossSiteRequest: "Cross-site request rejected.",
   invalidRequestAuthority: "Invalid request authority.",
 
-  // Account command headers.
   idempotencyKeyInvalid: "Idempotency-Key must be a 16–128 character opaque base64url-style identifier.",
   commandIdInvalid:
     "X-Account-Command-Id must be a 16–128 character independently generated, unguessable base64url-style identifier.",
   commandHeadersUnpaired: "Idempotency-Key and X-Account-Command-Id must be supplied together.",
 
-  // Authentication and authorization.
   forbidden: "Forbidden.",
   /** 404 for a route that is switched off or not offered in this mode. Distinct from the frozen
    * `FROZEN_REPLY_MESSAGES.notFound`, which the client matches by text. */
@@ -41,7 +38,6 @@ export const REPLY_ERRORS = {
   ssoRequiredBeforeCompanyCreate: "Sign in with the required SSO provider before creating a company.",
   ssoRequiredBeforeInvitationAccept: "Sign in with the required SSO provider before accepting this invitation.",
 
-  // Masquerade.
   masqueradeEnded: "Masquerade ended.",
   masqueradeReadOnly: "Masquerade is read-only.",
   masqueradeAlreadyActive: "This session is already masquerading.",
@@ -51,7 +47,6 @@ export const REPLY_ERRORS = {
   memberNotFound: "Member not found.",
   sessionExpiryUnverified: "The session expiry could not be verified.",
 
-  // Entity and lifecycle writes.
   accountIdRequired: "accountId is required.",
   accountIdNonEmpty: "accountId must be a non-empty string.",
   accountIdRequiredForScopedDelete: "accountId is required to delete a scoped record.",
@@ -71,7 +66,6 @@ export const REPLY_ERRORS = {
   companyDetailsNotObject: "Company details must be an object.",
   gettingStartedDismissedInvalid: "dismissed must be true.",
 
-  // Batch sync.
   batchOpsRequired: "ops array is required.",
   batchSyncHeadersInvalid: "Invalid browser sync ordering headers.",
   batchOpNotObject: "Each op must be an object.",
@@ -87,7 +81,6 @@ export const REPLY_ERRORS = {
   batchInternalClientMismatch: "The same-batch built-in Internal client must match the generated server row.",
   batchNoWritePolicy: "No batch-write policy is defined for this entity.",
 
-  // Import, reset and example data.
   importOwnerOnly: "Only the account owner can import data.",
   importDataInvalid: "The import data is not valid CapacityLens data.",
   importEmpty: "The import contained no usable records, so the company data was left unchanged.",
@@ -98,7 +91,6 @@ export const REPLY_ERRORS = {
   exampleDataCompanyNotEmpty:
     "Example data can only be added to a company that has no people, clients, projects or allocations, including archived or deleted ones.",
 
-  // Company joining.
   joiningRequestInvalid: "Invalid company joining request.",
   joiningCompanyUnavailable: "This company is unavailable.",
   joiningProviderUnavailable: "Provider joining is unavailable.",
@@ -114,7 +106,6 @@ export const REPLY_ERRORS = {
   joiningMicrosoftRequired: "Sign in with Microsoft to continue.",
   microsoftConnectionFailed: "Microsoft connection could not continue.",
 
-  // Account administration.
   notAMember: "Not a member of this account.",
   trustedLocalMemberManagement: "Member management is unavailable in trusted-local mode.",
   invalidRole: "role must be one of owner, admin, editor, viewer.",

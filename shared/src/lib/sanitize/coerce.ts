@@ -77,13 +77,8 @@ export const repairResourceAvailability = (record: Record<string, unknown>): voi
   }
 };
 
-/** De-duplicate: the scheduling math keys weekend-awareness on workingDays.length (a
- * length-7 array means "works every calendar day"), so a duplicated set like
- * [1,1,1,1,1,1,1] would otherwise reach length 7 and model a Monday-only resource as a
- * 7-day worker. Collapse to the distinct sorted weekdays so length reflects real coverage.
- * Note this deliberately does not reuse normalizeAccountWorkingDays: that one rejects a whole
- * selection containing any junk, while a resource's week is repaired by filtering the junk out and
- * keeping whatever real weekdays remain. The weekday predicate, canonical set and fallback default are shared. */
+/** Repair resource weekdays by keeping distinct valid weekdays in sorted order, or the default week if none remain.
+ * Unlike account-week repair, discard individual invalid members rather than replacing the whole selection. */
 export const safeWorkingDays = (value: unknown): Weekday[] => {
   if (!Array.isArray(value)) return defaultAccountWorkingDays();
   const unique = canonicalWeekdaySet(value.filter(isWeekday));
@@ -114,11 +109,8 @@ export const cleanField = ({ record, field, multiline = false }: CleanFieldOptio
   record[field] = cleanText(record[field], { multiline });
 };
 
-/** Like cleanField, but for a required text column (the server schema marks these NOT NULL).
- * Cleaning a hand-edited value can collapse it to empty (e.g. an emoji-only name), and a
- * missing value is empty too, either would survive in memory (which has no NOT NULL constraint)
- * yet be rejected by the server, diverging the two import paths. Fall back to a placeholder
- * so a required column is never empty and both paths accept the record identically. */
+/** Repair required text, using a caller-supplied nonempty fallback when cleaning leaves no characters.
+ * Mutates record. The fallback must be nonempty so demo and server imports preserve the same required-text contract. */
 export const cleanRequiredField = (record: Record<string, unknown>, field: string, fallback: string): void => {
   const cleaned = typeof record[field] === "string" ? cleanText(record[field]) : "";
   record[field] = cleaned.length > 0 ? cleaned : fallback;

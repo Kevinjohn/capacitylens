@@ -127,7 +127,7 @@ function registerSqliteAccountAdminPortTest26(): void {
     const db = openDb(":memory:");
     try {
       seedWorkspace(db);
-      // Auto-bumped to revision 1 by upsertMember's post-write security handling.
+      // Membership creation changes authorization state, so upsertMember seeds security revision 1.
       upsertMember(db, {
         accountId: workspaceId,
         userId: "bumped-once",
@@ -203,12 +203,9 @@ function registerSqliteAccountAdminPortTest27(): void {
         trustedLocal: true,
       });
 
-      // Default active-only: "alpha" (disabled) is dropped but the remaining order is preserved.
       const activeOnly = await port.listMemberships({ actor, workspaceId });
       expect(activeOnly.map((m) => m.principalId)).toEqual(["zed", "middle"]);
 
-      // includeInactive surfaces "alpha" too, listMembersForAccount orders by createdAt, userId,
-      // so the tie between "zed" and "alpha" (same createdAt) breaks alphabetically.
       const all = await port.listMemberships({ actor, workspaceId, includeInactive: true });
       expect(all.map((m) => m.principalId)).toEqual(["alpha", "zed", "middle"]);
       expect(all.find((m) => m.principalId === "alpha")?.status).toBe("disabled");

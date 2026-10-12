@@ -1,28 +1,14 @@
 import { isAccountRole, isMembershipStatus } from "@capacitylens/shared/account/types";
 import type { MembershipStatus, Role } from "@capacitylens/shared/account/types";
 
-/**
- * The lifecycle status of one membership row: `'active' | 'disabled' | 'archived'`.
- *
- * Re-exported from the shared account contract rather than declared here, so the storage column and
- * the public port contract cannot drift apart. The whole reason the status was modelled as a named
- * union from the start. Only `'active'` confers authority: every authorization read below narrows on
- * `status = 'active'` (see {@link getActiveMemberRole}), so a disabled or archived row is
- * indistinguishable from absence to the access matrix.
+/** Defines the membership lifecycle state shared by storage and account policy.
+ * Only active rows confer authority; disabled and archived memberships remain visible to administration.
  */
 export type { MembershipStatus };
 
-/**
- * One row of the `account_members` control table: a single login's role for a single account.
- *
- * @property accountId  The account this membership grants access to.
- * @property userId     The login (auth-provider user id) that holds the role.
- * @property role       The account-wide {@link Role} (see shared/domain/access for the semantics).
- * @property status     The membership {@link MembershipStatus} (`'active'` today).
- * @property createdAt  ISO-8601 timestamp the membership was created.
- *
- * Invariant: `(accountId, userId)` is unique. A login has at most one role per account. This is a
- * control-table type, never an AppData entity; it never flows through the entity drift path.
+/** Represents one principal’s membership in one account, independent of portable AppData.
+ * The account/principal pair is unique; createdAt records the original join timestamp.
+ * Only active status confers authority, while disabled and archived rows are retained.
  */
 export interface AccountMember {
   accountId: string;
@@ -37,20 +23,8 @@ export interface AccountMember {
  */
 export const isKnownRole = isAccountRole;
 
-/**
- * Narrow a stored `account_members.status` TEXT value onto {@link MembershipStatus}.
- *
- * Unlike a stored role (where an unknown value is a corruption we fail loud on, because guessing
- * would hand someone the wrong access level) an unknown status is neither dangerous nor
- * necessarily a fault: alpha databases carry rows written as `'suspended'` / `'inactive'` before
- * this union existed. Every one of those legacy spellings meant the same thing, "retained but may
- * not enter", so they normalise to `'disabled'`.
- *
- * The direction of the fallback is the safety property: an unrecognised value can only ever become
- * a non-active status, never `'active'`. A row we cannot interpret must not confer authority, and
- * the authorization reads narrow on the stored `'active'` literal in SQL anyway. This mapping
- * governs only what administration surfaces display.
- */
+// Unknown stored status must remain non-active so unreadable retained rows never grant authority.
+// Normalize it to disabled for administration display; authorization SQL still matches only active.
 function membershipStatus(stored: string, accountId: string, userId: string): MembershipStatus {
   if (isMembershipStatus(stored)) return stored;
   console.warn(
@@ -68,13 +42,7 @@ export interface AccountMemberRow {
   createdAt: string;
 }
 
-/**
- * Map one raw `account_members` row to an {@link AccountMember}, failing loud on a stored role that
- * is not a known {@link Role}, control-table corruption, never a recoverable request condition.
- * Extracted from {@link getMembershipRow}, {@link listMembershipsForUser} and
- * {@link listMembersForAccount}, which shared this mapping and integrity throw verbatim; `caller`
- * keeps each call site's error message byte-identical to its pre-extraction text.
- */
+/** Maps a stored membership and throws on an unknown role instead of guessing authority. */
 export function toAccountMember(row: AccountMemberRow, caller: string): AccountMember {
   if (!isKnownRole(row.role)) {
     throw new Error(

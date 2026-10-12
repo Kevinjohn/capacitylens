@@ -10,9 +10,7 @@ import { MemoryRouter } from "react-router-dom";
 beforeEach(() => {
   resetStoreWithAccount();
   useStore.getState().clearFilters();
-  // Server is the app default now; the archive-flow tests below assert the local store-mutation path
-  // (no fetch/reload), so opt into the demo build. isServerConfigured() reads the env per dispatch,
-  // and the non-archive tests here don't touch persistence mode, so a file-wide stub is harmless.
+  // This suite selects demo mode to exercise local archive mutations without server requests.
   vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
 });
 
@@ -101,33 +99,27 @@ describe("ProjectList", () => {
 
     render(<ProjectList />);
 
-    // Open the add form
     await user.click(screen.getByRole("button", { name: "Add project" }));
 
     const dialog = screen.getByRole("dialog", { name: "Add project" });
     expect(dialog).toBeInTheDocument();
 
-    // Fill in Name and Client
     await user.type(within(dialog).getByLabelText("Name"), "New Project");
     fireEvent.keyDown(within(dialog).getByLabelText("Client", { exact: true }), { key: "ArrowDown" });
     fireEvent.click(screen.getByRole("option", { name: "Ferris Corp" }));
 
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
-    // Dialog closes and project appears in the list
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByText("New Project")).toBeInTheDocument();
     expect(screen.getByText("· Ferris Corp")).toBeInTheDocument();
 
-    // Store is updated
     const projects = useStore.getState().data.projects;
     expect(projects).toHaveLength(1);
     expect(projects[0]?.clientId).toBe(client.id);
   });
 
-  // The per-row "Delete" affordance now archives (soft-delete is reached later from
-  // the inline archive section). Demo mode here → archiveEntity: the project gets `archivedAt`
-  // set (its activities are retained, reversible) and vanishes from this active-only list.
+  // Archiving a project hides it from active views while retaining activities for restoration. The demo fixture exercises the store path.
   it("shows the Archive ConfirmDialog when the archive button is clicked", async () => {
     const user = userEvent.setup();
     const client = requireCreated(useStore.getState().addClient({ name: "Ferris Corp", color: "#111" }));
@@ -198,7 +190,7 @@ describe("ProjectList", () => {
     await user.click(within(dialog).getByRole("button", { name: "Archive" }));
 
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-    // Retained in the data (archived, reversible), but gone from the active-only list.
+
     expect(useStore.getState().data.projects).toHaveLength(1);
     expect(useStore.getState().data.projects[0]?.archivedAt).toBeTruthy();
     expect(useStore.getState().data.activities).toHaveLength(1);
@@ -229,7 +221,6 @@ describe("ProjectList", () => {
   // raw slice retains archived clients, so it is genuinely dangling data and must not be dressed up
   // as archival.
   const seedOrphanProject = () => {
-    // Seed via replaceAll to inject a project whose client is absent from the slice
     useStore.getState().replaceAll(
       makeAppData({
         projects: [
@@ -249,7 +240,6 @@ describe("ProjectList", () => {
   };
 
   it("server mode retains a project whose client resolves nowhere", () => {
-    // Override the file-wide demo stub: server mode is any value other than '1'.
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "");
     seedOrphanProject();
 

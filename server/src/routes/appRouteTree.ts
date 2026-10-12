@@ -286,12 +286,8 @@ function registerPlatformRoutes(input: RegisterRouteGroupInput): void {
 /** Registers API route plugins under the root Fastify instance. */
 export function registerApiRoutes(input: RegisterApiRoutesInput): void {
   const { app } = input;
-  // Every route below registers through a child plugin, not directly on the root:
-  // @fastify/rate-limit attaches to routes via an onRoute hook that only exists once the
-  // plugin loads (at ready(), in registration order), a route declared straight on the
-  // root would register first and silently escape the limiter. The child loads after it,
-  // so its routes are seen, and it inherits the root CORS hook + error handler. The
-  // callback shadows `app` deliberately: the route code is identical without the wrapper.
+  // Register routes in a child loaded after the limiter so its onRoute hook sees every API route.
+  // The child inherits root CORS and error handling, including not-found behavior.
   void app.register(async (app) => {
     const mail = input.config.auth?.mail;
     const groupInput = { ...input, childApp: app, budgetedMail: mail ? withSendBudget(mail) : null };

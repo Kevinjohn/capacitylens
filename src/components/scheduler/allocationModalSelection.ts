@@ -12,10 +12,7 @@ import type { Activity, Resource, SchedulingMode } from "@capacitylens/shared/ty
 import { FULL_DAY_HOURS, isExternalResource } from "@capacitylens/shared/types/entities";
 
 import type { EffectiveAllocationInput } from "./allocationModalTypes";
-/** Snap a seeded days-of-work value to 6 decimals: enough to erase float round-trip
- * noise (e.g. 8 × 3/7 × 7/8 = 2.9999…) without distorting a legitimate fraction
- * (½ → 0.5, ⅛-day → 1.875). Keeping the seed exact means re-deriving hours on a
- * no-op save returns the original value rather than drifting it. */
+/** Rounds seeded days to six decimal places to remove floating-point noise without changing useful fractions such as 0.5 or 0.125. */
 export const roundDays = (dayCount: number) => Math.round(dayCount * 1e6) / 1e6;
 /** Sentinel choice for work without a project attribution. */
 export const INTERNAL_PROJECT_SELECTION = "__allocation_internal__";
@@ -40,7 +37,7 @@ export function resolveAttributedProject(activity: Activity | undefined, selecti
   return selection;
 }
 
-/** Reports whether activity in project selection. */
+/** Checks whether an activity belongs to the selected project or project-less activity scope. */
 export function isActivityInProjectSelection(
   activity: Pick<Activity, "kind" | "projectId">,
   selection: string,
@@ -145,10 +142,7 @@ export function buildEffectiveAllocationValues({
   }
 
   if (lacksEffectiveWorkingDays(effectiveWeek, ignoreWeekends)) {
-    // Working-span math is impossible with no effective days, so the typed range is literal and
-    // "Days over" is frozen at its seed (its field is disabled below). Every seed derives
-    // daysOfWork and daysOver from the same span, so this recomputation is the identity on the
-    // stored volume, the field freeze is what stops a manual change from silently diluting it.
+    // With no effective workdays, keep the seeded span quantity unchanged so unrelated edits cannot dilute stored work volume.
     return buildUnavailableWeekValues({
       input: { resource, effectiveWeek, mode, startDate, endDate, hoursPerDay, daysOver, daysOfWork, ignoreWeekends },
       external: external,

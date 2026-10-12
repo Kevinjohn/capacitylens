@@ -10,7 +10,6 @@ function registerAddsClientMakesAvailableScheduleTest() {
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("client-row").filter({ hasText: "Kord Industries" })).toBeVisible();
 
-    // Available as a client filter on the schedule.
     await page.getByRole("link", { name: "Schedule" }).click();
     await showScheduleFilters(page);
     await page.getByLabel("Filter by client").click();
@@ -46,13 +45,10 @@ function registerRejectsEmojiJunkCharactersNameTest() {
   test("rejects emoji / junk characters in a name and blocks the save", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
     await page.getByRole("button", { name: "Add client" }).click();
-    // An emoji is rejected…
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Ferris \u{1F389} Co");
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("alert")).toContainText(/emoji or special characters/i);
-    // dialog stays open; nothing added
     await expect(page.getByRole("dialog")).toBeVisible();
-    // …a real accented name saves fine.
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Café Crème");
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("client-row").filter({ hasText: "Café Crème" })).toBeVisible();
@@ -71,7 +67,6 @@ function registerEditsClientRenameReflectsProjectTest() {
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("client-row").filter({ hasText: "Ferris Worldwide" })).toBeVisible();
 
-    // Project labels use "Client / Project".
     await page.getByRole("link", { name: "Activities" }).click();
     await page.getByRole("button", { name: "Add activity" }).click();
     await page.getByLabel("Project").click();
@@ -96,7 +91,6 @@ function registerArchivingClientHidesListRestorableTests() {
       .click();
     await expect(page.getByTestId("client-row").filter({ hasText: "Queen Consolidated" })).toHaveCount(0);
 
-    // Undo restores the archived client to the active list.
     await page.keyboard.press("Meta+z");
     await expect(page.getByTestId("client-row").filter({ hasText: "Queen Consolidated" })).toBeVisible();
   });

@@ -151,17 +151,12 @@ export function ensureControlTables(db: Db): void {
       createdAt TEXT NOT NULL
     );
   `);
+  // SQLite stores this DDL text, comments included; changing it splits fresh databases from upgraded ones.
   // The v26 migration owns this additive shape. Repeating its guarded repair here keeps fresh and
   // pre-ledger development databases on the same every-boot control-plane boundary as invites.
   migrateMemberSignInTrackingV26(db);
-  // Additive column for an already-created dev DB (the `id` column
-  // arrived after the `invites` table). A DB that already has the older table won't get `id` from the
-  // IF-NOT-EXISTS CREATE above (node:sqlite never re-runs CREATE on an existing table), so add it
-  // here: guarded by a column-exists check, mirroring schema.ts's additive ALTER idiom. SQLite
-  // can't ALTER-ADD a NOT NULL column to existing rows, so it lands nullable; createInvite always
-  // writes a non-null id, and the rebuilt DDL above makes it NOT NULL for every fresh DB.
-  // Fetch the invites column set once (rather than one PRAGMA per column checked below), both
-  // `legacyPlaintextInvites` and the `id`-presence check below read the same live shape.
+  // IF NOT EXISTS cannot add id to an existing invites table.
+  // Read columns once for the released compatibility repair and plaintext-bearer migration.
   const inviteColumnNames = new Set(
     (db.prepare(`PRAGMA table_info(invites)`).all() as Array<{ name: string }>).map((c) => c.name),
   );

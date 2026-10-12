@@ -4,8 +4,6 @@ import { makeResourceDraft } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
 import type { BarLayout } from "@/components/scheduler/schedulerModel";
 
-// A fixed-width (500px) lane DOMRect stub for pointer-geometry math in drag/resize tests, only
-// `top`/`bottom` (and the `height` they imply) vary per case.
 /** Creates a DOM rectangle with predictable vertical bounds for gesture tests. */
 export const rect = (top: number, bottom: number): DOMRect =>
   ({

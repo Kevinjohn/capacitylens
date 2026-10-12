@@ -125,8 +125,7 @@ function createResourceAddAction(internals: ResourceSliceInternals, get: StoreAp
       return {
         ...input,
         ...workingPattern,
-        // Engagement did not exist in older programmatic callers. Default them to Studio, and
-        // keep placeholders/external rows outside the people classification by forcing Studio.
+        // Default ordinary resources to Studio; placeholders and externals do not participate in engagement bands.
         engagement: input.kind === "person" ? (input.engagement ?? "studio") : "studio",
         // Clamp working hours/day (the store is the last line; resource forms write the fixed 8h,
         // but imports and other programmatic callers must not persist NaN / 0 / >24h capacity).

@@ -32,6 +32,7 @@ export function FavouriteButton({ resource }: { resource: Resource }) {
         try {
           updateResource(resource.id, { isFavourite: !selected });
         } catch (error) {
+          // Report a rejected favourite change instead of silently leaving the preference unchanged.
           setNotice(resolveErrorMessage(error), "error");
         }
       }}

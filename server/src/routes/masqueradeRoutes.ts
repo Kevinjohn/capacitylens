@@ -140,6 +140,7 @@ function registerMasqueradeStartRoute(app: FastifyInstance, dependencies: Masque
         });
       });
     } catch (error) {
+      // Return the known active-masquerade race as conflict; unexpected registry or audit failures must still escape.
       if (error instanceof MasqueradeAlreadyActiveError) {
         return reply
           .code(409)

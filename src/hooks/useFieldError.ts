@@ -14,9 +14,7 @@ export interface FieldError {
   clear: () => void;
 }
 
-/** The error/errorField/errorId/fail quartet every CRUD form hand-rolled. One copy.
- * Associating the error with the offending field (aria-invalid + aria-describedby)
- * means it's announced when navigating to that field, not only via the alert. */
+/** Associates validation errors with their fields for focus and accessible announcements. */
 export function useFieldError(): FieldError {
   const [error, setError] = useState<string | null>(null);
   const [errorField, setErrorField] = useState<string | null>(null);

@@ -40,8 +40,6 @@ interface AllocationBarViewProps {
   onPointerDown: PointerEventHandler<HTMLDivElement> | undefined;
 }
 
-/** Keep the display rounding local so this view has no import cycle with its orchestrator. */
-/** Constant per axis, so the clamp strings are built once rather than per bar per render. */
 const BAR_LABEL_INSETS = buildVisibleSpanInsets("x", "var(--bar-left)", "var(--bar-width)");
 
 const allocationPopoverId = (bar: BarLayout) => `allocation-popover-${bar.allocation.id}`;
@@ -124,7 +122,7 @@ function BarTrigger(props: AllocationBarViewProps) {
       style={{
         left: props.insetLeft,
         width: props.insetWidth,
-        // Published for the label and popover anchor's visible-portion clamp (see visibleSpanInsets).
+
         ["--bar-left" as string]: `${props.insetLeft}px`,
         ["--bar-width" as string]: `${props.insetWidth}px`,
         top: bar.top,
@@ -134,7 +132,7 @@ function BarTrigger(props: AllocationBarViewProps) {
         border: bar.allocation.status === "tentative" ? `1px dashed ${ink}` : undefined,
         transform: translateY ? `translateY(${translateY}px)` : undefined,
         zIndex: dragging ? "var(--z-index-drag)" : undefined,
-        // Reserve the measured sticky header and fixed utilisation column when focused.
+
         scrollMarginTop: "var(--sched-sticky-top, 44px)",
         scrollMarginLeft: LAYOUT.leftColWidth,
         cursor: props.cursor,

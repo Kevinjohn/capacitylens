@@ -12,15 +12,8 @@ import type { AppData } from "@capacitylens/shared/types/entities";
 import { finishAccountCommand, reserveAccountCommand } from "./accounts/state";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
-// Per-tenant DELETE + member-PII erasure. The existing 'purge'-gated account hard-delete used
-// to drop only the
-// `accounts` row: the FK cascade wiped the account's scoped AppData, but `account_members` + `invites`
-// leaked (no FK to accounts) and Better Auth's user/account/session PII was left fully intact. This
-// suite proves the erasure now closes all three surfaces, and keeps two hard invariants: it touches
-// only the target tenant (cross-tenant), and a member still in another account is not erased.
-//
-// Each case asserts observable DB state via raw SELECT rather
-// than trusting a helper. The point is to prove the bytes are gone from the actual tables.
+// Tenant erasure must remove product rows, account control data, and otherwise-orphaned identity data.
+// Query the physical tables directly to prove deletion while preserving other tenants and shared principals.
 
 const TS = "2026-01-01T00:00:00.000Z";
 const meta = () => ({ createdAt: TS, updatedAt: TS });
@@ -54,8 +47,6 @@ const deleteAccountRoute = ({ app, id, cookie, command }: DeleteAccountRouteInpu
         : {}),
     },
   });
-
-// Raw observable-state probes (the assertion vocabulary; never trust a helper).
 
 const accountCount = (db: Db, id: string): number =>
   (db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id = ?`).get(id) as { n: number }).n;
@@ -125,7 +116,7 @@ interface SeedMembershipAndInviteInput {
   role: "owner" | "admin";
 }
 
-/** Seed a control-table membership + one outstanding invite for an account (the PII surfaces with no FK). */
+// Memberships and invitations lack product foreign-key cascades, so erasure must remove them explicitly.
 function seedMembershipAndInvite({ db, accountId, userId, role }: SeedMembershipAndInviteInput): void {
   upsertMember(db, { accountId, userId, role, status: "active", createdAt: TS });
   createInvite(db, {
@@ -362,7 +353,7 @@ describe("P2.6b erasure — (a) delete cascades ONLY the target account (cross-t
       accounts: [account("a1"), account("a2")],
       clients: [client("c1", "a1"), client("c2", "a2")],
     } as unknown as AppData);
-    // Each account has a sole owner, a membership row and an invite (the no-FK PII surfaces).
+
     const u1 = await signUp(app, "a-owner1@capacitylens.dev");
     const u2 = await signUp(app, "a-owner2@capacitylens.dev");
     seedMembershipAndInvite({ db, accountId: "a1", userId: u1.userId, role: "owner" });
@@ -385,7 +376,6 @@ describe("P2.6b erasure — (a) delete cascades ONLY the target account (cross-t
     // Use the retained a2 owner as actor so identity cleanup cannot incidentally remove this row.
     seedCrossTenantCommands(db, u2.userId);
 
-    // Sanity: everything is present before the delete.
     expect(accountCount(db, "a1")).toBe(1);
     expect(scopedClientCount(db, "a1")).toBe(1);
     expect(memberCount(db, "a1")).toBe(1);
@@ -394,7 +384,6 @@ describe("P2.6b erasure — (a) delete cascades ONLY the target account (cross-t
     const res = await deleteAccountRoute({ app, id: "a1", cookie: u1.cookie });
     expect(res.statusCode).toBe(204);
 
-    // a1 is gone everywhere and a2 is wholly intact, including its user PII.
     assertCrossTenantErasure(db, u2.userId);
     expect(db.prepare(`SELECT accountId FROM account_member_resources ORDER BY accountId`).all()).toEqual([
       { accountId: "a2" },
@@ -461,7 +450,6 @@ describe("P2.6b erasure — (b) last-company identity removal reopens password s
     upsertMember(db, { accountId: "a1", userId: u.userId, role: "owner", status: "active", createdAt: TS });
     seedLastCompanyIdentity(db, u.userId);
 
-    // Pre-state: real identity, credential link, live session, and outstanding reset token.
     expect(userRow(db, u.userId)?.email).toBe("sole-owner@capacitylens.dev");
     expect(authAccountCount(db, u.userId)).toBeGreaterThanOrEqual(1);
     expect(sessionCount(db, u.userId)).toBeGreaterThanOrEqual(1);
@@ -607,7 +595,7 @@ describe("P2.6b erasure — (f) OFF mode deletes the account WITHOUT touching au
   it('an OFF-mode account delete succeeds (no "no such table: user") and the AppData is gone', async () => {
     // Off mode: no auth migrations so no user/account/session tables.
     const db = openDb(":memory:");
-    // AuthMode defaults to 'off'.
+
     const app = createApp(db);
     insertAll(db, {
       ...emptyAppData(),
@@ -619,10 +607,8 @@ describe("P2.6b erasure — (f) OFF mode deletes the account WITHOUT touching au
     upsertMember(db, { accountId: "a1", userId: "demo", role: "owner", status: "active", createdAt: TS });
     expect(memberCount(db, "a1")).toBe(1);
 
-    // The 'user' table genuinely does not exist in off mode.
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'user'`).get()).toBeUndefined();
 
-    // Off mode is allow-all → 204; must not throw "no such table: user".
     expect((await call(app, { method: "DELETE", url: "/api/accounts/a1" })).statusCode).toBe(204);
 
     expect(accountCount(db, "a1")).toBe(0);

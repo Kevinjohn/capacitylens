@@ -178,6 +178,20 @@ describe("serve-dist static routing", () => {
       body: '{"error":"Not found"}',
     });
   });
+
+  it("refuses request targets that resolve outside dist before touching the filesystem", () => {
+    // Node's HTTP parser rejects relative targets, so drive the handler directly as another server could.
+    const statPath = vi.fn(async () => ({ isFile: () => true }));
+    const serveRequest = createRehearsalRequestHandler({ dist: "/dist", statPath });
+
+    for (const url of ["../outside.txt", "../../etc/passwd", "a/../../outside.txt"]) {
+      const res = { writeHead: vi.fn(), end: vi.fn(), headersSent: false };
+      serveRequest({ url, method: "GET", headers: {} } as never, res as never);
+      expect(res.writeHead).toHaveBeenCalledWith(404, expect.anything());
+      expect(res.end).toHaveBeenCalledWith("404 not found");
+    }
+    expect(statPath).not.toHaveBeenCalled();
+  });
 });
 
 describe("serve-dist stream faults", () => {

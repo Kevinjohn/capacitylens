@@ -35,6 +35,7 @@ function parseStructuredVerification(value: string): unknown {
   try {
     return JSON.parse(value);
   } catch (cause) {
+    // Opaque scalar tokens may be non-JSON; malformed object-shaped state must abort erasure because its principal correlation is unknown.
     if (value.trimStart().startsWith("{")) {
       throw new MalformedVerificationStateError(MALFORMED_STRUCTURED_VERIFICATION, { cause });
     }
@@ -53,10 +54,9 @@ function readLinkUserId(link: unknown): string | null {
 }
 
 /**
- * Return the principal linked by Better Auth's JSON OAuth state. Opaque scalar ceremonies (reset
- * tokens and similar values) are intentionally unrelated unless they exactly equal the principal.
- * An object-shaped value is different: if it cannot be decoded, erasure cannot prove that it is
- * unrelated, so throw and let the caller's transaction roll back instead of reporting completion.
+ * Returns the principal named by structured OAuth account-link state, or null for unrelated scalar or unlinked state.
+ * @throws MalformedVerificationStateError when object-shaped state cannot be safely classified;
+ * callers must abort identity erasure rather than leave potentially correlated state behind.
  */
 export function parseAccountLinkUserId(value: string): string | null {
   const parsed = parseStructuredVerification(value);

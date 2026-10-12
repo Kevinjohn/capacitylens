@@ -1,7 +1,5 @@
 import { TABLES } from "../tables";
-// TABLES is static for the process lifetime, so the accepted-column Set per table is built once
-// and memoised here rather than rebuilt from spec.columns on every write (sanitizeWrite alone
-// calls acceptedWriteFields twice per write, via acceptedFieldNames and directly).
+// Memoize accepted columns because table specifications are immutable for the process lifetime.
 const acceptedColumnsByTable = new Map<string, Set<string>>();
 
 /** Copy only columns accepted by the table codec. Generic request bodies are untrusted; keeping

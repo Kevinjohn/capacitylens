@@ -4,7 +4,6 @@ import { openApp } from "./browserTestSupport";
 // The temporary demo state exercises archive, restore and soft-delete without a server.
 // Each action must update the scheduler and active list together.
 
-// Barry Allen is the seeded freelancer used by this archive and restore flow.
 const RESOURCE = "Barry Allen";
 
 test.describe("Inline archives and deleted items (demo mode)", () => {
@@ -13,26 +12,21 @@ test.describe("Inline archives and deleted items (demo mode)", () => {
   }) => {
     await openApp(page, "Wayne Enterprises", "/resources");
 
-    // The seeded resource is in the list.
     const listRow = page.getByTestId("resource-row").filter({ hasText: RESOURCE });
     await expect(listRow).toBeVisible();
 
-    // Archive it from the row (the old Delete affordance now archives) → confirm dialog → Archive.
     await listRow.getByRole("button", { name: `Archive ${RESOURCE}` }).click();
     const archiveDialog = page.getByRole("alertdialog", { name: "Archive resource?" });
     await expect(archiveDialog).toBeVisible();
     await archiveDialog.getByRole("button", { name: "Archive", exact: true }).click();
 
-    // gone from the Resources list…
     await expect(page.getByTestId("resource-row").filter({ hasText: RESOURCE })).toHaveCount(0);
 
-    // The expanded archive section below the Resources list shows it immediately.
     let section = page.getByTestId("archived-resources-section");
     await expect(section).toBeVisible();
     let archivedRow = section.getByTestId("archived-row").filter({ hasText: RESOURCE });
     await expect(archivedRow).toBeVisible();
 
-    // …and gone from the schedule (no scheduler-row carries the name).
     await page.getByRole("link", { name: "Schedule" }).click();
     await expect(page.getByTestId("scheduler-row").filter({ hasText: RESOURCE })).toHaveCount(0);
 
@@ -40,7 +34,6 @@ test.describe("Inline archives and deleted items (demo mode)", () => {
     section = page.getByTestId("archived-resources-section");
     archivedRow = section.getByTestId("archived-row").filter({ hasText: RESOURCE });
 
-    // restore → it reappears on the schedule + list.
     await archivedRow.getByRole("button", { name: `Restore ${RESOURCE}` }).click();
     await expect(section.getByTestId("archived-row").filter({ hasText: RESOURCE })).toHaveCount(0);
     await page.getByRole("link", { name: "Schedule" }).click();
@@ -48,7 +41,6 @@ test.describe("Inline archives and deleted items (demo mode)", () => {
     await page.getByRole("link", { name: "Resources" }).click();
     await expect(page.getByTestId("resource-row").filter({ hasText: RESOURCE })).toBeVisible();
 
-    // re-archive from the list.
     await page
       .getByTestId("resource-row")
       .filter({ hasText: RESOURCE })
@@ -59,7 +51,6 @@ test.describe("Inline archives and deleted items (demo mode)", () => {
       .getByRole("button", { name: "Archive", exact: true })
       .click();
 
-    // In the inline archive section, DELETE (soft-delete) the archived row → confirm.
     const section2 = page.getByTestId("archived-resources-section");
     const archivedRow2 = section2.getByTestId("archived-row").filter({ hasText: RESOURCE });
     await expect(archivedRow2).toBeVisible();

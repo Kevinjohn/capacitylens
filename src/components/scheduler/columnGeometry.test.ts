@@ -3,7 +3,6 @@ import { buildColumnGeometry, resolveLeftEdgeDate } from "./columnGeometry";
 import { eachDayISO, addDaysISO } from "@capacitylens/shared/lib/dateMath";
 import { resolveColumnFit } from "@/lib/schedulerConfig";
 
-// A full week: 2026-06-01 (Mon) … 2026-06-07 (Sun). 06-06 = Sat, 06-07 = Sun.
 const WEEK = eachDayISO("2026-06-01", "2026-06-07");
 const OFF = { minimiseWeekends: false, weekendWidth: 20 };
 const ON = { minimiseWeekends: true, weekendWidth: 20 };
@@ -49,7 +48,7 @@ describe("buildColumnGeometry — minimise OFF reproduces the uniform index*dayW
       if (!day) throw new Error("Expected a date for every week index.");
       expect(geom.xForDateInGeom(day)).toBe(i * 48);
     }
-    // Inclusive ranges, including ones that span the (uniform) weekend.
+
     expect(geom.widthForDates("2026-06-01", "2026-06-02")).toBe(2 * 48);
     expect(geom.widthForDates("2026-06-05", "2026-06-07")).toBe(3 * 48);
   });
@@ -66,7 +65,7 @@ describe("buildColumnGeometry — minimise OFF reproduces the uniform index*dayW
     expect(geom.indexAt(48)).toBe(1);
     expect(geom.indexAt(95)).toBe(1);
     expect(geom.indexAt(300)).toBe(6);
-    // An offset equal to the total width resolves to the last column, not an index past the end.
+
     expect(geom.indexAt(336)).toBe(6);
     expect(geom.indexAt(99999)).toBe(6);
   });
@@ -78,30 +77,28 @@ describe("buildColumnGeometry — minimise ON narrows the weekend columns", () =
   it("Sat and Sun take weekendWidth; weekdays keep dayWidth", () => {
     expect(geom.widths).toEqual([48, 48, 48, 48, 48, 20, 20]);
     expect(geom.offsets).toEqual([0, 48, 96, 144, 192, 240, 260, 280]);
-    // Five weekday columns at 48 pixels and two weekend columns at 20 pixels determine the total width.
+
     expect(geom.totalWidth).toBe(280);
     expect(geom.minimiseActive).toBe(true);
   });
 
   it("spanWidth across the narrow weekend sums the real (mixed) widths", () => {
-    // Fri..Sun = 48 (Fri) + 20 (Sat) + 20 (Sun) = 88
     expect(geom.spanWidth(4, 6)).toBe(88);
-    // widthForDates is the date-keyed equivalent.
+
     expect(geom.widthForDates("2026-06-05", "2026-06-07")).toBe(88);
-    // A weekday-only range is unaffected.
+
     expect(geom.widthForDates("2026-06-01", "2026-06-02")).toBe(96);
   });
 
   it("a bar starting on a narrow weekend lands at the summed offset", () => {
-    // Saturday begins after five 48-pixel weekday columns.
     expect(geom.xForDateInGeom("2026-06-06")).toBe(240);
-    // Sunday begins after the five weekday columns and one 20-pixel weekend column.
+
     expect(geom.xForDateInGeom("2026-06-07")).toBe(260);
   });
 
   it('caps weekendWidth at dayWidth (a "narrow" column can never be wider than a normal one)', () => {
     const wide = buildColumnGeometry(WEEK, 18, { minimiseWeekends: true, weekendWidth: 40 });
-    // A requested width of 40 pixels is capped at 18 pixels, so this case has no visible narrowing.
+
     expect(wide.widths).toEqual([18, 18, 18, 18, 18, 18, 18]);
   });
 
@@ -170,7 +167,6 @@ describe("buildColumnGeometry — malformed windows", () => {
 
 describe("buildColumnGeometry — gating + degenerate windows", () => {
   it("does NOT narrow below the per-day-column threshold (header shows week blocks there)", () => {
-    // The requested 12-pixel width is below the 18-pixel day-column minimum.
     const geom = buildColumnGeometry(WEEK, 12, ON);
     expect(geom.minimiseActive).toBe(false);
     expect(geom.widths).toEqual([12, 12, 12, 12, 12, 12, 12]);
@@ -215,8 +211,6 @@ describe("buildColumnGeometry — gating + degenerate windows", () => {
   });
 
   it("narrows weekends exactly AT the DAY_COLUMN_MIN_WIDTH threshold (>=, not >)", () => {
-    // dayWidth 18 === DAY_COLUMN_MIN_WIDTH exactly; weekendWidth 10 stays well under dayWidth
-    // so the narrowing is visible (not swallowed by the weekendWidth-vs-dayWidth cap).
     const geom = buildColumnGeometry(WEEK, 18, { minimiseWeekends: true, weekendWidth: 10 });
     expect(geom.minimiseActive).toBe(true);
     expect(geom.widths).toEqual([18, 18, 18, 18, 18, 10, 10]);
@@ -237,20 +231,11 @@ describe("buildColumnGeometry — gating + degenerate windows", () => {
   });
 });
 
-// Pan invariant, the load-bearing reason a Back/Forward pan keeps the visible-window utilisation
-// correct without any layout measurement. `panDays(+7)` shifts the origin date by a week while
-// preserving scrollLeft and dayWidth, so the visible-window start is still resolved by the same
-// position index `indexAt(scrollLeft)`. Because the geometry for the new (shifted) days array has
-// identical column widths (the weekday/weekend pattern repeats every 7 days), `indexAt(px)` returns
-// the same index before and after, and the date at that index has advanced by exactly +7. A future
-// change to panDays/anchoring that breaks this position-based correctness will fail here.
+// A whole-week pan changes dates but preserves weekday widths and scroll offsets, so the visible-start date must advance by the same number of days.
 describe("pan invariant: a +7-day Back/Forward pan moves the visible-window start by exactly +7", () => {
-  // A 6-week window so any in-window pixel resolves to a real interior column (not an edge clamp).
-  // Starting on Monday yields a 42-day window.
   const daysOld = eachDayISO("2026-06-01", "2026-07-12");
   const daysNew = daysOld.map((d) => addDaysISO(d, 7));
 
-  // Same dayWidth + weekend settings for both, exactly what panDays does (only originDate changes).
   for (const opts of [
     { minimiseWeekends: false, weekendWidth: 22 },
     { minimiseWeekends: true, weekendWidth: 22 },
@@ -263,13 +248,13 @@ describe("pan invariant: a +7-day Back/Forward pan moves the visible-window star
       // Both geometries share identical widths (the weekly weekend pattern is invariant under a
       // 7-day shift), so the prefix-summed offsets, and thus indexAt, are identical.
       expect(geomNew.widths).toEqual(geomOld.widths);
-      // Walk every column's left-edge pixel `px` (a real scrollLeft would land on these boundaries).
+
       for (let i = 0; i < daysOld.length; i++) {
         const px = geomOld.x(i);
         const idxOld = geomOld.indexAt(px);
         const idxNew = geomNew.indexAt(px);
         expect(idxNew).toBe(idxOld);
-        // The resolved visible-start date advanced by exactly one week. No off-by-one, no drift.
+
         const oldDay = daysOld[idxOld];
         expect(oldDay).toBeDefined();
         if (!oldDay) throw new Error("Expected the old visible date.");

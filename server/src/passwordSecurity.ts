@@ -294,12 +294,14 @@ export async function assertPasswordNotBreached(password: string, fetcher: typeo
       try {
         return await readBoundedResponseText(response);
       } catch (cause) {
+        // Reject malformed or oversized breach-service responses as dependency failure so password creation cannot assume a clean result.
         throw new PasswordPolicyDependencyError("The breached-password response was invalid; try again later.", {
           cause,
         });
       }
     }, requestSignal);
   } catch (cause) {
+    // Preserve typed dependency failures and wrap transport or queue faults as unavailable screening, keeping password creation closed.
     if (cause instanceof PasswordPolicyDependencyError) throw cause;
     throw new PasswordPolicyDependencyError(
       "The breached-password check is temporarily unavailable; try again later.",

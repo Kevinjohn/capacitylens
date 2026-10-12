@@ -115,6 +115,7 @@ function createPostHandler(dependencies: AccountLifecycleDependencies) {
     try {
       return await createAccount(req, reply, dependencies);
     } catch (error) {
+      // Return typed account failures to the caller and redact unexpected provisioning faults instead of losing the creation failure.
       return sendAccountRouteFailure(reply, error, dependencies);
     }
   };
@@ -161,6 +162,7 @@ function createDeleteHandler(dependencies: AccountLifecycleDependencies) {
       if (targetExisted) drainProductAudit(reply);
       return reply.code(204).send();
     } catch (error) {
+      // Return typed account refusals and redacted storage faults so failed erasure is visible to the caller.
       return sendAccountRouteFailure(reply, error, dependencies);
     }
   };

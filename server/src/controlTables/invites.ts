@@ -55,15 +55,8 @@ export interface Invite {
   createdAt: string;
 }
 
-/**
- * Persist a new invite. The write the create endpoint (POST /api/invites) uses after generating the
- * token + computing the TTL.
- *
- * @param db      The open SQLite handle.
- * @param invite  The invite to insert (token is its PRIMARY KEY).
- * @throws Error  If `invite.role` is not a known {@link Role}, a bad role is a programming/integrity
- * fault, not a recoverable request condition, so fail loud (mirrors {@link upsertMember}) rather
- * than silently coercing it and minting an invite that grants the wrong access level.
+/** Persists an invite using a digest of its bearer token as the primary key.
+ * @throws When the role is unknown, indicating caller or control-table corruption.
  */
 export function createInvite(db: Db, invite: Invite): void {
   if (!isKnownRole(invite.role)) {
@@ -144,18 +137,8 @@ export function getInviteTargetById(
   );
 }
 
-/**
- * Normalize an email for preauth comparison: trim + lowercase. Both the stored `preauthEmail`
- * (normalized once at create time) and the caller's verified email (normalized at accept time) pass
- * through this, so the match is always normalized-vs-normalized, case and surrounding whitespace
- * never cause a legitimate match to slip through (or, worse, a near-miss to bind the wrong account).
- *
- * Pure: no I/O. Deliberately not a full RFC validator, local-parts are case-sensitive in the
- * abstract, but in practice every mail provider folds them, and the IdP-returned verified address is
- * the trust anchor here, so casefolding is the right comparison for binding.
- *
- * @param email  The raw email (from a request body, or from an IdP-asserted session user).
- * @returns The trimmed, lowercased form used for storage and comparison.
+/** Returns a new trimmed, lowercase email string for the application’s address comparison policy.
+ * Pure; this intentionally treats the local part as case-insensitive and is not RFC address validation.
  */
 export function normalizeEmail(email: string): string {
   return normalizeAccountEmail(email);
@@ -167,34 +150,14 @@ interface PreauthInviteAllowsInput {
   passwordMode?: boolean | undefined;
 }
 
-/**
- * May this signed-in principal accept this invite? The pure security-matrix decision behind the
- * accept endpoint's email-preauth gate, extracted so the matrix is deterministically
- * unit-testable without spinning up a session/DB.
- *
- * - `preauthEmail === null` → `true` (a link invite: any signed-in caller may accept).
- * - `preauthEmail !== null` → the normalized email must match. SSO additionally requires
- *   `user.emailVerified === true`; password mode does not, because possession of the addressed
- *   invite is the verification ceremony in deployments with no outbound verification service.
- *
- * Pure: no I/O, no session lookup. The caller passes the already-resolved principal. A `false`
- * result must translate to a 403 that binds nothing and consumes nothing (the invite stays live for
- * the genuinely-matching caller). Nothing is ever emailed.
- *
- * @param input The named inputs for this operation.
- * @param input.preauthEmail  The invite's pre-authorised email (already normalized), or `null` for a link
- * invite.
- * @param input.user          The resolved signed-in principal, its email and, for SSO, the
- * load-bearing IdP-asserted `emailVerified` flag.
- * @param input.passwordMode  Whether invite possession substitutes for email verification.
- * @returns `true` if this principal may accept this invite, `false` otherwise.
+/** Checks whether the resolved principal may accept an invitation.
+ * Link invitations accept any resolved principal. Addressed invitations require a normalized email match and, outside password mode, verified email.
+ * A refusal consumes nothing.
  */
 export function preauthInviteAllows({ preauthEmail, user, passwordMode = false }: PreauthInviteAllowsInput): boolean {
   // Link invites are not bound to an email address.
   if (preauthEmail === null) return true;
-  // Password deployments have no outbound verification service: possession of the
-  // email-addressed invite is their verification ceremony. SSO still requires the IdP's verified
-  // email claim. Both sides are normalized before the exact comparison.
+  // Password mode accepts addressed-invite possession as proof; other modes require verified email.
   return (passwordMode || user.emailVerified) && normalizeEmail(user.email) === preauthEmail;
 }
 
@@ -213,18 +176,7 @@ export function looksLikeEmail(email: string): boolean {
   return isAccountEmail(email);
 }
 
-/**
- * Mark an invite consumed, the single-use stamp the accept endpoint runs (in the same transaction
- * as the membership it mints, so the bind and the consume commit together or not at all).
- *
- * The `AND usedAt IS NULL` clause is the single-use SQL backstop: even if two accepts race past the
- * handler's `usedAt !== null` check, only the first UPDATE matches an unused row, so the token can be
- * consumed at most once. (The handler's check is the friendly 409; this is the hard guarantee.)
- *
- * @param db      The open SQLite handle.
- * @param token   The invite token to consume.
- * @param usedAt  The ISO-8601 instant to stamp as the consumption time.
- */
+/** Signals that an invitation was already consumed; callers must report a conflict without changing membership. */
 export class InviteAlreadyUsedError extends Error {
   constructor() {
     super("This invite has already been used.");
@@ -232,6 +184,8 @@ export class InviteAlreadyUsedError extends Error {
   }
 }
 
+/** Consumes an unused invite inside the caller’s membership transaction.
+ * @throws InviteAlreadyUsedError when no unused row matches, so the caller must roll back membership admission. */
 export function markInviteUsed(db: Db, token: string, usedAt: string): void {
   const result = db
     .prepare(`UPDATE invites SET usedAt = ? WHERE tokenHash = ? AND usedAt IS NULL`)

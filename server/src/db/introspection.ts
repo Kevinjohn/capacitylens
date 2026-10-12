@@ -1,13 +1,8 @@
 import { TABLES } from "../tables";
 import type { TableSpec } from "../tables";
 import type { Db } from "../db";
-// `table` is interpolated directly into the SQL strings below (SQL can't parameterise an
-// identifier), so it must be a vetted key of TABLES. This is the SQL-injection safety boundary.
-// Every route already gates the table name through isKnownTable before reaching these primitives;
-// this assertion is defence-in-depth (a future caller can't turn an unchecked string into an
-// injection point) and turns a cryptic "cannot read properties of undefined" into a clear message.
-// One own-property lookup, `Object.hasOwn`, not `in`, so a prototype key like "constructor" can't
-// masquerade as a table.
+// SQL identifiers cannot be parameterized; accept only own keys of TABLES before interpolation.
+// Prototype keys such as constructor must not masquerade as application tables.
 /**
  * Rejects table names outside the declared schema before they are interpolated into SQL.
  */
@@ -33,9 +28,7 @@ export function resolveTable(table: string): TableSpec {
 export const pragmaNumber = (db: Db, pragma: "user_version" | "application_id"): number =>
   Number((db.prepare(`PRAGMA ${pragma}`).get() as Record<string, number | undefined>)[pragma] ?? 0);
 
-/**
- * Lists declared application tables while excluding SQLite’s internal objects.
- */
+/** Lists non-internal tables actually present in the SQLite database. */
 export const userTables = (db: Db): string[] =>
   (
     db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`).all() as Array<{

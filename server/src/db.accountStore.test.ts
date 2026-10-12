@@ -85,7 +85,6 @@ const person = (id: string, accountId: string, disciplineId?: string) => ({
   employmentType: "permanent",
   engagement: "studio" as const,
   workingHoursPerDay: 8,
-  // json column, must round-trip through the codec.
   workingDays: [1, 2, 3, 4, 5],
   halfDays: [2],
   color: "#3b82f6",
@@ -116,7 +115,6 @@ const allocation = ({ id, accountId, resourceId, activityId }: AllocationInput) 
   endDate: "2026-01-05",
   hoursPerDay: 8,
   status: "confirmed",
-  // optional note + json ignoreWeekends, exercise the codec round-trip.
   note: "hi",
   ignoreWeekends: true,
   ...meta(),
@@ -136,22 +134,17 @@ const timeOff = ({ id, accountId, resourceId, note }: TimeOffInput) => ({
   startDate: "2026-02-01",
   endDate: "2026-02-03",
   type: "holiday" as const,
-  // optional, owner/admin-only note, exercises the field-redaction in readSlice.
   ...(note !== undefined ? { note } : {}),
   ...meta(),
 });
 
-/** All readSlice calls below pass includeTimeOffNote (required) and includeInactive (required);
- * the isolation/shape tests want the FULL slice, so they pass both `true` (every note + every
- * archived/deleted row). The note redaction and the lifecycle projection each get their
- * own describe block where the relevant flag is flipped. */
+// Read the full fixture slice here; separate projection cases exercise hidden notes and inactive rows.
 const FULL = {
   includeTimeOffNote: true,
   includeInactive: true,
   includePrivateNames: true,
 } as const;
 
-/** A full two-account dataset: a1 and a2 each carry rows in every scoped table. */
 function seedTwoAccounts(): AppData {
   const d = emptyAppData() as unknown as Record<string, unknown[]>;
   d.accounts = [account("a1"), account("a2")];
@@ -197,7 +190,6 @@ function createReadSliceBaseTests(): void {
     for (const key of SCOPED_KEYS) {
       const rows = slice[key];
       expect(rows.length).toBe(1);
-      // Zero rows from a2 in any scoped table, the no-cross-tenant invariant.
       expect(rows.every((r) => (r as { accountId: string }).accountId === "a1")).toBe(true);
     }
   });
@@ -217,16 +209,13 @@ function createReadSliceBaseTests(): void {
     const slice = readSlice(db, "does-not-exist", FULL);
     expect(slice.accounts).toEqual([]);
     for (const key of SCOPED_KEYS) expect(slice[key]).toEqual([]);
-    // Result has every AppData key present (starts from emptyAppData), not a partial object.
     expect(Object.keys(slice).sort()).toEqual(Object.keys(emptyAppData()).sort());
   });
   it("round-trips optional + json columns through the codec", () => {
     const db = openDb(":memory:");
     insertAll(db, seedTwoAccounts());
     const slice = readSlice(db, "a1", FULL);
-    // Both weekday JSON arrays + omitted optionals survive exactly (deep-equals the seeded object).
     expect(slice.resources[0]).toEqual(person("r1", "a1", "d1"));
-    // optional note + json ignoreWeekends survive.
     expect(slice.allocations[0]).toEqual(
       allocation({ id: "al1", accountId: "a1", resourceId: "r1", activityId: "act1" }),
     );
@@ -298,7 +287,6 @@ describe("replaceAccountSlice", () => {
     const db = openDb(":memory:");
     insertAll(db, seedTwoAccounts());
 
-    // Replace a1's slice with a single new allocation (drop everything else of a1's).
     const next = emptyAppData() as unknown as Record<string, unknown[]>;
     next.accounts = [account("a1")];
     next.clients = [client("c1", "a1")];
@@ -583,26 +571,16 @@ function seedLifecycleMix(): Db {
   const d = emptyAppData() as unknown as Record<string, unknown[]>;
   d.accounts = [account("a1")];
   d.disciplines = [discipline("d1", "a1")];
-  d.clients = [
-    client("c-active", "a1"),
-    // Soft-deleted.
-    { ...client("c-deleted", "a1"), archivedAt: ARCH, deletedAt: DEL },
-  ];
+  d.clients = [client("c-active", "a1"), { ...client("c-deleted", "a1"), archivedAt: ARCH, deletedAt: DEL }];
   d.projects = [
     project("p-active", "a1", "c-active"),
     {
       ...project("p-deleted", "a1", "c-active"),
       archivedAt: ARCH,
       deletedAt: DEL,
-      // Soft-deleted.
     },
   ];
-  d.resources = [
-    person("r-active", "a1", "d1"),
-    // Archived (not deleted).
-    { ...person("r-archived", "a1", "d1"), archivedAt: ARCH },
-  ];
-  // Non-lifecycle children, must survive both flags untouched.
+  d.resources = [person("r-active", "a1", "d1"), { ...person("r-archived", "a1", "d1"), archivedAt: ARCH }];
   d.phases = [phase("ph1", "a1", "p-active")];
   d.activities = [activity("act1", "a1", "p-active")];
   d.timeOff = [timeOff({ id: "to1", accountId: "a1", resourceId: "r-active" })];
@@ -624,7 +602,6 @@ function createLifecycleProjectionReadTests(): void {
     expect(slice.resources.map((r) => r.id)).toEqual(["r-active"]);
     expect(slice.clients.map((c) => c.id)).toEqual(["c-active"]);
     expect(slice.projects.map((p) => p.id)).toEqual(["p-active"]);
-    // Non-lifecycle tables are never filtered, pass through unchanged.
     expect(slice.phases.map((p) => p.id)).toEqual(["ph1"]);
     expect(slice.activities.map((a) => a.id)).toEqual(["act1"]);
     expect(slice.timeOff.map((t) => t.id)).toEqual(["to1"]);
@@ -639,7 +616,6 @@ function createLifecycleProjectionReadTests(): void {
     expect(slice.resources.map((r) => r.id).sort()).toEqual(["r-active", "r-archived"]);
     expect(slice.clients.map((c) => c.id).sort()).toEqual(["c-active", "c-deleted"]);
     expect(slice.projects.map((p) => p.id).sort()).toEqual(["p-active", "p-deleted"]);
-    // Children unaffected by the flag.
     expect(slice.phases.map((p) => p.id)).toEqual(["ph1"]);
     expect(slice.activities.map((a) => a.id)).toEqual(["act1"]);
     expect(slice.timeOff.map((t) => t.id)).toEqual(["to1"]);

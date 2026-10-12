@@ -113,6 +113,7 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request).catch(async () => {
+        // A failed navigation may use only the immutable installation shell; without one, surface a 503 offline response.
         // Route URLs can contain invite or password-reset bearer tokens. The immutable installation
         // shell is stored and read under the neutral key only; navigation URLs never become keys.
         const cache = await activeShellCache();
@@ -132,6 +133,7 @@ self.addEventListener("fetch", (event) => {
   if (!["script", "style", "image", "font", "manifest"].includes(request.destination)) return;
   event.respondWith(
     fetch(request).catch(async () => {
+      // A failed static-asset request may reuse the active release’s cached asset; a missing asset surfaces as 504.
       const cache = await activeShellCache();
       const cached = await cache?.match(request);
       return cached ?? new Response("", { status: 504 });

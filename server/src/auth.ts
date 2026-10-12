@@ -64,17 +64,9 @@ export function isMatchingSecretToken(configured: string | undefined, presented:
 // flow. Public requests use optional SMTP. Better Auth owns token storage, expiry, single-use
 // consumption and the public POST /api/auth/reset-password redeem endpoint.
 
-/**
- * Mint a single-use, {@link RESET_LINK_TTL_SECONDS}-lived password-reset token for `email` via
- * Better Auth's verification store. Returns the token, or `null` when Better Auth
- * matched no user for the email (its anti-enumeration success tells us nothing, so "callback never
- * fired" is the no-such-user signal). The caller (the admin-gated route in app.ts) turns the token
- * into a link and returns it exactly once. Better Auth persists only a digest of the identifier;
- * the bearer token itself is never stored or logged here.
- *
- * Password mode only: in 'sso' the IdP owns credentials and `sendResetPassword` is not configured,
- * so Better Auth itself refuses with RESET_PASSWORD_DISABLED, the route gates on mode first and
- * never reaches that.
+/** Mints a single-use, TTL-limited reset token for an existing password-mode principal.
+ * Returns null when no reset callback runs because Better Auth found no matching user. Storage retains only the token digest.
+ * Callers must reject non-password mode before invoking this operation.
  */
 export async function mintPasswordResetToken(auth: Auth, email: string): Promise<string | null> {
   const store: { token: string | null } = { token: null };
@@ -105,10 +97,7 @@ export function revokeFederatedLinkStateInTx(db: Db, principalId: string): void 
 const verificationTableExists = createTableExistenceProbe("verification");
 const microsoftProofTableExists = createTableExistenceProbe("microsoft_identity_proofs");
 
-// {@link countUsers} is consulted before runAuthMigrations as well as after it, authFromEnv makes
-// its boot-time minPasswordLength decision on the pre-migration handle, where the table does not
-// exist yet. Caching that pre-migration `false` would make every later per-request call read
-// "zero users" forever, holding first-run sign-up open on a populated instance.
+// Do not cache a missing user table: this probe is used before migrations and must detect the table after it exists.
 const userTableExists = createTableExistenceProbe("user");
 
 /**
@@ -223,9 +212,7 @@ export function ensureAuthControlTables(db: Db): void {
   }
 }
 
-/** Structural half of a SQLite UNIQUE-constraint collision on the bootstrap-claim insert,
- * shared by both acquisition sites. Each caller ORs its own message-regex clause on top (the
- * two patterns differ deliberately for now), so this only covers the code/errcode probe. */
+// Callers combine the SQLite constraint code with their operation-specific message predicate.
 function isSqliteConstraintCollision(sqlite: { code?: unknown; errcode?: unknown }): boolean {
   return sqlite.errcode === 19 || (typeof sqlite.code === "string" && sqlite.code.startsWith("SQLITE_CONSTRAINT"));
 }

@@ -114,10 +114,12 @@ function runNestedTransaction<Result>(db: Db, callback: () => Result, options: R
     db.exec(`RELEASE SAVEPOINT ${savepoint}`);
     return result;
   } catch (e) {
+    // Roll back only this savepoint and rethrow the original callback failure so an enclosing transaction may safely handle it.
     try {
       db.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`);
       db.exec(`RELEASE SAVEPOINT ${savepoint}`);
     } catch (rollbackError) {
+      // Report failed savepoint rollback and taint the enclosing transaction so it cannot commit after an incomplete rollback.
       if (!taintedTransactions.has(db)) taintedTransactions.set(db, e);
       reportRollbackFailureSafely(options.reportRollbackFailure, { scope: "savepoint", error: rollbackError });
     }

@@ -1,10 +1,6 @@
 import { MAX_RECOVERY_DELIVERY_IDS } from "./types";
 import type { AuditSink } from "./types";
-/**
- * The no-op sink: every `append` succeeds (returns true) and `degraded` is always false. This is
- * the factory default (buildApp) so the default local/no-server deploy and the whole test suite are
- * byte-identical unless a real sink is explicitly injected.
- */
+/** Returns a sink that accepts records without writing them or reporting degradation. */
 export function createNoopAuditSink(): AuditSink {
   return {
     append: () => true,
@@ -13,13 +9,10 @@ export function createNoopAuditSink(): AuditSink {
   };
 }
 
-/** JSON-line audit stream suitable for container stdout and a separate log collector.
- *
- * Retry-idempotent: when a sibling destination in a composite sink fails, the outbox retains the
- * records and redelivers them later. Without dedup, every retry re-printed records this sink had
- * already emitted, amplifying stdout copies. A bounded set of recently emitted auditIds makes
- * redelivery a no-op; beyond the window, at-worst-duplicate delivery resumes (stdout is the
- * best-effort copy, the durable JSONL file is the evidence of record). */
+/** Emits JSONL audit records and suppresses repeated delivery IDs within a bounded in-process window.
+ * Returns false and latches degraded health on writer failure; the outbox retains the records for retry.
+ * IDs outside the retained window may be emitted again.
+ */
 export function createStreamAuditSink(write: (line: string) => void): AuditSink {
   let degraded = false;
   const recentlyEmitted = new Set<string>();

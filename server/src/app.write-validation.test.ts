@@ -193,13 +193,11 @@ function createPlaceholderWriteValidationTests(): void {
     await scaffold(app);
     await post(app, "projects", project("p2", "a1", "c1"));
     await post(app, "activities", activity({ id: "t2", accountId: "a1", projectId: "p2" }));
-    // Bound to p1.
     await post(app, "resources", placeholder("ph", "a1", "p1"));
     const res = await post(
       app,
       "allocations",
       allocation({ id: "al", accountId: "a1", resourceId: "ph", activityId: "t2" }),
-      // The activity belongs to the second project.
     );
     expect(res.statusCode).toBe(400);
     expect(readErrorResponse(res).error).toMatch(/placeholder/i);
@@ -315,7 +313,6 @@ function createExternalResourceConversionRejectionTests(): void {
   // attempts before dependent validation can be bypassed.
   it("rejects PATCH setting kind:external on a person resource", async () => {
     const { app } = freshApp();
-    // R1 is a person.
     await scaffold(app);
     await post(
       app,
@@ -357,7 +354,7 @@ function createExternalResourceConversionAcceptanceTests(): void {
   it("rejects flipping a resource to external even without disallowed dependents", async () => {
     const { app } = freshApp();
     await scaffold(app);
-    // A zero-load allocation is already valid for an external, so it must not block the flip.
+    // Zero-load allocations do not conflict with an external resource kind.
     await post(
       app,
       "allocations",

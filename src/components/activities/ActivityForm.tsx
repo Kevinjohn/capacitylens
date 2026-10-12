@@ -141,9 +141,7 @@ function useProjectOptions(activity?: Activity) {
   return buildProjectOptions({ projects, clients, rawProjects: raw.projects, rawClients: raw.clients, activity });
 }
 
-/** Add (no `activity`) or edit an activity. Pick a kind first: a `project` activity takes a project (and keeps
- * its phase); `internal`/all-projects (`repeatable`) are project-less, so the project picker is hidden and their
- * project/phase forced empty. `onClose` fires on save or cancel. */
+/** Creates or edits an activity and closes after save or cancel. Only project activities carry project and phase attribution. */
 export function ActivityForm({ activity, onClose }: { activity?: Activity; onClose: () => void }) {
   const add = useStore((state) => state.addActivity);
   const update = useStore((state) => state.updateActivity);

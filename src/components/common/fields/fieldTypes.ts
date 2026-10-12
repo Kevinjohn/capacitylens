@@ -1,5 +1,3 @@
-// Product field APIs composed from ShadCN's Field family.
-
 /** Shared label placement choices for product fields. */
 export type ProductFieldLayout = "stacked" | "label-control";
 
@@ -13,9 +11,7 @@ export interface Option {
   groupKey?: "all-projects" | "project";
   /** Adds a structural, non-selectable divider immediately before this option. */
   separatorBefore?: boolean;
-  /** Renders the option un-pickable while still selectable-by-value: a select whose current value
-   * is a disabled option keeps showing it (the "(current, archived)" parent case, the unchanged
-   * id must round-trip), but the user can't move back to it after choosing something else. */
+  /** A disabled current option remains displayable so an unchanged archived-parent ID can round-trip, but users cannot select it again after changing away. */
   disabled?: boolean;
 }
 

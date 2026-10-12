@@ -46,6 +46,7 @@ function createSignInTrackingMutation(dependencies: MemberMutationDependencies) 
         );
         dependencies.reload();
       } catch (cause) {
+        // Report the member mutation failure and refresh authoritative directory state.
         dependencies.fail(null, m.settings_err_server({ error: resolveErrorMessage(cause) }));
         dependencies.reload();
       }
@@ -77,6 +78,7 @@ function createRoleMutation(dependencies: MemberMutationDependencies) {
         if (member.isSelf) await dependencies.refreshCallerAccess();
         dependencies.refreshDirectory();
       } catch (cause) {
+        // A role-change request may have committed; reconcile caller access too when the edited member is self.
         await dependencies.reconcileUnknownMutation(
           m.settings_members_error_detail({
             message: m.settings_members_unknown_role_change(),
@@ -115,6 +117,7 @@ function createRemoveMemberMutation(dependencies: MemberMutationDependencies) {
         }
         dependencies.refreshDirectory();
       } catch (cause) {
+        // An uncertain member removal may change caller access; reconcile before another administrative attempt.
         await dependencies.reconcileUnknownMutation(
           m.settings_members_error_detail({
             message: m.settings_members_unknown_member_removal(),
@@ -148,6 +151,7 @@ function createStatusMutation(dependencies: MemberMutationDependencies) {
         dependencies.clearResetLinkFor(member.userId);
         dependencies.refreshDirectory();
       } catch (cause) {
+        // An uncertain membership-status change requires authoritative reconciliation before another action.
         await dependencies.reconcileUnknownMutation(
           m.settings_members_error_detail({
             message: m.settings_members_unknown_status_change(),
@@ -179,6 +183,7 @@ function createEnableAccessMutation(dependencies: MemberMutationDependencies) {
         dependencies.setNotice(m.settings_members_access_enabled());
         dependencies.refreshDirectory();
       } catch (cause) {
+        // An uncertain membership-status change requires authoritative reconciliation before another action.
         await dependencies.reconcileUnknownMutation(
           m.settings_members_error_detail({
             message: m.settings_members_unknown_status_change(),
