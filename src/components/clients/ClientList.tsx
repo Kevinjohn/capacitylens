@@ -14,13 +14,7 @@ import { buildClientArchiveImpactCopy, safeArchiveImpact } from "@/lib/archiveIm
 import { byName } from "@/lib/displayOrder";
 import { ArchivedEntitySection } from "@/components/common/ArchivedEntitySection";
 
-/** Build the archive-confirm message for a client, appending the descendant-count cascade warning
- * ("this also hides N projects and M allocations") when the client has active work beneath it, so
- * the admin sees exactly what an archive pulls out of the schedule (counts via the pure
- * archiveImpact, which diffs the same activeOnly projection the view uses). Uses safeArchiveImpact
- * (not archiveImpact directly) so a client that stopped being active between dialog-open and
- * render (someone else archived it, a sync landed, an undo fired) renders the base message
- * instead of throwing during render. */
+// Render the base archive message if the row became inactive after the dialog opened; safeArchiveImpact prevents a render-time integrity throw.
 function buildClientArchiveMessage(data: AppData, client: Client): string {
   const name = client.isPrivate === true ? nameForQuotedContext(client.name) : client.name;
   const base = m.list_clients_archive_message({ name });
@@ -63,19 +57,13 @@ function ClientItems({ clients, onEdit, onArchive }: ClientItemsProps) {
 
 /** Lists scoped clients while keeping the internal data anchor out of ordinary management. */
 export function ClientList() {
-  // The built-in Internal client is a behind-the-scenes data anchor (project-less internal/all-projects
-  // activities bucket under it; it can own real projects), not a user-managed client, so it is hidden
-  // from this management list. It stays a real, persisted client everywhere it's actually used:
-  // selectable in ProjectForm's client picker, a "Filter by client" option in the scheduler, and a
-  // Clients entry in the command palette (all of which read `useActiveScopedData().clients` directly,
-  // not this view), and a project under Internal still resolves its client label. See DECISIONS.md.
+  // The Internal client is a persisted bucket available to project and schedule selection, while ordinary client management hides it.
   const scoped = useActiveScopedData();
   const clients = useMemo(
     () => scoped.clients.filter((client) => !isBuiltinClient(client)).sort(byName),
     [scoped.clients],
   );
-  // The per-row action archives (soft-delete is reached from the inline archive section);
-  // `archive` branches server/local + reloads the active slice in server mode (see useLifecycleActions).
+
   const { archive } = useLifecycleActions();
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<Client>();
 

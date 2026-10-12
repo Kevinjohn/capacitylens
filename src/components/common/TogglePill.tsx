@@ -10,11 +10,7 @@ interface TogglePillProps {
   className?: string;
 }
 
-/**
- * A single on/off pill for a boolean choice, replacing the "Show X / Hide X" segmented pairs.
- * Selection is carried by the brand-soft fill and its paired ink; the resting state is a plain
- * surface pill with muted text, so an off pill never reads as a second selected option.
- */
+/** A boolean toggle pill keeps selection distinct through its paired fill and text tokens. */
 export function TogglePill({ pressed, onPressedChange, children, swatch, className }: TogglePillProps) {
   return (
     <button

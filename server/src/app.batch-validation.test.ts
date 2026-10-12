@@ -121,7 +121,7 @@ function createAtomicRollbackTest() {
   it("rolls the WHOLE batch back if any op fails (atomic)", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));
-    // First op valid (new client c3); second references a missing client → validation 400.
+
     const res = await batch(app, [
       { method: "PUT", table: "clients", id: "c3", row: client("c3", "a1") },
       {
@@ -133,7 +133,7 @@ function createAtomicRollbackTest() {
     ]);
     expect(res.statusCode).toBe(400);
     const s = await readValidatedState(app);
-    // The invalid operation rolls back c3, so no client persists.
+
     expect(s.clients).toHaveLength(0);
     expect(s.projects).toHaveLength(0);
   });
@@ -201,7 +201,7 @@ function createCrossAccountDeleteRollbackTest() {
     await post(app, "accounts", account("a2"));
     const res = await batch(app, [{ method: "DELETE", table: "clients", id: "c1", accountId: "a2" }]);
     expect(res.statusCode).toBe(400);
-    // The failed batch must leave c1 unchanged.
+
     expect((await readValidatedState(app)).clients).toHaveLength(1);
   });
 }

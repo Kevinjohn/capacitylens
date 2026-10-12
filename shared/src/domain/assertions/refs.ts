@@ -9,13 +9,9 @@ import type { ValidationDataLookup } from "../validationLookup";
 
 const RESOURCE_KINDS: ReadonlySet<unknown> = new Set(["person", "placeholder", "external"]);
 
-/**
- * Strict tenancy at the write boundary. An update/delete must own its target:
- *   - absent row  → return null; the caller no-ops (preserves the silent-no-op
- *     contract for a stale id, e.g. a drag committed after an undo).
- *   - cross-account row → throw; a real integrity violation no legitimate flow
- *     produces. Returns the owned row so callers can read its current values.
- */
+/** Require the target row to belong to accountId before an update or delete.
+ * Returns null for a stale id so callers can preserve the no-op contract; otherwise returns the owned row.
+ * @throws DomainError for a cross-account row; nothing may be changed. */
 export function getOwned<K extends ScopedEntityKey>(
   ...[data, accountId, key, id]: [data: AppData, accountId: ID, key: K, id: ID]
 ): AppData[K][number] | null {
@@ -175,22 +171,7 @@ function assertResourceRefs(context: ScopedRefsContext): void {
   need("projectId", "projects", "Placeholder project must belong to this company.");
 }
 
-/**
- * Every foreign key on a new/updated scoped record must point at a row in the
- * same account. Optional FKs are checked only when present. A project/phase create or full row must
- * carry its required parent; a partial update may omit that field but may not explicitly clear it.
- *
- * `existing` (updates only) is the currently-stored row the write targets, pass the
- * `getOwned` result so its tenancy is already proven. When a checked FK field equals
- * the existing row's value, its existence check is skipped: the reference was validated
- * when it was written, and in server mode the client's hydrated slice is active-only
- * (readSlice strips archived/soft-deleted clients/projects), so re-checking an unchanged
- * parent id against the slice would falsely reject every unrelated edit (a rename, a
- * colour change) of a row whose parent is archived. A changed id is still validated
- * strictly, so this never weakens tenancy. You can't move a record onto a parent the
- * slice can't prove is yours. (The server needs no such relaxation: its validateWrite
- * runs against the full DB, where an archived parent still exists.)
- */
+// Resource kind is immutable on ordinary updates; malformed stored kinds require import repair.
 function assertResourceKindImmutable(
   previous: Record<string, unknown> | undefined,
   record: Record<string, unknown>,
@@ -204,12 +185,12 @@ function assertResourceKindImmutable(
   }
 }
 
-/**
- * Assert that the catalog references a scoped record carries (client, project, phase, activity and
- * resource links) resolve within `accountId`. It does not check the record's own `accountId`, and it
- * leaves allocation and time-off references to their own validators, so it is not a tenancy guard
- * on its own. Throws a `DomainError` on a violation.
- */
+/** Check catalog references within accountId without checking the record’s own tenancy.
+ * Allocation and time-off references have separate validators. Existing must be the owned stored row.
+ * Unchanged references may be absent from an active-only client slice; their missing/inactive target checks are skipped, but a resolved foreign-account target still fails.
+ * Creates and full project/phase rows require their parent; partial updates may omit the parent but cannot clear it.
+ * Ordinary resource updates cannot change kind.
+ * @throws DomainError on a violation; callers must not persist the write. */
 export function assertScopedRefs(
   ...[data, accountId, key, record, existing, lookup, options = {}]: ScopedRefsArgs
 ): void {
@@ -247,7 +228,7 @@ export function assertScopedRefs(
       break;
     case "allocations":
     case "timeOff":
-      // Their refs are checked by assertAllocationRefs / assertResourceExists below.
+      // Allocation and time-off references use their dedicated validators.
       break;
     case "closures":
       break;
@@ -258,12 +239,10 @@ export function assertScopedRefs(
   }
 }
 
-/**
- * An allocation must reference a real resource and activity in the active account. Changed
- * repeatable attribution may reference only a live project, and placeholder allocations must
- * remain effective under their bound project. External resources have no capacity and may carry
- * only zero load. Requiring `hoursPerDay` makes every allocation write check that rule.
- */
+// An allocation must reference a real resource and activity in the active account. Changed
+// repeatable attribution may reference only a live project, and placeholder allocations must
+// remain effective under their bound project. External resources have no capacity and may carry
+// only zero load. Requiring `hoursPerDay` makes every allocation write check that rule.
 type AllocationRefsArgs = [
   data: AppData,
   accountId: ID,

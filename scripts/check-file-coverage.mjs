@@ -2,8 +2,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-/** Existing measured modules awaiting focused tests. New entries require an explicit policy review;
- * never use a directory or glob here, because the purpose is to stop new zero-coverage files. */
+/**
+ * Explicitly accepted modules without line coverage.
+ * Additions require policy review; use exact paths so new untested modules remain detectable.
+ */
 export const ZERO_COVERAGE_ALLOWLIST = new Set([
   "shared/src/account/sessionPolicy.ts",
   "src/components/ui/skeleton.tsx",
@@ -45,6 +47,7 @@ export function uncoveredExecutableFiles(lcov, allowlist = ZERO_COVERAGE_ALLOWLI
 
 /**
  * Checks the coverage report and throws when an unapproved module has no covered lines.
+ * @throws When the report cannot be read or an unapproved executable module has no covered lines.
  */
 export function checkFileCoverage(path = "coverage/lcov.info") {
   const lcov = readFileSync(resolve(path), "utf8");
@@ -60,6 +63,7 @@ if (invokedPath === fileURLToPath(import.meta.url)) {
   try {
     checkFileCoverage(process.argv[2]);
   } catch (error) {
+    // Surface report and coverage failures through stderr and a failing exit status.
     console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
   }

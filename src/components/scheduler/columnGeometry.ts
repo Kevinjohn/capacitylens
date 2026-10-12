@@ -2,16 +2,9 @@ import { dayIndex, weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { DAY_COLUMN_MIN_WIDTH, WEEKDAY_LABEL_MIN_WIDTH } from "@/lib/schedulerConfig";
 import type { ISODate } from "@capacitylens/shared/types/entities";
 
-// Scheduler column geometry is the source of truth for px↔day↔date mapping. Prefix-summed
-// offsets permit each visible day to have its own width, including narrowed weekend columns.
-// Bars, headers, lane overlays, pointer mapping, and drag previews use the same geometry so
-// preview and commit agree. The module is pure and DOM-free; tests cover boundary inverses and
-// uniform-width behavior.
+// Shared pure geometry keeps bars, headers, pointer mapping and drag previews on the same pixel/date boundaries, including narrowed weekends. Unexpected math errors must remain visible rather than be caught here.
 
-/**
- * Per-column pixel geometry for the visible day window. Build once per render with
- * {@link buildColumnGeometry}; the methods are O(1) (or O(log n) for {@link indexAt}).
- */
+/** Per-column geometry for one aligned visible-date window. Build once per geometry change; indexed width/offset reads are constant-time and pixel-to-column lookup is logarithmic. */
 export interface ColumnGeometry {
   /** widths[i] = px width of visible day i. */
   readonly widths: number[];
@@ -19,15 +12,9 @@ export interface ColumnGeometry {
   readonly offsets: number[];
   /** Total px width of the whole window (= offsets[n]). */
   readonly totalWidth: number;
-  /** weekdays[i] = weekday of visible day i (0 = Sunday … 6 = Saturday), summed alongside the
-   * widths. Consumers asking "is this column a week start / a weekend?" read it from here rather
-   * than re-parsing the date: the lanes ask that per day per row, so the parses otherwise
-   * multiply by the number of visible resources on every render. */
+  /** Cached numeric weekdays align with visible column widths so row rendering does not reparse the same date for every resource. */
   readonly weekdays: number[];
-  /** True at/above `DAY_COLUMN_MIN_WIDTH`: the zoom is fine enough for per-day columns (the header
-   * renders day cells rather than week blocks, and the lanes paint their per-day decorations).
-   * The single answer to that question: header, lanes and `minimiseActive` all read it here, so
-   * they cannot flip a zoom step apart. */
+  /** One shared zoom threshold enables daily headers and row decorations so those surfaces switch together. */
   readonly perDayColumns: boolean;
   /** True at/above `WEEKDAY_LABEL_MIN_WIDTH`: the columns have room for the weekday letters
    * (Mon/Tue…) on top of the date number. Implies {@link perDayColumns}. */
@@ -50,9 +37,7 @@ export interface ColumnGeometry {
    * fraction below an integer column boundary, and indexAt's strict floor would resolve that to the
    * previous column, which under minimised weekends is much narrower. */
   indexAtScroll(scrollLeft: number): number;
-  /** Left edge px of a date. Extrapolates at full width outside the window (a bar starting
-   * before day 0 still overflows off-screen-left exactly as it did under the uniform grid),
-   * so off-window bars clip correctly. Returns 0 for an unparseable date (no NaN geometry). */
+  /** Returns a date's pixel edge, extrapolating full-width columns outside the visible window and returning zero for invalid dates. */
   xForDateInGeom(date: ISODate): number;
   /** Px width of the inclusive date range [start, end] (≥ 0; 0 when reversed or unparseable). */
   widthForDates(start: ISODate, end: ISODate): number;
@@ -215,14 +200,9 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, options: 
   const dayCount = days.length;
   const perDayColumns = dayWidth >= DAY_COLUMN_MIN_WIDTH;
   const minimiseActive = options.minimiseWeekends && perDayColumns;
-  // A narrowed weekend is never wider than a normal day; an unmeasured/garbage width (NaN, 0)
-  // degrades to dayWidth so the prefix sum stays finite and strictly increasing. Rounded to a
-  // whole pixel so every offset is an integer: a fractional weekend width (e.g. 22.39) makes
-  // fractional offsets, but the browser stores scrollLeft as a whole number, the mismatch made
-  // the zoom scroll-anchor's indexAt() floor to the previous (weekend) column, drifting the
-  // left-edge date back a day on every zoom flip. dayWidth is already integer (resolveColumnFit).
+  // Round narrowed weekend widths to integer pixels and cap them at dayWidth so column offsets stay valid and zoom anchoring remains aligned.
   const measurements = buildColumnMeasurements(days, dayWidth, options);
-  // An empty window has no column to index.
+
   const origin = days[0];
   const accessors = createGeometryAccessors({ ...measurements, dayCount, dayWidth, origin });
 
@@ -236,15 +216,9 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, options: 
 }
 
 /**
- * The visible day at a container's left edge, for a given `scrollLeft`.
+ * Resolves the date at a scroll container's left edge through the shared rounded scroll inverse. Empty windows return undefined.
  *
- * The one place the "which date am I looking at?" read lives: the zoom/recenter scroll anchor, the
- * week-start snap and the visible-window span all answered it separately, and a difference between
- * those answers is a view that jumps. Goes through {@link ColumnGeometry.indexAtScroll}, so the
- * HiDPI sub-pixel rounding applies here too.
- *
- * An empty window has no date and returns undefined. A geometry that resolves outside a non-empty
- * day window violates the alignment invariant and throws.
+ * @throws Error when non-empty dates and geometry are misaligned.
  */
 export function resolveLeftEdgeDate(
   geometry: ColumnGeometry,

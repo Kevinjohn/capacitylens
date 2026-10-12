@@ -1,11 +1,9 @@
 import { REPLY_ERRORS } from "../replyErrors";
 
-/** Batch-internal stale-write signal (optimistic concurrency, fix parity with the direct PUT
- * route). Carries the stored row so the batch handler can send the direct route's exact 409
- * shape (`{ error, current }`). It is thrown from inside tx(), so by construction the whole
- * batch has already rolled back by the time the handler catches it, all-or-nothing, no op from
- * the conflicted batch persists. Not a ValidationError: this is a conflict (409), not a
- * malformed request (400), and it must never be re-classified by statusFor. */
+/** Signals a stale batch write and carries the stored row for the canonical 409 response.
+ * It escapes the enclosing transaction so every operation is rolled back before the handler responds.
+ * A conflict must not be reclassified as malformed input.
+ */
 export class StaleWriteError extends Error {
   constructor(readonly current: Record<string, unknown>) {
     super(REPLY_ERRORS.staleWrite);

@@ -134,10 +134,7 @@ function registerReadRouteTests(): void {
 
 function registerAuditWarningTests(): void {
   it("surfaces an audit-degradation warning when apiFetch reports one for /api/auth/me", async () => {
-    // accountClient.me used to call raw `fetch` directly, bypassing apiFetch's audit-degradation
-    // header check entirely (the regression this test pins). Simulate apiFetch's real header-check
-    // behavior (mirrors requestTimeout.ts's apiFetch, covered directly in requestTimeout.test.ts) so
-    // this test proves accountClient.me's own wiring reaches apiFetch rather than a bespoke fetch.
+    // Account reads use apiFetch so audit-degradation headers reach the shared warning surface. The mock preserves that header check.
     const warning = vi.fn();
     globalThis.addEventListener(AUDIT_WARNING_EVENT, warning);
     mocks.apiFetch.mockImplementation(async () => {

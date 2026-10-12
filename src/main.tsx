@@ -1,10 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
-// driver.css before index.css: index.css re-skins the tour popover (.driver-popover block) onto
-// the app tokens with equal-specificity rules, so the vendor sheet must come first in the
-// cascade. Importing it from lib/tour.ts instead put it after index.css in the bundle and its
-// hard-coded white background won in dark mode.
+// Import vendor tour CSS before app styles so equal-specificity theme overrides win.
 import "driver.js/dist/driver.css";
 import "./index.css";
 import { router } from "./router";
@@ -24,9 +21,6 @@ import { m } from "@/i18n";
 const rootEl = document.getElementById("root");
 if (!rootEl) throw new Error(`${APP_NAME} mount node #root not found in index.html`);
 
-// Paint the saved colour scheme (the inline <head> script already did this to beat
-// the first paint; this re-affirms it from the store) and keep "system" mode live
-// by repainting whenever the OS scheme flips.
 applyThemeToDom(useStore.getState().theme);
 const detachTheme = watchSystemTheme(() => useStore.getState().theme);
 
@@ -41,15 +35,10 @@ function startPersistence(identitySource: "live" | "offline" | "open"): void {
   persistenceStarted = true;
   void bootstrap(useStore, persistenceAdapter, {
     ...(identitySource === "live" && isServerConfigured() ? { initialLoad: "empty" as const } : {}),
-    // Auto-seed is a demo-build-only convenience (single-company-per-instance policy): the
-    // in-memory build has no server to own the data, so it seeds a demo dataset on each page load.
-    // A server-backed instance (the default) must not auto-seed. The server owns its data, and a
-    // fresh real deploy now deliberately starts empty at the create-your-company picker rather than
-    // fabricating a "Wayne Enterprises". `undefined` here means bootstrap() only loads whatever the
-    // server already has (possibly nothing).
+    // Seed only the memory-only demo build. Server-backed instances load their own data
+    // and begin at company creation when empty.
     ...(isDemoMode() ? { seedIfEmpty: seedForCurrentWeek() } : {}),
-    // Per-account hydration: in server mode a tenant pick loads only that account's slice and
-    // re-seeds the diff snapshot atomically (the switch orchestrator). The demo build leaves it inert.
+
     serverMode: isServerConfigured(),
     onError: (error) => {
       // Successful reloads rebase edits made during their network window. This typed error is the
@@ -89,9 +78,7 @@ const reactRoot = createRoot(rootEl);
 reactRoot.render(
   <StrictMode>
     <ErrorBoundary>
-      {/* Auth boundary: the demo build and auth-off deploys pass straight through;
-          only an auth-enabled server can swap in the login
-          screen. Wraps the router so a 401 walls off the whole app, picker included. */}
+      {/* AuthProvider gates the router so an expired authenticated session also hides the picker. */}
       <AuthProvider onTenantAccessReady={startPersistence}>
         <RouterProvider router={router} />
       </AuthProvider>

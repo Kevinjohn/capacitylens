@@ -50,8 +50,7 @@ async function reconcileUnknownCreate(
   return list !== null;
 }
 
-/** Add the example rows to a company that was just created. Returns why it failed, or null. The
- * company stays usable either way, so a failure is reported rather than rolled back. */
+// Keep a newly created company usable when optional example-data seeding fails; report the partial outcome.
 async function addExampleDataTo(accountId: string): Promise<string | null> {
   try {
     const response = await accountClient.addExampleData(accountId);
@@ -113,6 +112,7 @@ async function createServerAccount({
     if (exampleDataFailure !== null) setNotice(m.picker_example_data_failed({ reason: exampleDataFailure }), "error");
     void refreshAuth();
   } catch (cause) {
+    // A thrown create may have committed, so reconcile authoritative companies before inviting a duplicate creation attempt.
     const reconciled = await reconcileUnknownCreate({ refreshAuth, setCreateUnresolved });
     resetForm();
     const message = reconciled ? m.picker_create_unknown_refreshed() : m.picker_create_unknown_stale();
@@ -155,6 +155,7 @@ function createAccountSubmit(input: CreateAccountSubmitInput): () => void {
       input.resetForm();
       input.setActiveAccount(account.id);
     } catch (cause) {
+      // Surface a creation failure at the form boundary so its controls remain usable.
       input.fail(null, resolveErrorMessage(cause));
     }
   };
@@ -206,8 +207,7 @@ export interface ExampleDataChoice {
   onChange: (checked: boolean) => void;
 }
 
-/** Example data is offered only where a server can add it. The box starts ticked for a person's
- * first company and unticked after that; until they touch it, the default follows that rule. */
+// Until edited, the example-data choice follows whether this is the first company.
 function useExampleDataChoice() {
   const isFirstCompany = useStore((state) => state.accountSummaries.length === 0);
   const [touched, setTouched] = useState<boolean | null>(null);
@@ -223,12 +223,12 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
   const setActiveAccount = useStore((state) => state.setActiveAccount);
   const setNotice = useStore((state) => state.setNotice);
   const [creating, setCreating] = useState(false);
-  // True while the server-mode create POST is in flight; guards duplicate requests while it runs.
+
   const [submitting, setSubmitting] = useState(false);
   // Failed authoritative reconciliation blocks another POST until reload reconstructs this hook.
   const [createUnresolved, setCreateUnresolved] = useState(false);
   const [name, setName] = useState("");
-  // The three frozen-after-creation fields, captured here with concrete defaults.
+
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(DEFAULT_WEEK_STARTS_ON);
   const [timezone, setTimezone] = useState<string>(() => resolveBrowserTimeZone());
   const exampleData = useExampleDataChoice();

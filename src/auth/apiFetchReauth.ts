@@ -4,23 +4,9 @@ import { readReauthResolution, requestReauth } from "./reauthCoordinator";
 import type { ReauthAction } from "./reauthCoordinator";
 import { m } from "@/i18n";
 
-// The step-up interception seam (defect B). A drop-in replacement for `apiFetch` used only at
-// security-sensitive call sites: provider linking, membership/invitation mutations, ownership
-// transfer, and company/entity purge. These are the actions the server 403s with `code: SESSION_NOT_FRESH` once
-// the session is older than 15 minutes
-// (server/src/app.ts authorize()). Ordinary scheduling reads/writes remain freshness-ungated and
-// keep using plain `apiFetch`.
-//
-// Why here, at a shared fetch wrapper (not per call site): every one of those call sites already
-// does `const res = await apiFetch(...)`, so wrapping that one call catches all of them with a
-// uniform swap and no bespoke per-handler logic. On a SESSION_NOT_FRESH response we raise the shared
-// "Confirm it's you" dialog (via requestReauth). The freshness check runs before the handler
-// mutates anything (the 403 means the write did not happen), so a successful re-auth lets us
-// re-issue the identical request transparently. The caller only ever sees the final Response: a 200
-// after step-up, or (on cancel) the original 403 it would have surfaced anyway.
+// The freshness refusal occurs before mutation, so a replayable request can retry once after the shared re-authentication dialog succeeds.
 
-/** Peek (without consuming the body) at whether this is the server's freshness 403. Clones the
- * response so the caller can still read the body when we hand the original back on cancel. */
+// Clone freshness refusals so cancellation leaves the original response body readable.
 async function isSessionNotFresh(res: Response): Promise<boolean> {
   if (res.status !== 403) return false;
   // Best-effort per DEFENSIVE-CODING.md §5: an unreadable/non-JSON 403 body simply isn't a step-up
@@ -63,17 +49,9 @@ function canReplayRequest({ input, requestOptions, replayAfterFreshnessRefusal }
 }
 
 /**
- * `apiFetch` plus transparent step-up re-authentication on a SESSION_NOT_FRESH 403.
+ * Re-authenticates once after a freshness refusal when the request is replayable. Cancelled or unreplayable requests return the original response. A retry that still fails freshness returns an explanatory replacement response.
  *
- * Signature mirrors {@link apiFetch} plus an optional step-up descriptor, so a call site swaps
- * `apiFetch` → `apiFetchReauth` without changing request handling. Returns the Response to react to:
- *   - not a freshness 403 → the original response, untouched;
- *   - freshness 403 + successful re-auth → the response of the re-issued request (safe: the first
- *     request was rejected before any mutation, so re-sending it is not a double-write);
- *   - freshness 403 + cancelled re-auth → the original 403, so the caller surfaces its message as
- *     it does today.
- *
- * Retries at most once. A still-fresh-failing retry is returned as-is (no re-prompt loop).
+ * @throws TypeError before dispatch for a one-shot RequestInit stream body. Transport errors propagate.
  */
 export async function apiFetchReauth(
   input: RequestInfo | URL,

@@ -1,26 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-// The app tsconfig (`tsconfig.app.json`) carries only `vite/client` types, not `@types/node`, to keep
-// the browser bundle's type surface honest. This is the one src test that reads files off disk (the
-// dependency-denylist scan below). The node `fs`/`path`/`process` types it needs arrive through these
-// `node:*` module imports, which resolve file-scoped. They do not add node globals to the whole app
-// project the way a `/// <reference types="node" />` triple-slash directive would. So we import `cwd`
-// rather than reaching for the global `process.cwd()`.
+// Keep Node types local to these filesystem imports so browser application types
+// do not gain Node globals.
 import { cwd } from "node:process";
 
-// Privacy posture, dependency guard against analytics/telemetry/email vendor SDKs.
-//
-// Product analytics, telemetry and browser-side third-party egress remain prohibited. The server
-// may send Microsoft identity verification through operator-configured SMTP, using nodemailer;
-// this is the sole email transport exception. Vendor email SDKs remain denied. The server's
-// k-anonymous breached-password lookup uses native fetch and is outside this dependency check.
-// Browser CSP coverage remains in server/src/app.helmet.test.ts. User-facing privacy guidance is
-// updated with the separately delivered sign-in documentation.
-//
-// Matching is exact package name only (no substring matching), so a legitimately-named package
-// (e.g. some hypothetical "react-analytics-table" UI helper) can't be killed by a denylist entry
-// it merely contains. We deny known-bad names, precisely.
+// Deny analytics, telemetry and vendor email SDK dependencies. Operator-configured
+// SMTP is the allowed mail transport; native-fetch password screening and browser
+// CSP have separate checks. Match exact package names to avoid false substring hits.
 
 // Curated deny-known-bad list of analytics/telemetry + email packages. Keep it maintainable:
 // add the egress-vendor SDKs people actually reach for, not every transitive utility.
@@ -72,9 +59,6 @@ const DENYLIST: string[] = [
 
 const DENYSET = new Set(DENYLIST);
 
-// Vitest's root config runs from the repo root, so cwd() is the repo root; every manifest
-// path resolves relative to it. (Verified: package.json / server|shared/package.json /
-// pnpm-lock.yaml all resolve here.)
 const REPO_ROOT = cwd();
 
 interface Manifest {
@@ -83,9 +67,7 @@ interface Manifest {
   deps: string[];
 }
 
-/** Read one package.json, returning its combined dep keys. Throws (surface, don't swallow) if the
- * file is missing or doesn't parse to an object. A path/parse mistake must be a loud failure, not
- * a silently-empty (and therefore vacuously-passing) scan. */
+// Surface missing or malformed manifests so dependency checks cannot pass vacuously.
 function readManifest(relPath: string): Manifest {
   const raw = readFileSync(join(REPO_ROOT, relPath), "utf8");
   const json: unknown = JSON.parse(raw);
@@ -122,7 +104,6 @@ describe("P2.7 privacy posture — no analytics/telemetry/email vendor dependenc
     const manifest = manifests.find((m) => m.name === relPath);
     if (manifest === undefined) throw new Error(`Missing manifest fixture for ${relPath}`);
     for (const dep of manifest.deps) {
-      // Exact-name match only, DENYSET.has, never substring.
       expect(DENYSET.has(dep), `${relPath} declares denylisted dependency "${dep}"`).toBe(false);
     }
   });
@@ -134,15 +115,8 @@ describe("P2.7 privacy posture — no analytics/telemetry/email vendor dependenc
 
     const installed = new Set<string>();
 
-    // pnpm lockfile (v9): the `packages:`/`snapshots:` sections key every resolved package as a
-    // 2-space-indented `name@version:` line (optionally quoted, optionally with a `(peer@ver)`
-    // suffix), e.g. `  '@babel/code-frame@7.26.2':` or `  use-sync-external-store@1.4.0(react@19.2.6):`.
-    // A package pulled from git/a tarball/a local path instead of the registry keys as
-    // `name@https://...`, `name@git+...`, `name@file:...`, or `name@link:...`, with no digit after
-    // the `@`, so the version-digit-only pattern silently skipped those rows, letting a denylisted
-    // package slip the scan via a git fork. We extract the name (everything before the specifier)
-    // line-by-line rather than adding a YAML parser dependency. A heavier dep tree is exactly what
-    // this test polices.
+    // Parse each lockfile package name independently of its specifier so registry, git,
+    // tarball and local dependencies receive the same denylist check.
     const keyLine = /^ {2}'?((?:@[^\s/']+\/)?[^\s@']+)@(?:\d|https?:|git\+|file:|link:)/;
     for (const line of raw.split("\n")) {
       const match = keyLine.exec(line);

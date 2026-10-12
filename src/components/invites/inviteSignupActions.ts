@@ -161,6 +161,7 @@ export function createInviteSignupActions({
       // authenticated boot with persistence attached and a one-use activation handoff.
       await enterJoinedCompany(accountId);
     } catch (error) {
+      // Recover an uncertain signup before offering another creation attempt; otherwise show the failure and release locks.
       const unknownFailure = isTransportFailure(error) || attempt.commandOutcomeUnknown;
       if (unknownFailure && (await recoverUnknownSignup(credentials))) return;
       setState({

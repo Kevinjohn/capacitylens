@@ -39,7 +39,7 @@ function attachStoreSubscription(
   return store.subscribe((state) => {
     if (owner.current.disposed || state.data === owner.current.lastData) return;
     owner.update({ lastData: state.data });
-    // The orchestrator's slice load is not a user edit, track lastData (done) but don't save it.
+    // Hydration must not echo a server slice back as a user write.
     if (owner.current.loadingSlice) return;
     owner.update({ unacknowledged: state.data, terminalBatchSnapshot: null, lastError: null });
     // Suspended (a slice replacement is in flight): park the edit, record it in `pending` with no
@@ -49,7 +49,8 @@ function attachStoreSubscription(
       owner.update({ pending: state.data });
       return;
     }
-    owner.update({ retryAttempts: 0 }); // a fresh user change earns a fresh retry budget
+    // A fresh user edit earns a new retry budget.
+    owner.update({ retryAttempts: 0 });
     if (debounceMs <= 0) {
       writes.save(state.data);
       return;
@@ -91,18 +92,15 @@ function isWriteStateClean(owner: AttachmentState): boolean {
 function createFlushPending(owner: AttachmentState, writes: WriteQueue): () => Promise<FlushPendingWritesResult> {
   return async () => {
     if (isFlushBlocked(owner)) return { kind: "blocked" };
-    // Loop until quiescent, not just one round: writes are unsuspended during the await, so an edit
-    // landing mid-flush arms a fresh debounce whose save can outlive a single await. A one-shot
-    // flush would then return "clean" while that save is still on the wire, and the caller's import
-    // POST would race it (the exact pre-suspension window this sequence closes). The caps prevent
-    // a continuously edited store from holding the seam open.
+    // Await quiescence because an edit during a flush can start another save. Bound the loop
+    // so continuous editing cannot hold the import seam open indefinitely.
     const deadline = Date.now() + 120_000;
     let rounds = 0;
     while (hasQueuedWrite(owner) && rounds < 100 && Date.now() < deadline) {
       rounds += 1;
       owner.cancelDebounce();
       const pending = owner.current.pending;
-      if (pending) writes.save(pending); // consumes pending, sets inFlightSave synchronously
+      if (pending) writes.save(pending);
       const inFlightSave = owner.current.inFlightSave;
       if (inFlightSave) await inFlightSave;
       if (owner.current.lastError !== null) return { kind: "failed", error: owner.current.lastError };
@@ -160,22 +158,10 @@ function attachAllocationRewriteHandler({ store, adapter }: Pick<PersistencePart
   });
 }
 
-/**
- * Wire the store to a PersistenceAdapter (outside the store) and return a hard-detach function.
- * Detach cancels ownership without initiating a final write; a caller that needs a confirmed handoff
- * must call {@link flushPendingWrites} before detaching.
- *
- * Lifecycle of a write. The moving parts, top-down (each is detailed inline below):
- *  1. A data change fires the store subscription → schedule a debounced save (immediate when
- *     `debounceMs <= 0`). A fresh edit resets the retry budget.
- *  2. `save()` runs `adapter.saveAll`; on success it clears the error state (`onSuccess`) and the
- *     retry budget, on failure it calls `onError` and `scheduleRetry()`.
- *  3. `scheduleRetry()` re-sends the latest store state with capped exponential backoff
- *     (max 5 attempts), so a transient failure self-heals without waiting for the next edit.
- *  4. A stranded write (failed and budget exhausted) is re-attempted when the connection plausibly
- *     recovers: the `online` event, or the tab becoming visible again (gated on a real failure).
- *  5. `visibilitychange→hidden` flushes through the normal serialized path while the page survives;
- *     `pagehide` uses the adapter's keepalive teardown path.
+/** Attaches one persistence owner and returns a hard-detach function. Detach cancels
+ * ownership without a final write; flushPendingWrites must confirm any required handoff.
+ * Saves debounce and retry transient failures with a bounded backoff. Page teardown
+ * uses keepalive while ordinary visibility changes use the serialized save path.
  */
 export function attachPersistence({
   store,

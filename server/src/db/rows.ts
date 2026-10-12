@@ -9,9 +9,8 @@ import { createServerRevision } from "../revision";
 // Insert one row without touching the init marker, the primitive the bulk paths
 // (insertAll / replaceAccountSlice) loop over so they can mark once at the end instead of
 // re-running an `INSERT OR IGNORE INTO _meta` per row.
-/**
- * Updates row raw within the owning transaction so SQLite schema and data state remains
- * consistent.
+/** Inserts one validated application row without changing the initialization marker.
+ * Bulk callers must mark initialization only after their complete write succeeds.
  */
 export function insertRowRaw(db: Db, table: string, row: Row): void {
   const spec = resolveTable(table);
@@ -25,9 +24,7 @@ export function insertRowRaw(db: Db, table: string, row: Row): void {
   statement.run(...toRow(spec, row));
 }
 
-/**
- * Updates row within the owning transaction so SQLite schema and data state remains consistent.
- */
+/** Inserts one row and its initialization marker atomically, using a savepoint inside an existing transaction. */
 export function insertRow(db: Db, table: string, row: Row): void {
   // The row and persistent first-write marker are one logical write. Without this transaction,
   // SQLite autocommits the row before a later marker failure and the caller observes a rejection
@@ -75,9 +72,9 @@ export function clearAllocationAttributionForActivities(
   return rewritten;
 }
 
-/** Idempotent insert-or-replace by id, the write the sync adapter uses for every
- * create/update, so replaying a batch after a partial failure can't double-insert
- * (a re-PUT of an already-written row just overwrites it). */
+/** Upserts by ID while preserving createdAt and marking initialization atomically.
+ * The caller must authorize and validate the row before invoking this storage primitive.
+ */
 export function upsertRow(db: Db, table: string, row: Row): void {
   const spec = resolveTable(table);
   const columns = spec.columns.map((c) => c.name);

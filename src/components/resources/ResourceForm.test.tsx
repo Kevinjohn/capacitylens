@@ -520,10 +520,7 @@ it("saves a placeholder once a bound project is chosen", async () => {
   expect(resources[0]?.halfDays).toEqual([]);
 });
 
-// Editing a placeholder whose bound project is archived (hidden from the active-only picker): the
-// current project must appear as a disabled-but-selected option so an unrelated edit (role) can
-// save the unchanged projectId instead of silently blanking the select and sending a changed
-// projectId. Mirrors ProjectForm's archived-client round-trip.
+// An existing archived project must remain a disabled selected option so unrelated placeholder edits preserve the unchanged projectId.
 it("edits a placeholder bound to an archived project without forcing a reassignment", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
@@ -547,7 +544,6 @@ it("edits a placeholder bound to an archived project without forcing a reassignm
   useStore.getState().archiveEntity("projects", project.id);
   render(<ResourceForm resource={placeholder} onClose={onClose} />);
 
-  // The archived project renders as a disabled option, still selected as the current value.
   const select = screen.getByLabelText("Bound project");
   expect(select).toHaveTextContent("Ferris / Lightning (archived)");
   fireEvent.keyDown(select, { key: "ArrowDown" });
@@ -687,7 +683,7 @@ it("blocks saving a resource with no working days selected", async () => {
   render(<ResourceForm kind="person" onClose={onClose} />);
 
   await user.type(screen.getByLabelText("Name"), "Alice");
-  // Mark the default full Monday–Friday set as non-working.
+
   for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]) {
     await user.click(
       within(screen.getByRole("row", { name: new RegExp(day) })).getByRole("radio", {

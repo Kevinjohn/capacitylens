@@ -100,9 +100,7 @@ export function readCapacityGestureAdvisory({
         resourceId: effectiveResourceId,
         startDate: dates.startDate,
         endDate: dates.endDate,
-        // Blocks carry placement but no hourly load, read that load from the one knob
-        // (`blockHoursPerDay`) rather than hardcoding its current 0, exactly as the grid's
-        // own `applyCapacityMode` projection does.
+        // Use the shared blocks-load projection so gesture warnings match the grid even when stored allocations carry hourly values.
         hoursPerDay: isBlocks ? blockHoursPerDay(FULL_DAY_HOURS) : reconciledHours,
         ...(bar.allocation.ignoreWeekends !== undefined ? { ignoreWeekends: bar.allocation.ignoreWeekends } : {}),
       },

@@ -27,9 +27,6 @@ import { SyncState } from "./sync/SyncState";
 import { diffOps, diffOpsFromPossibleBases } from "./syncOps";
 import type { Op } from "./syncOps";
 
-// diffOps/applyOps now live in ./syncOps (the pure diff/apply core). Re-exported here
-// so existing import sites (e.g. ServerSyncAdapter.test.ts) keep resolving them from
-// this module unchanged.
 export { applyOps, diffOps } from "./syncOps";
 
 export {
@@ -87,6 +84,7 @@ async function restoreDrainTarget({
     state.dispatchedTarget = canonicalTarget;
     return { canonicalTarget, ops: diffOps(state.lastSynced, canonicalTarget) };
   } catch (error) {
+    // Clear the no-longer-in-flight target before propagating restore failure so later diffs do not use a phantom request baseline.
     state.dispatchedTarget = null;
     throw error;
   }
@@ -110,6 +108,7 @@ async function commitOrdinaryOps({
   try {
     receipt = await commitBatch(state, ops);
   } catch (error) {
+    // Clear the no-longer-in-flight target before propagating commit failure; never advance the confirmed baseline here.
     state.dispatchedTarget = null;
     throw error;
   }
@@ -139,6 +138,7 @@ async function convergeLifecycleDeletes(
     try {
       await archiveLifecycleRow(state, op);
     } catch (e) {
+      // Remember the first archive failure while retaining failed rows in the baseline so only unconverged archives retry.
       if (error === null) error = e;
       const row: Entity | undefined = state.lastSynced[op.table].find((candidate) => candidate.id === op.id);
       if (row) unconverged.push({ table: op.table, row });
@@ -157,24 +157,10 @@ function throwLifecycleError(error: unknown): void {
     : new Error("Lifecycle archival failed with a non-Error value.", { cause: error });
 }
 
-// A PersistenceAdapter that keeps the same whole-tree contract the store already
-// speaks (loadAll / saveAll) but talks to the entity-level REST API:
-//   - loadAll(): GET /api/state for off mode and unverified identity; live-authenticated bootstrap
-//     seeds an empty snapshot without an unscoped request
-//   - saveAll(next): diff next against the last-synced snapshot and POST the ordered
-//     op set to /api/batch, which applies it in one server-side transaction (upserts
-//     parent-first, then deletes child-first). One request, all-or-nothing. The store
-//     never changes.
-//
-// Why a diff and not a command log: the store builds the whole next AppData on every
-// action (incl. undo/redo and import), so a diff is the one place that turns any
-// state transition, forward edit or undo, into the right ops without the store
-// knowing a server exists. Why a transactional batch and not per-op requests: a
-// reparent (move a child to a new parent) coalesced with the old parent's delete must
-// land the re-binding before the delete cascades, or the cascade takes the child's
-// unmodified descendants. A single ordered transaction guarantees that and stays
-// atomic on failure. Batch receipts carry server-owned revisions; the adapter reconciles them
-// with client-local change markers before advancing lastSynced or flushing a queued edit.
+/** Diffs complete snapshots because undo and redo supply a whole next state. Ordinary
+ * writes commit in foreign-key order before lifecycle archives converge separately.
+ * Acknowledged canonical revisions seed later diffs without overwriting newer edits.
+ */
 
 /** Persists account data through the server batch and refresh APIs. */
 export class ServerSyncAdapter implements PersistenceAdapter {
@@ -205,15 +191,11 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         throw new Error("The pending changes do not belong to the active company.");
       }
     }
-    // Page-teardown flush: send the whole diff as one keepalive batch request so it
-    // survives the unload (a plain fetch would be cancelled mid-flight). See commitBatch.
+    // Dispatch keepalive before teardown so the transport may finish after the page leaves.
     if (options?.unload) {
       if (this.state.inFlight) {
-        // drain() has already dispatched its current target. Do not merely park this newer
-        // snapshot behind that ordinary request: page teardown can terminate the tab before the
-        // drain gets another turn. Clear any older parked target and synchronously dispatch the
-        // latest complete delta as a keepalive request. The complete lastSynced→next diff is
-        // intentional: it remains self-contained if the earlier request is lost in transit.
+        // The final unload diff covers every possible in-flight baseline so it preserves the
+        // complete latest intent regardless of which earlier request commits first.
         this.state.queued = null;
         const ordinaryFlush = this.state.inFlight;
         const teardownFlush = this.flushUnload(next);
@@ -223,7 +205,8 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       return this.flushUnload(next);
     }
     this.state.queued = next;
-    this.state.queuedSeedGen = this.state.seedGen; // pair the parked save with the snapshot it was made against
+    // Pair the pending target with its generation so an older account cannot seed the baseline.
+    this.state.queuedSeedGen = this.state.seedGen;
     if (this.state.inFlight) return this.state.inFlight;
     this.state.inFlight = this.drain();
     try {
@@ -291,22 +274,13 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     }
   }
 
-  // Drain the queue: diff against lastSynced and apply the whole delta as one
-  // transactional batch (the server runs it in a single tx → all-or-nothing, ordered).
-  // Advance lastSynced only on success; on failure throw without advancing, so persist.ts
-  // surfaces it (persistError) and the next save replays the full delta. The batch is
-  // idempotent (PUT upserts, DELETE no-ops on an absent id). Repeats until no newer state
-  // arrived mid-flush (coalesce-to-latest). Atomicity replaces the old per-op poison-row
-  // isolation: a bad row now fails the whole batch rather than leaving a partial write.
+  // Ordinary operations commit atomically before lifecycle archives converge separately. Advance the baseline only for confirmed work and retain failed archives for retry; propagate failures to the persistence surface.
   private async drain(): Promise<void> {
     while (this.state.queued) {
       const target = this.state.queued;
       const targetSeedGen = this.state.queuedSeedGen;
       this.state.queued = null;
-      // A reload seeded the snapshot after this save was queued: the state it was diffed-to-be
-      // against no longer exists, and diffing it against the fresh seed could cross tenants
-      // (see the seedGen doc). Reject rather than resolving the public save contract: persist can
-      // surface/rebase the edit instead of treating an undispatched target as acknowledged.
+      // Reject an unsent target from an older generation so it cannot overwrite the newly loaded account.
       if (targetSeedGen !== this.state.seedGen) {
         throw new Error("The pending changes were superseded by a refreshed company snapshot.");
       }
@@ -323,17 +297,9 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         prepared = await restoreDrainTarget({ state: this.state, target, prepared: initialTarget, targetSeedGen });
       }
       if (!prepared) continue;
-      // Lifecycle-entity deletes (clients/projects/resources/activities) cannot ride the atomic batch, the
-      // server 400-rejects them, which would poison the whole batch and permanently strand every
-      // later edit re-including the poisoned op. Split them out and converge them by archiving through
-      // the dedicated archive route after the batch (see archiveLifecycleRow for the archive-only
-      // policy), so any reparent/upsert the same diff carries (e.g. a child moved off the row being
-      // deleted) lands first, mirroring the batch's own upserts-before-deletes invariant across the split.
+      // Commit ordinary edits before archiving parents so reparented children are not archived by the cascade.
       const { batchOps, lifecycleDeletes } = splitLifecycleDeletes(prepared.ops);
-      // An commitBatch throw must propagate before the snapshot advances so saveAll rejects and
-      // persist.ts either retries a transport failure or reloads after an uncertain receipt. The
-      // narrow catch below clears only the no-longer-in-flight possible base and rethrows; swallowing
-      // would advance past writes that never landed and permanently drop them from future diffs.
+      // A failed ordinary commit must propagate before its target is acknowledged so persistence can retry or reload an uncertain receipt.
       const committedTarget = await commitOrdinaryOps({
         state: this.state,
         target: prepared.canonicalTarget,
@@ -348,16 +314,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // the normal save-error path (persist banner + retry), after the snapshot advances, so the
       // committed batch and the converged archives are never replayed.
       const convergence = await convergeLifecycleDeletes(this.state, committedTarget, lifecycleDeletes);
-      // Re-insert lifecycle rows whose out-of-batch archive did not converge back into the advanced
-      // snapshot, so the next diff re-emits their DELETE and the adapter keeps trying (rather than
-      // silently dropping the deletion intent by advancing past an archive that never landed). The
-      // row is the pre-delete copy read from the current snapshot, so never overwrite a live one.
-      // Advance the snapshot only if no seed landed while this batch was in flight, a reload's
-      // fresh seed must win over our pre-reload target, or snapshot and store desync. Checked via
-      // seedGen, not loadGen: loadGen bumps at fetch start, so a load already in flight when this
-      // diff was taken would pass a start-generation check and still seed mid-batch. Skipping is
-      // safe: the server already holds these idempotent ops, so the next diff re-derives anything
-      // still relevant against the fresh seed.
+      // A newer load owns the baseline even when an earlier save finishes after it.
       if (targetSeedGen === this.state.seedGen) {
         this.state.lastSynced = convergence.committedTarget;
         pruneAcknowledgedRevisions(this.state, convergence.committedTarget);

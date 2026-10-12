@@ -185,10 +185,10 @@ describe("LoginScreen — per-control error cues (WCAG 3.3.1)", () => {
     render(<LoginScreen authMode="password-only" onSignedIn={vi.fn()} />);
     const email = screen.getByLabelText("Email");
     const password = screen.getByLabelText("Password");
-    // Each control carries a stable id so it can point at the shared error.
+
     expect(email).toHaveAttribute("id");
     expect(password).toHaveAttribute("id");
-    // No error yet → no describedby dangling at a non-existent message.
+
     expect(email).not.toHaveAttribute("aria-describedby");
     expect(password).not.toHaveAttribute("aria-describedby");
   });
@@ -201,7 +201,6 @@ describe("LoginScreen — per-control error cues (WCAG 3.3.1)", () => {
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrong" } });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
-    // The role=alert error renders, and both inputs describe it (re-announced on re-navigation).
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Invalid email or password.");
     const errorId = alert.getAttribute("id");
@@ -235,7 +234,7 @@ function registerOwnerSetupDisplayTests() {
     );
     expect(screen.queryByText(/server has no users/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeInTheDocument();
-    // The ordinary sign-in affordances are replaced, not stacked.
+
     expect(screen.queryByRole("button", { name: "Sign in" })).not.toBeInTheDocument();
   });
 
@@ -444,9 +443,7 @@ function registerOwnerSetupErrorTests() {
 
 function registerOwnerSetupValidationTests() {
   it("rejects an owner-setup email containing disallowed characters", async () => {
-    // Regression: the inline check used to only compare UTF-16 .length against MAX_EMAIL_LENGTH
-    // and never screened for disallowed characters, so an emoji/zero-width address that stayed
-    // under the length cap slipped past client-side validation. isAccountEmail() rejects it.
+    // Email validation must reject disallowed characters even when the UTF-16 string remains below the length cap.
     const onSignedIn = vi.fn();
     render(<LoginScreen authMode="password-only" needsSetup onSignedIn={onSignedIn} />);
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Owner" } });
@@ -477,7 +474,7 @@ function registerOwnerSetupValidationTests() {
       expect(screen.getByLabelText("Create a password").getAttribute("aria-describedby")).toContain(errorId);
       expect(screen.getByLabelText("Owner setup token").getAttribute("aria-describedby")).toContain(errorId);
     });
-    // The button recovers (busy reset) so the user can retry after fixing the input.
+
     expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeEnabled();
   });
 }
@@ -496,7 +493,6 @@ function registerOwnerSetupAccessibilityAndRaceTests() {
     fireEvent.change(screen.getByLabelText("Create a password"), { target: { value: "a-strong-password" } });
     fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
 
-    // The dead end is fixed: the screen switches to the ordinary sign-in form...
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(
       "First-owner setup for this installation is already complete — use the ordinary sign-in form below.",
@@ -504,12 +500,12 @@ function registerOwnerSetupAccessibilityAndRaceTests() {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     });
-    // ...the create-owner fields are gone, replaced by the sign-in ones...
+
     expect(screen.queryByLabelText("name")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
-    // ...and the explanatory message is still visible so the user understands why.
+
     expect(screen.getByRole("alert")).toHaveTextContent(
       "First-owner setup for this installation is already complete — use the ordinary sign-in form below.",
     );
@@ -597,7 +593,7 @@ describe("LoginScreen — degraded 401 body notice", () => {
   it("shows the non-terminal advisory above the form when degraded is true", () => {
     render(<LoginScreen authMode="password-only" degraded onSignedIn={vi.fn()} />);
     expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument();
-    // Still a fully usable password form underneath the advisory, never a dead end.
+
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
   });

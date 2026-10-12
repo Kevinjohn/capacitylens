@@ -44,7 +44,6 @@ function registerSeedTests(): void {
     expect(once.clients.filter((c) => c.builtin)).toHaveLength(2);
     expect(internalClientFor(once.clients, "a1")).toBeDefined();
     expect(internalClientFor(once.clients, "a2")).toBeDefined();
-    // Run again, no duplicate, and (no change) returns the same reference.
     const twice = applyInternalClientRepairs(once, TS);
     expect(twice).toBe(once);
     expect(twice.clients.filter((c) => c.builtin)).toHaveLength(2);
@@ -287,9 +286,7 @@ function registerRepairBoundaryTests(): void {
       clients: [buildInternalClient("a1", TS)],
     };
     const repaired = applyInternalClientRepairs(data, NOW);
-    // The function did run.
     expect(internalClientFor(repaired.clients, "a2")).toBeDefined();
-    // Canonical row not restamped.
     expect(requiredInternalClient(repaired.clients, "a1").updatedAt).toBe(TS);
   });
 }
@@ -319,11 +316,9 @@ function registerMigrationTests(): void {
       },
     };
     const out = migrate(blob);
-    // a1 keeps its single pre-existing Internal (id unchanged); a2 gets a fresh one.
     expect(out.clients.filter((c) => c.builtin && c.accountId === "a1")).toHaveLength(1);
     expect(internalClientFor(out.clients, "a1")?.id).toBe("pre-internal");
     expect(out.clients.filter((c) => c.builtin && c.accountId === "a2")).toHaveLength(1);
-    // Re-running migrate over an already-v6 blob never adds another.
     const again = migrate({ schemaVersion: 6, data: out });
     expect(again.clients.filter((c) => c.builtin)).toHaveLength(2);
   });
@@ -352,9 +347,7 @@ function registerPublicPredicateTests(): void {
     expect(c.id).toBe("internal:a9");
   });
 
-  // wouldAddSecondBuiltin is the server-reject predicate (validate.ts). These cases pin it to the
-  // exact inline check it replaced: `internalClientFor(...) && existing.id !== id`, including the
-  // account-scoping that lets each account keep its own builtin.
+  // A client write must reject a second built-in client in the same account while allowing updates to the existing one.
   it("wouldAddSecondBuiltin: reproduces the server reject check byte-for-byte", () => {
     const existing: Client = {
       id: "c-int",
@@ -366,13 +359,9 @@ function registerPublicPredicateTests(): void {
       builtin: true,
     };
     const clients = [existing];
-    // No builtin yet for this account → first builtin is allowed.
     expect(wouldAddSecondBuiltin([], "a1", "c-int")).toBe(false);
-    // A different id against an account that already has one → would be a second → reject.
     expect(wouldAddSecondBuiltin(clients, "a1", "c-int2")).toBe(true);
-    // The same id (updating the existing builtin) → not a second → allowed.
     expect(wouldAddSecondBuiltin(clients, "a1", "c-int")).toBe(false);
-    // A different account that has no builtin → allowed (per-account scoping).
     expect(wouldAddSecondBuiltin(clients, "a2", "c-int-2")).toBe(false);
   });
 }

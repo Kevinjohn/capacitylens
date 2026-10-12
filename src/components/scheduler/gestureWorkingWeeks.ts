@@ -5,12 +5,6 @@ import { listAccountWorkingDays } from "@/store/selectors";
 import { useStore } from "@/store/useStore";
 import { isAllocationMoveStartBlocked, resolveEffectiveWorkingDays } from "./creationAvailability";
 
-// The live store reads a drag gesture needs about a resource's working week, kept together and away
-// from the pointer mechanics: a drag asks them once per lane it touches, and a reassignment asks
-// them about two resources at once.
-
-/** One live read of the resource a gesture is asking about, with the company working days its
- * pattern is narrowed by. `resource` is undefined when it is gone, deleted mid-drag. */
 function readResource(resourceId: ID) {
   const state = useStore.getState();
   return {
@@ -83,9 +77,7 @@ export function isPreviewDropBlocked({ workingDays, result, isReassignment, igno
   return isDropStartBlockedForWorkingDays({ workingDays, date: result.dates.startDate, ignoreWeekends });
 }
 
-/** `readWorkingDays` memoised for the span of one gesture, keyed by resource. A working-week edit
- * cannot land mid-drag, so one read per lane the pointer touches is exact; the caller clears the
- * map at gesture start and teardown, and commits and keyboard nudges always read live data. */
+/** Memoises each lane's working week for one gesture so preview math uses a stable snapshot. Clear the map at start and teardown; commits and keyboard actions re-read live calendars. */
 export function resolveMemoisedWorkingDays(memo: Map<ID, Weekday[] | undefined>, resourceId: ID) {
   if (memo.has(resourceId)) return memo.get(resourceId);
   const workingDays = readWorkingDays(resourceId);

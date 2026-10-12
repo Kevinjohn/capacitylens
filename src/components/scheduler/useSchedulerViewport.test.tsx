@@ -3,16 +3,9 @@ import { act, render, screen } from "@testing-library/react";
 import { useSchedulerViewport } from "./useSchedulerViewport";
 import { useStore } from "@/store/useStore";
 
-// resolveWeekStartSnapTarget uses resolveLeftEdgeDate, which delegates rounding to indexAtScroll
-// (see resolveWeekStartSnapTarget.ts's "SUB-PIXEL ROUNDING" note and its corresponding test file).
-// This file pins the same rounding for onScroll's leftEdgeIdx, visibleStartDate and the dragging-end
-// effect. Each resolves a fractional scrollLeft to the column it is essentially already at rather
-// than the previous (narrower, under minimised weekends) one.
+// All scroll-derived date reads share the rounded column inverse so fractional near-boundary positions do not select the preceding date.
 
-// A minimal DOM harness: useSchedulerViewport owns a ref, not a rendered element, so the hook
-// must be driven through a real scrollable node (renderHook alone never attaches one). Mirrors
-// SchedulerGrid.test.tsx's "Feature 2" wiring tests, same clientWidth stub + synchronous rAF,
-// but stripped to just the viewport hook, no grid chrome.
+// Attach the viewport hook to a real scrollable test node with explicit dimensions because renderHook alone cannot supply browser layout.
 function Harness({
   minimiseWeekends = false,
   weekSnapEnabled = false,
@@ -102,8 +95,7 @@ describe("useSchedulerViewport — HiDPI sub-pixel scrollLeft rounding", () => {
   });
 
   it("the drag-end resync effect (a third unrounded indexAt call site) resolves the same sub-pixel scrollLeft correctly", () => {
-    // Drives the `!dragging` effect (leftEdgeIdx resync when a drag ends) rather than onScroll,
-    // it reads scrollRef.current.scrollLeft directly through the same geom.indexAt call.
+    // Ending a drag must resynchronize the frozen left-edge date through the same rounded scroll inverse as ordinary scrolling.
     useStore.setState({ draggingAllocationId: "a1" });
     render(<Harness />);
     const grid = screen.getByTestId("scroll");
@@ -151,7 +143,7 @@ describe("useSchedulerViewport — viewport changes", () => {
     useStore.setState((state) => ({
       ui: {
         ...state.ui,
-        // The visible date is Wednesday, but that week’s Monday lies before column zero.
+
         originDate: "2026-06-03",
         focusDate: "2026-06-03",
       },

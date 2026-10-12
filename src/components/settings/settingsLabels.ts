@@ -5,12 +5,7 @@ import type { LabelMessages } from "@/lib/metadata";
 import type { ThemePreference } from "@/lib/theme";
 import type { DateStyle } from "@capacitylens/shared/types/entities";
 
-// Module-scope option tables hold uncalled message references (`m.key`, never `m.key()`) and are
-// resolved at render through metadata.ts's `buildLabels`/`buildLabelOptions`, the same lazy rule the enum
-// tables there follow (the AppShell LINKS pattern). Resolving `m.key()` at import would
-// freeze each label to the load-time locale; deferring it to render lets an account/locale switch
-// re-resolve the text. Keying each table by its own union also makes it exhaustive by type: add a
-// theme/mode/preference without a message here and tsc fails.
+// Store exhaustive message-function tables and resolve them at render so account locale changes update labels without rebuilding module state.
 /** Localized labels for device theme choices. */
 export const THEME_MESSAGES: LabelMessages<ThemePreference> = {
   light: m.settings_theme_light,

@@ -27,9 +27,7 @@ const capacityAdvisoryMock = vi.hoisted(() =>
   })),
 );
 
-// Both entry points share one mock: the repeat path advises against a batch-shared load bucket
-// (`buildCapacityAdvisoryFromLoad`), the single-allocation path buckets its own window, and these tests
-// care only about the advisory verdicts the modal renders.
+// Single and repeat advisory paths share one verdict stub so these modal tests exercise presentation rather than load calculations.
 vi.mock("@/lib/capacity", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/capacity")>()),
   buildCapacityAdvisory: capacityAdvisoryMock,
@@ -516,7 +514,7 @@ describe("AllocationModal edit", () => {
 
     await chooseOption(user, "Assignee", "Placeholder (slot)");
     expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Ferris / Other");
-    // The non-bound project (p1 / "Lightning") is no longer offered to the placeholder.
+
     fireEvent.keyDown(screen.getByRole("combobox", { name: "Project" }), {
       key: "ArrowDown",
     });
@@ -547,22 +545,18 @@ describe("AllocationModal edit", () => {
         status: "confirmed",
       }),
     );
-    // Turn placeholders off, they're hidden everywhere, but an allocation already on one must not
-    // silently reassign when edited: the picker keeps the currently-selected (hidden) placeholder.
+    // Editing must preserve the current hidden placeholder rather than silently reassigning to a visible option.
     setPlaceholdersEnabled({ on: false });
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     const assignee = screen.getByRole("combobox", { name: "Assignee" });
     expect(assignee).toHaveTextContent("Placeholder (slot)");
-    // The placeholder option is present (labelled "Placeholder (slot)") even though placeholders are
-    // hidden: without it the picker would silently reassign to another available option.
+
     fireEvent.keyDown(assignee, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Placeholder (slot)" })).toBeInTheDocument();
   });
 
   it("risk A: editing an allocation on a HIDDEN external still offers that external so the value is preserved", async () => {
-    // Externals default off too; the suite-wide beforeEach only turns placeholders on. Create an
-    // external, book it, then assert the picker keeps it as an option even with the pref off.
     const ext = requireCreated(
       useStore.getState().addResource({
         kind: "external",
@@ -586,15 +580,13 @@ describe("AllocationModal edit", () => {
         status: "confirmed",
       }),
     );
-    // External pref off (its default), hidden everywhere, but an allocation already on one must not
-    // silently reassign when edited: the picker keeps the currently-selected (hidden) external.
+    // Editing must preserve the current hidden external resource rather than silently reassigning to a visible option.
     setExternalEnabled({ on: false });
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     const assignee = screen.getByRole("combobox", { name: "Assignee" });
     expect(assignee).toHaveTextContent("Kord Industries (external)");
-    // The external option is present (labelled "Kord Industries (external)") even though externals are
-    // hidden: without it the picker would silently reassign to another available option.
+
     fireEvent.keyDown(assignee, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Kord Industries (external)" })).toBeInTheDocument();
   });

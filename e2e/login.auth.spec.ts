@@ -11,8 +11,7 @@ import {
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-// US-NAV-10 covers the login wall in the password-mode auth project. The default deployment keeps
-// auth off, so the login screen only appears here; the other projects run without it.
+// This spec exercises the password-mode login wall; the core demo project uses cosmetic sign-in.
 
 // Shared auth helpers come from authTestSupport. A fresh user has no membership, so GET /api/accounts
 // returns no companies. The org-bootstrap test provisions this login's company through POST /api/orgs
@@ -34,12 +33,10 @@ function registerUnauthenticatedVisitShowsLoginScreenTest() {
   test("unauthenticated visit shows the login screen, not the app — and the API 401s", async ({ page, request }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
-    // The wall is total: no company picker, no nav, no data.
     await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Schedule" })).toHaveCount(0);
     expect((await request.get(`${API}/api/state`)).status()).toBe(401);
 
-    // A wrong password fails inline, on the same screen.
     await seedUser(request);
     await page.getByLabel("Email").fill(EMAIL);
     await page.getByLabel("Password").fill("not-the-password");
@@ -47,7 +44,6 @@ function registerUnauthenticatedVisitShowsLoginScreenTest() {
     await expect(page.getByRole("alert")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
 
-    // a11y oracle while the screen is up (US-NAV-10 acceptance).
     const results = await new AxeBuilder({ page }).analyze();
     const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
     expect(
@@ -93,7 +89,6 @@ function registerSigningRevealsAppSigningOutTest() {
     await page.getByRole("button", { name: "Got it" }).click();
     await expect(page.getByRole("link", { name: "Settings", exact: true })).toBeVisible();
 
-    // Personal identity and the one sign-out action live on Account.
     await page.getByRole("link", { name: "Account", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
     await expect(page.getByText(email, { exact: true })).toBeVisible();
@@ -112,7 +107,6 @@ function registerSigningRevealsAppSigningOutTest() {
     await expect(passwordDialog).toHaveCount(0);
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
 
-    // Session gone: back behind the wall, and a reload stays there.
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
     await page.reload();
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
@@ -124,10 +118,7 @@ function registerCreateOwnerAdminAdminBootstrapTest() {
     page,
     request,
   }, testInfo) => {
-    // The auth-e2e server boots with CAPACITYLENS_CREATE_ADMIN_ADMIN=1 and pins a
-    // policy-compliant bootstrap password on a wiped DB. Production instead mints a generated
-    // password. This proves the escape hatch end-to-end. Give a separate user a company first so
-    // the bootstrap admin exercises the existing-company, no-membership invitation journey.
+    // The disposable server pins an administrator credential, allowing this test to exercise access recovery without company membership.
     const suffix = `${Date.now()}-${testInfo.workerIndex}`;
     const controlOrgName = `Wayne Enterprises ${suffix}`;
     const controlOwner = await signUpUser(`bootstrap-control-${suffix}@capacitylens.dev`);
@@ -166,11 +157,9 @@ function registerLoginMembershipsSeesEMPTYPickerTests() {
     await page.getByLabel("Password").fill(PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();
 
-    // Past the wall, on the picker, but with no company button (no other tenant's org leaked in).
     await expect(page.getByRole("heading", { name: "Start planning" })).toBeVisible();
     await expect(page.getByText("Ask an admin for an invite to join a company.")).toBeVisible();
     await expect(page.getByRole("button", { name: controlOrgName, exact: true })).toHaveCount(0);
-    // No doomed create affordance: the server would 403 a membership-less org create.
     await expect(page.getByRole("button", { name: "New company" })).toHaveCount(0);
   });
 }

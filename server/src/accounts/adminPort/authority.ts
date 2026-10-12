@@ -84,11 +84,10 @@ interface AssertInvitationAuthorityInput {
   requireFresh?: boolean | undefined;
 }
 
-/** createInvitation's replay guard and its execute path both open with this same authority check.
- * assertAccountAuthority already asserts the workspace exists as its own first statement, so
- * neither closure needs a trailing assertWorkspaceExists of its own. `requireFresh` defaults to
- * true here as it does in assertAdministrativeAssurance: a caller opts an ordinary administrative
- * action out of the re-prompt explicitly, and role checks are unaffected either way. */
+/**
+ * Checks workspace membership, authority, and any required session freshness before invitation commands or replay.
+ * Callers opt ordinary administration out of freshness checks with requireFresh: false.
+ */
 export function assertInvitationAuthority({
   db,
   actor,
@@ -127,20 +126,10 @@ export function readActorRolesByWorkspaceId(
 }
 
 /**
- * The same map for a target of identity administration, counting memberships of every lifecycle
- * status. Deliberately not `roleMap`, and the asymmetry is the point in both directions:
- *
- * - An actor's authority must come only from active memberships, a disabled admin administers
- *   nobody, so actors keep using `roleMap`.
- * - A target's non-active memberships must still count. Dropping them made an empty map, which
- *   `authorityDecisions` reads as `target-not-member` and denies: disabling a member was therefore
- *   the act that destroyed the administrator's ability to revoke that member's live sessions or
- *   reset their password, exactly backwards for the compromised-account case that motivates
- *   disabling someone in the first place.
- *
- * Widening here cannot weaken the standing rule. `canAdministerIdentityAcrossWorkspaces` demands
- * the actor out-rank the target in every workspace the target appears in, so adding workspaces to
- * the target's map can only hold the actor to a stricter test, never a laxer one.
+ * Reads every target membership status for identity-global administration checks.
+ * Actor authority uses active memberships only. Targets include disabled and archived memberships
+ * so disabling access cannot prevent session revocation or password reset, For another principal, the actor must
+ * outrank them in every workspace that principal occupies.
  */
 export function readTargetRolesByWorkspaceId(
   db: Db,

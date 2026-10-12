@@ -386,7 +386,7 @@ describe("account-boundary architecture", () => {
   });
 });
 
-/** Route-layer files may not prepare a statement naming an identity or account control table. */
+// Route handlers must not bypass identity and account-control storage owners.
 const routeLayerPrepareBan =
   /\b(?:user|session|account_members|account_ownership_transfers|invites)\b[^\n]*\.prepare\s*\(/;
 
@@ -401,9 +401,7 @@ describe("account-boundary architecture", () => {
   });
 });
 
-/** Every account-administration path the HTTP adapter owns. The ceremony's six write paths are
- * listed individually: the guard asserts each one appears in the adapter and in no app-boundary
- * file, so a route that drifted out of the adapter would otherwise stop being guarded silently. */
+// List every ceremony write path explicitly so a route leaving the account adapter cannot escape the ownership check.
 const EXTRACTED_ACCOUNT_ROUTE_PATHS = [
   "/api/invites",
   "/api/invites/:token/preview",

@@ -32,13 +32,11 @@ function registerDefaultWeekendColumnsNarrowLabelledTest() {
     await setZoom(page, 1);
     const header = page.getByRole("columnheader", { name: "Dates" });
 
-    // Weekdays keep their three-letter label; both weekend days collapse to a single "S".
     expect(await header.getByText("Wed", { exact: true }).count()).toBeGreaterThan(0);
     expect(await header.getByText("S", { exact: true }).count()).toBeGreaterThanOrEqual(2);
     await expect(header.getByText("Sat", { exact: true })).toHaveCount(0);
     await expect(header.getByText("Sun", { exact: true })).toHaveCount(0);
 
-    // A weekend column is visibly narrower than a weekday column.
     const weekend = await box(header.getByText("S", { exact: true }).first().locator(".."));
     const weekday = await box(header.getByText("Wed", { exact: true }).first().locator(".."));
     expect(weekend.width).toBeLessThan(weekday.width);
@@ -62,7 +60,6 @@ function registerTogglingOffSettingsRestoresFullTest() {
   test("toggling it off in Settings restores full-width Sat/Sun columns", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     const toggle = page.getByRole("switch", { name: "Minimise weekends" });
-    // A fresh browser context starts with weekend minimisation enabled.
     await expect(toggle).toHaveAttribute("aria-checked", "true");
 
     await toggle.click();
@@ -72,12 +69,10 @@ function registerTogglingOffSettingsRestoresFullTest() {
     await setZoom(page, 1);
     const header = page.getByRole("columnheader", { name: "Dates" });
 
-    // Weekends now read Sat/Sun, and nothing is collapsed to "S".
     await expect(header.getByText("Sat", { exact: true }).first()).toBeVisible();
     await expect(header.getByText("Sun", { exact: true }).first()).toBeVisible();
     await expect(header.getByText("S", { exact: true })).toHaveCount(0);
 
-    // Weekend and weekday columns are now the same width.
     const weekend = await box(header.getByText("Sat", { exact: true }).first().locator(".."));
     const weekday = await box(header.getByText("Wed", { exact: true }).first().locator(".."));
     expect(Math.abs(weekend.width - weekday.width)).toBeLessThan(2);
@@ -101,7 +96,6 @@ function registerZoomFitsSelectedWeeksExposingTest() {
     // Keep even the 8-week zoom above the per-day-column threshold so the probe can count the
     // same date cells shown in the wide-screen reproduction screenshots.
     await page.setViewportSize({ width: 1920, height: 800 });
-    // minimise on by default
     await openApp(page);
     for (const weeks of [1, 2, 4, 6, 8] as const) {
       await setZoom(page, weeks);
@@ -121,9 +115,7 @@ function registerZoomFlipsPreserveLeftEdgeTest() {
     // Round-trip the zoom; the integer-pixel geometry must round-trip the left-edge date exactly.
     await setZoom(page, 2);
     await setZoom(page, 1);
-    // After the flip settles, the left-edge date must return to `before` (the known-correct value),
-    // so a genuinely drifted grid times out and fails, not vacuous. Replaces the bare single read
-    // that flaked under parallel load on Firefox/WebKit.
+    // Poll for the captured left-edge date so genuine drift times out instead of passing on an unsettled frame.
     await expect.poll(async () => settledLeftDate(page), { timeout: 15_000 }).toBe(before);
     // And it must be a weekday (the focused Monday), never drifted back onto the narrow "S" weekend.
     expect(before).not.toMatch(/S$/);
@@ -132,7 +124,7 @@ function registerZoomFlipsPreserveLeftEdgeTest() {
 
 function registerBarDraggedAcrossNarrowedWeekendTest() {
   test("a bar dragged across the narrowed weekend commits a later date (no crash)", async ({ page }) => {
-    await openApp(page); // minimise on by default
+    await openApp(page);
     await setZoom(page, 1);
 
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" });
@@ -141,7 +133,6 @@ function registerBarDraggedAcrossNarrowedWeekendTest() {
     const startBefore = await dialog.getByLabel(/^Start Date/).inputValue();
     await dialog.getByRole("button", { name: "Cancel" }).click();
 
-    // Drag the body well to the right, far enough to cross the narrow Sat/Sun columns.
     const b0 = await box(bar);
     const cy = b0.y + b0.height / 2;
     await page.mouse.move(b0.x + b0.width / 2, cy);
@@ -152,32 +143,26 @@ function registerBarDraggedAcrossNarrowedWeekendTest() {
     await bar.click();
     dialog = page.getByRole("dialog", { name: "Edit allocation" });
     const startAfter = await dialog.getByLabel(/^Start Date/).inputValue();
-    expect(startAfter > startBefore).toBe(true); // ISO dates sort chronologically
+    expect(startAfter > startBefore).toBe(true);
   });
 }
 
-// Feature 1's navigation snap (zoom / Prev-Next / date-picker) re-anchors the left edge to the week
-// start. A pure resize and a minimise-weekends toggle both re-fit the day width without a zoom or a
-// day-range change, so the snap=false branch must run: the left-edge date is preserved exactly, not
-// floored to a Monday. We turn the F2 free-scroll snap off first so its idle snap can't masquerade
-// as a navigation snap and mask a regression. The nudge lands on a mid-week weekday ("…Wed"/"…Thu")
-// so a (wrong) Monday-snap would be plainly visible as a changed date.
+// Resize and weekend minimisation must preserve the exact left-edge date. Disable idle snapping so it cannot mask navigation snapping.
 function registerPureResizePreservesMidWeekTest() {
   test("a pure resize preserves the mid-week left-edge date (no navigation snap)", async ({ page }) => {
     await openWithFreeScrollSnapOff(page);
 
-    await nudge(page, 2.5); // → a mid-week weekday
+    await nudge(page, 2.5);
     const leftDate = (await probe(page)).leftDate;
-    expect(leftDate).not.toMatch(/Mon$/); // sanity: parked mid-week, so a Monday-snap would change it
+    expect(leftDate).not.toMatch(/Mon$/);
 
-    // A pure resize re-fits dayWidth but changes neither zoom nor day-range → snap must not fire.
     await page.setViewportSize({ width: 1180, height: 800 });
 
     // Let the refit (rAF) fully settle past the free-scroll idle window so a (wrong) snap would have
     // landed by now. A single post-settle read, not expect.poll, which would short-circuit on the
     // stale pre-resize value before the snap could fire and pass this no-change assertion vacuously.
     await waitForWeekSnap(page);
-    expect((await probe(page)).leftDate).toBe(leftDate); // exact date unchanged (no snap to Monday)
+    expect((await probe(page)).leftDate).toBe(leftDate);
   });
 }
 
@@ -190,24 +175,22 @@ function registerMinimiseOFFPureResizeStillTests() {
   test("with minimise OFF, a pure resize still preserves the mid-week left-edge date (no snap)", async ({ page }) => {
     await openWithFreeScrollSnapOff(page);
 
-    // Turn minimise weekends off (so this exercises the other geometry), then return to the grid.
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await page.getByRole("switch", { name: "Minimise weekends" }).click();
     await page.getByRole("link", { name: "Schedule" }).click();
     await setZoom(page, 1);
 
-    await nudge(page, 2.5); // → a mid-week weekday
+    await nudge(page, 2.5);
     const leftDate = (await probe(page)).leftDate;
-    expect(leftDate).not.toMatch(/Mon$/); // sanity: parked mid-week
+    expect(leftDate).not.toMatch(/Mon$/);
 
-    // A pure resize re-fits dayWidth without a zoom/day-range change → snap must not fire.
     await page.setViewportSize({ width: 1180, height: 800 });
 
     // Let the refit (rAF) fully settle past the free-scroll idle window so a (wrong) snap would have
     // landed by now. A single post-settle read, not expect.poll, which would short-circuit on the
     // stale pre-resize value before the snap could fire and pass this no-change assertion vacuously.
     await waitForWeekSnap(page);
-    expect((await probe(page)).leftDate).toBe(leftDate); // exact mid-week date preserved (no Monday-floor)
+    expect((await probe(page)).leftDate).toBe(leftDate);
   });
 }
 

@@ -1,16 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 
-// One-at-a-time gating for a group of destructive/asynchronous controls (Settings' lifecycle
-// buttons, the offline opt-in, the clear-storage confirm). Each of those grew the same ref+state
-// pair; this is that pair, once.
-//
-// Why both a ref and a state flag. They answer different questions:
-//   - the ref is the enforcement, and it is set synchronously. React commits `busy = true` only on
-//     the next render, so between the first click's handler and that commit the buttons are still
-//     enabled and a second click would start a second mutation. The ref closes exactly that window.
-//   - the state is the communication: it re-renders the section so every control can go `disabled`,
-//     which both tells the user why nothing responds and stops the click reaching a handler at all.
-// Dropping either one is a real regression, not a tidy-up.
+// The synchronous ref rejects another action before React can disable controls.
+// State communicates the same lock through the rendered busy state.
 
 /** The exclusion gate returned by {@link useExclusiveAction}. */
 export interface ExclusiveAction {

@@ -10,10 +10,6 @@ import {
 } from "./layout";
 import { resolveRowHeightForLanes } from "@/lib/lanePacking";
 
-// laneLayout is the LaneLayout projection of LAYOUT handed to lanePacking (packLanes / laneTop /
-// rowHeightForLanes): schedulerModel.ts wires it through unmodified. Pin its shape directly so a
-// regression collapsing it to an empty object (losing barHeight/laneGap/rowPadding) is caught here
-// rather than surfacing as mysterious zero-height lanes downstream.
 describe("laneLayout", () => {
   it("mirrors barHeight, laneGap and rowPadding from LAYOUT", () => {
     expect(laneLayout).toEqual({
@@ -34,12 +30,10 @@ describe("allocation bar inset geometry", () => {
   });
 });
 
-// Schedule density. LAYOUT is the base (tight) geometry; the schedule renders it with the vertical
-// gaps scaled out. These pin the scaled numbers against the base.
 describe("schedulerDensity", () => {
   it("scales row padding and the toolbar/nav rhythm by DENSITY_SCALE", () => {
     expect(SCHEDULER_DENSITY.rowPadding).toBe(Math.round(LAYOUT.rowPadding * DENSITY_SCALE));
-    // Base rhythm: py-2/gap-y-2 (8px) for the toolbar, gap-1 (4px) and p-2/gap-2 (8px) for the nav.
+
     expect(SCHEDULER_DENSITY.toolbarPadY).toBe(8 * DENSITY_SCALE);
     expect(SCHEDULER_DENSITY.toolbarGapY).toBe(8 * DENSITY_SCALE);
     expect(SCHEDULER_DENSITY.navMenuGapY).toBe(4 * DENSITY_SCALE);
@@ -47,15 +41,12 @@ describe("schedulerDensity", () => {
     expect(SCHEDULER_DENSITY.navSectionGapY).toBe(8 * DENSITY_SCALE);
   });
 
-  // Owner decision: a discipline band holds one short label and nothing else, so padding it out
-  // just makes a tall empty stripe. It must stay put while everything around it grows.
+  // Discipline-band height remains fixed because its single label should not scale with row spacing.
   it("never changes the discipline band height", () => {
     expect(SCHEDULER_DENSITY.groupHeaderHeight).toBe(LAYOUT.groupHeaderHeight);
   });
 
-  // Owner decision: at the shared scale the stacked-allocation gap moves 4px → 8px, which the row
-  // padding either side swamps. It reads as "that gap never changed". It gets its own multiplier,
-  // and must scale strictly harder than the padding around it or the complaint comes back.
+  // Stacked-allocation gaps use a larger scale than row padding so adjacent bookings remain visually distinct.
   it("scales the gap between stacked allocations harder than the row padding", () => {
     expect(SCHEDULER_DENSITY.laneGap).toBe(Math.round(LAYOUT.laneGap * LANE_GAP_SCALE));
     expect(LANE_GAP_SCALE).toBeGreaterThan(DENSITY_SCALE);

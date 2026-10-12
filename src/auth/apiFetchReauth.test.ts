@@ -2,10 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { apiFetchReauth } from "./apiFetchReauth";
 import { isReauthPending, completeReauth } from "./reauthCoordinator";
 
-// Defect B, the step-up interception seam. apiFetchReauth wraps apiFetch and, on the server's
-// SESSION_NOT_FRESH 403, raises the shared re-auth request (the dialog is driven off reauthPending)
-// and: after a successful re-auth, transparently re-issues the identical request. A cancel or a
-// non-freshness response passes straight through, untouched.
+// A replayable freshness refusal shares one re-authentication dialog, then retries once after success; cancellation preserves the original refusal.
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), {
@@ -92,11 +89,10 @@ describe("apiFetchReauth passthrough", () => {
       method: "DELETE",
       headers: { "Idempotency-Key": "delete-a1" },
     });
-    // The dialog trigger: a step-up becomes pending, and we have not retried yet.
+
     await vi.waitFor(() => expect(isReauthPending()).toBe(true));
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    // Fresh authentication resumes the original request.
     completeReauth({ reauthenticated: true });
     const res = await pending;
     expect(res.status).toBe(200);
@@ -238,11 +234,10 @@ describe("apiFetchReauth request guards", () => {
     });
     await vi.waitFor(() => expect(isReauthPending()).toBe(true));
 
-    // Cancellation leaves the original response available to the caller.
     completeReauth({ reauthenticated: false });
     const res = await pending;
     expect(res.status).toBe(403);
-    // The body was only ever peeked at via clone(), so the caller can still read it (readApiError).
+
     expect(await res.json()).toMatchObject({ code: "SESSION_NOT_FRESH" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });

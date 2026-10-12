@@ -97,7 +97,7 @@ function registerBasicSaveTests(): void {
     expect(calls[0]?.[0]).toBe("http://x/api/batch");
     expect((calls[0]?.[1] as RequestInit).method).toBe("POST");
     expect(batchOps(calls[0]).map((o) => `${o.method} ${o.table}/${o.id}`)).toEqual([
-      "PUT clients/c1", // upserts parent-first
+      "PUT clients/c1",
       "PUT projects/p1",
     ]);
   });
@@ -158,7 +158,6 @@ function registerBatchFailureAndUnloadTests(): void {
     failNext = true;
     await expect(a.saveAll(withData({ clients: [client("c1")] }))).rejects.toThrow();
 
-    // Recover: the same state replays as one batch with c1 (not lost).
     failNext = false;
     (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
     await a.saveAll(withData({ clients: [client("c1")] }));
@@ -176,7 +175,7 @@ function registerBatchFailureAndUnloadTests(): void {
     expect(calls[0]?.[0]).toBe("http://x/api/batch");
     const init = calls[0]?.[1] as RequestInit;
     expect(init.keepalive).toBe(true);
-    expect(batchOps(calls[0])).toHaveLength(2); // all ops in one ordered request
+    expect(batchOps(calls[0])).toHaveLength(2);
   });
 }
 
@@ -211,7 +210,7 @@ function registerInFlightKeepaliveTests(): void {
 
     required(releaseFirst)();
     await Promise.all([ordinary, teardown]);
-    expect(fetchImpl).toHaveBeenCalledTimes(2); // no later non-keepalive drain of the parked state
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 }
 
@@ -258,10 +257,7 @@ function registerCompensatingKeepaliveTests(): void {
 
 function registerScopedDeleteSaveTests(): void {
   it("carries the owning account on a scoped (non-lifecycle) DELETE op; accounts (top-level) carry none", async () => {
-    // Uses a scoped non-lifecycle row (timeOff): lifecycle-entity deletes (clients/projects/resources/activities)
-    // are routed out of the batch to the dedicated archive/delete endpoints (see the lifecycle-delete
-    // suite below), so the "scoped DELETE carries accountId on the wire" contract is asserted here on a
-    // table that still rides the batch.
+    // Use time off because ordinary scoped deletes travel in the batch; lifecycle entities archive separately.
     const account = {
       id: "a1",
       name: "Co",
@@ -282,9 +278,9 @@ function registerScopedDeleteSaveTests(): void {
     const prev = withData({ accounts: [account], timeOff: [off] });
     const fetchImpl = okFetch() as unknown as typeof fetch;
     const a = new ServerSyncAdapter("http://x", fetchImpl);
-    await a.saveAll(prev); // create a1 + t1; lastSynced = prev
+    await a.saveAll(prev);
     (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
-    await a.saveAll(emptyAppData()); // diff prev→empty = deletes
+    await a.saveAll(emptyAppData());
 
     const ops = batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]);
     expect(ops.find((o) => o.table === "timeOff")).toMatchObject({

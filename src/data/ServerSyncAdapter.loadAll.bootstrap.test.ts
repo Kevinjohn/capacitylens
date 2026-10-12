@@ -102,7 +102,6 @@ function registerInternalRepairFailureTests(): void {
     await expect(adapter.loadAll("a1")).rejects.toThrow("Batch sync failed (403)");
     expect(fetchImpl).toHaveBeenCalledTimes(2);
 
-    // The failed write was not acknowledged: a retry re-reads and attempts the repair again.
     await expect(adapter.loadAll("a1")).rejects.toThrow("Batch sync failed (403)");
     expect(fetchImpl).toHaveBeenCalledTimes(4);
     expect(batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[3])).toEqual([
@@ -125,23 +124,21 @@ function registerBaseLoadTests(): void {
     const a = new ServerSyncAdapter("http://x", fetchImpl);
     const loaded = await a.loadAll();
     expect(loaded.clients.some((row) => row.id === "c1")).toBe(true);
-    // Saving the identical state must emit zero writes (snapshot == loaded).
+
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.length;
     await a.saveAll(state);
     expect((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(calls);
   });
 
   it("tolerates a MISSING table key (rolling deploy: new client, older server) but rejects a PRESENT non-array table", async () => {
-    // Deployment contract: a version-skewed older server may omit a table this newer client already
-    // knows about; that missing key hydrates as empty via migrate()/normalize rather than failing the
-    // whole load (which would be a total outage on every rolling deploy). But a key that is present
-    // and not an array is a corrupt/incomplete payload masquerading as empty data, a hard failure.
+    // An omitted table can hydrate as empty only when retained rows do not reference it.
+    // A present non-array table remains corrupt.
     const missing = new ServerSyncAdapter(
       "http://x",
       vi.fn(async () => new Response(JSON.stringify({ accounts: [] }), { status: 200 })) as unknown as typeof fetch,
     );
     const loaded = await missing.loadAll();
-    expect(loaded.clients).toEqual([]); // a missing table hydrated empty, no throw
+    expect(loaded.clients).toEqual([]);
     expect(loaded.resources).toEqual([]);
 
     const wrongType = new ServerSyncAdapter(

@@ -28,8 +28,7 @@ function currentCacheNamespace(): string {
   return `${window.location.origin}|api:${window.location.origin}`;
 }
 
-/** Open the offline database the way the module under test does, creating both stores when the
- * scenario writes before any production code has. Every raw helper below shares it. */
+// Create both stores when fixtures write before production has opened the database.
 function openTestDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 2);
@@ -176,7 +175,6 @@ describe("offline tenant cache sign-out failures", () => {
 describe("offline tenant cache sign-out concurrency", () => {
   registerTenantCacheHooks();
   it("sign-out cleanup in another page rejects identity, directory and slice writes already encrypting", async () => {
-    // Establish the same verified-user scope in two independent module instances, mirroring tabs.
     await cacheAuthSnapshot(authSnapshot("user-a"));
     vi.resetModules();
     const otherPage = await import("./offlineCache");

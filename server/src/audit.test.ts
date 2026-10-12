@@ -104,7 +104,6 @@ function requireRecord(records: readonly AuditRecord[], action: string): AuditRe
   );
 }
 
-/** A real file-backed app: a temp JSONL the assertions read line-by-line. */
 function fileApp(): { app: FastifyInstance; file: string; lines: () => AuditRecord[]; log: ReturnType<typeof vi.fn> } {
   const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-test-"));
   const file = join(dir, "audit.jsonl");
@@ -124,7 +123,6 @@ function fileApp(): { app: FastifyInstance; file: string; lines: () => AuditReco
   return { app, file, lines, log };
 }
 
-/** Scaffold the minimal account→client→project→person chain so a timeOff write is FK-clean. */
 async function scaffold(app: FastifyInstance) {
   await post(app, "accounts", account("a1"));
   await post(app, "clients", client("c1", "a1"));
@@ -161,7 +159,6 @@ describe("AuditRecord shape (1)", () => {
     expect(rec.userId).toBe("demo");
     expect(typeof rec.ts).toBe("string");
     expect(Date.parse(rec.ts)).not.toBeNaN();
-    // changedFields = the row's field names (sanitized row keys), not values.
     expect(rec.changedFields).toEqual(expect.arrayContaining(["id", "name", "color", "createdAt", "updatedAt"]));
   });
 
@@ -238,15 +235,12 @@ describe("NO PII (2) — the #1 invariant", () => {
   it("a timeOff note logs the field NAME but never the value", async () => {
     const { app, file, lines } = fileApp();
     await scaffold(app);
-    // The timeOff create line lands here (after the scaffold lines).
     const createIdx = lines().length;
     const SECRET = "SECRET_NOTE_TEXT";
-    // create with a secret note
     expect(
       (await post(app, "timeOff", timeOff({ id: "to1", accountId: "a1", resourceId: "r1", o: { note: SECRET } })))
         .statusCode,
     ).toBe(201);
-    // update it (PUT) with a different secret note
     const SECRET2 = "ANOTHER_SECRET_VALUE";
     const put = await call(app, {
       method: "PUT",
@@ -256,16 +250,13 @@ describe("NO PII (2) — the #1 invariant", () => {
     expect(put.statusCode).toBe(200);
 
     const raw = readFileSync(file, "utf8");
-    // The name is present...
     expect(raw).toContain("note");
-    // ...but no secret value substring, on either line.
     expect(raw).not.toContain(SECRET);
     expect(raw).not.toContain(SECRET2);
     // Belt-and-braces: no other field value leaks, the only string values that could appear are
     // the structural ids/dates we intend (a1/to1/r1/the date). Assert the human-typed value class
     // (the note, the resource role 'Designer') is absent.
     expect(raw).not.toContain("Designer");
-    // And changedFields on the timeOff CREATE line really is just names.
     const recs = lines();
     const created = requiredAt(recs, createIdx);
     expect(created.entity).toBe("timeOff");
@@ -281,9 +272,7 @@ describe("NO resource PII in the audit log (2b) — P2.3 acceptance", () => {
     const SENTINEL = "ZZSENTINELPERSON_DELETE_ME";
     await post(app, "accounts", account("a1"));
     const createIdx = lines().length;
-    // Create an audited resource carrying the sentinel as its name (the only resource PII today).
     expect((await post(app, "resources", { ...person("r1", "a1"), name: SENTINEL })).statusCode).toBe(201);
-    // A second audited mutation (a non-PII PATCH) so there's more than one line to scan.
     const patch = await call(app, {
       method: "PATCH",
       url: "/api/resources/r1",
@@ -291,12 +280,10 @@ describe("NO resource PII in the audit log (2b) — P2.3 acceptance", () => {
     });
     expect(patch.statusCode).toBe(200);
 
-    // The raw audit JSONL must never contain the name value, on any line.
     const raw = readFileSync(file, "utf8");
     expect(raw).not.toContain(SENTINEL);
 
-    // ...yet the create line did capture the field, 'name' is recorded as a changedFields key (the
-    // name of the field, never its value): the audit saw the create and stored only the key.
+    // Assert a positive audit record first so the secrecy check cannot pass because no event was written.
     const rec = requiredAt(lines(), createIdx);
     expect(rec.entity).toBe("resources");
     expect(rec.id).toBe("r1");
@@ -394,7 +381,6 @@ describe("parseAuditConfig + default deploy (4)", () => {
   });
 });
 
-/** A sink whose append always fails, proves the fail-never + warning + degraded contract. */
 function brokenSink(): AuditSink {
   let degraded = false;
   return {

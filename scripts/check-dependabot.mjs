@@ -43,6 +43,7 @@ function main() {
     const count = verifyDependabotConfiguration(readFileSync(path, "utf8"));
     console.log(`Dependabot configuration: ${count} update entries verified.`);
   } catch (error) {
+    // Surface invalid or unreadable configuration and fail the checker rather than accepting partial validation.
     console.error(`Dependabot configuration failed: ${error.message}`);
     process.exitCode = 1;
   }

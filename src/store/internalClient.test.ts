@@ -20,7 +20,7 @@ function addsAccountWithBuiltinClient(): void {
   const internal = s().data.clients.filter((c) => c.builtin && c.accountId === a.id);
   expect(internal).toHaveLength(1);
   expect(internal[0]?.name).toBe("Internal");
-  // A second account gets its own Internal (one per account).
+
   const b = expectPresent(
     s().addAccount({ name: "Beta Co", color: "#111111" }),
     "Expected the second test account to be created.",
@@ -40,7 +40,7 @@ function rejectsBuiltinRename(): void {
     "Expected the built-in client to be present.",
   );
   expect(() => s().updateClient(internal.id, { name: "Renamed" })).toThrow(/built in/i);
-  // Unchanged.
+
   const unchanged = expectPresent(
     internalClientFor(s().data.clients, a.id),
     "Expected the built-in client to remain present.",
@@ -76,7 +76,7 @@ function stripsAddedBuiltinFlag(): void {
     "Expected the added client to be present.",
   );
   expect(sneaky.builtin).not.toBe(true);
-  // Still exactly one builtin Internal for the account (addAccount's), not two.
+
   expect(s().data.clients.filter((x) => x.builtin && x.accountId === a.id)).toHaveLength(1);
 }
 
@@ -93,7 +93,7 @@ function stripsPromotedBuiltinFlag(): void {
     "Expected the promoted client to be present.",
   );
   expect(promoted.builtin).not.toBe(true);
-  // No second builtin appeared for the account.
+
   expect(s().data.clients.filter((x) => x.builtin && x.accountId === a.id)).toHaveLength(1);
 }
 

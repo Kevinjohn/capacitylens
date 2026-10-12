@@ -3,7 +3,7 @@ import { assertAccountRelationshipIntegrityCurrent } from "../../accountIntegrit
 import { tableHasColumns } from "../introspection";
 import { defineMigration } from "../migrationLedger";
 
-/** The unreleased v42 migration definition and runner for person avatar URLs. */
+/** Immutable v42 migration definition and runner for person avatar URLs. */
 export const RESOURCE_AVATAR_URL_V42_MIGRATION = defineMigration(
   42,
   "add-resource-avatar-url",

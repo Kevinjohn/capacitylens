@@ -50,6 +50,7 @@ function useMicrosoftVerification(): VerificationViewState {
       const nextStatus = await readMicrosoftConnectionStatus(signal);
       if (!signal?.aborted) setStatus(nextStatus);
     } catch {
+      // Ignore aborted verification reads; only the active request may publish an unavailable state.
       if (!signal?.aborted) {
         setStatus(null);
         setError(m.microsoft_verify_unavailable());
@@ -81,6 +82,7 @@ function useMicrosoftVerification(): VerificationViewState {
       const result = await confirmMicrosoftConnection(token ?? undefined);
       window.location.assign(result.url);
     } catch {
+      // Surface a verification-action failure and release busy state so the user may retry.
       setError(m.microsoft_verify_action_failed());
       setBusy(false);
     }
@@ -95,6 +97,7 @@ function useMicrosoftVerification(): VerificationViewState {
       setStatus((current) => (current ? { ...current, deliveryUnavailable: false } : current));
       setNotice(m.microsoft_verify_resent());
     } catch {
+      // Surface the failed verification action inline so the user can retry.
       setError(m.microsoft_verify_action_failed());
     } finally {
       setBusy(false);
@@ -110,6 +113,7 @@ function useMicrosoftVerification(): VerificationViewState {
       setCancelled(true);
       setStatus({ state: "expired" });
     } catch {
+      // Surface the failed verification action inline so the user can retry.
       setError(m.microsoft_verify_action_failed());
     } finally {
       setBusy(false);

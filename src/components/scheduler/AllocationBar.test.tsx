@@ -71,9 +71,7 @@ describe("AllocationBar rendering", () => {
     expect(el).toHaveTextContent("8h");
   });
 
-  // A bar that began before the visible window used to carry its label off-screen with it.
-  // The bar publishes its own geometry and the label overlay clamps to the intersection of that
-  // geometry with the scroll container's viewport, so no bar needs its own scroll listener.
+  // Labels remain clamped to the visible bar portion so an allocation beginning before the viewport still shows its identity.
   it("positions the label over the bar's visible portion rather than its start", () => {
     const bar = makeBar(makeAllocation());
 
@@ -88,7 +86,7 @@ describe("AllocationBar rendering", () => {
     const insets = buildVisibleSpanInsets("x", "var(--bar-left)", "var(--bar-width)");
     expect(label.style.left).toBe(insets.leading);
     expect(label.style.right).toBe(insets.trailing);
-    // Centred within that clamped box, and inert so the resize grips underneath stay hittable.
+
     expect(label).toHaveClass("justify-center", "pointer-events-none");
   });
 
@@ -154,7 +152,6 @@ function registerAllocationBarRenderingModeTests() {
       <AllocationBar bar={makeBar(makeAllocation())} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
     );
 
-    // No stray "·" separator ahead of the activity name.
     const el = screen.getByTestId("allocation-bar");
     expect(el.textContent).toMatch(/^My Activity/);
   });
@@ -173,7 +170,7 @@ function registerAllocationBarRenderingModeTests() {
     const el = screen.getByTestId("allocation-bar");
     expect(el).toHaveTextContent("My Activity");
     expect(el).not.toHaveTextContent("8h");
-    // The accessible name must not announce a meaningless load either.
+
     expect(el.getAttribute("aria-label")).not.toMatch(/per day/);
   });
 }
@@ -190,7 +187,7 @@ describe("AllocationBar client/project context", () => {
 
     const el = screen.getByTestId("allocation-bar");
     expect(el).toHaveTextContent("Queen Consolidated · Watchtower · My Activity");
-    // The accessible name carries the same context.
+
     expect(el.getAttribute("aria-label")).toContain("Queen Consolidated · Watchtower · My Activity");
   });
 
@@ -230,11 +227,11 @@ describe("AllocationBar accessible name (status / dates / note)", () => {
     render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
     const label = screen.getByTestId("allocation-bar").getAttribute("aria-label") ?? "";
-    // Humanised status (allocationStatusLabels) + 'd MMM' dates, matches the hover popover.
+
     expect(label).toContain("Tentative");
     expect(label).toContain("1 Jun");
     expect(label).toContain("5 Jun");
-    // The raw enum + ISO must not leak into the accessible name.
+
     expect(label).not.toContain("tentative");
     expect(label).not.toContain("2026-06-01");
   });
@@ -292,10 +289,8 @@ describe("AllocationBar click interaction", () => {
 
     const el = screen.getByTestId("allocation-bar");
 
-    // pointerDown on the bar body (not a resize handle) with button 0
     fireEvent.pointerDown(el, { clientX: 100, button: 0 });
 
-    // pointerUp on document at the same clientX. No movement, so onClick fires
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 100, bubbles: true }));
 
     expect(onEdit).toHaveBeenCalledTimes(1);
@@ -310,7 +305,6 @@ describe("AllocationBar click interaction", () => {
 
     const el = screen.getByTestId("allocation-bar");
 
-    // button: 2 is right-click. The handler early-returns
     fireEvent.pointerDown(el, { clientX: 100, button: 2 });
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 100, bubbles: true }));
 

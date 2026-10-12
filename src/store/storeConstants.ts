@@ -20,12 +20,8 @@ export const PURGE_CASCADES: Record<LifecycleEntity, (data: AppData, id: ID) => 
   activities: (data, id) => deleteActivityCascade(data, id),
 };
 
-// Tenant-boundary resets.
-// Deleting, switching, publishing a slice without the active tenant, or importing over one all cross
-// a tenant boundary, and none of them may carry the leaving account's transient session state or
-// scheduler view into what is shown next. The field sets live here once so a boundary can't quietly
-// forget one; each site keeps only what is specific to it (which notice, whether the week is
-// re-anchored, which filters survive).
+// Tenant transitions must clear session-owned state so the leaving account cannot
+// leak into the next view. Shared reset fields keep each boundary complete.
 
 /** Every transient, tenant-owned session field, cleared. `notice` is deliberately not included:
  * each boundary has its own message (or none). */

@@ -2,18 +2,11 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useDeadlineClock } from "./useDeadlineClock";
 
-// Timer behaviour, on fake timers so "just after the deadline" is exact rather than flaky. The
-// properties worth pinning are the ones a list depends on: it wakes after the boundary (never at or
-// before it, which would re-render with the deadline still in the future), it arms nothing when
-// nothing is pending, it re-arms when a nearer deadline appears, it keeps working down a queue of
-// deadlines because the caller's stale filter is run against the hook's own clock, an inline picker
-// does not churn the armed timer, and a deadline beyond setTimeout's 32-bit ceiling is clamped
-// instead of overflowing into an immediate-fire loop.
+// Fake timers make the strictly-after-deadline boundary deterministic.
 
 const START = Date.UTC(2026, 6, 14, 12, 0, 0);
 const MAX_TIMEOUT_DELAY = 2_147_483_647;
 
-/** The call shape both Settings sections use: the nearest deadline still ahead of the hook's clock. */
 const nextOf =
   (...deadlines: number[]) =>
   (clock: number): number | null =>
@@ -84,7 +77,7 @@ function registerDeadlineClockBasics(): void {
     const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(deadline))));
 
     act(() => void vi.advanceTimersByTime(60_000));
-    expect(result.current).toBe(START); // still armed: firing at exactly the deadline is too early
+    expect(result.current).toBe(START);
 
     act(() => void vi.advanceTimersByTime(1));
     expect(result.current).toBe(deadline + 1);
@@ -116,12 +109,11 @@ function registerDeadlineClockRearming(): void {
     const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(first, second))));
 
     act(() => void vi.advanceTimersByTime(5_001));
-    // The first has fired, so the picker, asked with the clock it just produced, drops it as past
-    // and answers with the second; a picker asked with any other clock could not have done that.
+
     expect(result.current).toBe(first + 1);
 
     act(() => void vi.advanceTimersByTime(3_999));
-    expect(result.current).toBe(first + 1); // armed for the second, which has not passed yet
+    expect(result.current).toBe(first + 1);
 
     act(() => void vi.advanceTimersByTime(1));
     expect(result.current).toBe(second + 1);

@@ -3,8 +3,6 @@ import type { MembershipStatus } from "@capacitylens/shared/account/types";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import type { TeamMember } from "@/account/teamAccessClient";
 
-// Pure copy and status tables for member confirmations. They live apart from the
-// MemberConfirmations component so that file exports only components (react-refresh).
 /** Member administration actions that require a confirmation message. */
 export type MemberConfirmationAction =
   "masquerade" | "remove" | "resetPassword" | "revokeSessions" | "disable" | "enable" | "archive" | "restore";
@@ -20,7 +18,6 @@ export function resolveMemberLabel(member: TeamMember): string {
   return member.userId;
 }
 
-// Keep all confirmation wording beside the action-to-status contract below.
 /** Builds action-specific confirmation wording for the target member. */
 // eslint-disable-next-line max-lines-per-function
 export function buildMemberConfirmationCopy({ kind, member }: MemberConfirmation): {

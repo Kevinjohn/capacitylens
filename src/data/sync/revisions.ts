@@ -2,6 +2,7 @@ import { withoutAllocationAttribution } from "@capacitylens/shared/lib/integrity
 import type { AppData, Entity } from "@capacitylens/shared/types/entities";
 import type { Op } from "@/data/syncOps";
 
+/** Server-authored row identity and timestamps proving a committed revision, optionally with an allocation content rewrite. */
 export interface CommittedRevision {
   table: Op["table"];
   id: string;
@@ -11,23 +12,26 @@ export interface CommittedRevision {
   rewrite?: true;
 }
 
-/** One durable client-stamp → server-revision translation; see canonicalizeAcknowledged. */
+/** Durable translation from a client stamp to an acknowledged server revision. */
 export interface AcknowledgedRevision {
   client: string;
   server: CommittedRevision;
 }
 
+/** Authoritative committed revisions, confirmed archive identities and whether a newer ordered batch superseded this request. */
 export interface BatchCommitReceipt {
   revisions: CommittedRevision[];
   archivedLifecycleKeys: Set<string>;
   superseded: boolean;
 }
 
+/** Maximum response-body characters retained in a diagnostic cause; user-facing messages omit raw response text. */
 export const MAX_DIAGNOSTIC_BODY_LENGTH = 1_000;
 const compatibilityWarnings = new Set<string>();
 
 // The one composite key every row-identity Map/Set in this module is keyed by. NUL is the separator
 // because neither a table name nor an entity id can contain it, so the two halves always round-trip.
+/** Builds a row identity key using NUL between table and ID; neither input may contain NUL. */
 export const buildRowKey = (table: string, id: string): string => `${table}\0${id}`;
 
 /** Split a {@link buildRowKey} back into its `[table, id]` halves. */
@@ -36,12 +40,14 @@ export function rowKeyParts(key: string): [table: string, id: string] {
   return [key.slice(0, separator), key.slice(separator + 1)];
 }
 
+/** Emits at most one compatibility warning for a key during this module lifetime. */
 export function warnCompatibilityOnce(key: string, message: string): void {
   if (compatibilityWarnings.has(key)) return;
   compatibilityWarnings.add(key);
   console.warn(message);
 }
 
+/** Builds a fixed action/status message and stores only a bounded raw-body excerpt as its diagnostic cause. */
 export function createSafeResponseError(action: string, status: number, rawBody: string): Error {
   const message = `${action} failed (${status}).`;
   if (!rawBody) return new Error(message);
@@ -76,6 +82,7 @@ export function writeRows(
   return next;
 }
 
+/** Returns a row copy with authoritative timestamps, removing allocation attribution when the receipt flags a content rewrite. */
 export function applyCommittedRevision(row: Entity, revision: CommittedRevision): Entity {
   const revised = {
     ...row,
@@ -87,6 +94,7 @@ export function applyCommittedRevision(row: Entity, revision: CommittedRevision)
     : revised;
 }
 
+/** Applies matching committed revisions immutably, preserving unchanged row identities and returning the input for an empty receipt. */
 export function applyCommittedRevisions(data: AppData, revisions: CommittedRevision[]): AppData {
   if (revisions.length === 0) return data;
   const revisionsByTable = new Map<keyof AppData, Map<string, CommittedRevision>>();

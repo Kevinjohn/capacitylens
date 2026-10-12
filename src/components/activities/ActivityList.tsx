@@ -12,10 +12,7 @@ import { useLifecycleActions } from "@/hooks/useLifecycleActions";
 import { ArchivedEntitySection } from "@/components/common/ArchivedEntitySection";
 import { buildActivityArchiveImpactCopy, safeArchiveImpact } from "@/lib/archiveImpactCopy";
 
-/** Build the archive-confirm message for an activity, appending the allocation-count cascade
- * warning when the activity has active allocations that archiving would pull out of the schedule.
- * Uses safeArchiveImpact (not archiveImpact directly) so an activity that stopped being active
- * between dialog-open and render renders the base message instead of throwing during render. */
+// Recheck archive eligibility at render time so a row that became inactive loses only its cascade warning.
 function buildActivityArchiveMessage(data: AppData, activity: Activity): string {
   const base = m.list_activities_archive_message({ name: activity.name });
   const impact = safeArchiveImpact(data, "activities", activity.id);

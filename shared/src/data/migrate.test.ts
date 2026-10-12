@@ -5,15 +5,7 @@ import { sanitizeImportedRecord } from "../lib/sanitizeImport";
 import { migrateV3toV4 } from "./migrate/steps/v1-v6";
 
 describe("migrate", () => {
-  // Guards a development-time mistake: a migration step added to POST_REPAIR_BASE_STEPS (in
-  // migrate.ts) without EXPORT_SCHEMA_VERSION bumped to match, or vice versa. That invariant used
-  // to throw at module-evaluation time, which meant merely importing shared/data/migrate (as
-  // src/data/sync/loadSlice.ts and src/data/validateAccountSlice.ts do, both on the app's entry
-  // graph) could white-screen the whole app before any error boundary exists. It is now asserted
-  // lazily, the first time migrate() actually runs, so importing the module can never throw and a
-  // mismatch instead surfaces here, in a normal, diagnosable test failure. Any call to migrate()
-  // exercises the check; this test exists so the invariant has a dedicated, self-explanatory home
-  // rather than relying on incidental coverage from unrelated tests.
+  // Migration steps and EXPORT_SCHEMA_VERSION must agree. Check lazily so importing the app entry graph cannot throw before an error boundary exists.
   it("keeps the POST_REPAIR_BASE_STEPS ceiling in sync with EXPORT_SCHEMA_VERSION", () => {
     expect(() => migrate(null)).not.toThrow();
   });
@@ -245,8 +237,7 @@ describe("migrate account and client defaults", () => {
 
 describe("migrate schedule visibility defaults", () => {
   it("leaves a v8 account without the schedule view prefs absent so they read as shown/enabled (v8 → v9)", () => {
-    // v8→v9 is a metadata-only step (like v7→v8): the three new optional booleans stay absent so the
-    // client's `?? true` reads them as shown/enabled, the migration materialises no defaults.
+    // The metadata-only step leaves absent preferences absent; each current reader supplies its default.
     const data = {
       ...emptyAppData(),
       accounts: [
@@ -588,11 +579,9 @@ describe("migrate activity renames", () => {
         ],
       },
     });
-    // The renamed table arrives as `activities`; the old key is gone.
     expect(out.activities).toHaveLength(1);
     expect(out.activities[0]).toMatchObject({ id: "t1", kind: "project" });
     expect("tasks" in out).toBe(false);
-    // The allocation's FK is renamed; no `taskId` survives.
     expect(out.allocations[0]).toMatchObject({ activityId: "t1" });
     expect("taskId" in (out.allocations[0] ?? {})).toBe(false);
   });

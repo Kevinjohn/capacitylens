@@ -25,7 +25,7 @@ const clientNginxConf = readFileSync(
 const dockerIgnore = readFileSync(fileURLToPath(new URL("../../.dockerignore", import.meta.url)), "utf8");
 const appSource = readFileSync(fileURLToPath(new URL("./routes/appLogging.ts", import.meta.url)), "utf8");
 
-/** The invite sub-actions whose bearer rides in the URL path, as enumerated at a `.../(a|b|c)` site. */
+// Compare token-bearing invitation sub-actions across edge and application redaction patterns.
 const inviteActionsAt = (source: string, anchor: RegExp): string[] => {
   const alternation = source.match(anchor);
   const actions = alternation?.[1];

@@ -36,10 +36,7 @@ export interface RawMember {
   } | null;
 }
 
-/** Build a full server-shaped member record from just what a test cares about pinning. Common
- * defaults (active, a fixed createdAt, an email derived from userId, no name/self/perms) fill the
- * rest. `signInConfirmed` is deliberately left off the result unless the caller passes it: its mere
- * presence (not its value) is what the members-read route uses to decide signInTrackingEnabled. */
+/** Builds a complete member fixture while leaving signInConfirmed absent unless requested; presence of that field determines whether sign-in tracking is reported enabled. */
 export function rawMember(overrides: Partial<RawMember> & { userId: string; role: RawMember["role"] }): RawMember {
   return {
     status: "active",
@@ -55,11 +52,7 @@ export function rawMember(overrides: Partial<RawMember> & { userId: string; role
 
 type RouteHandler = (url: string, init: RequestInit | undefined) => Response | Promise<Response>;
 
-/** Build a fetch mock from a small default route table (members GET, invites GET, accounts GET, and
- * a 204 fallback for every write) plus per-test overrides keyed `"METHOD /path-suffix"`, an
- * override with the same key as a default replaces it; a new key adds a route. An empty suffix
- * (e.g. `"PATCH "`) matches every URL for that method. A 403 on the members read self-gates the
- * section. */
+/** Builds a request mock with per-method/path-suffix overrides. Matching overrides replace defaults; an empty suffix matches all paths for that method. */
 export function mockApi(members: RawMember[] | { status: number } = [], overrides: Record<string, RouteHandler> = {}) {
   const defaults: Record<string, RouteHandler> = {
     "GET /members": () =>
@@ -89,7 +82,7 @@ export function mockApi(members: RawMember[] | { status: number } = [], override
       const space = key.indexOf(" ");
       if (method === key.slice(0, space) && u.endsWith(key.slice(space + 1))) return handler(u, init);
     }
-    // Default: a successful no-content mutate.
+
     return new Response(null, { status: 204 });
   });
 }
@@ -108,9 +101,7 @@ export function makeSignInTrackingApi(): ReturnType<typeof vi.fn> {
       return jsonResponse({ enabled: trackingEnabled });
     }
     if (endpoint.endsWith("/members") && (!init || init.method === undefined || init.method === "GET")) {
-      // Not routed through rawMember: mayRevokeSessions defaults to true here (not rawMember's
-      // false), and signInConfirmed is computed from the live trackingEnabled toggle rather than
-      // being a static per-member default.
+      // Compute signInConfirmed from the live tracking setting so the response tests opt-in changes rather than a fixed per-member value.
       return jsonResponse({
         signInTrackingEnabled: trackingEnabled,
         members: members.map((member) => ({
@@ -267,7 +258,6 @@ export async function expectAccessibleMemberControls({
   name,
   member,
 }: AccessibleMemberControlsInput): Promise<void> {
-  // Both row affordances name their subject, so a screen reader never hears a bare "Edit".
   expect(screen.getByRole("button", { name: `Edit ${member}` })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: `More actions for ${member}` })).toBeInTheDocument();
 

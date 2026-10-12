@@ -3,10 +3,8 @@ import { Separator as SeparatorPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/cn";
 
-// shadcn Separator on the `radix-ui` umbrella. Stock uses bg-border, capacitylens maps --color-border
-// to its own --border token (the slate hairline), so it's the correct hairline in both themes;
-// kept as-is. Decorative by default (aria role omitted) so it adds a visual rule without injecting
-// a spurious separator into the accessibility tree.
+// Decorative separators omit the ARIA role so visual rules do not add unnecessary
+// separators to the accessibility tree.
 
 /** Renders a horizontal or vertical separator. */
 function Separator({

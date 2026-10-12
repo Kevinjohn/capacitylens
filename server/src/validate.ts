@@ -361,6 +361,7 @@ function assertDomainWrite(input: AssertValidWriteInput, accountId: string): voi
   try {
     assertEntityWrite(input, accountId);
   } catch (e) {
+    // Retag domain enforcement failure as safe caller validation while preserving the cause and any structured domain code.
     throw new ValidationError(e instanceof Error ? e.message : String(e), {
       cause: e,
       ...(e instanceof DomainError ? { code: e.code } : {}),

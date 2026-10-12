@@ -60,11 +60,7 @@ export function partiallyExposesNextColumn({
 /** Tracks partial-column visibility as the grid viewport moves. */
 export function usePartiallyExposedNextColumn(viewport: GridViewport, zoom: number) {
   const { scrollRef, geom: geometry, days, timelineWidth } = viewport;
-  // The window this flag extends stops following the scroll while an allocation is being dragged:
-  // useSchedulerViewport freezes leftEdgeIndex for the duration and resyncs on drop. The flag has to
-  // freeze with it. A scroll mid-drag (a keyboard grab scrolls the bar into view) would otherwise
-  // re-pack the lanes under the pointer against a window that is no longer moving, which is the
-  // repacking the freeze exists to prevent.
+  // Freeze partial-column visibility with the horizontal gesture window so scrolling during drag cannot repack lanes under the pointer.
   const dragging = useStore((state) => state.draggingAllocationId !== null);
   const exposedRef = useRef(false);
   const subscribe = useCallback(
@@ -162,23 +158,15 @@ export function useSchedulerGridPreferences() {
   const activeAccount = useStore((state) =>
     state.data.accounts.find((account) => account.id === state.activeAccountId),
   );
-  // Every per-account view pref this grid reads, resolved from the one `activeAccount` row above
-  // instead of a separate store subscription each. They all look up the same account, so ten
-  // selector subscriptions meant ten `accounts.find` scans on every unrelated store write. The
-  // selectors still own their absent-field defaults (each differs and is load-bearing), so they
-  // are called here against a one-account view of the data rather than reimplemented.
+  // Resolve account preferences from one account row to avoid repeated lookups, while retaining each shared selector's absent-field default.
   const accountPreferences = useMemo(() => {
     const view = { ...emptyAppData(), accounts: activeAccount ? [activeAccount] : [] };
     const id = activeAccount?.id ?? null;
     return {
-      // Default off: when off, placeholder ("slot") rows are hidden from the schedule (and dropped
-      // from utilisation) by buildSchedulerModel's resourceVisible filter.
       placeholdersEnabled: hasPlaceholdersEnabled(view, id),
-      // Default off: when off, external / 3rd-party rows are hidden from the schedule (and their
-      // now-empty band header is dropped) by the same resourceVisible filter.
+
       externalEnabled: hasExternalResourcesEnabled(view, id),
-      // When disciplines are off, discipline bands disappear and the model uses the
-      // Studio/Supplementary (or Unassigned) fallback. The discipline filter is ignored.
+
       disciplinesEnabled: hasDisciplinesEnabled(view, id),
       blocksMode: !carriesHourlyLoad(resolveSchedulingMode(view, id)),
       calendarTimeZone: resolveTimeZone(view, id),
@@ -192,14 +180,11 @@ export function useSchedulerGridPreferences() {
       : normalizeAccountWorkingDays(activeAccount.workingDays, weekStartsOn);
   }, [activeAccount]);
   const ui = useStore((state) => state.ui);
-  // Utilisation display toggles (Settings → Utilisation). Each gates one of the three
-  // utilisation figures: total (header), discipline (group header), personal (per row).
+
   const utilizationPreferences = useStore((state) => state.utilizationPrefs);
-  // Device-global display pref (default on): narrow the weekend columns. Drives the geometry below.
+
   const minimiseWeekends = useStore((state) => state.minimiseWeekends);
-  // After a free scroll settles, floor the left edge back to the current week's first day (the
-  // scroll-idle snap in onScroll below). Always on for users; only a test-only storage override
-  // turns it off. The navigation snap (zoom / Prev-Next / date-picker) is independent of this.
+  // Free-scroll snapping is normally enabled and has only a test override. Programmatic navigation anchors independently.
   const weekSnapEnabled = useStore((state) => state.weekSnapEnabled);
   return {
     data,
@@ -219,32 +204,22 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
   const partiallyExposesNextColumnState = usePartiallyExposedNextColumn(viewport, ui.zoom);
   const { calendarTimeZone } = accountPreferences;
   const today = useCalendarToday(calendarTimeZone);
-  // Fixed forward window from today (overStart..overEnd): drives only the `overSoon` red flag, a
-  // near-term, zoom/pan-independent "over soon" radar, so the per-resource overbooked warning fires
-  // regardless of the visible range. Kept separate from the displayed % (which follows the view).
+  // overSoon uses a fixed forward window from today, independently of zoom and pan.
   const overStart = today;
   const overEnd = addDaysISO(today, UTILIZATION_WINDOW_DAYS - 1);
 
-  // Visible window [visibleStart, visibleEnd]: drives the displayed utilisation % (per-person, per-discipline
-  // avg, overall). The visible span is `ui.zoom * 7` calendar days anchored at the scroll left-edge
-  // day; the inclusive end is `+ (zoom*7 - 1)`. A 1-week view is the 7 inclusive days [L, L+6], not
-  // +7 (8 days). The end is clamped to the last timeline day so the window never reads past `days[]`.
-  // Day-quantized via leftEdgeIndex so a scroll within a column doesn't rebuild the model.
+  // Visible utilisation uses an inclusive zoom window, clamped to materialized dates and updated only when its left-edge date changes.
   const { start: visibleStart, end: visibleEnd } = useMemo(
     () => resolveVisibleWindow({ days, leftEdgeIndex, zoom: ui.zoom, focusDate: ui.focusDate }),
     [days, leftEdgeIndex, ui.zoom, ui.focusDate],
   );
 
-  // Human labels for the visible span: `long` for the utilisation titles ("over the visible N
-  // week(s)") and the row summaries, `compact` for the header chip. Memoised because every row's
-  // title and screen-reader summary reads them, and they change only when the window does.
+  // Cache span labels with the window so every row reuses the same description without rebuilding it on unrelated renders.
   const { long: visibleWeeksLabel, compact: visibleSpanCompact } = useMemo(
     () => buildVisibleSpanLabels(visibleStart, visibleEnd),
     [visibleStart, visibleEnd],
   );
 
-  // Vertical density. `density` covers the geometry the view draws directly; `rowLaneLayout` is the
-  // projection the model packs lanes with. Both are module constants, so they are stable dependencies.
   const density = SCHEDULER_DENSITY;
   const rowLaneLayout = SCHEDULER_LANE_LAYOUT;
 
@@ -263,8 +238,6 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
 
   const filtersActive = hasActiveFilters(ui.filters);
 
-  // Derived from the model only, memoise so opening a modal / measuring the
-  // container (frequent re-renders) doesn't re-flatMap + re-reduce every row.
   const overallUtil = useMemo(
     // External / 3rd-party rows are excluded inside the shared average; with none tracked, read 0%.
     () => buildAverageUtilizationLabel(model.flatMap((group) => group.rows)) ?? "0",

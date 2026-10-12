@@ -60,10 +60,7 @@ export function createInviteSignInActions({ token, email, password, refreshAuth,
     reloadPage();
   };
 
-  /** Recheck the new cookie and authoritative companies before entering AppShell. The invite page
-   * booted without a session, so its initial persistence bootstrap is deliberately unattached after
-   * the 401. A fresh boot is required for safe saving; its one-use query value is verified against
-   * `/api/accounts` by AppShell before activation and then removed from the URL. */
+  // Recheck the authenticated directory before activation, then boot persistence for the verified company. A pre-session invite page has no persistence owner to resume.
   const enterJoinedCompany = async (accountId?: string): Promise<void> => {
     await refreshAuth();
     const list = await refreshAccountSummaries({
@@ -90,6 +87,7 @@ export function createInviteSignInActions({ token, email, password, refreshAuth,
     try {
       await signInAndReload();
     } catch (error) {
+      // Surface a failed authenticated-entry transition and release the invite sign-in controls.
       setState({
         kind: "auth",
         message: error instanceof Error ? error.message : m.login_failed(),

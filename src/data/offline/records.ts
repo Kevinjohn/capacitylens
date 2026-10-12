@@ -21,9 +21,8 @@ import {
 } from "./state";
 import type { CachedRecord, OfflineAuthSnapshot, OfflineAccountSummary, OfflineCacheWriteResult } from "./types";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
-/** Keep same-key writes in acceptance order even when key lookup or encryption settles out of
- * order. Different cache records remain independent, and a rejected write does not poison the
- * queue for a later live value. */
+// Preserve same-key acceptance order even when encryption finishes out of order;
+// a rejected write must not block a later live value.
 async function put<T>(record: CachedRecord<T>): Promise<"stored" | "discarded"> {
   const generation = readCacheWriteFailureGeneration();
   const writeBoundary = readWriteBoundary();
@@ -35,6 +34,7 @@ async function put<T>(record: CachedRecord<T>): Promise<"stored" | "discarded"> 
     if (outcome === "stored") recordOfflineCacheWriteSuccess(record.key, generation);
     return outcome;
   } catch (error) {
+    // Record the failed cache write before propagating it so the cache promise cannot remain falsely healthy.
     recordOfflineCacheWriteFailure(record.key, generation);
     throw error;
   } finally {
@@ -63,6 +63,7 @@ async function get<T>(key: string): Promise<CachedRecord<T> | null> {
           value: JSON.parse(new TextDecoder().decode(plaintext)) as T,
         };
       } catch (error) {
+        // An encrypted record that cannot authenticate must be discarded; warn rather than trust or silently reuse it.
         console.warn("offlineCache: encrypted cache authentication failed; deleting the entry", error);
       }
     }
@@ -109,10 +110,8 @@ async function decryptRecord(db: IDBDatabase, record: ValidEncryptedRecord): Pro
   );
 }
 
-/** IndexedDB may deserialize an ArrayBuffer in a different JavaScript realm (notably in tests and
- * embedded webviews), where `instanceof ArrayBuffer` is false despite the value having genuine
- * ArrayBuffer internal slots. The brand check still excludes SharedArrayBuffer and plain objects;
- * Web Crypto remains the final strict BufferSource validator. */
+// Cross-realm ArrayBuffers can fail instanceof. Check their internal brand while
+// leaving Web Crypto to enforce the final BufferSource contract.
 function isArrayBuffer(value: unknown): value is ArrayBuffer {
   return Object.prototype.toString.call(value) === "[object ArrayBuffer]";
 }
@@ -163,9 +162,8 @@ async function deleteKey(key: string): Promise<void> {
   }
 }
 
-/** One cached record kind: the shared enable/scope guards and write envelope, plus the validated
- * read. `keyFor` and `validate` receive the public wrapper's own arguments, so a scoped key and a
- * per-account validation stay with the caller and every exported signature is unchanged. */
+// Share cache guards and write envelopes while keeping per-account key and validation
+// rules with each caller.
 export function createCachedRecord<T, A extends unknown[] = []>(
   keyFor: (...parameters: A) => string,
   validate: (value: unknown, ...parameters: A) => T | null,

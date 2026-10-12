@@ -17,8 +17,8 @@ function hasOpaqueCredentialShape(value: unknown): value is string {
   return typeof value === "string" && OPAQUE_CREDENTIAL_RE.test(value);
 }
 
-/** The shared bound every human-readable application label must satisfy: a non-blank,
- * control-safe string of at most MAX_NAME_LENGTH characters. */
+// The shared bound every human-readable application label must satisfy: a non-blank,
+// control-safe string of at most MAX_NAME_LENGTH characters.
 function hasBoundedNameShape(value: unknown): value is string {
   return (
     typeof value === "string" &&

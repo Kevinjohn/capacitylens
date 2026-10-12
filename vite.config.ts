@@ -14,8 +14,7 @@ import { STATIC_SPA_ROUTES } from "./scripts/staticSpaRoutes.mjs";
 import { ENTRY_RAW_LIMIT_KB } from "./scripts/bundleBudget.mjs";
 import { isAccountEmail } from "./shared/src/account/validation.ts";
 
-// Lane-derived ports (scripts/ports.mjs): lane 0 is the historical 5173/8787/4173, and a run
-// launched through scripts/with-lane.mjs gets its own lane so ten worktrees never collide.
+// Lane-derived ports keep concurrent worktrees on disjoint service endpoints.
 const lanePorts = ports();
 const devApiPort = parsePort(process.env.CAPACITYLENS_DEV_API_PORT, lanePorts.dbApi, "CAPACITYLENS_DEV_API_PORT");
 // One Vite config serves several dev servers on different ports (the core app, and the db/auth
@@ -70,7 +69,7 @@ export function staticSpaRouteDocuments(): Plugin {
   };
 }
 
-// https://vite.dev/config/
+/** Configures application builds and lane-local development, refusing invalid client deployment settings. */
 export default defineConfig(({ mode }) => {
   const fileEnv = loadEnv(mode, process.cwd(), "VITE_CAPACITYLENS_");
   const clientEnv = (name: "VITE_CAPACITYLENS_API" | "VITE_CAPACITYLENS_DEMO" | "VITE_CAPACITYLENS_FEEDBACK_MAILTO") =>
@@ -108,20 +107,13 @@ export default defineConfig(({ mode }) => {
         "@": fileURLToPath(new URL("./src", import.meta.url)),
       },
     },
-    // Bind IPv4 loopback explicitly. Node 17+ resolves `localhost` to `::1` (IPv6)
-    // first, so the default Vite host would listen on `::1` only and any browser/tool
-    // reaching `127.0.0.1` gets connection-refused (blank page, no console error).
-    // Pinning 127.0.0.1 keeps it loopback-only while staying reachable as `localhost`.
-    // (Use `host: true` instead if you need to reach the dev server from another device.)
-    // strictPort reports an occupied port instead of silently serving the app on another port.
+    // Bind IPv4 loopback so clients using 127.0.0.1 can reach the server regardless of localhost address ordering.
+    // Refuse occupied ports so the launcher and browser retain the same endpoint.
     server: {
       host: "127.0.0.1",
       port: servicePort,
       strictPort: true,
-      // Dev-only /api proxy for the full-stack `pnpm run dev` (scripts/dev-fullstack.mjs): the app
-      // talks to a same-origin /api and Vite forwards it to the SQLite server on :8787 (one rule
-      // also covers /api/auth/*). Irrelevant to the demo build (no /api calls) and to prod (nginx
-      // does this); ignored by `vite build`. Stays in lockstep with the launcher via the same env var.
+      // The dev proxy and full-stack launcher share the configured lane API port so browser requests stay same-origin.
       proxy: {
         "/api": {
           // Keep this `CAPACITYLENS_DEV_API_PORT ?? lane dbApi` default identical to
@@ -138,8 +130,7 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
     },
     test: {
-      // The CPU reservation this run holds (scripts/laneClaims.mjs). Unset means nothing else is
-      // running and Vitest keeps its historical "use the machine" default.
+      // Without a reserved share, use the same half-core ceiling as a solo lane claim.
       maxWorkers: testShare(),
       environment: "jsdom",
       env: { TZ: "UTC" },
@@ -160,9 +151,7 @@ export default defineConfig(({ mode }) => {
           // Paraglide generates this message runtime from committed sources, so coverage excludes it.
           "src/paraglide/**",
         ],
-        // Ratcheted 2026-08-18 against a measured 94.15% statements / 89.34% branches /
-        // 93.86% functions / 96.11% lines; kept just below so the gate catches
-        // regressions without flaking on small refactors.
+        // Coverage thresholds leave a small margin below the measured baseline while rejecting meaningful regressions.
         thresholds: {
           statements: 92,
           branches: 87,

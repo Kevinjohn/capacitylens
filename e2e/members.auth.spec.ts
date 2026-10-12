@@ -71,7 +71,6 @@ async function createViewerInvite(page: Page): Promise<void> {
 }
 
 async function revokeViewerInvite(page: Page): Promise<void> {
-  // Closing the dialog ended the one-time display, so reopening shows an empty form.
   await page.getByTestId("invite-open").click();
   const dialog = page.getByRole("dialog", { name: "Invite someone" });
   await expect(dialog.getByTestId("invite-link")).toHaveCount(0);
@@ -133,7 +132,7 @@ async function manageAdminMembers(
   await revokeViewerInvite(page);
 }
 
-/** Ownership changes use the dedicated transfer ceremony rather than member-row actions. */
+// Ownership changes require the transfer ceremony; ordinary member-row actions cannot grant or remove ownership.
 async function assertOwnershipIsNotAMemberRowAction(
   ownerContext: BrowserContext,
   ownerPage: Page,

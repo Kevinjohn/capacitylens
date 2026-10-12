@@ -113,6 +113,7 @@ const runServerImport = async (incoming: AppData, context: ImportContext): Promi
     else if (response.status === 408 || response.status >= 500) await reconcileUnknownOutcome(context);
     else setNotice((await readApiError(response)) ?? m.data_import_failed({ status: response.status }), "error");
   } catch {
+    // A missing import response does not prove rejection; reconcile server state before permitting another replacement.
     await reconcileUnknownOutcome(context);
   } finally {
     if (!transaction.requiresReload) resumeWrites({ dropParkedEdits: transaction.committed });
@@ -149,6 +150,7 @@ export function useServerImport() {
       await runServerImport(incoming, { accountId, transaction, setRequiresReload, setNotice });
       if (!transaction.requiresReload) setBusy(false);
     } catch (error) {
+      // Report a failed import-start boundary and release busy state so recovery controls remain usable.
       setNotice(resolveErrorMessage(error) || m.data_import_failed({ status: 0 }), "error");
       setBusy(false);
     } finally {

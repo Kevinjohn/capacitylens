@@ -71,7 +71,7 @@ export function attachAccountSwitch({ store, owner, writes, refresh, serverMode 
           const myToken = owner.nextSwitchToken();
           void (async () => {
             if (owner.current.inFlightSave) await owner.current.inFlightSave;
-            if (owner.current.disposed || myToken !== owner.current.switchToken) return; // detached/newer owner owns effects
+            if (owner.current.disposed || myToken !== owner.current.switchToken) return;
             cancelDebounce();
             owner.discardFailedAccountLoadRecovery();
             // A parked edit belongs to whichever slice replacement still holds the suspension.

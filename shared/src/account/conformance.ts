@@ -1,10 +1,4 @@
-/**
- * Version markers carried by implementations and CI evidence.
- *
- * They are repository-local until a second consumer triggers package promotion. At that review the
- * same values become package metadata; consumers must never infer security currency from the
- * product version alone.
- */
+/** Version of the repository-local account contract; product versions do not indicate security currency. */
 export const ACCOUNT_CONTRACT_VERSION = "3.0.0";
 /** Version of the account conformance suite an adapter must pass. */
 export const ACCOUNT_CONFORMANCE_VERSION = "3.0.0";

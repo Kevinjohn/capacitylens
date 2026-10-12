@@ -30,9 +30,7 @@ export function resolveLaneAt(lanes: LaneSnapshot[], clientX: number, clientY: n
   return undefined;
 }
 
-// Reuses the hooks' memoised scoping/active-only caches (useScopedData) rather than re-deriving the
-// slice: a gesture reads this on every pointer event, and the rendering hooks have already paid for
-// the identical projection of the same `data` object.
+// Reuse the shared scoped active projection because every pointer frame reads the same data version already used by rendering.
 /** Resolves the scoped scheduling data used for a gesture preview. */
 export function buildActiveGestureData(data: AppData, activeAccountId: ID | null): AppData {
   return resolveSharedActiveData(resolveSharedScopedData(data, activeAccountId));

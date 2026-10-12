@@ -61,7 +61,6 @@ type RuntimeSliceKeys =
 
 type RuntimeSlice = Pick<StoreState, RuntimeSliceKeys>;
 
-/** The device-global boolean prefs, each persisted under its own localStorage key. */
 type PersistedFlagKey = "sidebarOpen" | "minimiseWeekends" | "fakeSignedIn";
 
 const legacyDirtyFormSource = Symbol("setDirtyForm");
@@ -112,9 +111,8 @@ function applyDirtyFormSource({ state, source, dirty }: ApplyDirtyFormSourceOpti
 
 /** Device preferences and transient application/session state. */
 export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> = (set, get) => {
-  // Every device-global preference setter has the same body, write the pref to its own
-  // localStorage key, then publish it, so the shape is declared once here and each setter below
-  // names only its key and its writer. setTheme stays bespoke: it also repaints the DOM.
+  // Share device-preference setter wiring so persistence and reactive publication stay paired.
+  // Theme also repaints the document.
   return {
     ...readRuntimeInitialState(),
 

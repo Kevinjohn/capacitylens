@@ -245,8 +245,6 @@ interface BuildFinishInputInput {
   result: unknown;
 }
 
-/** Shared 6-key finish-input shape for {@link terminateCommand} and {@link terminatePendingCommand},
- * which differ only in which state.ts primitive they call and their return type. */
 function buildFinishInput({ scope, command, status, failureCode, result }: BuildFinishInputInput) {
   return {
     applicationId: scope.applicationId,

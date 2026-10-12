@@ -30,14 +30,9 @@ export * from "./history";
 export * from "./storeConstants";
 
 function createMutationActions(set: StoreApi<StoreState>["setState"]) {
-  // Every data mutation goes through mutate(): it snapshots the previous data
-  // onto the undo stack and clears the redo stack.
-  //
-  // Do not wrap mutate(), its producers, undo/redo, the assert* helpers, or importData in a
-  // try/catch to "be safe". Their integrity throws are the store's whole point, the last line that
-  // stops bad multi-tenant data being persisted. Swallowing here would convert a loud, fixable
-  // rejection into silent data corruption (the explicit anti-goal; see DEFENSIVE-CODING.md §4). If
-  // a producer throws, `set` never runs, so state is left untouched, a clean, atomic failure.
+  // Mutations publish only after a producer succeeds, so integrity failures leave state
+  // untouched. Let these pure failures reach the caller’s error surface rather than
+  // hiding rejected writes. Undo and redo use the same validation boundary.
   const mutate = (producer: (data: AppData) => AppData) =>
     set((state) => ({
       data: producer(state.data),

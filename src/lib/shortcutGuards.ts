@@ -3,11 +3,8 @@ export function isTextEntryShortcutOwner(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (target.matches("input, textarea, select") || target.isContentEditable) return true;
 
-  // jsdom shim, not production logic: real browsers already answered this via `isContentEditable`
-  // above, which jsdom does not implement (it is always false there). The walk below reproduces
-  // the inheritance rule by hand off the `contenteditable` attribute, nearest ancestor wins, and
-  // an explicit `contenteditable="false"` stops the search, so the guard behaves the same under
-  // test as it does in a browser. Delete it only if jsdom gains `isContentEditable`.
+  // jsdom lacks inherited isContentEditable behavior. Walk attributes so tests honor
+  // the nearest explicit contenteditable value, including a false boundary.
   let owner = target.closest("[contenteditable]");
   while (owner !== null) {
     const state = owner.getAttribute("contenteditable")?.toLowerCase();
@@ -20,8 +17,6 @@ export function isTextEntryShortcutOwner(target: EventTarget | null): boolean {
 
 /** Radix dialogs are portalled, so query the document rather than the shortcut event's ancestry. */
 export function hasOpenModal(ignoredModal?: Element | null): boolean {
-  // Iterate the live NodeList directly and bail on the first hit. No intermediate array, and the
-  // common case (one dialog, and it is the ignored one) stops after a single comparison.
   for (const modal of document.querySelectorAll('[aria-modal="true"]:not([data-state="closed"])')) {
     if (modal !== ignoredModal) return true;
   }

@@ -309,11 +309,7 @@ const EXPECTED_CROSS_TENANT_ERASURE_EDGE_SQL = `
   LIMIT 1`;
 
 describe("CROSS_TENANT_ERASURE_EDGE_SQL", () => {
-  // Pinned so a future edit to accountIntegrity's ACCOUNT_RELATIONSHIPS (the shared source this SQL is
-  // now generated from) can't silently change the erasure guard's query shape. Content is provably
-  // equivalent to the hand-written SQL this replaced: same relationships, same order, same per-branch
-  // WHERE clause, only the repeated column aliases differ, which UNION ALL ignores past the first
-  // SELECT. The it.each coverage below is the behavioural proof; this is the textual regression pin.
+  // Pin the generated account-scoped edge shape as well as behavior, so changes to ACCOUNT_RELATIONSHIPS cannot silently weaken erasure containment.
   it("generates one account-scoped edge check per ACCOUNT_RELATIONSHIPS entry, in order", () => {
     expect(CROSS_TENANT_ERASURE_EDGE_SQL).toBe(EXPECTED_CROSS_TENANT_ERASURE_EDGE_SQL);
   });
@@ -357,6 +353,7 @@ function testCrossTenantEdgeRefusal({ relationship, seed }: (typeof crossTenantE
   try {
     tx(db, () => eraseWorkspaceProductDataInTx(db, "a1"));
   } catch (error) {
+    // Retain the containment failure so assertions verify its type and that the enclosing transaction preserved both tenants.
     thrown = error;
   }
 

@@ -100,6 +100,7 @@ export function ClosureForm({ closure, onClose }: { closure?: Closure; onClose: 
       }
       onClose();
     } catch (error) {
+      // Surface the rejected closure write at the form boundary so invalid data remains correctable.
       fail(null, error instanceof Error ? resolveErrorMessage(error) : m.form_closure_err_save_failed());
     }
   };

@@ -22,9 +22,7 @@ const SQLITE_CALLER_DATA_CONSTRAINT_CODES = new Set([
   3091,
 ]);
 
-/** node:sqlite exposes SQLite's extended numeric result in `errcode`. Require both its error code
- * and one recognized row-data constraint subtype so unrelated prose and internal trigger aborts
- * can never be hidden as caller faults. */
+// Require a recognized SQLite row-data constraint code so internal trigger failures cannot be concealed as caller faults.
 function isSqliteConstraintError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const sqlite = error as Error & { code?: unknown; errcode?: unknown };

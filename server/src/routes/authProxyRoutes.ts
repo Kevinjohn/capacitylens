@@ -18,7 +18,7 @@ type SessionResolutionResult =
   | { kind: "verified"; session: ApplicationSession }
   | { kind: "backend_failure"; error: unknown };
 
-/** Build Better Auth's absolute URL; malformed client/proxy Host input returns null. */
+// Malformed client or proxy Host input cannot establish an auth request URL.
 function parseAuthenticationRequestUrl(req: FastifyRequest): URL | null {
   try {
     return new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
@@ -27,7 +27,7 @@ function parseAuthenticationRequestUrl(req: FastifyRequest): URL | null {
   }
 }
 
-/** Complete public allowlist: new Better Auth routes stay closed until classified and tested here. */
+// Expose only classified Better Auth routes; new library endpoints remain closed by default.
 function isBetterAuthProxyRouteAllowed(
   policy: { authMode: Exclude<AccountMode, "off">; mailEnabled: boolean },
   method: string,
@@ -55,7 +55,7 @@ interface ResolveAuthenticationUserIdInput {
   logOn: boolean;
 }
 
-/** Attribute security events only to verified sessions, never to submitted user identifiers. */
+// Attribute security events to resolved sessions, never submitted identity fields.
 async function resolveAuthenticationUserId({
   auth,
   headers,
@@ -65,13 +65,14 @@ async function resolveAuthenticationUserId({
   try {
     return (await auth.api.getSession({ headers }))?.user.id ?? null;
   } catch (error) {
+    // Log failed telemetry attribution and leave the actor unknown; submitted identifiers must never substitute for a resolved session.
     if (logOn) req.log.error(error, "authentication security-event attribution failed");
     else console.error("capacitylens-server: authentication security-event attribution failed", error);
     return null;
   }
 }
 
-/** Convert Set-Cookie to Cookie: new values replace existing names, excluding response attributes. */
+// Response cookies replace request-cookie values by name without copying Set-Cookie attributes.
 function withResponseCookies(requestHeaders: Headers, setCookies: readonly string[]): Headers {
   const cookies = new Map<string, string>();
   for (const pair of (requestHeaders.get("cookie") ?? "").split(";")) {

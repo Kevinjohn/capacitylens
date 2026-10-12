@@ -1,22 +1,13 @@
 // Validates .gitleaks.toml, the secret scanner's reviewed fixture allowlist.
 //
-// The allowlist fails open by nature: a mistake in it makes the scan report fewer secrets, and a
-// scan reporting nothing looks exactly like a scan finding nothing. Two failure modes are real
-// enough to guard mechanically.
+// Guard against allowlist mistakes that make the secret scan report fewer findings.
 //
-// The first is a `paths` allowlist. Gitleaks applies those at file level and skips the file before
-// scanning it, so a `paths` entry intended to narrow a value pattern to test code instead disables
-// detection across every file it matches silently, while still reporting "no leaks found". An
-// earlier revision of the config made exactly that mistake; only the scanner's byte counter
-// (0 bytes read instead of 582) gave it away.
+// Gitleaks skips matching files before scanning them, so a `paths` allowlist can hide secrets in
+// every matched file rather than narrowing a value pattern.
 //
-// The second is a misspelled global table. Gitleaks 8.24 reads `[allowlist]`; Viper silently ignores
-// the unsupported plural `[[allowlists]]`, leaving every reviewed fixture reportable even though
-// this JavaScript checker can still see and compile the nested regex strings.
+// Gitleaks 8.24 reads [allowlist]; an unsupported [[allowlists]] table would be visible to this checker but ignored by the scanner.
 //
-// The third is an over-broad value pattern. `[a-z-]*test-secret-…` looks precise but matches
-// "latest-secret-…", because "la" + "test" satisfies it. Patterns must therefore break on segment
-// boundaries, and the corpora below lock that in.
+// Fixture patterns must match whole hyphen-separated segments so ordinary values such as latest-secret remain reportable.
 //
 // Scope: this checks the allowlist's shape and its patterns' classification behaviour. It does not
 // run gitleaks because the gate job has no gitleaks binary, so it cannot prove the scanner loads this
@@ -48,12 +39,8 @@ const fixtures = [
   "0123456789abcdef0123456789abcdef",
 ];
 
-// This file is scanned like any other, so a credential-shaped literal here is a finding here , the
-// first version of it turned the gate red on its own test data, and GitHub's push protection
-// rejected a provider-shaped key outright. Both are the scanners doing their job. The corpus below
-// therefore assembles its high-entropy values at runtime from fragments too short to trip the
-// entropy rules, and holds no provider-shaped keys ("sk_live_…", "ghp_…", "AKIA…") at all. Keep it
-// that way when adding cases: the value the scanner must catch has to exist only in memory.
+// Assemble high-entropy credentials from short fragments so scanner test values exist only in
+// memory and do not trigger the scan against this source file.
 const joinCredentialFragments = (...fragments) => fragments.join("");
 const randomLooking = joinCredentialFragments("Xk92mQpL", "zR7vT4nB", "8wYcJ3fH", "6sD1gA5e");
 const alsoRandomLooking = joinCredentialFragments("Zq4vN8xR", "2mK7pL5t", "W9yB3cF6", "hJ1sD0gA");
@@ -68,7 +55,7 @@ const credentials = [
   `fixture-secret-${alsoRandomLooking}`,
   // Trailing material past the counter means this is not the counter-style key it imitates.
   `idempotency-1-${randomLooking}`,
-  // The historical fixture exception must remain exact and anchored.
+  // Keep this exception exact and anchored so near-matching credentials remain reportable.
   "prefix-unique-passphrase-2026",
   "unique-passphrase-2026-suffix",
   "prefix-0123456789abcdef0123456789abcdef",
@@ -121,6 +108,7 @@ for (const pattern of patterns) {
   try {
     compiled.push(new RegExp(pattern));
   } catch (cause) {
+    // Collect invalid regex diagnostics so the configuration check reports every failure before exiting.
     failures.push(`Pattern does not compile: ${pattern} (${cause.message})`);
   }
 }

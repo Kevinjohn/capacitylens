@@ -12,6 +12,7 @@ function returnUrl(value: string, marker: string, ceremonyId: string): string {
   try {
     url = new URL(value);
   } catch (error) {
+    // Surface malformed callback URLs as caller-input failures so URL parsing cannot escape as an unclassified server error.
     throw new MicrosoftProofError("INVALID_CALLBACK_URL", 400, { cause: error });
   }
   url.searchParams.set("capacitylensIdentityProvider", "microsoft");
@@ -20,7 +21,10 @@ function returnUrl(value: string, marker: string, ceremonyId: string): string {
 }
 
 /**
- * Applies microsoft provider link only after the relevant server operations checks have passed.
+ * Starts a Microsoft mailbox-proof ceremony for linking an authenticated principal.
+ * Returns null when the request does not select a configured Microsoft provider.
+ * @throws MicrosoftProofError when the session is absent, a link already exists, or a callback URL is invalid.
+ * Provider-start failures propagate; no successful link is implied by starting the ceremony.
  */
 export async function startMicrosoftProviderLink(input: {
   auth: Auth;

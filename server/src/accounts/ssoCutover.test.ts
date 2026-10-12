@@ -119,6 +119,7 @@ describe("company-provider cutover", () => {
       });
       throw new Error("Expected startup readiness assertion to reject missing provider links.");
     } catch (error) {
+      // Capture the expected failure for assertions; the test must still fail if the operation unexpectedly succeeds.
       expect(error).toBeInstanceOf(CompanyProviderCutoverReadinessError);
       if (!(error instanceof CompanyProviderCutoverReadinessError)) throw error;
       expect(error.issues.map(({ reason }) => reason)).toContain("principal_not_connected");

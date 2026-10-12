@@ -171,7 +171,6 @@ describe("ProjectForm", () => {
     useStore.getState().archiveEntity("clients", client.id);
     render(<ProjectForm project={project} onClose={onClose} />);
 
-    // The archived client renders as a disabled option, still selected as the current value.
     const select = screen.getByLabelText("Client");
     expect(select).toHaveTextContent("Ferris (archived)");
     fireEvent.keyDown(select, { key: "ArrowDown" });

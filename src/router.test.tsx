@@ -157,7 +157,6 @@ describe("static SPA route manifest", () => {
       .map((route) => route.path as string)
       .sort();
 
-    // AuthProvider handles this public entry before the application router hydrates.
     expect([...fixedChildRoutes, "verify-microsoft"].sort()).toEqual([...STATIC_SPA_ROUTES].sort());
   });
 });

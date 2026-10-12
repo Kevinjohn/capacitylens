@@ -88,6 +88,7 @@ function executeImportWorker(
     try {
       worker.postMessage(request);
     } catch (error) {
+      // Settle the worker as failed and terminate it so request-cloning failure rejects import without leaking a worker slot.
       resolveWorkerOutcome({ kind: "failed", reason: error });
     }
   });

@@ -24,7 +24,6 @@ function registerCreatesAllocationRowButtonAssigneeTest() {
     const before = await page.getByTestId("allocation-bar").count();
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
-    // In row-create mode the assignee is fixed to the clicked row, so there's no
     // The assignee is fixed in create mode, so the dialog title identifies the resource.
     await expect(dialog.getByRole("heading")).toContainText("Clark Kent");
     await expect(dialog.getByLabel("Assignee")).toHaveCount(0);
@@ -65,7 +64,6 @@ function registerSeparatesAllocationScopesSortsChoicesTest() {
 
     await selectShadOption(project, "p-acme");
     await activity.click();
-    // A real-project scope lists All-projects activities first, then the project's own.
     await expect(page.getByRole("option")).toHaveText([
       "Design",
       "Workshop",
@@ -240,7 +238,6 @@ function registerDeletesAllocationEditDialogRestoresTest() {
     await expect(confirmation.getByRole("button", { name: "Cancel" })).toBeVisible();
     await confirmation.getByRole("button", { name: "Cancel" }).click();
 
-    // Cancel returns to the editor and preserves the exact allocation.
     await expect(editor).toBeVisible();
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before);
     await expect(page.locator(`[data-alloc-id="${allocationId}"]`)).toHaveAttribute("aria-label", originalLabel!);
@@ -302,12 +299,9 @@ function registerSnapsProjectPlaceholderBoundProjectTest() {
     await page.getByRole("link", { name: "Schedule" }).click();
     await setZoom(page, 4);
     await resetSchedulerScroll(page);
-    // Open create mode from the placeholder's own row (in create mode the assignee is fixed to the
-    // clicked row). The seeded "Senior Designer" slot shows as "Placeholder" and is bound to p-acme.
     await page.getByRole("button", { name: "Add allocation for Placeholder" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
     const project = dialog.getByLabel("Project", { exact: true });
-    // The placeholder starts with Project Watchtower as its bound project.
     await expect(project).toHaveText(/Project Watchtower/);
     // The trigger remains readable, but incompatible project-less scopes are disabled. The bound
     // project can use both its own activities and All-projects activities.

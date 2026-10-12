@@ -4,6 +4,7 @@ import Breadcrumbs from "./Breadcrumbs.vue";
 import GuideNavigation from "./GuideNavigation.vue";
 import "./custom.css";
 
+/** Extends the documentation layout with breadcrumb and script-free guide navigation. */
 export default {
   extends: DefaultTheme,
   Layout() {

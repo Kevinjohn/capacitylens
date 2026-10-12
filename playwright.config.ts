@@ -41,6 +41,7 @@ const devWebServer = {
   timeout: 120_000,
 };
 
+/** Configures isolated browser projects and servers for the selected port lane and E2E mode. */
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -136,10 +137,7 @@ export default defineConfig({
           {
             name: "rehearsal",
             testMatch: flavourSpec("db"),
-            // Reuses the db-backed specs verbatim (see comment above), so it inherits the same
-            // shared-SQLite-fixture hazard: every *.db.spec resets the fixture in beforeEach, and
-            // rehearsal is started by hand (CI unset), so the global CI-only workers guard above
-            // never kicks in here. Serialize explicitly instead of relying on that.
+            // Rehearsal reuses the DB specs, whose resets share one SQLite fixture, so this project must remain serial.
             workers: 1,
             use: {
               ...devices["Desktop Chrome"],

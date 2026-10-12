@@ -162,8 +162,7 @@ export function pruneInvites(db: Db, now = Date.now(), accountId?: string): numb
   return deleted + pruneUsedInvitationHistory(db, now, accountId);
 }
 
-/** Apply only the bounded used-history policy. Kept separate so the one-time migration cannot
- * unexpectedly delete an expired unused bearer row outside its declared data-repair scope. */
+// The frozen v24 repair must prune used history only, without deleting expired unused bearers.
 function pruneUsedInvitationHistory(db: Db, now = Date.now(), accountId?: string): number {
   const accountClause = accountId === undefined ? "" : " AND accountId = ?";
   const parameters = accountId === undefined ? [] : [accountId];

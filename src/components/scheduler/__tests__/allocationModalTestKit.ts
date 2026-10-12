@@ -1,6 +1,5 @@
 import { requireCreated } from "@/test/requireCreated";
-// Shared helpers for the AllocationModal.*.test.tsx suites, extracted from the former
-// single-file AllocationModal.test.tsx with bodies unchanged.
+
 import { expect } from "vitest";
 import type userEvent from "@testing-library/user-event";
 import { useStore } from "@/store/useStore";
@@ -65,10 +64,7 @@ export function resetAllocationModalStore(): void {
   restoreStoreAllocationActions();
   useStore.getState().replaceAll(base());
   useStore.getState().setActiveAccount(ACC);
-  // Placeholders default off (per-account pref). Several tests reassign to / from a placeholder
-  // via the Assignee picker, which only offers placeholders when the pref is on, enable it for
-  // every suite. The risk-A case (editing an allocation already on a placeholder while the pref is
-  // off still shows that placeholder) has its own dedicated test in AllocationModal.edit.test.tsx.
+  // Enable placeholders for assignment fixtures because the picker hides them by default. A current hidden assignee remains selectable while editing.
   setPlaceholdersEnabled({ on: true });
 }
 

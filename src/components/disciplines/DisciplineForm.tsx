@@ -11,15 +11,11 @@ import { FieldError } from "@/components/ui/field";
 import { DEFAULT_COLORS } from "@/lib/palette";
 import type { Discipline } from "@capacitylens/shared/types/entities";
 
-/** Add (no `discipline`) or edit a discipline: name + colour. `sortOrder` is auto-assigned (one past
- * the current max, not the count, see below). `onClose` fires on save or cancel. */
+/** Creates or edits a discipline with its name and colour, closing after save or cancel. New disciplines receive the next canonical sortOrder. */
 export function DisciplineForm({ discipline, onClose }: { discipline?: Discipline; onClose: () => void }) {
   const add = useStore((state) => state.addDiscipline);
   const update = useStore((state) => state.updateDiscipline);
-  // sortOrder is assigned automatically (no longer user-editable): a new discipline
-  // lands one past the current maximum, not the count, which would collide with an
-  // existing order after a deletion and fall back to the name tiebreak out of place.
-  // An existing discipline keeps whatever order it already had.
+  // Append new disciplines after the maximum sortOrder so gaps from deleted disciplines cannot collide. Edits retain the existing order.
   const disciplines = useActiveScopedData().disciplines;
   const nextSortOrder = disciplines.reduce((max, discipline) => Math.max(max, discipline.sortOrder + 1), 0);
   const [name, setName] = useState(discipline?.name ?? "");

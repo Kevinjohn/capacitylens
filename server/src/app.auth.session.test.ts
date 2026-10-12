@@ -14,12 +14,6 @@ import { buildApplicationSessionHandle } from "./accounts/buildApplicationSessio
 import { call, PASSWORD_ENV, cookiesOf, headerValues } from "./testHelpers/passwordAuth";
 import { appWithAuth, parseConfiguredAuth } from "./fixtures/appWithAuth";
 
-// The CAPACITYLENS_MODE flag (opts.authMode/auth). The load-bearing assertion set: off is
-// byte-for-byte today (the whole existing app.test.ts suite already enforces that by running
-// unchanged; these tests add the /api/auth/me surface and the absence of the Better Auth
-// routes); password gates every data route on a real session; sso issues a
-// provider redirect; any misconfiguration refuses to boot via AuthConfigError.
-
 const TS = "2026-01-01T00:00:00.000Z";
 const account = {
   id: "a1",
@@ -276,13 +270,10 @@ describe("CAPACITYLENS_MODE password", () => {
     expect(me.statusCode).toBe(200);
     expect(parseAuthMeResponse(me).authMode).toBe("password-only");
     expect(parseAuthMeResponse(me).user.email).toBe("tester@capacitylens.dev");
-    // emailVerified flows through to /api/auth/me. A fresh email+password sign-up has no
-    // verification infra, so Better Auth leaves the flag false, confirming the normalized flag
-    // is present and defaults correctly (the invite-bind gate depends on it).
+    // The response must preserve the provider’s false emailVerified value for an unverified password signup.
     expect(parseAuthMeResponse(me).user.emailVerified).toBe(false);
 
-    // The generic account create is closed auth-on (403 → POST /api/orgs): the bare row write never
-    // minted a membership, so it could only produce orphan accounts, /api/orgs is the atomic path.
+    // Authenticated company creation is refused here; /api/orgs creates product data and Owner membership atomically.
     // A session is still proven to authenticate (403, an authz refusal, not the session-less 401).
     const write = await call(app, {
       method: "POST",
@@ -365,9 +356,7 @@ describe("CAPACITYLENS_MODE password", () => {
         },
       });
       const cookie = cookiesOf(signUp);
-      // ISO-8601 text is what Better Auth's node:sqlite adapter actually stores, writing the
-      // production representation here is what makes this a regression test for the CAS that
-      // silently never matched integer-vs-text.
+      // Seed the adapter’s ISO-text timestamp representation so session CAS matches production storage.
       db.prepare(`UPDATE session SET updatedAt = ?`).run(
         new Date(Date.now() - (SESSION_INACTIVITY_TTL_SECONDS + 1) * 1000).toISOString(),
       );

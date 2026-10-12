@@ -31,8 +31,6 @@ test.describe("Settings — date style", () => {
       .filter({ has: page.getByRole("heading", { name: "Bruce Wayne", exact: true }) })
       .getByTestId("timeoff-row")
       .first();
-    // Weekday form always carries the ordinal; the style only reorders day/month, Bruce's first
-    // seeded row reads "Wed Jun 10th" under 'month-day' and "Wed 10th Jun" under the default.
     await expect(row).toContainText("Wed Jun 10th");
   });
 

@@ -36,10 +36,7 @@ export function AllocationSpanRow({
   );
 }
 
-/** The raw Start/End pair, for the modes that take a literal date range rather than deriving the
- * end from a span (see `usesTypedDateRange`). Both fields report the same `dates` error field, so
- * they are invalid together, which is the reason they live in one component instead of two
- * hand-kept copies that could drift apart. */
+/** Renders the literal date range and associates both endpoints with the same range-validation error. */
 export function DateRangeFields({
   startDate,
   endDate,

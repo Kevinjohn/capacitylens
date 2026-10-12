@@ -6,9 +6,7 @@ import type { CapacityAdvisory } from "./advisory";
  * The `repeat` variant counts whole allocations and can add the non-effective-start count. */
 export type CapacityAdvisoryVariant = "toast" | "form" | "repeat";
 
-/** Pick the one/other form for a count. `one` and `other` are uncalled message references, invoked
- * here at lookup time so Paraglide resolves the active locale on each render rather than freezing
- * it at import, never call `m.*()` while building the table below. */
+// Resolve plural messages at lookup so advisory text follows the active locale.
 const plural =
   (one: (inputs: { count: number }) => string, other: (inputs: { count: number }) => string) =>
   (count: number): string =>

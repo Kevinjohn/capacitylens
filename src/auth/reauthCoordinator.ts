@@ -1,14 +1,4 @@
-// Re-auth coordinator (defect B, SESSION_NOT_FRESH step-up). The seam that lets the step-up flow
-// span the React / non-React boundary: `apiFetchReauth` is a plain async function called from inside
-// event handlers (not a hook), so it cannot itself render the "Confirm it's you" dialog. Instead it
-// calls `requestReauth()` here, a module-level singleton that flips a pending flag and hands back a
-// promise, and the React `ReauthMount` (in AuthProvider) subscribes to that flag, renders the
-// dialog, and calls `completeReauth(true|false)` when the user finishes or cancels.
-//
-// Why a singleton (not React state / a store): the request originates outside React and must be
-// awaited by non-React code. A single global pending request is also exactly the semantics we want,
-// several security actions failing with SESSION_NOT_FRESH at once de-dupe onto one dialog (they all
-// share the same promise and all retry once it resolves), rather than stacking N identical dialogs.
+// Concurrent freshness refusals share one pending promise and one dialog so callers outside React can await the same authentication result.
 
 /** Security-sensitive account action that may require fresh authentication. */
 export type ReauthAction =
@@ -38,8 +28,6 @@ type Resolver = (result: ReauthResult) => void;
 /** Final liveness backstop when no React host survives to cancel the request immediately. */
 export const REAUTH_REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
 
-// The one in-flight re-auth request, or null. Holds the promise every concurrent caller awaits plus
-// the resolver the dialog fulfils. Never two at once, see the de-dupe in requestReauth.
 let pending: {
   promise: Promise<ReauthResult>;
   resolve: Resolver;
@@ -71,8 +59,7 @@ export function requestReauth(action: ReauthAction | null = null): Promise<Reaut
   return promise;
 }
 
-/** Fulfil the pending re-auth request. `true` maps to an `authenticated` result (callers retry);
- * `false` maps to `cancelled` (callers surface the original error). No-op when nothing is pending. */
+// A successful re-authentication allows waiting requests to retry; cancellation preserves their original refusal.
 type CompleteReauthOptions = { reauthenticated: boolean };
 /** Resolves the pending re-authentication request and releases waiting callers. */
 export function completeReauth({ reauthenticated }: CompleteReauthOptions): void {

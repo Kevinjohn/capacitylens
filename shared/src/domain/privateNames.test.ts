@@ -38,6 +38,13 @@ describe("private-name projection", () => {
     expect(nameForQuotedContext('"Nightwing"')).toBe("Nightwing");
   });
 
+  it("normalizes a long interior quote run in linear time", () => {
+    const interior = `Nightwing${'"'.repeat(100_000)}Robin`;
+    const started = performance.now();
+    expect(normalizeCodeName(`""${interior}""`)).toBe(interior);
+    expect(performance.now() - started).toBeLessThan(250);
+  });
+
   it("redacts a private row without mutating it and removes the raw codeName field", () => {
     const redacted = redactPrivateName(privateClient);
     expect(redacted.name).toBe('"Nightwing"');

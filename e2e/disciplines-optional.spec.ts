@@ -35,16 +35,13 @@ test("turning disciplines off hides every surface; turning it back on restores t
   await showExternal.click();
   await expect(showExternal).toHaveAttribute("aria-checked", "true");
 
-  // On by default for the seed: the nav link is present and the switch reads on.
   await expect(page.getByRole("link", { name: "Disciplines" })).toBeVisible();
   const useDisciplines = page.getByRole("switch", { name: "Use disciplines" });
   await expect(useDisciplines).toHaveAttribute("aria-checked", "true");
 
-  // Turn it off.
   await useDisciplines.click();
   await expect(useDisciplines).toHaveAttribute("aria-checked", "false");
 
-  // Sidebar nav link is gone.
   await expect(page.getByRole("link", { name: "Disciplines" })).toHaveCount(0);
 
   // Collapsed navigation shows the same 10 destinations, including Diagnostics in the demo, without
@@ -55,7 +52,6 @@ test("turning disciplines off hides every surface; turning it back on restores t
   await expect(page.getByRole("link", { name: "Disciplines" })).toHaveCount(0);
   await page.getByTestId("app-sidebar").getByRole("button", { name: "Expand menu" }).click();
 
-  // Schedule falls back to Studio then Supplementary bands and hides the discipline filter.
   await page.getByRole("link", { name: "Schedule" }).click();
   await showScheduleFilters(page);
   await expect(page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" })).toBeVisible();
@@ -66,7 +62,6 @@ test("turning disciplines off hides every surface; turning it back on restores t
   await expect(studio).toContainText(/avg utilisation/);
   await expect(supplementary).toContainText(/avg utilisation/);
 
-  // Synthetic bands retain the normal collapse interaction and row summaries.
   const studioToggle = studio.getByRole("button");
   await studioToggle.click();
   await expect(studioToggle).toHaveAttribute("aria-expanded", "false");
@@ -82,13 +77,11 @@ test("turning disciplines off hides every surface; turning it back on restores t
   await expect(page.getByTestId("discipline-group").filter({ hasText: "External / 3rd party" })).toBeVisible();
   await expect(page.getByLabel("Filter by discipline")).toHaveCount(0);
 
-  // The command palette no longer offers the Disciplines page.
   await page.keyboard.press("ControlOrMeta+k");
   await expect(page.getByTestId("command-palette")).toBeVisible();
   await expect(page.getByTestId("command-palette-option").filter({ hasText: "Disciplines" })).toHaveCount(0);
   await page.keyboard.press("Escape");
 
-  // The resource form drops the Discipline field.
   await page.getByRole("link", { name: "Resources" }).click();
   await page.getByRole("button", { name: "Add resource" }).click();
   await expect(page.getByLabel("Discipline")).toHaveCount(0);
@@ -104,6 +97,5 @@ test("turning disciplines off hides every surface; turning it back on restores t
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByTestId("scheduler-grid")).toBeVisible();
 
-  // Re-enable the setting. The Disciplines link returns, and the schedule uses discipline bands.
   await restoreDisciplines(page);
 });

@@ -6,22 +6,12 @@ interface ResolveVirtualWindowInput {
   overscanPx?: number | undefined;
 }
 
-// Pure vertical-windowing math for the scheduler grid. Given the ordered heights of
-// every renderable item (group headers + resource rows), the scroll offset and the
-// viewport height, it returns which slice to render. Kept pure (no DOM) so it's
-// deterministic and unit-testable at any scale. The windowing path can't be exercised
-// in jsdom (clientHeight is 0 there), so the test validates this directly.
-//
-// The off-screen scroll extent is reserved by spacer divs the grid sizes from `RowLayout`
-// (tops/total) rather than from a pad returned here: the grid can render one extra disjoint
-// item (the pinned drag source), so it needs the gap either side of every rendered item, not
-// just the two outer ones.
+// Pure windowing derives visible indices from row heights and scroll position. The renderer reserves extent between every displayed item because a pinned drag source can form a disjoint extra row. Unexpected math errors must remain visible.
 
 /** First and last row indices to render; `last` is `-1` when empty. */
 export interface VirtualWindow {
-  // Rendering starts at this item index.
   first: number;
-  // This inclusive index is -1 for an empty window.
+
   last: number;
 }
 
@@ -65,8 +55,7 @@ export function resolveVirtualWindow({
   const { tops, total } = layout;
   if (tops.length !== itemCount) throw new Error("Virtual layout tops must align with row heights.");
 
-  // No measured viewport (jsdom/SSR) or everything fits in view + overscan → render
-  // everything (no windowing), mirroring the FALLBACK_TIMELINE_WIDTH approach.
+  // Without a measured viewport, render all rows rather than hiding content before layout. A fitting list also needs no windowing.
   if (viewportHeight <= 0 || total <= viewportHeight + overscanPx) {
     return { first: 0, last: itemCount - 1 };
   }
@@ -74,8 +63,7 @@ export function resolveVirtualWindow({
   const top = scrollTop - overscanPx;
   const bottom = scrollTop + viewportHeight + overscanPx;
 
-  // First row whose bottom is after the upper edge. Clamp to the final row when
-  // scrollTop is beyond the content, preserving the existing out-of-range behaviour.
+  // Clamp the first realized row to a valid final index when scrolling exceeds content bounds.
   let low = 0;
   let high = itemCount;
   while (low < high) {

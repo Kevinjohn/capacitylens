@@ -1,6 +1,7 @@
 import type { Op } from "@/data/syncOps";
 import type { SyncState } from "./SyncState";
 
+/** Mutable JSON operation shape that can carry explicit null markers for cleared availability fields. */
 export type WireOp = Omit<Op, "row"> & { row?: Record<string, unknown> };
 
 type AvailabilityPresence = { first: boolean; last: boolean };

@@ -123,9 +123,10 @@ export function evaluateCommentVoice(path, content) {
     .sort((a, b) => a.line - b.line);
 }
 
-// `git ls-files` lists tracked files only, so ignored and generated output is never scanned.
+// Scan only the named tracked source trees; exclude generated Paraglide output explicitly below.
 /**
  * Lists tracked source files covered by the comment-voice check.
+ * @throws When Git cannot be invoked or exits unsuccessfully; an incomplete file list cannot establish compliance.
  */
 export function collectSourceFiles(root) {
   const result = spawnSync("git", ["ls-files", "-z", "--", "src", "shared", "server/src"], {
@@ -153,6 +154,7 @@ function main() {
     console.error(`Comment-voice check failed: ${findings.length} findings. See DEFENSIVE-CODING.md section 7.`);
     process.exitCode = 1;
   } catch (error) {
+    // Report scanner failures and fail the check because incomplete scanning cannot prove comment compliance.
     console.error(`Comment-voice check failed: ${error.message}`);
     process.exitCode = 1;
   }

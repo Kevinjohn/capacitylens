@@ -6,6 +6,7 @@ function captureError(run: () => void): Error {
   try {
     run();
   } catch (error) {
+    // Capture the expected failure for assertions; the test must still fail if the operation unexpectedly succeeds.
     if (error instanceof Error) return error;
   }
   throw new Error("Expected the operation to throw an Error.");

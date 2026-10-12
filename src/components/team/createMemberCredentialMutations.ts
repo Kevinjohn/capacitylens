@@ -62,6 +62,7 @@ function createResetPassword({
         setNotice(m.settings_members_reset_created());
         bumpReadiness();
       } catch (e) {
+        // A failed reset-link request may have committed, so reconcile before offering another secret-issuing action.
         await reconcileUnknownMutation(
           m.settings_members_unknown_reset_request_failed({ error: resolveErrorMessage(e) }),
         );
@@ -99,6 +100,7 @@ function createRevokeSessions({
         setNotice(m.settings_members_sessions_revoked());
         if (member.isSelf) window.location.reload();
       } catch (e) {
+        // A self-session revocation needs a clean auth boot; other ambiguous revocations reconcile before another attempt.
         if (member.isSelf) {
           window.location.reload();
           return;
@@ -123,9 +125,7 @@ export function createMemberCredentialMutations({
   setResetLink,
   bumpReadiness,
 }: ResetPasswordDependencies) {
-  // Mint a single-use password-reset link for `member`. Password mode only (the button is
-  // hidden otherwise; the server 400s regardless). No email is ever sent, the admin copies the
-  // link out of the write-once block below and hands it over directly. `member` is not `m` (i18n).
+  // This administrative reset returns a single-use link for direct sharing and does not send email.
   const resetPassword = createResetPassword({
     withMemberAction,
     isActiveAccount,

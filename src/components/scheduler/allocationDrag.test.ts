@@ -19,10 +19,7 @@ interface ReconcileReassignedHoursTestInput {
   startDate: string;
 }
 
-// These functions were extracted from AllocationBar so the gesture math could be tested
-// directly. The branches below are exactly the ones a happy-path drag interaction test
-// never exercises: the divide-by-zero guard, the MAX_HOURS_PER_DAY clamp, the
-// deltaDays === 0 / move-keeps-hours paths, and weekend-aware snapping.
+// The pure gesture suite covers invalid spans, clamping, no-op moves, and working-calendar placement independently of pointer events.
 
 const IGNORE = { ignoreWeekends: true };
 const range = (startDate: string, endDate: string): DateRange => ({ startDate, endDate });
@@ -36,10 +33,7 @@ const reconcileReassignedHours = ({ current, target, zeroLoadMode, startDate }: 
   });
 
 describe("volumePreservingHoursClamped", () => {
-  // The .hours field on its own (what the old volumePreservingHours wrapper returned): rescale,
-  // clamp, and the divide-by-zero guard.
   it("rescales hours inversely with the span (volume held constant)", () => {
-    // span 4 days → span 2 days doubles hours/day: 6 × 4 / 2 = 12
     expect(
       resolveVolumePreservingHours({
         previousDate: range("2026-06-01", "2026-06-04"),
@@ -51,7 +45,6 @@ describe("volumePreservingHoursClamped", () => {
   });
 
   it("clamps the result to MAX_HOURS_PER_DAY (24)", () => {
-    // span 25 → span 1 would be 6 × 25 = 150 h/day; clamped to a real working day
     expect(
       resolveVolumePreservingHours({
         previousDate: range("2026-06-01", "2026-06-25"),
@@ -63,7 +56,6 @@ describe("volumePreservingHoursClamped", () => {
   });
 
   it("returns the original hours when the new span is zero (divide-by-zero guard)", () => {
-    // endDate one day before startDate → daysInclusive = 0 → guard returns hoursPerDay unchanged
     expect(
       resolveVolumePreservingHours({
         previousDate: range("2026-06-01", "2026-06-04"),
@@ -74,12 +66,8 @@ describe("volumePreservingHoursClamped", () => {
     ).toBe(6);
   });
 
-  // The clamp flag is what lets a gesture commit surface the lost work volume. It must be
-  // true only when the raw derived hours actually exceeded the cap (a truncation), never on
-  // a normal in-range resize or the divide-by-zero guard. This is the test that fails without
-  // the surfacing change being wired through.
+  // Report clamped only when the hours cap truncates work volume so gesture callers can surface a persistent warning.
   it("flags clamped=true when the raw derived hours exceed MAX_HOURS_PER_DAY (24)", () => {
-    // span 25 → span 1 would be 6 × 25 = 150 h/day; clamped to 24, and the flag bites
     expect(
       resolveVolumePreservingHours({
         previousDate: range("2026-06-01", "2026-06-25"),
@@ -93,7 +81,6 @@ describe("volumePreservingHoursClamped", () => {
 
 describe("volumePreservingHoursClamped edge cases", () => {
   it("reports clamped=false for an in-range resize (no truncation)", () => {
-    // span 4 → span 2 doubles to 12h/day, well under the cap
     expect(
       resolveVolumePreservingHours({
         previousDate: range("2026-06-01", "2026-06-04"),
@@ -105,7 +92,6 @@ describe("volumePreservingHoursClamped edge cases", () => {
   });
 
   it("reports clamped=false at exactly the cap (24 is allowed, only > caps)", () => {
-    // span 4 → span 1 quadruples 6 → 24, landing exactly on the cap: no truncation
     expect(
       resolveVolumePreservingHours({
         previousDate: range("2026-06-01", "2026-06-04"),
@@ -127,16 +113,10 @@ describe("volumePreservingHoursClamped edge cases", () => {
     ).toEqual({ hours: 6, clamped: false });
   });
 
-  // A weekend-aware allocation spanning only Sat–Sun has zero working days in its old span. Before
-  // the fix, `hoursPerDay * 0 / newSpan` derives 0 and commits it with clamped=false, silent data
-  // loss, since the bar still renders but contributes nothing to utilisation. There is no volume to
-  // preserve when the old span had none, so the only non-destructive result is the stored hours,
-  // untouched.
-  // The Monday-through-Friday span counts working days only.
+  // A source span with no effective working days has no measurable work volume, so resizing must preserve its stored hours rather than derive zero.
   const WEEKDAYS_ONLY = { workingDays: [1, 2, 3, 4, 5] as Weekday[] };
 
   it("preserves hoursPerDay verbatim when the OLD span has zero working days (weekend-only allocation)", () => {
-    // 2026-06-06 = Sat, 2026-06-07 = Sun: a Sat-Sun old range has 0 working days.
     expect(
       resolveVolumePreservingHours({
         previousDate: range("2026-06-06", "2026-06-07"),
@@ -152,7 +132,6 @@ describe("volumePreservingHoursClamped edge cases", () => {
     // must stay the stored value, not collapse to 0 just because oldSpan/newSpan would otherwise
     // divide out to nothing.
     const { hours, clamped } = resolveVolumePreservingHours({
-      // A Saturday-only span contains no working days.
       previousDate: range("2026-06-06", "2026-06-06"),
       next: range("2026-06-06", "2026-06-12"),
       options: WEEKDAYS_ONLY,
@@ -194,8 +173,6 @@ describe("computeGesture", () => {
   });
 
   it("carries the origin's working-day duration into the target week on a reassign", () => {
-    // Thu 2026-08-13 - Tue 08-18 is two working days for a Tue/Wed/Thu resource;
-    // dropped on a Mon-Fri one it must stay two days and not be re-read as four.
     const { dates, hours } = resolveGesture({
       mode: "move",
       current: range("2026-08-13", "2026-08-18"),
@@ -206,7 +183,7 @@ describe("computeGesture", () => {
     });
 
     expect(dates).toEqual(range("2026-08-13", "2026-08-14"));
-    // The duration is preserved in working days, so there is no volume to rescale.
+
     expect(hours).toBe(8);
   });
 
@@ -224,7 +201,6 @@ describe("computeGesture", () => {
   });
 
   it("rescales hours for a days-mode resize that changes the span", () => {
-    // resize-end -2 → end 06-02, span 4 → 2, hours 6 → 12
     const { dates, hours, clamped } = resolveGesture({
       mode: "resize-end",
       current,
@@ -256,7 +232,6 @@ describe("computeGesture rescaling guards", () => {
   });
 
   it("flags clamped on a days-mode resize that drives hours past the cap", () => {
-    // span 4 → span 1 (resize-end -3) quadruples 12 → 48; clamped to 24, flag set
     const { hours, clamped } = resolveGesture({
       mode: "resize-end",
       current,
@@ -275,12 +250,7 @@ describe("computeGesture rescaling guards", () => {
     ).toBe(false);
   });
 
-  // A move never rescales even when the span is unchanged (its old/new span are equal, so a
-  // naive rescale would be a mathematical no-op on `hours` alone), the `mode !== 'move'` guard
-  // must still be the thing gating the branch, not a coincidence of equal spans. An out-of-range
-  // hoursPerDay (30, over the 24h cap) makes the two code paths diverge in both fields even though
-  // the span stays 4: the hardcoded move path returns it untouched/unclamped; the volume-preserving
-  // path (entered only if the mode guard is broken) would clamp it to 24 and flag `clamped: true`.
+  // Use an over-cap value to distinguish a move that preserves stored hours from an accidentally entered resize/clamp path even when spans are equal.
   it("a move never enters the volume-preserving path, even with an out-of-range hoursPerDay", () => {
     const { hours, clamped } = resolveGesture({
       mode: "move",
@@ -294,9 +264,7 @@ describe("computeGesture rescaling guards", () => {
     expect(clamped).toBe(false);
   });
 
-  // deltaDays === 0 must short-circuit before the days-mode rescale, not merely produce the same
-  // numbers as it by coincidence. Same trick: an out-of-range hoursPerDay makes the (wrongly)
-  // entered rescale path diverge from the hardcoded "unchanged" return in both hours and clamped.
+  // An over-cap fixture distinguishes a zero-delta no-op from accidentally entering the resize/clamp path.
   it("deltaDays === 0 skips the rescale entirely, even with an out-of-range hoursPerDay", () => {
     const { hours, clamped } = resolveGesture({
       mode: "resize-end",
@@ -313,15 +281,13 @@ describe("computeGesture rescaling guards", () => {
 
 describe("snappedBarGeometry", () => {
   const current = range("2026-06-01", "2026-06-04");
-  // Uniform geometry over June (origin 2026-06-01, dayWidth 20), minimise off, the preview
-  // pixels reduce to the absolute index*dayWidth positions the view-model would place.
+
   const geom = buildColumnGeometry(eachDayISO("2026-06-01", "2026-06-30"), 20, {
     minimiseWeekends: false,
     weekendWidth: 12,
   });
 
   it("converts a non-weekend-aware move to absolute pixels (left at the snapped start, width holds)", () => {
-    // Move +2: 06-01..06-04 → 06-03..06-06. Left = index 2 × 20; width = 4-day span × 20.
     const { left, width } = buildSnappedBarGeometry({
       mode: "move",
       current,
@@ -334,10 +300,7 @@ describe("snappedBarGeometry", () => {
   });
 
   it("threads opts through to applyGesture (weekend-aware result differs from naive)", () => {
-    // A Thu–Fri allocation moved +1 day: ignoring weekends it stays a plain 2-calendar-day
-    // bar; weekend-aware it preserves its working-day length across the weekend, so the
-    // geometry differs. The exact weekend math is applyGesture's own concern (and tests),
-    // here we only prove snappedBarGeometry threads opts through rather than dropping them.
+    // Snapped geometry must honor working-calendar options so previews match committed ranges across a weekend.
     const thuFri = range("2026-06-04", "2026-06-05");
     const naive = buildSnappedBarGeometry({
       mode: "move",
@@ -353,25 +316,23 @@ describe("snappedBarGeometry", () => {
       options: { workingDays: [1, 2, 3, 4, 5] },
       geometry: geom,
     });
-    // Moving one calendar day preserves the two-day span.
+
     expect(naive).toEqual({ left: 4 * 20, width: 2 * 20 });
     expect(weekendAware).not.toEqual(naive);
   });
 
   it("keeps the preview pixel-identical to the view-model when the range crosses a narrow weekend", () => {
-    // Minimise on: Sat/Sun are 8px, weekdays 20px. A Fri→following-Mon span must measure from
-    // the real mixed column widths (the same geometry the committed bar uses), not 4×20.
+    // Narrow-weekend geometry must measure each real column width so a range crossing the weekend cannot use uniform dayWidth arithmetic.
     const narrow = buildColumnGeometry(eachDayISO("2026-06-01", "2026-06-30"), 20, {
       minimiseWeekends: true,
       weekendWidth: 8,
     });
-    // 06-05 = Fri, 06-08 = Mon. The committed bar's geometry for that exact range:
+
     const committed = {
       left: narrow.xForDateInGeom("2026-06-05"),
       width: narrow.widthForDates("2026-06-05", "2026-06-08"),
     };
-    // Reach it by a weekend-aware resize-end of a single Friday +1 day (Fri 06-05, end extends
-    // across the weekend to Mon 06-08. The start stays on Friday).
+
     const preview = buildSnappedBarGeometry({
       mode: "resize-end",
       current: range("2026-06-05", "2026-06-05"),
@@ -380,7 +341,7 @@ describe("snappedBarGeometry", () => {
       geometry: narrow,
     });
     expect(preview).toEqual(committed);
-    // Width = Fri(20) + Sat(8) + Sun(8) + Mon(20) = 56, not 4×20.
+
     expect(preview.width).toBe(56);
   });
 });

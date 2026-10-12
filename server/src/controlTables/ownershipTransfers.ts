@@ -12,27 +12,11 @@ import type { PreparedStatement } from "./preparedStatement";
 import { LIVE_STATES_PREDICATE, SELECTED_COLUMNS, toOwnershipTransferRequest } from "./ownershipTransfersSchema";
 import type { OwnershipTransferRow } from "./ownershipTransfersSchema";
 
-/**
- * Storage operations over the `account_ownership_transfers` control table.
- *
- * The table's own contract (its frozen v41 DDL, its indexes, the row shape and the boot-time
- * assertion) lives in `ownershipTransfersSchema.ts`. Everything here is a statement against that
- * contract: every function is synchronous and transaction-agnostic, because a ceremony write commits
- * alongside its command-ledger row and its audit event or not at all, and only the caller owns that
- * transaction.
- */
+// Transfer statements share the frozen storage contract in ownershipTransfersSchema.
+// The caller owns the transaction so ceremony state, command outcome and audit commit together.
 
-/**
- * Not every handle that reaches the terminalisers has this table.
- *
- * Two callers arrive before v41 exists: the membership choke point, which application migrations
- * v12 and v14 drive on a handle where `ensureControlTables` has installed the membership tables but
- * not this one; and the stopped-server repair commands, which deliberately run against a database
- * whose migration 40 is still pending. A live request cannot exist in either case, so absence means
- * "nothing to end", but the query would still throw. Guarding here, rather than at each call site,
- * is what keeps a repair path from failing with an opaque `no such table`. Absence is re-probed
- * every call, never cached, so the same handle starts terminalising the moment v41 runs on it.
- */
+// Earlier-schema migration and stopped-server repair handles can lack the transfer table.
+// No live request can exist before it is installed; re-probe absence so the same handle notices later installation.
 const ownershipTransfersTableExists = createTableExistenceProbe("account_ownership_transfers");
 
 /**
@@ -58,35 +42,23 @@ export function nextOwnershipTransferRevision(revision: string): string {
   return String(current + 1);
 }
 
-/** The company's live request, or `null`. At most one row can match. The partial unique index is
- * what makes that a guarantee rather than a convention. */
+// The partial unique index guarantees at most one live request per company.
 const liveRequestStatement = cachedStatement(
   `SELECT ${SELECTED_COLUMNS} FROM account_ownership_transfers WHERE accountId = ? AND ${LIVE_STATES_PREDICATE}`,
 );
 
-/**
- * Reads live request from its authoritative source so decisions use persisted state.
- */
+/** Returns the company’s unique live request, or null when none exists. */
 export function readLiveRequest(db: Db, accountId: string): OwnershipTransferRequest | null {
   const row = liveRequestStatement(db).get(accountId) as OwnershipTransferRow | undefined;
   return row ? toOwnershipTransferRequest(row, "readLiveRequest") : null;
 }
 
-/**
- * One request by id, whatever its state.
- *
- * `accountId` is a required parameter rather than a convenience: it is the cross-tenant guard. Every
- * ceremony command carries the workspace it was authorised against, so keying the read on both makes
- * a request id from another company indistinguishable from an absent one at the storage layer,
- * instead of relying on each caller to compare the row's `accountId` afterwards.
- */
+// Match both request ID and account ID so a foreign company’s request is indistinguishable from absence.
 const requestByIdStatement = cachedStatement(
   `SELECT ${SELECTED_COLUMNS} FROM account_ownership_transfers WHERE id = ? AND accountId = ?`,
 );
 
-/**
- * Reads request by id from its authoritative source so decisions use persisted state.
- */
+/** Returns one request only when its ID and account both match, regardless of lifecycle state. */
 export function readRequestById(db: Db, accountId: string, id: string): OwnershipTransferRequest | null {
   const row = requestByIdStatement(db).get(id, accountId) as OwnershipTransferRow | undefined;
   return row ? toOwnershipTransferRequest(row, "readRequestById") : null;
@@ -118,16 +90,7 @@ export function readLatestTerminalForParticipant(
   return row ? toOwnershipTransferRequest(row, "readLatestTerminalForParticipant") : null;
 }
 
-/**
- * Persist a newly initiated request.
- *
- * Synchronous and transaction-agnostic like every function here: the caller owns the transaction,
- * because an initiation commits alongside its command-ledger row and its audit event or not at all.
- *
- * Deliberately not preceded by a "is there already a live request?" read. The partial unique index
- * refuses the second live row, so a concurrent second initiation surfaces as a SQLite constraint
- * error the caller maps to a conflict. A read-then-insert would pass both racers.
- */
+// The partial unique index rejects competing initiations; a read-then-insert check cannot establish uniqueness.
 const insertRequestStatement = cachedStatement(
   `INSERT INTO account_ownership_transfers
      (id, accountId, initiatorUserId, targetUserId, state, revision,
@@ -135,9 +98,8 @@ const insertRequestStatement = cachedStatement(
    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 );
 
-/**
- * Updates request within the owning transaction so account control data state remains
- * consistent.
+/** Inserts a transfer request inside the caller’s transaction.
+ * @throws On duplicate live requests or other storage faults; the caller must roll back the command and audit together.
  */
 export function insertRequest(db: Db, request: OwnershipTransferRequest): void {
   insertRequestStatement(db).run(
@@ -276,10 +238,7 @@ export function terminaliseLiveRequestsForMember({
   return invalidateLive({ db, now, reason, scope: MEMBER_SCOPE, parameters: [accountId, userId, userId] });
 }
 
-/** The two row sets an invalidation can name: one company's live requests, or the subset of them
- * naming one principal. Each is a fixed pair of statements rather than an interpolated predicate,
- * because this runs from the membership-write choke point and a per-call `prepare()` there is a
- * SQL compile on the hot path. */
+// Fixed cached predicates keep membership-triggered invalidation from compiling SQL on every write.
 interface InvalidateScope {
   select: (db: Db) => PreparedStatement;
   update: (db: Db) => PreparedStatement;
@@ -310,9 +269,7 @@ interface InvalidateLiveInput {
   parameters: string[];
 }
 
-/** The shared body of the two terminalisers. Reads the matching ids before the update so the caller
- * learns exactly which rows it changed; both statements run inside the caller's transaction, so no
- * row can appear or disappear between them. */
+// Read matching IDs and update in the caller’s transaction so the audit receives exactly the changed rows.
 function invalidateLive({ db, now, reason, scope, parameters }: InvalidateLiveInput): string[] {
   if (!ownershipTransfersTableExists(db)) return [];
   const rows = scope.select(db).all(...parameters) as Array<{ id: string; revision: string }>;

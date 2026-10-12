@@ -18,9 +18,7 @@ function parsePreauthorizedEmail(
   return { kind: "parsed", value: normalizeAccountEmail(value) };
 }
 
-/**
- * Parses an invitation expiry and rejects values outside the permitted range.
- */
+/** Parses a strict UTC instant; invitation lifetime limits are enforced by the invitation policy. */
 export function parseInvitationExpiry(
   value: unknown,
   createValidationFailure: AccountRouteContext["validationFailed"],
@@ -34,7 +32,8 @@ export function parseInvitationExpiry(
 }
 
 /**
- * Requires a valid invitation role and pre-authorized email before the route creates an invitation.
+ * Parses the invitation account, role, optional email, and proposed resource.
+ * An addressed email is required only in sso-only mode; validation failures are returned without writes.
  */
 export function parseCreateInvitationAuthorizationInput({
   req,

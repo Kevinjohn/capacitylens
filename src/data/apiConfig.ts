@@ -1,10 +1,5 @@
-// The backend's base URL, read once from the build-time env. Empty (the default) now means the
-// same-origin server (relative `/api`), not "local", server persistence is the default. Set it to
-// point at a different origin (e.g. http://localhost:8787). The zero-setup browser demo is an
-// explicit opt-in (VITE_CAPACITYLENS_DEMO=1) and keeps its editable seed in memory only. The optional
-// override must be one HTTP(S) origin; normalize it once so every `${API_BASE}/api/...` caller and
-// offline-cache namespace uses the same canonical value. Kept in its own module so the env read and
-// validation aren't scattered across the adapter wiring.
+// Canonicalise the build-time API origin once so live requests and offline namespaces
+// share the same backend identity. Demo builds retain scheduling data only in memory.
 
 function readOptionalEnvironmentString(value: unknown, variableName: string): string | undefined {
   if (value === undefined || value === null) return undefined;
@@ -49,8 +44,7 @@ export function isDemoMode(): boolean {
   return import.meta.env.VITE_CAPACITYLENS_DEMO === "1";
 }
 
-/** Server mode is now the default, true unless the demo flag is set, regardless of API_BASE
- * (empty API_BASE = same-origin server, not "local"). Name kept so the ~15 call sites read unchanged. */
+/** Returns true unless the build explicitly selects the in-memory demo. API_BASE does not affect this choice. */
 export function isServerConfigured(): boolean {
   return !isDemoMode();
 }

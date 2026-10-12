@@ -29,11 +29,9 @@ function registerSpannedWeekendOverIgnoredWorkingTests() {
   test("a spanned weekend is not over; ignored working days and time off are", async ({ page }) => {
     await openScheduleWithInlineActivityCreation(page);
 
-    // Clark has no seeded over-capacity days, so the baseline marker count is zero.
     await expect(clarkOverMarkers(page)).toHaveCount(0);
     const baseline = 0;
 
-    // A fresh allocation spanning the weekend, default (weekend-aware).
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     const create = page.getByRole("dialog", { name: "New allocation" });
     await selectShadOption(create.getByLabel("Project", { exact: true }), "p-acme");
@@ -48,7 +46,6 @@ function registerSpannedWeekendOverIgnoredWorkingTests() {
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Weekend Verify" });
     await expect(bar).toBeVisible();
 
-    // The allocation spans the weekend, but those non-working days should not add markers.
     await expect(clarkOverMarkers(page)).toHaveCount(baseline);
     const weekendAwareLefts = await leftsOf(clarkOverMarkers(page));
 
@@ -56,7 +53,6 @@ function registerSpannedWeekendOverIgnoredWorkingTests() {
     await bar.click();
     const edit = page.getByRole("dialog", { name: "Edit allocation" });
     await edit.getByRole("checkbox", { name: "Ignore working days" }).click();
-    // The modal should show over-capacity on both weekend days.
     await expect(edit.getByText(/over capacity on 2 days/i)).toBeVisible();
     await page.getByRole("button", { name: "Save" }).click();
     await expect(clarkOverMarkers(page)).toHaveCount(baseline + 2);
@@ -69,7 +65,6 @@ function registerSpannedWeekendOverIgnoredWorkingTests() {
     expect(newWeekendLefts).toHaveLength(2);
     expect(newWeekendLefts.every((l) => unavailableLefts.includes(l))).toBe(true);
 
-    // Back to weekend-aware → the weekend clears again.
     await bar.click();
     await page
       .getByRole("dialog", { name: "Edit allocation" })
@@ -78,7 +73,6 @@ function registerSpannedWeekendOverIgnoredWorkingTests() {
     await page.getByRole("button", { name: "Save" }).click();
     await expect(clarkOverMarkers(page)).toHaveCount(baseline);
 
-    // Time off on Mon 15 (a working day the allocation covers) → still over (a real conflict).
     await page.getByRole("link", { name: "Time off" }).click();
     await page.getByRole("button", { name: "Add time off" }).click();
     const timeOff = page.getByRole("dialog", { name: "Add time off" });

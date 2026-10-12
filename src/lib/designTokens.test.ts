@@ -185,8 +185,7 @@ describe("time-off draw-mode treatment", () => {
   const rule = indexCss.match(/\[data-draw-mode="timeoff"\] \.scheduler-timeoff-block\s*\{([\s\S]*?)\}/)?.[1] ?? "";
 
   it("uses the same vivid yellow and readable dark ink in both themes", () => {
-    // The dark theme inherits this single root declaration: a second theme-specific value would
-    // allow the selected treatment to drift apart again.
+    // Keep the selected treatment in one inherited declaration so theme values cannot drift.
     expect(indexCss.match(/--c-timeoff-selected:\s*#facc15/g)).toHaveLength(1);
     expect(rule).toMatch(/color:\s*var\(--color-timeoff-selected-ink\)/);
   });
@@ -205,7 +204,7 @@ describe("time-off draw-mode treatment of company closures (#787)", () => {
     expect(rule).toMatch(/color:\s*var\(--color-timeoff-selected-ink\)/);
     expect(rule).toMatch(/background-color:\s*var\(--color-timeoff-selected\) !important/);
     expect(rule).toMatch(/0 0 6px 1px/);
-    // Work mode is unchanged: the rule is scoped under the timeoff draw-mode attribute only.
+
     expect(indexCss).not.toMatch(/\[data-draw-mode="work"\]\s*\.scheduler-closure-band/);
   });
 });
@@ -226,7 +225,7 @@ describe("company closure label stacking (#788)", () => {
     const label = zIndexToken("scheduler-closure-label");
     expect(label).toBeGreaterThan(GROUP_HEADER_LAYER);
     expect(label).toBeLessThan(STICKY_HEADER_LAYER);
-    // And it stays a grid-local tier, never competing with the named chrome scale.
+
     expect(label).toBeLessThan(zIndexToken("sticky"));
   });
 
@@ -234,7 +233,7 @@ describe("company closure label stacking (#788)", () => {
     const rule =
       indexCss.match(/\[data-draw-mode="timeoff"\] \.scheduler-closure-label-layer\s*\{([\s\S]*?)\}/)?.[1] ?? "";
     expect(rule).toMatch(/color:\s*var\(--color-timeoff-selected-ink\)/);
-    // Only the ink: the vivid fill and glow stay on the band, so one closure shows one highlight.
+
     expect(rule).not.toMatch(/background-color|box-shadow/);
   });
 });
@@ -253,11 +252,7 @@ describe("action and identity token contrast", () => {
   });
 });
 
-// The global :focus-visible rule uses opaque brand blue for native controls and composed
-// `[tabindex]` primitives alike. These are every normal adjacent app surface in both themes;
-// The sidebar now has its own chrome ground while ordinary app surfaces retain the established
-// semantic values. Pinning every pair here makes a future token edit fail before it can turn the
-// shared focus indicator sub-3:1 again.
+// Check every adjacent app surface so the shared focus indicator keeps at least 3:1 contrast in both themes.
 describe("global focus outline contrast (WCAG 1.4.11 non-text >=3:1)", () => {
   it("applies the opaque brand outline to tabindex-composed primitives", () => {
     expect(indexCss).toMatch(/\[tabindex\][\s\S]*?\):focus-visible\s*\{[^}]*outline:\s*2px solid var\(--color-brand\)/);
@@ -313,7 +308,7 @@ describe("Switch state contrast (WCAG 1.4.11 non-text >=3:1)", () => {
 
 describe("destructive Alert body contrast", () => {
   it.each([
-    ["light", "#e11d48", "#ffffff"], // --c-danger on --c-surface
+    ["light", "#e11d48", "#ffffff"],
     ["dark", "#fb7185", "#161922"],
   ])("keeps the opaque danger token AA on the %s card surface", (_theme, ink, surface) => {
     expect(contrastRatio(ink, surface)).toBeGreaterThanOrEqual(4.5);
@@ -333,33 +328,24 @@ describe("danger-soft button hover contrast", () => {
   });
 });
 
-// AllocationBar focus indicator, the dual-tone ring (WCAG 1.4.11, Non-text Contrast ≥3:1). The two
-// ring colours below mirror --c-focus-ink / --c-focus-halo in src/index.css (jsdom can't resolve CSS
-// vars, so pin them here and fail the gate if the CSS changes without updating these). The ring is a
-// near-black edge + a near-white edge straddling the bar's outer border, both adjacent to whatever is
-// behind the bar. The conformance claim: against every adjacency, in both themes, at least one of the
-// two edges clears 3:1, so the indicator never disappears, including on the over-capacity cell red.
-//
-// This guard fails the prior single-halo approach: that used one light edge (white in light / near-
-// white #e7eaf0 in dark). On the light over-cell rose (#fb9ea1) white reads only ~2.0:1, so a
-// single-light-edge max would be <3 and this assertion would fail; the dark edge (#1c2230) rescues it
-// at ~7.95:1. (The brand blue outline, kept as an identity layer, is not counted here.)
+// Both focus-ring edges touch the surrounding surface. At least one must reach
+// 3:1 against every checked light and dark adjacency. Pin token values because
+// jsdom cannot resolve the CSS variables used by the rendered indicator.
 describe("AllocationBar focus ring (dual-tone, WCAG 1.4.11 non-text ≥3:1)", () => {
-  const RING_INK = "#1c2230"; // --c-focus-ink (near-black edge, wins on pale grounds)
-  const RING_HALO = "#ffffff"; // --c-focus-halo (near-white edge, wins on dark grounds)
+  const RING_INK = "#1c2230";
+  const RING_HALO = "#ffffff";
 
   // Backgrounds the focus ring can sit adjacent to, in both themes. The over-cell + weekend hexes are
   // the sRGB resolution of the index.css `color-mix(in oklab, …)` tokens (verified to the rgb values
   // the token comments cite), pinned here because jsdom can't resolve color-mix.
   const ADJACENCIES: Record<string, string> = {
-    // --c-danger-cell: light = color-mix(in oklab, #e11d48 50%, white); dark = color-mix(#fb7185 60%, #0e1016)
-    "over-cell (light)": "#fb9ea1", // ≈ rgb(251,158,161), pale rose: white reads ~2:1, the dark edge wins
-    "over-cell (dark)": "#934956", //  ≈ rgb(147,73,86), deep red:  the light edge wins
+    "over-cell (light)": "#fb9ea1",
+    "over-cell (dark)": "#934956",
     "canvas (light) --c-base": "#f4f5f8",
     "canvas (dark) --c-base": "#0e1016",
     "surface (light) --c-surface": "#ffffff",
     "surface (dark) --c-surface": "#161922",
-    // --c-weekend: light = color-mix(#1c2230 8%, #ffffff); dark = color-mix(#e7eaf0 7%, #161922)
+
     "weekend (light)": "#eaebed",
     "weekend (dark)": "#22252e",
   };
@@ -381,7 +367,6 @@ describe("AllocationBar focus ring (dual-tone, WCAG 1.4.11 non-text ≥3:1)", ()
   }
 
   it("the dark edge (not white) is what carries the light over-cell — the old single light halo failed here", () => {
-    // White-only (the retired single-halo approach) is sub-3 on the pale light over-cell; the pairing rescues it.
     expect(contrastRatio(RING_HALO, "#fb9ea1")).toBeLessThan(3.0);
     expect(contrastRatio(RING_INK, "#fb9ea1")).toBeGreaterThanOrEqual(3.0);
   });

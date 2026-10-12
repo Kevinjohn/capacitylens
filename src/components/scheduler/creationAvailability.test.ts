@@ -123,7 +123,7 @@ function registerExternalAvailabilityTests() {
         closures: [],
       }),
     ).toBe(false);
-    // An external carries no time off of its own: a stray record must not gate its lane.
+
     expect(
       isCreationStartBlocked({
         resource: { ...external, id: "r1" },
@@ -194,7 +194,7 @@ function registerReasonPrecedenceTests() {
         closures: [],
       }),
     ).toBe(null);
-    // Another person's time off is ignored, so callers need not pre-filter the list.
+
     expect(
       resolveCreationBlockReason({
         resource: person,
@@ -205,7 +205,7 @@ function registerReasonPrecedenceTests() {
         closures: [],
       }),
     ).toBe(null);
-    // The per-allocation override bypasses the calendars only, time off passed in still blocks.
+
     expect(
       resolveCreationBlockReason({
         resource: person,
@@ -220,7 +220,6 @@ function registerReasonPrecedenceTests() {
 }
 
 describe("#257 characterization: creation and move gate boundaries", () => {
-  // Permanent invariants: creation never accepts the override, and the override never bypasses time off.
   it("keeps a creation start blocked where the existing-allocation move override is allowed", () => {
     const companyMondayToThursday = [1, 2, 3, 4] as Resource["workingDays"];
 

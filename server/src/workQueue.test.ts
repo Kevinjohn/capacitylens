@@ -173,10 +173,7 @@ function registerWaitTimeoutTest(registerTest: typeof it): void {
 
 function registerAbortAfterDequeueTest(registerTest: typeof it): void {
   registerTest("ignores an abort that fires after its work already left the queue via dequeue", async () => {
-    // Regression for the shared removeFromWaiting withdrawal: the dequeue-on-settle path (execute()'s
-    // finally) already shifted this item out of `waiting` and removed its abort listener before we
-    // call abort() below, so the abort handler must not fire at all. No reject, no double-settle, and
-    // the now-running work must complete normally.
+    // Dequeued work must have its abort listener removed so later cancellation cannot reject or double-settle active work.
     const queue = new BoundedWorkQueue({ maxActive: 1, maxQueued: 1, fullMessage: "busy" });
     let releaseActive: (() => void) | undefined;
     const active = queue.run(() => new Promise<string>((resolve) => (releaseActive = () => resolve("active"))));
@@ -197,9 +194,7 @@ function registerAbortAfterDequeueTest(registerTest: typeof it): void {
 
 function registerTimerAfterDequeueTest(registerTest: typeof it): void {
   registerTest("ignores a wait timer that fires after its work already left the queue via dequeue", async () => {
-    // Regression for the shared removeFromWaiting withdrawal: dequeue-on-settle clears the queued
-    // item's wait timer as part of removing it (before this item ever gets a chance to time out), so
-    // advancing fake timers past maxWaitMs afterward must not reject the now-running work.
+    // Dequeued work must have its wait timer cleared so queue expiry cannot reject active work.
     vi.useFakeTimers();
     try {
       const onSaturated = vi.fn();

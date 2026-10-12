@@ -1,9 +1,5 @@
-// i18n scaffolding tests, Paraglide (inlang) compile-time, type-safe messages.
-//
-// Acceptance: "a removed key fails the build": the demonstrator key `form_cancel` is referenced
-// in type-checked code. Deleting it and recompiling removes the generated function, so TypeScript and
-// the green gate fail. Brand identity is deliberately single-sourced from shared/brand instead of
-// being duplicated in the translation catalogue.
+// A type-checked message reference proves removing its compiled key fails the build.
+// Brand identity remains outside the translation catalogue.
 
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";

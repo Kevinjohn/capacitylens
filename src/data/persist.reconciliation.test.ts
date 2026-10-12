@@ -17,8 +17,7 @@ import { deferredSignal, requireCallback, recordingAdapter, a2Slice, attachActiv
 
 beforeEach(() => {
   localStorage.clear();
-  // Seeds a single account and makes it active, so the add* calls below
-  // (which now require an active account) work.
+  // Seed an active account because store additions require an account scope.
   resetStoreWithAccount();
 });
 
@@ -57,6 +56,7 @@ async function attachHeldLossSwitch() {
   try {
     await vi.waitFor(() => expect(loadAll).toHaveBeenCalledWith("a2"));
   } catch (error) {
+    // Detach the test persistence owner before propagating failure so later tests inherit no active listeners.
     detach();
     throw error;
   }
@@ -93,6 +93,7 @@ async function attachRecoverableAccountSwitch() {
     await expect(switchAndAwaitHydration("a2")).resolves.toEqual({ kind: "reloaded" });
     return { detach, loadAll, onError, onSuccess, saveAll };
   } catch (error) {
+    // Detach the test persistence owner before propagating failure so later tests inherit no active listeners.
     detach();
     throw error;
   }
@@ -102,21 +103,17 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
   it("a successful TENANT SWITCH clears the prior tenant's failed-write state — B's import/refresh are not blocked by A", async () => {
     const { detach, loadAll, onError, onSuccess, saveAll } = await attachRecoverableAccountSwitch();
 
-    // A's write fails → the failure state is up (import blocked, focus refresh suppressed).
     saveAll.mockRejectedValueOnce(new Error("server down"));
     useStore.getState().addClient({ name: "Doomed in A", color: "#222222" });
     await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
     expect(await flushPendingWrites()).toEqual({ kind: "blocked" });
 
-    // Switching to B succeeds: B's writes are clean by construction (fresh authoritative slice,
-    // snapshot re-seeded). A's abandoned failure must not follow the user into B.
     const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
     onSuccess.mockClear();
     await expect(switchAndAwaitHydration("b1")).resolves.toEqual({ kind: "reloaded" });
-    expect(await flushPendingWrites()).toEqual({ kind: "clean" }); // an import in B is no longer falsely blocked
-    expect(onSuccess).toHaveBeenCalled(); // and the "changes aren't saving" banner came down
+    expect(await flushPendingWrites()).toEqual({ kind: "clean" });
+    expect(onSuccess).toHaveBeenCalled();
 
-    // The focus refresh in B is no longer suppressed by A's stale failedSinceSuccess.
     const loadsBefore = loadAll.mock.calls.length;
     now.mockReturnValue(131_000);
     window.dispatchEvent(new Event("focus"));
@@ -135,12 +132,12 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
     try {
       const { detach, loadStarted, onError, readReleaseB, saveAll } = await attachHeldLossSwitch();
 
-      saveAll.mockRejectedValue(new Error("server down")); // every save now fails
+      saveAll.mockRejectedValue(new Error("server down"));
       useStore.getState().addClient({ name: "Doomed in A", color: "#222222" });
-      await vi.advanceTimersByTimeAsync(5); // save failed → failure state up, backoff retry armed
+      await vi.advanceTimersByTimeAsync(5);
       const savesBeforeSwitch = saveAll.mock.calls.length;
 
-      saveAll.mockResolvedValue(undefined); // the connection heals, but A's edit is already lost
+      saveAll.mockResolvedValue(undefined);
       useStore.getState().setActiveAccount("b1");
       await loadStarted.promise;
       const releaseB = readReleaseB();
@@ -149,7 +146,6 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
       requireCallback(releaseB, "account B load release")();
       await vi.advanceTimersByTimeAsync(5);
 
-      // The destination edit is rebased and saved, but that must not hide the older source loss.
       expect(useStore.getState().data.clients).toContainEqual(
         expect.objectContaining({
           id: midSwitchEdit.id,
@@ -157,7 +153,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
         }),
       );
       expect(onError.mock.calls.some(([e]) => e instanceof ReloadDiscardedEditError)).toBe(true);
-      // …and no retry ever replayed A's stale tree after the switch (35s covers every backoff).
+
       await vi.advanceTimersByTimeAsync(35_000);
       for (const [payload] of saveAll.mock.calls.slice(savesBeforeSwitch)) {
         expect((payload as AppData).clients.some((c) => c.name === "Doomed in A")).toBe(false);
@@ -175,11 +171,8 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
 });
 
 describe("batch reconciliation (authoritative reload)", () => {
-  // A 409 from /api/batch (optimistic concurrency) is not transient: retrying the same stale diff
-  // 409s forever, and abortIfSaveFailed blocks the focus refresh that could break the loop, a
-  // self-sustaining error wedge. The persist layer must instead resolve by reloading the active
-  // slice (server wins, the local conflicting edit is deliberately discarded), surface the banner
-  // via onError, and clear it via the follow-up clean save's onSuccess.
+  // An optimistic-concurrency conflict requires an authoritative reload; retrying the
+  // same stale diff cannot recover and would block the refresh needed for resolution.
   it("a 409 conflict RELOADS the slice (no abort), does NOT arm the stale-diff retry, and the banner clears", async () => {
     vi.useFakeTimers();
     try {
@@ -193,21 +186,20 @@ describe("batch reconciliation (authoritative reload)", () => {
       saveAll.mockClear();
       saveAll.mockRejectedValueOnce(new BatchConflictError("stale write"));
 
-      useStore.getState().addClient({ name: "Conflicted", color: "#222222" }); // immediate save → 409
+      useStore.getState().addClient({ name: "Conflicted", color: "#222222" });
       await vi.advanceTimersByTimeAsync(5);
 
-      expect(onError).toHaveBeenCalledTimes(1); // the banner surfaced "your edit did not save"
-      // The resolution reload ran, deliberately without abortIfSaveFailed (this reload is the
-      // resolution), unlike the focus refresh which must abort on a failed save.
+      // Conflict resolution must bypass the failed-save guard or it would block its own recovery load.
+      expect(onError).toHaveBeenCalledTimes(1);
+
       expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
-      // Server wins: the conflicting local edit was discarded for the server's slice.
+
       expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["c2", "internal:a2"]);
-      // The follow-up clean save fired onSuccess so the banner comes back down.
+
       expect(onSuccess).toHaveBeenCalled();
       expect(readPersistenceDiagnosticsSnapshot()).toMatchObject({ savesFailed: 1, reconciliationsResolved: 1 });
 
-      // The backoff retry was not armed with the stale diff: 35s covers every backoff step.
-      const savesAfterResolution = saveAll.mock.calls.length; // the conflict save + the follow-up
+      const savesAfterResolution = saveAll.mock.calls.length;
       expect(savesAfterResolution).toBe(2);
       await vi.advanceTimersByTimeAsync(35_000);
       expect(saveAll.mock.calls.length).toBe(savesAfterResolution);
@@ -236,7 +228,7 @@ describe("batch reconciliation (authoritative reload)", () => {
       expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
       expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["c2", "internal:a2"]);
       const savesAfterResolution = saveAll.mock.calls.length;
-      expect(savesAfterResolution).toBe(2); // uncertain attempt + clean post-reload acknowledgement
+      expect(savesAfterResolution).toBe(2);
       await vi.advanceTimersByTimeAsync(35_000);
       expect(saveAll.mock.calls.length).toBe(savesAfterResolution);
       detach();
@@ -270,7 +262,7 @@ describe("batch reconciliation (authoritative reload)", () => {
       expect(onSuccess).toHaveBeenCalled();
 
       const savesAfterResolution = saveAll.mock.calls.length;
-      expect(savesAfterResolution).toBe(2); // rejected attempt + clean post-reload acknowledgement
+      expect(savesAfterResolution).toBe(2);
       window.dispatchEvent(new Event("focus"));
       window.dispatchEvent(new Event("online"));
       await vi.advanceTimersByTimeAsync(35_000);
@@ -301,8 +293,8 @@ describe("batch reconciliation (authoritative reload)", () => {
       useStore.getState().addClient({ name: "Uncertain", color: "#222222" });
       await vi.advanceTimersByTimeAsync(5);
 
-      expect(saveAll).toHaveBeenCalledTimes(1); // the original, commit-uncertain attempt only
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1); // resolution was attempted
+      expect(saveAll).toHaveBeenCalledTimes(1);
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
       expect(onError.mock.calls.some(([reported]) => reported === reconciliationError)).toBe(true);
 
       // Neither teardown keepalive nor the ordinary retry horizon may replay a batch that could
@@ -338,23 +330,23 @@ describe("batch reconciliation (authoritative reload)", () => {
       const detach = await detachP;
       const loadsAfterPick = loadAll.mock.calls.length;
       saveAll.mockClear();
-      onSuccess.mockClear(); // a successful reload (incl. the pick) fires onSuccess by design now
+      onSuccess.mockClear();
       saveAll
-        .mockRejectedValueOnce(new BatchConflictError("stale write")) // the edit's save
-        .mockRejectedValueOnce(new BatchConflictError("still stale")); // the resolution's follow-up save
+        .mockRejectedValueOnce(new BatchConflictError("stale write"))
+        .mockRejectedValueOnce(new BatchConflictError("still stale"));
 
       useStore.getState().addClient({ name: "Conflicted", color: "#222222" });
       await vi.advanceTimersByTimeAsync(5);
 
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1); // exactly one resolution reload
-      expect(onError).toHaveBeenCalledTimes(2); // both conflicts surfaced
-      // The resolution reload fires onSuccess (an installed authoritative slice is a healthy
-      // sync), but the follow-up save's second 409 re-raises the banner after it, the user's
-      // final state is the banner up. Assert the order, not "never called".
+      // The authoritative reload clears the banner before a follow-up conflict raises it again;
+      // callback order determines the final visible failure state.
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
+      expect(onError).toHaveBeenCalledTimes(2);
+
       const lastSuccess = Math.max(...onSuccess.mock.invocationCallOrder);
       const lastError = Math.max(...onError.mock.invocationCallOrder);
-      expect(lastError).toBeGreaterThan(lastSuccess); // banner ends up, the 409 outlives the reload's clear
-      await vi.advanceTimersByTimeAsync(35_000); // and no retry/reload machinery re-fires
+      expect(lastError).toBeGreaterThan(lastSuccess);
+      await vi.advanceTimersByTimeAsync(35_000);
       expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
       expect(saveAll.mock.calls.length).toBe(2);
       detach();
@@ -385,18 +377,16 @@ describe("batch reconciliation (authoritative reload)", () => {
     const detach = await attachActiveA2({ adapter: adapter, debounceMs: 0, onError: onError });
 
     saveAll.mockRejectedValueOnce(new BatchConflictError("stale write"));
-    hold = true; // the resolution reload will now be held open
+    hold = true;
 
-    useStore.getState().addClient({ name: "Conflicted", color: "#222222" }); // immediate save → 409
-    await vi.waitFor(() => expect(release).not.toBeNull()); // resolution reload in flight
+    useStore.getState().addClient({ name: "Conflicted", color: "#222222" });
+    await vi.waitFor(() => expect(release).not.toBeNull());
 
-    // A second edit lands while the reload is on the wire. (In this immediate-save configuration
-    // its own save fires at edit time, pre-seed, so harmless; the danger is a save after the
-    // reload installed the slice re-pushing the pre-reload tree.)
+    // Hold the reload open to expose edits whose pending save could otherwise replay the pre-reload tree.
     useStore.getState().addClient({ name: "During reload", color: "#333333" });
     const savesBeforeReloadSettled = saveAll.mock.calls.length;
 
-    requireCallback(release, "conflict reload release")(); // the reload resolves last
+    requireCallback(release, "conflict reload release")();
     await vi.waitFor(() =>
       expect(useStore.getState().data.clients.map((client) => client.name)).toEqual([
         "Stark Industries",
@@ -425,17 +415,17 @@ describe("batch reconciliation (authoritative reload)", () => {
       const detach = await detachP;
       const loadsAfterPick = loadAll.mock.calls.length;
       saveAll.mockClear();
-      onSuccess.mockClear(); // the pick's successful reload fires onSuccess by design now
+      onSuccess.mockClear();
       saveAll.mockRejectedValueOnce(new Error("temporarily unavailable"));
 
       useStore.getState().addClient({ name: "Transient", color: "#222222" });
-      await vi.advanceTimersByTimeAsync(0); // first attempt fails, retry armed
+      await vi.advanceTimersByTimeAsync(0);
       expect(onSuccess).not.toHaveBeenCalled();
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick); // a transient failure never reloads
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick);
 
-      await vi.advanceTimersByTimeAsync(1000); // first backoff → succeeds
+      await vi.advanceTimersByTimeAsync(1000);
       expect(onSuccess).toHaveBeenCalled();
-      // The optimistic edit survived (no server-wins reload for a transient failure).
+
       expect(useStore.getState().data.clients.some((c) => c.name === "Transient")).toBe(true);
       detach();
     } finally {
@@ -460,22 +450,22 @@ describe("batch reconciliation (authoritative reload)", () => {
       const detach = await detachP;
       const loadsAfterPick = loadAll.mock.calls.length;
       saveAll.mockClear();
-      onSuccess.mockClear(); // the pick's successful reload fires onSuccess by design
+      onSuccess.mockClear();
       saveAll.mockRejectedValue(new BatchTooLargeError("Atomic sync exceeds the 5000-operation server limit."));
 
       useStore.getState().addClient({ name: "Too Big", color: "#222222" });
-      await vi.advanceTimersByTimeAsync(0); // the save attempt → throws BatchTooLargeError
-      expect(onError).toHaveBeenCalledTimes(1); // the banner surfaced "changes aren't saving"
+      await vi.advanceTimersByTimeAsync(0);
+      expect(onError).toHaveBeenCalledTimes(1);
       expect(onError.mock.calls[0]?.[0]).toBeInstanceOf(BatchTooLargeError);
-      const savesAfterEdit = saveAll.mock.calls.length; // exactly the one over-limit attempt
+      const savesAfterEdit = saveAll.mock.calls.length;
       expect(savesAfterEdit).toBe(1);
 
       // 35s covers every backoff step: a transient error re-attempts across it, a terminal one does
       // not, and it never reloads (that is the conflict path, not this one).
       await vi.advanceTimersByTimeAsync(35_000);
-      expect(saveAll.mock.calls.length).toBe(savesAfterEdit); // no background retry armed
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick); // terminal, not a server-wins reload
-      expect(onError).toHaveBeenCalledTimes(1); // surfaced once, not looped
+      expect(saveAll.mock.calls.length).toBe(savesAfterEdit);
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick);
+      expect(onError).toHaveBeenCalledTimes(1);
 
       window.dispatchEvent(new Event("online"));
       Object.defineProperty(document, "visibilityState", {

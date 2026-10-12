@@ -155,7 +155,6 @@ describe("guards", () => {
       payload: { seed: true },
     });
     const s = await readValidatedState(app);
-    // Seeded demo data present.
     expect(s.accounts.length).toBeGreaterThan(0);
   });
 

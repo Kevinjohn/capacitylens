@@ -6,21 +6,7 @@ import { useStore } from "@/store/useStore";
 import { DEFAULT_ACCOUNT_ID, makeAllocation } from "@/test/fixtures";
 import { schedulerDataset } from "./__tests__/schedulerTestKit";
 
-// The point of this whole suite: toggling the Time-off draw mode must re-render only each lane's
-// thin BarsLayer (which flips `inert`), not the AllocationBars inside it. The bars bail purely on
-// referential stability of the props BarsLayer hands them, so we mount the real SchedulerGrid /
-// ResourceLane / BarsLayer and replace only the leaf AllocationBar with a memoised render-counter.
-//
-// Memoised exactly like the real bar (React.memo), so the counter re-renders iff one of its props
-// changed identity, i.e. it is a faithful stand-in for the production bail condition. What this
-// test actually catches is the `onDraw` reference stability: on the earlier code
-// `onDraw` closed over `ui.drawMode`, so a toggle re-rendered SchedulerGrid → new `onDraw` →
-// ResourceLane re-rendered → every bar re-rendered. With `onDraw` stabilised (getState-backed,
-// `[]` deps), ResourceLane's props no longer change, its memo bails, and the count holds. The test
-// is gated on that stabilisation alone, reverting it fails; reverting only `indexAt` to a fresh
-// inline closure still passes, since ResourceLane no longer re-renders on a toggle. So this does not
-// independently exercise the `indexAt` memoisation (which is defense-in-depth for a future case
-// where a lane prop goes unstable across a toggle).
+// A draw-mode toggle updates the bars layer's inert state without rerendering memoized AllocationBar children. The fixture keeps the real grid and lane boundaries and replaces only the leaf bar with a render counter; it tests callback stability, not every possible geometry invalidation.
 const barRenderCount = vi.fn();
 vi.mock("./AllocationBar", () => ({
   AllocationBar: memo(function AllocationBarSpy({ bar }: { bar: { allocation: { id: string } } }) {
@@ -53,28 +39,20 @@ beforeEach(() => {
 
 describe("draw-mode toggle does not re-render allocation bars", () => {
   it("toggling to Time off re-renders only the BarsLayer (inert) — the bars bail", async () => {
-    // The grid mounts the real SchedulerGrid → ResourceLane → BarsLayer; only the leaf bar is mocked.
     const { SchedulerGrid } = await import("./SchedulerGrid");
-    // SchedulerGrid now calls useNavigate (the empty-state CTA), so it must render inside a Router.
+    // The scheduler uses router navigation, so render the fixture inside a Router.
     render(<SchedulerGrid />, { wrapper: MemoryRouter });
 
-    // Sanity: the two bars rendered once on mount (this is the baseline to hold across the toggle).
     expect(screen.getAllByTestId("allocation-bar")).toHaveLength(2);
     const beforeToggle = barRenderCount.mock.calls.length;
     expect(beforeToggle).toBeGreaterThan(0);
 
-    // Flip to Time-off mode. This is what the toolbar toggle does. BarsLayer subscribes to drawMode,
-    // so it re-renders and applies `inert`; nothing else should.
     act(() => {
       useStore.getState().setDrawMode("timeoff");
     });
 
-    // Proof 1: no AllocationBar re-rendered as a result of the toggle.
     expect(barRenderCount.mock.calls.length).toBe(beforeToggle);
 
-    // Proof 2: the toggle did take effect, `inert` is applied via the ancestor bars layer, so the
-    // bars are non-interactive without having re-rendered. The bars layer is the parent <div> that
-    // wraps the bar elements.
     const bar = screen.getAllByTestId("allocation-bar")[0];
     expect(bar).toBeDefined();
     if (!bar) throw new Error("Expected the allocation bar to render.");
@@ -83,7 +61,6 @@ describe("draw-mode toggle does not re-render allocation bars", () => {
     if (!barsLayer) throw new Error("Expected the allocation bar container to render.");
     expect(barsLayer).toHaveAttribute("inert");
 
-    // Toggling back to work mode likewise must not re-render the bars (and clears inert).
     act(() => {
       useStore.getState().setDrawMode("work");
     });

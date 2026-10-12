@@ -16,8 +16,7 @@ export function isOfflineShellAvailable(environment: { PROD: boolean; MODE: stri
   return environment.PROD || environment.MODE === "test";
 }
 
-/** Does this registration belong to our app-shell worker? Any of its three lifecycle slots proves
- * ownership, so revalidation and teardown recognise the same registrations. */
+// Recognize ownership through every worker lifecycle slot so teardown also finds installing registrations.
 function isOfflineWorkerRegistration(registration: ServiceWorkerRegistration): boolean {
   return [registration.active, registration.waiting, registration.installing].some((worker) =>
     worker?.scriptURL.endsWith(OFFLINE_WORKER_URL),
@@ -52,9 +51,8 @@ export async function revalidateOfflineShell(): Promise<boolean> {
   return false;
 }
 
-/** Registration creation precedes the worker's install/activate lifecycle. The worker publishes
- * its active-shell pointer inside activate.waitUntil(), so `activated` is the first state that
- * proves every shell asset was staged and the neutral index entry was promoted successfully. */
+// Wait for activation because the worker publishes the durable shell pointer only
+// after all shell assets have been staged.
 async function waitForOfflineShellActivation(registration: ServiceWorkerRegistration): Promise<void> {
   const worker = registration.installing ?? registration.waiting ?? registration.active;
   if (!worker) throw new Error("Offline shell registration did not provide a service worker.");

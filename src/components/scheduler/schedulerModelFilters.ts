@@ -82,27 +82,19 @@ export function createAllocationFilters(
   const clientsById = new Map(data.clients.map((client) => [client.id, client]));
   const activitiesById = new Map(data.activities.map((activity) => [activity.id, activity]));
   const resourcesById = new Map(data.resources.map((resource) => [resource.id, resource]));
-  // Reused for every bar's colour (Internal-grey override, then project → client → resource → grey).
+
   const colorMaps = {
     activities: activitiesById,
     projects: projectsById,
     clients: clientsById,
     resources: resourcesById,
   };
-  // The built-in Internal client for the data being rendered (one per account; the data here is
-  // already scoped to the active account, so every client shares that accountId). A project-less
-  // activity derives this as its client for display + filtering, without ever writing it onto the
-  // activity (no activity.clientId field). If somehow absent (a partial/legacy blob), project-less
-  // activities fall back to no client. Uses the shared `internalClientFor` predicate (the single
-  // source of truth for "the account's builtin Internal") rather than an inline flag scan, so the
-  // definition can't drift from migrate/import/server. The accountId comes from the scoped data
-  // itself (all rows here belong to the active account); absent any client, there's no builtin.
+  // Project-less internal work derives its client from the scoped account's built-in Internal row. Do not persist that derived attribution; if the row is missing, leave the client absent.
   const scopedAccountId = data.clients[0]?.accountId;
   const internalClient = scopedAccountId ? internalClientFor(data.clients, scopedAccountId) : undefined;
   const resolveProjectClient = (allocation: Allocation) =>
     buildAllocationAttribution({ allocation, activitiesById, projectsById, clientsById, internalClient });
-  // Any "what work" filter is active, drives the dimmed / show-unmatched staffing view, which
-  // is identical whether the active lens is client/project or activity.
+
   const workFilterActive = hasLensFilter(filters);
   const workVisibility = createWorkVisibility({ filters, activitiesById, resolveProjectClient });
   const isResourceVisible = createResourceVisibility({

@@ -4,7 +4,7 @@ import type { ISODate } from "@capacitylens/shared/types/entities";
 /** Supported fixed horizons for the capacity overview. */
 export type CapacityOverviewHorizon = "4-weeks" | "8-weeks" | "12-weeks";
 
-/** The first four keys are stable for callers that persisted or keyed by them. */
+/** Stable period identifiers name the current and next weeks, then use the week index for subsequent periods. */
 export type CapacityOverviewPeriodKey = "this-week" | "next-week" | `week-${number}`;
 
 /** A dated overview period with its stable index and label. */

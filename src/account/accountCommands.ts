@@ -93,6 +93,7 @@ export function clearStoredAccountCommands(): void {
       (key): key is string => key?.startsWith(COMMAND_STORAGE_PREFIX) === true,
     );
   } catch (error) {
+    // Log storage inspection failure so sign-out cleanup is diagnosable while sign-out itself can continue.
     console.error("Account command storage could not be inspected during sign-out", error);
     return;
   }
@@ -100,6 +101,7 @@ export function clearStoredAccountCommands(): void {
     try {
       sessionStorage.removeItem(key);
     } catch (error) {
+      // Log failed removal and continue clearing other identity-bound command handles.
       console.error("An account command could not be cleared during sign-out", error);
     }
   }

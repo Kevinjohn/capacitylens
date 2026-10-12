@@ -43,28 +43,15 @@ describe("control-table writes stay inside their account: transfer recovery", ()
   });
 });
 
-/**
- * Every account-scoped control-table write stays inside its own account.
- *
- * Written after an ownership-transfer retention sweep shipped with no `accountId` in its `WHERE`
- * clause, deleting every company's terminal rows from inside a mutation holding one company's lock.
- * Nothing in the repository observed mutation scope: `accountIntegrity.ts` guards AppData product
- * tables, the schema assertions check columns and indexes, and `architecture.test.ts` decides which
- * modules may own raw control-table SQL, which is why it correctly admitted the defect.
- *
- * The probe that matters is the foreign one: calling a mutator for account A with account B's
- * identifier, and asserting nothing was written. A test that merely invokes the mutator for its own
- * account and checks the other account is untouched passes even with the tenant predicate removed,
- * because the row is already uniquely keyed by id. Member cases therefore seed the same `userId` in
- * both accounts, so losing the account half of a composite key is observable.
- */
+// Account-scoped control writes must not change another company’s rows. Probe writes with a
+// foreign identifier, not only writes to an owned row: globally unique ids can otherwise conceal
+// a missing tenant predicate. Shared principal ids make missing composite-key predicates observable.
 
 // Invented principals use comic-book character real names (AGENTS.md): Wayne Enterprises for the
 // first company, Stark Industries for the second.
 const WAYNE = "a-studio";
 const STARK = "a-loft";
-/** Deliberately a member of both companies: the shared principal is what makes a lost `accountId`
- * visible on every membership write. */
+// Share this principal across companies so a missing accountId predicate changes an observable foreign row.
 const SHARED = "u-bruce-wayne";
 const NEWCOMER = "u-barbara-gordon";
 const NOW = "2026-09-01T09:00:00.000Z";
@@ -114,8 +101,7 @@ function request(accountId: string, overrides: Partial<OwnershipTransferRequest>
   };
 }
 
-/** Both companies seeded identically, so any assertion about one is an assertion about a real
- * neighbour rather than an empty table. */
+// Seed both companies identically so foreign-row assertions cannot pass against empty tables.
 function seedBothCompanies(db: Db): void {
   for (const accountId of [WAYNE, STARK]) {
     members.upsertMember(db, member(accountId));
@@ -168,8 +154,7 @@ function transferStates(db: Db, accountId: string): Array<{ id: string; state: s
     .all(accountId) as Array<{ id: string; state: string }>;
 }
 
-/** The observation bit is not part of the mapped membership, and it is exactly what one company's
- * privacy switch must never write into another's rows. */
+// Read the unmapped observation column directly to detect a privacy switch changing another company’s rows.
 function observationBits(db: Db, accountId: string): Array<{ userId: string; signInConfirmed: string | null }> {
   return db
     .prepare(`SELECT userId, signInConfirmed FROM account_members WHERE accountId = ? ORDER BY userId`)
@@ -184,7 +169,7 @@ function trackingAccounts(db: Db): string[] {
   ).map(({ accountId }) => accountId);
 }
 
-/** Everything about Stark Industries that a write addressed to Wayne Enterprises must not move. */
+// Snapshot every related foreign row so indirect control-table writes remain observable.
 function starkSnapshot(db: Db) {
   return {
     membership: membershipOf(db, STARK),
@@ -203,14 +188,14 @@ describe("control-table writes stay inside their account: membership", () => {
     members.upsertMember(db, member(WAYNE, { role: "viewer" }));
 
     expect(membershipOf(db, WAYNE)?.role).toBe("viewer");
-    // The same principal, in another company, at the role they held before.
+
     expect(membershipOf(db, STARK)?.role).toBe("admin");
     expect(starkSnapshot(db)).toEqual(before);
   });
 
   it("upsertMember reads the sign-in tracking opt-in of the account it writes, not of any account", () => {
     seedBothCompanies(db);
-    // Wayne Enterprises alone opts in to sign-in tracking.
+
     memberSignInTracking.setMemberSignInTracking({ db, accountId: WAYNE, actorPrincipalId: SHARED, enabled: true });
 
     members.upsertMember(db, member(WAYNE, { userId: NEWCOMER, role: "editor" }));
@@ -588,13 +573,8 @@ describe("account member/resource writes stay inside their account", () => {
   });
 });
 
-/**
- * The inventory: every export of every control-table module is classified, and every classification
- * that claims coverage is backed by a case above that still calls it.
- *
- * Keyed by `module.export` rather than by bare name, because two modules may export the same name
- * and one module's decision must never silently classify another module's function.
- */
+// Classify exports by module and name so similarly named exports cannot silently share coverage claims.
+// The assertions below verify that every claimed mutation is exercised by its named test.
 const MODULES: Record<string, Record<string, unknown>> = {
   ...joiningModules,
   accessRestrictions,
@@ -617,8 +597,7 @@ const MODULES: Record<string, Record<string, unknown>> = {
   memberSignInTracking,
 };
 
-/** The modules whose files live in `controlTables/`. Kept separate so the directory check below can
- * compare like with like. */
+// Keep directory-owned modules separate so filesystem and coverage inventories compare the same scope.
 const CONTROL_TABLE_MODULES = Object.keys(MODULES).filter((name) => name !== "memberSignInTracking");
 
 const COVERED = new Set([
@@ -667,7 +646,7 @@ const COVERED = new Set([
   "ownershipTransferRecovery.cancelOwnershipTransferRecoveryRow",
 ]);
 
-/** Why each remaining export cannot carry one company's rows out of its own account. */
+// Each exclusion must explain why the export cannot write across a tenant boundary.
 const EXCLUDED = new Map<string, string>([
   ...joiningExclusions,
   ["invites.getInviteTargetById", "read"],

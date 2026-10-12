@@ -90,8 +90,7 @@ export interface DelInput {
   accountId?: string | undefined;
 }
 
-// Scoped tables now require an asserted owning account on DELETE; pass accountId for them.
-// accounts (top-level) carry none, so accountId is omitted there.
+// Scoped DELETE requests must assert the owning account; top-level account deletion omits that field.
 /**
  * Sends a DELETE request, including the account ID when the table is scoped.
  */

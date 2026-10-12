@@ -27,6 +27,11 @@ import { WriteOnceSecretReplay } from "./WriteOnceSecretReplay";
 export { buildActorContextFromSession } from "./flows/actorContext";
 export { CorruptAccountCommandStateError } from "./flows/reconciliationRepair";
 
+/**
+ * Coordinates installation-local identity and account mutations with command replay and recovery.
+ * In-transaction operations require the caller’s SQLite transaction; product callbacks must perform synchronous writes.
+ * Failures propagate after terminal command recording is attempted, and cross-port failures may require reconciliation.
+ */
 export interface LocalAccountFlows extends AccountFlows {
   provisionWorkspace<T>(input: {
     actor: ActorContext;
@@ -191,10 +196,7 @@ export function createLocalAccountFlows(input: {
   const { applicationId, db, identity, administration, lock, eraseProductWorkspaceInTx } = input;
   const audit = createAccountAuditWriter(applicationId, input.audit);
   const persistTerminalOutcome = createTerminalOutcomePersister(db, audit);
-  // issuePasswordReset and revokeMemberSessions both deny on the same evaluateIdentityAdminAuthority
-  // shape: persist the compensated terminal outcome, then throw createAuthorityDenial(). Only the audit action and
-  // createAuthorityDenial()'s second argument differ between the two callers; their outer catch blocks have real
-  // divergence (requiresReconciliation exclusions, non-reconciliation audit action) and stay separate.
+
   const denyIdentityAdminCommand = createIdentityAdminDenial(db, persistTerminalOutcome);
   const resetReplay = new WriteOnceSecretReplay<PasswordResetCeremony>(input.writeOnceReplayCapacity ?? 128);
   // Every live coordinator execution and its reconciliation read share this key. The NUL prefix

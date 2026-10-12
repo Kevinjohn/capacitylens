@@ -27,9 +27,9 @@ export interface AccountEntityRouteDependencies {
   redact: (table: string, row: Record<string, unknown>, visibility: SanitizeWriteOptions) => Record<string, unknown>;
   commitProductAudit: (reply: FastifyReply, record: AuditRecord, mutation: () => void) => boolean;
   drainProductAudit: (reply: FastifyReply) => boolean;
-  /** Tenant-ownership predicate shared with every other mutating route (app.ts owns it). */
+  /** Tenant-ownership predicate shared by mutating routes. */
   ownsRow: (existing: { accountId?: unknown } | undefined, accountId: unknown) => boolean;
-  /** Optimistic-concurrency predicate shared with the PUT/PATCH/batch paths (app.ts owns it). */
+  /** Optimistic-concurrency predicate shared by PUT, PATCH and batch writes. */
   isStaleWrite: (input: StaleWriteInput) => boolean;
   enqueueAudit: (record: AuditRecord) => void;
   fail: (reply: FastifyReply, error: unknown) => FastifyReply;

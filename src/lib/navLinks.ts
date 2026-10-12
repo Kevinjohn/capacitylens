@@ -31,30 +31,16 @@ import {
   ROUTE_TIMEOFF,
 } from "./tourAnchors";
 
-/**
- * A nav destination: `[route, labelFn, icon]`. The label is a **getter** (`() => m.nav_x()`), not a
- * pre-resolved string, so each destination's text is resolved at render (inside the `navLinks.map`
- * site in AppSidebar) rather than at module load. That matters for i18n: `LINKS` is
- * module-scope, and calling `m.nav_x()` here would freeze the label to the locale active at import,
- * the getter defers it to render so a locale switch (account change) re-resolves the text on the
- * next render.
- */
+/** A route, deferred label getter, and icon used by sidebar navigation. Labels resolve at render time so switching account locale does not retain import-time text. */
 export type NavigationLinkDefinition = { to: string; label: () => string; icon: LucideIcon };
 
-// Every route path below is single-sourced in tourAnchors.ts, so a route rename is one edit. That
-// matters most for the destinations the "Show me around" tour spotlights via `[data-nav="<route>"]`,
-// a drifting path would silently un-anchor its spotlight step (driver.js degrades a
-// missing-element step to a centred popover; getting-started.spec.ts pins every exported tour
-// anchor to a real element in the rendered schedule), but the rest use the constants too so no
-// reader has to work out which literals are load-bearing.
+// Share route constants with tour anchors so navigation and spotlight targets cannot drift.
 /** Navigation links shown in the application sidebar. */
 export const LINKS: NavigationLinkDefinition[] = [
   { to: ROUTE_CAPACITY_OVERVIEW, label: () => m.nav_capacity_overview(), icon: ChartNoAxesColumnIncreasingIcon },
   { to: ROUTE_SCHEDULE, label: () => m.nav_schedule(), icon: CalendarIcon },
   { to: ROUTE_RESOURCES, label: () => m.nav_resources(), icon: UsersIcon },
-  // External / 3rd parties moved into the Resources tab behind a per-account setting
-  // (`externalEnabled` on the Account, default off, Settings → Additional resourcing options). They no longer have their
-  // own nav link; the old /external route redirects to /resources for saved bookmarks.
+
   { to: ROUTE_DISCIPLINES, label: () => m.nav_disciplines(), icon: TagIcon },
   { to: ROUTE_CLIENTS, label: () => m.nav_clients(), icon: BriefcaseIcon },
   { to: ROUTE_PROJECTS, label: () => m.nav_projects(), icon: FolderIcon },

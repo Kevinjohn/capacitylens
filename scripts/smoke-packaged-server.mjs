@@ -48,6 +48,7 @@ async function waitFor({ description, timeoutMs, check, childOutcome }) {
       const result = await check();
       if (result) return result;
     } catch (error) {
+      // Readiness can fail while the child starts; keep the latest error and report it if polling times out.
       lastError = error;
     }
     await delay(POLL_INTERVAL_MS);
@@ -97,6 +98,7 @@ async function snapshotFiles(backupDir) {
   try {
     return (await readdir(backupDir)).filter((name) => name.endsWith(".db")).sort();
   } catch (error) {
+    // No backup directory means no snapshots yet; other read errors must surface rather than appear empty.
     if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return [];
     throw error;
   }
@@ -243,6 +245,7 @@ async function main() {
     try {
       if (child.exitCode === null && child.signalCode === null) await terminate(child, exitPromise);
     } catch (error) {
+      // Append termination diagnostics to the captured log for failed-smoke reporting.
       log += `\nSmoke cleanup error: ${errorMessage(error)}\n`;
     }
     if (!passed) {
@@ -250,6 +253,7 @@ async function main() {
       try {
         await preserveFailureArtifacts(workDir, log, process.env.CAPACITYLENS_SMOKE_ARTIFACT_DIR);
       } catch (error) {
+        // Artifact preservation is secondary to the failed smoke; report its failure without hiding the original diagnostics.
         console.error(`Could not preserve packaged smoke artifacts: ${errorMessage(error)}`);
       }
     }

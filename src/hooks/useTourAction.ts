@@ -29,6 +29,7 @@ export function useTourAction(setNotice: (message: string, tone: "error") => voi
         serverMode: !isDemoMode(),
       });
     } catch {
+      // Surface a failed tour launch so the user receives feedback instead of an inert launcher.
       console.error("GettingStarted: tour failed to start");
       setNotice(m.gs_tour_failed(), "error");
     } finally {

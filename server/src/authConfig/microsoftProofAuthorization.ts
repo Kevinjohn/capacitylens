@@ -63,6 +63,7 @@ export function createMicrosoftProofAuthorization(input: {
       )
         throw new MicrosoftProofError("MICROSOFT_JOIN_ACCESS_DISABLED", 403);
     } catch (error) {
+      // Preserve specific proof refusals, but deny joining on unexpected storage failure because live admission could not be established.
       if (error instanceof MicrosoftProofError) throw error;
       throw new MicrosoftProofError("MICROSOFT_JOIN_UNAVAILABLE", 403, { cause: error });
     }
@@ -122,6 +123,7 @@ export function createMicrosoftProofAuthorization(input: {
       });
       inviteId = invite?.id ?? null;
     } catch (error) {
+      // Convert admission-planning failure into a closed joining refusal because the requested target was not proven eligible.
       throw new MicrosoftProofError("MICROSOFT_JOIN_UNAVAILABLE", 403, { cause: error });
     }
     assertJoinTarget({ accountId: body.accountId, targetEmail, inviteId });

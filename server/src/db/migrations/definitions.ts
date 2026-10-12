@@ -132,9 +132,7 @@ export const ACCOUNT_DATE_STYLE_V40_DEFINITION = [
   "ALTER TABLE accounts ADD COLUMN dateStyle TEXT;",
 ].join("\n");
 
-/** The v40 runner. It lives here rather than inline in the ledger because `db/migrations/index.ts`
- * has only two lines of headroom under the 400-line ceiling; the runner is outside the checksum
- * (`defineMigration` hashes version, name and definition only), so moving it is safe. */
+/** Applies the immutable v40 date-format step and verifies its historical precondition and resulting schema. */
 export function runAccountDateStyleV40(db: Db): void {
   assertSchemaV39(db);
   if (!tableHasColumns(db, "accounts", ["dateStyle"])) {

@@ -2,10 +2,8 @@ import type { AppData, ScopedEntityKey } from "../../types/entities";
 
 const SCOPED_META_FIELDS = ["id", "accountId", "createdAt", "updatedAt"] as const;
 
-/** Exact portable fields accepted for each scoped entity. Import runs in both the in-memory demo
- * and SQLite modes, so project onto the shared domain schema before value repair rather than rely
- * on SQLite's column list to discard undeclared properties later. The type checks below make a
- * domain-field addition fail compilation until this boundary is updated deliberately. */
+// Project imports onto the exact portable fields before value repair so demo and SQLite modes
+// discard undeclared properties consistently. Type coverage requires every domain field to be classified.
 const IMPORTED_FIELDS = {
   disciplines: [...SCOPED_META_FIELDS, "name", "color", "sortOrder"],
   resources: [

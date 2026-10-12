@@ -53,8 +53,6 @@ export function downloadTextFile(filename: string, content: string, type = "appl
   // here does not change that request outcome and would otherwise become an uncaught macrotask
   // error, so warn instead of letting it escape.
   setTimeout(() => {
-    // `a`/`url` are typed `… | undefined` (declared before the try) but are always assigned by the
-    // time we reach here. The catch above re-throws. Guards retain that invariant defensively.
     cleanupDownloadArtifacts(anchor, url, "downloadTextFile: cleanup after download failed");
   }, 0);
 }

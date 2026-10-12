@@ -59,7 +59,7 @@ export function pruneJoinIntents(db: Db, now: number): void {
   db.prepare("DELETE FROM company_join_intents WHERE COALESCE(lastSentAt, createdAt) < ?").run(now - RATE_WINDOW_MS);
 }
 
-/** Aggregate limits survive intent replacement and mail failures. Caller owns a write transaction. */
+// Send quotas survive intent replacement and mail failures; the caller owns the write transaction.
 function assertSendQuota(db: Db, intent: JoinIntent, now: number): void {
   const row = db
     .prepare(

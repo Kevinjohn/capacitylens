@@ -25,7 +25,6 @@ function registerMovedSchedulerTests23811(
       "placeholder scheduler row",
     );
 
-    // Wednesday: r1 has work (red), while r2 and the placeholder have only the grey closure.
     expect(r1.dayStates[2]).toMatchObject({
       unavailable: true,
       hasTimeOff: true,
@@ -45,13 +44,11 @@ function registerMovedSchedulerTests23811(
       timeOffConflict: false,
     });
 
-    // Saturday is already recurring-off: the marker/hatch remains without red unless work opts in.
     expect(r1.dayStates[5]).toMatchObject({ hasTimeOff: true, over: false, timeOffConflict: false });
     expect(r2.dayStates[5]).toMatchObject({ hasTimeOff: true, over: true, timeOffConflict: true });
     expect(r1.overSoon).toBe(true);
     expect(placeholder.overSoon).toBe(false);
 
-    // Personal time off remains a separate rendered fact while the closure independently removes capacity.
     expect(r1.timeOff.map((entry) => entry.id)).toContain("personal-r1-wednesday");
     expect(r2.timeOff).toEqual([]);
     expect(companyData().closures.map((entry) => entry.id)).toContain("company-wednesday");
@@ -121,7 +118,7 @@ function registerMovedSchedulerTests201011() {
       unavailable: false,
       partialCapacity: false,
       creationBlocked: false,
-      // Starved of capacity, so a stray time-off record cannot mark an external's day either.
+
       hasTimeOff: false,
     });
   });

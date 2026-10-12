@@ -106,12 +106,7 @@ function createClientActions(internals: CatalogSliceInternals): Pick<CatalogSlic
   return {
     addClient: createGuardedAddAction(
       (input: Draft<Client>): Client => {
-        // Store-strip enforcement point (1) of the single-Internal invariant, see the canonical doc
-        // in shared/src/data/internalClient.ts (the other two points are import fold + server reject).
-        // `builtin` is excluded from Draft<Client> at the type level (only seed/addAccount/migrate may
-        // mint the one Internal per account). Strip it at runtime too so an untyped/cast payload can't
-        // smuggle `builtin: true` past the compile-time guard and create a second builtin, that would
-        // break the "exactly one Internal per account" invariant. See Draft<Client>.
+        // Strip builtin at runtime so an untyped draft cannot create a second Internal client.
         const stripped: Record<string, unknown> = { ...input };
         delete stripped.builtin;
         return {
@@ -131,9 +126,7 @@ function createClientActions(internals: CatalogSliceInternals): Pick<CatalogSlic
       },
     ),
     updateClient: createGuardedAction((id: ID, patch: Patch<Client>) => {
-      // `builtin` is excluded from Patch<Client> at the type level; strip it at runtime too so an
-      // untyped/cast patch can't promote a normal client to a second builtin (store-strip enforcement
-      // point (1); canonical doc in shared/src/data/internalClient.ts).
+      // Strip builtin at runtime so an untyped patch cannot promote another client to Internal.
       const stripped: Record<string, unknown> = { ...patch };
       delete stripped.builtin;
       const safe = stripped as Patch<Client>;
@@ -214,8 +207,8 @@ function createPhaseActions(
         id: id,
         patch: patch,
         prepare: (_merged, existing) => {
-          // `existing` enables the unchanged-parent relaxation (see assertScopedRefs), same
-          // archived-parent rationale as updateProject above.
+          // An unchanged archived parent may be absent from an active-only slice; it must not
+          // block an unrelated edit. Validate any changed parent reference strictly.
           assertScopedRefs(get().data, existing.accountId, "phases", patch, existing);
           return patch;
         },

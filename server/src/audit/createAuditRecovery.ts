@@ -1,6 +1,7 @@
 import { closeSync, existsSync, ftruncateSync, openSync, readSync, statSync } from "node:fs";
 import { dirname } from "node:path";
 import { MAX_RECOVERY_DELIVERY_IDS } from "./types";
+/** Tracks bounded audit-file recovery and whether delivery can be acknowledged durably. */
 export interface AuditRecoveryState {
   degraded: boolean;
   deliveryStateLoaded: boolean;
@@ -98,9 +99,7 @@ function collectDeliveryIds(path: string, input: DeliveryIdCollectorInput) {
     try {
       const parsed = JSON.parse(line) as { auditId?: unknown };
       if (typeof parsed.auditId === "string") rememberDeliveryId(state, parsed.auditId);
-      // A well-formed line without a usable auditId still cannot suppress replay (its outbox row,
-      // if any, replays) but it is not corruption; records may legitimately omit the delivery
-      // metadata, so it is skipped silently, as before.
+      // A record without auditId provides no delivery-deduplication evidence; any pending outbox row may replay.
     } catch {
       // A complete malformed line indicates corruption. Mark health degraded so affected outbox rows replay.
       state.degraded = true;
@@ -151,6 +150,8 @@ function createDeliveryStateLoader({
   };
 }
 
+/** Builds bounded audit recovery and durability operations for the file sink.
+ * Mutates the supplied recovery state; callers must surface I/O failures through the sink’s degradation boundary. */
 export function createAuditRecovery({ file, log, syncFile, recoveryScanBytes, state }: AuditRecoveryInput) {
   const readTail = (path: string) => readBoundedTail(path, recoveryScanBytes);
   const collectIds = (path: string) =>

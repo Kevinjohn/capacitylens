@@ -25,9 +25,9 @@ function ceilingForPath(path, config) {
   return config.testCeiling;
 }
 
-// files contains repository-relative paths and source contents; no disk access here.
 /**
  * Checks source file line counts against the supplied size policy.
+ * Inputs contain repository-relative paths and source text; this check performs no disk access.
  * @throws When a test file is checked without a finite test ceiling.
  */
 export function evaluateFileSizes(files, config) {
@@ -128,6 +128,7 @@ function main() {
     }
     printFunctionDiagnostics(files);
   } catch (error) {
+    // Report inspection failures and fail the gate because unreadable source cannot be validated.
     console.error(`File-size check failed: ${error.message}`);
     process.exitCode = 1;
   }

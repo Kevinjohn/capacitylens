@@ -8,10 +8,8 @@ const emptyScopedData = emptyAppData();
 const scopedCache = new WeakMap<AppData, Map<string, AppData>>();
 const activeCache = new WeakMap<AppData, AppData>();
 
-/**
- * The scoped slice for one tenant, memoised on `(data, accountId)`. Exported so imperative readers
- * (`useStore.getState()` inside a gesture handler) hit the same cache as the hooks below instead of
- * re-scoping the whole blob per event; the hooks' stability contract is unchanged.
+/** Memoizes a tenant slice by data identity and account ID so hooks and imperative
+ * readers share one stable projection.
  */
 export function resolveSharedScopedData(data: AppData, accountId: string | null): AppData {
   if (!accountId) return emptyScopedData;
@@ -28,8 +26,7 @@ export function resolveSharedScopedData(data: AppData, accountId: string | null)
   return scoped;
 }
 
-/** The active-only projection of an already-scoped slice, memoised on it. Exported alongside
- * {@link resolveSharedScopedData} for the same imperative-caller reason. */
+/** Memoizes the active-only projection of an account-scoped slice. */
 export function resolveSharedActiveData(data: AppData): AppData {
   let active = activeCache.get(data);
   if (!active) {
@@ -69,24 +66,7 @@ export function useActiveScopedData(): AppData {
   return resolveSharedActiveData(base);
 }
 
-/**
- * The inactive-data source for the client-admin view, the counterpart to
- * {@link useActiveScopedData}. It returns the raw scoped AppData (every row: active, archived and
- * soft-deleted) without the active-only projection, so the admin view can partition the rows by
- * `lifecycleStatus(e)` and list the archived / deleted ones the normal views hide.
- *
- * This is the demo-build / off source of those rows: in the demo build the store's `data` blob already holds
- * the archived/deleted rows (the lifecycle store actions mutate it in place), so the raw scoped slice
- * is the full picture.
- *
- * Server mode note: in server mode the per-account read narrows to active rows only (`activeOnly`
- * runs server-side in `readSlice`), so the store's `data` holds no archived/deleted rows. The admin
- * view (ArchivedSection) instead fetches them directly with `?includeInactive=1`; this hook is the
- * demo-build/off source only.
- * Returns {@link useScopedData} unchanged. The distinct name makes the admin view's intent explicit.
- *
- * @returns The active account's raw {@link AppData} slice including archived and soft-deleted rows.
- */
+/** Returns the raw active-account slice without applying the active-only projection. Demo slices include inactive rows; server slices remain limited to what the server hydrated, so administrative inactive views fetch includeInactive=1 separately. */
 export function useInactiveScopedData(): AppData {
   return useScopedData();
 }

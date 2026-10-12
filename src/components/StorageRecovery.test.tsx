@@ -81,6 +81,7 @@ describe("resetLocalStorage failures", () => {
     try {
       await resetLocalStorage({ clearOfflineData, clearLocalStorage, reload });
     } catch (error) {
+      // Capture the rejection so the test can inspect its recovery contract.
       caught = error;
     }
 
@@ -118,6 +119,7 @@ describe("resetLocalStorage complete failure", () => {
     try {
       await resetLocalStorage({ clearOfflineData, clearLocalStorage, reload });
     } catch (error) {
+      // Capture the rejection so the test can inspect its recovery contract.
       caught = error;
     }
 

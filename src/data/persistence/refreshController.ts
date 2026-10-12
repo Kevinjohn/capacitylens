@@ -253,41 +253,10 @@ export function createRefreshController({
   const { save } = writes;
   const beginSuspension = ({ external }: BeginSuspensionInput) =>
     owner.beginSuspension({ external: external, writes: writes });
-  // Re-hydrate one non-null account's slice and atomically re-seed the adapter's diff snapshot.
-  // Both a tenant switch and refresh-on-focus use this sequence because adapter.lastSynced is
-  // private to the adapter and is re-seeded only by loadAll, so a parallel
-  // re-hydrate path (e.g. a React hook calling replaceAll) would leave `data` updated but the
-  // snapshot stale → the next save would diff the fresh slice against the old snapshot and emit a
-  // cross-account / garbage delta. The token discipline below also makes a late refresh that
-  // resolves after a newer switch/refresh a no-op, so the two callers can't clobber each other.
-  //
-  // A per-switch token guards the whole sequence: each call bumps `switchToken`, and a second
-  // switch/refresh that supersedes a slow first one makes the first's late-resolving load a no-op
-  // (it must not seed a stale account over the newer one).
-  //
-  // Sequence (token-guarded throughout, see the inline (a)/(a′)/(b)/(c) markers):
-  //   (a) await any in-flight save so a write cannot land against the new snapshot;
-  //  (a′) flush (not drop) the current account's pending debounced edits while data and the snapshot
-  //       are both still this account → the diff is self-vs-self (correct), landed before (b) reseeds;
-  //   (b) adapter.loadAll(id) → returns the slice and re-seeds lastSynced to it;
-  //   (c) replaceAll(slice) under loadingSlice so the data subscription doesn't read it as an edit,
-  //       then advance lastData.
-  //
-  // Mid-load edits are preserved as operations, not as a stale whole tree. At (c), diffOps derives
-  // only the changes made during this sequence and applyOps rebases them onto the freshly loaded
-  // server slice. This retains remote additions/lifecycle changes and avoids resurrecting rows,
-  // while the rebased state is parked for an ordinary confirmed save after suspension lifts.
-  //
-  // abortIfSaveFailed (refresh-on-focus + the lifecycle hook's post-mutation reload, not tenant
-  // switches): when the flush/await above still leaves a save failed, the refresh is abandoned.
-  // Proceeding would loadAll+replaceAll the server's copy over the optimistic state and re-seed the
-  // diff snapshot to it, so the scheduled retry (which re-reads store state) would diff to zero ops,
-  // "succeed", and clear the failure, permanently discarding the user's un-persisted edit. Aborting
-  // keeps the edit in play: the retry/stranded-write machinery still holds it, and the persist banner
-  // (raised via save's onError) already tells the user they're not synced. A tenant switch deliberately
-  // does not abort, refusing the load would leave account A's data rendered under account B's id (a
-  // cross-tenant display, strictly worse); its flush failure is surfaced the same way and the loss is
-  // bounded to the un-flushed edits.
+  // A single refresh owner keeps store data and the adapter baseline paired. Flush before
+  // reseeding, rebase only edits made during the load, and reject stale generations.
+  // Convenience refreshes abort on failed saves to preserve optimistic edits; account
+  // switches load the selected tenant and surface any abandoned source edits.
 
   const refreshActive = (
     id: string,

@@ -6,6 +6,8 @@ import type { Db } from "../db";
  * trusts for rate limiting and session records. */
 export const AUTH_CLIENT_IP_HEADER = "x-capacitylens-client-ip";
 
+/** Builds session, cookie and identity-storage policy from validated installation configuration.
+ * Pure; it neither creates auth tables nor resolves sessions. */
 export function buildSessionPolicy({
   db,
   secret,
@@ -57,10 +59,8 @@ export function buildSessionPolicy({
     // Better Auth would otherwise read a raw `X-Forwarded-For`: a client could spoof it past the
     // credential rate limits, and without it every client would share one bucket per path.
     advanced: {
-      // Better Auth checks the schema as soon as it is constructed, which on a fresh database is
-      // before runAuthMigrations creates its tables: it logged a false "schema mismatch" error
-      // advising `npx auth migrate`, which would bypass the app's ledger and snapshot.
-      // runAuthMigrations verifies the same schema after migrating and refuses to start instead.
+      // The application runs and verifies auth migrations after its own migration snapshot.
+      // Disable the library’s construction-time check so a fresh database is not diagnosed before those migrations run.
       database: { validateSchema: false },
       ipAddress: { ipAddressHeaders: [AUTH_CLIENT_IP_HEADER] },
       useSecureCookies: false,
@@ -71,9 +71,8 @@ export function buildSessionPolicy({
         ...(secureCookies ? { secure: true } : {}),
       },
     },
-    // Fixed 12-hour absolute lifetime: refresh is disabled, so activity can never extend a stolen
-    // session indefinitely. The wrapper below separately enforces a 30-minute inactivity timeout
-    // without moving expiresAt. `freshAge` supplies a 15-minute step-up window for sensitive actions.
+    // Fixed absolute expiry prevents activity from extending a stolen session indefinitely.
+    // enforceSessionActivity supplies the independent idle timeout; freshAge bounds sensitive administrative actions.
     session: {
       expiresIn: sessionAbsoluteTtlSeconds,
       disableSessionRefresh: true,

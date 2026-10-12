@@ -162,6 +162,7 @@ export function createInviteAcceptanceActions({
       setState({ kind: "joined", ...membership, activating: true });
       await activateJoinedAccount(membership, routeActive, setState);
     } catch (error) {
+      // A thrown acceptance may have committed; reconcile membership before offering another attempt.
       await reportUnknownAcceptance(setState, error);
     } finally {
       accepting.current = false;

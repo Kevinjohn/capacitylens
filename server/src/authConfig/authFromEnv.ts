@@ -121,6 +121,7 @@ function createBootstrapClaim(db: Db, dependencies: FactoryDependencies): () => 
       if (microsoftCallback) microsoftCallback.bootstrapClaimToken = claimToken;
       return claimToken;
     } catch (error) {
+      // Only bootstrap-claim collisions become a setup conflict; unrelated storage faults must retain their original failure.
       if (!isSqliteError(error)) throw error;
       const collision =
         dependencies.isSqliteConstraintCollision(error) ||
@@ -180,14 +181,8 @@ function createEnabledAuthContext(input: {
 
 /** Creates the environment auth builder while keeping facade-owned policy out of this module. */
 export function createAuthFromEnvironmentFactory(dependencies: FactoryDependencies) {
-  /** Build the Better Auth instance for the parsed mode, or null in 'off' mode, where no
-   * env beyond CAPACITYLENS_MODE itself is read. `trustedOrigins` should be the same browser
-   * origins the CORS allow-list names (Better Auth checks Origin on state-changing calls);
-   * the same-origin production deploy needs none.
-   *
-   * Cookie security is derived from `CAPACITYLENS_PUBLIC_URL`, the browser-facing public origin. It must
-   * never be tied to whether the Node hop itself terminates TLS: the normal nginx deployment uses
-   * HTTPS in the browser and HTTP between nginx and Node. */
+  // Cookie security follows the browser-facing public URL, including HTTPS origins proxied to Node over HTTP.
+  // Off mode returns without reading provider credentials.
   return function authFromEnv(
     db: Db,
     environment: Env,
@@ -333,8 +328,6 @@ function createBetterAuthInstance(
     databaseHooks: databaseHookOptions.databaseHooks,
     account: sessionPolicy.account,
     emailAndPassword: passwordPolicy.emailAndPassword,
-    // Native Google/Microsoft/GitHub sign-in, each only when its env is set (see helper).
-    // An empty object means no provider is configured.
     socialProviders: providerConfig.configuredSocialProviders,
     hooks: requestHookOptions.hooks,
     trustedOrigins: providerConfig.trustedOrigins,

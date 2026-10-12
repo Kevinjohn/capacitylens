@@ -8,14 +8,12 @@ import { resetServer, serverState, requireStateRows } from "./serverTestState";
 
 function registerBeforeEachHooks() {
   test.beforeEach(async ({ request }) => {
-    // Reset the server and restore its seed before each test.
     await resetServer({ request: request, withSeed: true });
   });
 }
 
 function registerHydratesSeededDatasetServerLoadTest() {
   test("hydrates the seeded dataset from the server on load", async ({ page }) => {
-    // Open the server-seeded Wayne Enterprises company.
     await openApp(page);
     // "Bruce Wayne" is part of the server seed; seeing it proves GET /api/state → UI.
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
@@ -41,7 +39,6 @@ function registerCreateReloadNewClientRoundTest() {
       )
       .toBe(true);
 
-    // Reload re-hydrates from the DB (no localStorage). The client must still show.
     await openApp(page);
     await page.getByRole("link", { name: "Clients" }).click();
     await expect(page.getByText("Persisted DB Co")).toBeVisible();
@@ -179,10 +176,8 @@ function registerArchiveReloadArchivedClientRetainedTests() {
       .getByRole("alertdialog", { name: "Archive client?" })
       .getByRole("button", { name: "Archive", exact: true })
       .click();
-    // Gone from the active UI list (the archive route ran + the post-archive reload re-hydrated).
     await expect(page.getByTestId("client-row").filter({ hasText: "Doomed Co" })).toHaveCount(0);
 
-    // It is retained in the DB but now carries archivedAt (the archive route, not a hard delete).
     await expect
       .poll(
         async () =>
@@ -194,7 +189,6 @@ function registerArchiveReloadArchivedClientRetainedTests() {
       )
       .toBeTruthy();
 
-    // A reload re-hydrates from the DB's active slice, so the archived client stays out of the list.
     await openApp(page);
     await page.getByRole("link", { name: "Clients" }).click();
     await expect(page.getByTestId("client-row").filter({ hasText: "Doomed Co" })).toHaveCount(0);

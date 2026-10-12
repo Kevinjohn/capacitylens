@@ -68,6 +68,7 @@ function preflightMicrosoftCallback(
   try {
     options.microsoftProof.validateCallback(request);
   } catch (error) {
+    // Send known proof refusals back to the initiating browser flow; unexpected failures must still escape.
     if (!(error instanceof MicrosoftProofError)) throw error;
     const target =
       options.microsoftProof.errorReturnUrl(request.headers, error.code) ??
@@ -242,6 +243,7 @@ async function runAuthenticatedRequest(
     reconcileCallback(options, callbackProviderId);
     return resolveProviderRedirect(options, { request, providerId: callbackProviderId, response });
   } catch (error) {
+    // Translate known callback refusals and identity-coordinate conflicts into browser redirects; unrelated failures must remain loud.
     if (error instanceof JoiningProviderCallbackError) {
       return redirectWithError(failureTarget ?? new URL(options.browserAuthErrorUrl), error.code);
     }
@@ -256,7 +258,6 @@ async function runAuthenticatedRequest(
   }
 }
 
-// Owns provider callback HTTP behavior; persistence and identity state stay with the adapter.
 /** Wraps the auth handler with provider callback proof and recovery behavior. */
 export function createAuthRequestHandler(options: CreateAuthRequestHandlerOptions): Auth["handler"] {
   return async (request) => {

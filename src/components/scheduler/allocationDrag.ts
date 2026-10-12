@@ -39,10 +39,7 @@ interface BuildSnappedBarGeometryInput {
   geometry: ColumnGeometry;
 }
 
-// Pure drag/resize policy for AllocationBar, split out so the gesture math is unit-testable
-// without rendering the bar or driving pointer events. No React, no DOM, no store, the DOM
-// hit-testing (readLaneSnapshots / laneAt / setDropTarget) and the store write + capacity
-// advisory stay in the component; this module is only the date/hours/geometry computation.
+// Pure date, load and geometry policy belongs here; DOM hit testing and store commits remain at the gesture boundary. Unexpected computation errors must propagate rather than be swallowed.
 
 /** Hours/day an allocation should carry after being reassigned (dragged) to `target`. An external
  * / 3rd party always carries no load (0). In Hours/Days mode, a zero-hour booking dragged off an
@@ -61,14 +58,7 @@ export function reconcileReassignedHours({
   return resolveScheduledHoursOnDay(target, startDate, effectiveWeek) || FULL_DAY_HOURS;
 }
 
-/** Days-mode resize keeps the volume (days of work) fixed while the span changes, so
- * hours/day scales inversely with the span: new × newSpan = old × oldSpan.
- * the fixed full-day hours cancel out, so they aren't needed here. Returns the clamped hours
- * and whether the clamp actually bit, so a gesture commit can surface the lost volume
- * (the cap truncates work, the bar would otherwise silently show the clamped 24h).
- * `clamped` is true only when the raw derived hours exceeded MAX_HOURS_PER_DAY; a
- * normal in-range resize, a move, the divide-by-zero guard, and the zero-old-span guard
- * all report false. */
+/** Preserves days-mode work volume while resizing and reports when the hours cap truncates it. Unmeasurable source or destination spans preserve the stored hours without reporting a clamp. */
 export function resolveVolumePreservingHours({
   previousDate,
   next,
@@ -77,24 +67,14 @@ export function resolveVolumePreservingHours({
 }: ResolveVolumePreservingHoursInput): { hours: number; clamped: boolean } {
   const oldSpan = spanDays(previousDate.startDate, previousDate.endDate, options);
   const newSpan = spanDays(next.startDate, next.endDate, options);
-  // A zero-working-day old span (e.g. a weekend-aware allocation currently covering only Sat–Sun)
-  // has no volume to preserve, `hoursPerDay * 0 / newSpan` is 0, and committing that would
-  // silently wipe the stored hours the moment the resize lands on a working day. Preserving the
-  // existing value is the only non-destructive choice (no defaulting to 8, no clamping).
+  // A source span with no effective work duration must keep its stored hours so resizing cannot silently erase a booking.
   let raw = hoursPerDay;
   if (oldSpan !== 0 && newSpan > 0) raw = (hoursPerDay * oldSpan) / newSpan;
-  // Clamp to a real working day, collapsing the span (e.g. a resize dragged past the
-  // opposite edge → 1-day span) would otherwise inflate hours/day without bound.
+  // Cap derived daily load because shrinking a volume-preserving span can exceed a real day's limit.
   return { hours: Math.max(0, Math.min(raw, MAX_HOURS_PER_DAY)), clamped: raw > MAX_HOURS_PER_DAY };
 }
 
-/** Resolve a gesture (move / resize) into the new date range and hours/day to commit.
- * The dates come from applyGesture (weekend-aware via opts); in days mode a resize
- * rescales hours/day to hold the work volume constant, while a move, or an unchanged
- * span (deltaDays === 0), keeps the original hours. Mirrors the pointer-commit math so
- * the source and reassign-target both go through one place. `clamped` reports whether a
- * volume-preserving resize hit the 24h cap (truncating work volume), so the commit can
- * surface it; it's false for a move and any non-rescaling path. */
+/** Resolves a gesture into its dates and daily load. Moves preserve stored load; a non-zero days-mode resize preserves total volume and reports cap truncation. */
 export function resolveGesture({ mode, current, deltaDays, options, hoursPerDay, isDays }: ResolveGestureInput): {
   dates: DateRange;
   hours: number;
@@ -118,12 +98,7 @@ export function resolveGesture({ mode, current, deltaDays, options, hoursPerDay,
   return { dates, hours: hoursPerDay, clamped: false };
 }
 
-/** Pixel geometry for the live drag preview: snap the dates the same way the commit will
- * (applyGesture), then run them through the same ColumnGeometry the view-model used to place
- * bar.x / bar.width. Going through one geometry is what keeps the bar from jumping on release,
- * even when the snapped range crosses a narrowed weekend, the preview is pixel-identical to the
- * committed bar. Callers apply this only when deltaDays !== 0 (an unchanged drag keeps bar.x /
- * bar.width). */
+/** Snaps the range and measures it through the shared column geometry so preview pixels match committed placement, including narrowed weekends. */
 export function buildSnappedBarGeometry({
   mode,
   current,

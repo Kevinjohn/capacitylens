@@ -6,9 +6,7 @@ import {
   shutDownAfterListenFailure,
 } from "./shutdown";
 
-// The shutdown path must drain Fastify before closing the DB (a request still
-// in flight after db.close() would die mid-transaction, the exact bug this fixes),
-// and a second signal must force-exit rather than wait on a stuck drain.
+// Shutdown must drain requests before closing SQLite, and repeated signals must force a stuck drain to exit.
 
 describe("createShutdownHandler", () => {
   it("drains background work after a fatal listen failure", async () => {
@@ -52,9 +50,7 @@ describe("createShutdownHandler", () => {
       exit: (code) => void order.push(`exit ${code}`),
     });
     const first = handler();
-    // Second signal arrives mid-drain.
     await handler(0, "signal:SIGTERM");
-    // Forced out; db.close must not have run yet.
     expect(order).toEqual(["exit 1"]);
     expect(error).toHaveBeenCalledWith(
       "capacitylens-server: shutdown re-entered during drain (reason=signal:SIGTERM); forcing exit",

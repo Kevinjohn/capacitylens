@@ -20,7 +20,7 @@ function isPortraitPhone(): boolean {
       return window.matchMedia(PORTRAIT_PHONE_QUERY).matches;
     }
   } catch {
-    // matchMedia unavailable (jsdom), never show
+    // When a display query is unavailable, omit the optional orientation hint.
   }
   return false;
 }
@@ -29,6 +29,7 @@ function isDismissed(): boolean {
   try {
     return sessionStorage.getItem(DISMISS_KEY) === "1";
   } catch {
+    // Device hint storage is optional; an unreadable dismissal flag defaults to showing the hint.
     return false;
   }
 }
@@ -52,7 +53,7 @@ export function RotateHint() {
     try {
       sessionStorage.setItem(DISMISS_KEY, "1");
     } catch {
-      // storage blocked, the in-memory state still hides it for this mount
+      // Blocked hint storage still leaves this mount dismissed because the in-memory choice is sufficient for the current visit.
     }
     setDismissed(true);
   };

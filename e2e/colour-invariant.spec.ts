@@ -15,9 +15,7 @@ const PICK_LABEL = "Blue dark";
 // SWATCHES[47] is #1b4f98; browsers report its computed background color as rgb(...).
 const PICK_RGB = "rgb(27, 79, 152)";
 
-/** Open a form's ColorField popover and click a swatch by its accessible label. The trigger's
- * accessible name is `Colour (<current colour>)`, so match it by its "Colour" prefix; the
- * swatch radios are labelled by swatchLabel(i) (e.g. "Blue dark"). */
+// Match the colour trigger by prefix because its accessible name also includes the current value.
 async function pickSwatch(scope: Locator, swatchLabel: string): Promise<void> {
   await scope.getByRole("button", { name: /^Colour/ }).click();
   // Popover content is portalled, so select the open swatch group from the page.
@@ -28,13 +26,11 @@ async function pickSwatch(scope: Locator, swatchLabel: string): Promise<void> {
     .click();
 }
 
-/** The colour dot inside a scheduler discipline-group header (raw discipline colour). */
 function disciplineDot(scope: Locator): Locator {
-  // The header's only ring-1 rounded-full span is the colour dot.
+  // The first rounded span in this header is the discipline colour dot.
   return scope.locator("span.rounded-full").first();
 }
 
-/** A resource row's identity avatar (left column), tinted with the discipline colour. */
 function rowAvatar(row: Locator): Locator {
   // The avatar is the row header's rounded-full ring-2 span (the bars live in the lane, not here).
   return row.getByRole("rowheader").locator("span.rounded-full.ring-2").first();
@@ -44,7 +40,6 @@ test.describe("Colour invariant (preset swatch → renders on the scheduler)", (
   test("a discipline colour pick tints its group dot + member avatars", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/disciplines");
 
-    // Edit the seeded "Design" discipline (Bruce Wayne belongs to it) and pick a new swatch.
     await page
       .getByTestId("discipline-row")
       .filter({ hasText: "Design" })
@@ -56,7 +51,6 @@ test.describe("Colour invariant (preset swatch → renders on the scheduler)", (
     await page.getByRole("button", { name: "Save" }).click();
     await expect(dialog).toBeHidden();
 
-    // On the schedule the Design group-header dot and Bruce's avatar must show the picked hex.
     await page.getByRole("link", { name: "Schedule" }).click();
     const designGroup = page.getByTestId("discipline-group").filter({ hasText: "Design" });
     await expect(designGroup).toBeVisible();
@@ -69,8 +63,6 @@ test.describe("Colour invariant (preset swatch → renders on the scheduler)", (
   test("a project colour pick tints its allocation bars", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/projects");
 
-    // Edit the seeded "Project Watchtower", which owns Bruce's scheduled "Wireframes" allocation,
-    // then pick a new swatch.
     await page
       .getByTestId("project-row")
       .filter({ hasText: "Project Watchtower" })

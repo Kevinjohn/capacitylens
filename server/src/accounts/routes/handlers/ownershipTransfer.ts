@@ -10,17 +10,10 @@ import type { AccountRoute, OwnershipTransferRequestRoute } from "../accountRout
 import type { AccountRouteContext } from "../createReplyHelpers";
 import { requireAuthenticatedPrincipal } from "./authenticatedPrincipal";
 
-/**
- * The HTTP adapter for the three-step ownership transfer ceremony.
- *
- * Seven explicit routes rather than one `PATCH {state}`: each step has a different authorised
- * caller, and a generic patch would invite invalid caller/state combinations and spread policy into
- * request parsing. Transport validation and response shape live here; every authorisation question
- * is answered by the port inside its transaction, where the membership facts are still true.
- */
+// Explicit routes keep each consent step’s caller policy distinct. The port authorizes inside
+// its transaction so transport parsing cannot become the authority boundary.
 
-/** The wire projection of one request. Ids and instants only, display identity is resolved from
- * the member directory, so the ceremony never becomes a second store of personal data. */
+// Resolve display identity from the member directory so workflow rows do not duplicate personal data.
 function toWire(request: OwnershipTransferRequest) {
   return {
     id: request.id,
@@ -36,13 +29,8 @@ function toWire(request: OwnershipTransferRequest) {
   };
 }
 
-/**
- * A committed business-terminal outcome answered as a conflict.
- *
- * It is not an error: the expiry it reports was written and committed. The caller's command did not
- * apply, so 409 is the honest status, but the body names the terminal state and reason so an
- * interface can explain what happened rather than merely refusing.
- */
+// A terminal workflow outcome is already committed. Return conflict with its state so the caller
+// can distinguish a refused command from a failed transaction.
 function sendTerminal(reply: FastifyReply, outcome: Extract<OwnershipTransferOutcome, { kind: "terminal" }>) {
   return reply.code(409).send({
     error: REPLY_ERRORS.ownershipTransferClosed,
@@ -52,14 +40,8 @@ function sendTerminal(reply: FastifyReply, outcome: Extract<OwnershipTransferOut
   });
 }
 
-/**
- * Send the refusal for a ceremony read while masquerading; null when the read may proceed.
- *
- * The global masquerade policy already refuses every unsafe method, which covers the six commands.
- * It deliberately does not cover GET, so this read, which names who is being handed the company,
- * refuses here. Concealment, not redaction: a masquerading session is not the participant whose
- * ceremony this is.
- */
+// The global masquerade gate covers unsafe methods only. Conceal this read because a masquerading
+// session is not a participant in the ownership ceremony.
 function sendMasqueradeRefusal(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -93,6 +75,7 @@ export async function readOwnershipTransfer(
       latestOutcome: projection.latestOutcome ? toWire(projection.latestOutcome) : null,
     });
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return accountFail(reply, error);
   }
 }
@@ -183,6 +166,7 @@ export async function initiateOwnershipTransfer(
     });
     return reply.code(201).send({ request: toWire(outcome.request) });
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return accountFail(reply, error);
   }
 }
@@ -199,8 +183,7 @@ interface RowCommandInput {
   action: RowCommand;
 }
 
-/** Completion is the moment ownership actually moves, so it keeps the standing `ownershipTransfer`
- * audit action; every other step records the ceremony action instead. */
+// Ownership changes only at completion, so only that step emits the ownershipTransfer audit action.
 function auditActionFor(action: RowCommand): "ownershipTransfer" | "ownershipTransferRequest" {
   return action === "complete" ? "ownershipTransfer" : "ownershipTransferRequest";
 }
@@ -216,13 +199,7 @@ function commandFor(context: Pick<AccountRouteContext, "administration">, action
   }[action].bind(administration);
 }
 
-/**
- * The shared body of the five row commands.
- *
- * They differ only in which port method they call and which audit action they record: the
- * transport shape, the validation, the gate and the conflict mapping are identical, and keeping one
- * copy is what stops the five drifting apart.
- */
+// Keep command parsing, authorization, and conflict mapping shared so ceremony steps cannot drift.
 async function runRowCommand({ req, reply, context, action }: RowCommandInput) {
   const { command: accountCommand, fail: accountFail, auditUnlessReplayed } = context;
   const { accountId, requestId } = req.params;
@@ -258,6 +235,7 @@ async function runRowCommand({ req, reply, context, action }: RowCommandInput) {
     });
     return reply.code(200).send({ request: toWire(outcome.request) });
   } catch (error) {
+    // Surface the failure through the account response boundary so callers receive the mapped status and safe error shape.
     return accountFail(reply, error);
   }
 }
@@ -274,9 +252,7 @@ export const acceptOwnershipTransfer = (
   >,
 ) => runRowCommand({ req, reply, context, action: "accept" });
 
-/**
- * Withdraws the pending ownership transfer as its initiating owner.
- */
+/** Withdraws the nominated administrator’s consent without cancelling the nomination. */
 export const withdrawOwnershipTransfer = (
   req: FastifyRequest<OwnershipTransferRequestRoute>,
   reply: FastifyReply,

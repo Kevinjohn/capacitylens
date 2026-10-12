@@ -1,4 +1,4 @@
-// Text hygiene for user-entered free text (names, roles, notes). Two surfaces use it:
+// Apply shared text hygiene to user-entered names, roles and notes. The forms, import repair and ordinary server writes use it:
 //   - the forms reject disallowed input via hasDisallowedChars (so the user fixes it);
 //   - import strips disallowed characters via cleanText;
 //   - ordinary server writes reject disallowed supplied characters before canonicalization
@@ -15,7 +15,7 @@ export const MAX_EMAIL_LENGTH = 254;
 /** Max Unicode code points for a multi-line note. */
 export const MAX_NOTE_LENGTH = 1000;
 
-/** Length in Unicode code points, the unit every `MAX_*_LENGTH` text limit uses. */
+/** Count Unicode code points for name and note limits; email length uses UTF-8 bytes. */
 export function unicodeCharacterCount(value: string): number {
   return Array.from(value).length;
 }
@@ -33,7 +33,7 @@ export function utf8ByteLength(value: string): number {
 // symbols (So, covers flag emoji / regional indicators, keycaps and dingbats that aren't
 // Extended_Pictographic, plus ™ © ® ° and the like), enclosing marks (Me, the combining
 // enclosing keycap U+20E3 that turns "1"/"#"/"*" into keycap emoji; no legitimate name
-// char is enclosing), the VARIATION SELECTORS (U+FE00–FE0F incl. emoji VS-16 U+FE0F, and
+// char is enclosing), the variation selectors (U+FE00–FE0F incl. emoji VS-16 U+FE0F, and
 // the supplement U+E0100–E01EF) that force emoji presentation, control chars (Cc), format
 // / zero-width chars (Cf, ZWJ, RTL overrides, …), lone surrogates (Cs), private-use (Co)
 // and unassigned (Cn) code points. Cn is deliberately conservative: a code point is refused until
@@ -41,7 +41,7 @@ export function utf8ByteLength(value: string): number {
 // a newly assigned symbol that a newer runtime rejects as So or Extended_Pictographic.
 // Note we deliberately do not ban Nonspacing_Mark (Mn)
 // wholesale: that would strip legitimate decomposed accents (e.g. "e" + U+0301), we
-// target only U+FE0F via the variation-selector range. Ordinary letters (incl. accents +
+// target the variation-selector ranges explicitly. Ordinary letters (incl. accents +
 // CJK), digits, whitespace, punctuation, and currency/math symbols (Sc/Sm, €, £, +, =)
 // are allowed, so real names like "José Müller" or "O'Brien & Co" pass untouched.
 const DISALLOWED =
@@ -59,8 +59,7 @@ export function hasDisallowedChars(value: string, options: { multiline?: boolean
 function stripDisallowedCharacters(value: string): string {
   let cleaned = "";
   for (const character of value.normalize("NFC")) {
-    // Newlines and tabs are whitespace, not junk, keep them through the strip pass and
-    // let the normalisation step below decide (→ a space in single-line, preserved in multiline).
+    // Preserve newlines and tabs until whitespace normalization; multiline mode retains newlines and converts tabs to spaces.
     if (character === "\n" || character === "\t" || !DISALLOWED.test(character)) cleaned += character;
   }
   return cleaned;

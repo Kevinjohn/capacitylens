@@ -4,7 +4,7 @@ import { tx } from "../txn";
 import type { RawSessionUser, SessionUser } from "./authTypes";
 import { SESSION_INACTIVITY_TTL_SECONDS, SESSION_ACTIVITY_WRITE_INTERVAL_SECONDS } from "./authConstants";
 
-/** Parse stored activity as epoch milliseconds or ISO text; malformed values have no timestamp. */
+// Malformed stored activity has no usable timestamp and must fail the idle check closed.
 function parseSessionTimestamp(value: string | number | null | undefined): number | null {
   let milliseconds: number | null = null;
   if (typeof value === "number") milliseconds = value;
@@ -20,21 +20,9 @@ type SessionActivityLifecycle = {
 type SessionActivitySession = { session: { token: string; updatedAt: Date | string } };
 type StoredSessionActivity = { updatedAt: string | number | null };
 
-/**
- * Apply the app's idle timeout to a session Better Auth has already resolved.
- *
- * Storage representation is not assumed. Better Auth 1.6.x on node:sqlite stores
- * `session.updatedAt` as ISO-8601 *text*, not the integer epoch milliseconds an earlier
- * version of this function trusted a comment about. Comparing or writing numbers against a
- * text-valued column means SQL predicates silently never match (INTEGER always sorts before
- * TEXT), which turned both the expiry compare-and-set and the activity touch into no-ops on
- * production rows. So: read the raw stored value, parse whatever is there, compare-and-set
- * against the raw value, and write back in the same representation that is stored. Direct
- * conditional SQL is required because the adapter exposes only unconditional async writes and
- * cannot provide compare-and-set; the CAS keeps deletes and touches monotonic even when
- * overlapping requests settle out of order. Fails closed (row deleted, `null` returned) on an
- * unparseable timestamp.
- */
+// Compare activity against the raw stored value and preserve its timestamp representation.
+// Direct conditional SQL supplies the compare-and-set the asynchronous adapter lacks, so overlapping touches and deletes stay monotonic.
+// Unparseable activity expires the session.
 type SessionActivityStatements = {
   read: ReturnType<Db["prepare"]>;
   destroy: ReturnType<Db["prepare"]>;
@@ -194,16 +182,7 @@ export async function enforceSessionActivity<Session extends SessionActivitySess
   return session;
 }
 
-/**
- * Narrow Better Auth's full user to the {@link SessionUser} the server uses, reading
- * `emailVerified` from the raw user and defaulting it to `false`.
- *
- * Better Auth sets `emailVerified` per provider during sign-in (Google/Microsoft OIDC derive
- * it from the `email_verified` claim; GitHub and email+password sign-up leave it `false` until
- * verified). We deliberately do not branch on a provider allow-list. We trust Better Auth's
- * per-provider value and use `?? false` as the safety net for any provider that omits it, so an
- * unverifiable provider can never present as verified.
- */
+/** Normalizes the provider-neutral session principal and defaults missing verified-email proof to false. */
 export function buildSessionUser(raw: RawSessionUser): SessionUser {
   const name = cleanText(typeof raw.name === "string" ? raw.name : "");
   return {
@@ -215,8 +194,7 @@ export function buildSessionUser(raw: RawSessionUser): SessionUser {
   };
 }
 
-/** Re-assert HTTPS at the session boundary so a malformed provider or hand-edited value
- * cannot reach the client as an image source. */
+// Only HTTPS avatar URLs may leave the session boundary, including hand-edited stored values.
 function parseImageUrl(value: unknown): string | null {
   return typeof value === "string" && value.startsWith("https://") ? value : null;
 }

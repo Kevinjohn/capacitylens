@@ -53,7 +53,6 @@ interface PatchStatusReqInput {
   headers?: Record<string, string> | undefined;
 }
 
-// Member lifecycle: disable / archive / restore.
 // A membership's status is what every authorization read narrows on, so these routes are an access
 // control surface, not a labelling one. The assertions below fix both halves: the status actually
 // changes, and the account stops admitting the member the moment it does.
@@ -184,7 +183,6 @@ async function assertMemberSignInResetAndSignIn({
   ]);
 }
 
-/** Owner of a1 plus one editor, the shape nearly every case below needs. */
 async function ownerAndEditor(suffix: string) {
   const { app, db } = await appWithAuth();
   seedTwo(db);
@@ -198,7 +196,7 @@ async function ownerAndEditor(suffix: string) {
 function createDisableMemberTest(): void {
   it("disables a member, and the disabled member can no longer enter the account", async () => {
     const { app, db, owner, ed } = await ownerAndEditor("disable");
-    // Precondition: the editor can read a1 today.
+
     expect(
       (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
     ).toBe(200);
@@ -215,11 +213,10 @@ function createDisableMemberTest(): void {
     expect(storedStatus(db, "a1", ed.userId)).toBe("active");
     expect(isAccessRestricted(db, "a1", ed.userId)).toBe(true);
 
-    // The point: the membership row survives, but it confers nothing.
     expect(
       (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
     ).toBe(403);
-    // ...and a1 disappears from the account list the member can choose between.
+
     const accounts = await call(app, { method: "GET", url: "/api/accounts", headers: { cookie: ed.cookie } });
     expect(accounts.statusCode).toBe(200);
     expect(JSON.stringify(accounts.json())).not.toContain("a1");
@@ -442,13 +439,8 @@ describe("member sign-in confirmation", () => {
   });
 });
 
-// The status domain must reach every membership path, not just the new route.
-// Widening a membership to active/disabled/archived is only half a feature. The other half is that
-// every path which resolves a member (invite redemption, identity administration, removal, role
-// change) agrees about what a non-active row means. Each case below failed before this pass, and
-// each fails independently, so a regression in one cannot hide behind another.
+// Every membership path must agree on disabled and archived access so alternate operations cannot bypass suspension.
 
-/** Owner + editor of a1, with the editor already moved into `status`. */
 async function ownerAndInactiveEditor(suffix: string, status: "disabled" | "archived" = "disabled") {
   const { app, db } = await appWithAuth();
   seedTwo(db);
@@ -466,9 +458,7 @@ async function ownerAndInactiveEditor(suffix: string, status: "disabled" | "arch
 function registerDisabledInviteRedemptionTest(): void {
   it("a disabled member cannot redeem an invite back into the account, and the invite stays unused", async () => {
     const { app, db, owner, ed } = await ownerAndInactiveEditor("invite-bypass");
-    // An addressed invite the disabled member holds. Before this fix the accept path
-    // probed membership with an active-only read, saw "not a member", and upserted them back to
-    // active at the invite's role, reversing the administrator's decision with no audit record.
+    // Redeeming a held invitation must not reverse an administrator’s suspension or replace the member’s role.
     const created = await call(app, {
       method: "POST",
       url: "/api/invites",
@@ -485,8 +475,6 @@ function registerDisabledInviteRedemptionTest(): void {
     });
     expect(accept.statusCode).toBe(403);
 
-    // The suspension held on every axis: status, role (no silent promotion to the invite's admin),
-    // and entry to the account.
     expect(storedStatus(db, "a1", ed.userId)).toBe("active");
     expect(isAccessRestricted(db, "a1", ed.userId)).toBe(true);
     expect(getMemberRole(db, "a1", ed.userId)).toBe("editor");
@@ -564,9 +552,7 @@ function registerRestoredInviteRedemptionTest(): void {
 function registerDisabledMemberAuthorityTest(): void {
   it("an admin keeps reset-password and revoke-sessions authority over a member they just disabled", async () => {
     const { app, owner, ed } = await ownerAndInactiveEditor("identity-authority");
-    // The compromised-account case: an admin disables first, then kills the live session. Before
-    // this fix the target's authority map was active-only, so disabling someone reported them as
-    // "not a member" and removed both controls, leaving the attacker's session running.
+    // Administrators must still revoke sessions and reset credentials after disabling a compromised member.
     const listed = await membersReq(app, "a1", { cookie: owner.cookie });
     expect(listed.statusCode).toBe(200);
     const row = (
@@ -578,7 +564,6 @@ function registerDisabledMemberAuthorityTest(): void {
     expect(row.mayResetPassword).toBe(true);
     expect(row.mayRevokeSessions).toBe(true);
 
-    // Not merely advertised. The routes themselves still work on the disabled member.
     expect(
       (
         await call(app, {
@@ -675,7 +660,6 @@ function registerRepeatedStatusNoOpTest(): void {
     expect(res.json()).toMatchObject({ userId: ed.userId, status: "active" });
     expect(storedStatus(db, "a1", ed.userId)).toBe("active");
 
-    // The point: the link the first admin distributed still redeems.
     const redeemed = await call(app, {
       method: "POST",
       url: "/api/auth/reset-password",

@@ -24,6 +24,10 @@ import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 // Apply the complete ordered diff as one request and therefore one SQLite transaction. An
 // over-limit diff is never split into separately committed prefixes.
+/** Validates and dispatches one ordered atomic batch.
+ * @throws BatchTooLargeError before dispatch when the operation limit is exceeded.
+ * @throws KeepaliveNotDispatchedError before dispatch when a teardown body is too large.
+ */
 export function commitBatch(
   state: SyncState,
   ops: Op[],
@@ -67,6 +71,7 @@ interface DispatchPreparedBatchInput {
   options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean };
 }
 
+/** Assigns the next session sequence and dispatches a previously validated, serialized batch. */
 export function dispatchPreparedBatch({
   state,
   body,
@@ -78,11 +83,11 @@ export function dispatchPreparedBatch({
   return postBatch({ state: state, body: body, ops: ops, sequence: sequence, ...(options ? { options } : {}) });
 }
 
-// updatedAt on the wire is a concurrency precondition: rebase each PUT onto the last authoritative
-// server revision while retaining every locally edited field. A Map per touched table keeps this
-// O(ops + rows), a linear .find per op degraded a whole-table re-timestamp (undo/redo touching
-// every allocation) to O(ops × rows) on the hot save path. Maps are built lazily, so a batch that
-// touches one table never indexes the rest.
+// Rebase concurrency stamps without replacing local fields. Lazy per-table maps keep
+// lookup linear in touched rows and operations, including whole-table undo and redo.
+/** Returns operations with PUT concurrency stamps taken from the authoritative baseline while preserving local fields.
+ * Does not mutate operations or the baseline.
+ */
 export function rebaseForWire(state: SyncState, ops: Op[]): Op[] {
   const indexByTable = new Map<Op["table"], Map<string, { updatedAt: string }>>();
   const indexFor = (table: Op["table"]): Map<string, { updatedAt: string }> => {
@@ -108,11 +113,11 @@ interface PostBatchInput {
   options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean };
 }
 
-// POST the complete ≤MAX_BATCH_OPS diff to /api/batch; the server applies it in one
-// transaction (upserts parent-first, then deletes child-first, see syncOps.diffOps), so a
-// mid-batch failure rolls the whole transaction back. keepalive (unload) lets the request outlive
-// the page. `body` is the already-serialized, PUT-rebased wire payload; `ops` supplies the exact
-// PUT identities that a non-superseded server receipt must cover.
+// Ordinary operations commit in one transaction, with upserts before deletes so
+// reparented children survive deletion cascades. The receipt must cover the sent PUT identities.
+/** Sends a validated, serialized ordered batch and checks its authoritative receipt.
+ * Transport uncertainty or invalid receipts require a reload before another write.
+ */
 export async function postBatch({ state, body, ops, sequence, options }: PostBatchInput): Promise<BatchCommitReceipt> {
   const res = await sendBatch({ state: state, body: body, sequence: sequence, ...(options ? { options } : {}) });
   await throwForBatchStatus(res);
@@ -144,11 +149,8 @@ export async function sendBatch({ state, body, sequence, options }: SendBatchInp
         ...(options?.keepalive === undefined ? {} : { keepalive: options.keepalive }),
         credentials: "include",
       },
-      // The atomic write is a bulk op: give it the long bound so a big-but-healthy batch isn't
-      // aborted into the retry-the-same-diff wedge (drain never advances lastSynced on abort).
-      // The keepalive unload flush gets no deadline, a timeout on a request meant to outlive the
-      // page is self-contradictory; when the page survives, its receipt or failure still flows back
-      // through flushUnload to the persistence coordinator.
+      // Bulk writes need a longer deadline on a healthy but slow server. Teardown disables
+      // the client deadline; any surviving page still receives its receipt or failure.
       options?.keepalive ? null : API_BULK_TIMEOUT_MS,
     );
   } catch (error) {

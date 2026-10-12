@@ -19,6 +19,7 @@ function main() {
       }
     }
   } catch (error) {
+    // Surface orchestration failures separately from a check’s ordinary nonzero status.
     console.error(`gate failed: ${error.message}`);
     process.exitCode = 2;
   }

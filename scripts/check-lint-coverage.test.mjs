@@ -66,25 +66,18 @@ test("local hooks and pull requests run the intended static-analysis checks", ()
   assert.deepEqual(workflow.on.pull_request.branches, ["main"]);
   const commands = workflow.jobs.application.steps.map(({ run }) => run).filter(Boolean);
   assert.equal(commands[0], "pnpm run check:push");
-  // Check the files Git would publish: tracked plus untracked-but-not-ignored. Prettier cannot read
-  // .git/info/exclude, so a bare `prettier --check .` failed pushes on local-only notes.
+  // Check tracked and non-ignored candidate files so private exclusions do not make formatting gate local-only material.
   assert.equal(
     packageJson.scripts["format:check"],
     "git ls-files -z --cached --others --exclude-standard | xargs -0 prettier --check --ignore-unknown --no-error-on-unmatched-pattern",
   );
   assert.ok(commands.includes("pnpm run policy:lint-coverage:test"));
-  // Pin the script's BODY, not only its name. Asserting the workflow calls `pnpm run typecheck`
-  // proves nothing on its own: a `typecheck` reduced to a bare root `tsc --noEmit` reads no files
-  // and exits 0, and every gate would stay green while nothing was type-checked at all.
+  // Check the command body: a bare root tsc invocation can exit successfully without type-checking any files.
   assert.equal(packageJson.scripts.typecheck, "pnpm run paraglide:compile && tsc -b");
 });
 
-// The pre-commit hook names staged files individually, unlike `eslint .` in `pnpm run lint` and in
-// CI. ESLint skips an ignored file found by a directory scan but WARNS about one named on the
-// command line, and `--max-warnings 0` turns that warning into a failed commit. No other
-// gate can see this: every one of them scans. Without `--no-warn-ignored`, committing any of the
-// files below is impossible except with `--no-verify`, which skips linting the rest of the commit
-// too, so the hook silently stops linting real source whenever docs machinery is staged with it.
+// The staged-file hook names ignored paths explicitly, which ESLint warns about unless --no-warn-ignored is set.
+// The hook must still lint the other staged source files.
 test("the pre-commit lint command accepts a staged file that ESLint ignores", () => {
   const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
   const command = packageJson["lint-staged"]["*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"];

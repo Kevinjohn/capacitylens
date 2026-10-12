@@ -3,6 +3,7 @@ import type { AuditSink } from "../audit";
 import { buildInternalTlsHealth } from "../internalTls";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
+/** Maximum CSP report body size in bytes, enforced before telemetry parsing. */
 export const CSP_REPORT_BODY_LIMIT = 64 * 1024;
 const MAX_CSP_REPORTS_PER_REQUEST = 1;
 
@@ -18,7 +19,7 @@ const parseCspOrigin = (value: unknown): string | undefined => {
     const url = new URL(value);
     return url.protocol === "http:" || url.protocol === "https:" ? url.origin : `scheme:${url.protocol}`;
   } catch {
-    // Omit invalid URLs from the public content security policy.
+    // Invalid reported URLs cannot contribute an origin to security telemetry.
     return undefined;
   }
 };
@@ -67,6 +68,7 @@ interface PublicRouteDependencies {
   internalTlsFingerprintSha256?: string;
 }
 
+/** Dependencies for the initialization probe or public health, diagnostics and security-report routes. */
 export type SystemRouteDependencies = MetaRouteDependencies | PublicRouteDependencies;
 
 type AuditStatus = "degraded" | "recovering" | "ok";
@@ -154,13 +156,8 @@ function registerDiagnosticsRoute(app: FastifyInstance, dependencies: PublicRout
 }
 
 function registerMetaRoute(app: FastifyInstance, dependencies: MetaRouteDependencies): void {
-  // "has this dataset ever been initialised" (persistent marker), not "is it currently
-  // non-empty": so a user who deletes all their data isn't re-seeded on the next load
-  // (the bug was: an emptied dataset reported hasData:false and got the demo seed back).
-  // This authenticated probe is deliberately not membership-gated: initialization is an
-  // instance-level bootstrap sentinel, not tenant data, and reveals no account, identity or row
-  // count. A membership-less principal therefore receives the same single boolean needed by the
-  // startup adapter without gaining access to any scoped state.
+  // Initialization survives deliberate data deletion so startup never resurrects demo rows.
+  // The authenticated probe exposes only this installation-level boolean, not tenant or identity facts.
   app.get("/api/meta", (_req, reply) => reply.code(200).send({ hasData: dependencies.isInitialized() }));
 }
 
@@ -221,7 +218,7 @@ function registerPublicRoutes(app: FastifyInstance, dependencies: PublicRouteDep
   registerDiagnosticsRoute(app, dependencies);
 }
 
-// These routes are grouped as system endpoints but intentionally share no common access policy.
+/** Registers the selected system-route section with each endpoint’s own access policy. */
 export function registerSystemRoutes(app: FastifyInstance, dependencies: SystemRouteDependencies): void {
   if (dependencies.section === "meta") registerMetaRoute(app, dependencies);
   else registerPublicRoutes(app, dependencies);

@@ -37,6 +37,8 @@ import {
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 /**
  * Validates each client row against the API response fields, including optional archive and privacy metadata.
+ *
+ * @throws When a row is not an object or a modeled field is invalid.
  */
 export function readAllClientSnapshots(rows: unknown[]): ClientSnapshot[] {
   return rows.map((row) => {
@@ -82,6 +84,8 @@ export function readAllClientSnapshots(rows: unknown[]): ClientSnapshot[] {
 
 /**
  * Returns the validated client rows after excluding built-in entries.
+ *
+ * @throws When any client row is malformed.
  */
 export function readClientSnapshots(rows: unknown[]): ClientSnapshot[] {
   return readAllClientSnapshots(rows).filter((clientRow) => clientRow.builtin !== true);
@@ -89,6 +93,8 @@ export function readClientSnapshots(rows: unknown[]): ClientSnapshot[] {
 
 /**
  * Extracts and validates the clients array from a state response.
+ *
+ * @throws When the response body or client rows are malformed.
  */
 export function readAllStateClients(response: LightMyRequestResponse): ClientSnapshot[] {
   const value: unknown = response.json();
@@ -98,6 +104,8 @@ export function readAllStateClients(response: LightMyRequestResponse): ClientSna
 
 /**
  * Returns the first client or throws when the state contains none.
+ *
+ * @throws When the array contains no client.
  */
 export function readFirstClient(clients: ClientSnapshot[]): ClientSnapshot {
   const clientRow = clients[0];
@@ -107,6 +115,8 @@ export function readFirstClient(clients: ClientSnapshot[]): ClientSnapshot {
 
 /**
  * Returns the name of the first validated client.
+ *
+ * @throws When the array contains no client.
  */
 export function readFirstClientName(clients: ClientSnapshot[]): string {
   return readFirstClient(clients).name;
@@ -121,6 +131,8 @@ export function readClientIds(clients: ClientSnapshot[]): string[] {
 
 /**
  * Validates the required fields of a client write response.
+ *
+ * @throws When the response object or any required field is invalid.
  */
 export function readClientResponseValue(value: unknown): ClientResponse {
   if (!isRecord(value)) throw new Error("Expected the client response to be an object.");
@@ -136,6 +148,8 @@ export function readClientResponseValue(value: unknown): ClientResponse {
 
 /**
  * Parses the response body and validates it as a client write result.
+ *
+ * @throws When the response body or any required field is invalid.
  */
 export function readClientResponse(response: LightMyRequestResponse): ClientResponse {
   return readClientResponseValue(response.json());
@@ -151,6 +165,8 @@ export interface ConflictResponse {
 
 /**
  * Requires a conflict message and validates the current client row returned by the API.
+ *
+ * @throws When the conflict envelope or current client row is malformed.
  */
 export function readConflictResponse(response: LightMyRequestResponse): ConflictResponse {
   const value: unknown = response.json();
@@ -162,6 +178,8 @@ export function readConflictResponse(response: LightMyRequestResponse): Conflict
 
 /**
  * Reads the optional superseded flag and rejects a present non-boolean value.
+ *
+ * @throws When the response body is not an object or the flag is not boolean.
  */
 export function readBatchSuperseded(response: LightMyRequestResponse): boolean | undefined {
   const value: unknown = response.json();
@@ -175,6 +193,8 @@ export function readBatchSuperseded(response: LightMyRequestResponse): boolean |
 
 /**
  * Validates batch counts, archive records, revision records, and the optional superseded flag.
+ *
+ * @throws When the response envelope, counts, or nested records are malformed.
  */
 export function readBatchReceipt(response: LightMyRequestResponse): BatchReceipt {
   const value: unknown = response.json();
@@ -224,6 +244,8 @@ export function readBatchReceipt(response: LightMyRequestResponse): BatchReceipt
 
 /**
  * Validates an activity write result, including its project links and rewritten allocation revisions.
+ *
+ * @throws When the response envelope or any modeled field is invalid.
  */
 export function readActivityWriteResponse(response: LightMyRequestResponse): ActivityWriteResponse {
   const value: unknown = response.json();
@@ -258,7 +280,9 @@ export function readActivityWriteResponse(response: LightMyRequestResponse): Act
 }
 
 /**
- * Finds a project binding by ID and returns undefined when the project is absent.
+ * Returns a row's optional project attribution.
+ *
+ * @throws When no row has the requested ID.
  */
 export function readProjectId(rows: ProjectBinding[], id: string): string | undefined {
   const row = rows.find((candidate) => candidate.id === id);
@@ -267,7 +291,9 @@ export function readProjectId(rows: ProjectBinding[], id: string): string | unde
 }
 
 /**
- * Returns the first project ID when a project binding exists.
+ * Returns the first row's optional project attribution.
+ *
+ * @throws When the array is empty.
  */
 export function readFirstProjectId(rows: ProjectBinding[]): string | undefined {
   const row = rows[0];
@@ -277,6 +303,8 @@ export function readFirstProjectId(rows: ProjectBinding[]): string | undefined {
 
 /**
  * Validates the modeled entities and fields in an untrusted state payload.
+ *
+ * @throws When the response object, entity arrays, or modeled fields are invalid.
  */
 export function readValidatedStateValue(value: unknown): ValidatedStateResponse {
   if (!isRecord(value)) {
@@ -296,17 +324,20 @@ export function readValidatedStateValue(value: unknown): ValidatedStateResponse 
   };
 }
 
-/** Fetch and validate the whole state document. This lives beside its validator rather than in
- * `appTestHttp`, which would otherwise have to import from here and close an import cycle. */
+/** Fetch and validate the whole state document.
+ * It lives beside its validator to avoid an import cycle with `appTestHttp`.
+ *
+ * @throws When the request fails or the state response is malformed.
+ */
 export const state = async (app: FastifyInstance) => {
-  // Generic account creation now guarantees its required Internal client. Most legacy CRUD tests
-  // predate that invariant and reason about the regular clients they explicitly create. The exact
-  // state validator retains that view by filtering rows whose validated builtin flag is true.
+  // Exclude the built-in Internal client so CRUD assertions cover user-created clients.
   return readValidatedStateValue((await call(app, { method: "GET", url: "/api/state" })).json());
 };
 
 /**
  * Requires a successful state response and validates its projected fields.
+ *
+ * @throws When the status is not 200 or the state payload is malformed.
  */
 export function readSuccessfulStateResponse(response: LightMyRequestResponse): {
   state: ValidatedStateResponse;
@@ -319,6 +350,8 @@ export function readSuccessfulStateResponse(response: LightMyRequestResponse): {
 
 /**
  * Validates the API state response envelope and its modeled entity arrays.
+ *
+ * @throws When the response body or any modeled entity is malformed.
  */
 export function readStateResponse(response: LightMyRequestResponse): ValidatedStateResponse {
   return readValidatedStateValue(response.json());
@@ -326,6 +359,8 @@ export function readStateResponse(response: LightMyRequestResponse): ValidatedSt
 
 /**
  * Extracts and validates the summary returned after an import.
+ *
+ * @throws When the response summary or any required field is invalid.
  */
 export function readImportSummary(response: LightMyRequestResponse): ImportSummary {
   const value: unknown = response.json();
@@ -343,6 +378,8 @@ export function readImportSummary(response: LightMyRequestResponse): ImportSumma
 
 /**
  * Fetches the state endpoint and validates its response before returning the snapshot.
+ *
+ * @throws When the request fails or the state response is malformed.
  */
 export async function readValidatedState(app: FastifyInstance): Promise<ValidatedStateResponse> {
   return readValidatedStateValue((await call(app, { method: "GET", url: "/api/state" })).json());
@@ -350,6 +387,8 @@ export async function readValidatedState(app: FastifyInstance): Promise<Validate
 
 /**
  * Reads client snapshots from a validated state value.
+ *
+ * @throws When the request fails or the state response is malformed.
  */
 export async function readStateClients(app: FastifyInstance): Promise<ClientSnapshot[]> {
   return (await readValidatedState(app)).clients;

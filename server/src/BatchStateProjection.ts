@@ -58,12 +58,10 @@ const RELATIONSHIPS: Relationship[] = [
 const resolveRows = (data: AppData, table: AppDataKey): ProjectionRow[] => data[table] as unknown as ProjectionRow[];
 
 /**
- * Mutable, transaction-local AppData projection for POST /api/batch.
- *
- * AppData arrays remain available to the existing domain validators, while id and reverse-FK
- * indexes make projection upserts, row deletes and cascades proportional to affected rows instead
- * of rebuilding whole arrays after every operation. Row order is intentionally not preserved: the
- * projection is never serialized, and validation treats every table as an unordered entity set.
+ * Provides a mutable, transaction-local AppData projection for POST /api/batch.
+ * Mutates the supplied AppData and its arrays in place; callers must provide an isolated transaction snapshot.
+ * Indexes keep updates and cascades proportional to affected rows. Row order is not preserved because
+ * validation treats tables as unordered sets and the projection is never serialized.
  */
 export class BatchStateProjection implements ValidationDataLookup {
   private readonly attributionClearedActivityIds = new Set<string>();
@@ -92,9 +90,7 @@ export class BatchStateProjection implements ValidationDataLookup {
   }
 
   upsert(table: AppDataKey, row: Record<string, unknown>): void {
-    // Defensive re-check: every caller already passed through sanitizeWrite's assertIdPresent
-    // (validate.ts), the universal write-path guard, so row.id should already be a string here.
-    // Kept as a second gate rather than trusted, per the caller-can't-bypass-safety rule.
+    // Reject malformed rows at this boundary so callers cannot corrupt the projection indexes.
     if (typeof row.id !== "string") throw new Error("Batch projection rows require a string id.");
     if (table === "allocations") this.attributionRewrites.delete(row.id);
     const next =
@@ -164,8 +160,7 @@ export class BatchStateProjection implements ValidationDataLookup {
 
   /** Mirror replaceGeneratedBuiltin's reparent-before-delete database sequence. */
   replaceGeneratedBuiltin(generatedId: string, row: Record<string, unknown>): void {
-    // Defensive re-check: see the matching comment in upsert(), sanitizeWrite's assertIdPresent
-    // already guarantees this upstream of every caller.
+    // Reject malformed rows before reparenting can mutate the projection.
     if (typeof row.id !== "string") throw new Error("Batch projection rows require a string id.");
     const projectRelationship = this.resolveRelationshipIndex("clients", "projects", "clientId");
     const projectIds = [...(projectRelationship?.childrenByParent.get(generatedId) ?? [])];
@@ -224,7 +219,6 @@ export class BatchStateProjection implements ValidationDataLookup {
     });
   }
 
-  /** Shared by relatedRows and replaceGeneratedBuiltin's reparent lookup. */
   private resolveRelationshipIndex(
     parent: AppDataKey,
     child: AppDataKey,

@@ -17,6 +17,7 @@ let releaseOwnership;
 try {
   releaseOwnership = acquireExclusiveFile(ownershipPath);
 } catch (error) {
+  // Explain an existing ownership lock and refuse to start; rethrow unrelated filesystem failures.
   if (error.code !== "EEXIST") throw error;
   console.error(
     "dev:access fixed ports are already reserved. " +

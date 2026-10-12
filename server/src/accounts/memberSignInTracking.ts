@@ -157,10 +157,7 @@ export function clearTrackedMemberSignIn(db: Db, principalId: string): void {
   ).run(principalId);
 }
 
-/**
- * Removes member sign in tracking for account with its owning state so stale server operations
- * records cannot remain.
- */
+/** Removes the account’s opt-in tracking row during company erasure. */
 export function removeMemberSignInTrackingForAccount(db: Db, accountId: string): void {
   db.prepare(`DELETE FROM ${TRACKING_TABLE} WHERE accountId = ?`).run(accountId);
 }

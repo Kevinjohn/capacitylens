@@ -22,6 +22,7 @@ function readReloadNavigationState(): boolean {
       .getEntriesByType("navigation")
       .some((entry) => (entry as PerformanceNavigationTiming).type === "reload");
   } catch (error) {
+    // An unavailable navigation hint may keep the picker visible; warn because the runtime failure would otherwise be hidden.
     console.warn("The browser navigation type could not be read; keeping the company picker", error);
     return false;
   }

@@ -110,7 +110,7 @@ function buildTimeOffRepeatFields(options: {
   );
 }
 
-/** Null is off/demo mode, where there is no server note projection to enforce. */
+// With identity authorization off, no server note projection needs enforcement.
 function useCanEditTimeOffNote(): boolean {
   const role = useRole();
   return role === null || canSeeTimeOffNote(role);
@@ -262,7 +262,6 @@ function TimeOffDateFields({
   errorId: string;
 }) {
   return (
-    // The date row deliberately spans the modal instead of using its 25/75 rows, matching allocations.
     <div data-timeoff-date-row className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
       <DateField
         label={m.form_timeoff_start_label()}

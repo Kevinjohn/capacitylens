@@ -78,6 +78,7 @@ function buildTrustedOrigins(
       try {
         return new URL(value).origin;
       } catch (cause) {
+        // Reject a malformed trusted origin as configuration failure before authentication can serve requests.
         throw new AuthConfigError(`Trusted origin ${JSON.stringify(value)} must be an absolute URL.`, { cause });
       }
     }),
@@ -293,14 +294,8 @@ function buildCallbackErrorUrl(options: AdapterOptions, trustedOrigins: Readonly
 }
 
 function createAuthAdapter(options: AdapterOptions, dependencies: AdapterFactoryDependencies): Auth {
-  // Collapse the invariant generic to the structural Auth surface (see Auth), and normalize at
-  // this single narrowing boundary: Better Auth's full user carries the richer fields we
-  // drop here, so this is exactly where `emailVerified` is read and defaulted before everything
-  // downstream sees only the {id,email,emailVerified,name} SessionUser.
-  // Better Auth's async init context (reverified against better-auth 1.7.5,
-  // dist/auth/base.mjs:37 `$context: authContext`, dist/db/internal-adapter.mjs for deletion, and
-  // dist/context/create-context.mjs for `password.hash`). Read only through the narrow Auth
-  // methods below.
+  // Narrow Better Auth to the provider-neutral Auth surface and normalize verified-email fields here.
+  // Read the library context only through the adapter methods below.
   const raw = options.instance as RawAuth;
   const provider = options.configuredProviderInfo.find((candidate) => !candidate.experimental) ?? null;
   const trustedOrigins = buildTrustedOrigins(options, dependencies.AuthConfigError);

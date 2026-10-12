@@ -31,10 +31,7 @@ export const buildEmptyFilters = (): Filters => ({
   showUnmatched: false,
 });
 
-/** Drop the entity lenses (discipline / client / project / activity) while leaving the text search
- * and the tentative/unmatched view preferences exactly as the user set them. Used where new data
- * arrives under the same tenant and the old lens ids no longer resolve. */
-/** Clear entity lenses while preserving search and view preferences. */
+/** Clear entity lenses while preserving search and display preferences. */
 export const clearEntityLenses = (filters: Filters): Filters => ({
   ...filters,
   disciplineId: null,
@@ -44,16 +41,12 @@ export const clearEntityLenses = (filters: Filters): Filters => ({
   activityKind: null,
 });
 
-/** The project/client lens specifically, the pair that decides whether a bar "matches the filter"
- * (the activity lens is standalone and mutually exclusive with it via setFilters). */
-/** Check whether a project or client lens is active. */
+/** Check whether the project/client lens is active; the activity lens is mutually exclusive. */
 export function hasProjectClientLens(filters: Filters): boolean {
   return filters.projectId !== null || filters.clientId !== null;
 }
 
-/** Any "what work" lens is active, project/client or activity. This is the gate for the dimmed
- * show-unmatched staffing view, which behaves identically whichever of the two lenses is set. */
-/** Check whether any work lens is active. */
+/** Check whether a project/client or activity lens is active for the show-unmatched view. */
 export function hasLensFilter(filters: Filters): boolean {
   return hasProjectClientLens(filters) || filters.activityId !== null || filters.activityKind !== null;
 }

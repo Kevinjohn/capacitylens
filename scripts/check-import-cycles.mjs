@@ -1,4 +1,3 @@
-// Runtime cycles use syntax-aware edges; unresolved imports fail visibly.
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve, relative } from "node:path";
 import { fileURLToPath } from "node:url";

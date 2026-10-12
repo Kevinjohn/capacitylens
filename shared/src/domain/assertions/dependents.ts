@@ -60,24 +60,8 @@ interface AssertResourceExistsOptions {
   lookup?: ValidationDataLookup;
 }
 
-/**
- * A resource may only be external if it carries no disallowed dependents. The v0.8.1 rule
- * ("an external / 3rd-party resource has no capacity, so no loaded allocation and no time off")
- * is enforced at the allocation/time-off write boundary by assertAllocationRefs /
- * assertResourceExists, but a resource's `kind` can be flipped to external after it already owns
- * those dependents, which nothing re-validates: the scheduler then hides the now-external capacity
- * and time-off, recreating the invisible-orphan state v0.8.1 closed.
- *
- * The store and server are the integrity boundary, so we reject the flip rather than silently
- * zeroing hours / dropping time-off (surprising data loss as a side effect of a name/colour-style
- * edit). The owner must reassign or remove the work + time off first. Symmetric with
- * assertAllocationRefs / assertResourceExists, which reject the inverse write. Only fires on the
- * external case (a person/placeholder write is unaffected). `mergedKind` is the kind the resource
- * will have after the write (`patch.kind ?? existing.kind` in the store, the merged row's kind on
- * the server); when it's not external this is a pure no-op. Import keeps reconciling instead
- * (remapAndValidateImport coerces the load to 0 and drops the time-off). A bulk file is a
- * different contract from an interactive edit, so don't route it here.
- */
+// Converting a resource to external must not hide existing loaded allocations or time off.
+// Reject the interactive edit until dependents are reassigned; imports use their separate repair contract.
 function assertResourceKindAllowsDependentsWithOptions({
   data,
   accountId,
@@ -105,10 +89,8 @@ function assertResourceKindAllowsDependentsWithOptions({
   }
 }
 
-/**
- * Prevents a resource kind change from invalidating allocations or time-off records that
- * reference it.
- */
+/** Reject a conversion to external while loaded allocations or time off remain.
+ * @throws DomainError; the caller must leave the resource unchanged. */
 const assertResourceKindAllowsDependents = function assertResourceKindAllowsDependents(
   ...[data, accountId, resourceId, mergedKind, lookup]: [
     data: AppData,
@@ -129,15 +111,12 @@ const assertResourceKindAllowsDependents = function assertResourceKindAllowsDepe
 
 Object.defineProperty(assertResourceKindAllowsDependents, "length", { value: 5 });
 
-/**
- * A resource edit must not turn an allocation that is valid for the stored resource into one that
- * violates the placeholder project rule. This covers both rebinding an existing placeholder and
- * converting another resource kind into a placeholder after work has already been assigned.
- *
- * Only newly introduced invalidity is rejected. Legacy/corrupt assignments therefore do not make
- * an unrelated edit the repair boundary, while a project/kind edit that repairs them remains
- * available. Import retains its separate reconciling contract.
- */
+// A resource edit must not turn an allocation that is valid for the stored resource into one that
+// violates the placeholder project rule. This covers both rebinding an existing placeholder and
+// converting another resource kind into a placeholder after work has already been assigned.
+// Only newly introduced invalidity is rejected. Legacy/corrupt assignments therefore do not make
+// an unrelated edit the repair boundary, while a project/kind edit that repairs them remains
+// available. Import retains its separate reconciling contract.
 function assertResourceProjectAllowsDependentsWithOptions({
   data,
   accountId,
@@ -160,9 +139,8 @@ function assertResourceProjectAllowsDependentsWithOptions({
   });
 }
 
-/**
- * Keeps a resource within its project while allocations and time-off records depend on it.
- */
+/** Reject a resource project/kind edit that newly invalidates an existing allocation’s placeholder assignment.
+ * @throws DomainError; unrelated pre-existing invalidity is tolerated. */
 const assertResourceProjectAllowsDependents = function assertResourceProjectAllowsDependents(
   ...[data, accountId, resourceId, merged, existing, lookup]: [
     data: AppData,
@@ -185,12 +163,8 @@ const assertResourceProjectAllowsDependents = function assertResourceProjectAllo
 
 Object.defineProperty(assertResourceProjectAllowsDependents, "length", { value: 6 });
 
-/** The shared body of the two mirrored "did this edit retroactively invalidate an existing
- * allocation?" guards. `edit` says which end of the allocation is being written: that end is held
- * fixed at its before/after values while the other end is resolved per allocation, and
- * validateAllocationAssignment is always fed (resource, effective project id). Only newly introduced
- * invalidity is rejected, so a legacy/corrupt pair never makes an unrelated edit the repair
- * boundary. Each caller keeps its own early-return guard, the two sides deliberately differ. */
+// Compare the edited endpoint before and after against each allocation’s unchanged endpoint.
+// Reject only newly invalid assignments so unrelated edits do not become a repair boundary.
 function assertAllocationPairStaysValid({
   data,
   accountId,
@@ -231,16 +205,14 @@ function assertAllocationPairStaysValid({
         : withoutAllocationAttribution(allocation);
       after = validateAllocationAssignment(resource, effectiveProjectId(allocationAfter, edit.merged));
     }
-    // An absent `existing` (a create) counts as "was valid", exactly as each caller's own check did.
+    // With no existing endpoint, treat the prior assignment as valid so new invalidity is rejected.
     if ((before === undefined || before.ok) && !after.ok) throwDomainError(code, message);
   }
 }
 
-/**
- * The mirror of assertResourceProjectAllowsDependents for activity project edits: moving a project
- * activity (or turning project-less work into project work) must not retroactively invalidate a
- * placeholder allocation. Existing corrupt rows do not block unrelated activity edits.
- */
+// The mirror of assertResourceProjectAllowsDependents for activity project edits: moving a project
+// activity (or turning project-less work into project work) must not retroactively invalidate a
+// placeholder allocation. Existing corrupt rows do not block unrelated activity edits.
 function assertActivityProjectAllowsDependentsWithOptions({
   data,
   accountId,
@@ -263,9 +235,8 @@ function assertActivityProjectAllowsDependentsWithOptions({
   });
 }
 
-/**
- * Keeps an activity within its project while allocations and tasks depend on that relationship.
- */
+/** Reject an activity project/kind edit that newly invalidates an existing placeholder allocation.
+ * @throws DomainError; unrelated pre-existing invalidity is tolerated. */
 const assertActivityProjectAllowsDependents = function assertActivityProjectAllowsDependents(
   ...[data, accountId, activityId, merged, existing, lookup]: [
     data: AppData,
@@ -288,19 +259,17 @@ const assertActivityProjectAllowsDependents = function assertActivityProjectAllo
 
 Object.defineProperty(assertActivityProjectAllowsDependents, "length", { value: 6 });
 
-/** No allocation or time-off may persist an empty, malformed, or reversed range. */
+/** Reject absent, malformed, reversed or overlong scheduled ranges.
+ * @throws DomainError; callers must not persist the invalid range. */
 export function assertDateRange(startDate?: ISODate, endDate?: ISODate): void {
   assertValid(validateDateRange(startDate, endDate));
 }
 
-/**
- * Time off references a resource in the active account, exactly as an allocation does,
- * and that resource must be capacity-tracked. An external / 3rd party has no capacity, so
- * time off is meaningless for it (the scheduler hides external time-off entirely): the form
- * omits externals from the picker and rejects a crafted pick, so enforce the same rule here
- * so a direct store / API write can't persist an invisible orphan.
- *
- */
+// Time off references a resource in the active account, exactly as an allocation does,
+// and that resource must be capacity-tracked. An external / 3rd party has no capacity, so
+// time off is meaningless for it (the scheduler hides external time-off entirely): the form
+// omits externals from the picker and rejects a crafted pick, so enforce the same rule here
+// so a direct store / API write can't persist an invisible orphan.
 function assertResourceExistsWithOptions({
   data,
   accountId,
@@ -324,9 +293,8 @@ function assertResourceExistsWithOptions({
   }
 }
 
-/**
- * Prevents a dependent record from referencing a resource outside the active account.
- */
+/** Require a same-account, capacity-tracked resource for time off; a changed reference must also be active.
+ * @throws DomainError; callers must not persist the reference. */
 const assertResourceExists = function assertResourceExists(
   ...[data, accountId, resourceId, existing, lookup]: [
     data: AppData,

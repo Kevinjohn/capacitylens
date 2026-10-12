@@ -1,16 +1,6 @@
 import type { Db } from "../db";
-/**
- * Per-Db statement caches for the CRUD/read primitives below. Mirrors the WeakMap<Db,...> idiom
- * already used for per-handle state (auth.ts's verificationTablePresence/userTablePresence,
- * txn.ts's activeTransactionModes): a node:sqlite Statement is tied to the Db handle that prepared
- * it, so the cache key is the handle itself and an entry is collected with its handle, tests that
- * open many short-lived in-memory Dbs don't leak. Every cached SQL string is derived only from a
- * table's immutable TABLES spec (never live PRAGMA state), so compiling it once per (Db, table) and
- * reusing the prepared Statement across calls is behavior-preserving. Schema shape only ever
- * changes inside initializeOpenDb (migrations + their ALTERs), and that function drops the
- * handle's entire cache before it returns, a node:sqlite Statement freezes its column set at
- * prepare time, so nothing here is ever cached against a not-yet-final schema.
- */
+// Statements belong to their database handle and must be discarded after application migrations change column sets.
+// WeakMap ownership permits short-lived handles and their caches to be collected.
 type PreparedStatement = ReturnType<Db["prepare"]>;
 
 interface StatementCache {

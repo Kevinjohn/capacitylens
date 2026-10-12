@@ -92,6 +92,7 @@ const gitIgnoredPaths = readFileSync(new URL(".gitignore", import.meta.url), "ut
   .filter((line) => line && !line.startsWith("#") && !line.startsWith("!"))
   .map((line) => line.replace(/^\//, "").replace(/\/$/, "/**"));
 
+/** Defines repository lint policies with runtime and TypeScript boundaries scoped to their owning packages. */
 export default defineConfig([
   globalIgnores([
     ...gitIgnoredPaths,
@@ -100,10 +101,9 @@ export default defineConfig([
     "playwright-report",
     "test-results",
     "**/node_modules",
-    // Paraglide generates this message runtime from committed sources, so coverage excludes it.
+    // Paraglide generates this runtime from committed sources, so linting skips it.
     "src/paraglide",
-    // Stryker mutation output copies the repository during an on-demand run.
-    // linting them double-parses every file and confuses the typed parser's tsconfig-root lookup.
+    // Stryker copies the repository into generated sandboxes; linting those copies duplicates work and confuses project lookup.
     ".stryker-tmp",
     "reports",
     // Linters skip both documentation trees: docs/ is generated, and docs-src/ contains
@@ -177,9 +177,7 @@ export default defineConfig([
       },
     },
     rules: {
-      // The reviewer's concrete gap: the `void promise` discipline (persist.ts,
-      // main.tsx) was unenforced under plain `recommended`. These catch an
-      // un-awaited / un-voided promise instead of letting it float silently.
+      // Require promises to be awaited, handled or explicitly discarded, and reject promises used where synchronous values are expected.
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": "error",
       "@typescript-eslint/no-non-null-assertion": "error",
@@ -266,7 +264,7 @@ export default defineConfig([
     },
   },
 
-  // The reviewed no-unnecessary-type-assertion probe covered authored production code, not tests.
+  // Apply this rule to authored production code.
   {
     files: ["src/**/*.{ts,tsx}", "server/src/**/*.ts", "server/scripts/**/*.ts", "shared/src/**/*.{ts,tsx,mts,cts}"],
     ignores: ["**/*.{test,spec}.{ts,tsx,mts,cts}", "**/__tests__/**/*.{ts,tsx,mts,cts}"],

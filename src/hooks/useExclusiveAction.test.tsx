@@ -31,7 +31,7 @@ function registerExclusiveActionScenarios(): void {
 
     act(() => {
       gate.run(() => pending.promise, vi.fn());
-      // Same tick as the click: the ref is already closed while `busy` is still the pre-render value.
+
       expect(gate.locked()).toBe(true);
       expect(result.current.busy).toBe(false);
     });
@@ -49,7 +49,7 @@ function registerExclusiveActionConcurrencyScenarios(): void {
 
     act(() => {
       gate.run(() => pending.promise, vi.fn());
-      gate.run(second, vi.fn()); // the double-click, in the same tick
+      gate.run(second, vi.fn());
     });
     expect(second).not.toHaveBeenCalled();
 
@@ -58,7 +58,6 @@ function registerExclusiveActionConcurrencyScenarios(): void {
       await pending.promise;
     });
 
-    // Discarded, not queued: settling the first must not then run the suppressed one.
     expect(second).not.toHaveBeenCalled();
   });
 
@@ -95,7 +94,7 @@ function registerExclusiveActionErrorScenarios(): void {
     });
 
     expect(onError).toHaveBeenCalledWith(failure);
-    // A failure must not wedge the section permanently disabled.
+
     expect(result.current.busy).toBe(false);
     expect(result.current.locked()).toBe(false);
   });

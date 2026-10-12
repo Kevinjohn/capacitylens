@@ -30,15 +30,9 @@ export function buildGesturePreviewDates({
   sourceDays,
   isReassignment,
 }: BuildGesturePreviewDatesInput): GesturePreviewResult {
-  // Snap once per frame, against the lane the pointer is actually over, the drop-target gate
-  // below and the bar's own preview pixels then read the same range instead of each deriving it.
-  // A zero-column resize moves nothing, so it keeps the view-model's placement (dates: null).
-  // An empty memoised week ([]) is the collapsed "none" state: the commit below refuses the
-  // gesture, so the preview shows no movement rather than calendar-day math the save rejects.
+  // Resolve one preview range per frame so hit testing and painting use the same working-calendar snapshot. An empty week or no-op resize must not display a change that commit will refuse.
   if (previewDays?.length === 0 && !allocation.ignoreWeekends) return { kind: "blocked" };
-  // A zero-column gesture that is not also a reassignment commits nothing, so it must preview
-  // nothing: re-deriving the range here would renormalise a bar whose stored dates predate a change
-  // to its own resource's week, then snap it back on release.
+  // A no-op gesture must keep stored dates so changed working calendars do not produce a preview that snaps back on release.
   if (deltaDays === 0 && (mode !== "move" || !isReassignment)) return { kind: "unchanged" };
   return {
     kind: "ready",
@@ -66,12 +60,7 @@ export function buildGesturePreviewGeometry(
   let translateY = 0;
   if (preview) {
     if (preview.mode === "move") translateY = preview.deltaY;
-    // The snapped range is already on the preview (see onPreview), all that is left per frame is
-    // running it through the same ColumnGeometry the view-model placed bar.x / bar.width with, so
-    // the preview stays pixel-identical to the committed bar even across a narrowed weekend.
-    // Any gesture that carries a settled range draws it, zero-column reassignments included: a
-    // cross-row drop can change the range without moving a single column, and previewing the old
-    // pixels would show a width the release is about to contradict.
+    // Measure the settled preview range through the shared geometry, including zero-column reassignments whose destination calendar changes the span.
     if (preview.dates) {
       left = geometry.xForDateInGeom(preview.dates.startDate);
       width = geometry.widthForDates(preview.dates.startDate, preview.dates.endDate);

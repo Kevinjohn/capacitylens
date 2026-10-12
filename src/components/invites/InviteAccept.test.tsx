@@ -476,9 +476,7 @@ registerInviteAcceptTest(() =>
 
 registerInviteAcceptTest(() =>
   it("rejects a signup email containing disallowed characters", async () => {
-    // Regression: the inline check used to only compare UTF-16 .length against MAX_EMAIL_LENGTH
-    // and never screened for disallowed characters, so an emoji/zero-width address that stayed
-    // under the length cap slipped past client-side validation. isAccountEmail() rejects it.
+    // Email validation rejects disallowed characters even when the string remains below the length cap.
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
     const user = userEvent.setup();
     renderInvite({});

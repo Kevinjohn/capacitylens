@@ -35,7 +35,7 @@ export interface ExampleDataRouteDependencies {
   fail: (reply: FastifyReply, error: unknown) => FastifyReply;
 }
 
-/** The built-in Internal client is infrastructure every company has, so it does not count. */
+// The built-in Internal client exists in every company and must not count as user work.
 function holdsWork(slice: AppData): boolean {
   return (
     slice.resources.length > 0 ||
@@ -92,6 +92,7 @@ export function registerExampleDataRoutes(app: FastifyInstance, dependencies: Ex
       if (committed === undefined) return reply.code(403).send({ error: REPLY_ERRORS.forbidden });
       return reply.code(201).send({ added: countExampleRows(data) });
     } catch (error) {
+      // Report competing or non-empty example-data insertion as a conflict; other faults keep the normal redacted failure surface.
       if (error instanceof CompanyNotEmptyError) {
         return reply
           .code(409)

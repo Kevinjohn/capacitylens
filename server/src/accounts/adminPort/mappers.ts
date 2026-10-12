@@ -20,11 +20,8 @@ export function readMembership(db: Db, row: AccountMember): Membership {
 }
 
 /**
- * Bulk variant of `getSecurityRevision`, for listMemberships (only multi-row read here, every
- * other call site above stays on the single-row `membership()`/`getSecurityRevision` path). Chunks
- * the IN-list at 500 (mirrors betterAuthIdentityPort.ts's getPrincipalSummaries) so a large
- * workspace never builds one unbounded query. A principal with no stored revision row is absent
- * from the returned Map. Callers must apply the same `?? 0` default `getSecurityRevision` uses.
+ * Reads security revisions in bounded batches without mutating database rows.
+ * Principals without a revision row are absent from the returned map; callers must default them to zero.
  */
 export function readSecurityRevisionsByPrincipalId(db: Db, principalIds: readonly string[]): Map<string, number> {
   const revisions = new Map<string, number>();

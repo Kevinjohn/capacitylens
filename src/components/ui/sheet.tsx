@@ -23,14 +23,12 @@ function SheetClose({
   return <SheetPrimitive.Close data-slot="sheet-close" {...props} />;
 }
 
-/** Mounts sheet content outside its parent. */
 function SheetPortal({
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Portal>) {
   return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />;
 }
 
-/** Renders the backdrop behind sheet content. */
 function SheetOverlay({
   className,
   ...props

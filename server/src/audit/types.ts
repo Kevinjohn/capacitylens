@@ -8,9 +8,9 @@ import type { ScopedEntityKey } from "@capacitylens/shared/types/entities";
  * `Object.keys(...)` so a value can't leak into the audit trail (the primary privacy invariant).
  */
 export interface AuditRecord {
-  /** ISO-8601 instant the mutation committed (server runtime clock). */
+  /** ISO-8601 event timestamp assigned by the server; it is not a measured SQLite commit time. */
   ts: string;
-  /** The acting principal's id (DEMO_USER 'demo' in off mode; a real session id auth-on). */
+  /** The acting principal ID, or the demo principal in off mode. */
   userId: string;
   /** The tenant the mutation targeted. */
   accountId: string;
@@ -73,11 +73,9 @@ export interface AuditDeliveryMetadata {
 export type AuditEntry = (AuditRecord | AccountAuditEvent) & AuditDeliveryMetadata;
 
 /**
- * The audit write port. `append` is synchronous and must not throw: a broken audit sink can never
- * fail a request (the mutation already committed). It returns `true` on a successful write, `false`
- * on a write failure; on the first failure it sets `degraded` (a latch deep-health reads) and logs
- * one redacted, message-only line (never the record, that could carry the very ids we keep, and
- * keeps a broken sink from spamming the log).
+ * Provides synchronous audit delivery that reports failure without throwing into a committed request.
+ * A failed delivery returns false and latches degraded health so the outbox can retry.
+ * Implementations may log redacted diagnostics; they must never log raw record values.
  */
 export interface AuditSink {
   /** Write one line. Never throws; returns false on failure (and latches `degraded`). */

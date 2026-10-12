@@ -8,9 +8,6 @@ interface ComputeWindowTestInput {
   overscanPx?: number | undefined;
 }
 
-// The one-shot composition SchedulerGrid does not do (it memoises the layout across scroll
-// frames, so it holds the two calls apart). Production has no use for the pair, so it lives
-// here, where every case below wants a window straight from a heights array.
 const computeWindow = ({ heights, scrollTop, viewportHeight, overscanPx = 300 }: ComputeWindowTestInput) =>
   resolveVirtualWindow({ layout: buildLayout(heights), heights, scrollTop, viewportHeight, overscanPx });
 
@@ -35,7 +32,6 @@ describe("computeWindow", () => {
   });
 
   it("renders everything when the content fits the viewport", () => {
-    // The total measured width is 448 pixels.
     const heights = Array.from({ length: 8 }, () => 56);
     const w = computeWindow({ heights, scrollTop: 0, viewportHeight: 720 });
     expect(w).toEqual({ first: 0, last: 7 });
@@ -48,14 +44,13 @@ describe("computeWindow", () => {
   });
 
   it("windows a large list to the visible slice (+overscan) at 200 rows", () => {
-    // The total measured width is 10,000 pixels.
     const heights = Array.from({ length: 200 }, () => 50);
     const layout = buildLayout(heights);
     const w = resolveVirtualWindow({ layout, heights, scrollTop: 1000, viewportHeight: 500, overscanPx: 300 });
-    // Visible band [700, 1800): rows 14 (ends 750>700) … 35 (top 1750<1800).
+
     expect(w.first).toBe(14);
     expect(w.last).toBe(35);
-    // Fourteen rows at 50 pixels each determine the measured height.
+
     expect(layout.tops[w.first]).toBe(700);
     // The rendered slice plus the extent reserved either side always sums back to the full
     // scroll height (stable scrollbar), the property the grid's spacer divs rely on, sized
@@ -71,7 +66,7 @@ describe("computeWindow", () => {
       throw new Error("Expected the resolved virtual window bounds.");
     const below = layout.total - (lastTop + lastHeight);
     expect(above + renderedHeight + below).toBe(10000);
-    // Only a small slice is rendered, not all 200.
+
     expect(w.last - w.first + 1).toBeLessThan(40);
   });
   registerWindowBoundaryTests();
@@ -108,7 +103,7 @@ function registerWindowBoundaryTests() {
     const heights = [100, 40, 40, 40, 200, 40, 40, 40, 40, 40];
     const layout = buildLayout(heights);
     const w = resolveVirtualWindow({ layout, heights, scrollTop: 0, viewportHeight: 200, overscanPx: 0 });
-    // band [0,200): items 0(0-100),1(100-140),2(140-180),3(180-220) → last is 3
+
     expect(w.first).toBe(0);
     expect(w.last).toBe(3);
     const rendered = heights.slice(0, 4).reduce((a, b) => a + b, 0);
@@ -130,38 +125,28 @@ function registerWindowBoundaryTests() {
 }
 
 function registerFitAndOverflowGuardTests() {
-  // The "everything fits in view + overscan" fast path is independent of scrollTop, it answers
-  // "does the WHOLE list fit", not "what's visible from here". A huge scrollTop, fed through the
-  // (unmutated) windowing math below it, would legitimately trim rows off the front, proving the
-  // fast path is actually short-circuiting the windowing logic, not just producing the same answer.
+  // A list that fits within the viewport plus overscan renders in full regardless of scrollTop. Use an exaggerated offset to distinguish this shortcut from ordinary windowing.
   it("the fits-in-view fast path renders everything regardless of scrollTop (not a coincidence of scrollTop=0)", () => {
     const heights = Array.from({ length: 7 }, () => 20);
-    // viewportHeight + overscanPx = 150 >= 140 → fits, fast path, even at a huge scrollTop.
+
     expect(computeWindow({ heights, scrollTop: 200, viewportHeight: 50, overscanPx: 100 })).toEqual({
       first: 0,
       last: 6,
     });
   });
 
-  // Boundary of the fast-path guard: total === viewportHeight + overscanPx exactly must still take
-  // the "fits" branch (<=, not <). Below, a nonzero scrollTop proves it, if the guard were a
-  // strict '<', it would fall through to windowing and (correctly, using the real overscanPx) trim
-  // the first row.
+  // The full-list shortcut includes equality at the viewport-plus-overscan boundary. A nonzero offset distinguishes it from ordinary windowing.
   it("the fits-in-view guard includes the exact-fit boundary (<=), not just strictly-under", () => {
     const heights = [20, 20, 20, 20];
-    // viewportHeight(80) + overscanPx(0) === total(80) exactly.
+
     expect(computeWindow({ heights, scrollTop: 30, viewportHeight: 80, overscanPx: 0 })).toEqual({ first: 0, last: 3 });
   });
 
-  // The `first` scan's own bound (`first < n - 1`) must stop it at the last valid index, never
-  // walk off the end into out-of-range (undefined) heights/tops. A very large `top` (scrollTop far
-  // past the content) makes the height-check side of the loop condition stay true all the way to
-  // the last row, so only the explicit bound decides where it stops.
+  // Out-of-range scrolling still returns the last valid row, never an index beyond the heights array.
   it("the first-scan bound stops it AT the last index, never past it", () => {
     const heights = [10, 10, 10];
     const layout = buildLayout(heights);
-    // total 30, well past viewportHeight+overscanPx(10) so the fast path is skipped; a scrollTop of
-    // 1000 pushes `top` far beyond every row's bottom edge.
+
     const w = resolveVirtualWindow({ layout, heights, scrollTop: 1000, viewportHeight: 10, overscanPx: 0 });
     expect(w).toEqual({ first: 2, last: 2 });
     expect(layout.tops[w.first]).toBe(20);

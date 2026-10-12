@@ -5,10 +5,8 @@ describe("buildVisibleSpanInsets", () => {
   it("clamps a horizontal span to the scroll container's visible width", () => {
     const insets = buildVisibleSpanInsets("x", "var(--bar-left)", "var(--bar-width)");
 
-    // Leading: how far the viewport's left edge has passed the span's own left, never negative
-    // (a span starting inside the window is not pulled leftwards) and never past the span's end.
     expect(insets.leading).toBe("clamp(0px, calc(var(--sched-scroll-left, 0px) - var(--bar-left)), var(--bar-width))");
-    // Trailing: the mirror measured from the viewport's right edge.
+
     expect(insets.trailing).toBe(
       "clamp(0px, calc(var(--bar-left) + var(--bar-width) - var(--sched-scroll-left, 0px) - var(--sched-visible-width, 100000px)), var(--bar-width))",
     );

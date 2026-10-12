@@ -18,13 +18,7 @@ export function useAuthContextValue(
   refreshAuth: AuthContextValue["refreshAuth"],
   signOut: AuthContextValue["signOut"],
 ) {
-  // Memoise the context value the same way PermissionProvider.tsx does: AuthContext.Provider would
-  // otherwise get a fresh object literal every render, re-rendering every consumer (AppSidebar,
-  // SettingsView, the picker, ...) on any unrelated AuthProvider re-render (e.g. persistError
-  // toggling). The two AuthContext.Provider sites below (the pre-session invitation carve-out and
-  // the authenticated tree) share this one computation. Each branch's fields are picked from
-  // `status` (or hardcoded, matching exactly what that branch always rendered) here, above the
-  // early returns, so the hook itself is called unconditionally on every render (Rules of Hooks).
+  // Memoise the shared context value so unrelated auth-boundary renders do not notify every consumer.
   const contextAuthMode = authModeForStatus(status);
   const contextUser = status.kind === "pass" ? status.user : null;
   const contextProviders = status.kind === "pass" || status.kind === "login" ? status.providers : EMPTY_PROVIDERS;

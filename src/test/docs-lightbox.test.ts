@@ -7,21 +7,9 @@ import { join } from "node:path";
 // browser-only tsconfig.app.json. It is listed in both, like its siblings.
 import { cwd } from "node:process";
 
-// Docs screenshots open full size in a CSS-only lightbox (docs-src/.vitepress/lightbox.mts
-// emits the markup, theme/custom.css drives it with a checkbox toggle).
-//
-// The mechanism is fragile in one way that is invisible on inspection:
-// scripts/docs-standalone.mjs strips every <script> and .js file out of the shipped
-// docs/ bar one allowlisted inline handler, so anything else JavaScript-driven silently
-// stops working in the artifact people actually read. These assertions run against the
-// committed build and fail if someone swaps in a JS lightbox library, if the allowlist
-// grows, or if the plugin stops wrapping some images.
-//
-// What this does not check: that docs/ is up to date with docs-src/. Rebuilding and
-// diffing here would be far too slow for a unit test. That is why
-// .github/workflows/docs.yml rebuilds the site and fails on any diff against the
-// committed docs/. Without that step these assertions could pass against stale HTML
-// while the published pages shipped without the fix.
+// Inspect the committed standalone artifact because its script stripping can break
+// a JavaScript-driven lightbox that appears to work in development. CI separately
+// rebuilds documentation to ensure this inspected artifact matches its sources.
 
 const ROOT = join(cwd());
 const SITE = join(ROOT, "docs");
@@ -209,7 +197,6 @@ describe("docs image build hygiene", () => {
   });
 });
 
-// Characterize the retained script independently of the build-time markup plugin.
 const runtime = readFileSync(join(ROOT, "scripts/docs-lightbox.js"), "utf8");
 const publishedRuntimeMatch = readFileSync(join(SITE, "index.html"), "utf8").match(
   /<script\b[^>]*data-cl-keep[^>]*>([\s\S]*?)<\/script>/,

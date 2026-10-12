@@ -28,8 +28,7 @@ beforeEach(() => {
 
 const personDraft = makeResourceDraft({ name: "Person", role: "Dev", color: "#1" });
 
-/** The shared draft seeds isFavourite: false; the two favourite specs pin the absent flag, so they
- * add a resource carrying no flag at all. */
+// Omit the shared draft's false default to cover resources without the optional favourite flag.
 const unflaggedDraft = { ...personDraft };
 delete unflaggedDraft.isFavourite;
 
@@ -203,11 +202,11 @@ function registerStoreCrudEntity11(): void {
     const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
-    // Leaving kind='project' while removing the project is incoherent, rejected at the store boundary.
+
     expect(() => s().updateActivity(t.id, { projectId: undefined })).toThrow(
       /project-specific activity must be assigned/i,
     );
-    // And an internal/all-projects activity may not carry a project.
+
     expect(() => requireCreated(s().addActivity({ name: "X", kind: "internal", projectId: p.id }))).toThrow(
       /cannot belong to a project/i,
     );
@@ -248,7 +247,7 @@ function registerStoreCrudEntity13(): void {
     const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p1 = requireCreated(s().addProject({ name: "P1", clientId: c.id, color: "#2" }));
     const p2 = requireCreated(s().addProject({ name: "P2", clientId: c.id, color: "#3" }));
-    const ph1 = requireCreated(s().addPhase({ name: "Disco", projectId: p1.id })); // a phase of p1
+    const ph1 = requireCreated(s().addPhase({ name: "Disco", projectId: p1.id }));
     const t = requireCreated(
       s().addActivity({
         name: "T",
@@ -258,15 +257,10 @@ function registerStoreCrudEntity13(): void {
       }),
     );
 
-    // A phaseId-only patch (re-setting the same phase) must not be wrongly rejected: the
-    // merged row still carries projectId from the existing activity, so coherence holds.
     expect(() => s().updateActivity(t.id, { phaseId: ph1.id })).not.toThrow();
 
-    // A projectId-only patch that would leave a stale all-projects phaseId is rejected
-    // (merged row: projectId=p2 but phaseId=ph1-of-p1) instead of silently persisting an
-    // incoherent activity the server would later 400 on sync.
     expect(() => s().updateActivity(t.id, { projectId: p2.id })).toThrow(/phase/i);
-    expect(s().data.activities[0]?.projectId).toBe(p1.id); // unchanged: the bad patch didn't land
+    expect(s().data.activities[0]?.projectId).toBe(p1.id);
   });
 }
 
@@ -617,9 +611,9 @@ function registerDateRangeGuard2(): void {
         status: "confirmed",
       }),
     );
-    expect(a.hoursPerDay).toBe(24); // inflated value clamped on add
+    expect(a.hoursPerDay).toBe(24);
     s().updateAllocation(a.id, { hoursPerDay: 99 });
-    expect(s().data.allocations[0]?.hoursPerDay).toBe(24); // and on update (e.g. a drag-resize rescale)
+    expect(s().data.allocations[0]?.hoursPerDay).toBe(24);
   });
 }
 
@@ -638,7 +632,7 @@ function registerDateRangeGuard3(): void {
     );
     expect(() => s().updateAllocation(a.id, { status: "tentative" })).not.toThrow();
     expect(s().data.allocations[0]?.status).toBe("tentative");
-    // …but a patch that would reverse the range is rejected.
+
     expect(() => s().updateAllocation(a.id, { endDate: "2026-05-01" })).toThrow(
       /end date cannot be before the start date/i,
     );
@@ -680,7 +674,6 @@ function registerDateRangeGuard5(): void {
     );
     const r = requireCreated(s().addResource({ ...personDraft }));
     expect(() => s().updateResource(r.id, { workingDays: [] })).toThrow(/at least one working day/i);
-    // A patch that doesn't touch workingDays is unaffected.
     expect(() => s().updateResource(r.id, { name: "Renamed" })).not.toThrow();
   });
 }
@@ -745,7 +738,7 @@ function registerDateRangeGuard8(): void {
         s().data.resources.find((r) => r.id === over.id),
         "resource",
       ).workingHoursPerDay,
-    ).toBe(8); // junk → 8
+    ).toBe(8);
   });
 }
 
@@ -760,7 +753,7 @@ function registerDateRangeGuard9(): void {
     });
     s().selectAllocation("stale-allocation");
     s().toggleGroup("discipline:stale-discipline");
-    // A non-empty import replaces the slice (a zero-record import is refused, see below).
+
     const incoming = {
       ...emptyAppData(),
       clients: [
@@ -775,7 +768,6 @@ function registerDateRangeGuard9(): void {
       ],
     };
     s().importData(incoming);
-    // 'Keep' replaced by the imported client; import also guarantees one built-in Internal client.
     expect(
       s()
         .data.clients.filter((c) => !c.builtin)
@@ -795,7 +787,7 @@ function registerDateRangeGuard9(): void {
       showUnmatched: true,
     });
     s().undo();
-    expect(s().data.clients.map((c) => c.name)).toEqual(["Keep"]); // undo restores the pre-import slice
+    expect(s().data.clients.map((c) => c.name)).toEqual(["Keep"]);
   });
 }
 
@@ -804,7 +796,7 @@ function registerDateRangeGuard10(): void {
     s().addClient({ name: "Keep", color: "#111111" });
     const summary = s().importData(emptyAppData());
     expect(summary.imported).toBe(0);
-    expect(s().data.clients.map((c) => c.name)).toEqual(["Keep"]); // untouched
+    expect(s().data.clients.map((c) => c.name)).toEqual(["Keep"]);
   });
 }
 
@@ -821,13 +813,8 @@ describe("date-range + reference guards at the store boundary", () => {
   registerDateRangeGuard10();
 });
 
-// The store re-validates the effective merged row on every update*, exactly as the SQLite server's
-// validateWrite re-validates the full {...existing, ...patch} row on every write. A note/status/
-// date-only edit of a row whose resource is external with a non-zero load / any external time-off
-// (legacy pre-v0.8.1 data, or after a resource kind-flip) must therefore be rejected by the store too,
-// otherwise it succeeds locally and 400s on the server, diverging local and synced state. The
-// invalid states below can't be created through add* (they'd be rejected), so they're built directly
-// via replaceAll to mimic legacy/kind-flipped data already in the store.
+// Validate the complete row on every update so persisted invalid external allocations and time-off
+// cannot pass a partial edit locally and fail when synchronized with the server.
 const TS = "2026-05-01T00:00:00.000Z";
 
 const externalResource = (id: string): Resource =>
@@ -858,8 +845,7 @@ function registerMergedRow1(): void {
         status: "confirmed",
       }),
     );
-    // A note/date-only patch on a valid (non-external) allocation must not be rejected even though
-    // the merged-row check now runs unconditionally, assertAllocationRefs is pure & idempotent.
+
     expect(() => s().updateAllocation(a.id, { note: "ping" })).not.toThrow();
     expect(() => s().updateAllocation(a.id, { startDate: "2026-06-02" })).not.toThrow();
     expect(s().data.allocations[0]?.note).toBe("ping");
@@ -880,7 +866,7 @@ function registerMergedRow1(): void {
 }
 
 function registerMergedRow2(): void {
-  it("a note-only updateAllocation on an external resource carrying a non-zero load now THROWS (matches the server)", () => {
+  it("rejects a note-only updateAllocation on an external resource carrying allocated hours", () => {
     const ext = externalResource("ext-1");
     const alloc: Allocation = {
       id: "alloc-1",
@@ -891,8 +877,7 @@ function registerMergedRow2(): void {
       activityId: "act-1",
       startDate: "2026-06-01",
       endDate: "2026-06-03",
-      // Legacy / kind-flip data: an external resource with a non-zero load, invalid under the
-      // v0.8.1 capacity-free rule. The form/store could never CREATE this; it predates the rule.
+
       hoursPerDay: 8,
       status: "confirmed",
     };
@@ -913,16 +898,13 @@ function registerMergedRow2(): void {
     s().replaceAll(data);
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
 
-    // A note-only patch touches none of resourceId/activityId/hoursPerDay, yet the merged row still
-    // references an external resource with a non-zero load. The server 400s, so the store must too.
     expect(() => s().updateAllocation(alloc.id, { note: "just a note" })).toThrow(/external.*can.t carry hours/i);
-    // Atomic failure: the bad patch did not land (the producer threw before `set`).
     expect(requireValue(s().data.allocations[0], "allocation")).not.toHaveProperty("note");
   });
 }
 
 function registerMergedRow3(): void {
-  it("a date-only updateTimeOff on an external resource now THROWS (matches the server)", () => {
+  it("rejects a date-only updateTimeOff on an external resource", () => {
     const ext = externalResource("ext-2");
     const timeOff: TimeOff = {
       id: "to-1",
@@ -938,15 +920,9 @@ function registerMergedRow3(): void {
     s().replaceAll(data);
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
 
-    // A date-only patch doesn't touch resourceId, yet time-off on an external resource is meaningless
-    // (no capacity), the server rejects it on every write, so the store now matches.
     expect(() => s().updateTimeOff(timeOff.id, { startDate: "2026-06-11" })).toThrow(/external.*3rd-party/i);
-    expect(s().data.timeOff[0]?.startDate).toBe("2026-06-10"); // unchanged: atomic failure
+    expect(s().data.timeOff[0]?.startDate).toBe("2026-06-10");
   });
-
-  // The merged-row rule is a property of the shared update path (updateOwned), not of the three
-  // actions that happened to need it first, so it must hold for a table whose patch carries no
-  // ref/date field at all. A rename is the most harmless-looking patch there is.
 }
 
 function registerMergedRow4(): void {
@@ -974,7 +950,7 @@ function registerMergedRow4(): void {
           activityId: "act-3",
           startDate: "2026-06-01",
           endDate: "2026-06-03",
-          hoursPerDay: 8, // legacy: an external carrying capacity
+          hoursPerDay: 8,
           status: "confirmed",
         },
       ],
@@ -982,11 +958,10 @@ function registerMergedRow4(): void {
     s().replaceAll(data);
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
 
-    // The patch alone (a name) is unimpeachable; the merged row is what the server rejects.
     expect(() => s().updateResource(ext.id, { name: "Outsource Co Ltd" })).toThrow(
       /work and time off before making it external/i,
     );
-    expect(s().data.resources[0]?.name).toBe("Outsource Co"); // unchanged: atomic failure
+    expect(s().data.resources[0]?.name).toBe("Outsource Co");
   });
 }
 
@@ -997,15 +972,6 @@ describe("update* re-validates the merged row so the store + server agree", () =
   registerMergedRow4();
 });
 
-// Flipping a resource's kind to 'external' after it already owns loaded work / time-off would orphan
-// those dependents (the scheduler hides external capacity + time-off), recreating the invisible-orphan
-// state v0.8.1 closed at the allocation/time-off write boundary. updateResource must reject the flip
-// (reassign/remove first), throw-before-mutate, exactly as the server's validateWrite does.
-// Client and server use the shared snapToPresetColor mapper, so they agree on each repaired colour.
-// A non-preset colour snaps to its nearest preset. A rejected write must not apply a replacement
-// colour to an entity that was never persisted; the store surfaces the rejection instead.
-// #7cd9e4 is not a preset; its nearest preset is #7adae3 (distance 6, see shared/lib/color.test.ts,
-// which pins the same fixture against the full palette).
 const NON_PRESET = "#7cd9e4";
 const NEAREST_PRESET = "#7adae3";
 
@@ -1094,16 +1060,10 @@ function registerColourSnap3(): void {
     );
     expect(ext.color).toBe(NEUTRAL_COLOR);
   });
-
-  // Regression: snapColor used to short-circuit on isPresetColor (which only trims/lowercases for
-  // the membership CHECK) and return the caller's raw string, so a whitespace/uppercase preset like
-  // '  #E02727  ' persisted verbatim in client state while the server's identical mapper stores it
-  // normalized: a permanent, un-fixable client/server diff that also broke `===` swatch-picker
-  // comparisons. snapColor must always route through snapToPresetColor, whose palette branch already
-  // returns the normalized form (see shared/src/lib/color.ts).
 }
 
 function registerColourSnap4(): void {
+  // Canonical spelling keeps client equality checks aligned with server-normalized colors.
   it("a preset colour with stray whitespace/casing is stored normalized, not verbatim", () => {
     const RAW = "  #E02727  ";
     const NORMALIZED = "#e02727";
@@ -1111,9 +1071,7 @@ function registerColourSnap4(): void {
     expect(client.color).toBe(NORMALIZED);
     const stored = s().data.clients.find((c) => c.id === client.id)?.color;
     expect(stored).toBe(NORMALIZED);
-    // Strictly the same string reference-equal-by-value as the actual palette entry, not merely a
-    // lookalike '#e02727'. This is what makes a swatch-picker `===` comparison against
-    // PRESET_COLORS succeed.
+
     expect(PRESET_COLORS).toContain(stored);
   });
 }
@@ -1130,9 +1088,7 @@ function registerColourSnap6(): void {
   it("a REJECTED add (viewer no-op) does NOT snap the colour and does NOT persist — the rejection surfaces via notice, not a silent repair", () => {
     s().setActiveRole("viewer");
     const returned = s().addClient({ name: "Ferris", color: NON_PRESET });
-    // The store never persisted anything for a viewer. No client landed in state.
     expect(s().data.clients).toHaveLength(0);
-    // The rejection is surfaced (per DEFENSIVE-CODING.md's "surface, never swallow"), not swallowed.
     expect(s().notice).toMatchObject({ tone: "error" });
     expect(returned).toEqual({ kind: "blocked" });
   });
@@ -1144,7 +1100,6 @@ function registerColourSnap7(): void {
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET);
     s().setActiveRole("viewer");
     s().updateClient(client.id, { color: "#123456" });
-    // No-op: the previously-snapped colour is unchanged, not overwritten by any value.
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET);
     expect(s().notice).toMatchObject({ tone: "error" });
   });

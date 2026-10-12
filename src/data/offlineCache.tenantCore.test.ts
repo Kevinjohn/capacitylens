@@ -25,8 +25,7 @@ const DB_NAME = "capacitylens-offline-v1";
 const STORE_NAME = "records";
 const KEY_STORE_NAME = "keys";
 
-/** Simulate host APIs that may throw arbitrary JavaScript values. Generator.throw preserves the
- * exact supplied value without adding a ThrowStatement that production lint correctly rejects. */
+// Preserve arbitrary host-thrown values with Generator.throw while keeping production throw lint strict.
 function throwHostValue(value: unknown): never {
   const generator = (function* () {
     yield undefined;
@@ -40,8 +39,7 @@ function currentCacheNamespace(): string {
   return `${window.location.origin}|api:${window.location.origin}`;
 }
 
-/** Open the offline database the way the module under test does, creating both stores when the
- * scenario writes before any production code has. Every raw helper below shares it. */
+// Create both stores when fixtures write before production has opened the database.
 function openTestDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 2);

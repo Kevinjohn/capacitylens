@@ -1,9 +1,7 @@
 import { test, expect } from "./fixtures";
 import { waitForAppLanding, freezeBrowserDate, openApp, setTheme } from "./browserTestSupport";
 
-// Covers US-NAV-01, US-NAV-02, and US-NAV-06. Unit tests and manual scripts cover the loading
-// gate, persist-error banner, toast, and error boundary because these states are impractical to
-// trigger reliably in E2E.
+// Covers route navigation and theme switching. Database resilience specs exercise load failures and recovery.
 const deepDestinations = [
   ["/resources", "Resources"],
   ["/disciplines", "Disciplines"],
@@ -142,7 +140,6 @@ function registerPinsTeamAccessSettingsBelowTest() {
     expect(footerHrefs.slice(-2)).toEqual(["/help", "/account"]);
     await expect(page.getByTestId("nav-sign-out")).toHaveCount(0);
 
-    // Import and export are available from Settings.
     await expect(page.getByTestId("export-data")).toHaveCount(0);
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Import and export" })).toBeVisible();
@@ -155,7 +152,6 @@ function registerPinsTeamAccessSettingsBelowTest() {
 function registerSettingsTogglesColourThemeTest() {
   test("settings toggles the colour theme", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
-    // Light is the default preference.
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(page.getByRole("radio", { name: "Light" })).toHaveAttribute("aria-checked", "true");
 
@@ -173,7 +169,6 @@ function registerSettingsTogglesColourThemeTest() {
 function registerRouteSetsDescriptiveDistinctDocumentTest() {
   test("each route sets a descriptive, distinct document.title", async ({ page }) => {
     await openApp(page);
-    // The index route reads as the scheduler's nav label, not the bare brand.
     await expect(page).toHaveTitle("Schedule · CapacityLens");
 
     await page.getByRole("link", { name: "Resources", exact: true }).click();
@@ -188,7 +183,6 @@ function registerRouteSetsDescriptiveDistinctDocumentTest() {
     await page.getByRole("link", { name: "Help", exact: true }).click();
     await expect(page).toHaveTitle("Help · CapacityLens");
 
-    // Distinct from the static fallback and from each other (the bug was every route == "CapacityLens").
     await page.getByRole("link", { name: "Schedule", exact: true }).click();
     await expect(page).toHaveTitle("Schedule · CapacityLens");
     await expect(page).not.toHaveTitle("CapacityLens");
@@ -227,8 +221,7 @@ function registerUsesBlueIdentityGreenPositiveTest() {
 
 function registerRendersDarkModeTest() {
   test("renders in dark mode", async ({ page }) => {
-    // Dark is now an explicit preference, not OS-driven: seed the stored theme so
-    // the pre-paint script in index.html resolves the app to dark.
+    // Seed the explicit preference before first paint because light is the default.
     await setTheme(page, "dark");
     await openApp(page);
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -237,9 +230,7 @@ function registerRendersDarkModeTest() {
   });
 }
 
-// The sidebar collapse toggle's hover label is the shadcn Radix Tooltip (ui/tooltip.tsx),
-// not a native `title`. This runs cross-engine (e2e:browsers → Chromium/WebKit/Firefox) on
-// purpose: Radix Tooltip's hover behavior was the uncertainty that deferred this pass.
+// The sidebar rail uses a Radix tooltip; cross-browser coverage must exercise real hover behaviour.
 function registerCollapseToggleRevealsShadcnTooltipTest() {
   test("the collapse toggle reveals its shadcn Tooltip on hover", async ({ page }) => {
     await openApp(page);
@@ -247,10 +238,7 @@ function registerCollapseToggleRevealsShadcnTooltipTest() {
     // keeps that aria-label as its accessible name (the tooltip is supplementary).
     const toggle = page.getByRole("button", { name: "Collapse menu" });
     await expect(toggle).toBeVisible();
-    // Closed: Radix mounts the tooltip only while open, so there's no role=tooltip yet.
     await expect(page.getByRole("tooltip", { name: "Collapse menu" })).toHaveCount(0);
-    // Hover reveals it instantly (the provider uses delayDuration 0). This is the cross-engine
-    // behavior the pass was deferred over; the toggle's aria-label stays its accessible name.
     await toggle.hover();
     await expect(page.getByRole("tooltip", { name: "Collapse menu" })).toBeVisible();
   });

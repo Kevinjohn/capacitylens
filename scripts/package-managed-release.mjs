@@ -114,6 +114,7 @@ export async function resetGeneratedOutput(output) {
   try {
     await rename(output, retired);
   } catch (error) {
+    // Missing output starts a new artifact; other rename failures refuse replacement, and cleanup failures remain visible.
     await rmdir(holding).catch((cleanup) => console.warn(`Could not remove ${holding}:`, cleanup));
     if (error?.code !== "ENOENT") throw error;
     return createGeneratedOutput(output);
@@ -121,7 +122,9 @@ export async function resetGeneratedOutput(output) {
   try {
     await checkGeneratedOutput(retired);
   } catch (refusal) {
+    // Restore refused output before surfacing validation failure so unrecognised operator files are preserved.
     await rename(retired, output).catch((error) => {
+      // Name the retained artifact location if restoration fails so the operator can recover it.
       throw new Error(`Could not restore production/; it was left at ${retired}.`, { cause: error });
     });
     await rmdir(holding);
@@ -210,7 +213,10 @@ const operatorStatePatterns = [
   [/-audit\.jsonl/, "an audit log"],
 ];
 
-/** Refuse operator state and any symlink that resolves outside the release. */
+/**
+ * Refuse operator state and any symlink that resolves outside the release.
+ * @throws When the tree contains operator state or escaping symlinks, or filesystem inspection fails.
+ */
 export async function inspectArchiveTree(root) {
   const refusals = [];
   const visit = async (directory) => {
@@ -249,6 +255,8 @@ export async function sha256File(path) {
  * single capacitylens-<version>/ folder, plus a checksum file in `sha256sum -c` format. Members are
  * owned by root (0:0) so that `sudo tar -x` never hands the code to a local account that happens to
  * share the build machine's uid.
+ * Writes the generated archive and checksum files.
+ * @throws When validation, copying, archive commands or checksum I/O fail.
  */
 export async function packageReleaseArchive() {
   const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));

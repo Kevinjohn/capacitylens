@@ -4,10 +4,8 @@ import { waitForAppLanding } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-// Invite acceptance runs against the password-mode auth server on port 8887. A new user has no
-// membership, so POST /api/orgs returns 403 without the operator bootstrap path. The spec provisions
-// an org with BOOTSTRAP_TOKEN, creates an invite, and accepts it in the browser. After acceptance,
-// waitForAppLanding handles the session-scoped intro before the spec checks the joined company.
+// Invite acceptance uses the password server on this run’s auth API lane.
+// A new user has no membership, so fixture company creation uses the operator bootstrap token.
 const STAMP = Date.now();
 const OWNER = `owner-${STAMP}@capacitylens.dev`;
 const JOINER = `joiner-${STAMP}@capacitylens.dev`;
@@ -75,7 +73,6 @@ function registerSignedUserOpensValidInviteTest() {
     await expect(page.getByTestId("invite-preview")).toContainText("Editor");
     await accept.click();
 
-    // The explicit POST binds B as an editor and the success state renders.
     await expect(page.getByText(new RegExp(`You’ve joined Invite Studio ${STAMP} as Editor`))).toBeVisible();
 
     // The invite preview renders outside AppShell, so the account-summary hook has not run.

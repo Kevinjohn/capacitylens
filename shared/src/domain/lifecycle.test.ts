@@ -67,6 +67,7 @@ const expectLifecycleError = (
   let caught: unknown;
   try {
     operation();
+    // Capture the failure so the test can assert its typed lifecycle classification.
   } catch (error: unknown) {
     caught = error;
   }
@@ -204,7 +205,6 @@ describe("softDelete — archived → deleted (preserves archivedAt, immutable, 
     const input = makeArchived();
     const result = softDelete(input, NOW);
     expect(result.deletedAt).toBe(NOW);
-    // Tombstone retains when it was archived.
     expect(result.archivedAt).toBe(T_ARCH);
     expect(lifecycleStatus(result)).toBe("deleted");
     expect(result.id).toBe("r1");
@@ -372,10 +372,8 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     const input = makeResource();
     const snapshot = structuredClone(input);
     const result = obfuscateResource(input);
-    // Input deep-unchanged (name still 'Ada Lovelace').
     expect(input).toEqual(snapshot);
     expect(input.name).toBe("Ada Lovelace");
-    // Different object.
     expect(result).not.toBe(input);
   });
 
@@ -407,7 +405,6 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     const result = obfuscateResource(nameless);
     expect(result.name).toBeDefined();
     expect(result.name?.startsWith("Removed person #")).toBe(true);
-    // A real tag, not bare.
     expect(result.name).not.toBe("Removed person #");
   });
 
@@ -777,12 +774,10 @@ const registerActiveOnlyTest7 = (): void => {
     const input = makeActiveOnlyData();
     const snapshot = structuredClone(input);
     const out = activeOnly(input);
-    // Input deep-unchanged. Every archived/deleted row still present.
     expect(input).toEqual(snapshot);
     expect(input.resources).toHaveLength(3);
     expect(input.clients).toHaveLength(3);
     expect(input.projects).toHaveLength(4);
-    // A fresh AppData reference.
     expect(out).not.toBe(input);
   });
 };
@@ -790,7 +785,6 @@ const registerActiveOnlyTest7 = (): void => {
 const registerActiveOnlyTest8 = (): void => {
   it("an all-active dataset is preserved (every row kept, every table present)", () => {
     const input = makeActiveOnlyData();
-    // Strip the non-active rows so everything left is active.
     input.resources = input.resources.filter((r) => r.id === "r-active");
     input.clients = input.clients.filter((c) => c.id === "c-active");
     input.projects = input.projects.filter((p) => p.id === "p-active");

@@ -10,13 +10,7 @@ import { appWithAuth } from "./fixtures/appWithAuth";
 import { recordSessionAssurance } from "./accounts/state";
 import { seedTwo } from "./app.members.testSupport";
 
-// Owner/Admin member-management endpoints. Mirrors app.invites.test.ts: drives sign-up →
-// membership → the five new routes (GET/PATCH/DELETE members, GET/DELETE invites) plus the Owner
-// rejection on POST /api/invites. Asserts the gates (owner/admin allowed, editor/viewer/non-member 403,
-// session-less 401), the role-change matrix (Owner changes only through transfer), that the
-// exactly-one-Owner backstop refuses generic demotion/removal/duplication, that the
-// invites list never carries the token, cross-tenant revoke is a no-op, and, the headline, that an
-// admin of one account cannot read another account's members (cross-tenant member leak → 403).
+// Member administration must preserve tenant isolation, Owner protections, and invitation bearer secrecy.
 
 const TS = "2026-01-01T00:00:00.000Z";
 
@@ -315,10 +309,7 @@ function registerMemberGateIdentityTest(): void {
 
 function registerMemberGateResetCapabilityTest(): void {
   it("reports mayResetPassword per-row from the SERVER's full cross-account judgment", async () => {
-    // The client hides the reset control off this field, so it must equal what the reset route would
-    // decide: true for an ordinary same-account target and the caller\'s own row, false for a target
-    // whose global identity outranks the caller in another account (the cross-account takeover the
-    // reset route refuses). Proving the affordance can\'t drift open past the enforcement.
+    // The reset affordance must match identity-global authority so the UI never advertises a forbidden reset.
     const { app, db } = await appWithAuth();
     seedTwo(db);
     const owner = await signUp(app, "owner-mrp@capacitylens.dev");
@@ -329,7 +320,7 @@ function registerMemberGateResetCapabilityTest(): void {
       status: "active",
       createdAt: TS,
     });
-    // An ordinary editor, only in a1 → resettable.
+
     const ed = await signUp(app, "editor-mrp@capacitylens.dev");
     upsertMember(db, {
       accountId: "a1",
@@ -338,7 +329,7 @@ function registerMemberGateResetCapabilityTest(): void {
       status: "active",
       createdAt: TS,
     });
-    // A member who is a mere editor in a1 but the owner of a2 → the owner of a1 has no standing in a2.
+
     const crossOwner = await signUp(app, "cross-owner-mrp@capacitylens.dev");
     upsertMember(db, {
       accountId: "a1",
@@ -371,11 +362,11 @@ function registerMemberGateResetCapabilityTest(): void {
       if (!member) throw new Error(`Expected member row for ${id}.`);
       return member;
     };
-    // Same-account editor so resettable.
+
     expect(by(ed.userId).mayResetPassword).toBe(true);
-    // Caller's own row (self-reset exemption).
+    // Self-reset is exempt from comparing the caller’s authority against their own role.
     expect(by(owner.userId).mayResetPassword).toBe(true);
-    // Outranks caller in a2 so refused.
+
     expect(by(crossOwner.userId).mayResetPassword).toBe(false);
     expect(by(ed.userId).mayRevokeSessions).toBe(true);
     expect(by(owner.userId).mayRevokeSessions).toBe(true);
@@ -587,7 +578,7 @@ describe("POST /api/accounts/:id/members/:userId/revoke-sessions", () => {
 // re-auth dialog recovers by minting a dated session), never as fresh: the field is unverifiable,
 // and treating its absence as "fresh" would let it bypass the step-up gate entirely.
 
-/** Omit sessionCreatedAt to exercise the missing-timestamp branch; the real adapter always sets it. */
+// Omit the timestamp to prove a nonstandard adapter cannot grant unverifiable session freshness.
 function timestamplessAuth(userId: string): Auth {
   return {
     mail: null,
@@ -649,7 +640,7 @@ function createMissingTimestampRejectionTest(): void {
     const result = await revokeSessionsReq({ app, accountId: "a1", userId: "undated-target" });
     expect(result.statusCode).toBe(403);
     expect(parseErrorCode(result.json())).toBe("SESSION_NOT_FRESH");
-    // The membership itself is intact, only the freshness gate refused, not authorization.
+
     expect(getMemberRole(db, "a1", "undated-target")).toBe("editor");
   });
 }
@@ -759,7 +750,7 @@ function registerOwnerRoleGrantRejectionTest(): void {
       },
     });
     expect(res.statusCode).toBe(400);
-    // Unchanged.
+
     expect(getMemberRole(db, "a1", target.userId)).toBe("editor");
   });
 }
@@ -1089,7 +1080,7 @@ describe("GET /api/accounts/:id/invites — list omits the token", () => {
 
     const res = await invitesReq(app, "a1", { cookie: owner.cookie });
     expect(res.statusCode).toBe(200);
-    // Assert the raw body carries no token (not just the parsed objects).
+
     expect(res.body).not.toContain(token);
     const invites = (res.json() as { invites: Array<Record<string, unknown>> }).invites;
     expect(invites).toHaveLength(1);
@@ -1099,7 +1090,6 @@ describe("GET /api/accounts/:id/invites — list omits the token", () => {
     expect(invite.role).toBe("editor");
     expect(typeof invite.id).toBe("string");
 
-    // editor of the account is denied (below manageInvites tier).
     const ed = await signUp(app, "inv-list-ed@capacitylens.dev");
     upsertMember(db, {
       accountId: "a1",
@@ -1152,7 +1142,8 @@ describe("DELETE /api/accounts/:id/invites/:inviteId — revoke", () => {
       ).statusCode,
       // 204 but the row is not deleted (wrong accountId predicate).
     ).toBe(204);
-    // Still live.
+    // The wire projection of one request. Ids and instants only; display identity comes from the member directory,
+    // so workflow rows do not duplicate names or email addresses.
     expect(getInvite(db, token)).not.toBeNull();
 
     // The real owner revokes it (204) and it's gone; a second revoke is still 204 (idempotent).

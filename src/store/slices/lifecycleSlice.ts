@@ -26,19 +26,12 @@ export function createLifecycleSlice(
   return (_set, get) => {
     const { createGuardedAction, resolveOwnedRow, assertNotBuiltinClient, mutate, mutateIrreversible } = internals;
     return {
-      // Data-lifecycle actions (demo-build path). See the StoreState block above for the
-      // shared contract. Active → Archived → Soft-deleted → Purged is the only removal path for the
-      // tombstone-carrying tables (resources / clients / projects / activities); there is no immediate hard-delete
-      // action for them, a physical row removal happens only at the end of the lifecycle, in purgeEntity,
-      // which composes the shared delete*Cascade so the tombstone and its children go together (a
-      // resource's allocations/time-off; a client's projects/activities/allocations; a project's
-      // phases/activities/allocations). Single-sourced from shared/lib/integrity.ts so the purge cascade
-      // can't drift from the cascade the other tables' delete* actions use.
+      // Demo lifecycle actions share retained-tombstone transitions and cascade rules with
+      // the server. Physical removal occurs only after the purge grace period.
       archiveEntity: createGuardedAction((entity: LifecycleEntity, id: ID) => {
         if (!resolveOwnedRow(get().data, entity, id)) return;
         assertNotBuiltinClient(entity, id, "archived");
-        // archive() throws if the row isn't 'active' (defense-in-depth, the UI gates via canArchive
-        // first). Surface-not-swallow: let it throw, exactly like the builtin guards above.
+        // Let invalid lifecycle transitions surface; UI eligibility checks cannot replace the domain guard.
         mutate((data) => ({
           ...data,
           [entity]: data[entity].map((entity) => {
@@ -74,7 +67,7 @@ export function createLifecycleSlice(
           get().setNotice(m.notice_purge_grace_window({ days: PURGE_MIN_AGE_DAYS }), "error");
           return;
         }
-        // Hard purge: physically remove the row and cascade its children (see PURGE_CASCADES).
+
         mutateIrreversible((data) => PURGE_CASCADES[entity](data, id));
       }),
     };

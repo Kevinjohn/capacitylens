@@ -17,6 +17,7 @@ function expectFailureCode(operation: () => unknown, code: string): void {
   try {
     operation();
   } catch (error: unknown) {
+    // Capture the expected failure for assertions; the test must still fail if the operation unexpectedly succeeds.
     expect(error).toMatchObject({ failure: { code } });
     return;
   }
@@ -284,9 +285,7 @@ function registerSqliteAccountAdminPortTest18(): void {
   });
 }
 
-// Redeeming an invite is no longer a way back into a non-active membership at any role, because
-// it would let the suspended party reverse their own suspension with no `member.status_changed`
-// record. The invitee must gain neither the invitation's role nor its stale `owner` role.
+// Invalid legacy membership statuses must not regain access or acquire an invitation’s role.
 function registerSqliteAccountAdminPortTest19(): void {
   it("refuses an invite claim against a non-active membership, granting neither role", async () => {
     const db = openDb(":memory:");

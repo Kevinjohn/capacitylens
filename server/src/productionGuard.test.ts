@@ -57,15 +57,11 @@ function productionPosture(overrides: ProductionEnv) {
   return evaluateProductionPosture(environmentWith(FULLY_HARDENED_PRODUCTION_CONTROLS, overrides));
 }
 
-// Once NODE_ENV=production, the dev/open posture is retired, the entrypoint refuses to
-// boot when auth is off (unless deliberately opted in) and warns on the softer posture concerns.
-// Outside production it is a strict no-op so dev / e2e / self-host are untouched. These tests
-// prove both directions (it actually refuses, and a clean production config passes clean).
+// Production requires an explicit trusted-open opt-in or authenticated posture.
+// Outside production the posture guard is a no-op.
 
 describe("evaluateProductionPosture", () => {
   it("is a no-op outside production, even with the worst-looking env (dev/self-host untouched)", () => {
-    // CAPACITYLENS_MODE unset (off), open signup on, none of which may
-    // produce a refusal or a warning unless NODE_ENV is explicitly 'production'.
     const worst = {
       CAPACITYLENS_MODE: undefined,
       CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
@@ -81,10 +77,8 @@ describe("evaluateProductionPosture", () => {
     // An unset mode never reaches the guard in production: the entrypoint defaults it first.
     const result = productionPosture({ CAPACITYLENS_MODE: "off", CAPACITYLENS_AUDIT_STDOUT: undefined });
     expect(result.refusals).toHaveLength(1);
-    // The single refusal must name the auth env var / mode so the operator knows what to change.
     expect(result.refusals[0]).toMatch(/CAPACITYLENS_MODE/);
     expect(result.refusals[0]).toMatch(/auth is OFF/);
-    // The refusal does not suppress warnings.
     expect(result.warnings.length).toBeGreaterThan(0);
   });
 
@@ -103,7 +97,6 @@ describe("evaluateProductionPosture", () => {
       CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1",
     });
     expect(result.refusals).toEqual([]);
-    // The deliberate-open note must still surface (never silenced), naming the opt-in var.
     expect(result.warnings.some((w) => /CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION/.test(w) && /open\/demo/.test(w))).toBe(
       true,
     );
@@ -148,7 +141,6 @@ describe("production bootstrap and mandatory controls", () => {
           /CAPACITYLENS_CREATE_ADMIN_ADMIN/.test(w),
       ),
     ).toBe(true);
-    // And it stays a no-op outside production, like every other posture concern.
     expect(evaluateProductionPosture({ NODE_ENV: "test", CAPACITYLENS_CREATE_ADMIN_ADMIN: "1" }).warnings).toEqual([]);
   });
 
@@ -168,7 +160,6 @@ describe("production bootstrap and mandatory controls", () => {
           !w.includes("operator-chosen-pw"),
       ),
     ).toBe(true);
-    // No-op outside production, like every other posture concern.
     expect(
       evaluateProductionPosture({ NODE_ENV: "test", CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: "x" }).warnings,
     ).toEqual([]);
@@ -211,7 +202,6 @@ describe("production rate limits and optional hardening", () => {
   ])("refuses CAPACITYLENS_RATE_LIMIT that parseRateLimit rejects (%s)", (_why, value) => {
     const result = productionPosture({ CAPACITYLENS_MODE: "sso-only", CAPACITYLENS_RATE_LIMIT: value });
     expect(result.refusals).toHaveLength(1);
-    // The refusal states the accepted shape (digits only) and range so the operator can fix it.
     expect(result.refusals[0]).toMatch(/CAPACITYLENS_RATE_LIMIT/);
     expect(result.refusals[0]).toMatch(/1\.\.1,000,000/);
   });

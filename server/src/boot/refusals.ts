@@ -56,12 +56,8 @@ export function parsePort(raw: string | undefined): number {
   return n;
 }
 
-// Fail-soft numeric parse (mirrors parseBackupConfig's `positive`, not parsePort's refuseToStart):
-// this only bounds the audit log's on-disk size, not a security-relevant gate, so a missing/junk
-// value falls back to the documented 64 MiB default rather than refusing to boot.
-/**
- * Validates the audit size limit before startup uses it.
- */
+// Invalid audit-size input falls back to 64 MiB so an optional size preference cannot prevent startup.
+/** Parses the audit size limit, using the documented default for missing or invalid values. */
 export function parseAuditMaxMb(raw: string | undefined): number {
   const n = Number(raw);
   const maxMb = 1024 * 1024;

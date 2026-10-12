@@ -1,11 +1,4 @@
-// Colour-scheme preference. Device-global (one choice per browser), stored
-// separately from account data, see DECISIONS.md. The store holds the reactive
-// preference; these are the pure read/write/resolve/apply helpers it leans on.
-//
-// Model: the *preference* is light | dark | system; what we actually paint is a
-// concrete light | dark, written to <html data-theme> for the CSS to key off.
-// 'system' is resolved here (via matchMedia) rather than left to a CSS media
-// query, so the explicit choices and the OS-following choice share one mechanism.
+// The device theme preference resolves to a concrete light or dark scheme on the root attribute. Storage and runtime queries fall back to light so display failures cannot affect account data.
 import { STORAGE_KEY_PREFIX } from "@capacitylens/shared/brand";
 
 /** Theme selection stored for the current device. */
@@ -23,7 +16,7 @@ export function readStoredTheme(): ThemePreference {
   try {
     current = localStorage.getItem(STORAGE_KEY);
   } catch {
-    // storage blocked (private mode / quota), fall through to the default
+    // A blocked device-preference read may safely use the documented light default.
     return "light";
   }
   return isThemePreference(current) ? current : "light";
@@ -35,7 +28,7 @@ export function writeStoredTheme(preference: ThemePreference): void {
   try {
     localStorage.setItem(STORAGE_KEY, preference);
   } catch {
-    // ignore: see readStoredTheme
+    // A failed device-preference write loses only the persisted choice; this session keeps its in-memory theme.
   }
 }
 

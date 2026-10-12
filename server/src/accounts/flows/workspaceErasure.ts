@@ -136,6 +136,7 @@ async function executeWorkspaceErasure(
     identity.commitMasqueradeSessionEnds(erased.masqueradeHandles);
     return erased.receipt;
   } catch (error) {
+    // Record the erasure failure before surfacing it so the command remains recoverable instead of appearing pending forever.
     updateErasureFailure(dependencies, { erasure: input, scope, error });
     throw error;
   }

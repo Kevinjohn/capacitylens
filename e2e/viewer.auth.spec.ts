@@ -11,9 +11,7 @@ import { waitForAppLanding } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-// Viewer read-only behavior runs against the password-mode auth server on port 8887. Owner A creates
-// an org and seeds Viewer V plus Editor E. The viewer UI hides write controls, while the editor retains
-// them; a direct viewer write returns 403 from the server. Unique emails keep each run isolated.
+// The password server on this run’s auth API lane must enforce the same viewer restrictions as the UI.
 
 // Shared auth setup, including BOOTSTRAP_TOKEN, comes from authTestSupport.
 const STAMP = Date.now();
@@ -22,7 +20,6 @@ const VIEWER = `v-viewer-${STAMP}@capacitylens.dev`;
 const EDITOR = `v-editor-${STAMP}@capacitylens.dev`;
 const VIEWER_AVATAR_URL = "https://images.example/viewer-person.png";
 
-/** Sign in through the browser login wall and pick the company, then wait for the app shell. */
 async function signInAndOpen(page: import("@playwright/test").Page, email: string, org: string) {
   await page.goto("/");
   await page.getByRole("heading", { name: "Sign in" }).waitFor();
@@ -127,7 +124,6 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
   await page.getByRole("link", { name: "Team & access" }).click();
   const currentAccess = page.getByTestId("current-access");
   await expect(currentAccess).toContainText("Viewer");
-  // The capability list starts collapsed and can be expanded to read the Viewer permissions.
   await expect(currentAccess.getByText("View the schedule")).toHaveCount(0);
   await currentAccess.getByTestId("capabilities-toggle").click();
   await expect(currentAccess.getByText("View the schedule")).toBeVisible();
@@ -135,7 +131,6 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
   await expect(page.getByText(/An Owner or Admin manages invitations/)).toBeVisible();
   await expect(page.getByTestId("members-section")).toHaveCount(0);
 
-  // Clients list: no top "Add client" create affordance, and no row Edit/Delete buttons.
   await page.getByRole("link", { name: "Clients" }).click();
   await expect(page.getByRole("heading", { name: "Clients" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Add client" })).toHaveCount(0);
@@ -148,7 +143,6 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
   await expect(viewerResourceRow).toBeVisible();
   await expect(viewerResourceRow.getByRole("button", { name: "Edit Viewer-visible person" })).toHaveCount(0);
 
-  // Scheduler: the draw-mode toggle + Undo/Redo are hidden.
   await page.getByRole("link", { name: "Schedule" }).click();
   const viewerScheduleTrigger = page.getByRole("button", { name: "View Viewer-visible person's schedule" });
   await expect(viewerScheduleTrigger.locator("img")).toHaveAttribute("src", VIEWER_AVATAR_URL);
@@ -159,7 +153,6 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
   await expect(page.getByTestId("undo-button")).toHaveCount(0);
   await expect(page.getByTestId("redo-button")).toHaveCount(0);
 
-  // Drawing on this lane creates no allocation because the viewer lane does not call onDraw.
   await expect(page.getByTestId("allocation-bar")).toHaveCount(0);
   const lane = page.locator(`[data-testid="resource-lane"][data-resource-id="${resourceId}"]`);
   await expect(lane).toBeVisible();

@@ -122,6 +122,7 @@ async function listPrincipalSummaries(
     }
     return summaries;
   } catch (error) {
+    // Surface identity-store failures as dependency errors while preserving their cause for diagnostics.
     throw createProviderFailure("Identity summaries are temporarily unavailable.", error);
   }
 }

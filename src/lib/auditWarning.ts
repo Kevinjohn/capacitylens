@@ -12,17 +12,9 @@ export function announceAuditWarning(): void {
   }
 }
 
-/**
- * Announce the audit-degradation warning when a response carries {@link AUDIT_WARNING_HEADER}.
- * The one place the header name and its "true" spelling live, shared by apiFetch and the sync
- * adapter's dedicated routes (which bypass apiFetch and would otherwise drop the header silently).
- *
- * `defer` picks the dispatch timing, which is not cosmetic:
- *   - `true` (apiFetch's direct user actions) waits a macrotask so the action's own success notice
- *     has already run; otherwise that notice immediately overwrites the more important persistent
- *     audit warning in the single-notice store.
- *   - the default announces synchronously, as the background sync paths always have: they raise no
- *     competing success notice, and the caller usually throws or returns straight after.
+/** Announces a response audit warning. defer waits one macrotask so a direct action
+ * success notice cannot overwrite the persistent warning; background sync announces
+ * synchronously because it has no competing success notice.
  */
 export function noteAuditWarning(
   res: { headers?: { get?: (name: string) => string | null } },

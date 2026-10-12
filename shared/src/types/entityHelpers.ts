@@ -8,14 +8,13 @@ export function carriesHourlyLoad(mode: SchedulingMode): boolean {
   return mode !== "blocks";
 }
 
-/** Shared runtime guard for the same closed scoped-entity vocabulary enforced above. */
+/** Narrow a table name to the scoped-entity vocabulary in SCOPED_KEYS. */
 export function isScopedEntityKey(key: string): key is ScopedEntityKey {
   return (SCOPED_KEYS as readonly string[]).includes(key);
 }
 
-/** A uniform `ScopedEntity[]` view of AppData's scoped tables for operations that process every
- * scoped table. This named seam contains the cast TypeScript cannot infer through a
- * heterogeneous-union index. */
+/** View AppData’s scoped tables through their common ScopedEntity shape.
+ * Returns the same object and arrays; mutating the view also mutates data. Copy before changes that must preserve the input. */
 export function scopedTables(data: AppData): Record<ScopedEntityKey, ScopedEntity[]> {
   return data;
 }
@@ -37,10 +36,7 @@ export function clampWorkingHoursPerDay(hours: number): number {
   return Number.isFinite(hours) && hours > 0 ? Math.min(hours, MAX_HOURS_PER_DAY) : FULL_DAY_HOURS;
 }
 
-/** Outsourced / 3rd-party resources have no capacity (no hours, utilisation, or over-markers) and
- * render in their own neutral band. This is the single predicate every capacity surface gates on,
- * so a new capacity-free kind is a one-line change here, not N scattered `kind === 'external'`
- * checks across the scheduler / forms / import. */
+/** True for external resources, which are excluded from capacity and utilisation. */
 export function isExternalResource(resource: { kind: ResourceKind }): boolean {
   return resource.kind === "external";
 }
@@ -61,7 +57,7 @@ export function isPlaceholderResource(resource: { kind: ResourceKind }): boolean
   return resource.kind === "placeholder";
 }
 
-/** Fresh inert weekday arrays shared by resource kinds that do not persist a personal pattern. */
+// Return fresh weekday arrays so callers cannot mutate another resource’s defaults.
 function buildDefaultCapacityWorkingPattern(): Pick<Resource, "workingDays" | "halfDays"> {
   return {
     workingDays: [1, 2, 3, 4, 5],
@@ -109,10 +105,7 @@ export function emptyAppData(): AppData {
   };
 }
 
-/** True when every AppData table is an empty array, a genuinely empty dataset (a
- * first run or a fully-cleared store). The single definition shared by the client
- * bootstrap (src/data/persist.ts) and the server's init-marker backfill
- * (server/src/db.ts) so the two "is this empty?" checks can never drift. */
+/** True when every portable AppData table is empty. */
 export function isEmpty(data: AppData): boolean {
   return APP_DATA_KEYS.every((key) => data[key].length === 0);
 }

@@ -91,6 +91,7 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
         setStage(status.stage);
         if (status.deliveryUnavailable) setError(m.joining_mail_failed());
       } catch {
+        // Only the active join lookup may publish failure after an account or request change.
         if (request.active) {
           setError(m.joining_failed());
           setStage("error");
@@ -148,6 +149,7 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     try {
       await action();
     } catch (cause) {
+      // Surface the join operation failure so the caller can correct or retry it.
       setError(cause instanceof Error ? cause.message : fallback);
     } finally {
       setBusy(false);
@@ -211,6 +213,7 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
       }
       setVerificationSent(true);
     } catch {
+      // Show an email-request failure so the user is not told to wait for a message that was not confirmed.
       setError(m.joining_mail_failed());
     } finally {
       setBusy(false);

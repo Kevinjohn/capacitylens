@@ -35,10 +35,7 @@ export function readExternalSignInErrorCode(url: string): ExternalSignInErrorCod
   return null;
 }
 
-/** Map an application-owned failure code (or its absence) to the stable, non-sensitive message shown
- * to the user, the one mapping shared by AuthProvider's post-session failure host and LoginScreen's
- * pre-session initial error state. Calls m.login_sso_*() at call time, same as both former inline
- * copies, never cache the result across renders. */
+/** Maps application-owned provider error categories to a safe user message. Resolve the locale at call time and do not cache returned text. */
 export function resolveExternalSignInErrorMessage(code: ExternalSignInErrorCode | null): string {
   if (code === "account_link_conflict") return m.login_sso_account_link_conflict();
   return m.login_sso_failed();

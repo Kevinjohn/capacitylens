@@ -128,6 +128,7 @@ function createRemoveFederatedLink(context: FederatedLinksContext) {
       context.input.masqueradeSessions?.commit(handles === false ? [] : handles);
       return handles !== false;
     } catch (error) {
+      // Preserve recognized account failures and surface unexpected identity-store failures as dependency errors with their cause.
       if (error instanceof AccountContractError) throw error;
       throw createProviderFailure("Federated identity repair failed.", error);
     }
@@ -155,6 +156,7 @@ function createGetPrincipalByFederatedSubject(
       const row = rows[0];
       return row ? { id: row.id, displayName: row.name, email: row.email } : null;
     } catch (error) {
+      // Preserve recognized account failures and surface unexpected identity-store failures as dependency errors with their cause.
       if (error instanceof AccountContractError) throw error;
       throw createProviderFailure("Federated identity lookup is temporarily unavailable.", error);
     }
@@ -213,6 +215,7 @@ function createCorrectPrincipalEmail(context: FederatedLinksContext) {
       const handles = tx(context.input.db, () => correctPrincipalEmailInTx(context, input), "immediate");
       context.input.masqueradeSessions?.commit(handles);
     } catch (error) {
+      // Preserve recognized account failures and surface unexpected identity-store failures as dependency errors with their cause.
       if (error instanceof AccountContractError) throw error;
       if (isDuplicateCredentialEmailError(error)) throw identityAlreadyExistsError(error);
       throw createProviderFailure("Identity email correction failed.", error);

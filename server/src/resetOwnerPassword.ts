@@ -152,14 +152,9 @@ function recordRecovery({ db, context, target, token }: RecordRecoveryInput): Ow
 }
 
 /**
- * Operator recovery for the one credential state no in-product actor can repair: the sole active
- * Owner's lost password. `canAdministerIdentity` bars every non-Owner from administering an Owner,
- * and the single-active-Owner index guarantees there is no second Owner to help, so recovery is a
- * stopped-server CLI ceremony, not a product feature. The tool drives the ordinary Better Auth
- * reset ceremony (same token store, expiry, single-use consumption, password policy, session
- * revocation); it never writes a credential directly and never relaxes in-app policy.
- *
- * Ruling and full guard rationale: to-my-siblings/_sole-owner-recovery-playbook-2026-08-05.md.
+ * Recovers the sole active owner’s password through the ordinary reset ceremony while the server is stopped.
+ * When that owner cannot sign in, no other in-product principal can reset the identity.
+ * Recovery retains token expiry, single-use consumption, password policy, session revocation and durable audit without writing a credential directly.
  */
 export async function resetOwnerPassword(input: OwnerRecoveryInput): Promise<OwnerRecoveryResult> {
   // Resolve the account configuration exactly the way server startup does, so refusals name the
@@ -205,6 +200,7 @@ export function acquireExclusiveDatabaseLock(db: Db): void {
     db.exec("BEGIN EXCLUSIVE");
     db.exec("COMMIT");
   } catch (cause) {
+    // Surface exclusive-access failure with its cause because recovery cannot safely run beside another database user.
     throw new Error(
       "Another process holds this database — stop the CapacityLens server and retry. Recovery only " +
         "runs with exclusive database access.",

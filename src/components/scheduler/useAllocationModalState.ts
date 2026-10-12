@@ -55,8 +55,7 @@ function useAllocationModalContext(props: AllocationModalProps) {
   const data = useActiveScopedData();
   const actions = useAllocationStoreActions();
   const { mode, accountWorkingDays } = useSchedulingContext();
-  // Not listAccountWorkingDays: the modal's scoped data blanks `accounts`, so it subscribes to the
-  // account row itself and runs the selector's one repair seam directly.
+  // Read the active account row directly because the scoped entity projection omits accounts.
   const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
   const externalEnabled = useStore((state) => hasExternalResourcesEnabled(state.data, state.activeAccountId));
   const inlineActivityCreateEnabled = useStore((state) => canCreateInlineActivity(state.data, state.activeAccountId));
@@ -177,8 +176,7 @@ function buildModalState(
     deleteAllocation: context.deleteAllocation,
     deleteAllocationSeriesFrom: context.deleteAllocationSeriesFrom,
   });
-  // In create mode the assignee is already chosen (the user clicked the + next to
-  // their row), so we drop the Assignee select and name them in the title instead.
+
   const createName = resolveCreateName({
     isCreate: context.create !== undefined,
     resource: context.seed.initialResource,

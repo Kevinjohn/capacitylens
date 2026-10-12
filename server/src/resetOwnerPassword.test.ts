@@ -15,10 +15,7 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { resetOwnerPassword } from "./resetOwnerPassword";
 
-// Sole-Owner credential recovery (playbook _sole-owner-recovery-playbook-2026-08-05.md).
-// The tool under test is an operator CLI ceremony, so every fixture is a real on-disk database:
-// the interlock is actual SQLite locking, and the happy path proves the minted link round-trips
-// through the ordinary Better Auth reset page semantics (single-use, session revocation).
+// Sole-owner recovery uses an on-disk database to exercise the stopped-server lock and ordinary reset ceremony.
 
 const TS = "2026-01-01T00:00:00.000Z";
 const OWNER_EMAIL = "owner@capacitylens.dev";
@@ -51,7 +48,7 @@ function seedAccount(db: Db, id: string): void {
   insertAll(db, d as unknown as AppData);
 }
 
-/** A migrated password-mode instance whose server has already exited: the tool's precondition. */
+// Recovery requires a migrated password database with its server stopped.
 async function seededInstance(opts: { withAdmin?: boolean; ownerStatus?: string } = {}): Promise<{
   databasePath: string;
   ownerUserId: string;

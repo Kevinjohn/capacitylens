@@ -12,9 +12,7 @@ import { ensureFederatedIdentitySchema, assertFederatedIdentitySchemaCurrent } f
 import { ensureMicrosoftProofGate } from "./microsoftProofGate";
 import { ensureFederatedEmailProofGate } from "./federatedEmailProof";
 
-/** The subset of Better Auth's `$context` {@link createCredentialUserWith} needs. Better Auth still
- * owns password hashing; CapacityLens owns the explicit same-file transaction needed to include
- * the command-ledger correlation that the provider adapter cannot see. */
+// Better Auth owns hashing; the shared handle lets credential creation include its command correlation atomically.
 interface CredentialUserContext {
   password: { hash: (password: string) => Promise<string> };
 }
@@ -87,8 +85,7 @@ export async function runAuthMigrations(auth: Auth): Promise<void> {
   if (remaining.problems.length > 0) {
     throw new Error(`Better Auth schema migration did not converge; ${remaining.problems.join(" ")}`);
   }
-  // A fresh database reaches application v25 before Better Auth creates `account`; install the
-  // composite uniqueness backstop now that the provider-owned table is guaranteed to exist.
+  // Application migrations run before Better Auth creates account on a fresh database, so install its uniqueness backstop afterwards.
   const database: unknown = auth.options.database;
   if (database instanceof DatabaseSync) {
     ensureFederatedIdentitySchema(database);
@@ -147,7 +144,6 @@ function isMigrationTableList(value: unknown): value is Array<{ table: string }>
 // operator-supplied password only on an empty user table. Requiring the caller to retain the
 // credential outside this process avoids an irrecoverable secret if startup output fails.
 
-/** Stable identity for the optional bootstrap owner. Its password is supplied by the operator. */
 const BOOTSTRAP_ADMIN_NAME = "admin";
 /** Stable email address for the optional operator-created bootstrap owner. */
 export const BOOTSTRAP_ADMIN_EMAIL = "admin@admin.admin";
@@ -200,6 +196,7 @@ function createBootstrapClaim({
       claimToken,
     );
   } catch (error) {
+    // A competing first-owner claim must refuse bootstrap visibly; unrelated database errors remain unchanged.
     if (!isBootstrapClaimCollision({ error, isSqliteConstraintCollision })) throw error;
     throw new AuthConfigError(
       "--create-owner-admin-admin could not acquire the first-owner claim because setup is already in progress; retry startup after the active setup completes or its five-minute crash lease expires.",

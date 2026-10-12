@@ -15,22 +15,14 @@ import { Button } from "@/components/ui/button";
 import { useOwnershipTransfer } from "./useOwnershipTransfer";
 import type { OwnershipTransferController } from "./useOwnershipTransfer";
 
-/**
- * The three-step ownership transfer ceremony, for whichever side of it the viewer is on.
- *
- * The section renders nothing for anyone who is not a participant. That is not tidiness: a transfer in
- * progress, and who it names, is not ordinary member-management information, and the server returns
- * an empty projection to everyone else, so there is nothing to render even if this decided
- * otherwise. Every control's authority is re-checked by the server; hiding is never the mechanism.
- */
+// Ownership-transfer details are participant-scoped and remain server-authorized; the Owner entry point also allows starting a new ceremony.
 
 function memberLabel(members: readonly TeamMember[], userId: string): string {
   const member = members.find((candidate) => candidate.userId === userId);
   return member?.name ?? member?.email ?? userId;
 }
 
-/** One sentence for one terminal reason. Shared by the historic outcome and by the outcome a
- * command just committed, so the two can never explain the same reason differently. */
+// Both displayed transfer outcomes share the reason mapper so they explain identical terminal reasons consistently.
 function describeReason(reason: OwnershipTransferTerminalReason | null, state: OwnershipTransferState): string {
   switch (reason) {
     case "target_declined":
@@ -52,8 +44,6 @@ function describeReason(reason: OwnershipTransferTerminalReason | null, state: O
   }
 }
 
-/** The two things the dialog says about the last action: what it committed, and what went wrong.
- * Both are answers to the command the viewer just gave, so they live together. */
 function CeremonyAlerts({ controller }: { controller: OwnershipTransferController }) {
   const terminal = controller.lastTerminal;
   return (
@@ -81,9 +71,7 @@ interface NominatePanelProps {
   replacing: boolean;
 }
 
-/** The Owner's half: choose an Admin and propose. Only active Admins are offered, the ceremony
- * hands the company to someone who already administers it, so a lower tier would be an elevation
- * of two steps on one person's say-so, and the server refuses it regardless. */
+// Nominees must already be active Admins so transferring ownership does not also grant an unrelated administrative elevation.
 function NominatePanel({ controller, candidates, replacing }: NominatePanelProps) {
   const [selected, setSelected] = useState("");
   if (candidates.length === 0) {
@@ -117,8 +105,7 @@ function NominatePanel({ controller, candidates, replacing }: NominatePanelProps
   );
 }
 
-/** Who may be nominated: the company's active Admins, never the person a live request already
- * names. Offering the current nominee again would ask the server to replace a request with itself. */
+// Exclude the standing nominee so replacement cannot propose the same person again.
 function adminCandidates(members: readonly TeamMember[], excludeUserId?: string): readonly TeamMember[] {
   return members.filter(
     (member) => member.role === "admin" && member.status === "active" && member.userId !== excludeUserId,
@@ -128,7 +115,7 @@ function adminCandidates(members: readonly TeamMember[], excludeUserId?: string)
 interface ControlsProps {
   controller: OwnershipTransferController;
   request: OwnershipTransferView;
-  /** The nominee has accepted, so the ceremony is waiting on the Owner's second act. */
+
   awaitingOwner: boolean;
 }
 
@@ -148,9 +135,7 @@ interface StepButtonProps {
   variant?: "outline";
 }
 
-/** One ceremony step as a button. Every step sends the same command against the same request at the
- * revision the dialog read, so the only things that vary are which step, how it reads and whether it
- * is the primary action of the pair. */
+// Each step targets its request at the revision the dialog observed, so stale controls cannot overwrite a newer ceremony.
 function StepButton({ controller, request, step, label, variant }: StepButtonProps) {
   return (
     <Button
@@ -184,8 +169,6 @@ function OwnerControls({ controller, request, awaitingOwner }: ControlsProps) {
 }
 
 function NomineeControls({ controller, request, awaitingOwner }: ControlsProps) {
-  // Consent already given: the only thing left to offer is taking it back, which returns the
-  // nomination to the Owner rather than ending it.
   if (awaitingOwner) {
     return (
       <StepButton
@@ -255,8 +238,6 @@ interface CeremonyBodyProps {
   mayNominate: boolean;
 }
 
-/** What the dialog shows once it has something to say: the live ceremony, or the nomination control,
- * or the explanation of how the last one ended. */
 function CeremonyBody({ controller, principalId, mayNominate }: CeremonyBodyProps) {
   const live = controller.projection?.live ?? null;
   const outcome = controller.projection?.latestOutcome ?? null;
@@ -265,9 +246,7 @@ function CeremonyBody({ controller, principalId, mayNominate }: CeremonyBodyProp
   }
   return (
     <>
-      {/* Shown alongside the nominate control, never instead of it. The Owner is the one person who
-          can always start a transfer, so an either/or would hand them a fresh panel and no word of
-          the decline, expiry or invalidation that ended the last one while they were away. */}
+      {/* Keep the previous terminal outcome visible beside the Owner's new nomination controls so starting another request does not hide what ended the last one. */}
       <LastOutcome outcome={outcome} />
       {mayNominate && (
         <NominatePanel controller={controller} candidates={adminCandidates(controller.members)} replacing={false} />
@@ -276,8 +255,7 @@ function CeremonyBody({ controller, principalId, mayNominate }: CeremonyBodyProp
   );
 }
 
-/** How the last ceremony this viewer took part in ended, dated. The row is retained for a year, so
- * an undated sentence would read as news every time the team page is opened. */
+// Date retained terminal outcomes so reopening the page does not present old events as new.
 function LastOutcome({ outcome }: { outcome: OwnershipTransferView | null }) {
   if (outcome === null) return null;
   const said = describeReason(outcome.terminalReason, outcome.state);
@@ -291,21 +269,12 @@ function LastOutcome({ outcome }: { outcome: OwnershipTransferView | null }) {
   );
 }
 
-/** Only the current Owner may propose, and only when nothing is already live. The server enforces
- * this; hiding the control merely keeps the card honest about what it offers. */
 function mayNominate(controller: OwnershipTransferController, principalId: string | null): boolean {
   if (controller.projection?.live) return false;
   return controller.members.some((member) => member.userId === principalId && member.role === "owner");
 }
 
-/**
- * Has this section anything to tell this viewer?
- *
- * Nothing live, nothing to explain and no standing to start one: render nothing rather than an
- * empty section that invites a question it cannot answer. A failure is something to say, so it keeps
- * the entry point visible. A nominee whose read failed must not be shown the same blank page as a nominee
- * who has no request at all.
- */
+// A failed read must keep the entry point visible; absence of known transfer state is not proof that no action or outcome exists.
 type HasSomethingToSayOptions = { controller: OwnershipTransferController; nominatable: boolean };
 function hasSomethingToSay({ controller, nominatable }: HasSomethingToSayOptions): boolean {
   if (controller.loading) return false;

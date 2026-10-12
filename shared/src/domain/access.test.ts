@@ -22,9 +22,7 @@ import { canAdministerAccount } from "../account/policy";
 // The closed set of roles, hard-coded (not imported as a list) so the test is its own source of truth.
 const ROLES: readonly Role[] = ["owner", "admin", "editor", "viewer"];
 
-// The closed set of actions. The `satisfies` below ties this list to the `Action` union: a new
-// Action that isn't listed here is a compile error, so a new capability cannot silently escape the
-// exhaustive sweep.
+// Keep the action list independent from the implementation. `satisfies` rejects unknown actions; EXPECTED requires every Action key.
 const ACTIONS = [
   "read",
   "write",
@@ -39,17 +37,7 @@ const ACTIONS = [
   "actOnOwnershipTransfer",
 ] as const satisfies readonly Action[];
 
-// The full 4×11 expected matrix, written out explicitly from the Decisions table:
-//   read: any member (owner, admin, editor, viewer)
-//   write: editor and up (owner, admin, editor); not viewer
-//   manageInternalClient: admin and up (owner, admin)
-//   manageMembers: admin and up (owner, admin)
-//   manageInvites: admin and up (owner, admin)
-//   purge: admin and up (owner, admin)
-//   deleteAccount: owner only
-//   transferOwnership: owner only
-//   actOnOwnershipTransfer: admin and up (owner, admin): the nominated Admin must be able to
-//                            reach the ceremony to give or withdraw their own consent
+// Derive the expected permissions from the product contract rather than the implementation.
 const EXPECTED: Record<Role, Record<Action, boolean>> = {
   owner: {
     read: true,
@@ -112,12 +100,9 @@ function expectEditableRolePrecondition(actor: Role, target: Role, next: Role): 
 }
 
 describe("can(role, action) — the pure access matrix", () => {
-  // Completeness guard: the action list the sweep iterates must equal the `Action` union, so a new
-  // Action can't slip past the exhaustive check. (The `satisfies` on ACTIONS catches an extra/typo
-  // member at compile time; this asserts none was dropped, keep this count in step with `Action`.)
+  // Pin the action-list cardinality and reject duplicates; the EXPECTED record supplies compile-time Action coverage.
   it("iterates exactly the Action union (11 actions, no more, no fewer)", () => {
     expect(ACTIONS.length).toBe(11);
-    // No duplicates.
     expect(new Set(ACTIONS).size).toBe(ACTIONS.length);
   });
 
@@ -126,7 +111,7 @@ describe("can(role, action) — the pure access matrix", () => {
     expect(new Set(ROLES).size).toBe(ROLES.length);
   });
 
-  // The exhaustive sweep: all 4 roles × all 8 actions = 32 pairs, each against the hard-coded oracle.
+  // Check every listed role and action against the independent expected matrix.
   for (const role of ROLES) {
     for (const action of ACTIONS) {
       const expected = EXPECTED[role][action];
@@ -231,7 +216,6 @@ describe("canManageMemberRole(actor, target, next) — role-change matrix", () =
   // Oracle rules: actor must hold manageMembers (admin+); neither promoting to nor demoting from
   // Owner is an ordinary role edit. Both go through ownership transfer.
   const oracle = (actor: Role, target: Role, next: Role): boolean => {
-    // ManageMembers = admin tier.
     if (!(actor === "owner" || actor === "admin")) return false;
     if (next === "owner" || target === "owner") return false;
     return true;
@@ -399,8 +383,7 @@ describe("canResetMemberAcrossAccounts(actor, target) — global-identity reset 
   });
 });
 
-// The documented fail-closed contract at the untyped boundary: an unrecognised role or action makes
-// a rank `undefined`, and the guard must DENY (return false). It must never fall open to `true`.
+// Unknown roles and actions must return false at the untyped boundary so malformed input never grants authority.
 describe("can / isAtLeast — fail-closed on an unknown role/action (never falls open)", () => {
   it("an unknown role is denied EVERY action", () => {
     for (const action of ACTIONS) {

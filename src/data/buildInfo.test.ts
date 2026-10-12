@@ -61,9 +61,7 @@ describe("buildStamp", () => {
     const buildStamp = await freshBuildStamp();
     expect(buildStamp()).toBe("build a1b2c3d · server");
   });
-  // No separate "VITE_CAPACITYLENS_API configured" case: the label now flips on the demo flag only
-  // (isServerConfigured ignores API_BASE, empty same-origin vs explicit origin both read `· server`),
-  // so it would exercise the identical branch + assert the identical string as the default case above.
+  // API_BASE does not affect the mode suffix, so an explicit origin would duplicate the server branch.
 });
 
 describe("feedbackMailto", () => {

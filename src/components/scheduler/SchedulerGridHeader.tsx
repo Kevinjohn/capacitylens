@@ -26,11 +26,7 @@ export function SchedulerGridHeader({
 }: Props) {
   return (
     <>
-      {/* min-w-max: this is a flex item of the flex-col scroll container, so the
-            default align-items:stretch would clamp its width to the container's cross
-            size (the viewport), leaving the wide DateHeader to overflow and only the
-            first ~2 weeks painted. Sizing to content makes header + rows span the full
-            timeline and scroll together. Same reason on the rowgroup below. */}
+      {/* Content-width sizing keeps the header and rows spanning the full timeline; stretch sizing would clamp the flex item to the viewport and clip its paint. */}
       <div
         ref={headerRef}
         role="row"
@@ -54,8 +50,6 @@ export function SchedulerGridHeader({
                   span: visibleWeeksLabel,
                 })}
               >
-                {/* The headline % follows the visible range, so the label tracks the selected zoom
-                      span (1/2/4/6/8 weeks) rather than naming a fixed "next 2w". */}
                 {m.scheduler_total_util_label({ span: visibleSpanCompact })}
               </span>
               <span data-testid="overall-utilization" className="text-sm font-semibold">

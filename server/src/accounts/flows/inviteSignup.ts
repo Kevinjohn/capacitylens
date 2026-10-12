@@ -200,6 +200,7 @@ async function compensateFailedSignup(
       command,
     });
   } catch (compensationError) {
+    // Record unresolved compensation for operator reconciliation rather than report that provisional identity cleanup succeeded.
     recordCompensationFailure({
       execution,
       claimError,
@@ -308,6 +309,7 @@ async function acceptInviteWithPasswordSignup(
     try {
       return await executeSignup(execution, admission, state);
     } catch (claimError) {
+      // Choose recovery from the committed claim and provisional-identity state so failure never undoes a completed membership grant.
       if (state.claimCommitted) return recordCommittedClaimFailure(execution, claimError, state);
       if (!state.provisional) return recordPreProvisionFailure(execution, claimError);
       return compensateFailedSignup(execution, claimError, state.provisional);

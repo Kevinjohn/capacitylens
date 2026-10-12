@@ -71,11 +71,8 @@ export function createAllocationSlice(
                 ...merged,
                 ...(clampedPatch.hoursPerDay === undefined ? {} : { hoursPerDay: clampedPatch.hoursPerDay }),
               };
-              // The server re-runs assertAllocationRefs on the full merged row on every write, so a
-              // note/status/date-only edit of an allocation whose resource is now external with a
-              // non-zero load (legacy pre-v0.8.1 data, or after a resource kind-flip) would 400 there
-              // while succeeding here. Validating `effective` rejects exactly what the server rejects;
-              // a note-only patch on a valid (non-external) row still passes.
+              // Validate the merged row so unrelated edits cannot preserve invalid external-resource
+              // load that the server would reject.
               assertAllocation(
                 get().data,
                 existing.accountId,

@@ -114,6 +114,7 @@ describe("account member resource links", () => {
       try {
         action();
       } catch (error) {
+        // Retain the expected link failure unchanged so assertions verify its typed conflict code.
         return error;
       }
       throw new Error("Expected the link to be rejected.");

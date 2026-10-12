@@ -53,19 +53,14 @@ export type OwnershipTransferOutcomeView =
   | { kind: "applied"; request: OwnershipTransferView }
   | { kind: "terminal"; state: OwnershipTransferState; reason: OwnershipTransferTerminalReason | null };
 
-/** The committed-terminal half on its own. The card only ever holds one of these to explain, so
- * naming it saves every reader of that state re-proving which variant it is. */
+/** The committed-terminal variant of an ownership-transfer outcome. */
 export type OwnershipTransferTerminalView = Extract<OwnershipTransferOutcomeView, { kind: "terminal" }>;
 
-/** The reason vocabulary is closed and server-authored, so an unrecognised one is decoded as "no
- * reason" rather than rendered: the card explains outcomes it understands and stays silent
- * otherwise, instead of printing an identifier at the user. */
+// Ignore unknown terminal reasons so the card never renders an unexplained server identifier.
 function isOwnershipTransferTerminalReason(value: unknown): value is OwnershipTransferTerminalReason {
   return typeof value === "string" && (OWNERSHIP_TRANSFER_TERMINAL_REASONS as readonly string[]).includes(value);
 }
 
-/** The identity and lifecycle fields every request carries, checked together so the decoder below
- * stays one readable shape rather than a wall of guards. */
 function hasOwnershipTransferShape(
   value: Record<string, unknown>,
 ): value is Record<string, unknown> &
@@ -119,8 +114,7 @@ function parseOwnershipTransferOutcome(body: unknown): OwnershipTransferOutcomeV
   return request === null ? null : { kind: "applied", request };
 }
 
-/** A committed terminal outcome is the one non-ok response this client reads as a success. Its code
- * is what distinguishes it from an ordinary conflict, which stays a rejection. */
+// Accept only a coded committed terminal outcome as success; an ordinary conflict remains a rejection.
 async function readCeremonyResult(response: Response): Promise<TeamAccessResult<OwnershipTransferOutcomeView>> {
   if (response.status === 409) {
     const body: unknown = await response

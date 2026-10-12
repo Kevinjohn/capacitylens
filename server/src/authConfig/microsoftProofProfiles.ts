@@ -50,6 +50,7 @@ export function createMicrosoftProofProfiles(input: {
     try {
       await sendToken({ ...intent, oid });
     } catch (error) {
+      // Keep mailbox proof pending after unavailable mail delivery, then rethrow so the callback reports the failure.
       if (error instanceof MicrosoftProofError && error.code === "MAIL_DELIVERY_UNAVAILABLE") capture.pending = true;
       throw error;
     }
@@ -103,6 +104,7 @@ export function createMicrosoftProofProfiles(input: {
     try {
       await sendToken({ ...intent, oid });
     } catch (error) {
+      // Keep the new mailbox proof pending after unavailable delivery, then rethrow so the browser can retry.
       if (error instanceof MicrosoftProofError && error.code === "MAIL_DELIVERY_UNAVAILABLE") capture.pending = true;
       throw error;
     }

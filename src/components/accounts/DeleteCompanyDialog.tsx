@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { SCOPED_KEYS } from "@capacitylens/shared/types/entities";
 import type { AppData, ID } from "@capacitylens/shared/types/entities";
 
+// Validate a complete tenant slice before saving a backup; surface failures instead of saving a partial file.
 function useCompanyExport(account: { id: ID; name: string }) {
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportEmpty, setExportEmpty] = useState(false);
@@ -21,6 +22,7 @@ function useCompanyExport(account: { id: ID; name: string }) {
     try {
       return await fetchInactiveSlice(account.id);
     } catch (error) {
+      // Translate HTTP and structural backup failures into user-safe export messages while preserving their causes.
       if (error instanceof InactiveSliceHttpError) {
         throw new Error(error.serverMessage ?? m.dialog_delete_company_export_fetch_failed({ status: error.status }), {
           cause: error,
@@ -52,6 +54,7 @@ function useCompanyExport(account: { id: ID; name: string }) {
       setExportError(null);
       setExportEmpty(false);
     } catch (error) {
+      // A failed export must remain visible while leaving optional deletion available after the request settles.
       setExportEmpty(false);
       setExportError(resolveErrorMessage(error));
     } finally {
@@ -129,28 +132,8 @@ function DeleteCompanyMessages({
   );
 }
 
-// Friction for the one irreversible action in the app. Deleting a company cascade-
-// drops all of its data with no undo, so we (a) offer a one-click export of that
-// company's data first, and (b) require typing the exact name to arm the button.
-//
-// `account` is the minimal { id, name } the dialog needs, so the AccountPicker can pass an
-// AccountSummary, which carries no colour/config.
-//
-// "Export first" sources per mode (this is a last backup before a no-undo cascade delete, so it
-// must be complete):
-//   • server mode, the client store may hold nothing for this company (you can delete a company
-//     you never switched into), and even a loaded slice is active-only (readSlice hides
-//     archived/soft-deleted rows). So fetch the complete slice from the purge-gated admin read,
-//     `GET /api/state?accountId=…&includeInactive=1` (the complete per-tenant backup, the
-//     same endpoint ArchivedSection uses). A failed or structurally incomplete fetch throws into
-//     the inline error surface and no file is saved (DEFENSIVE-CODING §3: a failed backup never
-//     saves a partial file and surfaces loudly, but export stays optional; the user may already
-//     hold their own backup, so a failed export disarms nothing once it has settled).
-//   • demo build, the local blob is the whole dataset (archived rows included), so
-//     scopeData(data, id) is already complete; no fetch.
-// Either way, an export that would contain zero scoped records is refused with a loud inline
-// warning instead of silently saving an empty file the user would mistake for a real backup.
-/** Confirms company deletion with the required ownership and backup checks. */
+// Company deletion cannot be undone, so it requires exact-name confirmation and offers a complete backup. Server backups fetch the full tenant including inactive rows; the demo scopes the local dataset. Export remains optional, but failures must never save a partial or empty file.
+/** Confirms company deletion after exact-name entry and offers a complete backup. The caller and server own the ownership check. */
 export function DeleteCompanyDialog({
   account,
   busy = false,
@@ -158,10 +141,7 @@ export function DeleteCompanyDialog({
   onCancel,
 }: {
   account: { id: ID; name: string };
-  /** True while the caller's delete round-trip is in flight: disarms the confirm button so a
-   * double-click can't fire an overlapping DELETE that may still be in progress and raise a
-   * spurious retry error after a successful delete. Optional so the demo build's synchronous
-   * delete path needn't thread it. */
+  /** Disables confirmation while the deletion request is in flight so a second click cannot send an overlapping command. */
   busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
@@ -173,15 +153,6 @@ export function DeleteCompanyDialog({
   // a screen reader then announces why Delete is unavailable, not just that it's disabled.
   const hintId = useId();
 
-  // Server mode: fetch the complete per-tenant slice (archived + soft-deleted retained) via the
-  // shared, body-validating fetchInactiveSlice, see the header comment and that helper's TSDoc
-  // (it enforces the structural gate before migrate(), shared with ArchivedSection so the two
-  // readers of this endpoint can't drift on trust). Any failure, a non-OK response (including a
-  // 403 for a non-admin) or a structurally incomplete body, is re-thrown here with this dialog's
-  // user-facing sentence so the export visibly fails inline and can never save a partial/empty
-  // backup.
-  // Export just this company's slice (same shape as the in-app export, which import
-  // re-stamps into whichever account is active).
   return (
     <Modal
       title={m.dialog_delete_company_title()}

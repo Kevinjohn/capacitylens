@@ -20,6 +20,7 @@ export function hasDismissedProductOrientation(subjectId: string, accountId: str
   try {
     return localStorage.getItem(buildProductOrientationKey(subjectId, accountId)) === "dismissed";
   } catch {
+    // Unreadable optional orientation storage defaults to showing guidance; no tenant data is lost.
     return false;
   }
 }
@@ -30,6 +31,7 @@ export function dismissProductOrientation(subjectId: string, accountId: string):
     localStorage.setItem(buildProductOrientationKey(subjectId, accountId), "dismissed");
     return true;
   } catch {
+    // Return a failed dismissal result when optional storage is unavailable so the caller can report that the preference did not persist.
     return false;
   }
 }

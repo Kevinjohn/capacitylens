@@ -55,7 +55,7 @@ describe("visibleWindowFor", () => {
       start: "2026-06-10",
       end: "2026-06-16",
     });
-    // A focus date outside the timeline falls back to its first day rather than reading past it.
+
     expect(resolveVisibleWindow({ days, leftEdgeIndex: -1, zoom: 1, focusDate: "2025-01-01" })).toEqual({
       start: "2026-06-01",
       end: "2026-06-07",
