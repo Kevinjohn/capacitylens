@@ -104,7 +104,7 @@ for (const file of files.filter((f) => f.endsWith(".html"))) {
   // file:// access. Repeat until stable so a removal cannot splice a new tag from its neighbours.
   for (let previous; previous !== html;) {
     previous = html;
-    html = html.replace(/<script\b([^>]*)>[\s\S]*?<\/script\s*>/gi, (tag, attrs) =>
+    html = html.replace(/<script\b([^>]*)>[\s\S]*?<\/script\b[^>]*>/gi, (tag, attrs) =>
       attrs.includes("data-cl-keep") ? tag : "",
     );
   }
