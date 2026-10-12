@@ -1,0 +1,1 @@
+import{a as e}from"./brand-dfccjAK1.js";var t=()=>`Internal`,n=((n={},r={})=>(r.locale??e(),t(n))),r=()=>`Project-specific`,i=((t={},n={})=>(n.locale??e(),r(t))),a=()=>`All projects`,o=((t={},n={})=>(n.locale??e(),a(t)));export{i as n,n as r,o as t};

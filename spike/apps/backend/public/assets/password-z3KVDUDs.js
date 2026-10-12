@@ -1,0 +1,1 @@
+function e(e){return Array.from(e).length}function t(t){let n=e(t);return n<15?`too-short`:n>128?`too-long`:null}export{t};

@@ -1,0 +1,1 @@
+import{a as e}from"./brand-dfccjAK1.js";var t=()=>`The verification request could not be completed. Try again shortly or restart sign-in in this browser.`,n=((n={},r={})=>(r.locale??e(),t(n)));export{n as t};

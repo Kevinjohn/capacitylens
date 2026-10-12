@@ -1,0 +1,1 @@
+import{d as e,g as t}from"./brand-dfccjAK1.js";var n=t(e(),1);function r(){let[e,t]=(0,n.useState)(!1),[r,i]=(0,n.useState)(null),[a,o]=(0,n.useState)(null);return{creating:e,setCreating:t,editing:r,setEditing:i,confirming:a,setConfirming:o}}export{r as t};

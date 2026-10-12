@@ -1,0 +1,1 @@
+import{a as e}from"./brand-dfccjAK1.js";var t=()=>`Password is too long for sign-in.`,n=((n={},r={})=>(r.locale??e(),t(n)));export{n as t};

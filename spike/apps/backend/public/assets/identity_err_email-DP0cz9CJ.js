@@ -1,0 +1,1 @@
+import{a as e}from"./brand-dfccjAK1.js";var t=()=>`Enter a valid email address.`,n=((n={},r={})=>(r.locale??e(),t(n)));export{n as t};

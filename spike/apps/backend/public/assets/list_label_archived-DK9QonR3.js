@@ -1,0 +1,1 @@
+import{a as e}from"./brand-dfccjAK1.js";var t=()=>`(current, archived)`,n=((n={},r={})=>(r.locale??e(),t(n))),r=e=>`${e?.name} (archived)`,i=((t,n={})=>(n.locale??e(),r(t)));export{n,i as t};

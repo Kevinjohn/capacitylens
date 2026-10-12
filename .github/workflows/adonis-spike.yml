@@ -1,0 +1,44 @@
+name: AdonisJS native packaging spike
+on:
+  push:
+    branches: [feature/adonis-spike]
+permissions:
+  contents: read
+jobs:
+  native-package:
+    name: Native package (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            platform: linux
+            arch: x64
+          - runner: macos-15
+            platform: darwin
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: spike/.nvmrc
+      - name: Confirm supported host
+        env:
+          EXPECTED_PLATFORM: ${{ matrix.platform }}
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: node --input-type=module -e "import assert from 'node:assert/strict'; assert.equal(process.platform, process.env.EXPECTED_PLATFORM); assert.equal(process.arch, process.env.EXPECTED_ARCH); assert.equal(process.versions.node.split('.')[0], '24'); console.log(process.version, process.platform, process.arch)"
+      - name: Install frozen spike dependencies
+        working-directory: spike
+        run: |
+          node --version
+          pnpm install --frozen-lockfile
+      - name: Build, deploy and probe the native package
+        working-directory: spike
+        run: |
+          node --version
+          node native-probe.mjs . "$RUNNER_TEMP/native-package"

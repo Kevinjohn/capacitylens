@@ -1,0 +1,1 @@
+function e(e,t,n){let r=e.find(e=>e.id===t);return!r||r.updatedAt!==n}export{e as t};

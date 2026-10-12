@@ -1,0 +1,1 @@
+import{rt as e}from"./useStore-ObRxSRUm.js";function t(e,t=new Date){let n=new Date(e),r=t.getFullYear();return new Intl.DateTimeFormat(void 0,{day:`numeric`,month:`short`,...n.getFullYear()===r?{}:{year:`numeric`},hour:`2-digit`,minute:`2-digit`}).format(n)}function n(t){return e(t)}export{n,t};

@@ -1,0 +1,1 @@
+import{t as e}from"./useStore-ObRxSRUm.js";import{R as t,Xt as n}from"./index-CIAxWgs9.js";async function r(r){return e.getState().invalidateMemberships(),await n({allowCachedFallback:!1,preserveActiveAccountIfMissing:!0})!==null&&(await t(r)).kind===`reloaded`}export{r as t};

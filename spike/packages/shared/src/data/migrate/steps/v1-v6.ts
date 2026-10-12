@@ -1,0 +1,126 @@
+import { availableInternalClientId, buildInternalClient } from "../../internalClient.js";
+import { isRecord } from "../../../lib/isRecord.js";
+
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+/** v1 → v2: early resources carried a boolean `isFreelancer`; convert it to the
+ * richer `employmentType` enum. */
+export function migrateV1toV2(data: Record<string, unknown>): Record<string, unknown> {
+  if (!isUnknownArray(data.resources)) return data;
+  const resources = data.resources.map((resource) => {
+    if (!isRecord(resource)) return resource;
+    if ("isFreelancer" in resource && resource.employmentType === undefined) {
+      const migratedResource: Record<string, unknown> = {
+        ...resource,
+        employmentType: resource.isFreelancer ? "freelancer" : "permanent",
+      };
+      delete migratedResource.isFreelancer;
+      return migratedResource;
+    }
+    return resource;
+  });
+  return { ...data, resources };
+}
+
+/** v3 → v4: activities gained a required `kind` discriminant (project | internal | repeatable).
+ * Backfill it from the only signal a pre-v4 row carried: a project-bound one is 'project';
+ * a project-less ("general") one becomes 'repeatable', the rename of "general". 'internal'
+ * is a genuinely new bucket, set explicitly via the UI afterwards, never inferred here.
+ * Versionless/partially migrated blobs may already use `activities`, or even carry both keys, so
+ * backfill every present table before the v4→v5 merge. */
+export function migrateV3toV4(data: Record<string, unknown>): Record<string, unknown> {
+  const applyKindBackfill = (rows: unknown[]): unknown[] =>
+    rows.map((activity) => {
+      if (!isRecord(activity)) return activity;
+      // Preserve an existing discriminator from v4 data or a manually set value.
+      if (activity.kind !== undefined) return activity;
+      return {
+        ...activity,
+        kind: activity.projectId !== undefined && activity.projectId !== null ? "project" : "repeatable",
+      };
+    });
+  const tasks = isUnknownArray(data.tasks) ? applyKindBackfill(data.tasks) : undefined;
+  const activities = isUnknownArray(data.activities) ? applyKindBackfill(data.activities) : undefined;
+  if (!tasks && !activities) return data;
+  return {
+    ...data,
+    ...(tasks ? { tasks } : {}),
+    ...(activities ? { activities } : {}),
+  };
+}
+
+/** v4 → v5: the domain concept "Task" was renamed "Activity". Rename the `tasks` table to
+ * `activities`, and every allocation's `taskId` foreign key to `activityId`. Pure key
+ * renames. No field values change (the `kind` strings 'project'|'internal'|'repeatable'
+ * are unaffected). Idempotent: a blob already on the new shape (no `tasks` key) passes
+ * through untouched. An in-progress blob carrying both keys keeps every distinct row while
+ * preferring the modern activity when the same valid id appears in both tables. */
+export function migrateV4toV5(data: Record<string, unknown>): Record<string, unknown> {
+  const migratedData: Record<string, unknown> = { ...data };
+  // Rename/merge the table: `tasks` → `activities`. Modern rows come first and own id
+  // conflicts; malformed/missing ids are retained for the import sanitiser to repair later.
+  if (isUnknownArray(migratedData.tasks)) {
+    if (!isUnknownArray(migratedData.activities)) {
+      migratedData.activities = migratedData.tasks;
+    } else {
+      const modernIds = new Set(
+        migratedData.activities.flatMap((activity) => {
+          if (!isRecord(activity)) return [];
+          const id = activity.id;
+          return typeof id === "string" && id.length > 0 ? [id] : [];
+        }),
+      );
+      const legacyOnly = migratedData.tasks.filter((task) => {
+        if (!isRecord(task)) return true;
+        const id = task.id;
+        return typeof id !== "string" || id.length === 0 || !modernIds.has(id);
+      });
+      migratedData.activities = [...migratedData.activities, ...legacyOnly];
+    }
+  }
+  delete migratedData.tasks;
+  if (isUnknownArray(migratedData.allocations)) {
+    migratedData.allocations = migratedData.allocations.map((allocation) => {
+      if (!isRecord(allocation) || !("taskId" in allocation)) return allocation;
+      const migratedAllocation: Record<string, unknown> = { ...allocation };
+      if (!("activityId" in migratedAllocation)) migratedAllocation.activityId = migratedAllocation.taskId;
+      delete migratedAllocation.taskId;
+      return migratedAllocation;
+    });
+  }
+  return migratedData;
+}
+
+/** Backfill one built-in Internal client for each v5 account that has none.
+ * Existing built-in rows, including duplicates, remain for subsequent Internal-client repair.
+ * Match by builtin and accountId so import remapping cannot break detection. Missing clients are treated as an empty list; absent accounts leave nothing to attach.
+ * Use the shared row factory with a fixed timestamp so this raw-blob migration stays deterministic. */
+export function migrateV5toV6(data: Record<string, unknown>): Record<string, unknown> {
+  if (!isUnknownArray(data.accounts) || data.accounts.length === 0) return data;
+  const clients = isUnknownArray(data.clients) ? [...data.clients] : [];
+  const accountsWithBuiltin = new Set(
+    clients.flatMap((client) => {
+      if (!isRecord(client)) return [];
+      return client.builtin === true && typeof client.accountId === "string" ? [client.accountId] : [];
+    }),
+  );
+  // Migrated rows are newly created here; a fixed timestamp keeps the migration deterministic.
+  const createdAt = "2026-01-01T00:00:00.000Z";
+  const usedClientIds = new Set(
+    clients.flatMap((client) => (isRecord(client) && typeof client.id === "string" ? [client.id] : [])),
+  );
+  let hasAddedClient = false;
+  for (const account of data.accounts) {
+    if (!isRecord(account)) continue;
+    const accountId = account.id;
+    if (typeof accountId !== "string" || accountsWithBuiltin.has(accountId)) continue;
+    const id = availableInternalClientId(accountId, usedClientIds);
+    clients.push(buildInternalClient(accountId, createdAt, id));
+    usedClientIds.add(id);
+    accountsWithBuiltin.add(accountId);
+    hasAddedClient = true;
+  }
+  return hasAddedClient ? { ...data, clients } : data;
+}

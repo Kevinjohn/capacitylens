@@ -1,0 +1,1 @@
+import{t as e}from"./useStore-ObRxSRUm.js";import{$ as t}from"./index-CIAxWgs9.js";function n(n,r){let i=e(e=>e.setNotice);return e=>{try{n(e),r()}catch(e){i(t(e),`error`)}}}export{n as t};

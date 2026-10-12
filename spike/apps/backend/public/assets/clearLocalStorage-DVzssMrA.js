@@ -1,0 +1,1 @@
+import{n as e}from"./brand-dfccjAK1.js";var t=e;function n(e){let n=[];for(let r=0;r<e.length;r++){let i=e.key(r);i!==null&&i.startsWith(t)&&n.push(i)}return n}function r(e=localStorage){return n(e).map(t=>({key:t,value:e.getItem(t)??``}))}function i(e=localStorage){let t=n(e);for(let n of t)e.removeItem(n);return t.length}export{r as n,i as t};

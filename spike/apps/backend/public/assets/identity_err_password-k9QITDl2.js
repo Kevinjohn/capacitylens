@@ -1,0 +1,1 @@
+import{a as e}from"./brand-dfccjAK1.js";var t=()=>`Enter a valid name.`,n=((n={},r={})=>(r.locale??e(),t(n))),r=e=>`Password must be ${e?.min}–${e?.max} characters.`,i=((t,n={})=>(n.locale??e(),r(t)));export{n,i as t};

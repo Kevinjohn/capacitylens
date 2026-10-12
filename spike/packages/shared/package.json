@@ -1,0 +1,73 @@
+{
+  "name": "@capacitylens/shared",
+  "version": "0.35.0-alpha.1",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    "./account/audit": "./dist/account/audit.js",
+    "./account/approvedDomains": "./dist/account/approvedDomains.js",
+    "./account/conformance": "./dist/account/conformance.js",
+    "./account/errors": "./dist/account/errors.js",
+    "./account/ownershipTransfer": "./dist/account/ownershipTransfer.js",
+    "./account/ownershipTransferPolicy": "./dist/account/ownershipTransferPolicy.js",
+    "./account/policy": "./dist/account/policy.js",
+    "./account/ports": "./dist/account/ports.js",
+    "./account/sessionPolicy": "./dist/account/sessionPolicy.js",
+    "./account/ssoCutover": "./dist/account/ssoCutover.js",
+    "./account/types": "./dist/account/types.js",
+    "./account/validation": "./dist/account/validation.js",
+    "./api/replyMessages": "./dist/api/replyMessages.js",
+    "./brand": "./dist/brand.js",
+    "./data/exampleCompany": "./dist/data/exampleCompany.js",
+    "./data/fixtures": "./dist/data/fixtures.js",
+    "./data/internalClient": "./dist/data/internalClient.js",
+    "./data/migrate": "./dist/data/migrate.js",
+    "./data/strictJson": "./dist/data/strictJson.js",
+    "./data/seed": "./dist/data/seed.js",
+    "./data/transfer": "./dist/data/transfer.js",
+    "./domain/access": "./dist/domain/access.js",
+    "./domain/errors": "./dist/domain/errors.js",
+    "./domain/lifecycle": "./dist/domain/lifecycle.js",
+    "./domain/masquerade": "./dist/domain/masquerade.js",
+    "./domain/mutations": "./dist/domain/mutations.js",
+    "./domain/password": "./dist/domain/password.js",
+    "./domain/privateNames": "./dist/domain/privateNames.js",
+    "./domain/resourceAvatarUrl": "./dist/domain/resourceAvatarUrl.js",
+    "./domain/tenancy": "./dist/domain/tenancy.js",
+    "./lib/color": "./dist/lib/color.js",
+    "./lib/accountWorkingDays": "./dist/lib/accountWorkingDays.js",
+    "./lib/dateMath": "./dist/lib/dateMath.js",
+    "./lib/effectiveWorkingWeek": "./dist/lib/effectiveWorkingWeek.js",
+    "./lib/id": "./dist/lib/id.js",
+    "./lib/integrity": "./dist/lib/integrity.js",
+    "./lib/isRecord": "./dist/lib/isRecord.js",
+    "./lib/repeatingDates": "./dist/lib/repeatingDates.js",
+    "./lib/sanitizeImport": "./dist/lib/sanitizeImport.js",
+    "./lib/schedulingDays": "./dist/lib/schedulingDays.js",
+    "./lib/strings": "./dist/lib/strings.js",
+    "./types/entities": "./dist/types/entities.js"
+  },
+  "dependencies": {
+    "date-fns": "^4.3.0",
+    "tr46": "6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "fast-check": "^4.10.2",
+    "vite": "^8.3.1",
+    "vitest": "^4.1.11",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "type-check": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "files": [
+    "dist"
+  ]
+}

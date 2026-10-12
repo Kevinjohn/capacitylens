@@ -1,0 +1,1 @@
+import{a as e}from"./brand-dfccjAK1.js";var t=e=>`Edit ${e?.name}`,n=((n,r={})=>(r.locale??e(),t(n)));export{n as t};

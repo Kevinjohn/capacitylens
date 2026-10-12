@@ -1,0 +1,1 @@
+import{o as e,r as t}from"./strings-B8BekMN-.js";var n=/^[A-Za-z0-9_-]{16,128}$/;function r(e){return typeof e==`string`&&n.test(e)}function i(e){return r(e)}function a(e){return r(e)}function o(e){return e.trim().toLowerCase()}function s(n){let r=o(n);return n.length===0||e(n)>254||e(r)>254||n!==n.trim()||t(n)?!1:/^[^@\s]+@[^@\s]+$/.test(n)}export{o as i,s as n,a as r,i as t};
