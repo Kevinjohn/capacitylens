@@ -4,6 +4,7 @@ import { checkDatabase, readState, resetState } from '#services/state_repository
 import type { Account as AccountRow } from '@capacitylens/shared/types/entities'
 import { fileURLToPath } from 'node:url'
 import { healthChecks } from '#start/health'
+import { backupDiagnostics } from '#services/backup_check'
 import { reportCspViolation } from '#services/csp_report'
 import { middleware } from '#start/kernel'
 import db from '@adonisjs/lucid/services/db'
@@ -61,7 +62,7 @@ router.get('/api/diagnostics', async ({ response }) => {
         connectivity: 'ok',
         database: { status: 'ok', schemaVersion: 4 },
         persistence: 'unknown',
-        backup: { status: 'unavailable', lastSuccessAt: null },
+        backup: backupDiagnostics(),
       },
     }
   } catch {

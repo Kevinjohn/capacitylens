@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "migrations": [
+    {
+      "name": "database/migrations/202610120001_create_capacitylens_baseline",
+      "sha256": "8d6b80a9a4f2b4d647a0d6f89076b3193b4aa7fa4ea7f74ce45d86f90bda67c9"
+    },
+    {
+      "name": "database/migrations/202610120002_create_tenant_integrity_triggers",
+      "sha256": "9ac8a935b12227aa76cb20d527e2a8174df0dea86f260772c287a0dc0892af37"
+    },
+    {
+      "name": "database/migrations/202610120003_create_sync_ordering",
+      "sha256": "8112a3b0d26cd59fcfb460f34e8debcfc4b5313181f4112a48ee533dae429ab5"
+    },
+    {
+      "name": "database/migrations/202610130001_create_data_controls",
+      "sha256": "2d325d14c79ca3894f9466ae3575904c0d6ef37f16e75fbf050ab3ef2fd6fb8e"
+    },
+    {
+      "name": "database/migrations/202610130002_retain_company_deletion_audit",
+      "sha256": "3767010e37d86952b068dfb94b202f331055996d85afdf1868969f40c38ba4fb"
+    }
+  ]
+}

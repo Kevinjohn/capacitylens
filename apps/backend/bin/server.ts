@@ -32,9 +32,11 @@ const IMPORTER = (filePath: string) => {
 }
 
 let logConnectionDrop: (entry: Record<string, unknown>) => void = () => {}
+let terminateApplication: (() => Promise<void>) | undefined
 
 new Ignitor(APP_ROOT, { importer: IMPORTER })
   .tap((app) => {
+    terminateApplication = () => app.terminate()
     app.booting(async () => {
       await import('#start/env')
     })
@@ -47,7 +49,8 @@ new Ignitor(APP_ROOT, { importer: IMPORTER })
   })
   .httpServer()
   .start((handler) => configureNodeServer(createServer(handler), logConnectionDrop))
-  .catch((error) => {
+  .catch(async (error) => {
     process.exitCode = 1
     prettyPrintError(error)
+    await terminateApplication?.()
   })

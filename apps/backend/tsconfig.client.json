@@ -9,13 +9,18 @@
     "emitDeclarationOnly": true,
     "noEmit": false
   },
-  "references": [{ "path": "../../packages/shared/tsconfig.build.json" }],
+  "references": [
+    {
+      "path": "../../packages/shared/tsconfig.build.json"
+    }
+  ],
   "include": [
     "./app/**/*.ts",
     "./config/**/*.ts",
     "./database/**/*.ts",
     "./start/**/*.ts",
     "./providers/**/*.ts",
+    "./hooks/**/*.ts",
     "./adonisrc.ts",
     "./.adonisjs/server/**/*.ts"
   ],

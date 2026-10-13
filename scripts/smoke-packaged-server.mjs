@@ -1,22 +1,21 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { cp, mkdir, mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
-import { fileURLToPath } from "node:url";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { setTimeout as delay } from "node:timers/promises";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-const STARTUP_TIMEOUT_MS = 20_000;
-const REQUEST_TIMEOUT_MS = 10_000;
+const STARTUP_TIMEOUT_MS = 30_000;
 const PERIODIC_TIMEOUT_MS = 80_000;
+const REQUEST_TIMEOUT_MS = 10_000;
 const SHUTDOWN_TIMEOUT_MS = 10_000;
-const POLL_INTERVAL_MS = 250;
-const PERIODIC_RESOURCE_NAME = "Bruce Wayne Periodic Backup Check";
+const RESOURCE_NAME = "Bruce Wayne Packaged Schedule";
 
-function errorMessage(error) {
+function message(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
@@ -25,236 +24,297 @@ async function reservePort() {
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   const address = server.address();
-  assert.ok(address && typeof address !== "string", "Could not reserve a loopback port.");
+  assert.ok(address && typeof address !== "string");
   await new Promise((resolveClose, rejectClose) =>
     server.close((error) => (error ? rejectClose(error) : resolveClose())),
   );
   return address.port;
 }
 
-async function waitFor({ description, timeoutMs, check, childOutcome }) {
-  const deadline = Date.now() + timeoutMs;
-  let lastError;
-  while (Date.now() < deadline) {
-    const outcome = childOutcome();
-    if (outcome) {
-      throw new Error(
-        outcome.error
-          ? `The packaged server could not start: ${errorMessage(outcome.error)}`
-          : `The packaged server exited early (${outcome.signal ?? `code ${outcome.code}`}).`,
-      );
-    }
-    try {
-      const result = await check();
-      if (result) return result;
-    } catch (error) {
-      // Readiness can fail while the child starts; keep the latest error and report it if polling times out.
-      lastError = error;
-    }
-    await delay(POLL_INTERVAL_MS);
-  }
-  const detail = lastError ? ` Last error: ${errorMessage(lastError)}` : "";
-  throw new Error(`Timed out waiting for ${description}.${detail}`);
-}
-
-/**
- * Builds the isolated environment used to smoke-test a packaged server.
- */
+/** Use production posture with the incomplete off-mode backend explicitly enabled. */
 export function buildSmokeEnvironment(inherited, { backupDir, databasePath, port }) {
   const environment = { ...inherited };
+  delete environment.NODE_PATH;
+  delete environment.NODE_OPTIONS;
   for (const key of Object.keys(environment)) {
     if (
-      key.startsWith("SMALLSASS_ACCOUNT_") ||
       key.startsWith("CAPACITYLENS_") ||
       key.startsWith("BETTER_AUTH_") ||
-      key.startsWith("VITE_CAPACITYLENS_")
-    ) {
+      key.startsWith("VITE_CAPACITYLENS_") ||
+      key.startsWith("SMALLSASS_ACCOUNT_")
+    )
       delete environment[key];
-    }
   }
   return Object.assign(environment, {
-    NODE_ENV: "test",
+    NODE_ENV: "production",
+    PORT: String(port),
+    HOST: "127.0.0.1",
+    LOG_LEVEL: "info",
+    APP_KEY: "capacitylens-packaged-smoke-key-0123456789abcdef",
+    APP_URL: `http://127.0.0.1:${port}`,
+    SESSION_DRIVER: "cookie",
     CAPACITYLENS_MODE: "off",
-    CAPACITYLENS_AUDIT: "off",
-    CAPACITYLENS_SEED_DEMO: "1",
-    CAPACITYLENS_HEALTH_DEEP: "1",
-    CAPACITYLENS_HTTPS: "0",
+    CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1",
+    CAPACITYLENS_AUDIT: "on",
     CAPACITYLENS_DB: databasePath,
     CAPACITYLENS_BACKUP_DIR: backupDir,
     CAPACITYLENS_BACKUP_INTERVAL_MIN: "1",
-    CAPACITYLENS_HOST: "127.0.0.1",
-    PORT: String(port),
+    CAPACITYLENS_PUBLIC_URL: `http://127.0.0.1:${port}`,
   });
 }
 
-async function fetchJson(url, options = {}) {
-  const response = await fetch(url, { ...options, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-  const body = await response.text();
-  assert.ok(response.ok, `${options.method ?? "GET"} ${url} returned ${response.status}: ${body}`);
-  return JSON.parse(body);
+function command(backend, environment, ...args) {
+  const result = spawnSync(process.execPath, ["ace.js", ...args], {
+    cwd: backend,
+    env: environment,
+    encoding: "utf8",
+    timeout: 30_000,
+  });
+  if (result.error) throw result.error;
+  return { status: result.status, output: `${result.stdout}\n${result.stderr}` };
 }
 
-async function snapshotFiles(backupDir) {
-  try {
-    return (await readdir(backupDir)).filter((name) => name.endsWith(".db")).sort();
-  } catch (error) {
-    // No backup directory means no snapshots yet; other read errors must surface rather than appear empty.
-    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return [];
-    throw error;
-  }
-}
-
-function inspectSnapshot(path, expectedResourceName) {
+function inspectDatabase(path, expectedResourceName) {
   const database = new DatabaseSync(path, { readOnly: true });
   try {
     assert.equal(database.prepare("PRAGMA integrity_check").get().integrity_check, "ok");
-    const resources = database.prepare("SELECT COUNT(*) AS count FROM resources").get().count;
-    assert.ok(resources > 0, "The packaged snapshot contains no seeded resources.");
+    const journal = database.prepare("SELECT name FROM adonis_schema ORDER BY id").all();
     if (expectedResourceName) {
-      const matching = database
+      const count = database
         .prepare("SELECT COUNT(*) AS count FROM resources WHERE name = ?")
         .get(expectedResourceName).count;
-      assert.equal(matching, 1, `The periodic snapshot does not contain ${expectedResourceName}.`);
+      assert.equal(count, 1, `${path} did not preserve the scheduling write.`);
     }
-    return resources;
+    return journal;
   } finally {
     database.close();
   }
 }
 
-async function terminate(child, exitPromise) {
-  if (child.exitCode !== null || child.signalCode !== null) return exitPromise;
-  child.kill("SIGTERM");
-  let timer;
-  const timeout = new Promise((resolveTimeout) => {
-    timer = setTimeout(() => resolveTimeout(null), SHUTDOWN_TIMEOUT_MS);
-    timer.unref();
+async function snapshotFiles(directory) {
+  try {
+    return (await readdir(directory)).filter((name) => name.endsWith(".db")).sort();
+  } catch (error) {
+    if (error?.code === "ENOENT") return [];
+    throw error;
+  }
+}
+
+export async function waitFor(description, timeoutMs, check, child) {
+  const deadline = Date.now() + timeoutMs;
+  let lastError;
+  while (Date.now() < deadline) {
+    if (child?.outcome) throw new Error(`Packaged server exited early: ${JSON.stringify(child.outcome)}`);
+    try {
+      const result = await check();
+      if (result) return result;
+    } catch (error) {
+      lastError = error;
+    }
+    await delay(250);
+  }
+  throw new Error(`Timed out waiting for ${description}${lastError ? `: ${message(lastError)}` : ""}`);
+}
+
+async function fetchOk(url, options = {}) {
+  const response = await fetch(url, { ...options, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+  const body = await response.text();
+  assert.ok(response.ok, `${options.method ?? "GET"} ${url} returned ${response.status}: ${body}`);
+  return { response, body };
+}
+
+export function startServer(backend, environment, appendLog) {
+  const processHandle = spawn(process.execPath, ["bin/server.js"], {
+    cwd: backend,
+    env: environment,
+    stdio: ["ignore", "pipe", "pipe"],
   });
-  const graceful = await Promise.race([exitPromise, timeout]);
-  clearTimeout(timer);
-  if (graceful) return graceful;
-  child.kill("SIGKILL");
-  await exitPromise;
+  processHandle.stdout.setEncoding("utf8").on("data", appendLog);
+  processHandle.stderr.setEncoding("utf8").on("data", appendLog);
+  const child = { processHandle, outcome: null, exit: null };
+  child.exit = new Promise((resolveExit) => {
+    processHandle.once("error", (error) => {
+      child.outcome = { error: message(error) };
+      resolveExit(child.outcome);
+    });
+    processHandle.once("exit", (code, signal) => {
+      child.outcome = { code, signal };
+      resolveExit(child.outcome);
+    });
+  });
+  return child;
+}
+
+async function stopServer(child) {
+  if (child.outcome) return child.outcome;
+  child.processHandle.kill("SIGTERM");
+  const result = await Promise.race([child.exit, delay(SHUTDOWN_TIMEOUT_MS, null)]);
+  if (result) return result;
+  child.processHandle.kill("SIGKILL");
+  await child.exit;
   throw new Error("The packaged server did not stop within 10 seconds of SIGTERM.");
 }
 
-async function preserveFailureArtifacts(sourceDir, log, artifactDir) {
-  if (!artifactDir) return;
-  await mkdir(artifactDir, { recursive: true });
-  await writeFile(join(artifactDir, "packaged-server.log"), log);
-  await cp(sourceDir, join(artifactDir, "packaged-server-state"), { recursive: true, force: true });
+async function assertReady(baseUrl, child) {
+  return waitFor(
+    "readiness",
+    STARTUP_TIMEOUT_MS,
+    async () => {
+      const response = await fetch(`${baseUrl}/health/ready`, { signal: AbortSignal.timeout(1_000) });
+      return response.ok;
+    },
+    child,
+  );
 }
 
 async function main() {
-  const deploymentDir = process.argv.slice(2).find((argument) => argument !== "--");
-  if (!deploymentDir) throw new Error("Usage: pnpm run smoke:packaged-server <deployed-server-directory>");
-  const entrypoint = resolve(deploymentDir, "dist/index.mjs");
-  await stat(entrypoint);
-  const port = await reservePort();
-  const workDir = await mkdtemp(join(tmpdir(), "capacitylens-packaged-smoke-"));
+  const backend = resolve(process.argv.slice(2).find((argument) => argument !== "--") ?? "");
+  if (!process.argv[2]) throw new Error("Usage: pnpm run smoke:packaged-server <extracted-artifact>/backend");
+  await stat(join(backend, "bin", "server.js"));
+  const workDir = await mkdtemp(join(tmpdir(), "capacitylens_package_smoke_"));
+  const databasePath = join(workDir, "live.db");
   const backupDir = join(workDir, "backups");
-  let log = "";
-  let passed = false;
-
-  const child = spawn(process.execPath, [entrypoint], {
-    cwd: deploymentDir,
-    env: buildSmokeEnvironment(process.env, {
-      backupDir,
-      databasePath: join(workDir, "capacitylens.db"),
-      port,
-    }),
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  child.stdout.setEncoding("utf8");
-  child.stderr.setEncoding("utf8");
-  child.stdout.on("data", (chunk) => (log += chunk));
-  child.stderr.on("data", (chunk) => (log += chunk));
-  let childOutcome = null;
-  const exitPromise = new Promise((resolveExit) => {
-    child.once("error", (error) => {
-      childOutcome = { code: null, signal: null, error };
-      resolveExit(childOutcome);
-    });
-    child.once("exit", (code, signal) => {
-      childOutcome = { code, signal, error: null };
-      resolveExit(childOutcome);
-    });
-  });
+  const port = await reservePort();
+  const environment = buildSmokeEnvironment(process.env, { backupDir, databasePath, port });
   const baseUrl = `http://127.0.0.1:${port}`;
-
+  let log = "";
+  let child;
+  let passed = false;
   try {
-    await waitFor({
-      description: "the packaged server health endpoint",
-      timeoutMs: STARTUP_TIMEOUT_MS,
-      check: async () => {
-        const response = await fetch(`${baseUrl}/api/health`, { signal: AbortSignal.timeout(1_000) });
-        return response.ok;
-      },
-      childOutcome: () => childOutcome,
-    });
-    const startupFiles = await waitFor({
-      description: "the startup snapshot",
-      timeoutMs: STARTUP_TIMEOUT_MS,
-      check: async () => {
-        const files = await snapshotFiles(backupDir);
-        return files.length > 0 ? files : null;
-      },
-      childOutcome: () => childOutcome,
-    });
-    const seededResources = inspectSnapshot(join(backupDir, startupFiles.at(-1)));
+    const initial = command(backend, environment, "app:upgrade");
+    assert.equal(initial.status, 0, initial.output);
+    assert.equal(inspectDatabase(databasePath).length, 5);
 
-    const state = await fetchJson(`${baseUrl}/api/state?accountId=a-studio`);
-    assert.ok(Array.isArray(state.resources) && state.resources.length > 0, "Seed data has no resources to import.");
-    state.resources[0].name = PERIODIC_RESOURCE_NAME;
-    const importResult = await fetchJson(`${baseUrl}/api/import`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ accountId: "a-studio", data: state }),
-    });
-    assert.ok(importResult.imported > 0, "The deployed import worker imported no rows.");
+    const rollback = command(backend, environment, "migration:rollback", "--step=4", "--force", "--no-schema-generate");
+    assert.equal(rollback.status, 0, rollback.output);
+    assert.equal(inspectDatabase(databasePath).length, 1);
+    const upgrade = command(backend, environment, "app:upgrade");
+    assert.equal(upgrade.status, 0, upgrade.output);
+    assert.match(upgrade.output, /Pre-upgrade backup written/);
+    assert.equal(inspectDatabase(databasePath).length, 5);
+    assert.equal(inspectDatabase(join(backupDir, "capacitylens-pre-migration-v1-to-v5.db")).length, 1);
 
-    const periodicFiles = await waitFor({
-      description: "a periodic snapshot after the import",
-      timeoutMs: PERIODIC_TIMEOUT_MS,
-      check: async () => {
-        const files = await snapshotFiles(backupDir);
-        return files.length > startupFiles.length ? files : null;
-      },
-      childOutcome: () => childOutcome,
-    });
-    inspectSnapshot(join(backupDir, periodicFiles.at(-1)), PERIODIC_RESOURCE_NAME);
+    const unknown = new DatabaseSync(databasePath);
+    const lastName = unknown.prepare("SELECT name FROM adonis_schema ORDER BY id DESC LIMIT 1").get().name;
+    unknown.prepare("UPDATE adonis_schema SET name = ? WHERE name = ?").run("database/migrations/unknown", lastName);
+    unknown.close();
+    const refused = command(backend, environment, "app:upgrade");
+    assert.notEqual(refused.status, 0, refused.output);
+    assert.match(refused.output, /Migration journal is inconsistent/);
+    const restored = new DatabaseSync(databasePath);
+    restored.prepare("UPDATE adonis_schema SET name = ? WHERE name = ?").run(lastName, "database/migrations/unknown");
+    restored.close();
 
-    const result = await terminate(child, exitPromise);
-    assert.deepEqual(
-      result,
-      { code: 0, signal: null, error: null },
-      `Unexpected packaged server exit: ${JSON.stringify(result)}`,
+    child = startServer(backend, environment, (chunk) => {
+      log += chunk;
+    });
+    await assertReady(baseUrl, child);
+    const html = (await fetchOk(`${baseUrl}/`)).body;
+    assert.match(html, /<html/);
+    const asset = html.match(/(?:src|href)="(\/assets\/[^"]+)"/)?.[1];
+    assert.ok(asset, "The packaged SPA has no hashed asset reference.");
+    const assetResponse = await fetchOk(`${baseUrl}${asset}`);
+    assert.ok(assetResponse.body.length > 0);
+    const spa = await fetchOk(`${baseUrl}/team`);
+    assert.match(spa.body, /<html/);
+
+    const { seed } = await import(
+      pathToFileURL(join(backend, "node_modules", "@capacitylens", "shared", "dist", "data", "seed.js")).href
     );
+    const fixture = seed();
+    const account = fixture.accounts.find((row) => row.id === "a-studio");
+    assert.ok(account);
+    await fetchOk(`${baseUrl}/api/accounts`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "sec-fetch-site": "same-origin" },
+      body: JSON.stringify(account),
+    });
+    const resource = {
+      ...fixture.resources.find((row) => row.kind === "person" && row.accountId === "a-studio"),
+      name: RESOURCE_NAME,
+    };
+    assert.ok(resource.id);
+    const discipline = fixture.disciplines.find((row) => row.id === resource.disciplineId);
+    assert.ok(discipline);
+    await fetchOk(`${baseUrl}/api/batch`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "sec-fetch-site": "same-origin" },
+      body: JSON.stringify({
+        ops: [
+          { method: "PUT", table: "disciplines", id: discipline.id, row: discipline },
+          { method: "PUT", table: "resources", id: resource.id, row: resource },
+        ],
+      }),
+    });
+    assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, 5);
+
+    const beforeExplicit = await snapshotFiles(backupDir);
+    const explicit = command(backend, environment, "db:backup");
+    assert.equal(explicit.status, 0, explicit.output);
+    const explicitPath = explicit.output.match(/Backup written (\S+\.db)/)?.[1];
+    assert.ok(explicitPath, `Backup command did not name its snapshot: ${explicit.output}`);
+    const afterExplicit = await snapshotFiles(backupDir);
+    assert.ok(!beforeExplicit.includes(explicitPath.split("/").at(-1)));
+    assert.ok(afterExplicit.includes(explicitPath.split("/").at(-1)));
+    assert.equal(inspectDatabase(explicitPath, RESOURCE_NAME).length, 5);
+    const scheduled = await waitFor(
+      "a scheduled snapshot after the write",
+      PERIODIC_TIMEOUT_MS,
+      async () => {
+        const files = await snapshotFiles(backupDir);
+        const matching = files.filter((name) => name !== "capacitylens-pre-migration-v1-to-v5.db");
+        if (matching.length <= afterExplicit.length - 1) return null;
+        const latest = matching.at(-1);
+        inspectDatabase(join(backupDir, latest), RESOURCE_NAME);
+        return latest;
+      },
+      child,
+    );
+    assert.ok(scheduled);
+
+    assert.deepEqual(await stopServer(child), { code: 0, signal: null });
+    child = startServer(backend, environment, (chunk) => {
+      log += chunk;
+    });
+    await assertReady(baseUrl, child);
+    const state = JSON.parse((await fetchOk(`${baseUrl}/api/state?accountId=a-studio`)).body);
+    assert.equal(state.resources.find((row) => row.id === resource.id)?.name, RESOURCE_NAME);
+    assert.deepEqual(await stopServer(child), { code: 0, signal: null });
     passed = true;
     console.log(
       JSON.stringify({
         node: process.version,
-        importWorker: "passed",
-        startupSnapshot: "passed",
-        periodicSnapshot: "passed",
-        seededResources: Number(seededResources),
+        nativeArtifact: "passed",
+        migrations: 5,
+        scheduleWrite: "persisted",
+        explicitBackup: "verified",
+        scheduledBackup: "verified",
+        upgradeSnapshot: "verified",
+        unknownJournal: "refused",
         shutdown: "clean",
       }),
     );
   } finally {
-    try {
-      if (child.exitCode === null && child.signalCode === null) await terminate(child, exitPromise);
-    } catch (error) {
-      // Append termination diagnostics to the captured log for failed-smoke reporting.
-      log += `\nSmoke cleanup error: ${errorMessage(error)}\n`;
+    if (child && !child.outcome) {
+      try {
+        await stopServer(child);
+      } catch (error) {
+        log += `\nCleanup: ${message(error)}\n`;
+      }
     }
     if (!passed) {
       console.error(`Packaged server output:\n${log || "(no output)"}`);
-      try {
-        await preserveFailureArtifacts(workDir, log, process.env.CAPACITYLENS_SMOKE_ARTIFACT_DIR);
-      } catch (error) {
-        // Artifact preservation is secondary to the failed smoke; report its failure without hiding the original diagnostics.
-        console.error(`Could not preserve packaged smoke artifacts: ${errorMessage(error)}`);
+      if (process.env.CAPACITYLENS_SMOKE_ARTIFACT_DIR) {
+        try {
+          await mkdir(process.env.CAPACITYLENS_SMOKE_ARTIFACT_DIR, { recursive: true });
+          await writeFile(join(process.env.CAPACITYLENS_SMOKE_ARTIFACT_DIR, "packaged-server.log"), log);
+          await cp(workDir, join(process.env.CAPACITYLENS_SMOKE_ARTIFACT_DIR, "packaged-server-state"), {
+            recursive: true,
+            force: true,
+          });
+        } catch (error) {
+          console.error(`Could not preserve packaged smoke artifacts: ${message(error)}`);
+        }
       }
     }
     await rm(workDir, { recursive: true, force: true });
