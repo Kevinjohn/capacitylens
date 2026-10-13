@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import { createReadStream } from "node:fs";
 import {
   cp,
@@ -16,7 +17,9 @@ import {
 } from "node:fs/promises";
 import { basename, dirname, isAbsolute, relative, resolve, join, sep } from "node:path";
 import { spawnSync } from "node:child_process";
+import { platform, arch } from "node:process";
 import { fileURLToPath } from "node:url";
+import YAML from "yaml";
 
 const generatedMarker = "CapacityLens generated production artifact\n";
 
@@ -40,17 +43,18 @@ export function assertDeploySucceeded(result) {
   if (result.status !== 0) throw new Error(`pnpm deploy failed with status ${result.status ?? "unknown"}.`);
 }
 
-// `pnpm deploy --prod` is the primary guard. This secondary check follows the manifests instead
-// of a hand-kept sample: it forbids every devDependency of the root, server and shared manifests
-// that the server or shared does not also need at runtime, and the whole scope of a scoped
-// devDependency (for example `@vitest/`), whose tooling arrives transitively.
+// `pnpm deploy --prod` selects the dependency graph. This secondary check rejects direct links to
+// development-only packages. Framework runtime dependencies can legitimately pull build/test
+// packages into the virtual store, so checking every transitive name would reject a valid deploy.
 /**
  * Lists development packages not needed by the server or shared runtime.
  * @throws When a package manifest cannot be read or parsed.
  */
 export async function readDevelopmentPackages(repositoryRoot) {
   const readManifest = async (path) => JSON.parse(await readFile(join(repositoryRoot, path), "utf8"));
-  const manifests = await Promise.all(["package.json", "server/package.json", "shared/package.json"].map(readManifest));
+  const manifests = await Promise.all(
+    ["package.json", "apps/backend/package.json", "packages/shared/package.json"].map(readManifest),
+  );
   const runtime = new Set(manifests.slice(1).flatMap((manifest) => Object.keys(manifest.dependencies ?? {})));
   const runtimeScopes = new Set([...runtime].filter((name) => name.startsWith("@")).map(scopeOf));
   const development = manifests.flatMap((manifest) => Object.keys(manifest.devDependencies ?? {}));
@@ -69,11 +73,12 @@ function scopeOf(name) {
 // Every file an operator needs from the release, relative to its root. packaging/release/ supplies
 // the operator files; the packager writes VERSION.
 const requiredReleaseFiles = [
-  "dist/index.html",
-  "server/dist/index.mjs",
-  "server/dist/importWorker.mjs",
-  "server/dist/reset-owner-password.mjs",
-  "server/scripts/check-node.mjs",
+  "backend/public/index.html",
+  "backend/bin/server.js",
+  "backend/ace.js",
+  "backend/database/released.json",
+  "backend/pnpm-workspace.yaml",
+  "backend/node_modules/@capacitylens/shared/dist/brand.js",
   "capacitylens.env.example",
   "capacitylens.service",
   "capacitylens.nginx.conf",
@@ -88,18 +93,56 @@ const requiredReleaseFiles = [
  */
 export async function inspectManagedRelease(root, forbiddenPackages) {
   for (const file of requiredReleaseFiles) await requireNonemptyFile(join(root, ...file.split("/")), file);
+  const nativeAddon = join(root, "backend", "node_modules", "better-sqlite3", "prebuilds", `${platform}-${arch}.node`);
+  await requireNonemptyFile(nativeAddon, `better-sqlite3 native addon for ${platform}-${arch}`);
+  const manifest = JSON.parse(await readFile(join(root, "backend", "database", "released.json"), "utf8"));
+  if (!Array.isArray(manifest.migrations) || manifest.migrations.length === 0)
+    throw new Error("Production artifact has no executable migration manifest entries.");
+  for (const migration of manifest.migrations) {
+    await requireNonemptyFile(join(root, "backend", `${migration.name}.js`), `${migration.name}.js`);
+  }
+  const tests = await stat(join(root, "backend", "tests")).catch((error) => {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  });
+  if (tests) throw new Error("Production artifact contains compiled tests.");
+  const inspectCompiled = async (directory) => {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      if (entry.name === "node_modules" || entry.name === "public") continue;
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) await inspectCompiled(path);
+      else if (/\.(?:ts|map)$/.test(entry.name))
+        throw new Error(`Production artifact contains a source or source map file: ${relative(root, path)}`);
+    }
+  };
+  await inspectCompiled(join(root, "backend"));
 
-  const store = join(root, "server", "node_modules", ".pnpm");
+  const modules = join(root, "backend", "node_modules");
+  const store = join(modules, ".pnpm");
   const packages = (await readdir(store, { withFileTypes: true }))
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name);
-  // The pnpm store names `@scope/name@1.2.3` as `@scope+name@1.2.3`; a scope entry ends in `/`.
-  const leaked = forbiddenPackages.filter((name) => {
-    const storeName = name.replace("/", "+");
-    return packages.some((entry) => entry.startsWith(name.endsWith("/") ? storeName : `${storeName}@`));
-  });
+  const leaked = [];
+  for (const name of forbiddenPackages) {
+    const direct = join(modules, ...name.split("/"));
+    const present = await lstat(direct).catch((error) => {
+      if (error?.code === "ENOENT") return null;
+      throw error;
+    });
+    if (present) leaked.push(name);
+  }
   if (leaked.length > 0) throw new Error(`Development packages leaked into production: ${leaked.join(", ")}`);
   return { packageCount: packages.length };
+}
+
+/** Carry the approved native build policy without deploy paths that escape the artifact. */
+export async function carryBuildPolicy(backend, repositoryRoot, deployment) {
+  const committed = YAML.parse(await readFile(join(repositoryRoot, "pnpm-workspace.yaml"), "utf8"));
+  const deployed = YAML.parse(await readFile(join(deployment, "pnpm-workspace.yaml"), "utf8"));
+  if (!committed?.allowBuilds || !isDeepStrictEqual(deployed?.allowBuilds, committed.allowBuilds)) {
+    throw new Error("Deployed build-script policy differs from committed policy.");
+  }
+  await writeFile(join(backend, "pnpm-workspace.yaml"), YAML.stringify({ allowBuilds: deployed.allowBuilds }));
 }
 
 /**
@@ -188,19 +231,38 @@ export async function packageManagedRelease(outputPath = "production") {
   if (outputPath !== "production") throw new Error("Production output path must be exactly production/.");
   const output = resolve(repositoryRoot, outputPath);
   await resetGeneratedOutput(output);
-  await cp(join(repositoryRoot, "dist"), join(output, "dist"), { recursive: true });
+  const backend = join(output, "backend");
+  await cp(join(repositoryRoot, "apps", "backend", "build"), backend, { recursive: true });
+  await rm(join(backend, "tests"), { recursive: true, force: true });
+  await rm(join(backend, "bin", "test.js"), { force: true });
+  const removeMaps = async (directory) => {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      if (entry.name === "public") continue;
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) await removeMaps(path);
+      else if (entry.name.endsWith(".map")) await rm(path);
+    }
+  };
+  await removeMaps(backend);
   await addReleaseFiles(output, {
     repositoryRoot,
     version: await readVersion(repositoryRoot),
     revision: runChecked("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot }).trim(),
   });
 
-  const deployed = spawnSync("pnpm", ["--filter", "capacitylens-server", "deploy", "--prod", join(output, "server")], {
-    cwd: repositoryRoot,
-    encoding: "utf8",
-    stdio: "inherit",
-  });
-  assertDeploySucceeded(deployed);
+  const deployment = join(output, ".runtime-deploy");
+  try {
+    const deployed = spawnSync("pnpm", ["--filter", "@capacitylens/backend", "--prod", "deploy", deployment], {
+      cwd: repositoryRoot,
+      encoding: "utf8",
+      stdio: "inherit",
+    });
+    assertDeploySucceeded(deployed);
+    await carryBuildPolicy(backend, repositoryRoot, deployment);
+    await rename(join(deployment, "node_modules"), join(backend, "node_modules"));
+  } finally {
+    await rm(deployment, { recursive: true, force: true });
+  }
   return inspectManagedRelease(output, await readDevelopmentPackages(repositoryRoot));
 }
 

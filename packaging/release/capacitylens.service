@@ -11,12 +11,11 @@ Wants=network-online.target
 Type=simple
 User=capacitylens
 Group=capacitylens
-WorkingDirectory=/opt/capacitylens/current/server
+WorkingDirectory=/opt/capacitylens/current/backend
 EnvironmentFile=/etc/capacitylens.env
 Environment=NODE_ENV=production
-ExecStartPre=/usr/bin/env node /opt/capacitylens/current/server/scripts/check-node.mjs
-ExecStart=/usr/bin/env node /opt/capacitylens/current/server/dist/index.mjs
-# The server drains in-flight requests on SIGTERM before it exits.
+ExecStart=/usr/bin/env node /opt/capacitylens/current/backend/bin/server.js
+# The application drains in-flight requests and the backup scheduler on SIGTERM.
 TimeoutStopSec=30
 Restart=on-failure
 RestartSec=5

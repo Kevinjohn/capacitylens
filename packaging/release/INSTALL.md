@@ -1,172 +1,56 @@
-# Install CapacityLens
+# Install the native CapacityLens archive
 
-Five steps on every host, one command each. You choose two values: the address and the database
-file. Only step 4 differs between hosts.
+This archive contains the built web app, compiled AdonisJS backend, production dependencies and
+SQLite addon for the host architecture on which it was packaged. Use Node 24.19.0 or newer within
+24.x. The `VERSION` file identifies the release and source revision.
 
-1. **Download** the release archive and unpack it.
-2. **Pick a folder for its data.** The database file is created there on first start.
-3. **Configure.** Run `node server/dist/index.mjs init --public-url <address> --db <file>` from
-   the unpacked folder, with a database file in the folder from step 2. It prints the environment
-   file with both secrets generated: paste it into the host's environment editor, or add
-   `--out /etc/capacitylens.env` to write the file. Everything else has a default.
-4. **Start it.**
-5. **Open the address** and create your company. The setup token is the one `init` printed in
-   step 3; you enter it once, to create the Owner.
+The current backend uses open local access. Until the account kit is integrated, put it behind a
+trusted access boundary and set `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1` deliberately. The archive
+does not contain the older password and company-provider setup commands.
 
-You need Node 24.19.0 or newer within 24.x on the system path and a hostname pointing at the host. The archive is tested on
-Ubuntu x86-64; other Linux distributions and macOS are expected to work but are not tested.
-The commands below name release X.Y.Z. For a newer release, use its version instead; the `VERSION`
-file in the archive names the one you have.
-
-Node 26.9.0 or newer within 26.x has experimental, best-effort compatibility. Complete
-functionality is not guaranteed; Node 24 is recommended. Use current patches within either
-runtime line. Older versions and other majors are refused before application data changes.
-
-## Managed host (Forge and similar), no terminal
-
-`/home/forge/capacity.example.com` stands for your site's folder; use yours.
-
-1. **Deploy script:** create the data folder, then download, unpack and switch the `current` link
-   to the new release.
-
-   ```bash
-   mkdir -p /home/forge/capacitylens-data
-   cd /home/forge/capacity.example.com
-   curl -fsSLO https://github.com/Kevinjohn/capacitylens/releases/download/vX.Y.Z/capacitylens-X.Y.Z.tar.gz
-   tar -xzf capacitylens-X.Y.Z.tar.gz && ln -sfn capacitylens-X.Y.Z current
-   ```
-
-   To upgrade, run the deploy script with the new version, then restart the background process
-   from step 4 so it runs the new release.
-
-2. **Data folder:** `/home/forge/capacitylens-data`, outside the release so upgrades keep it. The
-   deploy script's first line creates it, so you need no terminal. `forge` is the site's user; a
-   site with website isolation uses its own user, so use that name in this path and in
-   `CAPACITYLENS_DB`.
-3. **Environment:** run this once in the site's command runner (Forge: the site's Commands panel,
-   which starts in the site's folder), with your address, then paste its output into the site's
-   environment editor:
-
-   ```bash
-   node current/server/dist/index.mjs init --public-url https://capacity.example.com --db /home/forge/capacitylens-data/capacitylens.db
-   ```
-
-4. **Background process (daemon):** user: the site's user from step 2, directory
-   `/home/forge/capacity.example.com/current`, command:
-
-   ```bash
-   node --env-file=../.env server/dist/index.mjs
-   ```
-
-   In the site's nginx file, replace the generated `location /` block with these locations; the
-   server serves the web app itself:
-
-   ```nginx
-   client_max_body_size 6m;
-   location / {
-       proxy_pass http://127.0.0.1:8787;
-       proxy_set_header Host $host;
-       proxy_set_header X-Forwarded-For $remote_addr;
-       proxy_set_header X-Forwarded-Proto $scheme;
-       proxy_read_timeout 130s;
-   }
-   # These request lines carry single-use invitation, sign-in and password-reset secrets.
-   location ~ ^/api/invites/[^/]+/(accept|signup|preview)$ {
-       access_log off;
-       proxy_pass http://127.0.0.1:8787;
-       proxy_set_header Host $host;
-       proxy_set_header X-Forwarded-For $remote_addr;
-       proxy_set_header X-Forwarded-Proto $scheme;
-       proxy_read_timeout 130s;
-   }
-   location ~ ^/api/auth/(callback|oauth2/callback)/ {
-       access_log off;
-       proxy_pass http://127.0.0.1:8787;
-       proxy_set_header Host $host;
-       proxy_set_header X-Forwarded-For $remote_addr;
-       proxy_set_header X-Forwarded-Proto $scheme;
-       proxy_read_timeout 130s;
-   }
-   location ~ ^/(invite|reset-password)/ {
-       access_log off;
-       proxy_pass http://127.0.0.1:8787;
-       proxy_set_header Host $host;
-       proxy_set_header X-Forwarded-For $remote_addr;
-       proxy_set_header X-Forwarded-Proto $scheme;
-       proxy_read_timeout 130s;
-   }
-   ```
-
-   Keep the three `access_log off` locations: without them, the host's access log records links
-   that anyone reading it could use to accept an invitation or reset a password.
-
-5. **Open the address** and create your company with the setup token from step 3.
-
-## Linux host with systemd
-
-Each `sudo` line does what a managed host does when you create a site: a user, a folder, a
-service and a proxy. Install Node 24.19.0 or newer within 24.x system-wide first (NodeSource or the official tarball into
-`/usr/local`). If you use nvm, copy its binary once:
-`sudo install -D -m 0755 "$(command -v node)" /usr/local/bin/node`.
+On a fresh Linux systemd host, create the service user and persistent data directories before
+starting the application. Keep the database and backups outside the release so they survive
+upgrades. The archive contains a `capacitylens-X.Y.Z` directory; the `current` link gives the service
+a stable path. Install Node 24 system-wide first.
 
 ```bash
-# 1. Download and unpack
-curl -LO https://github.com/Kevinjohn/capacitylens/releases/download/vX.Y.Z/capacitylens-X.Y.Z.tar.gz
-sudo mkdir -p /opt/capacitylens && sudo tar -xzf capacitylens-X.Y.Z.tar.gz -C /opt/capacitylens && sudo ln -sfn /opt/capacitylens/capacitylens-X.Y.Z /opt/capacitylens/current
-# 2. A user and a folder for its data (the database file appears here on first start)
 sudo useradd --system --home /var/lib/capacitylens --shell /usr/sbin/nologin capacitylens
-sudo install -d -o capacitylens -g capacitylens -m 0700 /var/lib/capacitylens
-# 3. Configure: use your address; the file is readable only by root and never overwritten
-sudo node /opt/capacitylens/current/server/dist/index.mjs init --public-url https://capacity.example.com --db /var/lib/capacitylens/capacitylens.db --out /etc/capacitylens.env
-# 4. Start it, then put HTTPS in front (below)
-sudo cp /opt/capacitylens/current/capacitylens.service /etc/systemd/system/ && sudo systemctl enable --now capacitylens
-# 5. Open the address and enter the setup token step 3 printed
+sudo install -d -m 0755 /opt/capacitylens
+sudo install -d -o capacitylens -g capacitylens -m 0700 /var/lib/capacitylens /var/lib/capacitylens/backups
+sudo tar -xzf capacitylens-X.Y.Z.tar.gz -C /opt/capacitylens
+sudo ln -sfn /opt/capacitylens/capacitylens-X.Y.Z /opt/capacitylens/current
+sudo install -o root -g root -m 0600 /opt/capacitylens/current/capacitylens.env.example /etc/capacitylens.env
+cd /opt/capacitylens/current/backend && node ace.js generate:key --show
+sudoedit /etc/capacitylens.env
 ```
 
-For HTTPS, Caddy is the shortest route: add the four-line block from `Caddyfile.example` to
-`/etc/caddy/Caddyfile` with your hostname, then `sudo systemctl reload caddy`. Caddy obtains the
-certificate itself. For nginx, use `capacitylens.nginx.conf`; its first lines say how.
-
-## Docker Compose
-
-Follow [Install with Docker](https://kevinjohn.github.io/capacitylens/self-hosting/install-with-docker.html)
-in the documentation. It builds from a checkout rather than from this archive.
-
-## On a laptop, or for an agent
-
-Save the five lines as `capacitylens.env` beside the unpacked folder, with
-`CAPACITYLENS_PUBLIC_URL=http://localhost:8787` and a `CAPACITYLENS_DB` path you can write,
-then run from the unpacked folder:
+In the editor, paste the generated `APP_KEY` and set `APP_URL` to your HTTPS address. The sample
+binds the backend to loopback port 8787; put HTTPS in front with the supplied Caddy or nginx
+example. The environment file stays root-only. Run the upgrade as `capacitylens` through systemd,
+which reads that file and gives the service user access to its settings without giving it read
+access to the file. The command checks the released migration manifest and takes a verified
+pre-upgrade snapshot when migrations are pending on an existing database.
 
 ```bash
-node --env-file=../capacitylens.env server/dist/index.mjs
+sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens -p WorkingDirectory=/opt/capacitylens/current/backend -p EnvironmentFile=/etc/capacitylens.env /usr/bin/env node ace.js app:upgrade
+sudo cp /opt/capacitylens/current/capacitylens.service /etc/systemd/system/capacitylens.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now capacitylens
 ```
 
-## Optional
+For an upgrade, stop the service, unpack the new archive, point `current` to the new release, run
+the same `systemd-run` upgrade command, then restart the service. Do not restart if the upgrade
+command fails. Use `GET /health/ready` for readiness. An explicit verified backup uses the same
+`systemd-run` command with `db:backup` in place of `app:upgrade`. The running server also writes
+periodic verified snapshots to `CAPACITYLENS_BACKUP_DIR`. The supplied nginx site serves static
+assets from `backend/public` and proxies health and API requests; the Caddy example proxies
+everything to the backend.
 
-Verify the download before unpacking it:
+Verify an archive before unpacking it from a directory containing both downloads:
 
 ```bash
-curl -LO https://github.com/Kevinjohn/capacitylens/releases/download/vX.Y.Z/capacitylens-X.Y.Z.tar.gz.sha256
 sha256sum -c capacitylens-X.Y.Z.tar.gz.sha256
 ```
 
-Check the running server. On a managed host, open `https://capacity.example.com/api/health` in a
-browser, using your own address. On a Linux host, use the command below. Expect `"ok":true`,
-`"db":true`, `"audit":"ok"` and a `backup` whose `status` is `"ok"` (it reads `"pending"` for a
-moment after the first start):
-
-```bash
-curl -fsS http://127.0.0.1:8787/api/health
-```
-
-Recover a lost Owner password. Stop the service first. The single-use reset link is printed to
-your terminal only, never to the journal; give it to the Owner over a channel you trust:
-
-```bash
-sudo systemctl stop capacitylens
-sudo systemd-run --pipe --wait --quiet --uid=capacitylens -p EnvironmentFile=/etc/capacitylens.env /usr/bin/env node /opt/capacitylens/current/server/dist/reset-owner-password.mjs /var/lib/capacitylens/capacitylens.db owner@example.com --confirm-server-stopped; echo "exit status $?"
-sudo systemctl start capacitylens
-```
-
-An exit status other than 0 means no link was issued; the message above it says why.
+The archive is platform-specific because it includes a native SQLite addon. Use an archive built
+on the same operating system and architecture as the target host.
