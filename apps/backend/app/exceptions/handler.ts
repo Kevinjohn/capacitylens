@@ -1,5 +1,6 @@
 import app from '@adonisjs/core/services/app'
 import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http'
+import { classifyLogError, safeRequestMethod, safeRoutePattern } from '#services/logging_safety'
 
 export default class HttpExceptionHandler extends ExceptionHandler {
   /**
@@ -51,6 +52,19 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    * @note You should not attempt to send a response from this method.
    */
   async report(error: unknown, ctx: HttpContext) {
-    return super.report(error, ctx)
+    const errorType = classifyLogError(error)
+    if (errorType !== 'unexpected') return
+
+    ctx.logger.error(
+      {
+        event: 'http.request.error',
+        errorType,
+        err: error,
+        method: safeRequestMethod(ctx.request.method()),
+        path: safeRoutePattern(ctx.route?.pattern),
+        status: 500,
+      },
+      'HTTP request failed'
+    )
   }
 }
