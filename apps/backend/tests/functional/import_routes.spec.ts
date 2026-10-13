@@ -1,13 +1,13 @@
 import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import db from '@adonisjs/lucid/services/db'
-import logger from '@adonisjs/core/services/logger'
 import { seed } from '@capacitylens/shared/data/seed'
 import { serializeData } from '@capacitylens/shared/data/transfer'
 import { FIXTURE_CLOSURE } from '@capacitylens/shared/data/fixtures'
 import { readState } from '#services/state_repository'
 import { commitAccountImport, prepareAccountImport } from '#services/import_account'
 import { withTransaction } from '#services/with_transaction'
+import { interceptChildLoggers } from '../helpers/logger.js'
 
 const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
   request.header('sec-fetch-site', 'same-origin')
@@ -549,17 +549,12 @@ test.group('M2b import routes', (group) => {
   }) => {
     await client.post('/api/test/reset').json({ seed: true }).send()
     const incoming = await readState('a-studio', true)
-    const originalChild = logger.child
-    logger.child = ((...args: Parameters<typeof logger.child>) => {
-      const child = originalChild.apply(logger, args)
+    const restoreLogger = interceptChildLoggers((child) => {
       child.info = (() => {
         throw new Error('log unavailable')
       }) as typeof child.info
-      return child
-    }) as typeof logger.child
-    cleanup(() => {
-      logger.child = originalChild
     })
+    cleanup(restoreLogger)
     const response = await trusted(client.post('/api/import'))
       .json({ accountId: 'a-studio', data: JSON.parse(serializeData(incoming)) })
       .send()
