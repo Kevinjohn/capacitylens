@@ -22,6 +22,79 @@ function restoreMultiAccount(prior: boolean | undefined, priorProcess: string | 
 test.group('M2b company route compatibility', (group) => {
   group.setup(() => testUtils.db().migrate())
 
+  test('off-mode identity offers the first company and reopens after deleting the last', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    const prior = env.get('CAPACITYLENS_MULTI_ACCOUNT')
+    const priorProcess = process.env.CAPACITYLENS_MULTI_ACCOUNT
+    env.set('CAPACITYLENS_MULTI_ACCOUNT', false)
+    cleanup(() => restoreMultiAccount(prior, priorProcess))
+    await client.post('/api/test/reset').json({ seed: false }).send()
+    for (const [index, expected] of [true, false, true].entries()) {
+      const identity = await client.get('/api/auth/me')
+      identity.assertStatus(200)
+      assert.deepEqual(identity.body(), {
+        authMode: 'off',
+        user: {
+          id: 'demo',
+          name: 'Demo',
+          email: 'demo@capacitylens.local',
+          emailVerified: true,
+          image: null,
+        },
+        providers: [],
+        multiAccount: false,
+        canCreateAccount: expected,
+      })
+      if (index === 0) {
+        const created = await trusted(client.post('/api/accounts'))
+          .json({ id: 'a-first', name: 'Wayne Enterprises' })
+          .send()
+        created.assertStatus(201)
+      } else if (!expected) {
+        const deleted = await trusted(client.delete('/api/accounts/a-first')).send()
+        deleted.assertStatus(204)
+      }
+    }
+  })
+
+  test('off-mode identity reports multi-company creation with empty and populated data', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    const prior = env.get('CAPACITYLENS_MULTI_ACCOUNT')
+    const priorProcess = process.env.CAPACITYLENS_MULTI_ACCOUNT
+    env.set('CAPACITYLENS_MULTI_ACCOUNT', true)
+    cleanup(() => restoreMultiAccount(prior, priorProcess))
+    await client.post('/api/test/reset').json({ seed: false }).send()
+    for (const populated of [false, true]) {
+      if (populated) {
+        const created = await trusted(client.post('/api/accounts'))
+          .json({ id: 'a-first', name: 'Wayne Enterprises' })
+          .send()
+        created.assertStatus(201)
+      }
+      const identity = await client.get('/api/auth/me')
+      identity.assertStatus(200)
+      assert.deepEqual(identity.body(), {
+        authMode: 'off',
+        user: {
+          id: 'demo',
+          name: 'Demo',
+          email: 'demo@capacitylens.local',
+          emailVerified: true,
+          image: null,
+        },
+        providers: [],
+        multiAccount: true,
+        canCreateAccount: true,
+      })
+    }
+  })
+
   test('both company POST routes default only omitted color', async ({ client, assert }) => {
     for (const path of ['/api/accounts', '/api/orgs']) {
       await client.post('/api/test/reset').json({ seed: false }).send()

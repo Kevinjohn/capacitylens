@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { healthChecks } from '#start/health'
 import { reportCspViolation } from '#services/csp_report'
 import { middleware } from '#start/kernel'
+import db from '@adonisjs/lucid/services/db'
 
 const BatchController = () => import('#controllers/batch_controller')
 const LifecycleController = () => import('#controllers/lifecycle_controller')
@@ -74,14 +75,16 @@ router.get('/api/diagnostics', async ({ response }) => {
     })
   }
 })
-router.get('/api/auth/me', ({ auth }) => {
+router.get('/api/auth/me', async ({ auth }) => {
   const user = auth.use('trustedLocal').getUserOrFail()
+  const multiAccount = env.get('CAPACITYLENS_MULTI_ACCOUNT') === true
+  const hasCompany = Boolean(await db.from('accounts').select('id').first())
   return {
     authMode: 'off',
     user,
     providers: [],
-    multiAccount: false,
-    canCreateAccount: false,
+    multiAccount,
+    canCreateAccount: multiAccount || !hasCompany,
   }
 })
 router.get('/api/accounts', async () => {
