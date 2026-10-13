@@ -1,5 +1,6 @@
 import type { StateCreator } from "zustand";
 import { newId } from "@capacitylens/shared/lib/id";
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { deleteAccountCascade } from "@capacitylens/shared/domain/mutations";
 import { m } from "@/i18n";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
@@ -52,8 +53,9 @@ function createAddAccountAction({ internals, set }: AccountActionContext): Store
   return createGuardedValueAction((input: Draft<Account>): Account | null => {
     const timestamps = stamp();
     const weekStartsOn = input.weekStartsOn ?? 1;
-    if (input.workingDays !== undefined) assertWorkingDays(input.workingDays);
+    if (input.workingDays != null) assertWorkingDays(input.workingDays);
     const entity: Account = {
+      ...NULLABLE_FIELDS.accounts,
       schedulingMode: "days",
       disciplinesEnabled: false,
       placeholdersEnabled: false,
@@ -89,9 +91,9 @@ function createUpdateAccountAction({ internals, get }: AccountActionContext): St
     const existing = state.data.accounts.find((account) => account.id === id);
     if (!existing) return;
     if (state.activeAccountId !== id) throw new Error("Cannot update a company other than the active company.");
-    if (patch.workingDays !== undefined) assertWorkingDays(patch.workingDays);
+    if (patch.workingDays != null) assertWorkingDays(patch.workingDays);
     const safePatch =
-      patch.workingDays === undefined
+      patch.workingDays == null
         ? patch
         : {
             ...patch,

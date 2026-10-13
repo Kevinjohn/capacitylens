@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, it, expect, vi } from "vitest";
 import {
   applyCapacityMode,
@@ -176,7 +177,8 @@ const capacityAdvisory = ({
 const isWorkingDay = (resource: Resource, date: ISODate, accountWorkingDays?: Weekday[]) =>
   isWorkingDayWithWeek(weekFor(resource, accountWorkingDays), date);
 
-const makeResource = (over: Partial<Resource> = {}): Resource => ({
+const makeResource = (over: Partial<Resource> = { ...NULLABLE_FIELDS.resources }): Resource => ({
+  ...NULLABLE_FIELDS.resources,
   id: "r1",
   accountId: "acct-test",
   createdAt: "t",
@@ -192,7 +194,8 @@ const makeResource = (over: Partial<Resource> = {}): Resource => ({
   halfDays: over.halfDays ?? [],
 });
 
-const makeAlloc = (over: Partial<Allocation> = {}): Allocation => ({
+const makeAlloc = (over: Partial<Allocation> = { ...NULLABLE_FIELDS.allocations }): Allocation => ({
+  ...NULLABLE_FIELDS.allocations,
   id: "a1",
   accountId: "acct-test",
   createdAt: "t",
@@ -206,7 +209,8 @@ const makeAlloc = (over: Partial<Allocation> = {}): Allocation => ({
   ...over,
 });
 
-const makeTimeOff = (over: Partial<TimeOff> = {}): TimeOff => ({
+const makeTimeOff = (over: Partial<TimeOff> = { ...NULLABLE_FIELDS.timeOff }): TimeOff => ({
+  ...NULLABLE_FIELDS.timeOff,
   id: "to1",
   accountId: "acct-test",
   createdAt: "t",

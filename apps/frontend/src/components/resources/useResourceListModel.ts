@@ -58,7 +58,7 @@ export function useResourceListModel() {
     () => partitionResources({ resources: resources, groupByEngagement: groupByEngagement }),
     [resources, groupByEngagement],
   );
-  const resolveDisciplineName = (id?: string) => (id ? disciplinesById.get(id)?.name : undefined);
+  const resolveDisciplineName = (id?: string | null) => (id ? disciplinesById.get(id)?.name : undefined);
   const resolveSwatchColor = (resource: Resource) =>
     (disciplinesEnabled && resource.disciplineId ? disciplinesById.get(resource.disciplineId)?.color : undefined) ??
     resource.color;

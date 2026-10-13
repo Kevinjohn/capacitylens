@@ -12,15 +12,28 @@ describe("data transfer", () => {
     expect(parseData(serialized)).toEqual(data);
   });
 
-  it("round-trips a v23 person avatar URL through export and import", () => {
+  it("exports every nullable entity field as an explicit null after v23 migration", () => {
+    const data = seed();
+    const parsed = parseData(JSON.stringify({ schemaVersion: 23, data }));
+    const account = parsed.accounts[0];
+    const person = parsed.resources.find(({ kind }) => kind === "person");
+    const booking = parsed.allocations[0];
+    expect(account).toHaveProperty("timezone");
+    expect(account?.timezone).toBeNull();
+    expect(person).toHaveProperty("avatarUrl");
+    expect(person?.avatarUrl).toBeNull();
+    expect(booking).toHaveProperty("note");
+    expect(booking?.note).toBeNull();
+  });
+
+  it("migrates a v23 person avatar URL to v24", () => {
     // Pin the complete export history: v23 is the first schema that carries person avatar URLs.
     const data = seed();
     const person = data.resources.find(({ kind }) => kind === "person");
     if (!person) throw new Error("Expected a person in the export fixture");
     person.avatarUrl = "https://images.example/bruce.png";
 
-    const serialized = serializeData(data);
-    expect(JSON.parse(serialized)).toMatchObject({ schemaVersion: 23 });
+    const serialized = JSON.stringify({ schemaVersion: 23, data });
     expect(parseData(serialized).resources.find(({ id }) => id === person.id)?.avatarUrl).toBe(person.avatarUrl);
   });
 

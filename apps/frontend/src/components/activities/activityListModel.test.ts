@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, expect, it } from "vitest";
 import type { Activity, Client, Project } from "@capacitylens/shared/types/entities";
 import { buildActivityListModel } from "./activityListModel";
@@ -15,8 +16,15 @@ const base = {
   updatedAt: "2026-08-11T00:00:00.000Z",
 };
 
-const client = (id: string, name: string): Client => ({ ...base, id, name, color: "#111111" });
+const client = (id: string, name: string): Client => ({
+  ...NULLABLE_FIELDS.clients,
+  ...base,
+  id,
+  name,
+  color: "#111111",
+});
 const project = (id: string, name: string, clientId: string): Project => ({
+  ...NULLABLE_FIELDS.projects,
   ...base,
   id,
   name,
@@ -24,6 +32,7 @@ const project = (id: string, name: string, clientId: string): Project => ({
   color: "#222222",
 });
 const activity = ({ id, name, kind, projectId }: ActivityInput): Activity => ({
+  ...NULLABLE_FIELDS.activities,
   ...base,
   id,
   name,

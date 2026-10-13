@@ -137,7 +137,7 @@ describe("ResourceForm availability dates", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     const updated = requireValue(useStore.getState().data.resources[0], "updated resource");
-    expect(updated).not.toHaveProperty("firstAvailableDate");
+    expect(updated).toHaveProperty("firstAvailableDate", null);
     expect(updated).toMatchObject({ lastAvailableDate: "2026-09-30", role: "Design lead" });
     expect(onClose).toHaveBeenCalledOnce();
   });

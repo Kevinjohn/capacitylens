@@ -110,7 +110,7 @@ test.group('M2a batch frozen account fields', (group) => {
     await freezeSeededAccount(client)
     const before = await account(client)
     const invalid = await batchPutAccount(client, { ...before, timezone: null })
-    assert.equal(invalid.status(), 400)
+    assert.equal(invalid.status(), 409)
     assert.deepEqual(await account(client), before)
 
     const mutable = await batchPutAccount(client, {

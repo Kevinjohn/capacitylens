@@ -25,7 +25,7 @@ function resolveInitialLocked({
   initialPlaceholderProjectId: string | undefined;
 }) {
   if (!editing) return initialPlaceholderProjectId;
-  if (editing.projectId !== undefined) return editing.projectId;
+  if (editing.projectId != null) return editing.projectId;
   return initialActivity ? resolveProjectSelection(initialActivity) : initialPlaceholderProjectId;
 }
 
@@ -79,7 +79,8 @@ function resolveSeedSelection(input: SeedInput) {
   const { initialResourceId } = draftValues;
   const initialResource = resourceById.get(initialResourceId);
   const initialEffectiveWeek = initialResource ? effectiveWorkingWeek(initialResource, accountWorkingDays) : null;
-  const initialPlaceholderProjectId = initialResource?.kind === "placeholder" ? initialResource.projectId : undefined;
+  const initialPlaceholderProjectId =
+    initialResource?.kind === "placeholder" ? (initialResource.projectId ?? undefined) : undefined;
   return {
     ...draftValues,
     initialActivity,

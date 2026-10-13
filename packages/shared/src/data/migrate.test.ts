@@ -3,6 +3,7 @@ import { InvalidSchemaVersionError, migrate, UnsupportedSchemaVersionError } fro
 import { emptyAppData, EXPORT_SCHEMA_VERSION } from "../types/entities.js";
 import { sanitizeImportedRecord } from "../lib/sanitizeImport.js";
 import { migrateV3toV4 } from "./migrate/steps/v1-v6.js";
+import { NULLABLE_FIELDS } from "../types/nullableFields.js";
 
 describe("migrate", () => {
   // Migration steps and EXPORT_SCHEMA_VERSION must agree. Check lazily so importing the app entry graph cannot throw before an error boundary exists.
@@ -22,7 +23,10 @@ describe("migrate", () => {
       ...emptyAppData(),
       clients: [{ id: "c1", createdAt: "t", updatedAt: "t", name: "A", color: "#1" }],
     };
-    expect(migrate({ schemaVersion: 1, data })).toEqual(data);
+    expect(migrate({ schemaVersion: 1, data })).toEqual({
+      ...data,
+      clients: [{ ...NULLABLE_FIELDS.clients, ...data.clients[0] }],
+    });
   });
 
   it("refuses a forward schema instead of normalizing and later overwriting it", () => {
@@ -36,6 +40,20 @@ describe("migrate", () => {
 });
 
 describe("migrate current schema", () => {
+  it("materializes every nullable field when upgrading v23 rows without mutating the export", () => {
+    const legacyRows = Object.fromEntries(
+      Object.keys(NULLABLE_FIELDS).map((key) => [key, [{ id: `${key}-1`, createdAt: "t", updatedAt: "t" }]]),
+    );
+    const raw = { schemaVersion: 23, data: legacyRows };
+
+    const migrated = migrate(raw);
+
+    for (const key of Object.keys(NULLABLE_FIELDS) as (keyof typeof NULLABLE_FIELDS)[]) {
+      expect(migrated[key][0]).toMatchObject(NULLABLE_FIELDS[key]);
+      expect(legacyRows[key]).toEqual([{ id: `${key}-1`, createdAt: "t", updatedAt: "t" }]);
+    }
+  });
+
   it("accepts v17 data without attribution and preserves v18 attribution", () => {
     const allocation = {
       id: "a1",
@@ -51,7 +69,7 @@ describe("migrate current schema", () => {
     };
     expect(
       migrate({ schemaVersion: 17, data: { ...emptyAppData(), allocations: [allocation] } }).allocations[0],
-    ).not.toHaveProperty("projectId");
+    ).toHaveProperty("projectId", null);
     expect(
       migrate({
         schemaVersion: 18,
@@ -98,7 +116,10 @@ describe("migrate legacy wrappers", () => {
         },
       ],
     };
-    expect(migrate(data)).toEqual({ ...data, resources: [{ ...data.resources[0], halfDays: [] }] });
+    expect(migrate(data)).toEqual({
+      ...data,
+      resources: [{ ...NULLABLE_FIELDS.resources, ...data.resources[0], halfDays: [] }],
+    });
   });
 
   it("migrates legacy isFreelancer resources to employmentType (v1 → v2)", () => {
@@ -189,7 +210,7 @@ describe("migrate versionless resource data", () => {
     };
     expect(migrate({ schemaVersion: 2, data })).toEqual({
       ...data,
-      resources: [{ ...data.resources[0], halfDays: [] }],
+      resources: [{ ...NULLABLE_FIELDS.resources, ...data.resources[0], halfDays: [] }],
     });
   });
 });
@@ -229,8 +250,8 @@ describe("migrate account and client defaults", () => {
     expect(client).toMatchObject({ name: "Public client" });
     expect(project).toMatchObject({ name: "Public project" });
     for (const row of [client, project]) {
-      expect(row).not.toHaveProperty("isPrivate");
-      expect(row).not.toHaveProperty("codeName");
+      expect(row).toHaveProperty("isPrivate", null);
+      expect(row).toHaveProperty("codeName", null);
     }
   });
 });
@@ -251,7 +272,7 @@ describe("migrate schedule visibility defaults", () => {
       ],
     };
     const out = migrate({ schemaVersion: 8, data });
-    expect(out.accounts[0]?.inlineActivityCreateEnabled).toBeUndefined();
+    expect(out.accounts[0]?.inlineActivityCreateEnabled).toBeNull();
   });
 });
 
@@ -297,7 +318,7 @@ describe("migrate legacy resource defaults", () => {
     };
 
     const out = migrate({ schemaVersion: 9, data });
-    expect(out.resources[0]?.isFavourite).toBeUndefined();
+    expect(out.resources[0]?.isFavourite).toBeNull();
     expect(out.resources[0]?.engagement).toBe("studio");
   });
 });
@@ -319,7 +340,7 @@ describe("migrate half-day defaults", () => {
     };
 
     const out = migrate({ schemaVersion: 10, data: { ...emptyAppData(), resources: [resource] } });
-    expect(out.resources[0]).toEqual({ ...resource, halfDays: [], engagement: "studio" });
+    expect(out.resources[0]).toEqual({ ...NULLABLE_FIELDS.resources, ...resource, halfDays: [], engagement: "studio" });
   });
 });
 
@@ -341,7 +362,7 @@ describe("migrate engagement defaults", () => {
     };
 
     const out = migrate({ schemaVersion: 11, data: { ...emptyAppData(), resources: [resource] } });
-    expect(out.resources[0]).toEqual({ ...resource, engagement: "studio" });
+    expect(out.resources[0]).toEqual({ ...NULLABLE_FIELDS.resources, ...resource, engagement: "studio" });
   });
 
   it("preserves current engagement and half-day values in a bare server slice", () => {
@@ -362,7 +383,7 @@ describe("migrate engagement defaults", () => {
     };
 
     const out = migrate({ ...emptyAppData(), resources: [resource] });
-    expect(out.resources[0]).toEqual(resource);
+    expect(out.resources[0]).toEqual({ ...NULLABLE_FIELDS.resources, ...resource });
   });
 
   it("adds no account fields beyond working days when migrating v12", () => {
@@ -375,7 +396,7 @@ describe("migrate engagement defaults", () => {
     };
 
     const out = migrate({ schemaVersion: 12, data: { ...emptyAppData(), accounts: [account] } });
-    expect(out.accounts[0]).toEqual({ ...account, workingDays: [1, 2, 3, 4, 5] });
+    expect(out.accounts[0]).toEqual({ ...NULLABLE_FIELDS.accounts, ...account, workingDays: [1, 2, 3, 4, 5] });
   });
 });
 
@@ -524,8 +545,8 @@ describe("migrate account working days", () => {
     };
     const out = migrate({ schemaVersion: 14, data: { ...emptyAppData(), allocations: [legacy] } });
 
-    expect(out.allocations).toEqual([legacy]);
-    expect(out.allocations[0]).not.toHaveProperty("seriesId");
+    expect(out.allocations).toEqual([{ ...NULLABLE_FIELDS.allocations, ...legacy }]);
+    expect(out.allocations[0]).toHaveProperty("seriesId", null);
   });
 });
 
@@ -543,7 +564,7 @@ describe("migrate later allocation fields", () => {
     };
     const out = migrate({ schemaVersion: 15, data: { ...emptyAppData(), timeOff: [legacy] } });
 
-    expect(out.timeOff).toEqual([legacy]);
+    expect(out.timeOff).toEqual([{ ...NULLABLE_FIELDS.timeOff, ...legacy }]);
   });
 });
 

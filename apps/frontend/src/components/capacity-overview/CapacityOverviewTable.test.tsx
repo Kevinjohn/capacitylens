@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,6 +16,7 @@ vi.mock("@/account/useResourceAvatars", () => ({ useResourceAvatars: vi.fn() }))
 beforeEach(() => vi.mocked(useResourceAvatars).mockReturnValue(new Map()));
 
 const resource = (id: string, kind: Resource["kind"] = "person"): Resource => ({
+  ...NULLABLE_FIELDS.resources,
   id,
   accountId: "account",
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -168,7 +170,7 @@ describe("CapacityOverviewTable content", () => {
       const avatar = () => container.querySelector('button[aria-label="View Clark Kent\'s schedule"] img');
       expect(avatar()).toHaveAttribute("src", "https://images.example/clark.png");
       const withoutStoredImage: Resource = { ...clarkKent };
-      delete withoutStoredImage.avatarUrl;
+      withoutStoredImage.avatarUrl = null;
       rerender({
         model: {
           ...model,

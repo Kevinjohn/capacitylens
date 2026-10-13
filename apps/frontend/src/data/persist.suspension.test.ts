@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   attachPersistence,
@@ -418,6 +419,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
       clients: [
         ...useStore.getState().data.clients,
         {
+          ...NULLABLE_FIELDS.clients,
           id: "stale-c",
           accountId: "a2",
           name: "Stale",

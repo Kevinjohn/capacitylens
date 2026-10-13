@@ -43,7 +43,7 @@ export function buildGesturePreviewDates({
       options: {
         ...(previewDays !== undefined ? { workingDays: previewDays } : {}),
         ...(sourceDays !== undefined ? { sourceWorkingDays: sourceDays } : {}),
-        ...(allocation.ignoreWeekends !== undefined ? { ignoreWeekends: allocation.ignoreWeekends } : {}),
+        ignoreWeekends: allocation.ignoreWeekends,
       },
     }),
   };

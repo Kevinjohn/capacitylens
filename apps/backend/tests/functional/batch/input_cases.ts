@@ -38,7 +38,7 @@ export function invalidFieldCases(data: AppData): InputCase[] {
     ['language', 'cy'],
     ['disciplinesEnabled', 'yes'],
     ['placeholdersEnabled', 1],
-    ['externalEnabled', null],
+    ['externalEnabled', 'yes'],
     ['inlineActivityCreateEnabled', 'false'],
     ['showTaskFieldInSchedule', 0],
     ['workingDays', [1, 1]],
@@ -100,7 +100,6 @@ export function invalidFieldCases(data: AppData): InputCase[] {
     ['note', longNote],
     ['task', longName],
     ['ignoreWeekends', 1],
-    ['projectId', null],
     ['projectId', 'p-loft-app'],
   ])
   add('timeOff', one(data, 'timeOff', 'to-tyler'), [

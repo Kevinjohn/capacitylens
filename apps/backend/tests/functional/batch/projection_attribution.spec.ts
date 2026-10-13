@@ -133,7 +133,7 @@ test.group('M2a batch projection attribution', (group) => {
     flip.assertStatus(200)
     const state = await readStudioState(client)
     const rewritten = state.allocations.find((row) => row.id === allocation.id)!
-    assert.isUndefined(rewritten.projectId)
+    assert.isNull(rewritten.projectId)
     const revisions = (flip.body() as { revisions: BatchRevision[] }).revisions
     assert.deepInclude(revisions, {
       table: 'allocations',
@@ -184,7 +184,7 @@ test.group('M2a batch projection attribution', (group) => {
     response.assertStatus(200)
     const state = await readStudioState(client)
     const rewritten = state.allocations.find((row) => row.id === allocation.id)!
-    assert.isUndefined(rewritten.projectId)
+    assert.isNull(rewritten.projectId)
     assert.deepInclude((response.body() as { revisions: BatchRevision[] }).revisions, {
       table: 'allocations',
       id: allocation.id,
@@ -216,7 +216,7 @@ test.group('M2a batch projection attribution', (group) => {
     response.assertStatus(200)
     const state = await readStudioState(client)
     const rewritten = state.allocations.find((row) => row.id === allocation.id)!
-    assert.isUndefined(rewritten.projectId)
+    assert.isNull(rewritten.projectId)
     assert.deepInclude((response.body() as { revisions: BatchRevision[] }).revisions, {
       table: 'allocations',
       id: allocation.id,
@@ -245,7 +245,7 @@ test.group('M2a batch projection attribution', (group) => {
     response.assertStatus(200)
     const state = await readStudioState(client)
     const repaired = state.allocations.find((row) => row.id === allocation.id)!
-    assert.isUndefined(repaired.projectId)
+    assert.isNull(repaired.projectId)
     assert.deepInclude((response.body() as { revisions: BatchRevision[] }).revisions, {
       table: 'allocations',
       id: allocation.id,
@@ -285,7 +285,7 @@ test.group('M2a batch projection attribution', (group) => {
     ])
     response.assertStatus(200)
     const state = await readStudioState(client)
-    assert.isUndefined(state.allocations.find((row) => row.id === allocation.id)?.projectId)
+    assert.isNull(state.allocations.find((row) => row.id === allocation.id)?.projectId)
   })
 
   test('keeps projection validation consistent through a kind flip and placeholder rebind', async ({
@@ -324,7 +324,7 @@ test.group('M2a batch projection attribution', (group) => {
     response.assertStatus(200)
     const state = await readStudioState(client)
     assert.equal(state.resources.find((row) => row.id === resource.id)?.projectId, 'p-brand')
-    assert.isUndefined(state.allocations.find((row) => row.id === allocation.id)?.projectId)
+    assert.isNull(state.allocations.find((row) => row.id === allocation.id)?.projectId)
   })
 
   test('a deleted discipline projects SET NULL before a later resource operation', async ({
@@ -352,7 +352,7 @@ test.group('M2a batch projection attribution', (group) => {
     ])
     response.assertStatus(200)
     const state = await readStudioState(client)
-    assert.isUndefined(state.resources.find((row) => row.id === resource.id)?.disciplineId)
+    assert.isNull(state.resources.find((row) => row.id === resource.id)?.disciplineId)
     assert.isFalse(state.disciplines.some((row) => row.id === discipline.id))
   })
 

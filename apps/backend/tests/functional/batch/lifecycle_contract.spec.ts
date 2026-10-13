@@ -225,7 +225,7 @@ test.group('M2a lifecycle contract', (group) => {
     assert.isNotNull(persisted.archived_at)
     assert.exists(result)
     assert.notEqual((result as Record<string, unknown>).name, realName)
-    assert.notProperty(result as Record<string, unknown>, 'codeName')
+    assert.isNull((result as Record<string, unknown>).codeName)
     assert.equal(persisted.name, realName)
   })
 

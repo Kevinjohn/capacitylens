@@ -1,3 +1,4 @@
+import { makeAccount } from "@/test/fixtures";
 import { describe, it, expect, vi } from "vitest";
 import {
   ServerSyncAdapter,
@@ -262,13 +263,7 @@ function registerCompensatingKeepaliveTests(): void {
 function registerScopedDeleteSaveTests(): void {
   it("carries the owning account on a scoped (non-lifecycle) DELETE op; accounts (top-level) carry none", async () => {
     // Use time off because ordinary scoped deletes travel in the batch; lifecycle entities archive separately.
-    const account = {
-      id: "a1",
-      name: "Co",
-      color: "#3b82f6",
-      createdAt: TS1,
-      updatedAt: TS1,
-    };
+    const account = makeAccount({ id: "a1", name: "Co", color: "#3b82f6", createdAt: TS1, updatedAt: TS1 });
     const off: TimeOff = {
       id: "t1",
       accountId: "a1",
@@ -276,6 +271,7 @@ function registerScopedDeleteSaveTests(): void {
       startDate: "2026-01-01",
       endDate: "2026-01-02",
       type: "holiday",
+      note: null,
       createdAt: TS1,
       updatedAt: TS1,
     };

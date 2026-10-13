@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach } from "vitest";
 import { useStore } from "./useStore";
@@ -18,21 +19,66 @@ function twoAccountData(): AppData {
     ...emptyAppData(),
     accounts: [makeAccount({ id: "a1", name: "One" }), makeAccount({ id: "a2", name: "Two" })],
     clients: [
-      { id: "c1", accountId: "a1", createdAt: "t", updatedAt: "t", name: "Client A1", color: "#1" },
-      { id: "c2", accountId: "a2", createdAt: "t", updatedAt: "t", name: "Client A2", color: "#2" },
+      {
+        ...NULLABLE_FIELDS.clients,
+        id: "c1",
+        accountId: "a1",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Client A1",
+        color: "#1",
+      },
+      {
+        ...NULLABLE_FIELDS.clients,
+        id: "c2",
+        accountId: "a2",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Client A2",
+        color: "#2",
+      },
     ],
     projects: [
-      { id: "p1", accountId: "a1", createdAt: "t", updatedAt: "t", name: "Proj A1", clientId: "c1", color: "#1" },
-      { id: "p2", accountId: "a2", createdAt: "t", updatedAt: "t", name: "Proj A2", clientId: "c2", color: "#2" },
+      {
+        ...NULLABLE_FIELDS.projects,
+        id: "p1",
+        accountId: "a1",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Proj A1",
+        clientId: "c1",
+        color: "#1",
+      },
+      {
+        ...NULLABLE_FIELDS.projects,
+        id: "p2",
+        accountId: "a2",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Proj A2",
+        clientId: "c2",
+        color: "#2",
+      },
     ],
   };
 }
 
 const invalidImportedData: AppData = {
   ...emptyAppData(),
-  clients: [{ id: "old-c1", accountId: "foreign", createdAt: "t", updatedAt: "t", name: "Ferris", color: "#ef4444" }],
+  clients: [
+    {
+      ...NULLABLE_FIELDS.clients,
+      id: "old-c1",
+      accountId: "foreign",
+      createdAt: "t",
+      updatedAt: "t",
+      name: "Ferris",
+      color: "#ef4444",
+    },
+  ],
   projects: [
     {
+      ...NULLABLE_FIELDS.projects,
       id: "old-p1",
       accountId: "foreign",
       createdAt: "t",
@@ -44,6 +90,7 @@ const invalidImportedData: AppData = {
   ],
   resources: [
     {
+      ...NULLABLE_FIELDS.resources,
       id: "old-r1",
       accountId: "foreign",
       createdAt: "t",
@@ -60,6 +107,7 @@ const invalidImportedData: AppData = {
   ],
   activities: [
     {
+      ...NULLABLE_FIELDS.activities,
       id: "old-t1",
       accountId: "foreign",
       createdAt: "t",
@@ -71,6 +119,7 @@ const invalidImportedData: AppData = {
   ],
   allocations: [
     {
+      ...NULLABLE_FIELDS.allocations,
       id: "ok",
       accountId: "foreign",
       createdAt: "t",
@@ -83,6 +132,7 @@ const invalidImportedData: AppData = {
       status: "confirmed",
     },
     {
+      ...NULLABLE_FIELDS.allocations,
       id: "rev",
       accountId: "foreign",
       createdAt: "t",
@@ -95,6 +145,7 @@ const invalidImportedData: AppData = {
       status: "confirmed",
     },
     {
+      ...NULLABLE_FIELDS.allocations,
       id: "dangle",
       accountId: "foreign",
       createdAt: "t",
@@ -117,6 +168,7 @@ const invalidImportedData: AppData = {
       startDate: "2026-07-01",
       endDate: "2026-07-03",
       type: "holiday",
+      note: null,
     },
     {
       id: "to-bad",
@@ -127,6 +179,7 @@ const invalidImportedData: AppData = {
       startDate: "2026-07-01",
       endDate: "2026-07-03",
       type: "holiday",
+      note: null,
     },
   ],
 };
@@ -279,7 +332,17 @@ function registerScopedImportPart1(): void {
   it("replaces only the active account’s slice, re-stamps incoming, keeps other accounts", () => {
     const incoming: AppData = {
       ...emptyAppData(),
-      clients: [{ id: "imp-c", accountId: "WRONG", createdAt: "t", updatedAt: "t", name: "Imported", color: "#9" }],
+      clients: [
+        {
+          ...NULLABLE_FIELDS.clients,
+          id: "imp-c",
+          accountId: "WRONG",
+          createdAt: "t",
+          updatedAt: "t",
+          name: "Imported",
+          color: "#9",
+        },
+      ],
     };
     s().importData(incoming);
 
@@ -296,7 +359,17 @@ function registerScopedImportPart1(): void {
     s().setActiveAccount("a2");
     s().importData({
       ...emptyAppData(),
-      clients: [{ id: "c1", accountId: "X", createdAt: "t", updatedAt: "t", name: "Dupe", color: "#9" }],
+      clients: [
+        {
+          ...NULLABLE_FIELDS.clients,
+          id: "c1",
+          accountId: "X",
+          createdAt: "t",
+          updatedAt: "t",
+          name: "Dupe",
+          color: "#9",
+        },
+      ],
     });
 
     const importedId = present(s().data.clients.find((c) => c.accountId === "a2")).id;
@@ -311,9 +384,28 @@ function registerScopedImportPart3(): void {
     s().setActiveAccount("a2");
     s().importData({
       ...emptyAppData(),
-      clients: [{ id: "imp-c", accountId: "X", createdAt: "t", updatedAt: "t", name: "C", color: "#1" }],
+      clients: [
+        {
+          ...NULLABLE_FIELDS.clients,
+          id: "imp-c",
+          accountId: "X",
+          createdAt: "t",
+          updatedAt: "t",
+          name: "C",
+          color: "#1",
+        },
+      ],
       projects: [
-        { id: "imp-p", accountId: "X", createdAt: "t", updatedAt: "t", name: "P", clientId: "imp-c", color: "#2" },
+        {
+          ...NULLABLE_FIELDS.projects,
+          id: "imp-p",
+          accountId: "X",
+          createdAt: "t",
+          updatedAt: "t",
+          name: "P",
+          clientId: "imp-c",
+          color: "#2",
+        },
       ],
     });
     const a2 = scopeData(s().data, "a2");
@@ -327,7 +419,17 @@ function registerScopedImportPart3(): void {
   it("is undoable via ⌘Z", () => {
     s().importData({
       ...emptyAppData(),
-      clients: [{ id: "imp", accountId: "X", createdAt: "t", updatedAt: "t", name: "Imported", color: "#9" }],
+      clients: [
+        {
+          ...NULLABLE_FIELDS.clients,
+          id: "imp",
+          accountId: "X",
+          createdAt: "t",
+          updatedAt: "t",
+          name: "Imported",
+          color: "#9",
+        },
+      ],
     });
 
     expect(

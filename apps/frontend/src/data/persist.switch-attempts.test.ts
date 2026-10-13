@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
@@ -14,7 +15,9 @@ describe("account-switch attempt settlement", () => {
         ? new Promise<AppData>(() => undefined)
         : {
             ...emptyAppData(),
-            accounts: [{ id: "b1", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
+            accounts: [
+              { ...NULLABLE_FIELDS.accounts, id: "b1", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" },
+            ],
           },
     );
     useStore.getState().replaceAll(emptyAppData());
@@ -85,7 +88,7 @@ describe("account-switch attempt settlement", () => {
     expect(lastSettled).toBe(false);
     finishLoad(2, {
       ...emptyAppData(),
-      accounts: [{ id: "a1", name: "Alpha", color: "#1", createdAt: "t", updatedAt: "t" }],
+      accounts: [{ ...NULLABLE_FIELDS.accounts, id: "a1", name: "Alpha", color: "#1", createdAt: "t", updatedAt: "t" }],
     });
     await expect(lastA).resolves.toEqual({ kind: "reloaded" });
     detach();

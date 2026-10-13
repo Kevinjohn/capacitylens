@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { cleanup, screen, act } from "@testing-library/react";
 import { fireEvent } from "@testing-library/react";
@@ -41,6 +42,7 @@ const TIME_OFF_BLOCKS: TimeOffBlock[] = [{ id: "to1", x: 0, width: 96, label: "H
 
 const makeBar = (): BarLayout => ({
   allocation: {
+    ...NULLABLE_FIELDS.allocations,
     id: "alloc1",
     accountId: "acct-test",
     createdAt: "2026-01-01T00:00:00.000Z",

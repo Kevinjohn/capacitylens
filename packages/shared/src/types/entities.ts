@@ -21,7 +21,7 @@ export type SchedulingMode = "hourly" | "days" | "blocks";
 /** Runtime list of the valid scheduling modes, the single source the server's
  * sanitiser uses to reject a junk `schedulingMode` on a direct account write. */
 export const SCHEDULING_MODES: SchedulingMode[] = ["hourly", "days", "blocks"];
-/** Who may open the Capacity Overview for an account. Absent means owner/admin only. */
+/** Who may open the Capacity Overview for an account. Null means owner/admin only. */
 export type CapacityOverviewAccess = "owner_admin" | "owner_admin_editor" | "everyone";
 /** Runtime list used by import and server sanitisation to reject unknown access policies. */
 export const CAPACITY_OVERVIEW_ACCESS_VALUES: CapacityOverviewAccess[] = [
@@ -30,12 +30,12 @@ export const CAPACITY_OVERVIEW_ACCESS_VALUES: CapacityOverviewAccess[] = [
   "everyone",
 ];
 /** How human-readable dates read across an account: day/month order, and whether the day number
- * carries an ordinal suffix. Absent means "day-month" ("9 Sep"). This is account data, not a device preference. A company reads one convention. */
+ * carries an ordinal suffix. Null means "day-month" ("9 Sep"). This is account data, not a device preference. A company reads one convention. */
 export type DateStyle = "day-month" | "day-ordinal-month" | "month-day" | "month-day-ordinal";
 /** Supported date styles in Settings order; server/import sanitization rejects values absent from this list.
  * Keep this list aligned with DateStyle; the array type alone does not enforce union completeness. */
 export const DATE_STYLES: DateStyle[] = ["day-month", "day-ordinal-month", "month-day", "month-day-ordinal"];
-/** The format an absent `dateStyle` reads back as. */
+/** The format a null `dateStyle` reads back as. */
 export const DEFAULT_DATE_STYLE: DateStyle = "day-month";
 /**
  * What a resource row represents:
@@ -76,42 +76,42 @@ export interface Entity {
 export interface Account extends Entity {
   name: string;
   color: string;
-  /** How this company enters allocations. Absent = 'hourly'. */
-  schedulingMode?: SchedulingMode;
-  /** IANA time zone used to derive "today" for this account. Absent = 'Etc/GMT'. */
-  timezone?: string;
-  /** Which weekday starts the week: 0 = Sunday, 1 = Monday. Absent = 1. */
-  weekStartsOn?: 0 | 1;
+  /** How this company enters allocations. Null = 'hourly'. */
+  schedulingMode: SchedulingMode | null;
+  /** IANA time zone used to derive "today" for this account. Null = 'Etc/GMT'. */
+  timezone: string | null;
+  /** Which weekday starts the week: 0 = Sunday, 1 = Monday. Null = 1. */
+  weekStartsOn: 0 | 1 | null;
   /** Weekdays on which schedule creation may start. Stored as a set; presentation follows weekStartsOn. */
-  workingDays?: Weekday[];
-  /** UI language for this company. Absent = 'en'. English-only for now.
+  workingDays: Weekday[] | null;
+  /** UI language for this company. Null = 'en'. English-only for now.
    * Frozen after creation. Not shown in Settings while English is the only option. */
-  language?: string;
-  /** Whether this company uses disciplines. Absent = true.
+  language: string | null;
+  /** Whether this company uses disciplines. Null = true.
    * When false, disciplines are hidden across the whole UI (nav, resource form,
    * schedule grouping + filter, lists, command palette). The data is preserved. */
-  disciplinesEnabled?: boolean;
-  /** Whether this company surfaces placeholder ("slot") resources. Absent = false
+  disciplinesEnabled: boolean | null;
+  /** Whether this company surfaces placeholder ("slot") resources. Null = false
    * (hidden out of the box, not `?? true` like disciplinesEnabled) so new companies start
    * with placeholders off. When false, placeholders are hidden across the UI; the data is
    * preserved and returns when re-enabled. */
-  placeholdersEnabled?: boolean;
-  /** Whether this company surfaces external / 3rd-party resources. Absent = false (hidden out
+  placeholdersEnabled: boolean | null;
+  /** Whether this company surfaces external / 3rd-party resources. Null = false (hidden out
    * of the box, like placeholdersEnabled) so new companies start with external off. When false,
    * external resources are hidden across the UI; the data is preserved and returns when re-enabled. */
-  externalEnabled?: boolean;
+  externalEnabled: boolean | null;
   /** Whether the scheduler's Allocation modal offers the inline "Add activity" input + button.
-   * Absent = false (hidden). When false the inline creator is not rendered; the Activity picker
+   * Null = false (hidden). When false the inline creator is not rendered; the Activity picker
    * itself still works normally. */
-  inlineActivityCreateEnabled?: boolean;
-  /** Whether populated allocation task text is shown in schedule details. Absent = false. */
-  showTaskFieldInSchedule?: boolean;
-  /** Who may open Capacity Overview. Absent = owner/admin only. */
-  capacityOverviewAccess?: CapacityOverviewAccess;
-  /** How human-readable dates read across this company. Absent = 'day-month' ("9 Sep"). Editors
+  inlineActivityCreateEnabled: boolean | null;
+  /** Whether populated allocation task text is shown in schedule details. Null = false. */
+  showTaskFieldInSchedule: boolean | null;
+  /** Who may open Capacity Overview. Null = owner/admin only. */
+  capacityOverviewAccess: CapacityOverviewAccess | null;
+  /** How human-readable dates read across this company. Null = 'day-month' ("9 Sep"). Editors
    * and up may change it, and it applies to every member: a schedule where half the rows read
    * "9 Sep" and half read "Sep 9" is the problem the setting exists to remove. */
-  dateStyle?: DateStyle;
+  dateStyle: DateStyle | null;
 }
 
 /** Every domain entity belongs to exactly one account. Accounts themselves don't. */
@@ -122,7 +122,7 @@ export interface ScopedEntity extends Entity {
 /** A team discipline that groups people and sets their colour. */
 export interface Discipline extends ScopedEntity {
   name: string;
-  color?: string;
+  color: string | null;
   // The scheduler uses this value to group disciplines consistently.
   sortOrder: number;
 }
@@ -132,13 +132,13 @@ export interface Resource extends ScopedEntity {
   kind: ResourceKind;
   /** Optional: placeholders may be nameless (shown by `role`). For `external` this holds the
    * company name (the External form requires it). */
-  name?: string;
+  name: string | null;
   /** e.g. "Senior Designer", the label used for nameless placeholders; an `external`'s
    * optional descriptor (e.g. "Print", "Overflow dev"). */
   role: string;
   /** Optional externally hosted avatar for people. Must be an absolute HTTPS URL without credentials. */
-  avatarUrl?: string;
-  disciplineId?: ID;
+  avatarUrl: string | null;
+  disciplineId: ID | null;
   employmentType: EmploymentType;
   engagement: ResourceEngagement;
   /** Capacity per working day. Unused (silent default) for `external`, externals have no capacity. */
@@ -149,24 +149,24 @@ export interface Resource extends ScopedEntity {
    * Unused for placeholders and externals. */
   halfDays: Weekday[];
   /** Placeholders only: the single project a placeholder is bound to. */
-  projectId?: ID;
+  projectId: ID | null;
   color: string;
-  /** Account-wide display preference for people and external resources. Absent = not favourite. */
-  isFavourite?: boolean;
-  /** Inclusive first date on which this person may be scheduled. Absent = unbounded. */
-  firstAvailableDate?: ISODate | undefined;
-  /** Inclusive last date on which this person may be scheduled. Absent = unbounded. */
-  lastAvailableDate?: ISODate | undefined;
+  /** Account-wide display preference for people and external resources. Null = not favourite. */
+  isFavourite: boolean | null;
+  /** Inclusive first date on which this person may be scheduled. Null = unbounded. */
+  firstAvailableDate: ISODate | null;
+  /** Inclusive last date on which this person may be scheduled. Null = unbounded. */
+  lastAvailableDate: ISODate | null;
   /** ISO 8601 timestamp of when this resource was archived (soft, reversible): hidden from
-   * scheduling but fully retained. Absent = active (not archived). Part of the
+   * scheduling but fully retained. Null = active (not archived). Part of the
    * Active→Archived→Soft-deleted→Purged lifecycle; set/cleared only by the state machine in
    * shared/src/domain/lifecycle.ts. Non-active rows are hidden from normal views/reads (activeOnly). */
-  archivedAt?: ISOTimestamp;
+  archivedAt: ISOTimestamp | null;
   /** ISO 8601 timestamp of the soft-delete tombstone: when this resource was soft-deleted.
-   * Absent = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
+   * Null = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
    * soft-delete requires prior archival, and a tombstone is hard-purged only after
    * PURGE_MIN_AGE_DAYS, all enforced by shared/src/domain/lifecycle.ts. */
-  deletedAt?: ISOTimestamp;
+  deletedAt: ISOTimestamp | null;
 }
 
 /** A client whose projects are scheduled. */
@@ -174,27 +174,27 @@ export interface Client extends ScopedEntity {
   name: string;
   color: string;
   /** When true, only account owners receive `name`; every other role receives the quoted
-   * `codeName` in its place. Absent = public (the default). */
-  isPrivate?: boolean;
+   * `codeName` in its place. Null = public (the default). */
+  isPrivate: boolean | null;
   /** Owner-managed cover name for a private client. Stored without quotation marks; the read
    * projection adds them consistently wherever the code name is displayed. */
-  codeName?: string;
+  codeName: string | null;
   /** True only for the built-in "Internal" pseudo-client, exactly one per account, created by
    * seed / addAccount / migrate. A built-in client cannot be renamed or deleted, and a project-less
-   * internal/all-projects activity buckets under it for display + filtering. Absent/false = a normal,
+   * internal/all-projects activity buckets under it for display + filtering. Null/false = a normal,
    * user-managed client. Identified at runtime by this flag, never a hard-coded id (so it survives
    * import-remap). See shared/src/data/internalClient.ts. */
-  builtin?: boolean;
+  builtin: boolean | null;
   /** ISO 8601 timestamp of when this client was archived (soft, reversible): hidden from
-   * scheduling but fully retained. Absent = active (not archived). Part of the
+   * scheduling but fully retained. Null = active (not archived). Part of the
    * Active→Archived→Soft-deleted→Purged lifecycle; set/cleared only by the state machine in
    * shared/src/domain/lifecycle.ts. Non-active rows are hidden from normal views/reads (activeOnly). */
-  archivedAt?: ISOTimestamp;
+  archivedAt: ISOTimestamp | null;
   /** ISO 8601 timestamp of the soft-delete tombstone: when this client was soft-deleted.
-   * Absent = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
+   * Null = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
    * soft-delete requires prior archival, and a tombstone is hard-purged only after
    * PURGE_MIN_AGE_DAYS, all enforced by shared/src/domain/lifecycle.ts. */
-  deletedAt?: ISOTimestamp;
+  deletedAt: ISOTimestamp | null;
 }
 
 /** A client project. */
@@ -203,21 +203,21 @@ export interface Project extends ScopedEntity {
   clientId: ID;
   color: string;
   /** When true, only account owners receive `name`; every other role receives the quoted
-   * `codeName` in its place. Absent = public (the default). */
-  isPrivate?: boolean;
+   * `codeName` in its place. Null = public (the default). */
+  isPrivate: boolean | null;
   /** Owner-managed cover name for a private project. Stored without quotation marks; the read
    * projection adds them consistently wherever the code name is displayed. */
-  codeName?: string;
+  codeName: string | null;
   /** ISO 8601 timestamp of when this project was archived (soft, reversible): hidden from
-   * scheduling but fully retained. Absent = active (not archived). Part of the
+   * scheduling but fully retained. Null = active (not archived). Part of the
    * Active→Archived→Soft-deleted→Purged lifecycle; set/cleared only by the state machine in
    * shared/src/domain/lifecycle.ts. Non-active rows are hidden from normal views/reads (activeOnly). */
-  archivedAt?: ISOTimestamp;
+  archivedAt: ISOTimestamp | null;
   /** ISO 8601 timestamp of the soft-delete tombstone: when this project was soft-deleted.
-   * Absent = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
+   * Null = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
    * soft-delete requires prior archival, and a tombstone is hard-purged only after
    * PURGE_MIN_AGE_DAYS, all enforced by shared/src/domain/lifecycle.ts. */
-  deletedAt?: ISOTimestamp;
+  deletedAt: ISOTimestamp | null;
 }
 
 /** A named phase of a project. */
@@ -235,13 +235,13 @@ export interface Activity extends ScopedEntity {
   /** Set only for `kind: 'project'`, the project this activity belongs to. Internal and
    * all-projects (`repeatable`) activities are project-less at the activity level; repeatable
    * allocations may carry their own project attribution. */
-  projectId?: ID;
-  phaseId?: ID;
+  projectId: ID | null;
+  phaseId: ID | null;
   /** ISO 8601 timestamp of when this activity was archived (soft, reversible): hidden from
-   * scheduling but fully retained. Absent = active (not archived). */
-  archivedAt?: ISOTimestamp;
-  /** ISO 8601 timestamp of the soft-delete tombstone. Absent = not deleted. */
-  deletedAt?: ISOTimestamp;
+   * scheduling but fully retained. Null = active (not archived). */
+  archivedAt: ISOTimestamp | null;
+  /** ISO 8601 timestamp of the soft-delete tombstone. Null = not deleted. */
+  deletedAt: ISOTimestamp | null;
 }
 
 /** A booking of one resource onto one activity over a date range. */
@@ -249,22 +249,22 @@ export interface Allocation extends ScopedEntity {
   resourceId: ID;
   activityId: ID;
   /** Set only for `repeatable`-activity allocations to attribute this booking to a project.
-   * Absent means unattributed; `project` and `internal` activities must not carry it. */
-  projectId?: ID;
-  /** System-owned identity shared by allocations created in one repeat batch. Absent = one-off or legacy repeat. */
-  seriesId?: ID;
+   * Null means unattributed; `project` and `internal` activities must not carry it. */
+  projectId: ID | null;
+  /** System-owned identity shared by allocations created in one repeat batch. Null = one-off or legacy repeat. */
+  seriesId: ID | null;
   // Both date bounds include the named day.
   startDate: ISODate;
   endDate: ISODate;
   hoursPerDay: number;
   status: AllocationStatus;
-  note?: string;
+  note: string | null;
   /** Optional short, single-line work description shown in schedule details when enabled. */
-  task?: string | undefined;
+  task: string | null;
   /** When true, this allocation treats weekends / non-working days as normal
-   * working days (drag/move does not auto-extend across them). Absent =
+   * working days (drag/move does not auto-extend across them). Null =
    * weekend-aware (the default). */
-  ignoreWeekends?: boolean;
+  ignoreWeekends: boolean | null;
 }
 
 /** One person's time off over a date range; company-wide closures are {@link Closure} records. */
@@ -275,7 +275,7 @@ export interface TimeOff extends ScopedEntity {
   startDate: ISODate;
   endDate: ISODate;
   type: TimeOffType;
-  note?: string;
+  note: string | null;
 }
 
 /** A literal inclusive span when the company is closed to people and placeholders. */
@@ -311,14 +311,14 @@ export type { AppDataKey, ScopedEntityKey } from "./entityKeys.js";
 
 /** Portable JSON schema version, independent of the physical SQLite schema version.
  * Increment when the portable AppData shape changes and provide the corresponding migration. */
-export const EXPORT_SCHEMA_VERSION = 23;
+export const EXPORT_SCHEMA_VERSION = 24;
 
 /** The versioned export document. */
 export interface PersistedState {
   schemaVersion: number;
   data: AppData;
   /** Legacy compare-and-swap revision retained for import compatibility. */
-  revision?: number;
+  revision: number | null;
 }
 
 export {

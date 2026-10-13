@@ -97,10 +97,7 @@ export function archive<T extends LifecycleFields>(entity: T, nowISO: ISOTimesta
       "Cannot archive: archive time must be a valid ISO timestamp.",
     );
   }
-  const next = { ...entity };
-  delete next.archivedAt;
-  delete next.deletedAt;
-  return { ...next, archivedAt: new Date(archivedMs).toISOString() };
+  return Object.assign({ ...entity }, { archivedAt: new Date(archivedMs).toISOString(), deletedAt: null });
 }
 
 /** Restore an archived entity to active without mutating it.
@@ -114,11 +111,10 @@ export function unarchive<T extends LifecycleFields>(entity: T): T {
     );
   }
   // Remove archivedAt to represent the active state by absence.
-  const next = { ...entity };
-  delete next.archivedAt;
+  const next = Object.assign({ ...entity }, { archivedAt: null });
   // A malformed deletedAt is ignored by lifecycleStatus so the nearest valid state is archived;
   // remove that stale corruption while completing the recovery transition to active.
-  if (!isValidTombstone(next.deletedAt)) delete next.deletedAt;
+  if (!isValidTombstone(next.deletedAt)) Object.assign(next, { deletedAt: null });
   return next;
 }
 

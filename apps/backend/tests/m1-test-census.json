@@ -398,7 +398,7 @@
       "disposition": "port",
       "proposed_package": "apps/backend",
       "proposed_test_path": "tests/functional/operations/check_node.test.ts",
-      "reason": "\u00a75 M4 explicitly carries scripts/check-node as the Node-version refusal check."
+      "reason": "§5 M4 explicitly carries scripts/check-node as the Node-version refusal check."
     },
     {
       "source_path": "server/src/BatchStateProjection.test.ts",
@@ -765,7 +765,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/app.authz.test.ts",
@@ -826,7 +826,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/app.concurrency-ordered.test.ts",
@@ -1418,7 +1418,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/backup.health.test.ts",
@@ -1526,7 +1526,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/controlTables.test.ts",
@@ -1535,7 +1535,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/controlTables/accountMemberResources.concurrency.test.ts",
@@ -1684,7 +1684,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/db.writeAtomicity.test.ts",
@@ -1702,7 +1702,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/documentation.test.ts",
@@ -1997,7 +1997,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/runImportWorker.test.ts",
@@ -2024,7 +2024,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/sharedCore.test.ts",
@@ -2042,7 +2042,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/signInModes.test.ts",
@@ -2060,7 +2060,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/tables.test.ts",
@@ -2069,7 +2069,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/tables/columns.test.ts",
@@ -2078,7 +2078,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/testHelpers/passwordAuth.test.ts",
@@ -2105,7 +2105,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/userStories.test.ts",
@@ -5515,7 +5515,7 @@
               "admin may see the time-off note",
               "editor may NOT see the time-off note",
               "viewer may NOT see the time-off note",
-              "%s \u2192 %s"
+              "%s → %s"
             ]
           }
         ],
@@ -5787,5 +5787,459 @@
       }
     ],
     "legacy_caller_identity_sha256": "850614ed8a6023b5601fa7a99143789ed761cf6fee4eef5ad00213ae189ae37f"
+  },
+  "m2b_port_evidence": {
+    "entries": [
+      {
+        "source_path": "server/src/app.export.test.ts",
+        "source_case_count": 4,
+        "covered_case_count": 3,
+        "partially_covered_case_count": 0,
+        "uncovered_case_count": 0,
+        "guarantee": "See the source-level guarantees and disposition notes in the M2b census.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/data_routes.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": ["inactive export includes archived and deleted rows but stays in one company"]
+          },
+          {
+            "path": "apps/backend/tests/functional/data_routes.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": ["default export excludes inactive rows"]
+          },
+          {
+            "path": "apps/backend/tests/functional/data_routes.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": ["export excludes membership, invitation and session secrets"]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "coverage_notes": [],
+        "later_splits": [
+          {
+            "milestone": "M3b",
+            "package": "apps/backend",
+            "case_count": 1,
+            "reason": "Editor refusal for includeInactive export remains the role-authorization slice.",
+            "targets": []
+          }
+        ]
+      },
+      {
+        "source_path": "server/src/app.internal-client-import.test.ts",
+        "source_case_count": 17,
+        "covered_case_count": 16,
+        "partially_covered_case_count": 0,
+        "uncovered_case_count": 0,
+        "guarantee": "See the source-level guarantees and disposition notes in the M2b census.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/import_routes.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": ["import remaps records and keeps account and joining controls"]
+          },
+          {
+            "path": "apps/backend/tests/functional/import_routes.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": [
+              "import rejects unrecognized, future-version and oversized record sets without replacing data"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/import_routes.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": ["import rejects a stale same-company snapshot without replacing rows"]
+          },
+          {
+            "path": "apps/backend/tests/functional/import_routes.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": ["another company changing does not invalidate a prepared import"]
+          },
+          {
+            "path": "apps/backend/tests/functional/import_routes.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": ["legacy v1 import migrates freelancer status before replacement"]
+          },
+          {
+            "path": "apps/backend/tests/functional/import_routes.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": ["import drops dangling required parents and clears optional references"]
+          },
+          {
+            "path": "apps/backend/tests/functional/import_routes.spec.ts",
+            "covered_case_count": 2,
+            "partially_covered_case_count": 0,
+            "cases": ["import refuses missing company scope and malformed present schema version"]
+          },
+          {
+            "path": "apps/backend/tests/functional/import_routes.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": ["import replaces time off and closures with remapped resource references"]
+          },
+          {
+            "path": "apps/backend/tests/functional/import_routes.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": ["import scrubs dependent private notes for a deleted resource"]
+          },
+          {
+            "path": "apps/backend/tests/functional/data_internal_client.spec.ts",
+            "covered_case_count": 6,
+            "partially_covered_case_count": 0,
+            "cases": [
+              "rejects replacing the generated Internal client while preserving project references",
+              "rejects generic builtin client creation and a second builtin attempt",
+              "rejects generic updates to the generated builtin client",
+              "rejects a counterfeit same-batch Internal echo and rolls back company creation",
+              "accepts the canonical same-batch echo of the generated Internal client",
+              "protects one builtin client per company"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "coverage_notes": [],
+        "later_splits": [
+          {
+            "milestone": "Retired by M2b plan",
+            "package": "apps/backend",
+            "case_count": 1,
+            "reason": "The bounded import worker saturation response is retired by the in-process transaction design.",
+            "targets": []
+          }
+        ]
+      },
+      {
+        "source_path": "server/src/app.importMemberResources.test.ts",
+        "source_case_count": 3,
+        "covered_case_count": 3,
+        "partially_covered_case_count": 0,
+        "uncovered_case_count": 0,
+        "guarantee": "See the source-level guarantees and disposition notes in the M2b census.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/import_routes.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": ["import retains company access restrictions and resource-link exceptions"]
+          },
+          {
+            "path": "apps/backend/tests/functional/import_routes.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": ["import clears member-resource links but retains company membership"]
+          },
+          {
+            "path": "apps/backend/tests/functional/import_routes.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": [
+              "association cleanup trigger failure leaves imported rows, links and audit unchanged"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "coverage_notes": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "server/src/routes/importRoutes.race.test.ts",
+        "source_case_count": 3,
+        "covered_case_count": 0,
+        "partially_covered_case_count": 0,
+        "uncovered_case_count": 0,
+        "guarantee": "See the source-level guarantees and disposition notes in the M2b census.",
+        "targets": [],
+        "uncovered_guarantees": [],
+        "coverage_notes": [],
+        "later_splits": [
+          {
+            "milestone": "M3b",
+            "package": "apps/backend",
+            "case_count": 3,
+            "reason": "Keep separate demoted, removed, and lost-account authority race states before audit commit.",
+            "targets": []
+          }
+        ]
+      },
+      {
+        "source_path": "server/src/routes/exampleDataRoutes.test.ts",
+        "source_case_count": 7,
+        "covered_case_count": 6,
+        "partially_covered_case_count": 0,
+        "uncovered_case_count": 0,
+        "guarantee": "See the source-level guarantees and disposition notes in the M2b census.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/data_routes.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": ["example data inserts once and refuses a second request"]
+          },
+          {
+            "path": "apps/backend/tests/functional/data_routes.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": ["example data refuses an existing active resource without changing it"]
+          },
+          {
+            "path": "apps/backend/tests/functional/data_routes.spec.ts",
+            "covered_case_count": 2,
+            "partially_covered_case_count": 0,
+            "cases": ["example data refuses existing client and project work"]
+          },
+          {
+            "path": "apps/backend/tests/functional/data_routes.spec.ts",
+            "covered_case_count": 2,
+            "partially_covered_case_count": 0,
+            "cases": ["example data rejects archived-only work and unknown company"]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "coverage_notes": [],
+        "later_splits": [
+          {
+            "milestone": "M3b",
+            "package": "apps/backend",
+            "case_count": 1,
+            "reason": "Admin allow and editor/viewer/non-member/anonymous refusal remain the membership-role matrix.",
+            "targets": []
+          }
+        ]
+      },
+      {
+        "source_path": "server/src/app.gettingStarted.test.ts",
+        "source_case_count": 3,
+        "covered_case_count": 2,
+        "partially_covered_case_count": 0,
+        "uncovered_case_count": 0,
+        "guarantee": "See the source-level guarantees and disposition notes in the M2b census.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/data_routes.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": [
+              "getting-started dismissal is monotonic, shared by company and isolated from another"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/data_routes.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": ["getting-started rejects extra fields and missing companies"]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "coverage_notes": [],
+        "later_splits": [
+          {
+            "milestone": "M3b",
+            "package": "apps/backend",
+            "case_count": 1,
+            "reason": "Owner/admin allow and editor/viewer refusal remain the membership-role matrix.",
+            "targets": []
+          }
+        ]
+      },
+      {
+        "source_path": "server/src/app.retire-open-dataset.test.ts",
+        "source_case_count": 25,
+        "covered_case_count": 0,
+        "partially_covered_case_count": 0,
+        "uncovered_case_count": 0,
+        "guarantee": "See the source-level guarantees and disposition notes in the M2b census.",
+        "targets": [],
+        "uncovered_guarantees": [],
+        "coverage_notes": [],
+        "later_splits": [
+          {
+            "milestone": "M1 already covered",
+            "package": "apps/backend/tests/functional/state",
+            "case_count": 2,
+            "reason": "Health and representative open reads are M1 trusted-local behavior.",
+            "targets": [
+              {
+                "path": "apps/backend/tests/functional/state/read_path.spec.ts",
+                "cases": [
+                  "GET /api/health matches the main response",
+                  "GET /api/accounts matches the main response",
+                  "GET /api/state matches the main response"
+                ]
+              }
+            ]
+          },
+          {
+            "milestone": "M3a",
+            "package": "apps/backend",
+            "case_count": 22,
+            "reason": "The 20 protected unauthenticated routes plus authenticated diagnostics and auth-me posture belong to auth integration.",
+            "targets": []
+          },
+          {
+            "milestone": "M4",
+            "package": "apps/backend",
+            "case_count": 1,
+            "reason": "Installation-wide reset authorization belongs to operations coverage.",
+            "targets": []
+          }
+        ]
+      },
+      {
+        "source_path": "server/src/app.full-fixtures.test.ts",
+        "source_case_count": 13,
+        "covered_case_count": 13,
+        "partially_covered_case_count": 0,
+        "uncovered_case_count": 0,
+        "guarantee": "See the source-level guarantees and disposition notes in the M2b census.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/data_full_fixtures.spec.ts",
+            "covered_case_count": 13,
+            "partially_covered_case_count": 0,
+            "cases": [
+              "account: every field round-trips, including optional scheduling mode",
+              "ordinary client: every field round-trips with lifecycle timestamps omitted on create",
+              "discipline: every field round-trips, including optional color",
+              "project: every field round-trips with lifecycle timestamps omitted on create",
+              "phase: every field round-trips",
+              "placeholder resource: every field round-trips with optional fields and JSON weekdays",
+              "supplementary engagement persists independently of permanent employment",
+              "person resource: every field round-trips with availability boundaries",
+              "external resource: kind and company name round-trip without discipline or project binding",
+              "project activity: every field round-trips, including project and phase attribution",
+              "internal and repeatable activities round-trip without project or phase attribution",
+              "allocations round-trip both without and with optional project attribution",
+              "time off: every field round-trips, including optional note"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "server/src/app.resource-availability.test.ts",
+        "source_case_count": 16,
+        "covered_case_count": 16,
+        "partially_covered_case_count": 0,
+        "uncovered_case_count": 0,
+        "guarantee": "See the source-level guarantees and disposition notes in the M2b census.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/validation.spec.ts",
+            "covered_case_count": 2,
+            "partially_covered_case_count": 0,
+            "cases": [
+              "enforces placeholder binding and the company/resource availability intersection"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/input_contract.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": [
+              "rejects unknown fields, missing required fields, malformed operation roots and malformed nested rows"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/data_availability_ordering.spec.ts",
+            "covered_case_count": 3,
+            "partially_covered_case_count": 0,
+            "cases": ["rejects malformed browser ordering header pairs before writes"]
+          },
+          {
+            "path": "apps/backend/tests/functional/data_availability_ordering.spec.ts",
+            "covered_case_count": 3,
+            "partially_covered_case_count": 0,
+            "cases": ["rejects non-string updatedAt in ordered PUT, DELETE, and ARCHIVE operations"]
+          },
+          {
+            "path": "apps/backend/tests/functional/data_availability_ordering.spec.ts",
+            "covered_case_count": 3,
+            "partially_covered_case_count": 0,
+            "cases": ["rejects malformed DELETE and ARCHIVE metadata during batch pre-scan"]
+          },
+          {
+            "path": "apps/backend/tests/functional/data_availability_ordering.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": [
+              "allows a full-row allocation metadata edit after a resource boundary creates a retained conflict"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/data_availability_ordering.spec.ts",
+            "covered_case_count": 1,
+            "partially_covered_case_count": 0,
+            "cases": [
+              "applies the stored company calendar when validating availability through batch writes"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/data_availability_ordering.spec.ts",
+            "covered_case_count": 2,
+            "partially_covered_case_count": 0,
+            "cases": ["rolls back a batch when an allocation exceeds its last-available boundary"]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "coverage_notes": [],
+        "later_splits": []
+      }
+    ],
+    "joining_lifecycle": {
+      "source_path": "server/src/db.joiningLifecycle.test.ts",
+      "source_case_count": 2,
+      "target": {
+        "path": "apps/backend/tests/functional/import_routes.spec.ts",
+        "case": "import remaps records and keeps account and joining controls"
+      },
+      "later_split": {
+        "milestone": "M4",
+        "package": "apps/backend/tests/functional/operations",
+        "reason": "The separate trusted-local reset/deletion case remains in app:reset operations coverage.",
+        "case_count": 1
+      }
+    },
+    "additional_contracts": [
+      {
+        "id": "full-fixtures-property",
+        "source_case_count": 0,
+        "guarantee": "The M2b plan separately requires populated optional values and every entity variant to round-trip deep-equal at the backend model boundary; this is not a 14th legacy source case.",
+        "target": {
+          "path": "apps/backend/tests/functional/state/database_contract.spec.ts",
+          "case": "round-trips populated optional fields and every entity variant from full fixtures"
+        }
+      },
+      {
+        "id": "person-default-import-repair",
+        "source_case_count": 0,
+        "guarantee": "The M2a validate.resourceAvailability source has an explicit M2b import-sanitization split; malformed person working-day defaults must be repaired while explicit null availability is retained.",
+        "target": {
+          "path": "apps/backend/tests/functional/import_routes.spec.ts",
+          "case": "import repairs malformed person working-day defaults and nullable availability"
+        },
+        "source_path": "server/src/validate.resourceAvailability.test.ts"
+      },
+      {
+        "id": "post-commit-logging-failure",
+        "source_case_count": 0,
+        "guarantee": "An after-commit logger failure leaves the successful transactional import result and audit intact while exposing the warning response. This route case is additional behavior, not a legacy source case.",
+        "target": {
+          "path": "apps/backend/tests/functional/import_routes.spec.ts",
+          "case": "import keeps its committed result when post-commit logging fails"
+        }
+      }
+    ]
   }
 }

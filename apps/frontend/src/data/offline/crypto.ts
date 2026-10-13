@@ -126,7 +126,7 @@ export async function initialiseWriteBoundary(db: IDBDatabase): Promise<void> {
 
 /** Builds authenticated metadata bound to a cache record key and save time. */
 export function buildAssociatedData(key: string, savedAt: number): Uint8Array<ArrayBuffer> {
-  return new TextEncoder().encode(`${key}:${savedAt}:capacitylens-offline-v1`);
+  return new TextEncoder().encode(`${key}:${savedAt}:capacitylens-offline-v2`);
 }
 
 /** Capture when a write is accepted, not when it leaves the queue: cleanup in between must discard it. */
@@ -157,7 +157,7 @@ export async function writeEncryptedRecord<T>(
     const encrypted: EncryptedRecord = {
       key: record.key,
       savedAt: record.savedAt,
-      version: 1,
+      version: 2,
       iv: initializationVector.buffer.slice(
         initializationVector.byteOffset,
         initializationVector.byteOffset + initializationVector.byteLength,

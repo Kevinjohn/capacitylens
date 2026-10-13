@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, it, expect, vi } from "vitest";
 import { buildSchedulerModel, applyVisibleUtilization } from "./schedulerModel";
 import type { GroupModel } from "./schedulerModel";
@@ -31,6 +32,7 @@ function makeDisciplines(): AppData["disciplines"] {
       updatedAt: "t",
       name: "Design",
       sortOrder: 0,
+      color: null,
     },
     {
       id: "d-dev",
@@ -39,6 +41,7 @@ function makeDisciplines(): AppData["disciplines"] {
       updatedAt: "t",
       name: "Development",
       sortOrder: 1,
+      color: null,
     },
   ];
 }
@@ -409,6 +412,7 @@ function registerBuildSchedulerModelTest9() {
     const d = dataset();
 
     d.allocations.push({
+      ...NULLABLE_FIELDS.allocations,
       id: "a4",
       accountId: "acct-test",
       createdAt: "t",
@@ -702,6 +706,7 @@ function registerBuildSchedulerModelTest23() {
     const corrupt = { ...firstAllocation, startDate: "2026-6-1" };
     d.allocations[0] = corrupt;
     const corruptTimeOff = {
+      ...NULLABLE_FIELDS.timeOff,
       id: "corrupt-time-off",
       accountId: "acct-test",
       createdAt: "t",
@@ -818,6 +823,7 @@ function buildPlaceholderData(): AppData {
     }),
   );
   d.allocations.push({
+    ...NULLABLE_FIELDS.allocations,
     id: "a-ph",
     accountId: "acct-test",
     createdAt: "t",
@@ -835,11 +841,28 @@ function buildPlaceholderData(): AppData {
 function buildLensActivitiesData(): AppData {
   const d = dataset();
   d.activities.push(
-    { id: "t-int", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "Admin", kind: "internal" },
-    { id: "t-rep", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "Design", kind: "repeatable" },
+    {
+      ...NULLABLE_FIELDS.activities,
+      id: "t-int",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      name: "Admin",
+      kind: "internal",
+    },
+    {
+      ...NULLABLE_FIELDS.activities,
+      id: "t-rep",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      name: "Design",
+      kind: "repeatable",
+    },
   );
   d.allocations.push(
     {
+      ...NULLABLE_FIELDS.allocations,
       id: "a-int",
       accountId: "acct-test",
       createdAt: "t",
@@ -852,6 +875,7 @@ function buildLensActivitiesData(): AppData {
       status: "confirmed",
     },
     {
+      ...NULLABLE_FIELDS.allocations,
       id: "a-rep",
       accountId: "acct-test",
       createdAt: "t",
@@ -1226,6 +1250,7 @@ function withInternal(): AppData {
   );
 
   d.activities.push({
+    ...NULLABLE_FIELDS.activities,
     id: "tIntNoProj",
     accountId: "acct-test",
     createdAt: "t",
@@ -1251,6 +1276,7 @@ function withInternal(): AppData {
 function withAttributedRepeatable(): AppData {
   const d = withInternal();
   d.activities.push({
+    ...NULLABLE_FIELDS.activities,
     id: "tRep",
     accountId: "acct-test",
     createdAt: "t",
@@ -1260,6 +1286,7 @@ function withAttributedRepeatable(): AppData {
   });
   d.allocations.push(
     {
+      ...NULLABLE_FIELDS.allocations,
       id: "aRepAttributed",
       accountId: "acct-test",
       createdAt: "t",
@@ -1273,6 +1300,7 @@ function withAttributedRepeatable(): AppData {
       status: "confirmed",
     },
     {
+      ...NULLABLE_FIELDS.allocations,
       id: "aRepUnattributed",
       accountId: "acct-test",
       createdAt: "t",
@@ -1381,6 +1409,7 @@ function registerMovedSchedulerTests14854(withInternal: () => AppData, internalI
     const data = withInternal();
     data.allocations.push(
       {
+        ...NULLABLE_FIELDS.allocations,
         id: "dangling-unattributed",
         accountId: "acct-test",
         createdAt: "t",
@@ -1393,6 +1422,7 @@ function registerMovedSchedulerTests14854(withInternal: () => AppData, internalI
         status: "confirmed",
       },
       {
+        ...NULLABLE_FIELDS.allocations,
         id: "dangling-attributed",
         accountId: "acct-test",
         createdAt: "t",
@@ -1476,6 +1506,7 @@ describe("built-in Internal client bucketing + filter", () => {
 function buildInternalAndRepeatableData(): AppData {
   const d = withInternal();
   d.activities.push({
+    ...NULLABLE_FIELDS.activities,
     id: "tRep",
     accountId: "acct-test",
     createdAt: "t",
@@ -1485,6 +1516,7 @@ function buildInternalAndRepeatableData(): AppData {
   });
   d.allocations.push(
     {
+      ...NULLABLE_FIELDS.allocations,
       id: "aRep",
       accountId: "acct-test",
       createdAt: "t",
@@ -1497,6 +1529,7 @@ function buildInternalAndRepeatableData(): AppData {
       status: "confirmed",
     },
     {
+      ...NULLABLE_FIELDS.allocations,
       id: "aRepAttributedInternal",
       accountId: "acct-test",
       createdAt: "t",
@@ -1571,6 +1604,7 @@ function registerMovedSchedulerTests17942(buildActive: (data: AppData) => GroupM
   it("hides scheduled work beneath an archived client", () => {
     const d = dataset();
     d.clients.push({
+      ...NULLABLE_FIELDS.clients,
       id: "c-arch",
       accountId: "acct-test",
       createdAt: "t",
@@ -1580,6 +1614,7 @@ function registerMovedSchedulerTests17942(buildActive: (data: AppData) => GroupM
       archivedAt: "2026-05-01T00:00:00.000Z",
     });
     d.projects.push({
+      ...NULLABLE_FIELDS.projects,
       id: "p-orphan",
       accountId: "acct-test",
       createdAt: "t",
@@ -1589,6 +1624,7 @@ function registerMovedSchedulerTests17942(buildActive: (data: AppData) => GroupM
       color: "#9",
     });
     d.activities.push({
+      ...NULLABLE_FIELDS.activities,
       id: "t-orphan",
       accountId: "acct-test",
       createdAt: "t",
@@ -1598,6 +1634,7 @@ function registerMovedSchedulerTests17942(buildActive: (data: AppData) => GroupM
       projectId: "p-orphan",
     });
     d.allocations.push({
+      ...NULLABLE_FIELDS.allocations,
       id: "a-orphan",
       accountId: "acct-test",
       createdAt: "t",
@@ -1619,6 +1656,7 @@ function buildNonActiveResourceData(): AppData {
   d.disciplines.push(
     {
       id: "d-ops",
+      color: null,
       accountId: "acct-test",
       createdAt: "t",
       updatedAt: "t",
@@ -1627,6 +1665,7 @@ function buildNonActiveResourceData(): AppData {
     },
     {
       id: "d-qa",
+      color: null,
       accountId: "acct-test",
       createdAt: "t",
       updatedAt: "t",

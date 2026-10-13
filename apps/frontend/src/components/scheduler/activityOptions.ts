@@ -58,7 +58,7 @@ export function buildActivityOptions({
   kind,
   projectId,
 }: BuildActivityOptionsInput): Option[] {
-  const groupedProjectScope = kind === "project" && projectId !== undefined;
+  const groupedProjectScope = kind === "project" && projectId != null;
   const eligible = activities.filter((activity) =>
     groupedProjectScope
       ? activity.kind === "repeatable" || (activity.kind === "project" && activity.projectId === projectId)

@@ -3,6 +3,7 @@ import { sanitizeImportedRecord, sanitizeAccount } from "./sanitizeImport.js";
 import { FALLBACK_PRESET_COLOR, snapToPresetColor } from "./color.js";
 import { DATE_STYLES, SCOPED_KEYS } from "../types/entities.js";
 import { softDelete } from "../domain/lifecycle.js";
+import { NULLABLE_FIELDS } from "../types/nullableFields.js";
 
 type LifecycleKey = "resources" | "clients" | "projects" | "activities";
 
@@ -15,10 +16,10 @@ describe("sanitizeImportedRecord", () => {
     });
     expect(
       sanitizeImportedRecord("resources", { kind: "person", avatarUrl: "http://images.example/a.png" }),
-    ).not.toHaveProperty("avatarUrl");
+    ).toHaveProperty("avatarUrl", null);
     expect(
       sanitizeImportedRecord("resources", { kind: "placeholder", avatarUrl: "https://images.example/a.png" }),
-    ).not.toHaveProperty("avatarUrl");
+    ).toHaveProperty("avatarUrl", null);
   });
   it("sanitizes an optional allocation task as single-line text", () => {
     expect(sanitizeImportedRecord("allocations", { task: "  Fix   launch\ncheck  " }).task).toBe("Fix launch check");
@@ -97,8 +98,8 @@ function registerImportedRecordBasics(): void {
   it("preserves boolean resource favourites and drops malformed values", () => {
     expect(sanitizeImportedRecord("resources", { isFavourite: true }).isFavourite).toBe(true);
     expect(sanitizeImportedRecord("resources", { isFavourite: false }).isFavourite).toBe(false);
-    expect(sanitizeImportedRecord("resources", { isFavourite: "true" })).not.toHaveProperty("isFavourite");
-    expect(sanitizeImportedRecord("resources", {})).not.toHaveProperty("isFavourite");
+    expect(sanitizeImportedRecord("resources", { isFavourite: "true" })).toHaveProperty("isFavourite", null);
+    expect(sanitizeImportedRecord("resources", {})).toHaveProperty("isFavourite", null);
   });
 
   it("clamps over-large hours and rejects NaN", () => {
@@ -152,28 +153,28 @@ function registerImportedResourceTests(): void {
   });
 
   it("drops non-string optional text and non-boolean weekend flags", () => {
-    expect(sanitizeImportedRecord("resources", { kind: "placeholder", name: 42, role: "R" }).name).toBeUndefined();
-    expect(sanitizeImportedRecord("allocations", { note: {}, ignoreWeekends: "false" })).not.toHaveProperty("note");
-    expect(sanitizeImportedRecord("allocations", { ignoreWeekends: "false" })).not.toHaveProperty("ignoreWeekends");
+    expect(sanitizeImportedRecord("resources", { kind: "placeholder", name: 42, role: "R" }).name).toBeNull();
+    expect(sanitizeImportedRecord("allocations", { note: {}, ignoreWeekends: "false" })).toHaveProperty("note", null);
+    expect(sanitizeImportedRecord("allocations", { ignoreWeekends: "false" })).toHaveProperty("ignoreWeekends", null);
     expect(sanitizeImportedRecord("allocations", { ignoreWeekends: false }).ignoreWeekends).toBe(false);
   });
 
   it("preserves a clean repeat-series id and drops malformed or blank values", () => {
     expect(sanitizeImportedRecord("allocations", { seriesId: " series-1 " }).seriesId).toBe("series-1");
-    expect(sanitizeImportedRecord("allocations", { seriesId: 42 })).not.toHaveProperty("seriesId");
-    expect(sanitizeImportedRecord("allocations", { seriesId: "  " })).not.toHaveProperty("seriesId");
+    expect(sanitizeImportedRecord("allocations", { seriesId: 42 })).toHaveProperty("seriesId", null);
+    expect(sanitizeImportedRecord("allocations", { seriesId: "  " })).toHaveProperty("seriesId", null);
   });
 
   it("preserves a clean allocation project id and drops malformed or blank values", () => {
     expect(sanitizeImportedRecord("allocations", { projectId: " p1 " }).projectId).toBe("p1");
-    expect(sanitizeImportedRecord("allocations", { projectId: 42 })).not.toHaveProperty("projectId");
-    expect(sanitizeImportedRecord("allocations", { projectId: "  " })).not.toHaveProperty("projectId");
+    expect(sanitizeImportedRecord("allocations", { projectId: 42 })).toHaveProperty("projectId", null);
+    expect(sanitizeImportedRecord("allocations", { projectId: "  " })).toHaveProperty("projectId", null);
   });
 
   it("repairs missing names by resource kind while preserving nameless placeholders", () => {
     expect(sanitizeImportedRecord("resources", { kind: "person" }).name).toBe("Unnamed person");
     expect(sanitizeImportedRecord("resources", { kind: "external", name: "  " }).name).toBe("Unnamed company");
-    expect(sanitizeImportedRecord("resources", { kind: "placeholder" }).name).toBeUndefined();
+    expect(sanitizeImportedRecord("resources", { kind: "placeholder" }).name).toBeNull();
   });
 }
 
@@ -184,18 +185,19 @@ function registerImportedAvailabilityTests(): void {
       firstAvailableDate: "2026-01-01",
       lastAvailableDate: "2026-12-31",
     });
-    expect(placeholder).not.toHaveProperty("firstAvailableDate");
-    expect(placeholder).not.toHaveProperty("lastAvailableDate");
-    expect(
-      sanitizeImportedRecord("resources", { kind: "external", firstAvailableDate: "2026-01-01" }),
-    ).not.toHaveProperty("firstAvailableDate");
+    expect(placeholder).toHaveProperty("firstAvailableDate", null);
+    expect(placeholder).toHaveProperty("lastAvailableDate", null);
+    expect(sanitizeImportedRecord("resources", { kind: "external", firstAvailableDate: "2026-01-01" })).toHaveProperty(
+      "firstAvailableDate",
+      null,
+    );
   });
 }
 
 function registerImportedFieldTests(): void {
   it("repairs fields that are incoherent with the resource kind", () => {
     const person = sanitizeImportedRecord("resources", { kind: "person", role: "R", projectId: "p1" });
-    expect(person.projectId).toBeUndefined();
+    expect(person.projectId).toBeNull();
 
     const external = sanitizeImportedRecord("resources", {
       kind: "external",
@@ -216,8 +218,8 @@ function registerImportedFieldTests(): void {
       halfDays: [],
       color: "#9ca3af",
     });
-    expect(external.disciplineId).toBeUndefined();
-    expect(external.projectId).toBeUndefined();
+    expect(external.disciplineId).toBeNull();
+    expect(external.projectId).toBeNull();
   });
 
   it("keeps valid values untouched", () => {
@@ -298,7 +300,7 @@ function registerImportedTextFieldTests(): void {
 
   it("leaves clean names and refs alone, backfilling activity kind from projectId", () => {
     const out = sanitizeImportedRecord("activities", { name: "Build", projectId: "p1" });
-    expect(out).toEqual({ name: "Build", kind: "project", projectId: "p1" });
+    expect(out).toEqual({ name: "Build", kind: "project", ...NULLABLE_FIELDS.activities, projectId: "p1" });
   });
 
   it("falls back a REQUIRED text column (per entity) to its placeholder when empty / missing", () => {
@@ -326,13 +328,13 @@ function registerImportedTextFieldTests(): void {
   });
 
   it("repairs a discipline colour only when present (an absent colour stays absent)", () => {
-    expect(sanitizeImportedRecord("disciplines", { name: "D" }).color).toBeUndefined();
+    expect(sanitizeImportedRecord("disciplines", { name: "D" }).color).toBeNull();
     expect(sanitizeImportedRecord("disciplines", { name: "D", color: "notahex" }).color).toBe(FALLBACK_PRESET_COLOR);
   });
 
   it("drops a non-true builtin flag on an imported client, keeping only an explicit true", () => {
-    expect(sanitizeImportedRecord("clients", { name: "C", builtin: "yes" }).builtin).toBeUndefined();
-    expect(sanitizeImportedRecord("clients", { name: "C", builtin: false }).builtin).toBeUndefined();
+    expect(sanitizeImportedRecord("clients", { name: "C", builtin: "yes" }).builtin).toBeNull();
+    expect(sanitizeImportedRecord("clients", { name: "C", builtin: false }).builtin).toBeNull();
     expect(sanitizeImportedRecord("clients", { name: "C", builtin: true }).builtin).toBe(true);
   });
 
@@ -344,8 +346,8 @@ function registerImportedTextFieldTests(): void {
       deletedAt: "2026-01-02T00:00:00.000Z",
     });
 
-    expect(out).not.toHaveProperty("archivedAt");
-    expect(out).not.toHaveProperty("deletedAt");
+    expect(out).toHaveProperty("archivedAt", null);
+    expect(out).toHaveProperty("deletedAt", null);
   });
 }
 
@@ -364,8 +366,8 @@ function registerImportedLifecycleTests(): void {
       isPrivate: false,
       codeName: "Must be removed",
     });
-    expect(publicRow).not.toHaveProperty("isPrivate");
-    expect(publicRow).not.toHaveProperty("codeName");
+    expect(publicRow).toHaveProperty("isPrivate", null);
+    expect(publicRow).toHaveProperty("codeName", null);
   });
 
   it.each(["clients", "projects"] as const)("%s repairs a private row with no usable code name", (key) => {
@@ -385,8 +387,8 @@ function registerImportedLifecycleTests(): void {
       isPrivate: true,
       codeName: "Hidden internal",
     });
-    expect(out).not.toHaveProperty("isPrivate");
-    expect(out).not.toHaveProperty("codeName");
+    expect(out).toHaveProperty("isPrivate", null);
+    expect(out).toHaveProperty("codeName", null);
     expect(out.color).toBe("#2d75da");
   });
 
@@ -399,7 +401,7 @@ function registerImportedLifecycleTests(): void {
       name: `Build ${String.fromCodePoint(0x1f389)} it`,
       projectId: "p1",
     });
-    expect(out).toEqual({ name: "Build it", kind: "project", projectId: "p1" });
+    expect(out).toEqual({ name: "Build it", kind: "project", ...NULLABLE_FIELDS.activities, projectId: "p1" });
 
     const res = sanitizeImportedRecord("resources", {
       name: `Jos${String.fromCodePoint(0x1f4a9)}e`,
@@ -444,8 +446,8 @@ function registerLifecycleTimestampBasics(key: LifecycleKey): void {
 
   it("drops a non-string archivedAt / deletedAt", () => {
     const out = sanitizeImportedRecord(key, { archivedAt: 123, deletedAt: null });
-    expect(out.archivedAt).toBeUndefined();
-    expect(out.deletedAt).toBeUndefined();
+    expect(out.archivedAt).toBeNull();
+    expect(out.deletedAt).toBeNull();
   });
 
   it.each([
@@ -455,8 +457,8 @@ function registerLifecycleTimestampBasics(key: LifecycleKey): void {
     ["nonexistent calendar instant", "2026-02-29T00:00:00Z"],
   ])("drops Date.parse-compatible non-ISO %s lifecycle timestamps", (_label, timestamp) => {
     const out = sanitizeImportedRecord(key, { archivedAt: timestamp, deletedAt: timestamp });
-    expect(out.archivedAt).toBeUndefined();
-    expect(out.deletedAt).toBeUndefined();
+    expect(out.archivedAt).toBeNull();
+    expect(out.deletedAt).toBeNull();
   });
 }
 
@@ -470,25 +472,25 @@ function registerLifecycleTimestampOrdering(key: LifecycleKey): void {
     expect(canonical.deletedAt).toBe("2026-02-01T00:00:00.000Z");
 
     const deletedWithoutArchive = sanitizeImportedRecord(key, { deletedAt: "2026-02-01T00:00:00Z" });
-    expect(deletedWithoutArchive.deletedAt).toBeUndefined();
+    expect(deletedWithoutArchive.deletedAt).toBeNull();
 
     const deletedBeforeArchive = sanitizeImportedRecord(key, {
       archivedAt: "2026-02-01T00:00:00Z",
       deletedAt: "2026-01-01T00:00:00Z",
     });
     expect(deletedBeforeArchive.archivedAt).toBe("2026-02-01T00:00:00.000Z");
-    expect(deletedBeforeArchive.deletedAt).toBeUndefined();
+    expect(deletedBeforeArchive.deletedAt).toBeNull();
 
     const emptyTimestamps = sanitizeImportedRecord(key, { archivedAt: "   ", deletedAt: "" });
-    expect(emptyTimestamps.archivedAt).toBeUndefined();
-    expect(emptyTimestamps.deletedAt).toBeUndefined();
+    expect(emptyTimestamps.archivedAt).toBeNull();
+    expect(emptyTimestamps.deletedAt).toBeNull();
 
     const invalidDeletion = sanitizeImportedRecord(key, {
       archivedAt: "2026-02-01T00:00:00Z",
       deletedAt: "not-a-timestamp",
     });
     expect(invalidDeletion.archivedAt).toBe("2026-02-01T00:00:00.000Z");
-    expect(invalidDeletion.deletedAt).toBeUndefined();
+    expect(invalidDeletion.deletedAt).toBeNull();
 
     const sameTimestamp = sanitizeImportedRecord(key, {
       archivedAt: "2026-02-01T00:00:00Z",

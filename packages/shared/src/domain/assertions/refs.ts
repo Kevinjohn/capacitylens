@@ -164,7 +164,7 @@ function assertResourceRefs(context: ScopedRefsContext): void {
   const hasProject = mergedProjectId !== undefined && mergedProjectId !== null;
   const hasKind = mergedKind !== undefined && mergedKind !== null;
   const mergedAvatarUrl = supplied("avatarUrl") ? record.avatarUrl : previous?.avatarUrl;
-  if (mergedAvatarUrl !== undefined) {
+  if (mergedAvatarUrl != null) {
     if (mergedKind !== "person")
       throwDomainError("resource_avatar_url_forbidden", "Only a person can have an avatar URL.");
     const avatarUrl = parseResourceAvatarUrl(mergedAvatarUrl);
@@ -257,22 +257,22 @@ type AllocationRefsArgs = [
   resourceId: ID,
   activityId: ID,
   hoursPerDay: number,
-  projectId?: ID,
-  existing?: Pick<Allocation, "resourceId" | "activityId" | "projectId">,
+  projectId?: ID | null,
+  existing?: Pick<Allocation, "resourceId" | "activityId"> & Partial<Pick<Allocation, "projectId">>,
   lookup?: ValidationDataLookup,
 ];
 
 type AllocationRefsContext = {
   data: AppData;
   accountId: ID;
-  projectId: ID | undefined;
-  existing: Pick<Allocation, "resourceId" | "activityId" | "projectId"> | undefined;
+  projectId: ID | null | undefined;
+  existing: (Pick<Allocation, "resourceId" | "activityId"> & Partial<Pick<Allocation, "projectId">>) | undefined;
   lookupOptions: { lookup?: ValidationDataLookup };
 };
 
 function assertAllocationProject(context: AllocationRefsContext, activity: Activity): ID | undefined {
   const { data, accountId, projectId, existing, lookupOptions } = context;
-  if (projectId !== undefined && !allocationAttributionAllowed(activity.kind)) {
+  if (projectId != null && !allocationAttributionAllowed(activity.kind)) {
     throwDomainError(
       "allocation_project_forbidden",
       "Only an all-projects activity allocation can be attributed to a project.",

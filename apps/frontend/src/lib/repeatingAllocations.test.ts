@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, expect, it } from "vitest";
 import type { Allocation, Closure, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
@@ -258,7 +259,8 @@ describe("projectAllocationDates validation", () => {
   });
 });
 
-const fullResource = (overrides: Partial<Resource> = {}): Resource => ({
+const fullResource = (overrides: Partial<Resource> = { ...NULLABLE_FIELDS.resources }): Resource => ({
+  ...NULLABLE_FIELDS.resources,
   id: "r1",
   accountId: "a1",
   createdAt: "t",
@@ -394,6 +396,7 @@ describe("repeatingAllocationAdvisory load accounting", () => {
         startDate: "2026-06-02",
         endDate: "2026-06-09",
         type: "holiday",
+        note: null,
       },
     ];
     const drafts = [

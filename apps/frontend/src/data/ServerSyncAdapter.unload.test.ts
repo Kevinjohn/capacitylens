@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, it, expect, vi } from "vitest";
 import { ServerSyncAdapter, BatchTooLargeError, KeepaliveNotDispatchedError, MAX_BATCH_OPS } from "./ServerSyncAdapter";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
@@ -72,6 +73,7 @@ async function expectSmallUnloadBatch(): Promise<void> {
     accountId: "a1",
     name: id,
     sortOrder: 0,
+    color: null,
     createdAt: TS1,
     updatedAt: TS1,
   });
@@ -152,6 +154,7 @@ async function expectSupersededLoadNotToReseedSnapshot(): Promise<void> {
 
   const a1c = client("c1");
   const a2c: Client = {
+    ...NULLABLE_FIELDS.clients,
     id: "c2",
     accountId: "a2",
     name: "Beta",

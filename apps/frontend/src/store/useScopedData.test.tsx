@@ -44,8 +44,16 @@ function twoAccountData(): AppData {
     ...emptyAppData(),
     accounts: accountRows(),
     disciplines: [
-      { id: "d-a", accountId: ACCOUNT_A, createdAt: "t", updatedAt: "t", name: "Design", sortOrder: 1 },
-      { id: "d-b", accountId: ACCOUNT_B, createdAt: "t", updatedAt: "t", name: "Engineering", sortOrder: 1 },
+      { id: "d-a", accountId: ACCOUNT_A, createdAt: "t", updatedAt: "t", name: "Design", sortOrder: 1, color: null },
+      {
+        id: "d-b",
+        accountId: ACCOUNT_B,
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Engineering",
+        sortOrder: 1,
+        color: null,
+      },
     ],
     resources: [
       makeResource({ id: "r-a", accountId: ACCOUNT_A, name: "Bruce Wayne" }),

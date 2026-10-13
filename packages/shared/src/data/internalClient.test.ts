@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "../types/nullableFields.js";
 import { describe, it, expect } from "vitest";
 import { migrate } from "./migrate.js";
 import { seed } from "./seed.js";
@@ -36,8 +37,8 @@ function registerSeedTests(): void {
     const base = {
       ...emptyAppData(),
       accounts: [
-        { id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" },
-        { id: "a2", createdAt: TS, updatedAt: TS, name: "A2", color: "#222222" },
+        { ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" },
+        { ...NULLABLE_FIELDS.accounts, id: "a2", createdAt: TS, updatedAt: TS, name: "A2", color: "#222222" },
       ],
     };
     const once = applyInternalClientRepairs(base, TS);
@@ -52,7 +53,14 @@ function registerSeedTests(): void {
 
 function registerCorruptInputTests(): void {
   it("adds only one Internal when corrupt input repeats an account id, then converges", () => {
-    const account = { id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" };
+    const account = {
+      ...NULLABLE_FIELDS.accounts,
+      id: "a1",
+      createdAt: TS,
+      updatedAt: TS,
+      name: "A1",
+      color: "#111111",
+    };
     const base = {
       ...emptyAppData(),
       accounts: [account, { ...account, name: "Duplicate A1" }],
@@ -65,17 +73,18 @@ function registerCorruptInputTests(): void {
   });
 
   it("uses a collision-free id when an ordinary client already owns the generated id", () => {
-    const ordinary = {
+    const ordinary: Client = {
+      ...NULLABLE_FIELDS.clients,
       id: "internal:a1",
       accountId: "a1",
       createdAt: TS,
       updatedAt: TS,
       name: "Ordinary",
       color: "#111111",
-    } as Client;
+    };
     const data = {
       ...emptyAppData(),
-      accounts: [{ id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
+      accounts: [{ ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
       clients: [ordinary, { ...ordinary, id: "internal:a1:1", name: "Also ordinary" }],
     };
 
@@ -98,10 +107,11 @@ function registerDuplicateBuiltinTests(): void {
     };
     const data = {
       ...emptyAppData(),
-      accounts: [{ id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
+      accounts: [{ ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
       clients: [duplicate, generated],
       projects: [
         {
+          ...NULLABLE_FIELDS.projects,
           id: "p1",
           accountId: "a1",
           clientId: duplicate.id,
@@ -128,10 +138,11 @@ function registerSameIdDuplicateTests(): void {
     const duplicate = { ...retained, createdAt: "2026-01-02T00:00:00.000Z" };
     const data = {
       ...emptyAppData(),
-      accounts: [{ id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
+      accounts: [{ ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
       clients: [retained, duplicate],
       projects: [
         {
+          ...NULLABLE_FIELDS.projects,
           id: "p1",
           accountId: "a1",
           clientId: retained.id,
@@ -156,6 +167,7 @@ function registerRepairRevisionTests(): void {
     const generated = buildInternalClient("a1", TS);
     const duplicate = { ...buildInternalClient("a1", TS), id: "legacy-internal" };
     const rewired = {
+      ...NULLABLE_FIELDS.projects,
       id: "p1",
       accountId: "a1",
       clientId: duplicate.id,
@@ -169,7 +181,9 @@ function registerRepairRevisionTests(): void {
     const repaired = applyInternalClientRepairs(
       {
         ...emptyAppData(),
-        accounts: [{ id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
+        accounts: [
+          { ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" },
+        ],
         clients: [generated, duplicate],
         projects: [rewired, untouched],
       },
@@ -186,7 +200,7 @@ function registerRepairRevisionTests(): void {
     const NOW = "2026-06-01T00:00:00.000Z";
     const data = {
       ...emptyAppData(),
-      accounts: [{ id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
+      accounts: [{ ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
       clients: [
         {
           id: "internal:a1",
@@ -213,7 +227,7 @@ function registerReactivationTests(): void {
     const internal = { ...buildInternalClient("a1", TS), ...tombstones };
     const data = {
       ...emptyAppData(),
-      accounts: [{ id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
+      accounts: [{ ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
       clients: [internal],
     };
 
@@ -221,8 +235,8 @@ function registerReactivationTests(): void {
     const retained = requiredInternalClient(repaired.clients, "a1");
 
     expect(repaired).not.toBe(data);
-    expect(retained).not.toHaveProperty("archivedAt");
-    expect(retained).not.toHaveProperty("deletedAt");
+    expect(retained.archivedAt).toBeNull();
+    expect(retained.deletedAt).toBeNull();
     expect(retained.updatedAt).toBe("2026-01-01T00:00:00.001Z");
     expect(activeOnly(repaired).clients).toEqual([retained]);
   });
@@ -231,7 +245,9 @@ function registerReactivationTests(): void {
     const repair = (updatedAt: string, now: string) => {
       const data = {
         ...emptyAppData(),
-        accounts: [{ id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
+        accounts: [
+          { ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" },
+        ],
         clients: [
           {
             id: "internal:a1",
@@ -257,7 +273,7 @@ function registerRepairBoundaryTests(): void {
     const maximum = "9999-12-31T23:59:59.999Z";
     const data = {
       ...emptyAppData(),
-      accounts: [{ id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
+      accounts: [{ ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
       clients: [
         {
           ...buildInternalClient("a1", TS),
@@ -280,8 +296,8 @@ function registerRepairBoundaryTests(): void {
       // a1 is canonical; a2 lacks a builtin, forcing the function past its no-op early return so the
       // retain/restamp map actually runs over a1.
       accounts: [
-        { id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" },
-        { id: "a2", createdAt: TS, updatedAt: TS, name: "A2", color: "#222222" },
+        { ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" },
+        { ...NULLABLE_FIELDS.accounts, id: "a2", createdAt: TS, updatedAt: TS, name: "A2", color: "#222222" },
       ],
       clients: [buildInternalClient("a1", TS)],
     };
@@ -297,8 +313,8 @@ function registerMigrationTests(): void {
       schemaVersion: 5,
       data: {
         accounts: [
-          { id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" },
-          { id: "a2", createdAt: TS, updatedAt: TS, name: "A2", color: "#222222" },
+          { ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" },
+          { ...NULLABLE_FIELDS.accounts, id: "a2", createdAt: TS, updatedAt: TS, name: "A2", color: "#222222" },
         ],
         // a1 already has a builtin Internal (must not be duplicated); a2 has none.
         clients: [
@@ -350,6 +366,7 @@ function registerPublicPredicateTests(): void {
   // A client write must reject a second built-in client in the same account while allowing updates to the existing one.
   it("wouldAddSecondBuiltin: reproduces the server reject check byte-for-byte", () => {
     const existing: Client = {
+      ...NULLABLE_FIELDS.clients,
       id: "c-int",
       accountId: "a1",
       createdAt: TS,

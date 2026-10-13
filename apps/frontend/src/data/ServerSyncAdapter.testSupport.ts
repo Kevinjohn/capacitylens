@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { vi } from "vitest";
 import { IDBFactory } from "fake-indexeddb";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
@@ -13,6 +14,7 @@ export const TS1 = "2026-01-01T00:00:00.000Z";
 export const TS2 = "2026-01-02T00:00:00.000Z";
 /** Builds a client row for server-sync adapter fixtures. */
 export const client = (id: string, updatedAt = TS1): Client => ({
+  ...NULLABLE_FIELDS.clients,
   id,
   accountId: "a1",
   name: "Ferris",
@@ -22,6 +24,7 @@ export const client = (id: string, updatedAt = TS1): Client => ({
 });
 /** Builds a project row linked to a fixture client. */
 export const project = (id: string, clientId: string, updatedAt = TS1): Project => ({
+  ...NULLABLE_FIELDS.projects,
   id,
   accountId: "a1",
   name: "Web",
@@ -32,6 +35,7 @@ export const project = (id: string, clientId: string, updatedAt = TS1): Project 
 });
 /** Builds an allocation row for batch persistence tests. */
 export const allocation = (id: string, startDate: Allocation["startDate"]): Allocation => ({
+  ...NULLABLE_FIELDS.allocations,
   id,
   accountId: "a1",
   resourceId: "r1",
@@ -45,6 +49,7 @@ export const allocation = (id: string, startDate: Allocation["startDate"]): Allo
 });
 /** Builds a time-off row for batch persistence tests. */
 export const timeOff = (id: string, startDate: TimeOff["startDate"], note?: string): TimeOff => ({
+  ...NULLABLE_FIELDS.timeOff,
   id,
   accountId: "a1",
   resourceId: "r1",
@@ -63,6 +68,7 @@ export const withData = (over: Partial<AppData>): AppData => ({
 });
 /** Builds a workspace account row for persistence fixtures. */
 export const account = (id: string): Account => ({
+  ...NULLABLE_FIELDS.accounts,
   id,
   name: `Account ${id}`,
   color: "#5c34d4",
@@ -77,6 +83,7 @@ export const scopedData = (accountId: string, over: Partial<AppData>): AppData =
     clients: [
       ...(over.clients ?? []),
       {
+        ...NULLABLE_FIELDS.clients,
         id: `internal:${accountId}`,
         accountId,
         name: "Internal",

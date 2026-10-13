@@ -182,7 +182,7 @@ export function resolveAllocatedHoursForWeekday({
     if (
       !hasAllocationLoadOnDay({
         effectiveWeek: effectiveWeek,
-        ignoreWorkingDays: allocation.ignoreWeekends,
+        ignoreWorkingDays: allocation.ignoreWeekends ?? undefined,
         dayIsWorking: dayIsWorking,
       })
     )

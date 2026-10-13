@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "../types/nullableFields.js";
 import { describe, it, expect } from "vitest";
 import {
   assertActivityProjectAllowsDependents,
@@ -65,6 +66,7 @@ const meta = (id: ID, accountId: ID) => ({
 });
 
 const account = (id: ID, name = "Co"): Account => ({
+  ...NULLABLE_FIELDS.accounts,
   id,
   name,
   color: "#3b82f6",
@@ -72,11 +74,13 @@ const account = (id: ID, name = "Co"): Account => ({
   updatedAt: TS,
 });
 const client = (id: ID, accountId: ID, name = "Ferris"): Client => ({
+  ...NULLABLE_FIELDS.clients,
   ...meta(id, accountId),
   name,
   color: "#3b82f6",
 });
 const project = (id: ID, accountId: ID, clientId: ID): Project => ({
+  ...NULLABLE_FIELDS.projects,
   ...meta(id, accountId),
   name: "Web",
   clientId,
@@ -88,6 +92,7 @@ const phase = (id: ID, accountId: ID, projectId: ID): Phase => ({
   projectId,
 });
 const activity = ({ id, accountId, projectId, phaseId }: ActivityOptions): Activity => ({
+  ...NULLABLE_FIELDS.activities,
   ...meta(id, accountId),
   name: "Activity",
   kind: "project",
@@ -95,6 +100,7 @@ const activity = ({ id, accountId, projectId, phaseId }: ActivityOptions): Activ
   ...(phaseId === undefined ? {} : { phaseId }),
 });
 const person = (id: ID, accountId: ID): Resource => ({
+  ...NULLABLE_FIELDS.resources,
   ...meta(id, accountId),
   kind: "person",
   role: "Designer",
@@ -106,6 +112,7 @@ const person = (id: ID, accountId: ID): Resource => ({
   color: "#3b82f6",
 });
 const discipline = (id: ID, accountId: ID): Discipline => ({
+  ...NULLABLE_FIELDS.disciplines,
   ...meta(id, accountId),
   name: "Design",
   sortOrder: 0,
@@ -120,6 +127,7 @@ const external = (id: ID, accountId: ID): Resource => ({
   kind: "external",
 });
 const allocation = ({ id, accountId, resourceId, activityId, overrides: o = {} }: AllocationOptions): Allocation => ({
+  ...NULLABLE_FIELDS.allocations,
   ...meta(id, accountId),
   resourceId,
   activityId,
@@ -130,6 +138,7 @@ const allocation = ({ id, accountId, resourceId, activityId, overrides: o = {} }
   ...o,
 });
 const timeOff = ({ id, accountId, resourceId, overrides: o = {} }: TimeOffOptions): TimeOff => ({
+  ...NULLABLE_FIELDS.timeOff,
   ...meta(id, accountId),
   resourceId,
   startDate: "2026-01-01",
@@ -756,7 +765,7 @@ const registerAssertAllocationRefsPart5 = (world: () => AppData) => {
       ...activity({ id: "repeatable", accountId: A1, projectId: "p1" }),
       kind: "repeatable" as const,
     };
-    delete repeatable.projectId;
+    repeatable.projectId = null;
     const projectActivity = world().activities[0];
     if (projectActivity === undefined) throw new Error("World fixture must include a project activity.");
     const data: AppData = {
@@ -782,7 +791,7 @@ const registerAssertAllocationRefsPart5 = (world: () => AppData) => {
       ...activity({ id: "repeatable", accountId: A1, projectId: "p1" }),
       kind: "repeatable" as const,
     };
-    delete repeatable.projectId;
+    repeatable.projectId = null;
     const data: AppData = {
       ...world(),
       projects: [{ ...project("p1", A1, "c1"), archivedAt: TS }],
@@ -990,7 +999,7 @@ const registerParentProjectEditsPart1 = (rejectResource: RegExp) => {
     const data: AppData = {
       ...base(),
       resources: [existing],
-      activities: [{ ...meta("general", A1), name: "Admin", kind: "repeatable" }],
+      activities: [{ ...NULLABLE_FIELDS.activities, ...meta("general", A1), name: "Admin", kind: "repeatable" }],
       allocations: [allocation({ id: "al", accountId: A1, resourceId: "ph", activityId: "general" })],
     };
 
@@ -1003,7 +1012,12 @@ const registerParentProjectEditsPart1 = (rejectResource: RegExp) => {
 const registerParentProjectEditsPart2 = (rejectResource: RegExp, rejectActivity: RegExp) => {
   it("rejects rebinding a placeholder with repeatable work attributed to its bound project", () => {
     const existing = placeholder("ph", A1, "p1");
-    const repeatable: Activity = { ...meta("shared", A1), name: "Shared", kind: "repeatable" };
+    const repeatable: Activity = {
+      ...NULLABLE_FIELDS.activities,
+      ...meta("shared", A1),
+      name: "Shared",
+      kind: "repeatable",
+    };
     const data: AppData = {
       ...base(),
       clients: [client("c1", A1)],
@@ -1021,7 +1035,12 @@ const registerParentProjectEditsPart2 = (rejectResource: RegExp, rejectActivity:
   });
 
   it("validates the post-clear effective project when repeatable work becomes project-specific", () => {
-    const existing: Activity = { ...meta("shared", A1), name: "Shared", kind: "repeatable" };
+    const existing: Activity = {
+      ...NULLABLE_FIELDS.activities,
+      ...meta("shared", A1),
+      name: "Shared",
+      kind: "repeatable",
+    };
     const data: AppData = {
       ...base(),
       clients: [client("c1", A1)],
@@ -1114,7 +1133,7 @@ const registerParentProjectEditsPart4 = () => {
         "placeholder-work",
         (() => {
           const changed = { ...placeholderActivity, kind: "repeatable" as const };
-          delete changed.projectId;
+          changed.projectId = null;
           return changed;
         })(),
         placeholderActivity,
@@ -1557,10 +1576,10 @@ const registerRemapAndValidateImportPart10 = () => {
     expect(data.projects).toHaveLength(0);
     expect(data.phases).toHaveLength(0);
     expect(data.resources).toHaveLength(1);
-    expect(data.resources[0]?.disciplineId).toBeUndefined();
+    expect(data.resources[0]?.disciplineId).toBeNull();
     expect(data.activities).toHaveLength(1);
-    expect(data.activities[0]?.projectId).toBeUndefined();
-    expect(data.activities[0]?.phaseId).toBeUndefined();
+    expect(data.activities[0]?.projectId).toBeNull();
+    expect(data.activities[0]?.phaseId).toBeNull();
     expect(data.activities[0]?.kind).toBe("repeatable");
     expect(imported).toBe(2); // The imported rows are the repaired resource and activity.
     expect(skipped).toBe(2); // Missing required parents drop the project and phase.
@@ -1577,8 +1596,8 @@ const registerRemapAndValidateImportPart10 = () => {
       allocations: [allocation({ id: "al", accountId: "src", resourceId: "ph", activityId: "t-general" })],
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
-    expect(data.resources[0]?.projectId).toBeUndefined();
-    expect(data.activities[0]?.projectId).toBeUndefined();
+    expect(data.resources[0]?.projectId).toBeNull();
+    expect(data.activities[0]?.projectId).toBeNull();
     expect(data.allocations).toHaveLength(1);
   });
 };
@@ -1596,7 +1615,7 @@ const registerRemapAndValidateImportPart11 = () => {
       allocations: [allocation({ id: "al", accountId: "src", resourceId: "ph", activityId: "t-proj" })],
     };
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
-    expect(data.resources[0]?.projectId).toBeUndefined();
+    expect(data.resources[0]?.projectId).toBeNull();
     expect(data.activities[0]?.projectId).toBe(data.projects[0]?.id);
     expect(data.allocations).toHaveLength(0);
   });
@@ -1668,8 +1687,8 @@ const registerRemapAndValidateImportPart12 = () => {
     expect(imported).toBe(1);
     expect(skipped).toBe(0);
     expect(internal).toBeDefined();
-    expect(internal).not.toHaveProperty("archivedAt");
-    expect(internal).not.toHaveProperty("deletedAt");
+    expect(internal?.archivedAt).toBeNull();
+    expect(internal?.deletedAt).toBeNull();
   });
 };
 
@@ -1682,7 +1701,7 @@ const registerRemapAndValidateImportPart13 = () => {
     // clients map, so the project survives and re-links to the imported client.
     const collide: AppData = {
       ...emptyAppData(),
-      disciplines: [{ ...meta("X", "src"), name: "Design", sortOrder: 0 }],
+      disciplines: [{ ...NULLABLE_FIELDS.disciplines, ...meta("X", "src"), name: "Design", sortOrder: 0 }],
       clients: [{ ...client("X", "src"), name: "Ferris" }],
       projects: [project("src-p", "src", "X")],
     };
@@ -1725,7 +1744,7 @@ const registerRemapAndValidateImportPart14 = () => {
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS);
     const t = data.activities.find((x) => x.accountId === A1);
     expect(t?.projectId).toBeDefined();
-    expect(t?.phaseId).toBeUndefined();
+    expect(t?.phaseId).toBeNull();
   });
 
   it("imports zero records for an empty dataset (caller refuses the wipe)", () => {
@@ -1859,8 +1878,8 @@ const registerRemapAndValidateImportPart18 = () => {
     const { data } = remapAndValidateImport(base(), A1, incoming, TS);
     const t = data.activities.find((x) => x.accountId === A1);
     expect(t?.kind).toBe("internal");
-    expect(t?.projectId).toBeUndefined();
-    expect(t?.phaseId).toBeUndefined();
+    expect(t?.projectId).toBeNull();
+    expect(t?.phaseId).toBeNull();
   });
 
   it("STRIPS project + phase from a REPEATABLE activity that carries them (kind coherence)", () => {
@@ -1874,8 +1893,8 @@ const registerRemapAndValidateImportPart18 = () => {
     const { data } = remapAndValidateImport(base(), A1, incoming, TS);
     const t = data.activities.find((x) => x.accountId === A1);
     expect(t?.kind).toBe("repeatable");
-    expect(t?.projectId).toBeUndefined();
-    expect(t?.phaseId).toBeUndefined();
+    expect(t?.projectId).toBeNull();
+    expect(t?.phaseId).toBeNull();
   });
 };
 
@@ -1943,7 +1962,12 @@ const registerRemapAndValidateImportPart20 = () => {
 
 const registerRemapAndValidateImportPart21 = () => {
   it("clears invalid allocation attribution before placeholder validation without dropping bookings", () => {
-    const repeatable: Activity = { ...meta("repeatable", "src"), name: "Shared", kind: "repeatable" };
+    const repeatable: Activity = {
+      ...NULLABLE_FIELDS.activities,
+      ...meta("repeatable", "src"),
+      name: "Shared",
+      kind: "repeatable",
+    };
     const incoming: AppData = {
       ...emptyAppData(),
       clients: [client("c", "src")],
@@ -1986,7 +2010,7 @@ const registerRemapAndValidateImportPart21 = () => {
     expect(data.allocations).toHaveLength(4);
     expect(data.allocations.find((row) => row.note === "valid")?.projectId).toBeDefined();
     for (const note of ["dangling", "forbidden", "mismatch"]) {
-      expect(data.allocations.find((row) => row.note === note)?.projectId).toBeUndefined();
+      expect(data.allocations.find((row) => row.note === note)?.projectId).toBeNull();
     }
   });
 };

@@ -1,8 +1,10 @@
+import { NULLABLE_FIELDS } from "../../types/nullableFields.js";
 import type { AppData } from "../../types/entities.js";
 import { SEED_TIMESTAMP, STUDIO, LOFT } from "./constants.js";
 
 const ACTIVITIES: AppData["activities"] = [
   {
+    ...NULLABLE_FIELDS.activities,
     id: "t-wires",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -13,6 +15,7 @@ const ACTIVITIES: AppData["activities"] = [
     phaseId: "ph-disc",
   },
   {
+    ...NULLABLE_FIELDS.activities,
     id: "t-visual",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -23,6 +26,7 @@ const ACTIVITIES: AppData["activities"] = [
     phaseId: "ph-build",
   },
   {
+    ...NULLABLE_FIELDS.activities,
     id: "t-cms",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -32,6 +36,7 @@ const ACTIVITIES: AppData["activities"] = [
     projectId: "p-acme",
   },
   {
+    ...NULLABLE_FIELDS.activities,
     id: "t-brand",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -42,6 +47,7 @@ const ACTIVITIES: AppData["activities"] = [
   },
   // Internal (no-project) activity, internal work, allocatable to anyone.
   {
+    ...NULLABLE_FIELDS.activities,
     id: "t-admin",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -52,6 +58,7 @@ const ACTIVITIES: AppData["activities"] = [
   // All-projects (no-project) activities, available across any project; the schedule's activity lens
   // groups them so you can see "all design" / "all workshops" regardless of project.
   {
+    ...NULLABLE_FIELDS.activities,
     id: "t-design",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -60,6 +67,7 @@ const ACTIVITIES: AppData["activities"] = [
     kind: "repeatable",
   },
   {
+    ...NULLABLE_FIELDS.activities,
     id: "t-workshop",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -68,6 +76,7 @@ const ACTIVITIES: AppData["activities"] = [
     kind: "repeatable",
   },
   {
+    ...NULLABLE_FIELDS.activities,
     id: "t-loft-screens",
     accountId: LOFT,
     createdAt: SEED_TIMESTAMP,

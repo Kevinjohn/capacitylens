@@ -7,7 +7,7 @@ import type { AppData, PersistedState } from "../types/entities.js";
 
 /** Serialize data as a versioned, pretty-printed export document. Pure. */
 export function serializeData(data: AppData): string {
-  const state: PersistedState = { schemaVersion: EXPORT_SCHEMA_VERSION, data };
+  const state: PersistedState = { schemaVersion: EXPORT_SCHEMA_VERSION, data, revision: null };
   return JSON.stringify(state, null, 2);
 }
 

@@ -1,5 +1,6 @@
 import type { Allocation, AppData, ISODate, Resource, Weekday } from "@capacitylens/shared/types/entities";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import {
@@ -89,13 +90,31 @@ export const days = eachDayISO(start, end);
 /** Uniform column geometry for the fixed model-test week. */
 export const geom = buildColumnGeometry(days, 48, { minimiseWeekends: false, weekendWidth: 22 });
 
+function defaultDisciplines(): AppData["disciplines"] {
+  return [
+    {
+      ...NULLABLE_FIELDS.disciplines,
+      id: "d-design",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      name: "Design",
+      sortOrder: 0,
+    },
+    {
+      ...NULLABLE_FIELDS.disciplines,
+      id: "d-dev",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      name: "Development",
+      sortOrder: 1,
+    },
+  ];
+}
+
 /** Builds scoped scheduler fixtures with optional discipline overrides. */
-export function dataset(
-  disciplines: AppData["disciplines"] = [
-    { id: "d-design", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "Design", sortOrder: 0 },
-    { id: "d-dev", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "Development", sortOrder: 1 },
-  ],
-): AppData {
+export function dataset(disciplines: AppData["disciplines"] = defaultDisciplines()): AppData {
   return {
     ...emptyAppData(),
     disciplines,
@@ -176,6 +195,7 @@ export function withExternal(): AppData {
     }),
   );
   data.allocations.push({
+    ...NULLABLE_FIELDS.allocations,
     id: "aext",
     accountId: "acct-test",
     createdAt: "t",
@@ -188,6 +208,7 @@ export function withExternal(): AppData {
     status: "confirmed",
   });
   data.timeOff.push({
+    ...NULLABLE_FIELDS.timeOff,
     id: "toext",
     accountId: "acct-test",
     createdAt: "t",

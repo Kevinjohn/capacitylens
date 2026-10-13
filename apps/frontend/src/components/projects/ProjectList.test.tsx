@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
@@ -170,7 +171,7 @@ describe("ProjectList", () => {
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
 
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-    expect(requireValue(useStore.getState().data.projects[0], "active project")).not.toHaveProperty("archivedAt");
+    expect(requireValue(useStore.getState().data.projects[0], "active project")).toHaveProperty("archivedAt", null);
     expect(screen.getByText("Kept Project")).toBeInTheDocument();
   });
 
@@ -225,6 +226,7 @@ describe("ProjectList", () => {
       makeAppData({
         projects: [
           {
+            ...NULLABLE_FIELDS.projects,
             id: "proj-orphan",
             accountId: DEFAULT_ACCOUNT_ID,
             createdAt: "t",

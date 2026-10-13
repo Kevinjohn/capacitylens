@@ -113,7 +113,8 @@ export class BatchStateProjection implements ValidationDataLookup {
   clearAllocationAttribution(revisions: readonly RewrittenAllocationRevision[]): void {
     for (const revision of revisions) {
       const allocation = this.row('allocations', revision.id)
-      if (!allocation || allocation.projectId === undefined) continue
+      if (!allocation || allocation.projectId === null || allocation.projectId === undefined)
+        continue
       this.upsertProjectedRow(
         'allocations',
         withoutAllocationAttribution(allocation, revision.updatedAt)
@@ -135,7 +136,8 @@ export class BatchStateProjection implements ValidationDataLookup {
     const relationship = this.resolveRelationshipIndex('activities', 'allocations', 'activityId')
     for (const allocationId of relationship?.childrenByParent.get(activityId) ?? []) {
       const allocation = this.row('allocations', allocationId)
-      if (!allocation || allocation.projectId === undefined) continue
+      if (!allocation || allocation.projectId === null || allocation.projectId === undefined)
+        continue
       const updatedAt = createServerRevision(allocation.updatedAt)
       this.upsertProjectedRow('allocations', withoutAllocationAttribution(allocation, updatedAt))
       this.attributionRewrites.set(allocationId, {
@@ -261,7 +263,7 @@ export class BatchStateProjection implements ValidationDataLookup {
     const existing = this.row(table, id)
     if (!existing) return
     const updated = { ...existing }
-    delete updated[field]
+    updated[field] = null
     this.upsert(table, updated)
   }
 

@@ -1,9 +1,11 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, expect, it } from "vitest";
 import { buildRowScreenReaderSummary } from "./buildRowScreenReaderSummary";
 import type { RowModel } from "./schedulerModel";
 import type { Resource } from "@capacitylens/shared/types/entities";
 
 const person: Resource = {
+  ...NULLABLE_FIELDS.resources,
   id: "r1",
   accountId: "a1",
   kind: "person",

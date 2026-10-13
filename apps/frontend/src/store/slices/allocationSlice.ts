@@ -82,7 +82,7 @@ export function createAllocationSlice(
               // Repeat-series membership is system-owned at creation. An ordinary edit may change every
               // visible allocation field but cannot link, unlink or move the row between series.
               const safePatch = { ...clampedPatch };
-              if (existing.seriesId === undefined) delete safePatch.seriesId;
+              if (existing.seriesId == null) delete safePatch.seriesId;
               else safePatch.seriesId = existing.seriesId;
               return safePatch;
             },

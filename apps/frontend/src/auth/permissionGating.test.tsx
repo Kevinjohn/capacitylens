@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render as rtlRender, screen } from "@testing-library/react";
@@ -75,6 +76,7 @@ describe("useCanEdit gates the AllocationBar resize grips", () => {
   });
   const indexAtClientX = (clientX: number) => GEOM.indexAt(clientX);
   const allocation: Allocation = {
+    ...NULLABLE_FIELDS.allocations,
     id: "alloc-1",
     accountId: "acct-test",
     createdAt: "2026-01-01T00:00:00.000Z",
@@ -140,7 +142,7 @@ describe("store viewer guard (defense-in-depth) no-ops a viewer mutation", () =>
     // Lifecycle mutations must apply the same Viewer guard as direct entity updates.
     useStore.getState().archiveEntity("resources", seeded.id);
     expect(useStore.getState().data.resources).toHaveLength(1);
-    expect(requireValue(useStore.getState().data.resources[0], "viewer resource")).not.toHaveProperty("archivedAt");
+    expect(requireValue(useStore.getState().data.resources[0], "viewer resource")).toHaveProperty("archivedAt", null);
 
     expect(useStore.getState().data.resources).toHaveLength(1);
   });

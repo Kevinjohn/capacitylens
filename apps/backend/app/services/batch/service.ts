@@ -154,19 +154,6 @@ export async function applyBatch(
     if (op.method === 'PUT') {
       if (op.row.id !== op.id)
         throw new BatchRequestError('Each PUT op needs a row whose id matches the op id.')
-      if (existing && isStaleRevision(existing, op.row.updatedAt)) {
-        const rawCurrent = await trx.from(TABLE_NAMES[op.table]).where('id', op.id).first()
-        if (
-          !rawCurrent ||
-          !syncOrder ||
-          !(await isSameSessionSuccessor(trx, syncOrder, op.table, op.id, rawCurrent))
-        )
-          throw new BatchRequestError(
-            'The record was modified more recently on the server.',
-            409,
-            redactCurrent(op.table, existing, operationContext)
-          )
-      }
       if (op.table === 'clients' && existing?.builtin === true && mintedInternalIds.has(op.id)) {
         if (!matchesMintedInternal(existing, op.row))
           throw new BatchRequestError(
@@ -179,6 +166,19 @@ export async function applyBatch(
           updatedAt: String(existing.updatedAt),
         })
         continue
+      }
+      if (existing && isStaleRevision(existing, op.row.updatedAt)) {
+        const rawCurrent = await trx.from(TABLE_NAMES[op.table]).where('id', op.id).first()
+        if (
+          !rawCurrent ||
+          !syncOrder ||
+          !(await isSameSessionSuccessor(trx, syncOrder, op.table, op.id, rawCurrent))
+        )
+          throw new BatchRequestError(
+            'The record was modified more recently on the server.',
+            409,
+            redactCurrent(op.table, existing, operationContext)
+          )
       }
       const generatedReplacementId = generatedBuiltinReplacementId(
         projection,

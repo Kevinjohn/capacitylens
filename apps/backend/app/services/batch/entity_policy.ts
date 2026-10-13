@@ -17,6 +17,7 @@ import { cleanText } from '@capacitylens/shared/lib/strings'
 import { hasUsablePrivateCodeName } from '@capacitylens/shared/domain/privateNames'
 import { DomainError } from '@capacitylens/shared/domain/errors'
 import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl'
+import { fillNullableFields } from '@capacitylens/shared/types/nullableFields'
 import { validateEntityRow, requiredFields } from '#validators/entities/index'
 import { assertEntityDomain } from '#services/batch/entity_validation/domain'
 import { normalizeValidWrite } from '#services/batch/entity_validation/normalization'
@@ -83,10 +84,14 @@ function assertResourceFields(
   candidate: Record<string, unknown>
 ) {
   const kind = candidate.kind
-  if (kind !== 'placeholder' && !Object.hasOwn(candidate, 'name'))
+  if (
+    kind !== 'placeholder' &&
+    (typeof candidate.name !== 'string' || cleanText(candidate.name).length === 0)
+  )
     throw new BatchRequestError('A person or external company name is required.')
   if (kind === 'person') {
-    if (Object.hasOwn(requested, 'projectId')) reject('projectId', 'is only used by placeholders')
+    if (requested.projectId !== undefined && requested.projectId !== null)
+      reject('projectId', 'is only used by placeholders')
     const first = candidate.firstAvailableDate
     const last = candidate.lastAvailableDate
     if (typeof first === 'string' && typeof last === 'string' && first > last)
@@ -115,20 +120,23 @@ function assertResourceFields(
         reject(field, "must match an external resource's defaults")
     if (Object.hasOwn(requested, 'color') && candidate.color !== NEUTRAL_COLOR)
       reject('color', 'must be the external resource colour')
-    if (Object.hasOwn(requested, 'disciplineId') || Object.hasOwn(requested, 'projectId'))
+    if (
+      (requested.disciplineId !== undefined && requested.disciplineId !== null) ||
+      (requested.projectId !== undefined && requested.projectId !== null)
+    )
       reject('disciplineId', 'is not used by external resources')
   }
   for (const field of ['firstAvailableDate', 'lastAvailableDate'] as const)
-    if (Object.hasOwn(requested, field)) reject(field, 'is only used by people')
+    if (requested[field] !== undefined && requested[field] !== null)
+      reject(field, 'is only used by people')
   if (Object.hasOwn(requested, 'avatarUrl')) {
-    if (requested.avatarUrl !== null)
+    if (requested.avatarUrl !== null && requested.avatarUrl !== undefined)
       throw new BatchRequestError(
         'Only a person can have an avatar URL.',
         400,
         undefined,
         'resource_avatar_url_forbidden'
       )
-    reject('avatarUrl', 'is only used by people')
   }
 }
 
@@ -157,32 +165,18 @@ function assertManagedFields(
 ) {
   if (isLifecycle(table)) {
     for (const field of ['archivedAt', 'deletedAt'] as const) {
-      if (Object.hasOwn(requested, field) && requested[field] !== existing?.[field])
+      if (Object.hasOwn(requested, field) && requested[field] !== (existing?.[field] ?? null))
         throw new BatchRequestError(`${field} is managed by its lifecycle action.`)
-      if (existing?.[field] !== undefined) candidate[field] = existing[field]
-      else delete candidate[field]
+      candidate[field] = existing?.[field] ?? null
     }
   }
   if (table === 'allocations' && existing) {
     if (Object.hasOwn(requested, 'seriesId') && requested.seriesId !== existing.seriesId)
       throw new BatchRequestError('seriesId is fixed after creation.')
-    if (typeof existing.seriesId === 'string') candidate.seriesId = existing.seriesId
-    else delete candidate.seriesId
+    candidate.seriesId = existing.seriesId ?? null
   }
   if (table === 'accounts' && existing) {
-    for (const field of IMMUTABLE_ACCOUNT_FIELDS) {
-      if (
-        Object.hasOwn(requested, field) &&
-        existing[field] !== undefined &&
-        requested[field] !== existing[field]
-      )
-        throw new BatchRequestError(
-          'Language, week start and time zone are set when the company is created and cannot be changed.',
-          409
-        )
-      if (!Object.hasOwn(requested, field) && existing[field] !== undefined)
-        candidate[field] = existing[field]
-    }
+    assertFrozenAccountFields(requested, candidate, existing)
     if (!Object.hasOwn(requested, 'workingDays') && existing.workingDays !== undefined)
       candidate.workingDays = existing.workingDays
   }
@@ -190,6 +184,28 @@ function assertManagedFields(
     for (const field of ['firstAvailableDate', 'lastAvailableDate'] as const)
       if (!Object.hasOwn(requested, field) && typeof existing[field] === 'string')
         candidate[field] = existing[field]
+  }
+}
+
+/** Keep the dedicated company PATCH and batch write paths on one frozen-field policy. */
+export function assertFrozenAccountFields(
+  requested: Record<string, unknown>,
+  candidate: Record<string, unknown>,
+  existing: Record<string, unknown>
+) {
+  for (const field of IMMUTABLE_ACCOUNT_FIELDS) {
+    if (
+      Object.hasOwn(requested, field) &&
+      existing[field] !== undefined &&
+      existing[field] !== null &&
+      requested[field] !== existing[field]
+    )
+      throw new BatchRequestError(
+        'Language, week start and time zone are set when the company is created and cannot be changed.',
+        409
+      )
+    if (!Object.hasOwn(requested, field) && existing[field] !== undefined)
+      candidate[field] = existing[field]
   }
 }
 
@@ -319,8 +335,6 @@ export async function prepareEntityWrite(
   assertManagedFields(table, row, candidate, existing)
   if (table === 'resources') {
     assertResourceFields(row, candidate)
-    for (const field of ['avatarUrl', 'firstAvailableDate', 'lastAvailableDate'] as const)
-      if (candidate[field] === null) delete candidate[field]
   }
   if (table === 'clients' || table === 'projects') {
     if (context.canSeePrivateNames && !hasUsablePrivateCodeName(candidate))
@@ -365,6 +379,7 @@ export async function prepareEntityWrite(
       throw new BatchRequestError(error.message, 400, undefined, error.code)
     throw error
   }
+  fillNullableFields(table, candidate)
   const now = createServerRevision(existing?.updatedAt)
   return { ...candidate, createdAt: existing?.createdAt ?? now, updatedAt: now }
 }

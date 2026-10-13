@@ -168,8 +168,8 @@ function registerAtomicAllocationPart4(): void {
 
     expect(created.map((allocation) => allocation.projectId)).toEqual([project.id, project.id]);
     const first = requireValue(created[0], "first repeated allocation");
-    state().updateAllocation(first.id, { projectId: undefined });
-    expect(state().data.allocations.find((allocation) => allocation.id === first.id)).not.toHaveProperty("projectId");
+    state().updateAllocation(first.id, { projectId: null });
+    expect(state().data.allocations.find((allocation) => allocation.id === first.id)).toHaveProperty("projectId", null);
     const second = requireValue(created[1], "second repeated allocation");
     expect(state().data.allocations.find((allocation) => allocation.id === second.id)?.projectId).toBe(project.id);
   });
@@ -279,7 +279,7 @@ function registerAvailabilityMutationTests(): void {
       /after.*available/i,
     );
     expect(() => state().updateAllocation(allocation.id, { resourceId: resource.id })).not.toThrow();
-    state().updateResource(bounded.id, { firstAvailableDate: "2026-07-01", lastAvailableDate: undefined });
+    state().updateResource(bounded.id, { firstAvailableDate: "2026-07-01", lastAvailableDate: null });
     expect(() => state().updateAllocation(allocation.id, { resourceId: bounded.id })).toThrow(/before.*available/i);
   });
 }
@@ -329,7 +329,7 @@ describe("repeat-series allocation mutations", () => {
     });
     const updatedOneOff = state().data.allocations.find(({ id }) => id === oneOff.id);
     expect(updatedOneOff).toMatchObject({ note: "Still one-off" });
-    expect(updatedOneOff).not.toHaveProperty("seriesId");
+    expect(updatedOneOff).toHaveProperty("seriesId", null);
   });
 
   it("rejects a series-tail operation for an unlinked allocation without publishing history", () => {

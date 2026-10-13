@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 /* eslint-disable max-params */
 import { describe, expect, it } from "vitest";
 import type { Allocation, AppData, Resource, Weekday } from "@capacitylens/shared/types/entities";
@@ -12,6 +13,7 @@ const WEEKDAYS: Weekday[] = [1, 2, 3, 4, 5];
 
 function person(id: string, overrides: Partial<Resource> = {}): Resource {
   return {
+    ...NULLABLE_FIELDS.resources,
     ...BASE,
     id,
     kind: "person",
@@ -40,6 +42,7 @@ function allocation(
   overrides: Partial<Allocation> = {},
 ): Allocation {
   return {
+    ...NULLABLE_FIELDS.allocations,
     ...BASE,
     id,
     resourceId,
@@ -288,6 +291,7 @@ describe("buildCapacityOverviewModel", () => {
           startDate: "2026-06-01",
           endDate: "2026-06-05",
           type: "holiday",
+          note: null,
         },
       ],
       disciplinesEnabled: false,
@@ -478,7 +482,7 @@ describe("buildCapacityOverviewModel", () => {
     const result = buildCapacityOverviewModel({
       data: {
         ...data([designer, slot], [allocation("demand", slot.id, "2026-06-01", "2026-06-01", 8)]),
-        disciplines: [{ ...BASE, id: "design", name: "Design", sortOrder: 0 }],
+        disciplines: [{ ...NULLABLE_FIELDS.disciplines, ...BASE, id: "design", name: "Design", sortOrder: 0 }],
       },
       today: "2026-06-01",
       accountWorkingDays: WEEKDAYS,
@@ -527,8 +531,8 @@ describe("buildCapacityOverviewModel", () => {
       data: {
         ...data([first, second, archived, external]),
         disciplines: [
-          { ...BASE, id: "design", name: "Design", sortOrder: 0 },
-          { ...BASE, id: "development", name: "Development", sortOrder: 1 },
+          { ...NULLABLE_FIELDS.disciplines, ...BASE, id: "design", name: "Design", sortOrder: 0 },
+          { ...NULLABLE_FIELDS.disciplines, ...BASE, id: "development", name: "Development", sortOrder: 1 },
         ],
       },
       today: "2026-06-01",
@@ -562,6 +566,7 @@ describe("buildCapacityOverviewModel", () => {
           startDate: "2026-06-09",
           endDate: "2026-06-09",
           type: "holiday",
+          note: null,
         },
       ],
       disciplinesEnabled: false,

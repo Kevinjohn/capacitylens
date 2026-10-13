@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { attachPersistence, ReloadDiscardedEditError, flushPendingWrites, switchAndAwaitHydration } from "./persist";
@@ -24,7 +25,9 @@ beforeEach(() => {
 async function attachHeldLossSwitch() {
   const bSlice: AppData = {
     ...emptyAppData(),
-    accounts: [{ id: "b1", name: "Beta Two", color: "#1", createdAt: "t", updatedAt: "t" }],
+    accounts: [
+      { ...NULLABLE_FIELDS.accounts, id: "b1", name: "Beta Two", color: "#1", createdAt: "t", updatedAt: "t" },
+    ],
   };
   const loadStarted = deferredSignal();
   let release: (() => void) | null = null;
@@ -67,7 +70,9 @@ async function attachHeldLossSwitch() {
 async function attachRecoverableAccountSwitch() {
   const bSlice: AppData = {
     ...emptyAppData(),
-    accounts: [{ id: "b1", name: "Beta Two", color: "#1", createdAt: "t", updatedAt: "t" }],
+    accounts: [
+      { ...NULLABLE_FIELDS.accounts, id: "b1", name: "Beta Two", color: "#1", createdAt: "t", updatedAt: "t" },
+    ],
   };
   const loadAll = vi.fn(async (accountId?: string): Promise<AppData> => (accountId === "b1" ? bSlice : a2Slice()));
   const saveAll = vi.fn().mockResolvedValue(undefined);

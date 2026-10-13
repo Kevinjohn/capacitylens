@@ -19,9 +19,9 @@ export type LifecycleState = "active" | "archived" | "deleted";
  */
 export interface LifecycleFields {
   /** ISO 8601 timestamp of when the entity was archived (soft, reversible). Absent/null = not archived. */
-  archivedAt?: ISOTimestamp;
+  archivedAt?: ISOTimestamp | null;
   /** ISO 8601 timestamp of the soft-delete tombstone. Absent/null = not deleted. `deletedAt` wins. */
-  deletedAt?: ISOTimestamp;
+  deletedAt?: ISOTimestamp | null;
 }
 
 /** Tables with lifecycle tombstones, shared by lifecycle routing and write validation. */

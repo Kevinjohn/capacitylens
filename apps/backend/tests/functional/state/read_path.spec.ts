@@ -2,6 +2,8 @@ import { test } from '@japa/runner'
 import { readFile } from 'node:fs/promises'
 import testUtils from '@adonisjs/core/services/test_utils'
 import { replaceWithSeed } from '#services/state_repository'
+import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities'
+import { fillNullableFields } from '@capacitylens/shared/types/nullableFields'
 
 const fixture = JSON.parse(
   await readFile(new URL('../../fixtures-main-responses.json', import.meta.url), 'utf8')
@@ -34,10 +36,17 @@ test.group('M1 read path', (group) => {
               ...(expected.body as object),
               server: {
                 ...(expected.body as { server: object }).server,
-                database: { status: 'ok', schemaVersion: 2 },
+                database: { status: 'ok', schemaVersion: 4 },
               },
             }
-          : expected.body
+          : expected.path.startsWith('/api/state')
+            ? (() => {
+                const body = structuredClone(expected.body) as AppData
+                for (const key of APP_DATA_KEYS)
+                  for (const row of body[key]) fillNullableFields(key, row)
+                return body
+              })()
+            : expected.body
       assert.deepEqual(response.body(), expectedBody)
       for (const header of [
         'content-security-policy',

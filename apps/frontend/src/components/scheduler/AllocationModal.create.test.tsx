@@ -156,7 +156,7 @@ describe("AllocationModal create", () => {
       startDate: "2026-06-01",
       endDate: "2026-06-03",
     });
-    expect(allocs[0]).not.toHaveProperty("projectId");
+    expect(allocs[0]).toHaveProperty("projectId", null);
   });
 
   it.each([
@@ -189,7 +189,7 @@ describe("AllocationModal create", () => {
 
     const allocation = useStore.getState().data.allocations[0];
     if (expectedProjectId) expect(allocation).toHaveProperty("projectId", expectedProjectId);
-    else expect(allocation).not.toHaveProperty("projectId");
+    else expect(allocation).toHaveProperty("projectId", null);
   });
 
   it.each([

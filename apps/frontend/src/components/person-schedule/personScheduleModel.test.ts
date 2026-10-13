@@ -11,7 +11,7 @@ const activity = makeActivity({ id: "t1", accountId: "a1", projectId: project.id
 
 function withoutProjectId(value: Activity): Activity {
   const copy = { ...value };
-  delete copy.projectId;
+  copy.projectId = null;
   return copy;
 }
 

@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, expectTypeOf, vi } from "vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
@@ -81,7 +82,7 @@ describe("ActivityList", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(useStore.getState().data.activities).toHaveLength(1);
     expect(useStore.getState().data.activities[0]?.kind).toBe("internal");
-    expect(requireValue(useStore.getState().data.activities[0], "created activity")).not.toHaveProperty("projectId");
+    expect(requireValue(useStore.getState().data.activities[0], "created activity")).toHaveProperty("projectId", null);
 
     expect(screen.getByRole("heading", { name: "Internal activities" })).toBeInTheDocument();
     const row = within(screen.getByTestId("internal-activities")).getByTestId("activity-row");
@@ -276,6 +277,7 @@ describe("ActivityList", () => {
       makeAppData({
         activities: [
           {
+            ...NULLABLE_FIELDS.activities,
             id: "act-orphan",
             accountId: DEFAULT_ACCOUNT_ID,
             createdAt: "t",

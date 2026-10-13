@@ -175,7 +175,7 @@ export function useSchedulerGridPreferences() {
   }, [activeAccount]);
   const accountWorkingDays = useMemo(() => {
     const weekStartsOn = activeAccount?.weekStartsOn ?? 1;
-    return activeAccount?.workingDays === undefined
+    return activeAccount?.workingDays == null
       ? defaultAccountWorkingDays(weekStartsOn)
       : normalizeAccountWorkingDays(activeAccount.workingDays, weekStartsOn);
   }, [activeAccount]);

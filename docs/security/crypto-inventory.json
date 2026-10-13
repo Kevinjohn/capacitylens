@@ -130,31 +130,31 @@
       "purpose": "Unkeyed SHA-256 digests of non-secret synchronised row state for exact same-session successor-write provenance checks"
     },
     {
-      "path": "shared/src/lib/id.ts",
+      "path": "packages/shared/src/lib/id.ts",
       "purpose": "Secure-context UUID generation"
     },
     {
-      "path": "src/data/offline/crypto.ts",
+      "path": "apps/frontend/src/data/offline/crypto.ts",
       "purpose": "Non-extractable AES-256-GCM offline snapshot encryption with random IV and AAD"
     },
     {
-      "path": "src/data/offline/records.ts",
+      "path": "apps/frontend/src/data/offline/records.ts",
       "purpose": "AES-256-GCM offline snapshot decryption and authentication with record-key and timestamp AAD"
     },
     {
-      "path": "public/offline-worker.js",
+      "path": "apps/frontend/public/offline-worker.js",
       "purpose": "CSPRNG installation identifiers that isolate staged service-worker shell caches until activation"
     },
     {
-      "path": "src/data/sync/SyncState.ts",
+      "path": "apps/frontend/src/data/sync/SyncState.ts",
       "purpose": "CSPRNG non-secret browser sync-session identifiers for server-side request ordering"
     },
     {
-      "path": "src/account/accountCommands.ts",
+      "path": "apps/frontend/src/account/accountCommands.ts",
       "purpose": "Secure-context UUID generation for non-secret account-command correlation and safe unknown-outcome reconciliation"
     },
     {
-      "path": "src/account/commandOutcome.ts",
+      "path": "apps/frontend/src/account/commandOutcome.ts",
       "purpose": "SHA-256 semantic payload fingerprints for non-secret account-command correlation and safe unknown-outcome reconciliation"
     },
     {
@@ -200,6 +200,18 @@
     {
       "path": "apps/backend/app/services/batch/sync_ordering.ts",
       "purpose": "Unkeyed SHA-256 of the stored row for same-browser successor provenance; seven-day retention, no authentication or bearer material"
+    },
+    {
+      "path": "apps/backend/app/services/import_account.ts",
+      "purpose": "Deterministic SHA-256 fingerprint of the company scheduling slice, detecting accepted changes during import preparation without retaining row contents in a receipt"
+    },
+    {
+      "path": "apps/backend/config/hash.ts",
+      "purpose": "Framework scrypt hashing configuration"
+    },
+    {
+      "path": "apps/backend/app/controllers/getting_started_controller.ts",
+      "purpose": "Random non-secret surrogate identifiers for company getting-started dismissal records"
     }
   ]
 }

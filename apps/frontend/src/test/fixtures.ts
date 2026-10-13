@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import type {
   Account,
   Activity,
@@ -29,6 +30,7 @@ const TS = "2026-05-01T00:00:00.000Z";
 /** A complete Account; override any field per test. */
 export function makeAccount(overrides: Partial<Account> = {}): Account {
   return {
+    ...NULLABLE_FIELDS.accounts,
     id: DEFAULT_ACCOUNT_ID,
     createdAt: TS,
     updatedAt: TS,
@@ -65,6 +67,7 @@ export function makeResourceDraft(overrides: Partial<Draft<Resource>> = {}): Dra
  * build AppData directly instead of going through `addResource`. Override any field per test. */
 export function makeResource(overrides: Partial<Resource> = {}): Resource {
   return {
+    ...NULLABLE_FIELDS.resources,
     id: "r1",
     accountId: "a1",
     createdAt: "t",
@@ -85,6 +88,7 @@ export function makeResource(overrides: Partial<Resource> = {}): Resource {
 /** A complete Client; override any field per test. */
 export function makeClient(overrides: Partial<Client> = {}): Client {
   return {
+    ...NULLABLE_FIELDS.clients,
     id: "c1",
     accountId: "a1",
     createdAt: "t",
@@ -98,6 +102,7 @@ export function makeClient(overrides: Partial<Client> = {}): Client {
 /** A complete Project; override any field per test. */
 export function makeProject(overrides: Partial<Project> = {}): Project {
   return {
+    ...NULLABLE_FIELDS.projects,
     id: "p1",
     accountId: "a1",
     createdAt: "t",
@@ -112,6 +117,7 @@ export function makeProject(overrides: Partial<Project> = {}): Project {
 /** A complete project-kind Activity; override any field per test. */
 export function makeActivity(overrides: Partial<Activity> = {}): Activity {
   return {
+    ...NULLABLE_FIELDS.activities,
     id: "t1",
     accountId: "a1",
     createdAt: "t",
@@ -126,6 +132,7 @@ export function makeActivity(overrides: Partial<Activity> = {}): Activity {
 /** A complete confirmed Allocation; override any field per test. */
 export function makeAllocation(overrides: Partial<Allocation> = {}): Allocation {
   return {
+    ...NULLABLE_FIELDS.allocations,
     id: "a1",
     accountId: "a1",
     createdAt: "t",
@@ -143,6 +150,7 @@ export function makeAllocation(overrides: Partial<Allocation> = {}): Allocation 
 /** A complete holiday TimeOff record; override any field per test. */
 export function makeTimeOff(overrides: Partial<TimeOff> = {}): TimeOff {
   return {
+    ...NULLABLE_FIELDS.timeOff,
     id: "to1",
     accountId: "a1",
     createdAt: "t",

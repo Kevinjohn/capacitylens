@@ -157,10 +157,10 @@ export function validateDateRange(startDate?: ISODate | null, endDate?: ISODate 
 /** Resolve the project a booking counts toward. Allocation attribution takes precedence over the
  * activity's project because repeatable activities are project-less and attribute each booking. */
 export function effectiveProjectId(
-  allocation: Pick<Allocation, "projectId">,
-  activity: Pick<Activity, "projectId">,
+  allocation: Partial<Pick<Allocation, "projectId">>,
+  activity: Partial<Pick<Activity, "projectId">>,
 ): ID | undefined {
-  return allocation.projectId ?? activity.projectId;
+  return allocation.projectId ?? activity.projectId ?? undefined;
 }
 
 /** Allocation-level project attribution belongs only to all-projects activities. */
@@ -171,7 +171,7 @@ export function allocationAttributionAllowed(kind: unknown): boolean {
 /** Return a fresh row with allocation-level attribution removed and, when supplied, restamped. */
 export function withoutAllocationAttribution<T extends object>(row: T, updatedAt?: unknown): T {
   const cleared = { ...row } as T & { projectId?: unknown; updatedAt?: unknown };
-  delete cleared.projectId;
+  Object.assign(cleared, { projectId: null });
   if (updatedAt !== undefined) cleared.updatedAt = updatedAt;
   return cleared;
 }
@@ -230,7 +230,7 @@ export function deletePhaseCascade(data: AppData, phaseId: ID, updatedAt: string
     activities: data.activities.map((activity) => {
       if (activity.phaseId !== phaseId) return activity;
       const remaining = { ...activity };
-      delete remaining.phaseId;
+      remaining.phaseId = null;
       return { ...remaining, updatedAt };
     }),
   };
@@ -245,7 +245,7 @@ function dropProjectSubtree(data: AppData, removedProjectIds: Set<ID>, updatedAt
   );
   const removedActivityIds = new Set(
     data.activities
-      .filter((activity) => activity.projectId !== undefined && removedProjectIds.has(activity.projectId))
+      .filter((activity) => activity.projectId != null && removedProjectIds.has(activity.projectId))
       .map((activity) => activity.id),
   );
   return {
@@ -255,23 +255,23 @@ function dropProjectSubtree(data: AppData, removedProjectIds: Set<ID>, updatedAt
     activities: data.activities
       .filter((activity) => !removedActivityIds.has(activity.id))
       .map((activity) => {
-        if (activity.phaseId === undefined || !removedPhaseIds.has(activity.phaseId)) return activity;
+        if (activity.phaseId === null || !removedPhaseIds.has(activity.phaseId)) return activity;
         const remaining = { ...activity };
-        delete remaining.phaseId;
+        remaining.phaseId = null;
         return { ...remaining, updatedAt };
       }),
     allocations: data.allocations
       .filter((allocation) => !removedActivityIds.has(allocation.activityId))
       .map((allocation) => {
-        if (allocation.projectId === undefined || !removedProjectIds.has(allocation.projectId)) return allocation;
+        if (allocation.projectId === null || !removedProjectIds.has(allocation.projectId)) return allocation;
         const remaining = { ...allocation };
-        delete remaining.projectId;
+        remaining.projectId = null;
         return { ...remaining, updatedAt };
       }),
     resources: data.resources.map((resource) => {
-      if (resource.projectId === undefined || !removedProjectIds.has(resource.projectId)) return resource;
+      if (resource.projectId === null || !removedProjectIds.has(resource.projectId)) return resource;
       const remaining = { ...resource };
-      delete remaining.projectId;
+      remaining.projectId = null;
       return { ...remaining, updatedAt };
     }),
   };
@@ -307,7 +307,7 @@ export function deleteDisciplineCascade(data: AppData, disciplineId: ID, updated
     resources: data.resources.map((resource) => {
       if (resource.disciplineId !== disciplineId) return resource;
       const remaining = { ...resource };
-      delete remaining.disciplineId;
+      remaining.disciplineId = null;
       return { ...remaining, updatedAt };
     }),
   };

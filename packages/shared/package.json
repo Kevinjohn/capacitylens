@@ -218,6 +218,16 @@
       "types": "./src/types/entities.ts",
       "default": "./dist/types/entities.js"
     },
+    "./types/nullableFields": {
+      "development": "./src/types/nullableFields.ts",
+      "types": "./src/types/nullableFields.ts",
+      "default": "./dist/types/nullableFields.js"
+    },
+    "./domain/importFold": {
+      "development": "./src/domain/importFold.ts",
+      "types": "./src/domain/importFold.ts",
+      "default": "./dist/domain/importFold.js"
+    },
     "./domain/placement": {
       "development": "./src/domain/placement.ts",
       "types": "./src/domain/placement.ts",

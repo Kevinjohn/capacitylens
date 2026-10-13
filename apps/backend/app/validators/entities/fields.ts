@@ -17,6 +17,7 @@ import {
 } from '@capacitylens/shared/types/entities'
 import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl'
 import type { AppDataKey } from '@capacitylens/shared/types/entities'
+import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields'
 
 export type FieldKind =
   | 'identifier'
@@ -53,11 +54,7 @@ const strictField = vine.createRule<{
     const fail = (reason: string) => ctx.report(`${field} ${reason}.`, 'entityField', ctx)
     if (value === undefined) return
     if (value === null) {
-      if (
-        kind === 'avatar' ||
-        (kind === 'date' && (field === 'firstAvailableDate' || field === 'lastAvailableDate'))
-      )
-        return
+      if (field in NULLABLE_FIELDS[table]) return
       return fail('cannot be null')
     }
     if (kind === 'text' || kind === 'note') {

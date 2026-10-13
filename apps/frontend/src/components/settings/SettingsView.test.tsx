@@ -453,7 +453,7 @@ describe("SettingsView — account toggle wiring", () => {
     ["Show external resources", "externalEnabled", false],
     ["Inline activity creation", "inlineActivityCreateEnabled", false],
     ["Show task field in schedule", "showTaskFieldInSchedule", false],
-  ] as const)("wires %s to account.%s (absent reads as %s)", async (label, key, whenAbsent) => {
+  ] as const)("wires %s to account.%s (empty reads as %s)", async (label, key, whenAbsent) => {
     const user = userEvent.setup();
     render(<SettingsView />);
     const before = useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.[key];
@@ -481,7 +481,7 @@ describe("SettingsView — account toggle wiring", () => {
 
     await user.click(within(section as HTMLElement).getByRole("switch", { name: "Show placeholders" }));
     expect(useStore.getState().data.accounts[0]?.placeholdersEnabled).toBe(true);
-    expect(useStore.getState().data.accounts[0]?.externalEnabled).toBeUndefined();
+    expect(useStore.getState().data.accounts[0]?.externalEnabled).toBeNull();
 
     for (const name of ["Use disciplines", "Inline activity creation", "Show task field in schedule"]) {
       expect(within(section as HTMLElement).getByRole("switch", { name })).toBeInTheDocument();

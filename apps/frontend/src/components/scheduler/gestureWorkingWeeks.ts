@@ -23,7 +23,7 @@ export function readWorkingDays(resourceId: ID) {
 interface EffectiveDaysQuery {
   resourceId: ID;
   /** The allocation's opt-out: it may occupy any day regardless of the resource's week. */
-  ignoreWeekends: boolean | undefined;
+  ignoreWeekends: boolean | null | undefined;
 }
 
 /** Does this allocation have any day it could occupy on `resourceId`? False only for a collapsed
@@ -31,26 +31,26 @@ interface EffectiveDaysQuery {
 export function hasEffectiveDaysFor({ resourceId, ignoreWeekends }: EffectiveDaysQuery) {
   const { resource, accountWorkingDays } = readResource(resourceId);
   if (!resource) return true;
-  return !lacksEffectiveWorkingDays(effectiveWorkingWeek(resource, accountWorkingDays), ignoreWeekends);
+  return !lacksEffectiveWorkingDays(effectiveWorkingWeek(resource, accountWorkingDays), ignoreWeekends ?? undefined);
 }
 
 interface DropStartQuery {
   resourceId: ID;
   date: ISODate;
-  ignoreWeekends: boolean | undefined;
+  ignoreWeekends: boolean | null | undefined;
 }
 
 interface DropStartWorkingDaysQuery {
   workingDays: Weekday[] | undefined;
   date: ISODate;
-  ignoreWeekends: boolean | undefined;
+  ignoreWeekends: boolean | null | undefined;
 }
 
 interface PreviewDropQuery {
   workingDays: Weekday[] | undefined;
   result: { kind: "blocked" } | { kind: "unchanged" } | { kind: "ready"; dates: { startDate: ISODate } };
   isReassignment: boolean;
-  ignoreWeekends: boolean | undefined;
+  ignoreWeekends: boolean | null | undefined;
 }
 
 /** Would a drop starting on `date` be refused because `resourceId` does not work that day? The one
@@ -59,7 +59,12 @@ interface PreviewDropQuery {
 export function isDropStartBlocked({ resourceId, date, ignoreWeekends }: DropStartQuery) {
   const { resource, accountWorkingDays } = readResource(resourceId);
   if (!resource) return false;
-  return isAllocationMoveStartBlocked({ resource, date, accountWorkingDays, ignoreWorkingDays: ignoreWeekends });
+  return isAllocationMoveStartBlocked({
+    resource,
+    date,
+    accountWorkingDays,
+    ignoreWorkingDays: ignoreWeekends ?? undefined,
+  });
 }
 
 /** The preview already resolved the destination's effective week for this gesture frame. Keep the

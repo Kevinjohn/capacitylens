@@ -63,7 +63,9 @@ async function putRaw(record: unknown): Promise<void> {
   return putRawInto(STORE_NAME, record);
 }
 
-async function putEncryptedValue(key: string, value: unknown, savedAt = Date.now()): Promise<void> {
+async function putEncryptedValue(key: string, value: unknown, options: { version?: 1 | 2 } = {}): Promise<void> {
+  const savedAt = Date.now();
+  const version = options.version ?? 2;
   const db = await openTestDb();
   try {
     const deviceKey = await new Promise<CryptoKey>((resolve, reject) => {
@@ -76,13 +78,13 @@ async function putEncryptedValue(key: string, value: unknown, savedAt = Date.now
       {
         name: "AES-GCM",
         iv,
-        additionalData: new TextEncoder().encode(`${key}:${savedAt}:capacitylens-offline-v1`),
+        additionalData: new TextEncoder().encode(`${key}:${savedAt}:capacitylens-offline-v${version}`),
         tagLength: 128,
       },
       deviceKey,
       new TextEncoder().encode(JSON.stringify(value)),
     );
-    await putRaw({ key, savedAt, version: 1, iv: iv.buffer, ciphertext });
+    await putRaw({ key, savedAt, version, iv: iv.buffer, ciphertext });
   } finally {
     db.close();
   }
@@ -315,6 +317,17 @@ describe("offline tenant cache validation", () => {
 
     await expect(readCachedAuthSnapshot()).resolves.toBeNull();
     await expect(readCachedAuthSnapshot()).resolves.toBeNull();
+  });
+
+  it("discards and deletes a valid version-1 encrypted record without replaying it", async () => {
+    await cacheAuthSnapshot(authSnapshot("user-a"));
+    const key = `auth:${currentCacheNamespace()}`;
+    await putEncryptedValue(key, authSnapshot("user-a"), { version: 1 });
+    const decrypt = vi.spyOn(crypto.subtle, "decrypt");
+
+    await expect(readCachedAuthSnapshot()).resolves.toBeNull();
+    expect(decrypt).not.toHaveBeenCalled();
+    await expect(getRaw(key)).resolves.toBeUndefined();
   });
 
   it("rejects malformed authentication and account-summary payloads", async () => {

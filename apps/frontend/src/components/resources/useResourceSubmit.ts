@@ -116,7 +116,7 @@ function buildResourcePatch(input: {
   const basePatch = {
     name: fields.name || undefined,
     role: fields.role,
-    avatarUrl: kind === "person" ? resource?.avatarUrl : undefined,
+    avatarUrl: kind === "person" ? (resource?.avatarUrl ?? undefined) : undefined,
     disciplineId: input.disciplineId || undefined,
     employmentType: isPlaceholder ? ("permanent" as const) : (resource?.employmentType ?? "permanent"),
     engagement: isPlaceholder ? ("studio" as const) : input.engagement,

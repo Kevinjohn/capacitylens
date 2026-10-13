@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { expect, vi } from "vitest";
 import { attachPersistence, switchAndAwaitHydration } from "@/data/persist";
 import type { PersistenceAdapter } from "@/data/PersistenceAdapter";
@@ -7,6 +8,7 @@ import type { AppData } from "@capacitylens/shared/types/entities";
 
 /** Builds the built-in client fixture for an account. */
 export const internalClient = (accountId: string) => ({
+  ...NULLABLE_FIELDS.clients,
   id: `internal:${accountId}`,
   accountId,
   name: "Internal",
@@ -36,8 +38,8 @@ export function makeLocalTwoAccounts() {
   return {
     ...emptyAppData(),
     accounts: [
-      { id: "a1", name: "Alpha", color: "#1", createdAt: "t", updatedAt: "t" },
-      { id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" },
+      { ...NULLABLE_FIELDS.accounts, id: "a1", name: "Alpha", color: "#1", createdAt: "t", updatedAt: "t" },
+      { ...NULLABLE_FIELDS.accounts, id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" },
     ],
   };
 }
@@ -53,9 +55,10 @@ export function recordingAdapter(slice: AppData) {
 /** Builds the second account slice used in account-switch tests. */
 export const a2Slice = (): AppData => ({
   ...emptyAppData(),
-  accounts: [{ id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
+  accounts: [{ ...NULLABLE_FIELDS.accounts, id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
   clients: [
     {
+      ...NULLABLE_FIELDS.clients,
       id: "c2",
       accountId: "a2",
       name: "Stark Industries",
@@ -71,9 +74,10 @@ export const a2Slice = (): AppData => ({
 export const accountSwitchSlices = () => ({
   aSlice: {
     ...emptyAppData(),
-    accounts: [{ id: "a1", name: "Alpha", color: "#1", createdAt: "t", updatedAt: "t" }],
+    accounts: [{ ...NULLABLE_FIELDS.accounts, id: "a1", name: "Alpha", color: "#1", createdAt: "t", updatedAt: "t" }],
     clients: [
       {
+        ...NULLABLE_FIELDS.clients,
         id: "ca",
         accountId: "a1",
         name: "Wayne Enterprises",
@@ -85,9 +89,10 @@ export const accountSwitchSlices = () => ({
   } satisfies AppData,
   bSlice: {
     ...emptyAppData(),
-    accounts: [{ id: "b1", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
+    accounts: [{ ...NULLABLE_FIELDS.accounts, id: "b1", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
     clients: [
       {
+        ...NULLABLE_FIELDS.clients,
         id: "cb",
         accountId: "b1",
         name: "Stark Industries",

@@ -143,7 +143,7 @@ test.group('M2a ServerSyncAdapter and SQLite ordering', (group) => {
           },
         }
       })
-      assert.isUndefined(state.resources.find((row) => row.id === 'r-tyler')?.firstAvailableDate)
+      assert.isNull(state.resources.find((row) => row.id === 'r-tyler')?.firstAvailableDate)
     }
   })
 

@@ -83,7 +83,7 @@ it("attachPersistence publishes allocation rewrites into the visible Zustand row
   useStore.getState().updateAllocation(allocation.id, { note: "Trigger save" });
   await vi.waitFor(() => expect(useStore.getState().data.allocations[0]?.updatedAt).toBe(rewrittenAt));
 
-  expect(useStore.getState().data.allocations[0]).not.toHaveProperty("projectId");
+  expect(useStore.getState().data.allocations[0]).toHaveProperty("projectId", null);
   detach();
 });
 
@@ -215,7 +215,7 @@ it("attachPersistence persists the demo project cascade with attributed bookings
 
   await adapter.saveAll(deleteProjectCascade(useStore.getState().data, project.id, "2026-06-02T00:00:00.000Z"));
   const saved = await adapter.loadAll();
-  expect(saved.allocations.find((row) => row.id === allocation.id)?.projectId).toBeUndefined();
+  expect(saved.allocations.find((row) => row.id === allocation.id)?.projectId).toBeNull();
 });
 
 it("attachPersistence stops persisting after detach", async () => {

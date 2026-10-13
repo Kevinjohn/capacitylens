@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { attachPersistence, flushPendingWrites, retryActiveAccountLoad, switchAndAwaitHydration } from "./persist";
@@ -6,7 +7,7 @@ import type { PersistenceAdapter } from "./PersistenceAdapter";
 import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { resetStoreWithAccount } from "@/test/fixtures";
+import { makeAccount, resetStoreWithAccount } from "@/test/fixtures";
 import { internalClient, requireCallback, makeLocalTwoAccounts, accountSwitchSlices } from "./__tests__/persistTestKit";
 
 beforeEach(() => {
@@ -29,7 +30,7 @@ interface AccountSwitchWireEntry {
 function recordingAccountSwitchAdapter() {
   const slice = (accountId: string, name: string) => ({
     ...emptyAppData(),
-    accounts: [{ id: accountId, name, color: "#1", createdAt: "t", updatedAt: "t" }],
+    accounts: [{ ...NULLABLE_FIELDS.accounts, id: accountId, name, color: "#1", createdAt: "t", updatedAt: "t" }],
     clients: [internalClient(accountId)],
   });
   const aSlice = slice("a1", "Alpha");
@@ -394,7 +395,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     const { aSlice } = accountSwitchSlices();
     const cSlice = {
       ...emptyAppData(),
-      accounts: [{ id: "c1", name: "Gamma", color: "#1", createdAt: "t", updatedAt: "t" }],
+      accounts: [makeAccount({ id: "c1", name: "Gamma", color: "#1", createdAt: "t", updatedAt: "t" })],
     };
     const loadAll = vi.fn(async (accountId?: string) => {
       if (accountId === "a1") return aSlice;
@@ -432,7 +433,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     const { aSlice } = accountSwitchSlices();
     const cSlice = {
       ...emptyAppData(),
-      accounts: [{ id: "c1", name: "Gamma", color: "#1", createdAt: "t", updatedAt: "t" }],
+      accounts: [makeAccount({ id: "c1", name: "Gamma", color: "#1", createdAt: "t", updatedAt: "t" })],
     };
     let rejectB!: (error: Error) => void;
     let resolveBStarted!: () => void;
@@ -527,7 +528,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     expect(settled).toBe(false);
     resolveLoad({
       ...emptyAppData(),
-      accounts: [{ id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
+      accounts: [{ ...NULLABLE_FIELDS.accounts, id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
     });
     await expect(switching).resolves.toEqual({ kind: "reloaded" });
     await expect(switchAndAwaitHydration(null)).resolves.toEqual({ kind: "reloaded" });
@@ -556,9 +557,10 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
   it("loads the picked account slice into the store and does NOT push it back as a save", async () => {
     const a2Slice = {
       ...emptyAppData(),
-      accounts: [{ id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
+      accounts: [makeAccount({ id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" })],
       clients: [
         {
+          ...NULLABLE_FIELDS.clients,
           id: "c2",
           accountId: "a2",
           name: "Stark Industries",
@@ -598,7 +600,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     try {
       const a2Slice = {
         ...emptyAppData(),
-        accounts: [{ id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
+        accounts: [makeAccount({ id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" })],
       };
       const loadAll = vi.fn(async () => a2Slice);
       const saveAll = vi.fn().mockResolvedValue(undefined);

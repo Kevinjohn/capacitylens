@@ -1,7 +1,6 @@
 import env from '#start/env'
 import router from '@adonisjs/core/services/router'
 import { checkDatabase, readState, resetState } from '#services/state_repository'
-import { transformState } from '#transformers/state_transformer'
 import type { Account as AccountRow } from '@capacitylens/shared/types/entities'
 import { fileURLToPath } from 'node:url'
 import { healthChecks } from '#start/health'
@@ -10,8 +9,31 @@ import { middleware } from '#start/kernel'
 
 const BatchController = () => import('#controllers/batch_controller')
 const LifecycleController = () => import('#controllers/lifecycle_controller')
+const ImportsController = () => import('#controllers/imports_controller')
+const ExportsController = () => import('#controllers/exports_controller')
+const ExampleDataController = () => import('#controllers/example_data_controller')
+const GettingStartedController = () => import('#controllers/getting_started_controller')
+const CompaniesController = () => import('#controllers/companies_controller')
 
 router.post('/api/batch', [BatchController, 'store']).use(middleware.bodyLimits()).as('api.batch')
+router
+  .post('/api/import', [ImportsController, 'store'])
+  .use(middleware.bodyLimits())
+  .as('api.import')
+router.get('/api/state', [ExportsController, 'show']).as('api.state')
+router.post('/api/orgs', [CompaniesController, 'storeOrg']).as('api.orgs.store')
+router.post('/api/accounts', [CompaniesController, 'store']).as('api.accounts.store')
+router.patch('/api/accounts/:id', [CompaniesController, 'update']).as('api.accounts.update')
+router.delete('/api/accounts/:id', [CompaniesController, 'destroy']).as('api.accounts.destroy')
+router
+  .post('/api/accounts/:accountId/example-data', [ExampleDataController, 'store'])
+  .as('api.example-data')
+router
+  .get('/api/accounts/:accountId/getting-started', [GettingStartedController, 'show'])
+  .as('api.getting-started.show')
+router
+  .put('/api/accounts/:accountId/getting-started', [GettingStartedController, 'update'])
+  .as('api.getting-started.update')
 router.post('/api/:entity/:id/:action', [LifecycleController, 'mutate']).as('api.lifecycle')
 
 router.get('/api/health', () => ({ ok: true })).as('api.health')
@@ -36,7 +58,7 @@ router.get('/api/diagnostics', async ({ response }) => {
     return {
       server: {
         connectivity: 'ok',
-        database: { status: 'ok', schemaVersion: 2 },
+        database: { status: 'ok', schemaVersion: 4 },
         persistence: 'unknown',
         backup: { status: 'unavailable', lastSuccessAt: null },
       },
@@ -67,21 +89,6 @@ router.get('/api/accounts', async () => {
   return state.accounts
     .map(({ id, name }: AccountRow) => ({ id, name, role: 'owner' }))
     .sort((left, right) => left.name.localeCompare(right.name))
-})
-router.get('/api/state', async ({ request, response }) => {
-  const accountIds = request.qs().accountId
-  const includeInactive = request.qs().includeInactive
-  if (
-    accountIds !== undefined &&
-    (typeof accountIds !== 'string' || accountIds.trim().length === 0)
-  )
-    return response.badRequest({ error: 'accountId must be a non-empty string.' })
-  if (includeInactive !== undefined && includeInactive !== '1')
-    return response.badRequest({
-      error: 'includeInactive must be the literal value 1 when present.',
-    })
-  const state = await readState(accountIds, accountIds === undefined || includeInactive === '1')
-  return transformState(state, accountIds, 'owner')
 })
 router.post('/api/security/csp-report', ({ request, response, logger }) => {
   const event = reportCspViolation(request.body())

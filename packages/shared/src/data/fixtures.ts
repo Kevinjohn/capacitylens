@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "../types/nullableFields.js";
 // Fixtures use present, non-default optional values so server round-trip tests prove those values survive persistence.
 import { externalCapacityDefaults, placeholderCapacityDefaults } from "../types/entities.js";
 import { NEUTRAL_COLOR } from "../lib/color.js";
@@ -19,6 +20,7 @@ const TS2 = "2026-06-01T12:00:00.000Z";
 
 /** Complete account fixture with every optional field set. */
 export const FIXTURE_ACCOUNT: Account = {
+  ...NULLABLE_FIELDS.accounts,
   id: "fix-a1",
   name: "Fixture Studio",
   color: "#2d75da",
@@ -43,6 +45,7 @@ export const FIXTURE_ACCOUNT: Account = {
 
 /** Complete client fixture owned by {@link FIXTURE_ACCOUNT}. */
 export const FIXTURE_CLIENT: Client = {
+  ...NULLABLE_FIELDS.clients,
   id: "fix-c1",
   accountId: "fix-a1",
   name: "Fixture Client",
@@ -99,6 +102,7 @@ export const FIXTURE_PHASE: Phase = {
 
 /** Complete placeholder resource fixture. */
 export const FIXTURE_RESOURCE: Resource = {
+  ...NULLABLE_FIELDS.resources,
   id: "fix-r1",
   accountId: "fix-a1",
   kind: "placeholder",
@@ -124,6 +128,7 @@ export const FIXTURE_RESOURCE: Resource = {
  * placeholder fixture above for resource-kind coverage; this row exercises the person-only fields
  * that non-person sanitisation intentionally strips. */
 export const FIXTURE_RESOURCE_PERSON: Resource = {
+  ...NULLABLE_FIELDS.resources,
   id: "fix-r-person",
   accountId: "fix-a1",
   kind: "person",
@@ -150,6 +155,7 @@ export const FIXTURE_RESOURCE_PERSON: Resource = {
  * project binding (externals carry unused silent-default working hours/days). Proves `kind`
  * round-trips through the server with the optional FK columns left NULL. */
 export const FIXTURE_RESOURCE_EXTERNAL: Resource = {
+  ...NULLABLE_FIELDS.resources,
   id: "fix-r2",
   accountId: "fix-a1",
   kind: "external",
@@ -163,6 +169,7 @@ export const FIXTURE_RESOURCE_EXTERNAL: Resource = {
 
 /** Complete project activity fixture. */
 export const FIXTURE_ACTIVITY: Activity = {
+  ...NULLABLE_FIELDS.activities,
   id: "fix-t1",
   accountId: "fix-a1",
   name: "Fixture Activity",
@@ -177,6 +184,7 @@ export const FIXTURE_ACTIVITY: Activity = {
  * phaseId entirely (not null, absent). Prove all three ActivityKind values round-trip through
  * the server with the optional FK columns left NULL. */
 export const FIXTURE_ACTIVITY_INTERNAL: Activity = {
+  ...NULLABLE_FIELDS.activities,
   id: "fix-t2",
   accountId: "fix-a1",
   name: "Fixture Internal Activity",
@@ -187,6 +195,7 @@ export const FIXTURE_ACTIVITY_INTERNAL: Activity = {
 
 /** Complete all-projects (repeatable) activity fixture. */
 export const FIXTURE_ACTIVITY_REPEATABLE: Activity = {
+  ...NULLABLE_FIELDS.activities,
   id: "fix-t3",
   accountId: "fix-a1",
   name: "Fixture Repeatable Activity",
@@ -197,6 +206,7 @@ export const FIXTURE_ACTIVITY_REPEATABLE: Activity = {
 
 /** Complete allocation fixture for {@link FIXTURE_RESOURCE}. */
 export const FIXTURE_ALLOCATION: Allocation = {
+  ...NULLABLE_FIELDS.allocations,
   id: "fix-al1",
   accountId: "fix-a1",
   resourceId: "fix-r1",

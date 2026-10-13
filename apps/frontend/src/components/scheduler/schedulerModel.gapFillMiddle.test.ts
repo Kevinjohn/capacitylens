@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, expect, it } from "vitest";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { buildEmptyFilters } from "@/store/useStore";
@@ -128,6 +129,7 @@ function registerMovedSchedulerTests201012() {
   it("a dangling activityId (missing from `activities`) degrades to safe fallbacks, never throws", () => {
     const d = dataset();
     d.allocations.push({
+      ...NULLABLE_FIELDS.allocations,
       id: "a-ghost",
       accountId: "acct-test",
       createdAt: "t",
@@ -183,7 +185,7 @@ function registerMovedSchedulerTests201014() {
     const d = withExternal();
     const template = requireValue(d.resources[0], "resource template");
     const unassignedTemplate = { ...template };
-    delete unassignedTemplate.disciplineId;
+    unassignedTemplate.disciplineId = null;
     d.resources.push(
       { ...unassignedTemplate, id: "unassigned-studio", name: "Studio Floater" },
       {
@@ -261,7 +263,7 @@ function registerMovedSchedulerTests201016() {
     const d = dataset();
     d.resources = d.resources.map((resource, index) => {
       const unassignedResource = { ...resource };
-      delete unassignedResource.disciplineId;
+      unassignedResource.disciplineId = null;
       return {
         ...unassignedResource,
         engagement: index === 0 ? "studio" : "supplementary",
@@ -328,7 +330,7 @@ function registerMovedSchedulerTests201018() {
     expect(firstResource).toBeDefined();
     if (!firstResource) throw new Error("Expected the base scheduler resource.");
     const unassignedResource = { ...firstResource };
-    delete unassignedResource.disciplineId;
+    unassignedResource.disciplineId = null;
     d.resources[0] = unassignedResource;
     const withDisciplines = buildSchedulerModel({
       data: d,
@@ -449,6 +451,7 @@ function registerMovedSchedulerTests201020() {
 function buildDanglingActivityData() {
   const d = dataset();
   d.allocations.push({
+    ...NULLABLE_FIELDS.allocations,
     id: "a-ghost2",
     accountId: "acct-test",
     createdAt: "t",
@@ -541,6 +544,7 @@ function buildCompanyClosureData(): AppData {
     }),
   );
   d.allocations.push({
+    ...NULLABLE_FIELDS.allocations,
     id: "ignored-r2-saturday",
     accountId: "acct-test",
     createdAt: "t",
@@ -574,6 +578,7 @@ function buildCompanyClosureData(): AppData {
     },
   );
   d.timeOff.push({
+    ...NULLABLE_FIELDS.timeOff,
     id: "personal-r1-wednesday",
     accountId: "acct-test",
     createdAt: "t",

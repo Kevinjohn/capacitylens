@@ -101,7 +101,7 @@ function createSoftDeleteAction(internals: LifecycleSliceInternals, get: StoreAp
               allocation.resourceId === id && allocation.note != null
                 ? (() => {
                     const scrubbed = { ...allocation, updatedAt: touchAfter(allocation.updatedAt) };
-                    delete scrubbed.note;
+                    scrubbed.note = null;
                     return scrubbed;
                   })()
                 : allocation,
@@ -110,7 +110,7 @@ function createSoftDeleteAction(internals: LifecycleSliceInternals, get: StoreAp
               timeOff.resourceId === id && timeOff.note != null
                 ? (() => {
                     const scrubbed = { ...timeOff, updatedAt: touchAfter(timeOff.updatedAt) };
-                    delete scrubbed.note;
+                    scrubbed.note = null;
                     return scrubbed;
                   })()
                 : timeOff,

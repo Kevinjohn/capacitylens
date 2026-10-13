@@ -18,8 +18,8 @@ test.group('BatchStateProjection', () => {
     assert.isUndefined(projection.row('projects', 'p-acme'))
     assert.isUndefined(projection.row('activities', 't-wires'))
     assert.isUndefined(projection.row('allocations', 'a-tyler-1'))
-    assert.isUndefined(projection.row('resources', 'r-tyler')?.projectId)
-    assert.isUndefined(projection.row('allocations', repeatableAllocation.id)?.projectId)
+    assert.isNull(projection.row('resources', 'r-tyler')?.projectId)
+    assert.isNull(projection.row('allocations', repeatableAllocation.id)?.projectId)
   })
 
   test('keeps indexed relationship lookups correct after child updates and removals', ({
@@ -55,11 +55,11 @@ test.group('BatchStateProjection', () => {
     projectProjection.delete('projects', 'p-acme')
     assert.isUndefined(projectProjection.row('activities', 't-wires'))
     assert.isUndefined(projectProjection.row('allocations', 'a-tyler-1'))
-    assert.isUndefined(projectProjection.row('resources', 'r-ph-designer')?.projectId)
+    assert.isNull(projectProjection.row('resources', 'r-ph-designer')?.projectId)
 
     const phaseProjection = new BatchStateProjection(seed())
     phaseProjection.delete('phases', 'ph-disc')
-    assert.isUndefined(phaseProjection.row('activities', 't-wires')?.phaseId)
+    assert.isNull(phaseProjection.row('activities', 't-wires')?.phaseId)
     assert.isDefined(phaseProjection.row('activities', 't-wires'))
 
     const resourceProjection = new BatchStateProjection(seed())
@@ -84,6 +84,11 @@ test.group('BatchStateProjection', () => {
       endDate: '2026-06-02',
       hoursPerDay: 8,
       status: 'confirmed' as const,
+      projectId: null,
+      seriesId: null,
+      note: null,
+      task: null,
+      ignoreWeekends: null,
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     }))
@@ -182,7 +187,7 @@ test.group('BatchStateProjection', () => {
         updatedAt: '2026-06-01T00:00:00.001Z',
       },
     ])
-    assert.isUndefined(projection.row('allocations', allocation.id)?.projectId)
+    assert.isNull(projection.row('allocations', allocation.id)?.projectId)
     assert.equal(
       projection.row('allocations', allocation.id)?.updatedAt,
       '2026-06-01T00:00:00.001Z'
