@@ -24,3 +24,6 @@ yarn-error.log
 
 # Platform specific
 .DS_Store
+
+# Temporary route handoff used by framework development tooling.
+.adonisjs/server/routes.json
