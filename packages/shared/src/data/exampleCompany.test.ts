@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "../types/nullableFields.js";
 import { describe, expect, it } from "vitest";
 import { remapAndValidateImport } from "../domain/mutations.js";
 import { isPresetColor } from "../lib/color.js";
@@ -70,8 +71,8 @@ describe("buildExampleCompany rules", () => {
       expect(isPresetColor(row.color)).toBe(true);
     }
     for (const activity of data.activities) {
-      expect(activity.projectId === undefined).toBe(activity.kind !== "project");
-      expect(activity.phaseId === undefined || activity.kind === "project").toBe(true);
+      expect(activity.projectId === null).toBe(activity.kind !== "project");
+      expect(activity.phaseId === null || activity.kind === "project").toBe(true);
     }
   });
 
@@ -79,7 +80,16 @@ describe("buildExampleCompany rules", () => {
     const data = build();
     const base: AppData = {
       ...emptyAppData(),
-      accounts: [{ id: ACCOUNT, name: "Wayne Enterprises", color: "#2d75da", createdAt: NOW, updatedAt: NOW }],
+      accounts: [
+        {
+          ...NULLABLE_FIELDS.accounts,
+          id: ACCOUNT,
+          name: "Wayne Enterprises",
+          color: "#2d75da",
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ],
     };
     const result = remapAndValidateImport(base, ACCOUNT, { ...emptyAppData(), ...data }, NOW);
     expect(result.skipped).toBe(0);

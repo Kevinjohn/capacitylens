@@ -117,6 +117,7 @@ describe("ServerSyncAdapter — durable acknowledged-revision translation (phant
       accountId: "a1",
       name: "Design",
       sortOrder: 0,
+      color: null,
       createdAt: TS1,
       updatedAt: TS1,
     };

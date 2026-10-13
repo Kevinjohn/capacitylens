@@ -75,7 +75,7 @@ describe("archiveEntity", () => {
           status: "confirmed",
         }),
       ),
-    ).toThrow("Allocation must reference an activity under an active project.");
+    ).toThrow(/Allocation must reference an activity under an active project/);
     expect(s().data.phases).toHaveLength(0);
     expect(s().data.activities).toEqual([t]);
     expect(s().data.allocations).toHaveLength(0);
@@ -88,7 +88,7 @@ describe("unarchiveEntity", () => {
     s().archiveEntity("resources", r.id);
     s().unarchiveEntity("resources", r.id);
     const row = requireById(s().data.resources, r.id, "unarchived resource");
-    expect(row.archivedAt).toBeUndefined();
+    expect(row.archivedAt).toBeNull();
     expect(lifecycleStatus(row)).toBe("active");
 
     expect(activeOnly(s().data).resources.some((x) => x.id === r.id)).toBe(true);
@@ -105,7 +105,7 @@ function registerSoftDeleteGuardsAndResourceScrubTests() {
     const r = requireCreated(s().addResource(personDraft));
 
     expect(() => s().softDeleteEntity("resources", r.id)).toThrow(/archived first/i);
-    expect(requireValue(s().data.resources[0], "resource")).not.toHaveProperty("deletedAt");
+    expect(requireValue(s().data.resources[0], "resource")).toHaveProperty("deletedAt", null);
   });
 
   it.each(["resources", "clients", "projects", "activities"] as const)(
@@ -201,10 +201,10 @@ function registerDependentNoteScrubTest() {
 
     const allocation = (id: string) => requireById(s().data.allocations, id, "dependent allocation");
     const timeOff = (id: string) => requireById(s().data.timeOff, id, "dependent time off");
-    expect(allocation(notedAllocation.id)).not.toHaveProperty("note");
+    expect(allocation(notedAllocation.id)).toHaveProperty("note", null);
     expect(allocation(notedAllocation.id).updatedAt).not.toBe(notedAllocation.updatedAt);
     expect(allocation(plainAllocation.id).updatedAt).toBe(plainAllocation.updatedAt);
-    expect(timeOff(notedTimeOff.id)).not.toHaveProperty("note");
+    expect(timeOff(notedTimeOff.id)).toHaveProperty("note", null);
     expect(timeOff(notedTimeOff.id).updatedAt).not.toBe(notedTimeOff.updatedAt);
     expect(timeOff(plainTimeOff.id).updatedAt).toBe(plainTimeOff.updatedAt);
   });
@@ -242,6 +242,7 @@ function registerSoftDeleteTimestampAndNameTests() {
 
     const deleted = requireById(s().data.clients, c.id, "deleted client");
     const deletedAt = requireValue(deleted.deletedAt, "client deletion timestamp");
+    if (deletedAt === null) throw new Error("Expected a client deletion timestamp");
     expect(deletedAt >= futureArchive).toBe(true);
     expect(deleted.updatedAt >= deletedAt).toBe(true);
   });
@@ -362,7 +363,7 @@ function registerProjectPurgeTest() {
 
     expect(s().data.projects.some((row) => row.id === project.id)).toBe(false);
     const survivingAllocation = requireById(s().data.allocations, allocation.id, "shared allocation");
-    expect(survivingAllocation).not.toHaveProperty("projectId");
+    expect(survivingAllocation).toHaveProperty("projectId", null);
   });
 }
 
@@ -407,7 +408,7 @@ describe("viewer guard no-ops every lifecycle action (defense-in-depth)", () => 
     expect(s().data.resources[0]?.archivedAt).toBe(archivedAt);
 
     s().softDeleteEntity("resources", r.id);
-    expect(requireValue(s().data.resources[0], "resource")).not.toHaveProperty("deletedAt");
+    expect(requireValue(s().data.resources[0], "resource")).toHaveProperty("deletedAt", null);
 
     s().purgeEntity("resources", r.id);
     expect(s().data.resources.some((x) => x.id === r.id)).toBe(true);
@@ -426,6 +427,6 @@ describe("lifecycle actions are undoable (⌘Z)", () => {
     s().undo();
     const row = requireById(s().data.resources, r.id, "restored resource");
     expect(lifecycleStatus(row)).toBe("active");
-    expect(row.archivedAt).toBeUndefined();
+    expect(row.archivedAt).toBeNull();
   });
 });

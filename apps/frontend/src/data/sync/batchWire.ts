@@ -19,7 +19,6 @@ import {
 import { buildRowKey, createSafeResponseError, warnCompatibilityOnce } from "./revisions";
 import type { BatchCommitReceipt, CommittedRevision } from "./revisions";
 import type { SyncState } from "./SyncState";
-import { addResourceAvailabilityClearMarkers } from "./resourceAvailabilityWire";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 import { createTuyau, TuyauNetworkError } from "@tuyau/core/client";
 import { registry } from "@capacitylens/backend/registry";
@@ -55,7 +54,7 @@ export function prepareBatchBody(
   }
   // Rebase PUT preconditions, then serialize once, the same body feeds both the keepalive
   // byte-budget check and the request, so a large batch isn't JSON.stringified twice per save.
-  const wireOps = addResourceAvailabilityClearMarkers(state, rebaseForWire(state, ops)).map((op) =>
+  const wireOps = rebaseForWire(state, ops).map((op) =>
     options?.archiveLifecycleDeletes && op.method === "DELETE" && isLifecycleEntityKey(op.table)
       ? { ...op, method: "ARCHIVE" }
       : op,

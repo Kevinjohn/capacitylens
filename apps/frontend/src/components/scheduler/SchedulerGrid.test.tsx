@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { SchedulerGrid } from "./SchedulerGrid";
@@ -410,6 +411,7 @@ describe("SchedulerGrid account-local day rollover", () => {
     const data = dataset();
     data.accounts = data.accounts.map((account) => ({ ...account, timezone: "Pacific/Kiritimati" }));
     data.allocations.push({
+      ...NULLABLE_FIELDS.allocations,
       id: "boundary-over",
       accountId: ACC,
       createdAt: "t",

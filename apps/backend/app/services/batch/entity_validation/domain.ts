@@ -86,8 +86,8 @@ export function assertEntityDomain(
     assertResourceProjectAllowsDependents(state, accountId, id, resource, previous, lookup)
     assertResourceKindAllowsDependents(state, accountId, id, resource.kind, lookup)
     const availability = validateResourceAvailabilityPair(
-      resource.firstAvailableDate,
-      resource.lastAvailableDate
+      resource.firstAvailableDate ?? undefined,
+      resource.lastAvailableDate ?? undefined
     )
     if (!availability.ok)
       throw new BatchRequestError(
@@ -112,7 +112,7 @@ export function assertEntityDomain(
       allocation.resourceId,
       allocation.activityId,
       allocation.hoursPerDay,
-      allocation.projectId,
+      allocation.projectId ?? undefined,
       existing as Pick<Allocation, 'resourceId' | 'activityId' | 'projectId'> | undefined,
       lookup
     )

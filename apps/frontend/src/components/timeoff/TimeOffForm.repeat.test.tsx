@@ -260,7 +260,7 @@ function registerTimeOffRepeatPrivacy(): void {
     chooseRepeat("Monthly on the last Friday");
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(useStore.getState().data.timeOff).toHaveLength(12);
-    expect(useStore.getState().data.timeOff.every((entry) => entry.note === undefined)).toBe(true);
+    expect(useStore.getState().data.timeOff.every((entry) => entry.note === null)).toBe(true);
   });
 }
 

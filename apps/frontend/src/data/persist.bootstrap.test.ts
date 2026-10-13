@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { bootstrap } from "./persist";
 import { InMemoryDemoAdapter } from "./InMemoryDemoAdapter";
@@ -74,6 +75,7 @@ describe("bootstrap", () => {
       makeAppData({
         clients: [
           {
+            ...NULLABLE_FIELDS.clients,
             id: "c1",
             accountId: DEFAULT_ACCOUNT_ID,
             createdAt: "t",
@@ -117,6 +119,7 @@ describe("bootstrap", () => {
     const loaded = makeAppData({
       clients: [
         {
+          ...NULLABLE_FIELDS.clients,
           id: "c1",
           accountId: DEFAULT_ACCOUNT_ID,
           createdAt: "t",

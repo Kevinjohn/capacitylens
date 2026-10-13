@@ -47,13 +47,13 @@ const resource = makeResource({ id: "r1", accountId: "a1", name: "Diana Prince" 
 
 function withoutProjectId(value: Activity): Activity {
   const copy = { ...value };
-  delete copy.projectId;
+  copy.projectId = null;
   return copy;
 }
 
 function withoutName(value: Resource): Resource {
   const copy = { ...value };
-  delete copy.name;
+  copy.name = null;
   return copy;
 }
 
@@ -194,6 +194,7 @@ describe("usePersonSchedule authorized projection", () => {
           updatedAt: "t",
           name: "Design",
           sortOrder: 0,
+          color: null,
         },
       ],
     });

@@ -10,7 +10,7 @@ import { BatchCommitUncertainError, BatchConflictError } from "./ServerSyncAdapt
 import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { resetStoreWithAccount } from "@/test/fixtures";
+import { makeAccount, resetStoreWithAccount } from "@/test/fixtures";
 import { readPersistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
 import { a2Slice, attachActiveA2 } from "./__tests__/persistTestKit";
 
@@ -53,7 +53,7 @@ describe("persistence coordinator fault-injection branches", () => {
   it("discards a superseded non-null account load without running the sign-out rebase", async () => {
     const a1 = {
       ...emptyAppData(),
-      accounts: [{ id: "a1", name: "Alpha", color: "#1", createdAt: "t", updatedAt: "t" }],
+      accounts: [makeAccount({ id: "a1", name: "Alpha", color: "#1", createdAt: "t", updatedAt: "t" })],
     };
     const a2 = a2Slice();
     let releaseA2!: () => void;

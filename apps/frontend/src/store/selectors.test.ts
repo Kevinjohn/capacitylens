@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, it, expect } from "vitest";
 import {
   hasDisciplinesEnabled,
@@ -23,8 +24,24 @@ function data(): AppData {
   return {
     ...emptyAppData(),
     disciplines: [
-      { id: "d2", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "Dev", sortOrder: 1 },
-      { id: "d1", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "Design", sortOrder: 0 },
+      {
+        ...NULLABLE_FIELDS.disciplines,
+        id: "d2",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Dev",
+        sortOrder: 1,
+      },
+      {
+        ...NULLABLE_FIELDS.disciplines,
+        id: "d1",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Design",
+        sortOrder: 0,
+      },
     ],
     resources: [
       makeResource({ id: "r1", accountId: DEFAULT_ACCOUNT_ID, name: "A", role: "x", disciplineId: "d1", color: "#1" }),
@@ -32,10 +49,20 @@ function data(): AppData {
       makeResource({ id: "r3", accountId: DEFAULT_ACCOUNT_ID, name: "C", role: "x", color: "#3" }),
     ],
     projects: [
-      { id: "p1", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "P", clientId: "c1", color: "#1" },
+      {
+        ...NULLABLE_FIELDS.projects,
+        id: "p1",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "P",
+        clientId: "c1",
+        color: "#1",
+      },
     ],
     activities: [
       {
+        ...NULLABLE_FIELDS.activities,
         id: "t1",
         accountId: "acct-test",
         createdAt: "t",
@@ -45,6 +72,7 @@ function data(): AppData {
         projectId: "p1",
       },
       {
+        ...NULLABLE_FIELDS.activities,
         id: "t2",
         accountId: "acct-test",
         createdAt: "t",
@@ -74,18 +102,18 @@ describe("disciplinesEnabledFor", () => {
   const accounts = ({ disciplinesEnabled }: AccountsOptions) => ({
     ...emptyAppData(),
     accounts: [
-      {
+      makeAccount({
         id: "a1",
         createdAt: "t",
         updatedAt: "t",
         name: "Studio",
         color: "#1",
-        ...(disciplinesEnabled !== undefined ? { disciplinesEnabled } : {}),
-      },
+        disciplinesEnabled: disciplinesEnabled ?? null,
+      }),
     ],
   });
 
-  it("defaults to true when the field is absent", () => {
+  it("defaults to true when the field is null", () => {
     expect(hasDisciplinesEnabled(accounts({ disciplinesEnabled: undefined }), "a1")).toBe(true);
   });
 
@@ -101,7 +129,7 @@ describe("disciplinesEnabledFor", () => {
 
 const accountData = (values: Partial<Account> = {}): AppData => ({
   ...emptyAppData(),
-  accounts: [{ id: "a1", createdAt: "t", updatedAt: "t", name: "Studio", color: "#1", ...values }],
+  accounts: [makeAccount({ id: "a1", createdAt: "t", updatedAt: "t", name: "Studio", color: "#1", ...values })],
 });
 
 const accountFeatureCases: Array<{
@@ -162,7 +190,18 @@ describe("account feature selector defaults", () => {
 describe("calendar primitive selectors", () => {
   const accounts = (calendar?: Pick<Partial<Account>, "timezone" | "weekStartsOn" | "workingDays">) => ({
     ...emptyAppData(),
-    accounts: [{ id: "a1", createdAt: "t", updatedAt: "t", name: "Studio", color: "#1", ...calendar }],
+    accounts: [
+      makeAccount({
+        id: "a1",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Studio",
+        color: "#1",
+        timezone: calendar?.timezone ?? null,
+        weekStartsOn: calendar?.weekStartsOn ?? null,
+        workingDays: calendar?.workingDays ?? null,
+      }),
+    ],
   });
 
   it("single-sources absent calendar defaults without returning a fresh object", () => {
@@ -183,7 +222,11 @@ describe("calendar primitive selectors", () => {
     if (!sundayAccount) throw new Error("Expected Sunday-start account fixture");
     expect(
       listAccountWorkingDays(
-        { ...accounts({ weekStartsOn: 0 }), accounts: [{ ...sundayAccount, workingDays: [1, 3, 5] }] },
+        {
+          ...NULLABLE_FIELDS.accounts,
+          ...accounts({ weekStartsOn: 0 }),
+          accounts: [{ ...sundayAccount, workingDays: [1, 3, 5] }],
+        },
         "a1",
       ),
     ).toEqual([1, 3, 5]);
@@ -258,7 +301,14 @@ describe("resolveDateStyle", () => {
     // Built by assignment rather than a conditional spread: under exactOptionalPropertyTypes a
     // spread of `{ dateStyle } | {}` widens to `dateStyle?: DateStyle | undefined`, which the
     // optional-but-never-undefined property on Account rejects.
-    const account: Account = { id: "a1", createdAt: "t", updatedAt: "t", name: "Studio", color: "#1" };
+    const account: Account = {
+      ...NULLABLE_FIELDS.accounts,
+      id: "a1",
+      createdAt: "t",
+      updatedAt: "t",
+      name: "Studio",
+      color: "#1",
+    };
     if (dateStyle) account.dateStyle = dateStyle as NonNullable<Account["dateStyle"]>;
     return { ...emptyAppData(), accounts: [account] };
   };

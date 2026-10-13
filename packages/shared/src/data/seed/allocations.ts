@@ -1,9 +1,11 @@
+import { NULLABLE_FIELDS } from "../../types/nullableFields.js";
 import type { AppData } from "../../types/entities.js";
 import { SEED_TIMESTAMP, STUDIO, LOFT } from "./constants.js";
 
 const ALLOCATIONS: AppData["allocations"] = [
   // Bruce: two overlapping bars on 06-03/06-04 -> stacks + over-allocated (8 + 4 > 8).
   {
+    ...NULLABLE_FIELDS.allocations,
     id: "a-tyler-1",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -16,6 +18,7 @@ const ALLOCATIONS: AppData["allocations"] = [
     status: "confirmed",
   },
   {
+    ...NULLABLE_FIELDS.allocations,
     id: "a-tyler-2",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -28,6 +31,7 @@ const ALLOCATIONS: AppData["allocations"] = [
     status: "tentative",
   },
   {
+    ...NULLABLE_FIELDS.allocations,
     id: "a-nike-1",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -40,6 +44,7 @@ const ALLOCATIONS: AppData["allocations"] = [
     status: "confirmed",
   },
   {
+    ...NULLABLE_FIELDS.allocations,
     id: "a-alex-1",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -52,6 +57,7 @@ const ALLOCATIONS: AppData["allocations"] = [
     status: "confirmed",
   },
   {
+    ...NULLABLE_FIELDS.allocations,
     id: "a-ph-1",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -65,6 +71,7 @@ const ALLOCATIONS: AppData["allocations"] = [
   },
   // External partner studio booked on Queen Consolidated's visual design, a span only, no hours (hoursPerDay 0).
   {
+    ...NULLABLE_FIELDS.allocations,
     id: "a-ext-1",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -78,6 +85,7 @@ const ALLOCATIONS: AppData["allocations"] = [
     ignoreWeekends: true,
   },
   {
+    ...NULLABLE_FIELDS.allocations,
     id: "a-pam-1",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -92,6 +100,7 @@ const ALLOCATIONS: AppData["allocations"] = [
   // An all-projects activity ("Design") booked across a project boundary, demonstrates the
   // schedule's activity lens ("all design work", regardless of project/client).
   {
+    ...NULLABLE_FIELDS.allocations,
     id: "a-alex-design",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -104,6 +113,7 @@ const ALLOCATIONS: AppData["allocations"] = [
     status: "confirmed",
   },
   {
+    ...NULLABLE_FIELDS.allocations,
     id: "a-jo-1",
     accountId: LOFT,
     createdAt: SEED_TIMESTAMP,

@@ -30,9 +30,11 @@ test('projects private names and time-off notes for every role', ({ assert }) =>
   for (const role of ['admin', 'editor', 'viewer'] as const) {
     const projected = transformState(data, FIXTURE_ACCOUNT.id, role)
     assert.equal(projected.clients[0]?.name, '"Fixture Nightwing"')
-    assert.notProperty(projected.clients[0]!, 'codeName')
+    assert.property(projected.clients[0]!, 'codeName')
+    assert.isNull(projected.clients[0]?.codeName)
     assert.equal(projected.projects[0]?.name, '"Fixture Aurora"')
-    assert.notProperty(projected.projects[0]!, 'codeName')
+    assert.property(projected.projects[0]!, 'codeName')
+    assert.isNull(projected.projects[0]?.codeName)
     assert.equal(projected.timeOff[0]?.note, role === 'admin' ? FIXTURE_TIMEOFF.note : null)
   }
   const owner = transformState(data, FIXTURE_ACCOUNT.id, 'owner')

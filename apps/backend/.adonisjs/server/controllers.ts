@@ -5,5 +5,10 @@
 
 export const controllers = {
   Batch: () => import('#controllers/batch_controller'),
+  Companies: () => import('#controllers/companies_controller'),
+  ExampleData: () => import('#controllers/example_data_controller'),
+  Exports: () => import('#controllers/exports_controller'),
+  GettingStarted: () => import('#controllers/getting_started_controller'),
+  Imports: () => import('#controllers/imports_controller'),
   Lifecycle: () => import('#controllers/lifecycle_controller'),
 }

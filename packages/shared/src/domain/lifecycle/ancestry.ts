@@ -102,7 +102,7 @@ export function inspectAncestry({ table, row, lookup, memo }: InspectAncestryOpt
   if (!relations) return { kind: "visible" };
   for (const relation of relations) {
     const parentId = row[relation.field];
-    if (relation.optional && parentId === undefined) continue;
+    if (relation.optional && parentId == null) continue;
     // This projection hides lifecycle state, not integrity damage. A missing, malformed or
     // cross-account reference is not evidence that an ancestor is archived/deleted; retain the row
     // so normal views can surface their existing "Unknown …" fallbacks and integrity tooling can

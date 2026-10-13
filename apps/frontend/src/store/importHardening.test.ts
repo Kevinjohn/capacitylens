@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, it, expect, beforeEach } from "vitest";
 import { useStore } from "./useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
@@ -138,9 +139,19 @@ function registerImportHardening5(): void {
   it("does not create a second builtin Internal client on import; re-points an Internal-owned project at the existing one", () => {
     s().replaceAll({
       ...emptyAppData(),
-      accounts: [{ id: DEFAULT_ACCOUNT_ID, createdAt: "t", updatedAt: "t", name: "Test Co", color: "#111111" }],
+      accounts: [
+        {
+          ...NULLABLE_FIELDS.accounts,
+          id: DEFAULT_ACCOUNT_ID,
+          createdAt: "t",
+          updatedAt: "t",
+          name: "Test Co",
+          color: "#111111",
+        },
+      ],
       clients: [
         {
+          ...NULLABLE_FIELDS.clients,
           id: "existing-internal",
           accountId: DEFAULT_ACCOUNT_ID,
           createdAt: "t",

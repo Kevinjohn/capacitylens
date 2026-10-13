@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, it, expect } from "vitest";
 import {
   listResourceAllocations,
@@ -14,18 +15,56 @@ import { DEFAULT_ACCOUNT_ID, makeResource } from "@/test/fixtures";
 
 const data: AppData = {
   ...emptyAppData(),
-  clients: [{ id: "c1", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "Ferris", color: "#1" }],
+  clients: [
+    {
+      ...NULLABLE_FIELDS.clients,
+      id: "c1",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      name: "Ferris",
+      color: "#1",
+    },
+  ],
   projects: [
-    { id: "p1", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "P1", clientId: "c1", color: "#2" },
-    { id: "p2", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "P2", clientId: "c1", color: "#3" },
+    {
+      ...NULLABLE_FIELDS.projects,
+      id: "p1",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      name: "P1",
+      clientId: "c1",
+      color: "#2",
+    },
+    {
+      ...NULLABLE_FIELDS.projects,
+      id: "p2",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      name: "P2",
+      clientId: "c1",
+      color: "#3",
+    },
   ],
   phases: [{ id: "ph1", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "Disc", projectId: "p1" }],
   activities: [
-    { id: "t1", accountId: "acct-test", createdAt: "t", updatedAt: "t", name: "T1", kind: "project", projectId: "p1" },
+    {
+      ...NULLABLE_FIELDS.activities,
+      id: "t1",
+      accountId: "acct-test",
+      createdAt: "t",
+      updatedAt: "t",
+      name: "T1",
+      kind: "project",
+      projectId: "p1",
+    },
   ],
   resources: [makeResource({ id: "r1", accountId: DEFAULT_ACCOUNT_ID, name: "A", role: "Dev", color: "#4" })],
   allocations: [
     {
+      ...NULLABLE_FIELDS.allocations,
       id: "a1",
       accountId: "acct-test",
       createdAt: "t",
@@ -48,6 +87,7 @@ const data: AppData = {
       startDate: "2026-06-10",
       endDate: "2026-06-11",
       type: "holiday",
+      note: null,
     },
   ],
 };
@@ -84,6 +124,7 @@ describe("byDisciplineOrder (scheduler grouping)", () => {
     accountId: "acct-test",
     name,
     sortOrder,
+    color: null,
     createdAt: "t",
     updatedAt: "t",
   });

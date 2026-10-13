@@ -142,7 +142,7 @@ test.group('M2a company batches', (group) => {
       const accounts = await client.get('/api/accounts').send()
       accounts.assertStatus(200)
       assert.deepEqual(
-        (accounts.body() as Array<{ id: string }>).map((account) => account.id),
+        (accounts.body() as unknown as Array<{ id: string }>).map((account) => account.id),
         [original.id]
       )
     }

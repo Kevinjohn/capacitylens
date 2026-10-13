@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "../../types/nullableFields.js";
 import type { AppData } from "../../types/entities.js";
 import { defaultAccountWorkingDays } from "../../lib/accountWorkingDays.js";
 import { buildInternalClient } from "../internalClient.js";
@@ -8,6 +9,7 @@ type OrgTables = Pick<AppData, "accounts" | "disciplines" | "clients" | "project
 const ORG_TABLES: OrgTables = {
   accounts: [
     {
+      ...NULLABLE_FIELDS.accounts,
       id: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
@@ -16,6 +18,7 @@ const ORG_TABLES: OrgTables = {
       workingDays: defaultAccountWorkingDays(),
     },
     {
+      ...NULLABLE_FIELDS.accounts,
       id: LOFT,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
@@ -69,6 +72,7 @@ const ORG_TABLES: OrgTables = {
     buildInternalClient(STUDIO, SEED_TIMESTAMP, "c-internal-studio"),
     buildInternalClient(LOFT, SEED_TIMESTAMP, "c-internal-loft"),
     {
+      ...NULLABLE_FIELDS.clients,
       id: "c-acme",
       accountId: STUDIO,
       createdAt: SEED_TIMESTAMP,
@@ -77,6 +81,7 @@ const ORG_TABLES: OrgTables = {
       color: "#e02727",
     },
     {
+      ...NULLABLE_FIELDS.clients,
       id: "c-globex",
       accountId: STUDIO,
       createdAt: SEED_TIMESTAMP,
@@ -85,6 +90,7 @@ const ORG_TABLES: OrgTables = {
       color: "#2d75da",
     },
     {
+      ...NULLABLE_FIELDS.clients,
       id: "c-loft-northwind",
       accountId: LOFT,
       createdAt: SEED_TIMESTAMP,
@@ -95,6 +101,7 @@ const ORG_TABLES: OrgTables = {
   ],
   projects: [
     {
+      ...NULLABLE_FIELDS.projects,
       id: "p-acme",
       accountId: STUDIO,
       createdAt: SEED_TIMESTAMP,
@@ -104,6 +111,7 @@ const ORG_TABLES: OrgTables = {
       color: "#da2d92",
     },
     {
+      ...NULLABLE_FIELDS.projects,
       id: "p-brand",
       accountId: STUDIO,
       createdAt: SEED_TIMESTAMP,
@@ -113,6 +121,7 @@ const ORG_TABLES: OrgTables = {
       color: "#34c7d4",
     },
     {
+      ...NULLABLE_FIELDS.projects,
       id: "p-loft-app",
       accountId: LOFT,
       createdAt: SEED_TIMESTAMP,

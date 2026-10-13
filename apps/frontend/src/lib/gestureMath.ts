@@ -61,7 +61,7 @@ export interface GestureOptions {
    * so the two weeks answer different questions: this one sizes the range, `workingDays` positions
    * it. Omit for a same-resource gesture, where the two are the same week. */
   sourceWorkingDays?: Weekday[];
-  ignoreWeekends?: boolean;
+  ignoreWeekends?: boolean | null;
 }
 
 type Direction = 1 | -1;
@@ -167,7 +167,7 @@ function resolveMoveSpan(range: DateRange, options: GestureOptions | undefined):
 export function applyGesture({ mode, range, deltaDays, options }: ApplyGestureInput): DateRange {
   const weekendAwareDays = resolveWeekendAwareWeek({
     days: options?.workingDays,
-    ignoreWeekends: options?.ignoreWeekends,
+    ignoreWeekends: options?.ignoreWeekends ?? undefined,
   });
   switch (mode) {
     case "move":
@@ -178,7 +178,7 @@ export function applyGesture({ mode, range, deltaDays, options }: ApplyGestureIn
         placesIntoAnotherWeek: !isSameWeek(
           resolveWeekendAwareWeek({
             days: options?.sourceWorkingDays ?? options?.workingDays,
-            ignoreWeekends: options?.ignoreWeekends,
+            ignoreWeekends: options?.ignoreWeekends ?? undefined,
           }),
           weekendAwareDays,
         ),

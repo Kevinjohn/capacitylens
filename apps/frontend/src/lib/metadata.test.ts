@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, it, expect } from "vitest";
 import { m } from "@/i18n";
 import {
@@ -17,7 +18,8 @@ import {
 import type { LabelMessages } from "./metadata";
 import type { AllocationStatus, Resource, TimeOffType } from "@capacitylens/shared/types/entities";
 
-const makeResource = (over: Partial<Resource> = {}): Resource => ({
+const makeResource = (over: Partial<Resource> = { ...NULLABLE_FIELDS.resources }): Resource => ({
+  ...NULLABLE_FIELDS.resources,
   id: "r1",
   accountId: "acct-test",
   createdAt: "t",

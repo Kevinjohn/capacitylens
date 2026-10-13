@@ -30,6 +30,7 @@ import {
 } from "./sanitize/coerce.js";
 import { stripUnknownFields } from "./sanitize/importedFields.js";
 import { parseResourceAvatarUrl } from "../domain/resourceAvatarUrl.js";
+import { fillNullableFields } from "../types/nullableFields.js";
 
 export { sanitizeAccount } from "./sanitize/account.js";
 
@@ -114,7 +115,7 @@ function sanitizeDiscipline(record: Record<string, unknown>): void {
 
 function sanitizeActivity(record: Record<string, unknown>): void {
   cleanRequiredField(record, "name", "Untitled");
-  const defaultKind = record.projectId !== undefined ? "project" : "repeatable";
+  const defaultKind = record.projectId != null ? "project" : "repeatable";
   record.kind = oneOf(record.kind, VALID_ACTIVITY_KIND, defaultKind);
   repairLifecycleFieldsInPlace(record);
 }
@@ -167,5 +168,6 @@ export function sanitizeImportedRecord(key: ScopedEntityKey, record: Record<stri
       break;
     }
   }
+  fillNullableFields(key, record);
   return record;
 }

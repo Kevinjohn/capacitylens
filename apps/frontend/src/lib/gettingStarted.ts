@@ -35,7 +35,7 @@ export function buildGettingStartedSteps(data: AppData): GettingStartedSteps {
   const projects = new Map(
     data.projects.filter((project) => lifecycleStatus(project) === "active").map((project) => [project.id, project]),
   );
-  const coherentProject = (projectId: string | undefined): boolean => {
+  const coherentProject = (projectId: string | null | undefined): boolean => {
     if (!projectId) return false;
     const project = projects.get(projectId);
     return project !== undefined && clients.has(project.clientId);
@@ -54,9 +54,7 @@ export function buildGettingStartedSteps(data: AppData): GettingStartedSteps {
   const scheduled = data.allocations.some((allocation) => {
     if (!people.has(allocation.resourceId) || coherentActivities.get(allocation.activityId) !== true) return false;
     const activity = activities.get(allocation.activityId);
-    return (
-      activity?.kind !== "repeatable" || allocation.projectId === undefined || coherentProject(allocation.projectId)
-    );
+    return activity?.kind !== "repeatable" || allocation.projectId == null || coherentProject(allocation.projectId);
   });
   return {
     person: people.size > 0,

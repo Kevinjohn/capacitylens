@@ -74,7 +74,7 @@ export function encodeRow(table: ProductTable, row: Record<string, unknown>) {
       const value = row[key]
       return [
         snake(key),
-        jsonColumns[table].has(key) && value !== undefined
+        jsonColumns[table].has(key) && value !== undefined && value !== null
           ? JSON.stringify(value)
           : (value ?? null),
       ]
@@ -83,9 +83,7 @@ export function encodeRow(table: ProductTable, row: Record<string, unknown>) {
 }
 
 function serializeRows(rows: InstanceType<typeof BaseModel>[]): Record<string, unknown>[] {
-  return rows.map((model) =>
-    Object.fromEntries(Object.entries(model.serialize()).filter(([, value]) => value !== null))
-  )
+  return rows.map((model) => model.serialize())
 }
 
 /** Reads the trusted-local whole database, or one fail-closed tenant slice. */
@@ -161,6 +159,7 @@ export function readState(accountId?: string, includeInactive = accountId === un
 
 export async function resetState(seedRequested: boolean) {
   await withTransaction(async (trx) => {
+    await trx.from('audit_entries').delete()
     for (const table of Object.values(tables).reverse()) await trx.from(table).delete()
     if (!seedRequested) return
     const data = seed()

@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "../types/nullableFields.js";
 import { describe, it, expect } from "vitest";
 import {
   resolveBarColor,
@@ -35,6 +36,7 @@ describe("canonical palette", () => {
 
 const TS = "t";
 const alloc = (resourceId: string, activityId: string, projectId?: string): Allocation => ({
+  ...NULLABLE_FIELDS.allocations,
   id: "a",
   accountId: "acct",
   createdAt: TS,
@@ -48,6 +50,7 @@ const alloc = (resourceId: string, activityId: string, projectId?: string): Allo
   status: "confirmed",
 });
 const project = (id: string, color: string): Project => ({
+  ...NULLABLE_FIELDS.projects,
   id,
   accountId: "acct",
   createdAt: TS,
@@ -57,6 +60,7 @@ const project = (id: string, color: string): Project => ({
   color,
 });
 const activity = (id: string, projectId?: string): Activity => ({
+  ...NULLABLE_FIELDS.activities,
   id,
   accountId: "acct",
   createdAt: TS,
@@ -66,6 +70,7 @@ const activity = (id: string, projectId?: string): Activity => ({
   ...(projectId === undefined ? {} : { projectId }),
 });
 const resource = (id: string, kind: Resource["kind"]): Resource => ({
+  ...NULLABLE_FIELDS.resources,
   id,
   accountId: "acct",
   createdAt: TS,
@@ -103,6 +108,7 @@ describe("resolveBarColor", () => {
 
   it("always shows an internal activity bar in grey", () => {
     const internal: Activity = {
+      ...NULLABLE_FIELDS.activities,
       id: "internal",
       accountId: "acct",
       createdAt: TS,
@@ -118,6 +124,7 @@ describe("resolveBarColor", () => {
 describe("resolveBarColor project attribution", () => {
   it("always shows an Internal-owned project in grey while keeping its saved colour", () => {
     const internalClient: Client = {
+      ...NULLABLE_FIELDS.clients,
       id: "c",
       accountId: "acct",
       createdAt: TS,
@@ -140,6 +147,7 @@ describe("resolveBarColor project attribution", () => {
 
   it("does not treat a project-less all-projects activity as internal work", () => {
     const crossProject: Activity = {
+      ...NULLABLE_FIELDS.activities,
       id: "cross",
       accountId: "acct",
       createdAt: TS,
@@ -153,6 +161,7 @@ describe("resolveBarColor project attribution", () => {
 
   it("colours an attributed repeatable allocation by its effective project", () => {
     const repeatable: Activity = {
+      ...NULLABLE_FIELDS.activities,
       id: "repeatable",
       accountId: "acct",
       createdAt: TS,
@@ -175,6 +184,7 @@ describe("resolveBarColor fallbacks", () => {
     // project.color is "" (falsy), so `if (project?.color)` must skip past it to the
     // `if (client?.color)` branch rather than short-circuiting to the resource/neutral fallback.
     const client: Client = {
+      ...NULLABLE_FIELDS.clients,
       id: "c",
       accountId: "acct",
       createdAt: TS,

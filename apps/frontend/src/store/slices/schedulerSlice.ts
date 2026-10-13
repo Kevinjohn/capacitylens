@@ -115,7 +115,7 @@ function resolveResourceGroupKey(state: StoreState, id: ID): string | null {
   if (!resource) return null;
   if (isExternalResource(resource)) return "external";
   if (
-    resource.disciplineId !== undefined &&
+    resource.disciplineId != null &&
     state.data.disciplines.some((discipline) => discipline.id === resource.disciplineId)
   ) {
     return resource.disciplineId;

@@ -162,7 +162,8 @@ function useTargetChoices(input: TargetChoicesInput) {
     [attributedProjectId, selectedActivity],
   );
   const selectedResource = resourcesById.get(resourceId);
-  const lockedProjectId = selectedResource?.kind === "placeholder" ? selectedResource.projectId : undefined;
+  const lockedProjectId =
+    selectedResource?.kind === "placeholder" ? (selectedResource.projectId ?? undefined) : undefined;
   const resourceOptions = buildResourceOptions({
     resources: data.resources,
     selectedResourceId: resourceId,

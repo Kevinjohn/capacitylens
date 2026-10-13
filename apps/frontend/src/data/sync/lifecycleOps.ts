@@ -130,8 +130,8 @@ export async function unarchiveLifecycleRow(state: SyncState, op: Op): Promise<E
     body.id !== op.id ||
     typeof body.createdAt !== "string" ||
     typeof body.updatedAt !== "string" ||
-    body.archivedAt !== undefined ||
-    body.deletedAt !== undefined
+    body.archivedAt != null ||
+    body.deletedAt != null
   ) {
     // The transition may already have committed. Force an authoritative reload rather than
     // guessing its revision and issuing a stale generic write.

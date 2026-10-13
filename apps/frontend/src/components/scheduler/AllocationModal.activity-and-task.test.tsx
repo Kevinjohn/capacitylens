@@ -177,7 +177,7 @@ describe("AllocationModal task field", () => {
     render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
     await user.clear(screen.getByLabelText("Task"));
     await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(useStore.getState().data.allocations[0]).not.toHaveProperty("task");
+    expect(useStore.getState().data.allocations[0]).toHaveProperty("task", null);
   });
   it("preserves a hidden task while an unrelated allocation is edited and restores it when enabled", async () => {
     const resourceId = addInlineActivityTestPerson();

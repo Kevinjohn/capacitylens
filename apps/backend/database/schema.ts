@@ -6,6 +6,53 @@
 
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 
+export class AccountAccessRestrictionSchema extends BaseModel {
+  static $columns = ['accountId', 'createdAt', 'id', 'principalId', 'role', 'verifiedEmail'] as const
+  $columns = AccountAccessRestrictionSchema.$columns
+  @column()
+  declare accountId: string
+  @column()
+  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare principalId: string
+  @column()
+  declare role: import('@capacitylens/shared/account/types').Role
+  @column()
+  declare verifiedEmail: string | null
+}
+
+export class AccountGettingStartedDismissalSchema extends BaseModel {
+  static $columns = ['accountId', 'createdAt', 'id', 'updatedAt'] as const
+  $columns = AccountGettingStartedDismissalSchema.$columns
+  @column()
+  declare accountId: string
+  @column()
+  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+}
+
+export class AccountJoiningPolicySchema extends BaseModel {
+  static $columns = ['accountId', 'approvedDomains', 'createdAt', 'id', 'policy', 'updatedAt'] as const
+  $columns = AccountJoiningPolicySchema.$columns
+  @column()
+  declare accountId: string
+  @column()
+  declare approvedDomains: string[]
+  @column()
+  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare policy: 'invitation_only' | 'open' | 'approved_domains' | 'approved_domains_or_invitation'
+  @column()
+  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+}
+
 export class AccountMemberResourceSchema extends BaseModel {
   static $columns = ['accountId', 'createdAt', 'id', 'resourceId', 'revision', 'updatedAt', 'userId'] as const
   $columns = AccountMemberResourceSchema.$columns
@@ -244,6 +291,49 @@ export class CommandResultSchema extends BaseModel {
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }
 
+export class CompanyJoinIntentSchema extends BaseModel {
+  static $columns = ['accountId', 'browserHash', 'createdAt', 'deliveryGeneration', 'email', 'expiresAt', 'id', 'invitationId', 'lastSentAt', 'nonceHash', 'principalId', 'providerId', 'providerStateHash', 'purpose', 'sentCount', 'sourceIpHash', 'state', 'tokenHash', 'updatedAt'] as const
+  $columns = CompanyJoinIntentSchema.$columns
+  @column()
+  declare accountId: string
+  @column()
+  declare browserHash: string
+  @column()
+  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare deliveryGeneration: number
+  @column()
+  declare email: string
+  @column()
+  declare expiresAt: bigint | number
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare invitationId: string | null
+  @column()
+  declare lastSentAt: bigint | number | null
+  @column()
+  declare nonceHash: string
+  @column()
+  declare principalId: string | null
+  @column()
+  declare providerId: string
+  @column()
+  declare providerStateHash: string | null
+  @column()
+  declare purpose: 'policy' | 'invitation'
+  @column()
+  declare sentCount: number
+  @column()
+  declare sourceIpHash: string
+  @column()
+  declare state: 'started' | 'mail-sent' | 'approved' | 'completed' | 'cancelled'
+  @column()
+  declare tokenHash: string | null
+  @column()
+  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+}
+
 export class CompanySettingSchema extends BaseModel {
   static $columns = ['accountId', 'createdAt', 'id', 'key', 'updatedAt', 'value'] as const
   $columns = CompanySettingSchema.$columns
@@ -352,6 +442,25 @@ export class MasqueradeSchema extends BaseModel {
   declare sessionId: string
   @column()
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+}
+
+export class MemberResourceLinkExceptionSchema extends BaseModel {
+  static $columns = ['accountId', 'createdAt', 'id', 'proposedResourceId', 'reason', 'updatedAt', 'userId'] as const
+  $columns = MemberResourceLinkExceptionSchema.$columns
+  @column()
+  declare accountId: string
+  @column()
+  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare proposedResourceId: string | null
+  @column()
+  declare reason: 'resource_unavailable' | 'resource_already_linked' | 'member_already_linked'
+  @column()
+  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare userId: string
 }
 
 export class MembershipSchema extends BaseModel {

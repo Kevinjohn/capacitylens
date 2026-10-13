@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, it, expect, vi } from "vitest";
 import { ServerSyncAdapter, BatchCommitUncertainError } from "./ServerSyncAdapter";
 import type { Activity, Allocation, AppData } from "@capacitylens/shared/types/entities";
@@ -19,6 +20,7 @@ import type { ReceiptOp } from "./ServerSyncAdapter.testSupport";
 
 const concurrentRewriteFixture = () => {
   const activity: Activity = {
+    ...NULLABLE_FIELDS.activities,
     id: "t1",
     accountId: "a1",
     name: "Planning",
@@ -159,6 +161,7 @@ function registerUnexpectedRevisionTests(): void {
 function registerAllocationRewriteTests(): void {
   it("folds a non-op allocation rewrite into the cache and revision provenance", async () => {
     const activity: Activity = {
+      ...NULLABLE_FIELDS.activities,
       id: "t1",
       accountId: "a1",
       name: "Planning",
@@ -216,6 +219,7 @@ function registerAllocationRewriteTests(): void {
 function registerTaggedRewriteTests(): void {
   it("remembers a tagged rewrite from the committed snapshot without a phantom follow-up PUT", async () => {
     const activity: Activity = {
+      ...NULLABLE_FIELDS.activities,
       id: "t1",
       accountId: "a1",
       name: "Planning",
@@ -265,7 +269,7 @@ function registerTaggedRewriteTests(): void {
     };
     await adapter.saveAll(visible);
 
-    expect(visible.allocations[0]).not.toHaveProperty("projectId");
+    expect(visible.allocations[0]).toHaveProperty("projectId", null);
     expect(visible.allocations[0]?.updatedAt).toBe(rewrittenAt);
     await adapter.saveAll(visible);
     expect(batchNumber).toBe(2);

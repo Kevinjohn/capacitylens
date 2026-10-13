@@ -6,8 +6,8 @@ import type { FieldError as FormFieldError } from "@/hooks/useFieldError";
 import { parseName } from "@/lib/validation";
 
 interface PrivateNameSource {
-  isPrivate?: boolean;
-  codeName?: string;
+  isPrivate?: boolean | null;
+  codeName?: string | null;
 }
 
 interface PrivacyPatch {

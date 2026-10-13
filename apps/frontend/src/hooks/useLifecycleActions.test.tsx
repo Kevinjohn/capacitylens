@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import { useLifecycleActions } from "./useLifecycleActions";
@@ -29,6 +30,7 @@ vi.mock("@/data/persist", () => ({
 const reloadedSlice: AppData = makeAppData({
   clients: [
     {
+      ...NULLABLE_FIELDS.clients,
       id: "c-reloaded",
       accountId: DEFAULT_ACCOUNT_ID,
       name: "Reloaded",

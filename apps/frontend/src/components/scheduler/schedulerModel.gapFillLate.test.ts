@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, expect, it } from "vitest";
 import type { Allocation, AppData, ISODate, Resource } from "@capacitylens/shared/types/entities";
 import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
@@ -32,6 +33,7 @@ function registerMovedSchedulerTests201021() {
     const d = dataset();
 
     d.allocations.push({
+      ...NULLABLE_FIELDS.allocations,
       id: "a-overlap",
       accountId: "acct-test",
       createdAt: "t",
@@ -72,6 +74,7 @@ function registerMovedSchedulerTests201022() {
     const d = withExternal();
     // Book the external above normal person capacity so missing capacity exclusion changes the result.
     d.allocations.push({
+      ...NULLABLE_FIELDS.allocations,
       id: "aext2",
       accountId: "acct-test",
       createdAt: "t",
@@ -106,6 +109,7 @@ function registerMovedSchedulerTests201023() {
     const d = dataset();
     // ignoreWeekends changes booked load, not availability, so opted-in work on a non-working day must report a capacity conflict.
     d.allocations.push({
+      ...NULLABLE_FIELDS.allocations,
       id: "a-sat",
       accountId: "acct-test",
       createdAt: "t",
@@ -336,6 +340,7 @@ function addBucketComparisonTimeOff(d: AppData) {
       startDate: "2026-06-03",
       endDate: "2026-06-04",
       type: "holiday",
+      note: null,
     },
 
     {
@@ -347,6 +352,7 @@ function addBucketComparisonTimeOff(d: AppData) {
       startDate: "2026-05-28",
       endDate: "2026-06-02",
       type: "sick",
+      note: null,
     },
   ];
 }
@@ -476,6 +482,7 @@ function assertBucketComparisonSummary(rows: ReturnType<typeof buildSchedulerMod
 
 function alloc({ id, resourceId, startDate, endDate, hoursPerDay }: AllocationTestInput): Allocation {
   return {
+    ...NULLABLE_FIELDS.allocations,
     id,
     accountId: "acct-test",
     createdAt: "t",

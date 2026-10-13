@@ -61,18 +61,18 @@ type PrivateNamedEntity = Client | Project;
 const projectedPrivateNames = new WeakMap<object, string>();
 
 /**
- * Replace one private entity's real name with its quoted code name and remove the redundant raw
- * `codeName` field. Public rows are returned unchanged. This is the server's field-level read
+ * Replace one private entity's real name with its quoted code name and clear the raw `codeName`
+ * field to null. Public rows are returned unchanged. This is the server's field-level read
  * projection and is also used for write/conflict echoes, so no non-owner response path can drift.
  */
 export function redactPrivateName<T extends PrivateNamedEntity>(entity: T): T {
   if (!entity.isPrivate) return entity;
-  // Only this module can establish that a codeName-free object is already projected. Quotation
+  // Only this module can establish that an object with a cleared codeName is already projected. Quotation
   // marks are not provenance: malformed persisted input may itself contain a quoted private name.
-  if (entity.codeName === undefined && projectedPrivateNames.get(entity) === entity.name) return entity;
+  if (entity.codeName === null && projectedPrivateNames.get(entity) === entity.name) return entity;
   const codeName = typeof entity.codeName === "string" ? entity.codeName : "";
   const redacted = { ...entity, name: quoteCodeName(codeName, entity.id) };
-  delete redacted.codeName;
+  redacted.codeName = null;
   projectedPrivateNames.set(redacted, redacted.name);
   return redacted;
 }

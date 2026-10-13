@@ -39,7 +39,7 @@ export function resolveAttributedProject(activity: Activity | undefined, selecti
 
 /** Checks whether an activity belongs to the selected project or project-less activity scope. */
 export function isActivityInProjectSelection(
-  activity: Pick<Activity, "kind" | "projectId">,
+  activity: Pick<Activity, "kind"> & Partial<Pick<Activity, "projectId">>,
   selection: string,
 ): boolean {
   if (selection === INTERNAL_PROJECT_SELECTION) return activity.kind === "internal";

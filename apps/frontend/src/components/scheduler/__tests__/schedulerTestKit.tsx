@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { buildColumnGeometry } from "@/components/scheduler/columnGeometry";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import type { AppData } from "@capacitylens/shared/types/entities";
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import {
   DEFAULT_ACCOUNT_ID,
   makeActivity,
@@ -47,7 +48,17 @@ export async function chooseOption(
 export function schedulerDataset(overrides: Partial<AppData> = {}): AppData {
   const ACC = DEFAULT_ACCOUNT_ID;
   return makeAppData({
-    disciplines: [{ id: "d1", accountId: ACC, createdAt: "t", updatedAt: "t", name: "Design", sortOrder: 0 }],
+    disciplines: [
+      {
+        ...NULLABLE_FIELDS.disciplines,
+        id: "d1",
+        accountId: ACC,
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Design",
+        sortOrder: 0,
+      },
+    ],
     resources: [makeResource({ accountId: ACC, disciplineId: "d1", name: "Bruce", color: "#111" })],
     clients: [makeClient({ accountId: ACC })],
     projects: [makeProject({ accountId: ACC })],

@@ -78,7 +78,7 @@ export function expectedFixture(value: unknown): unknown {
   if (value === null || typeof value !== 'object') return value
   return Object.fromEntries(
     Object.entries(value)
-      .filter(([, child]) => child !== undefined && child !== null)
+      .filter(([, child]) => child !== undefined)
       .map(([key, child]) => [key, expectedFixture(child)])
   )
 }
@@ -96,11 +96,10 @@ export function encodeFixture(value: object) {
   )
 }
 
-export function stripLifecycle<T extends { archivedAt?: string; deletedAt?: string }>(value: T): T {
-  const copy = { ...value }
-  delete copy.archivedAt
-  delete copy.deletedAt
-  return copy
+export function stripLifecycle<T extends { archivedAt?: string | null; deletedAt?: string | null }>(
+  value: T
+): T {
+  return { ...value, archivedAt: null, deletedAt: null }
 }
 
 export const fullFixtureRows = [

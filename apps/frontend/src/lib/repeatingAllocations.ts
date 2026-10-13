@@ -107,7 +107,7 @@ function assertRepeatProjection(
 
   const calendarSpan = daysInclusive(baseDraft.startDate, baseDraft.endDate);
   if (calendarSpan < 1) throw new RangeError("Repeat projection requires a valid inclusive date range.");
-  if (!usesCalendarSpan && lacksEffectiveWorkingDays(context.effectiveWeek, baseDraft.ignoreWeekends)) {
+  if (!usesCalendarSpan && lacksEffectiveWorkingDays(context.effectiveWeek, baseDraft.ignoreWeekends ?? undefined)) {
     throw new RangeError("Repeat projection requires at least one effective working day.");
   }
 }
@@ -184,7 +184,7 @@ export function buildRepeatingAllocationAdvisory({
         });
     if (result.overDays > 0) overCapacityAllocations += 1;
     if (result.timeOffDays > 0) timeOffAllocations += 1;
-    if (startsOnNonEffectiveWeekday(effectiveWeek, draft.ignoreWeekends, weekdayOf(draft.startDate))) {
+    if (startsOnNonEffectiveWeekday(effectiveWeek, draft.ignoreWeekends ?? undefined, weekdayOf(draft.startDate))) {
       nonEffectiveStartAllocations += 1;
     }
     if (shared)

@@ -22,7 +22,7 @@ import type { ISODate, Weekday } from "../types/entities.js";
 /** Working weekdays and weekend handling for a days-mode span calculation. */
 export interface DaysModeOpts {
   workingDays?: Weekday[];
-  ignoreWeekends?: boolean;
+  ignoreWeekends?: boolean | null;
 }
 
 /** Upper bound for a (days-over) span. ~100 working/calendar years, far beyond any real
@@ -38,7 +38,7 @@ type SchedulingModeResolution = { kind: "calendar" } | { kind: "workingDays"; da
 function resolveSchedulingMode(options: DaysModeOpts): SchedulingModeResolution {
   // `isWeekendAware` already returns false for an absent workingDays; the second check only
   // narrows the type (and keeps that guarantee explicit rather than asserted).
-  return isWeekendAware(options.workingDays, options.ignoreWeekends) && options.workingDays
+  return isWeekendAware(options.workingDays, options.ignoreWeekends ?? undefined) && options.workingDays
     ? { kind: "workingDays", days: options.workingDays }
     : { kind: "calendar" };
 }

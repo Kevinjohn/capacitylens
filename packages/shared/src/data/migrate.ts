@@ -1,6 +1,7 @@
 import { emptyAppData, EXPORT_SCHEMA_VERSION } from "../types/entities.js";
 import { applyInternalClientRepairs } from "./internalClient.js";
 import type { AppData } from "../types/entities.js";
+import { fillNullableFields } from "../types/nullableFields.js";
 import { importCandidate, normalize, parseSchemaVersion, UnsupportedSchemaVersionError } from "./migrate/detect.js";
 import { migrateV1toV2, migrateV3toV4, migrateV4toV5, migrateV5toV6 } from "./migrate/steps/v1-v6.js";
 import {
@@ -79,6 +80,8 @@ const POST_REPAIR_BASE_STEPS: readonly MigrationStep[] = [
   { version: 22, apply: (data) => data },
   // Avatar URLs remain optional and sanitization owns their value.
   { version: 23, apply: (data) => data },
+  // v24 represents every optional entity value with a present nullable key.
+  { version: 24, apply: (data) => data },
 ];
 
 // Guards against a migration step being added without bumping EXPORT_SCHEMA_VERSION to match (or
@@ -146,10 +149,12 @@ export function migrateWithRepairBase(raw: unknown): MigrationWithRepairBase {
   const repairBase = normalize(data);
   runSteps(POST_REPAIR_BASE_STEPS);
 
-  return {
-    data: applyInternalClientRepairs(normalize(data), "2026-01-01T00:00:00.000Z"),
-    repairBase,
-  };
+  const repaired = applyInternalClientRepairs(normalize(data), "2026-01-01T00:00:00.000Z");
+  for (const key of Object.keys(repaired) as (keyof AppData)[]) {
+    for (const row of repaired[key]) fillNullableFields(key, row);
+    for (const row of repairBase[key]) fillNullableFields(key, row);
+  }
+  return { data: repaired, repairBase };
 }
 
 /** Migrate a supported persisted or exported shape to current AppData without mutating the input.

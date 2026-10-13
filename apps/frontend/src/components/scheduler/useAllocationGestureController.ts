@@ -135,7 +135,7 @@ function resolveCommitDates({ options, mode, deltaDays, resourceId }: ResolveCom
     options: {
       ...(workingDays !== undefined ? { workingDays } : {}),
       ...(sourceWorkingDays !== undefined ? { sourceWorkingDays } : {}),
-      ...(bar.allocation.ignoreWeekends !== undefined ? { ignoreWeekends: bar.allocation.ignoreWeekends } : {}),
+      ignoreWeekends: bar.allocation.ignoreWeekends,
     },
     hoursPerDay: bar.allocation.hoursPerDay,
     isDays,
@@ -256,7 +256,7 @@ function resolveKeyboardGesture(options: ControllerOptions, mode: DragMode, delt
   const workingDays = readWorkingDays(bar.allocation.resourceId);
   const gestureOptions = {
     ...(workingDays !== undefined ? { workingDays } : {}),
-    ...(bar.allocation.ignoreWeekends !== undefined ? { ignoreWeekends: bar.allocation.ignoreWeekends } : {}),
+    ignoreWeekends: bar.allocation.ignoreWeekends,
   };
   const current = { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate };
   const next = applyGesture({ mode, range: current, deltaDays, options: gestureOptions });

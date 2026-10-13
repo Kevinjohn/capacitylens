@@ -3,6 +3,15 @@ import { createHash } from 'node:crypto'
 import { mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve, sep } from 'node:path'
+import {
+  M2B_TARGET_PATHS,
+  assertNamedTargetCases,
+  parseTestTitles,
+  validateM2bAdditionalContracts,
+  validateM2bEvidence,
+  validateNoStaleM2bSplits,
+  type M2bPortEvidence,
+} from './migration_census_support.js'
 
 interface Disposition {
   source_path: string
@@ -78,7 +87,12 @@ interface Ledger {
       guarantee: string
       targets: Array<{ path: string; cases: string[] }>
       uncovered_guarantees: string[]
-      later_splits: Array<{ milestone: string; package: string; reason: string }>
+      later_splits: Array<{
+        milestone: string
+        package: string
+        reason: string
+        targets?: Array<{ path: string; cases: string[] }>
+      }>
     }>
     additional_contracts: Array<{
       source_path: string
@@ -104,6 +118,7 @@ interface Ledger {
     }>
     legacy_caller_identity_sha256: string
   }
+  m2b_port_evidence: M2bPortEvidence
 }
 
 const LEGACY_MANIFEST_SHA256 = '09543bf29eeabba7548d77a23853fbec4d3cdc9113a776cd7eb37eaf4fecb73c'
@@ -451,6 +466,11 @@ test('M2a maps every named source guarantee to real target cases without unresol
       assert.isNotEmpty(split.milestone)
       assert.isNotEmpty(split.package)
       assert.isNotEmpty(split.reason)
+      for (const target of split.targets ?? []) {
+        const source = await readFile(resolve(root, target.path), 'utf8')
+        for (const caseTitle of target.cases)
+          assert.include(source, caseTitle, `${entry.source_path} -> ${target.path}`)
+      }
     }
   }
 
@@ -554,4 +574,99 @@ test('the M2a census rejects a missing named-file mapping or a target without a 
       : entry
   )
   assert.throws(() => validateM2aEvidence(noCases), /Missing concrete target case/)
+})
+
+test('M2b accounts for every named source case and names concrete target cases', async ({
+  assert,
+}) => {
+  const root = resolve(process.cwd(), '..', '..')
+  const evidence = ledger.m2b_port_evidence
+  validateM2bEvidence(evidence.entries)
+  validateM2bAdditionalContracts(evidence.additional_contracts)
+  const assertTargetCases = async (path: string, cases: string[], context: string) => {
+    const source = await readFile(resolve(root, path), 'utf8')
+    if (path === 'apps/backend/tests/functional/state/read_path.spec.ts') {
+      const fixture = JSON.parse(
+        await readFile(resolve(root, 'apps/backend/tests/fixtures-main-responses.json'), 'utf8')
+      ) as { responses: Array<{ method: string; path: string }> }
+      const titles = fixture.responses.map(
+        ({ method, path: route }) => `${method} ${route} matches the main response`
+      )
+      assertNamedTargetCases(titles, cases, context)
+      return
+    }
+    assertNamedTargetCases(parseTestTitles(source), cases, context)
+  }
+
+  for (const entry of evidence.entries) {
+    assert.include(ledger.test_census.paths, entry.source_path)
+    for (const target of entry.targets)
+      await assertTargetCases(target.path, target.cases, `${entry.source_path} -> ${target.path}`)
+    for (const split of entry.later_splits) {
+      assert.isNotEmpty(split.milestone)
+      assert.isNotEmpty(split.package)
+      assert.isNotEmpty(split.reason)
+      for (const target of split.targets)
+        await assertTargetCases(target.path, target.cases, `${entry.source_path} -> ${target.path}`)
+    }
+  }
+
+  for (const contract of evidence.additional_contracts) {
+    if (contract.source_path) assert.include(ledger.test_census.paths, contract.source_path)
+    await assertTargetCases(contract.target.path, [contract.target.case], contract.id)
+  }
+
+  const joining = evidence.joining_lifecycle
+  assert.equal(joining.source_path, 'server/src/db.joiningLifecycle.test.ts')
+  assert.equal(joining.source_case_count, 2)
+  assert.include(ledger.test_census.paths, joining.source_path)
+  assert.include(M2B_TARGET_PATHS, joining.target.path)
+  await assertTargetCases(joining.target.path, [joining.target.case], joining.source_path)
+  assert.equal(joining.later_split.milestone, 'M4')
+  assert.equal(joining.later_split.case_count, 1)
+  assert.isNotEmpty(joining.later_split.package)
+  assert.isNotEmpty(joining.later_split.reason)
+})
+
+test('the M2b census rejects incomplete case accounting and malformed target names', ({
+  assert,
+}) => {
+  const missingSource = ledger.m2b_port_evidence.entries.slice(1)
+  assert.throws(() => validateM2bEvidence(missingSource), /missing/)
+
+  const malformed = JSON.parse(
+    JSON.stringify(ledger.m2b_port_evidence.entries)
+  ) as Ledger['m2b_port_evidence']['entries']
+  malformed[0]!.targets[0]!.path = 'apps/backend/tests/functional/missing.spec.ts'
+  assert.throws(() => validateM2bEvidence(malformed), /M2b/)
+  assert.throws(
+    () => assertNamedTargetCases([], ['missing target title'], 'negative control'),
+    /Missing named M2b target case/
+  )
+  const staleM2aCarryForward = JSON.parse(
+    JSON.stringify(ledger.m2b_port_evidence.entries)
+  ) as Ledger['m2b_port_evidence']['entries']
+  staleM2aCarryForward[0]!.later_splits.push({
+    milestone: 'M2a carry-forward',
+    package: 'apps/backend/tests/functional/batch',
+    case_count: 1,
+    reason: 'generic write guard follow-up',
+    targets: [],
+  })
+  assert.throws(() => validateNoStaleM2bSplits(staleM2aCarryForward), /Unresolved M2b follow-up/)
+
+  const missingCoverage = JSON.parse(
+    JSON.stringify(ledger.m2b_port_evidence.entries)
+  ) as Ledger['m2b_port_evidence']['entries']
+  missingCoverage[0]!.targets[0]!.covered_case_count = 0
+  assert.throws(() => validateM2bEvidence(missingCoverage), /counts do not match targets/)
+
+  const uncovered = JSON.parse(
+    JSON.stringify(ledger.m2b_port_evidence.entries)
+  ) as Ledger['m2b_port_evidence']['entries']
+  uncovered[0]!.covered_case_count -= 1
+  uncovered[0]!.uncovered_case_count += 1
+  uncovered[0]!.targets[0]!.covered_case_count -= 1
+  uncovered[0]!.uncovered_guarantees.push('unmapped source guarantee')
+  assert.throws(() => validateM2bEvidence(uncovered), /Uncovered M2b guarantees/)
 })

@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { act, screen, fireEvent } from "@testing-library/react";
 import { AllocationBar } from "./AllocationBar";
@@ -159,7 +160,15 @@ function registerAllocationBarRenderingModeTests() {
   it("hides hours in blocks mode, showing the activity name only", () => {
     const data = emptyAppData();
     data.accounts = [
-      { id: "acct-test", createdAt: "t", updatedAt: "t", name: "Co", color: "#111", schedulingMode: "blocks" },
+      {
+        ...NULLABLE_FIELDS.accounts,
+        id: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Co",
+        color: "#111",
+        schedulingMode: "blocks",
+      },
     ];
     useStore.getState().replaceAll(data);
     useStore.getState().setActiveAccount("acct-test");

@@ -118,7 +118,7 @@ test.group('M2a atomic batch', (group) => {
     assert.isString((archived.body() as { archivedAt?: unknown }).archivedAt)
     const restored = await post('unarchive')
     restored.assertStatus(200)
-    assert.isUndefined((restored.body() as { archivedAt?: unknown }).archivedAt)
+    assert.isNull((restored.body() as { archivedAt?: unknown }).archivedAt)
     const restoredProject = await db
       .from('projects')
       .where({ id: current.id, account_id: current.accountId })

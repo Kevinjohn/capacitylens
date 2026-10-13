@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "../types/nullableFields.js";
 import type { AppData, Client, ID, ISOTimestamp } from "../types/entities.js";
 
 // Each account has one persisted Internal client, identified by `builtin` because import remapping changes IDs.
@@ -49,6 +50,7 @@ export function availableInternalClientId(accountId: ID, usedIds: ReadonlySet<ID
  * default; repair callers may provide a collision-free fallback from availableInternalClientId. */
 export function buildInternalClient(accountId: ID, now: ISOTimestamp, id: ID = internalClientIdFor(accountId)): Client {
   return {
+    ...NULLABLE_FIELDS.clients,
     id,
     accountId,
     name: INTERNAL_CLIENT_NAME,
@@ -97,8 +99,8 @@ function needsInternalClientRepair(client: Client): boolean {
     client.name !== INTERNAL_CLIENT_NAME ||
     client.color !== INTERNAL_CLIENT_COLOR ||
     client.builtin !== true ||
-    client.archivedAt !== undefined ||
-    client.deletedAt !== undefined
+    client.archivedAt !== null ||
+    client.deletedAt !== null
   );
 }
 
@@ -179,8 +181,8 @@ function repairRetainedClients(
     const altered = needsInternalClientRepair(client);
     if (altered) repairedAny = true;
     const repaired = { ...client, name: INTERNAL_CLIENT_NAME, color: INTERNAL_CLIENT_COLOR, builtin: true as const };
-    delete repaired.archivedAt;
-    delete repaired.deletedAt;
+    repaired.archivedAt = null;
+    repaired.deletedAt = null;
     return [altered ? { ...repaired, updatedAt: repairRevision(client.updatedAt, options.now) } : repaired];
   });
   return { clients: repairedClients, repairedAny };

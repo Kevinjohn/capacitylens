@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "../../types/nullableFields.js";
 import type { AppData } from "../../types/entities.js";
 import { externalCapacityDefaults } from "../../types/entities.js";
 import { NEUTRAL_COLOR } from "../../lib/color.js";
@@ -5,6 +6,7 @@ import { SEED_TIMESTAMP, STUDIO, LOFT } from "./constants.js";
 
 const RESOURCES: AppData["resources"] = [
   {
+    ...NULLABLE_FIELDS.resources,
     id: "r-tyler",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -21,6 +23,7 @@ const RESOURCES: AppData["resources"] = [
     color: "#2d75da",
   },
   {
+    ...NULLABLE_FIELDS.resources,
     id: "r-pam",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -37,6 +40,7 @@ const RESOURCES: AppData["resources"] = [
     color: "#ed841b",
   },
   {
+    ...NULLABLE_FIELDS.resources,
     id: "r-nike",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -53,6 +57,7 @@ const RESOURCES: AppData["resources"] = [
     color: "#3ace6b",
   },
   {
+    ...NULLABLE_FIELDS.resources,
     id: "r-alex",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -69,6 +74,7 @@ const RESOURCES: AppData["resources"] = [
     color: "#2d75da",
   },
   {
+    ...NULLABLE_FIELDS.resources,
     id: "r-ph-designer",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -88,6 +94,7 @@ const RESOURCES: AppData["resources"] = [
   // once the default-off account setting is enabled, it renders neutral in its own band at the
   // bottom of the schedule (see ResourceKind). Its working hours/days are unused silent defaults.
   {
+    ...NULLABLE_FIELDS.resources,
     id: "r-ext-northstar",
     accountId: STUDIO,
     createdAt: SEED_TIMESTAMP,
@@ -99,6 +106,7 @@ const RESOURCES: AppData["resources"] = [
     color: NEUTRAL_COLOR,
   },
   {
+    ...NULLABLE_FIELDS.resources,
     id: "r-jo",
     accountId: LOFT,
     createdAt: SEED_TIMESTAMP,

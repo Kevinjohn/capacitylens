@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, expect, it } from "vitest";
 import type { Resource } from "@capacitylens/shared/types/entities";
 import {
@@ -29,6 +30,7 @@ function result(values: Partial<CapacityOverviewPeriodResult>): CapacityOverview
 
 function resource(id: string, kind: Resource["kind"] = "person"): Resource {
   return {
+    ...NULLABLE_FIELDS.resources,
     id,
     accountId: "account",
     createdAt: "2026-01-01T00:00:00.000Z",

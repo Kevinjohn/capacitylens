@@ -75,7 +75,7 @@ describe("ClientList archive flow", () => {
     );
 
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
-    expect(requireValue(useStore.getState().data.clients[0], "active client")).not.toHaveProperty("archivedAt");
+    expect(requireValue(useStore.getState().data.clients[0], "active client")).toHaveProperty("archivedAt", null);
 
     await user.click(screen.getByRole("button", { name: "Archive Ferris" }));
     await user.click(
@@ -155,7 +155,7 @@ describe("ClientList archive flow", () => {
 
     await user.click(screen.getByRole("button", { name: "Restore Ferris" }));
 
-    expect(useStore.getState().data.clients[0]).not.toHaveProperty("archivedAt");
+    expect(useStore.getState().data.clients[0]).toHaveProperty("archivedAt", null);
     expect(screen.getByTestId("client-row")).toHaveTextContent("Ferris");
     expect(screen.queryByTestId("archived-clients-section")).not.toBeInTheDocument();
   });

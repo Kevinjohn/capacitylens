@@ -15,6 +15,7 @@ import {
   placeholderCapacityDefaults,
 } from "@capacitylens/shared/types/entities";
 import type { Closure, ID, Resource, TimeOff } from "@capacitylens/shared/types/entities";
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { stamp } from "@/store/storeInternal";
 import type { StoreInternals } from "@/store/storeInternal";
 import type { Draft, Patch, StoreState } from "@/store/types";
@@ -66,7 +67,7 @@ export function createResourceSlice(
             const preparedPatch =
               merged.kind === "person"
                 ? capacityPatch
-                : { ...capacityPatch, firstAvailableDate: undefined, lastAvailableDate: undefined };
+                : { ...capacityPatch, firstAvailableDate: null, lastAvailableDate: null };
             const preparedResource = isPlaceholderResource(merged)
               ? { ...merged, ...placeholderCapacityDefaults() }
               : merged;
@@ -123,6 +124,7 @@ function createResourceAddAction(internals: ResourceSliceInternals, get: StoreAp
         ? placeholderCapacityDefaults()
         : { workingDays: input.workingDays, halfDays: input.halfDays };
       return {
+        ...NULLABLE_FIELDS.resources,
         ...input,
         ...workingPattern,
         // Default ordinary resources to Studio; placeholders and externals do not participate in engagement bands.
@@ -141,8 +143,8 @@ function createResourceAddAction(internals: ResourceSliceInternals, get: StoreAp
       assertWorkingDays(entity.workingDays);
       assertHalfDays(entity.halfDays, entity.workingDays);
       if (entity.kind !== "person") {
-        delete entity.firstAvailableDate;
-        delete entity.lastAvailableDate;
+        entity.firstAvailableDate = null;
+        entity.lastAvailableDate = null;
       }
       const availability = validateResourceAvailabilityPair(entity.firstAvailableDate, entity.lastAvailableDate);
       const [availabilityCode] = availability.codes;

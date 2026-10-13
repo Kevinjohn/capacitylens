@@ -77,7 +77,7 @@ async function get<T>(key: string): Promise<CachedRecord<T> | null> {
 type ValidEncryptedRecord = Record<string, unknown> & {
   key: string;
   savedAt: number;
-  version: 1;
+  version: 2;
   iv: ArrayBuffer;
   ciphertext: ArrayBuffer;
 };
@@ -90,7 +90,7 @@ function isValidEncryptedRecord(record: Record<string, unknown>, key: string): r
     Number.isFinite(record.savedAt) &&
     age >= 0 &&
     age <= MAX_AGE_MS &&
-    record.version === 1 &&
+    record.version === 2 &&
     isArrayBuffer(record.iv) &&
     isArrayBuffer(record.ciphertext)
   );

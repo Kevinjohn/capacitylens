@@ -134,7 +134,7 @@ function remapImportedRows({ rows, idMaps, accountId, now }: RemapInput): Import
         }
       }
       const sanitized = sanitizeImportedRecord(key, copy);
-      return key === "resources" && sanitized.deletedAt !== undefined
+      return key === "resources" && sanitized.deletedAt != null
         ? (obfuscateResource(sanitized as unknown as Resource) as unknown as ImportRow)
         : sanitized;
     });
@@ -178,8 +178,8 @@ function repairHierarchy(brought: ImportTables): void {
   brought.phases = brought.phases.filter((phase) => has(projectIds, phase.projectId));
   const phaseIds = idSet(brought.phases);
   for (const resource of brought.resources) {
-    if (resource.disciplineId !== undefined && !has(disciplineIds, resource.disciplineId)) delete resource.disciplineId;
-    if (resource.projectId !== undefined && !has(projectIds, resource.projectId)) delete resource.projectId;
+    if (resource.disciplineId !== null && !has(disciplineIds, resource.disciplineId)) resource.disciplineId = null;
+    if (resource.projectId !== null && !has(projectIds, resource.projectId)) resource.projectId = null;
   }
   repairActivities(brought, projectIds, phaseIds);
 }
@@ -190,25 +190,25 @@ function repairActivities(brought: ImportTables, projectIds: Set<string>, phaseI
   const phaseProject = new Map(brought.phases.map((phase) => [phase.id as string, phase.projectId]));
   for (const activity of brought.activities) {
     if (activity.kind === "internal" || activity.kind === "repeatable") {
-      delete activity.projectId;
-      delete activity.phaseId;
-    } else if (activity.projectId !== undefined && !has(projectIds, activity.projectId)) {
-      delete activity.projectId;
+      activity.projectId = null;
+      activity.phaseId = null;
+    } else if (activity.projectId !== null && !has(projectIds, activity.projectId)) {
+      activity.projectId = null;
     }
-    if (activity.kind !== "internal" && activity.kind !== "repeatable" && activity.projectId === undefined) {
-      delete activity.phaseId;
+    if (activity.kind !== "internal" && activity.kind !== "repeatable" && activity.projectId === null) {
+      activity.phaseId = null;
       activity.kind = "repeatable";
     } else if (
-      activity.phaseId !== undefined &&
+      activity.phaseId !== null &&
       (!has(phaseIds, activity.phaseId) || phaseProject.get(activity.phaseId as string) !== activity.projectId)
     ) {
-      delete activity.phaseId;
+      activity.phaseId = null;
     }
   }
 }
 
 function attributionIsInvalid({ allocation, resource, activity, context }: AttributionInput): boolean {
-  if (allocation.projectId === undefined) return false;
+  if (allocation.projectId === null) return false;
   const project = context.projects.get(allocation.projectId);
   return (
     !allocationAttributionAllowed(activity.kind) ||
@@ -219,9 +219,9 @@ function attributionIsInvalid({ allocation, resource, activity, context }: Attri
 }
 
 function eraseDeletedResourceNote(allocation: Allocation, resource: Resource): Allocation {
-  if (resource.deletedAt === undefined || allocation.note === undefined) return allocation;
+  if (resource.deletedAt === null || allocation.note === null) return allocation;
   const withoutNote = { ...allocation };
-  delete withoutNote.note;
+  withoutNote.note = null;
   return withoutNote;
 }
 
@@ -252,9 +252,9 @@ function repairBookings({ accountId, brought }: ImportContext): void {
     const resource = resources.get(timeOff.resourceId);
     if (resource === undefined || isExternalResource(resource)) return kept;
     // Deleted-person notes are sensitive dependent text and must cross the import boundary erased.
-    if (resource.deletedAt !== undefined && timeOff.note !== undefined) {
+    if (resource.deletedAt !== null && timeOff.note !== null) {
       const withoutNote = { ...timeOff };
-      delete withoutNote.note;
+      withoutNote.note = null;
       kept.push(withoutNote);
     } else kept.push(timeOff);
     return kept;

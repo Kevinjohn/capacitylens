@@ -192,8 +192,8 @@ test.group('M2a CRUD and field policy contracts', (group) => {
         context('editor')
       )
       const publicRow = rowFor(await state(), table, publicId)
-      assert.notProperty(publicRow, 'isPrivate')
-      assert.notProperty(publicRow, 'codeName')
+      assert.isNull(publicRow.isPrivate)
+      assert.isNull(publicRow.codeName)
     }
   })
 
@@ -209,7 +209,7 @@ test.group('M2a CRUD and field policy contracts', (group) => {
       { ...base, id: 'm2a-public-time-off', note: 'Attempted hidden creation' },
       context('editor')
     )
-    assert.notProperty(rowFor(await state(), 'timeOff', 'm2a-public-time-off'), 'note')
+    assert.isNull(rowFor(await state(), 'timeOff', 'm2a-public-time-off').note)
   })
 
   test('redacts private-name conflict echoes and preserves the current row', async ({ assert }) => {
@@ -235,7 +235,7 @@ test.group('M2a CRUD and field policy contracts', (group) => {
     assert.isDefined(failure)
     const current = (failure as { current?: Record<string, unknown> }).current
     assert.equal(current?.name, '"Project Batman"')
-    assert.notProperty(current!, 'codeName')
+    assert.isNull(current!.codeName)
     assert.notInclude(JSON.stringify(current), 'Wayne Foundation')
     assert.deepEqual(rowFor(await state(), 'clients', 'm2a-conflict-private'), before)
   })

@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "../types/nullableFields.js";
 import type { AppData, Discipline, ID, ISODate, ISOTimestamp, Weekday } from "../types/entities.js";
 import { newId } from "../lib/id.js";
 import { addDaysISO, startOfWeekISO } from "../lib/dateMath.js";
@@ -38,14 +39,22 @@ export function countExampleRows(data: ExampleCompanyData): number {
 
 function buildDisciplines(stamp: Stamp) {
   return {
-    design: { id: newId(), name: "Design", color: "#2d75da", sortOrder: 0, ...stamp },
-    development: { id: newId(), name: "Development", color: "#3ace6b", sortOrder: 1, ...stamp },
+    design: { ...NULLABLE_FIELDS.disciplines, id: newId(), name: "Design", color: "#2d75da", sortOrder: 0, ...stamp },
+    development: {
+      ...NULLABLE_FIELDS.disciplines,
+      id: newId(),
+      name: "Development",
+      color: "#3ace6b",
+      sortOrder: 1,
+      ...stamp,
+    },
   };
 }
 
 // A person inherits their discipline colour so example data obeys the same rule as ordinary resource writes.
 function buildPerson(stamp: Stamp, discipline: Discipline, who: { name: string; role: string }) {
   return {
+    ...NULLABLE_FIELDS.resources,
     id: newId(),
     kind: "person" as const,
     ...who,
@@ -61,17 +70,30 @@ function buildPerson(stamp: Stamp, discipline: Discipline, who: { name: string; 
 }
 
 function buildWork(stamp: Stamp) {
-  const client = { id: newId(), name: "Queen Consolidated", color: "#e02727", ...stamp };
-  const project = { id: newId(), name: "Star City Website", clientId: client.id, color: "#da2d92", ...stamp };
+  const client = { ...NULLABLE_FIELDS.clients, id: newId(), name: "Queen Consolidated", color: "#e02727", ...stamp };
+  const project = {
+    ...NULLABLE_FIELDS.projects,
+    id: newId(),
+    name: "Star City Website",
+    clientId: client.id,
+    color: "#da2d92",
+    ...stamp,
+  };
   const phase = { id: newId(), name: "Discovery", projectId: project.id, ...stamp };
   const projectActivity = { projectId: project.id, kind: "project" as const, ...stamp };
   return {
     client,
     project,
     phase,
-    wireframes: { id: newId(), name: "Wireframes", phaseId: phase.id, ...projectActivity },
-    build: { id: newId(), name: "Build", ...projectActivity },
-    admin: { id: newId(), name: "Admin", kind: "internal" as const, ...stamp },
+    wireframes: {
+      ...NULLABLE_FIELDS.activities,
+      id: newId(),
+      name: "Wireframes",
+      phaseId: phase.id,
+      ...projectActivity,
+    },
+    build: { ...NULLABLE_FIELDS.activities, id: newId(), name: "Build", ...projectActivity },
+    admin: { ...NULLABLE_FIELDS.activities, id: newId(), name: "Admin", kind: "internal" as const, ...stamp },
   };
 }
 
@@ -82,6 +104,32 @@ interface BookingSpec {
   days: [number, number];
   hoursPerDay: number;
   status: "confirmed" | "tentative";
+}
+
+interface BuildBookingsInput {
+  stamp: Stamp;
+  workday: (day: number) => ISODate;
+  dickId: ID;
+  barbaraId: ID;
+  work: ReturnType<typeof buildWork>;
+}
+
+function buildBookings({ stamp, workday, dickId, barbaraId, work }: BuildBookingsInput) {
+  const booking = ({ days, ...rest }: BookingSpec) => ({
+    ...NULLABLE_FIELDS.allocations,
+    id: newId(),
+    startDate: workday(days[0]),
+    endDate: workday(days[1]),
+    ...rest,
+    ...stamp,
+  });
+  const dickBooking = (spec: Omit<BookingSpec, "resourceId">) => booking({ resourceId: dickId, ...spec });
+  return [
+    dickBooking({ activityId: work.wireframes.id, days: [0, 3], hoursPerDay: 8, status: "confirmed" }),
+    dickBooking({ activityId: work.admin.id, days: [4, 4], hoursPerDay: 4, status: "confirmed" }),
+    dickBooking({ activityId: work.wireframes.id, days: [5, 7], hoursPerDay: 6, status: "tentative" }),
+    booking({ resourceId: barbaraId, activityId: work.build.id, days: [1, 6], hoursPerDay: 6, status: "confirmed" }),
+  ];
 }
 
 /** Build one company's example rows with fresh ids and a shared timestamp; omitted `now` is anchored to the current process time. */
@@ -96,19 +144,10 @@ export function buildExampleCompany({
   // Working day `n` of the fortnight, skipping the weekend between the two weeks.
   const workday = (n: number): ISODate => addDaysISO(monday, n + 2 * Math.floor(n / 5));
   const stamp = { accountId, createdAt: now, updatedAt: now };
-  const booking = ({ days, ...rest }: BookingSpec) => ({
-    id: newId(),
-    startDate: workday(days[0]),
-    endDate: workday(days[1]),
-    ...rest,
-    ...stamp,
-  });
-
   const { design, development } = buildDisciplines(stamp);
   const dick = buildPerson(stamp, design, { name: "Dick Grayson", role: "Designer" });
   const barbara = buildPerson(stamp, development, { name: "Barbara Gordon", role: "Developer" });
   const work = buildWork(stamp);
-  const dickBooking = (spec: Omit<BookingSpec, "resourceId">) => booking({ resourceId: dick.id, ...spec });
 
   return {
     disciplines: [design, development],
@@ -117,20 +156,10 @@ export function buildExampleCompany({
     projects: [work.project],
     phases: [work.phase],
     activities: [work.wireframes, work.build, work.admin],
-    allocations: [
-      dickBooking({ activityId: work.wireframes.id, days: [0, 3], hoursPerDay: 8, status: "confirmed" }),
-      dickBooking({ activityId: work.admin.id, days: [4, 4], hoursPerDay: 4, status: "confirmed" }),
-      dickBooking({ activityId: work.wireframes.id, days: [5, 7], hoursPerDay: 6, status: "tentative" }),
-      booking({
-        resourceId: barbara.id,
-        activityId: work.build.id,
-        days: [1, 6],
-        hoursPerDay: 6,
-        status: "confirmed",
-      }),
-    ],
+    allocations: buildBookings({ stamp, workday, dickId: dick.id, barbaraId: barbara.id, work }),
     timeOff: [
       {
+        ...NULLABLE_FIELDS.timeOff,
         id: newId(),
         resourceId: barbara.id,
         startDate: workday(8),

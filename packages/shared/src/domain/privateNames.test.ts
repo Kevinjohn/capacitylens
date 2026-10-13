@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "../types/nullableFields.js";
 import { describe, expect, it } from "vitest";
 import { emptyAppData } from "../types/entities.js";
 import type { Client, Project } from "../types/entities.js";
@@ -12,6 +13,7 @@ import {
 
 const meta = { accountId: "a1", createdAt: "t", updatedAt: "t" };
 const privateClient: Client = {
+  ...NULLABLE_FIELDS.clients,
   ...meta,
   id: "c1",
   name: "Real Client",
@@ -20,6 +22,7 @@ const privateClient: Client = {
   codeName: "Nightwing",
 };
 const privateProject: Project = {
+  ...NULLABLE_FIELDS.projects,
   ...meta,
   id: "p1",
   name: "Real Project",
@@ -48,7 +51,7 @@ describe("private-name projection", () => {
   it("redacts a private row without mutating it and removes the raw codeName field", () => {
     const redacted = redactPrivateName(privateClient);
     expect(redacted.name).toBe('"Nightwing"');
-    expect(redacted).not.toHaveProperty("codeName");
+    expect(redacted.codeName).toBeNull();
     expect(privateClient).toMatchObject({ name: "Real Client", codeName: "Nightwing" });
   });
 });
@@ -68,16 +71,16 @@ describe("private-name projection safeguards", () => {
 
   it("fails closed to a neutral code name when a private row has no usable code name", () => {
     const malformed = { ...privateClient, name: "Secret Real Name" };
-    delete malformed.codeName;
+    malformed.codeName = null;
     const redacted = redactPrivateName(malformed);
     expect(redacted.name).toBe('"Confidential #c1"');
     expect(redacted.name).not.toContain("Secret Real Name");
-    expect(redacted).not.toHaveProperty("codeName");
+    expect(redacted.codeName).toBeNull();
   });
 
   it("does not mistake a quoted private real name for a trusted prior projection", () => {
     const malformed = { ...privateClient, name: '"Secret Real Name"' };
-    delete malformed.codeName;
+    malformed.codeName = null;
     const redacted = redactPrivateName(malformed);
     expect(redacted.name).toBe('"Confidential #c1"');
     expect(redacted.name).not.toContain("Secret Real Name");
@@ -88,7 +91,7 @@ describe("private-name projection safeguards", () => {
     projected.name = "Secret replacement";
     const redacted = redactPrivateName(projected);
     expect(redacted.name).toBe('"Confidential #c1"');
-    expect(redacted).not.toHaveProperty("codeName");
+    expect(redacted.codeName).toBeNull();
   });
 
   it("fails closed instead of throwing when an untrusted private row has a non-string code name", () => {
@@ -102,7 +105,7 @@ describe("private-name projection across data", () => {
     const malformed = { ...privateClient, isPrivate } as unknown as Client;
     const redacted = redactPrivateName(malformed);
     expect(redacted.name).toBe('"Nightwing"');
-    expect(redacted).not.toHaveProperty("codeName");
+    expect(redacted.codeName).toBeNull();
   });
 
   it("derives distinct stable fallbacks from record ids without using private names", () => {
@@ -117,8 +120,8 @@ describe("private-name projection across data", () => {
       id: "c2",
       name: "Public Client",
     };
-    delete publicClient.isPrivate;
-    delete publicClient.codeName;
+    publicClient.isPrivate = null;
+    publicClient.codeName = null;
     const data = {
       ...emptyAppData(),
       clients: [privateClient, publicClient],

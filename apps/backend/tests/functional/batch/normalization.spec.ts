@@ -44,8 +44,8 @@ test.group('M2a ordinary-write normalization', (group) => {
       response.assertStatus(200)
       const after = await state(client)
       const stored = after[table].find((row) => row.id === id)!
-      assert.notProperty(stored, 'isPrivate')
-      assert.notProperty(stored, 'codeName')
+      assert.isNull(stored.isPrivate)
+      assert.isNull(stored.codeName)
     }
   })
 
@@ -84,7 +84,7 @@ test.group('M2a ordinary-write normalization', (group) => {
     clientWrite.assertStatus(200)
     const afterClient = await state(client)
     const storedClient = afterClient.clients.find((row) => row.id === clientRow.id)!
-    assert.notProperty(storedClient, 'builtin')
+    assert.isNull(storedClient.builtin)
 
     const person = before.resources.find((row) => row.id === 'r-tyler')!
     const resourceWrite = await put(client, 'resources', {

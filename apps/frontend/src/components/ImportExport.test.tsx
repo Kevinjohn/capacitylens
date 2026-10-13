@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ImportExport } from "./ImportExport";
@@ -298,6 +299,7 @@ describe("ImportExport – Import", () => {
       ...emptyAppData(),
       resources: [
         {
+          ...NULLABLE_FIELDS.resources,
           ...makeResourceDraft({ name: "Imported" }),
           id: "imp-r",
           accountId: "X",
@@ -338,6 +340,7 @@ describe("ImportExport – Import", () => {
       ...emptyAppData(),
       allocations: [
         {
+          ...NULLABLE_FIELDS.allocations,
           id: "a1",
           accountId: "X",
           createdAt: "t",
@@ -423,6 +426,7 @@ const incoming = () =>
     ...emptyAppData(),
     resources: [
       {
+        ...NULLABLE_FIELDS.resources,
         ...makeResourceDraft({ name: "Imported" }),
         id: "imp-r",
         accountId: "X",

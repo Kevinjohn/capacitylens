@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { beforeEach, describe, expect, it } from "vitest";
 import { diffOps } from "@/data/syncOps";
 import { useStore } from "./useStore";
@@ -26,7 +27,7 @@ function registerUndoSyncPart1(): void {
   it("re-stamps an undo whose content is identical but stored revision changed", () => {
     useStore.getState().replaceAll(
       makeAppData({
-        clients: [{ ...meta, id: "c1", name: "Client", color: "#111111" }],
+        clients: [{ ...NULLABLE_FIELDS.clients, ...meta, id: "c1", name: "Client", color: "#111111" }],
       }),
     );
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
@@ -45,6 +46,7 @@ function registerUndoSyncPart1(): void {
 
   it("re-timestamps a tenant larger than the engine argument limit without throwing", () => {
     const clients = Array.from({ length: 75_000 }, (_, index) => ({
+      ...NULLABLE_FIELDS.clients,
       ...meta,
       id: `client-${index}`,
       name: `Client ${index}`,
@@ -63,19 +65,14 @@ function registerUndoSyncPart2(): void {
   it("restores an activity phaseId with an activity PUT", () => {
     useStore.getState().replaceAll(
       makeAppData({
-        clients: [{ ...meta, id: "c1", name: "Client", color: "#111111" }],
+        clients: [{ ...NULLABLE_FIELDS.clients, ...meta, id: "c1", name: "Client", color: "#111111" }],
         projects: [
-          {
-            ...meta,
-            id: "p1",
-            clientId: "c1",
-            name: "Project",
-            color: "#222222",
-          },
+          { ...NULLABLE_FIELDS.projects, ...meta, id: "p1", clientId: "c1", name: "Project", color: "#222222" },
         ],
         phases: [{ ...meta, id: "ph1", projectId: "p1", name: "Phase" }],
         activities: [
           {
+            ...NULLABLE_FIELDS.activities,
             ...meta,
             id: "act1",
             projectId: "p1",
@@ -90,7 +87,7 @@ function registerUndoSyncPart2(): void {
 
     useStore.getState().deletePhase("ph1");
     const afterDelete = useStore.getState().data;
-    expect(requireValue(afterDelete.activities[0], "activity")).not.toHaveProperty("phaseId");
+    expect(requireValue(afterDelete.activities[0], "activity")).toHaveProperty("phaseId", null);
     const ops = undoOps(afterDelete);
 
     expect(ops).toContainEqual(
@@ -106,7 +103,7 @@ function registerUndoSyncPart2(): void {
   it("restores a resource disciplineId with a resource PUT", () => {
     useStore.getState().replaceAll(
       makeAppData({
-        disciplines: [{ ...meta, id: "d1", name: "Design", sortOrder: 0 }],
+        disciplines: [{ ...NULLABLE_FIELDS.disciplines, ...meta, id: "d1", name: "Design", sortOrder: 0 }],
         resources: [makeResource({ ...meta, id: "r1", name: "Person", disciplineId: "d1", color: "#333333" })],
       }),
     );
@@ -114,7 +111,7 @@ function registerUndoSyncPart2(): void {
 
     useStore.getState().deleteDiscipline("d1");
     const afterDelete = useStore.getState().data;
-    expect(requireValue(afterDelete.resources[0], "resource")).not.toHaveProperty("disciplineId");
+    expect(requireValue(afterDelete.resources[0], "resource")).toHaveProperty("disciplineId", null);
     const ops = undoOps(afterDelete);
 
     expect(ops).toContainEqual(expect.objectContaining({ method: "PUT", table: "resources", id: "r1" }));
@@ -126,9 +123,10 @@ function registerUndoSyncPart3(): void {
   it("keeps a placeholder projectId removed after project purge and emits no undo sync", () => {
     useStore.getState().replaceAll(
       makeAppData({
-        clients: [{ ...meta, id: "c1", name: "Client", color: "#111111" }],
+        clients: [{ ...NULLABLE_FIELDS.clients, ...meta, id: "c1", name: "Client", color: "#111111" }],
         projects: [
           {
+            ...NULLABLE_FIELDS.projects,
             ...meta,
             id: "p1",
             clientId: "c1",
@@ -140,6 +138,7 @@ function registerUndoSyncPart3(): void {
         ],
         resources: [
           {
+            ...NULLABLE_FIELDS.resources,
             ...meta,
             id: "placeholder",
             kind: "placeholder",
@@ -159,10 +158,10 @@ function registerUndoSyncPart3(): void {
 
     useStore.getState().purgeEntity("projects", "p1");
     const afterDelete = useStore.getState().data;
-    expect(requireValue(afterDelete.resources[0], "resource")).not.toHaveProperty("projectId");
+    expect(requireValue(afterDelete.resources[0], "resource")).toHaveProperty("projectId", null);
     const ops = undoOps(afterDelete);
     expect(ops).toEqual([]);
-    expect(requireValue(useStore.getState().data.resources[0], "resource")).not.toHaveProperty("projectId");
+    expect(requireValue(useStore.getState().data.resources[0], "resource")).toHaveProperty("projectId", null);
   });
 }
 
@@ -172,6 +171,7 @@ function registerUndoSyncPart4(): void {
       makeAppData({
         clients: [
           {
+            ...NULLABLE_FIELDS.clients,
             ...meta,
             id: "c1",
             name: "Client",
@@ -181,16 +181,11 @@ function registerUndoSyncPart4(): void {
           },
         ],
         projects: [
-          {
-            ...meta,
-            id: "p1",
-            clientId: "c1",
-            name: "Project",
-            color: "#222222",
-          },
+          { ...NULLABLE_FIELDS.projects, ...meta, id: "p1", clientId: "c1", name: "Project", color: "#222222" },
         ],
         resources: [
           {
+            ...NULLABLE_FIELDS.resources,
             ...meta,
             id: "placeholder",
             kind: "placeholder",
@@ -210,10 +205,10 @@ function registerUndoSyncPart4(): void {
 
     useStore.getState().purgeEntity("clients", "c1");
     const afterDelete = useStore.getState().data;
-    expect(requireValue(afterDelete.resources[0], "resource")).not.toHaveProperty("projectId");
+    expect(requireValue(afterDelete.resources[0], "resource")).toHaveProperty("projectId", null);
     const ops = undoOps(afterDelete);
     expect(ops).toEqual([]);
-    expect(requireValue(useStore.getState().data.resources[0], "resource")).not.toHaveProperty("projectId");
+    expect(requireValue(useStore.getState().data.resources[0], "resource")).toHaveProperty("projectId", null);
   });
 }
 

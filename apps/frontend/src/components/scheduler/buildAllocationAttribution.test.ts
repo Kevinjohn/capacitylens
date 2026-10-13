@@ -6,7 +6,7 @@ import { buildAllocationAttribution } from "./buildAllocationAttribution";
 
 function withoutProjectId(activity: Activity): Activity {
   const copy = { ...activity };
-  delete copy.projectId;
+  copy.projectId = null;
   return copy;
 }
 

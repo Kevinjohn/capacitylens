@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, expect, it } from "vitest";
 import { buildEmptyFilters } from "@/store/useStore";
 import { makeAllocation, makeResource, requireValue } from "@/test/fixtures";
@@ -24,6 +25,7 @@ function buildBlockTimeOffRows() {
       startDate: "2026-06-02",
       endDate: "2026-06-02",
       type: "holiday",
+      note: null,
     },
     {
       id: "to-r2-wednesday",
@@ -34,6 +36,7 @@ function buildBlockTimeOffRows() {
       startDate: "2026-06-03",
       endDate: "2026-06-03",
       type: "holiday",
+      note: null,
     },
   ];
 
@@ -105,7 +108,7 @@ function registerMovedSchedulerTests20102() {
     expect(firstResource).toBeDefined();
     if (!firstResource) throw new Error("Expected the base scheduler resource.");
     const resourceWithoutName = { ...firstResource };
-    delete resourceWithoutName.name;
+    resourceWithoutName.name = null;
     d.resources[0] = resourceWithoutName;
 
     const model = buildSchedulerModel({
@@ -172,6 +175,7 @@ function registerMovedSchedulerTests20105() {
   it("an internal activity bar is always neutral grey", () => {
     const d = dataset();
     d.activities.push({
+      ...NULLABLE_FIELDS.activities,
       id: "t-int",
       accountId: "acct-test",
       createdAt: "t",
@@ -255,6 +259,7 @@ function registerMovedSchedulerTests20107() {
         startDate: "2026-06-02",
         endDate: "2026-06-02",
         type: "sick",
+        note: null,
       },
     );
     const model = buildSchedulerModel({
@@ -300,6 +305,7 @@ function registerMovedSchedulerTests20108() {
     );
     resource.halfDays = [1, 2, 5];
     d.timeOff.push({
+      ...NULLABLE_FIELDS.timeOff,
       id: "to-r1-monday",
       accountId: "acct-test",
       createdAt: "t",
@@ -308,6 +314,7 @@ function registerMovedSchedulerTests20108() {
       startDate: "2026-06-01",
       endDate: "2026-06-01",
       type: "holiday",
+      note: null,
     });
 
     const row = requireValue(
@@ -359,6 +366,7 @@ function registerMovedSchedulerTests20109() {
         startDate: "2026-06-02",
         endDate: "2026-06-02",
         type: "holiday",
+        note: null,
       },
       {
         id: "to-r2-wednesday",
@@ -369,6 +377,7 @@ function registerMovedSchedulerTests20109() {
         startDate: "2026-06-03",
         endDate: "2026-06-03",
         type: "holiday",
+        note: null,
       },
     );
 

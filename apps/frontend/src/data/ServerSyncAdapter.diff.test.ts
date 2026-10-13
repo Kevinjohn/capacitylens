@@ -1,3 +1,4 @@
+import { makeAccount } from "@/test/fixtures";
 import { describe, it, expect, vi } from "vitest";
 import { ServerSyncAdapter, diffOps } from "./ServerSyncAdapter";
 import { diffOpsFromPossibleBases } from "./syncOps";
@@ -162,13 +163,7 @@ describe("diffOps", () => {
   });
 
   it("tags a scoped-entity DELETE with its owning account; accounts (top-level) carry none", () => {
-    const row = {
-      id: "a1",
-      name: "Co",
-      color: "#5c34d4",
-      createdAt: TS1,
-      updatedAt: TS1,
-    };
+    const row = makeAccount({ id: "a1", name: "Co", color: "#5c34d4", createdAt: TS1, updatedAt: TS1 });
     const ops = diffOps(withData({ accounts: [row], clients: [client("c1")] }), emptyAppData());
     expect(ops.find((o) => o.table === "clients")).toMatchObject({
       method: "DELETE",

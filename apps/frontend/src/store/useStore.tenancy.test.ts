@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useStore } from "./useStore";
@@ -22,15 +23,44 @@ function assertDefined<T>(value: T | undefined, label: string): T {
 function twoAccountData(): AppData {
   return makeAppData({
     accounts: [makeAccount({ id: A, name: "Company A" }), makeAccount({ id: B, name: "Company B" })],
-    clients: [{ id: "cB", accountId: B, name: "B Client", color: "#111111", createdAt: "t", updatedAt: "t" }],
+    clients: [
+      {
+        ...NULLABLE_FIELDS.clients,
+        id: "cB",
+        accountId: B,
+        name: "B Client",
+        color: "#111111",
+        createdAt: "t",
+        updatedAt: "t",
+      },
+    ],
     projects: [
-      { id: "pB", accountId: B, name: "B Project", clientId: "cB", color: "#222222", createdAt: "t", updatedAt: "t" },
+      {
+        ...NULLABLE_FIELDS.projects,
+        id: "pB",
+        accountId: B,
+        name: "B Project",
+        clientId: "cB",
+        color: "#222222",
+        createdAt: "t",
+        updatedAt: "t",
+      },
     ],
     activities: [
-      { id: "tB", accountId: B, name: "B Activity", kind: "project", projectId: "pB", createdAt: "t", updatedAt: "t" },
+      {
+        ...NULLABLE_FIELDS.activities,
+        id: "tB",
+        accountId: B,
+        name: "B Activity",
+        kind: "project",
+        projectId: "pB",
+        createdAt: "t",
+        updatedAt: "t",
+      },
     ],
     resources: [
       {
+        ...NULLABLE_FIELDS.resources,
         id: "rB",
         accountId: B,
         kind: "person",
@@ -189,7 +219,7 @@ function registerEntityOwnershipTests(): void {
       s().data.projects.find((p) => p.id === "pB"),
       "project pB",
     );
-    expect(proj.archivedAt).toBeUndefined();
+    expect(proj.archivedAt).toBeNull();
     expect(s().data.activities.find((t) => t.id === "tB")).toBeDefined();
   });
 
@@ -207,6 +237,7 @@ function registerEntityOwnershipTests(): void {
   it("refuses to update/delete an allocation owned by another account", () => {
     const withAlloc = twoAccountData();
     withAlloc.allocations.push({
+      ...NULLABLE_FIELDS.allocations,
       id: "aB",
       accountId: B,
       resourceId: "rB",

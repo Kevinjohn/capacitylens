@@ -49,7 +49,7 @@ function resolveMessage<K extends string>(messages: Partial<LabelMessages<K>>, k
   return messages[key]?.() ?? "";
 }
 
-function resolveTrimmedValue(value: string | undefined, fallback: string): string {
+function resolveTrimmedValue(value: string | null | undefined, fallback: string): string {
   const trimmed = value?.trim();
   return trimmed === undefined || trimmed.length === 0 ? fallback : trimmed;
 }

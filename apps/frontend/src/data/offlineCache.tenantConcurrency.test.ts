@@ -63,7 +63,9 @@ async function putRaw(record: unknown): Promise<void> {
   return putRawInto(STORE_NAME, record);
 }
 
-async function putEncryptedValue(key: string, value: unknown, savedAt = Date.now()): Promise<void> {
+async function putEncryptedValue(key: string, value: unknown, options: { version?: 1 | 2 } = {}): Promise<void> {
+  const savedAt = Date.now();
+  const version = options.version ?? 2;
   const db = await openTestDb();
   try {
     const deviceKey = await new Promise<CryptoKey>((resolve, reject) => {
@@ -76,13 +78,13 @@ async function putEncryptedValue(key: string, value: unknown, savedAt = Date.now
       {
         name: "AES-GCM",
         iv,
-        additionalData: new TextEncoder().encode(`${key}:${savedAt}:capacitylens-offline-v1`),
+        additionalData: new TextEncoder().encode(`${key}:${savedAt}:capacitylens-offline-v${version}`),
         tagLength: 128,
       },
       deviceKey,
       new TextEncoder().encode(JSON.stringify(value)),
     );
-    await putRaw({ key, savedAt, version: 1, iv: iv.buffer, ciphertext });
+    await putRaw({ key, savedAt, version, iv: iv.buffer, ciphertext });
   } finally {
     db.close();
   }
@@ -399,7 +401,7 @@ describe("offline tenant cache account slices", () => {
     await cacheAccountSlice("a-studio", slice);
     const restored = await readCachedAccountSlice("a-studio");
     expect(restored?.value.allocations.find((row) => row.id === "attributed")?.projectId).toBe(projectId);
-    expect(restored?.value.allocations.find((row) => row.id === "unattributed")).not.toHaveProperty("projectId");
+    expect(restored?.value.allocations.find((row) => row.id === "unattributed")).toHaveProperty("projectId", null);
   });
 
   it("does not revoke a live identity scope when a concurrent cached-identity read misses", async () => {

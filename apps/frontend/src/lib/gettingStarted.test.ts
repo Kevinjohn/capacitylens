@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, expect, it } from "vitest";
 import { buildGettingStartedSteps, hasCompletedAllSteps, isGettingStartedComplete } from "./gettingStarted";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
@@ -6,14 +7,16 @@ import { FIXTURE_RESOURCE_EXTERNAL } from "@capacitylens/shared/data/fixtures";
 
 const NOW = "2026-06-03T12:00:00.000Z";
 const entity = { accountId: "a1", createdAt: NOW, updatedAt: NOW };
-const client = (over: Partial<Client> = {}): Client => ({
+const client = (over: Partial<Client> = { ...NULLABLE_FIELDS.clients }): Client => ({
+  ...NULLABLE_FIELDS.clients,
   id: "c1",
   name: "Wayne Enterprises",
   color: "#123456",
   ...entity,
   ...over,
 });
-const project = (over: Partial<Project> = {}): Project => ({
+const project = (over: Partial<Project> = { ...NULLABLE_FIELDS.projects }): Project => ({
+  ...NULLABLE_FIELDS.projects,
   id: "p1",
   name: "Launch",
   clientId: "c1",
@@ -21,14 +24,16 @@ const project = (over: Partial<Project> = {}): Project => ({
   ...entity,
   ...over,
 });
-const activity = (over: Partial<Activity> = {}): Activity => ({
+const activity = (over: Partial<Activity> = { ...NULLABLE_FIELDS.activities }): Activity => ({
+  ...NULLABLE_FIELDS.activities,
   id: "t1",
   name: "Planning",
   kind: "internal",
   ...entity,
   ...over,
 });
-const person = (over: Partial<Resource> = {}): Resource => ({
+const person = (over: Partial<Resource> = { ...NULLABLE_FIELDS.resources }): Resource => ({
+  ...NULLABLE_FIELDS.resources,
   id: "r1",
   kind: "person",
   name: "Bruce Wayne",
@@ -42,7 +47,8 @@ const person = (over: Partial<Resource> = {}): Resource => ({
   ...entity,
   ...over,
 });
-const allocation = (over: Partial<Allocation> = {}): Allocation => ({
+const allocation = (over: Partial<Allocation> = { ...NULLABLE_FIELDS.allocations }): Allocation => ({
+  ...NULLABLE_FIELDS.allocations,
   id: "al1",
   resourceId: "r1",
   activityId: "t1",

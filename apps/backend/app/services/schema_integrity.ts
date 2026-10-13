@@ -25,7 +25,7 @@ const scopedTables = [
   'closures',
 ] as const
 
-const tenantIndexedTables = [...scopedTables, 'account_member_resources'] as const
+const tenantIndexedTables = [...scopedTables, 'account_member_resources', 'audit_entries'] as const
 
 const normalize = (sql: string) => sql.replace(/\s+/g, ' ').trim().replace(/;$/, '')
 
@@ -53,6 +53,17 @@ async function assertTrigger(name: string, expectedSql: string) {
 
 export async function assertSchemaIntegrity() {
   for (const table of tenantIndexedTables) await assertIndex(table, 'account_id')
+  const auditColumns = (await db.rawQuery('PRAGMA table_info(audit_entries)')) as Array<{
+    name: string
+    notnull: number
+  }>
+  if (auditColumns.find((column) => column.name === 'account_id')?.notnull !== 1)
+    throw new Error('Database schema drift: audit account_id must be required')
+  const auditReferences = (await db.rawQuery('PRAGMA foreign_key_list(audit_entries)')) as Array<{
+    table: string
+  }>
+  if (auditReferences.some((reference) => reference.table === 'accounts'))
+    throw new Error('Database schema drift: deleted-company audit history must be retained')
   for (const [table, column] of relationships) await assertIndex(table, column)
   for (const table of scopedTables)
     await assertTrigger(
@@ -84,4 +95,55 @@ export async function assertSchemaIntegrity() {
   await assertIndex('capacitylens_sync_row_provenance', 'table_name')
   await assertIndex('capacitylens_sync_row_provenance', 'session_id')
   await assertIndex('capacitylens_sync_row_provenance', 'account_id')
+  for (const table of [
+    'account_getting_started_dismissals',
+    'account_joining_policies',
+    'company_join_intents',
+    'account_access_restrictions',
+    'member_resource_link_exceptions',
+  ])
+    await assertIndex(table, 'account_id')
+  for (const [table, columns] of [
+    ['account_getting_started_dismissals', ['id', 'account_id', 'created_at', 'updated_at']],
+    [
+      'account_joining_policies',
+      ['id', 'account_id', 'policy', 'approved_domains', 'created_at', 'updated_at'],
+    ],
+    [
+      'company_join_intents',
+      [
+        'id',
+        'nonce_hash',
+        'browser_hash',
+        'purpose',
+        'account_id',
+        'invitation_id',
+        'email',
+        'principal_id',
+        'provider_id',
+        'state',
+        'token_hash',
+        'delivery_generation',
+        'expires_at',
+        'sent_count',
+        'last_sent_at',
+        'source_ip_hash',
+        'provider_state_hash',
+        'created_at',
+        'updated_at',
+      ],
+    ],
+    [
+      'account_access_restrictions',
+      ['id', 'account_id', 'principal_id', 'verified_email', 'role', 'created_at'],
+    ],
+    [
+      'member_resource_link_exceptions',
+      ['id', 'account_id', 'user_id', 'proposed_resource_id', 'reason', 'created_at', 'updated_at'],
+    ],
+  ] as const) {
+    const actual = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>
+    if (JSON.stringify(actual.map((column) => column.name)) !== JSON.stringify(columns))
+      throw new Error(`Database schema drift: ${table} columns differ from the baseline`)
+  }
 }

@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -26,6 +27,7 @@ function incomingFile(): File {
         ...emptyAppData(),
         resources: [
           {
+            ...NULLABLE_FIELDS.resources,
             ...makeResourceDraft({ name: "Imported person" }),
             id: "import-resource",
             accountId: "source-account",
@@ -67,6 +69,7 @@ function importedSlice(): AppData {
   return makeAppData({
     clients: [
       {
+        ...NULLABLE_FIELDS.clients,
         id: "import-client",
         accountId: DEFAULT_ACCOUNT_ID,
         name: "Imported client",

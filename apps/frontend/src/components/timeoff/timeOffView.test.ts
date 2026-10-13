@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, expect, it } from "vitest";
 import type { Closure, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 import { buildClosureList, buildTimeOffGroups } from "./timeOffView";
@@ -13,6 +14,7 @@ const timestamp = "2026-05-01T00:00:00.000Z";
 
 function resource(id: string, name: string, kind: Resource["kind"] = "person"): Resource {
   return {
+    ...NULLABLE_FIELDS.resources,
     id,
     accountId: "a-studio",
     createdAt: timestamp,
@@ -39,6 +41,7 @@ function entry({ id, resourceId, startDate, endDate }: EntryInput): TimeOff {
     startDate,
     endDate,
     type: "holiday",
+    note: null,
   };
 }
 

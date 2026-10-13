@@ -7,7 +7,7 @@ interface CompareDisplayNamesInput {
 
 type Identified = { id: string };
 type Named = Identified & { name: string };
-type EffectivelyNamed = Named & { codeName?: string };
+type EffectivelyNamed = Named & { codeName?: string | null };
 type ClientProject = EffectivelyNamed & { clientId: string };
 
 // CapacityLens is currently English-only. Pinning the locale keeps management-list order independent
@@ -50,7 +50,7 @@ export function createDisplayNameComparator<T extends Identified>(displayName: (
 
 /** The identity an owner uses to order private names. Redacted account slices omit `codeName` and
  * already project the safe quoted code name into `name`, so this never reaches behind that boundary. */
-export function effectiveDisplayName(item: { name: string; codeName?: string }): string {
+export function effectiveDisplayName(item: { name: string; codeName?: string | null }): string {
   const codeName = item.codeName?.trim();
   return codeName?.length ? codeName : item.name;
 }
@@ -80,7 +80,7 @@ export function createClientProjectDisplayNameComparator<T extends ClientProject
 }
 
 /** Creates a comparator that places favourites before other items, then sorts names. */
-export function createFavouriteDisplayNameComparator<T extends Identified & { isFavourite?: boolean }>(
+export function createFavouriteDisplayNameComparator<T extends Identified & { isFavourite?: boolean | null }>(
   displayName: (item: T) => string,
 ) {
   const byDisplayName = createDisplayNameComparator(displayName);
@@ -91,7 +91,7 @@ export function createFavouriteDisplayNameComparator<T extends Identified & { is
 /** Studio before Supplementary, then favourites first and deterministic display-name order within
  * each engagement partition. Used by both Resources and the scheduler so the two views cannot drift. */
 export function createEngagementFavouriteDisplayNameComparator<
-  T extends Identified & { engagement: "studio" | "supplementary"; isFavourite?: boolean },
+  T extends Identified & { engagement: "studio" | "supplementary"; isFavourite?: boolean | null },
 >(displayName: (item: T) => string) {
   const byFavouriteDisplayName = createFavouriteDisplayNameComparator(displayName);
   return (left: T, right: T): number =>

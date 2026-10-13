@@ -109,7 +109,7 @@ describe("AllocationModal edit", () => {
         "Expected the edited allocation to remain saved.",
       );
       if (allocationProjectId) expect(saved).toHaveProperty("projectId", allocationProjectId);
-      else expect(saved).not.toHaveProperty("projectId");
+      else expect(saved).toHaveProperty("projectId", null);
     },
   );
 
@@ -164,8 +164,9 @@ describe("AllocationModal edit", () => {
     await chooseOption(user, "Activity", "Planning");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id)).not.toHaveProperty(
+    expect(useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id)).toHaveProperty(
       "projectId",
+      null,
     );
   });
 
@@ -626,8 +627,9 @@ describe("AllocationModal edit", () => {
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(useStore.getState().data.allocations.find((candidate) => candidate.id === alloc.id)).not.toHaveProperty(
+    expect(useStore.getState().data.allocations.find((candidate) => candidate.id === alloc.id)).toHaveProperty(
       "projectId",
+      null,
     );
   });
 

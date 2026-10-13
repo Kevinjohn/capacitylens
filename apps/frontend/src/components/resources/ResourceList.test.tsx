@@ -459,7 +459,7 @@ describe("ResourceList archive flow", () => {
 
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(useStore.getState().data.resources).toHaveLength(1);
-    expect(requireValue(useStore.getState().data.resources[0], "active resource")).not.toHaveProperty("archivedAt");
+    expect(requireValue(useStore.getState().data.resources[0], "active resource")).toHaveProperty("archivedAt", null);
     expect(screen.getByText("Alice")).toBeInTheDocument();
   });
 

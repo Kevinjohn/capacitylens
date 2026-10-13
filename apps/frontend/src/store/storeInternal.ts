@@ -8,6 +8,7 @@ import {
   remapAndValidateImport,
 } from "@capacitylens/shared/domain/mutations";
 import { clampHoursPerDay } from "@capacitylens/shared/types/entities";
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import type { Allocation, AppData, Entity, ID, ScopedEntityKey, TimeOff } from "@capacitylens/shared/types/entities";
 import { clearEntityLenses } from "./types";
 import type { Draft, ImportSummary, Patch, ScopedRow, StoreState } from "./types";
@@ -51,7 +52,7 @@ function createMutationActions(set: StoreApi<StoreState>["setState"]) {
 const applyPatch = <T extends Entity>(row: T, patch: Patch<T>): T => {
   const next = { ...row, ...patch };
   for (const [key, value] of Object.entries(patch)) {
-    if (value === undefined) delete (next as Record<string, unknown>)[key];
+    if (value === undefined) Object.assign(next, { [key]: null });
   }
   return next;
 };
@@ -120,6 +121,7 @@ function createAllocationCreator(dependencies: AllocationCreationDependencies) {
     if (inputs.length === 0) throw new Error("At least one allocation is required.");
     const accountId = dependencies.requireAccount();
     const allocations = inputs.map((input) => ({
+      ...NULLABLE_FIELDS.allocations,
       ...input,
       hoursPerDay: clampHoursPerDay(input.hoursPerDay),
       id: newId(),
@@ -155,6 +157,7 @@ function createTimeOffCreator(dependencies: TimeOffCreationDependencies) {
     if (inputs.length === 0) throw new Error("At least one time off entry is required.");
     const accountId = dependencies.requireAccount();
     const timeOffs = inputs.map((input) => ({
+      ...NULLABLE_FIELDS.timeOff,
       ...input,
       id: newId(),
       accountId,

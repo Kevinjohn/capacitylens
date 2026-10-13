@@ -69,16 +69,6 @@
       "reason": "temporary allowance for required exported-symbol TSDoc; remove when the route module is split"
     },
     {
-      "path": "packages/shared/src/domain/lifecycle.test.ts",
-      "baseline": 1028,
-      "reason": "test-size ratchet baseline; split when touched"
-    },
-    {
-      "path": "packages/shared/src/lib/integrity.test.ts",
-      "baseline": 844,
-      "reason": "test-size ratchet baseline; split when touched"
-    },
-    {
       "path": "apps/frontend/src/auth/AuthProvider.test.tsx",
       "baseline": 1308,
       "reason": "test-size ratchet baseline; split when touched"

@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { DeleteCompanyDialog } from "./DeleteCompanyDialog";
@@ -134,6 +135,7 @@ it("SERVER mode: exports the fetched COMPLETE (?includeInactive=1) slice, not th
   const slice = makeAppData({
     clients: [
       {
+        ...NULLABLE_FIELDS.clients,
         id: "c1",
         accountId: DEFAULT_ACCOUNT_ID,
         createdAt: "t",

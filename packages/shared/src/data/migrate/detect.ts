@@ -74,7 +74,7 @@ export function hasNonArrayKnownTable(value: unknown): boolean {
 }
 
 function resolveArray<T>(value: unknown): T[] {
-  return Array.isArray(value) ? (value as T[]) : [];
+  return Array.isArray(value) ? value.map((row) => ({ ...row })) : [];
 }
 
 /** Fill every missing table with an empty array; returns empty data for a non-object. Pure. */

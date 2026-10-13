@@ -18,6 +18,7 @@ const discipline = (updatedAt = TS1): Discipline => ({
   accountId: "a1",
   name: "Design",
   sortOrder: 0,
+  color: null,
   createdAt: TS1,
   updatedAt,
 });

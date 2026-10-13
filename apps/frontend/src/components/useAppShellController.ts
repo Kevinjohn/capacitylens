@@ -166,7 +166,7 @@ function useAccountLocale(accounts: StoreState["data"]["accounts"], activeAccoun
 
   useEffect(() => {
     if (activeLanguagePending) return;
-    syncLocaleFromAccount(activeLanguage);
+    syncLocaleFromAccount(activeLanguage ?? undefined);
   }, [activeLanguage, activeLanguagePending]);
 
   return { activeLanguage, activeLanguagePending };

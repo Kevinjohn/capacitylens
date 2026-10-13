@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach } from "vitest";
 import { useStore } from "./useStore";
@@ -160,7 +161,7 @@ function registerStoreCrudEntity7(): void {
         s().data.activities.find((x) => x.id === t.id),
         "activity",
       ).phaseId,
-    ).toBeUndefined();
+    ).toBeNull();
   });
 }
 
@@ -180,8 +181,8 @@ function registerStoreCrudEntity8(): void {
 function registerStoreCrudEntity9(): void {
   it("activities: a general (no-project) activity can be added without a projectId", () => {
     const t = requireCreated(s().addActivity({ name: "Admin", kind: "repeatable" }));
-    expect(t.projectId).toBeUndefined();
-    expect(requireValue(s().data.activities[0], "activity")).not.toHaveProperty("projectId");
+    expect(t.projectId).toBeNull();
+    expect(requireValue(s().data.activities[0], "activity")).toHaveProperty("projectId", null);
     expect(s().data.activities[0]?.name).toBe("Admin");
   });
 }
@@ -191,9 +192,9 @@ function registerStoreCrudEntity10(): void {
     const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
-    s().updateActivity(t.id, { kind: "repeatable", projectId: undefined });
+    s().updateActivity(t.id, { kind: "repeatable", projectId: null });
     expect(s().data.activities[0]?.kind).toBe("repeatable");
-    expect(requireValue(s().data.activities[0], "activity")).not.toHaveProperty("projectId");
+    expect(requireValue(s().data.activities[0], "activity")).toHaveProperty("projectId", null);
   });
 }
 
@@ -203,9 +204,7 @@ function registerStoreCrudEntity11(): void {
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
 
-    expect(() => s().updateActivity(t.id, { projectId: undefined })).toThrow(
-      /project-specific activity must be assigned/i,
-    );
+    expect(() => s().updateActivity(t.id, { projectId: null })).toThrow(/project-specific activity must be assigned/i);
 
     expect(() => requireCreated(s().addActivity({ name: "X", kind: "internal", projectId: p.id }))).toThrow(
       /cannot belong to a project/i,
@@ -237,7 +236,7 @@ function registerStoreCrudEntity12(): void {
       s().data.allocations.find((row) => row.id === allocation.id),
       "cleared allocation",
     );
-    expect(cleared).not.toHaveProperty("projectId");
+    expect(cleared).toHaveProperty("projectId", null);
     expectRevisionAdvanced(allocation, cleared);
   });
 }
@@ -322,7 +321,7 @@ function registerStoreCrudEntity16(): void {
     expect(s().data.resources[0]?.isFavourite).toBe(true);
 
     s().undo();
-    expect(requireValue(s().data.resources[0], "resource")).not.toHaveProperty("isFavourite");
+    expect(requireValue(s().data.resources[0], "resource")).toHaveProperty("isFavourite", null);
   });
 }
 
@@ -333,7 +332,7 @@ function registerStoreCrudEntity17(): void {
     s().setActiveRole("viewer");
     s().updateResource(resource.id, { isFavourite: true });
 
-    expect(requireValue(s().data.resources[0], "resource")).not.toHaveProperty("isFavourite");
+    expect(requireValue(s().data.resources[0], "resource")).toHaveProperty("isFavourite", null);
     expect(s().notice).toMatchObject({ tone: "error" });
   });
 }
@@ -758,6 +757,7 @@ function registerDateRangeGuard9(): void {
       ...emptyAppData(),
       clients: [
         {
+          ...NULLABLE_FIELDS.clients,
           id: "imp",
           accountId: "X",
           createdAt: "t",
@@ -869,6 +869,7 @@ function registerMergedRow2(): void {
   it("rejects a note-only updateAllocation on an external resource carrying allocated hours", () => {
     const ext = externalResource("ext-1");
     const alloc: Allocation = {
+      ...NULLABLE_FIELDS.allocations,
       id: "alloc-1",
       accountId: DEFAULT_ACCOUNT_ID,
       createdAt: TS,
@@ -885,6 +886,7 @@ function registerMergedRow2(): void {
       resources: [ext],
       activities: [
         {
+          ...NULLABLE_FIELDS.activities,
           id: "act-1",
           accountId: DEFAULT_ACCOUNT_ID,
           createdAt: TS,
@@ -899,7 +901,7 @@ function registerMergedRow2(): void {
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
 
     expect(() => s().updateAllocation(alloc.id, { note: "just a note" })).toThrow(/external.*can.t carry hours/i);
-    expect(requireValue(s().data.allocations[0], "allocation")).not.toHaveProperty("note");
+    expect(requireValue(s().data.allocations[0], "allocation")).toHaveProperty("note", null);
   });
 }
 
@@ -915,6 +917,7 @@ function registerMergedRow3(): void {
       startDate: "2026-06-10",
       endDate: "2026-06-12",
       type: "holiday",
+      note: null,
     };
     const data: AppData = makeAppData({ resources: [ext], timeOff: [timeOff] });
     s().replaceAll(data);
@@ -932,6 +935,7 @@ function registerMergedRow4(): void {
       resources: [ext],
       activities: [
         {
+          ...NULLABLE_FIELDS.activities,
           id: "act-3",
           accountId: DEFAULT_ACCOUNT_ID,
           createdAt: TS,
@@ -942,6 +946,7 @@ function registerMergedRow4(): void {
       ],
       allocations: [
         {
+          ...NULLABLE_FIELDS.allocations,
           id: "alloc-3",
           accountId: DEFAULT_ACCOUNT_ID,
           createdAt: TS,

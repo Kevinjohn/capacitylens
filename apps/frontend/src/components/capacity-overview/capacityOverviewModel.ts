@@ -207,7 +207,7 @@ function buildGroupSeeds({ data, eligible, disciplinesEnabled, groupByEngagement
 type IsEligibleResourceOptions = { resource: Resource; placeholdersEnabled: boolean };
 function isEligibleResource({ resource, placeholdersEnabled }: IsEligibleResourceOptions): boolean {
   if (!isCapacityTracked(resource) || isExternalResource(resource)) return false;
-  if (resource.archivedAt !== undefined || resource.deletedAt !== undefined) return false;
+  if (resource.archivedAt != null || resource.deletedAt != null) return false;
   if (isPlaceholderResource(resource)) return placeholdersEnabled;
   return true;
 }

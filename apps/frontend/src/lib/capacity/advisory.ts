@@ -17,10 +17,8 @@ export interface CapacityAdvisory {
 }
 
 /** Allocation fields read by the capacity advisory, accepting persisted rows or transient drafts. */
-export type CapacityAllocationInput = Pick<
-  Allocation,
-  "resourceId" | "startDate" | "endDate" | "hoursPerDay" | "ignoreWeekends"
->;
+export type CapacityAllocationInput = Pick<Allocation, "resourceId" | "startDate" | "endDate" | "hoursPerDay"> &
+  Partial<Pick<Allocation, "ignoreWeekends">>;
 
 /** Existing load in hours, keyed by the ISO day it lands on, for one resource. Building this once
  * is what makes an advisory O(window + load) instead of O(windowDays × allocations), and lets a
@@ -58,7 +56,7 @@ export function addCapacityLoad({
     if (
       !hasAllocationLoadOnDay({
         effectiveWeek: effectiveWeek,
-        ignoreWorkingDays: allocation.ignoreWeekends,
+        ignoreWorkingDays: allocation.ignoreWeekends ?? undefined,
         dayIsWorking: isWorkingDay(effectiveWeek, day),
       })
     )
@@ -146,7 +144,7 @@ function tallyAdvisory({
     if (
       !hasAllocationLoadOnDay({
         effectiveWeek: effectiveWeek,
-        ignoreWorkingDays: proposal.ignoreWeekends,
+        ignoreWorkingDays: proposal.ignoreWeekends ?? undefined,
         dayIsWorking: working,
       })
     )

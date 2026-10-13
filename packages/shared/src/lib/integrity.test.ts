@@ -1,3 +1,4 @@
+import { NULLABLE_FIELDS } from "../types/nullableFields.js";
 import { describe, it, expect } from "vitest";
 import {
   allocationAttributionAllowed,
@@ -14,10 +15,19 @@ import {
   validateProjectClient,
   withoutAllocationAttribution,
 } from "./integrity.js";
-import { emptyAppData } from "../types/entities.js";
-import type { AppData, Resource } from "../types/entities.js";
+import type { AppData } from "../types/entities.js";
 import { addDaysISO } from "./dateMath.js";
 import { MAX_SPAN_DAYS } from "./schedulingDays.js";
+import {
+  placeholder,
+  unboundPlaceholder,
+  person,
+  assertEntityById,
+  sampleData,
+  danglingPhaseData,
+  siblingProjectData,
+  siblingClientData,
+} from "./integrity.test.support.js";
 
 const CASCADE_REVISION = "2026-07-15T00:00:00.000Z";
 
@@ -33,426 +43,10 @@ describe("allocationAttributionAllowed", () => {
 describe("withoutAllocationAttribution", () => {
   it("returns a restamped copy without projectId", () => {
     const original = { id: "al1", projectId: "p1", updatedAt: "before" };
-    expect(withoutAllocationAttribution(original, "after")).toEqual({ id: "al1", updatedAt: "after" });
+    expect(withoutAllocationAttribution(original, "after")).toEqual({ id: "al1", projectId: null, updatedAt: "after" });
     expect(original).toHaveProperty("projectId", "p1");
   });
 });
-
-const placeholder = (over: Partial<Resource> = {}): Resource => ({
-  id: "ph1",
-  accountId: "acct-test",
-  createdAt: "t",
-  updatedAt: "t",
-  kind: "placeholder",
-  role: "Senior Designer",
-  employmentType: "permanent",
-  engagement: "studio" as const,
-  workingHoursPerDay: 8,
-  workingDays: [1, 2, 3, 4, 5],
-  color: "#000",
-  projectId: "p1",
-  ...over,
-  halfDays: over.halfDays ?? [],
-});
-
-const unboundPlaceholder = (): Resource => {
-  const resource = placeholder();
-  delete resource.projectId;
-  return resource;
-};
-
-const person = (over: Partial<Resource> = {}): Resource => {
-  const base = placeholder(over);
-  delete base.projectId;
-  return { ...base, kind: "person", ...over };
-};
-
-function assertEntityById<T extends { id: string }>(entities: readonly T[], id: string): T {
-  const entity = entities.find((candidate) => candidate.id === id);
-  expect(entity, `Expected entity ${id}`).toBeDefined();
-  if (entity === undefined) throw new Error(`Expected entity ${id}`);
-  return entity;
-}
-
-function sampleActivityData(): Pick<AppData, "activities" | "resources"> {
-  return {
-    activities: [
-      {
-        id: "t1",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Wires",
-        kind: "project",
-        projectId: "p1",
-        phaseId: "phase1",
-      },
-      {
-        id: "t2",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Visual",
-        kind: "project",
-        projectId: "p1",
-      },
-    ],
-    resources: [
-      person({ id: "r1", disciplineId: "d1" }),
-      placeholder({ id: "ph1", projectId: "p1", disciplineId: "d1" }),
-    ],
-  };
-}
-
-function sampleCapacityData(): Pick<AppData, "allocations" | "timeOff"> {
-  return {
-    allocations: [
-      {
-        id: "a1",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "r1",
-        activityId: "t1",
-        startDate: "2026-06-01",
-        endDate: "2026-06-03",
-        hoursPerDay: 8,
-        status: "confirmed",
-      },
-      {
-        id: "a2",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "ph1",
-        activityId: "t2",
-        startDate: "2026-06-01",
-        endDate: "2026-06-02",
-        hoursPerDay: 8,
-        status: "confirmed",
-      },
-    ],
-    timeOff: [
-      {
-        id: "to1",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "r1",
-        startDate: "2026-06-10",
-        endDate: "2026-06-11",
-        type: "holiday",
-      },
-    ],
-  };
-}
-
-// A small connected dataset: client c1 -> project p1 -> phase ph -> activities; allocations; a bound placeholder.
-function sampleData(): AppData {
-  return {
-    ...emptyAppData(),
-    disciplines: [
-      {
-        id: "d1",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Design",
-        sortOrder: 0,
-      },
-    ],
-    clients: [
-      {
-        id: "c1",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Ferris",
-        color: "#111",
-      },
-    ],
-    projects: [
-      {
-        id: "p1",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Lightning",
-        clientId: "c1",
-        color: "#222",
-      },
-    ],
-    phases: [
-      {
-        id: "phase1",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Discovery",
-        projectId: "p1",
-      },
-    ],
-    ...sampleActivityData(),
-    ...sampleCapacityData(),
-  };
-}
-
-function danglingPhaseData(): AppData {
-  return {
-    ...emptyAppData(),
-    clients: [
-      {
-        id: "c1",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "C",
-        color: "#1",
-      },
-    ],
-    projects: [
-      {
-        id: "p1",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "P1",
-        clientId: "c1",
-        color: "#1",
-      },
-      {
-        id: "p2",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "P2",
-        clientId: "c1",
-        color: "#2",
-      },
-    ],
-    phases: [
-      {
-        id: "ph-p1",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Ph",
-        projectId: "p1",
-      },
-    ],
-    activities: [
-      {
-        id: "t-keep",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Keep",
-        kind: "project",
-        projectId: "p2",
-        phaseId: "ph-p1",
-      },
-    ],
-  };
-}
-
-function siblingProjectData(): AppData {
-  return {
-    ...danglingPhaseData(),
-    phases: [
-      {
-        id: "ph-p1",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Ph1",
-        projectId: "p1",
-      },
-      {
-        id: "ph-p2",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Ph2",
-        projectId: "p2",
-      },
-    ],
-    activities: [
-      {
-        id: "a-p1",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "A1",
-        kind: "project",
-        projectId: "p1",
-        phaseId: "ph-p1",
-      },
-      {
-        id: "a-p2",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "A2",
-        kind: "project",
-        projectId: "p2",
-        phaseId: "ph-p2",
-      },
-    ],
-    allocations: [
-      {
-        id: "al-p2",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "ph2",
-        activityId: "a-p2",
-        startDate: "2026-06-01",
-        endDate: "2026-06-02",
-        hoursPerDay: 8,
-        status: "confirmed",
-      },
-    ],
-    resources: [placeholder({ id: "ph2", projectId: "p2" })],
-  };
-}
-
-function siblingClientHierarchy(): Pick<AppData, "clients" | "projects" | "phases"> {
-  return {
-    clients: [
-      {
-        id: "c1",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "C1",
-        color: "#1",
-      },
-      {
-        id: "c2",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "C2",
-        color: "#2",
-      },
-    ],
-    projects: [
-      {
-        id: "p1",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "P1",
-        clientId: "c1",
-        color: "#1",
-      },
-      {
-        id: "p2",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "P2",
-        clientId: "c2",
-        color: "#2",
-      },
-    ],
-    phases: [
-      {
-        id: "ph1",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Ph1",
-        projectId: "p1",
-      },
-      {
-        id: "ph2",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Ph2",
-        projectId: "p2",
-      },
-    ],
-  };
-}
-
-function siblingClientActivityData(): Pick<AppData, "activities"> {
-  return {
-    activities: [
-      {
-        id: "a1",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "A1",
-        kind: "project",
-        projectId: "p1",
-      },
-      {
-        id: "a2",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "A2",
-        kind: "project",
-        projectId: "p2",
-        phaseId: "ph2",
-      },
-      {
-        id: "a3",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "A3",
-        kind: "project",
-        projectId: "p2",
-        phaseId: "ph1",
-      },
-    ],
-  };
-}
-
-function siblingClientCapacityData(): Pick<AppData, "allocations" | "resources"> {
-  return {
-    allocations: [
-      {
-        id: "al1",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "phc2",
-        activityId: "a1",
-        startDate: "2026-06-01",
-        endDate: "2026-06-02",
-        hoursPerDay: 8,
-        status: "confirmed",
-      },
-      {
-        id: "al2",
-        accountId: "a",
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "phc2",
-        activityId: "a2",
-        startDate: "2026-06-01",
-        endDate: "2026-06-02",
-        hoursPerDay: 8,
-        status: "confirmed",
-      },
-    ],
-    resources: [placeholder({ id: "phc1", projectId: "p1" }), placeholder({ id: "phc2", projectId: "p2" })],
-  };
-}
-
-function siblingClientData(): AppData {
-  return {
-    ...emptyAppData(),
-    ...siblingClientHierarchy(),
-    ...siblingClientActivityData(),
-    ...siblingClientCapacityData(),
-  };
-}
 
 describe("validateProjectClient", () => {
   it("requires a client", () => {
@@ -589,6 +183,7 @@ function registerResourceCascadeTests(): void {
     // The filters must key on resourceId, not blanket-drop, a co-worker's time off survives.
     const data = sampleData();
     data.timeOff.push({
+      note: null,
       id: "to2",
       accountId: "acct-test",
       createdAt: "t",
@@ -614,7 +209,7 @@ function registerPhaseCascadeTests(): void {
   it("deletePhaseCascade ungroups activities but keeps them", () => {
     const next = deletePhaseCascade(sampleData(), "phase1", CASCADE_REVISION);
     expect(next.phases).toHaveLength(0);
-    expect(assertEntityById(next.activities, "t1").phaseId).toBeUndefined();
+    expect(assertEntityById(next.activities, "t1").phaseId).toBeNull();
     expect(next.activities).toHaveLength(2);
   });
 
@@ -631,6 +226,7 @@ function registerPhaseCascadeTests(): void {
       projectId: "p1",
     });
     data.activities.push({
+      ...NULLABLE_FIELDS.activities,
       id: "t3",
       accountId: "acct-test",
       createdAt: "t",
@@ -643,8 +239,36 @@ function registerPhaseCascadeTests(): void {
     const next = deletePhaseCascade(data, "phase1", CASCADE_REVISION);
     expect(next.phases.map((p) => p.id)).toEqual(["phase2"]);
     expect(assertEntityById(next.activities, "t3").phaseId).toBe("phase2");
-    expect(assertEntityById(next.activities, "t1").phaseId).toBeUndefined();
+    expect(assertEntityById(next.activities, "t1").phaseId).toBeNull();
   });
+}
+
+function projectDataWithGeneralActivity(): AppData {
+  const data = sampleData();
+  data.activities.push({
+    ...NULLABLE_FIELDS.activities,
+    id: "t3",
+    accountId: "acct-test",
+    createdAt: "t",
+    updatedAt: "t",
+    name: "Admin",
+    kind: "repeatable",
+  });
+  data.allocations.push({
+    ...NULLABLE_FIELDS.allocations,
+    id: "a3",
+    accountId: "acct-test",
+    createdAt: "t",
+    updatedAt: "t",
+    resourceId: "r1",
+    activityId: "t3",
+    startDate: "2026-06-05",
+    endDate: "2026-06-06",
+    hoursPerDay: 8,
+    status: "confirmed",
+    projectId: "p1",
+  });
+  return data;
 }
 
 function registerProjectCascadeTests(): void {
@@ -654,37 +278,15 @@ function registerProjectCascadeTests(): void {
     expect(next.phases).toHaveLength(0);
     expect(next.activities).toHaveLength(0);
     expect(next.allocations).toHaveLength(0);
-    expect(assertEntityById(next.resources, "ph1").projectId).toBeUndefined();
+    expect(assertEntityById(next.resources, "ph1").projectId).toBeNull();
     expect(next.resources).toHaveLength(2);
   });
 
   it("deleteProjectCascade leaves general (no-project) activities and their allocations intact", () => {
-    const data = sampleData();
-    data.activities.push({
-      id: "t3",
-      accountId: "acct-test",
-      createdAt: "t",
-      updatedAt: "t",
-      name: "Admin",
-      kind: "repeatable",
-    });
-    data.allocations.push({
-      id: "a3",
-      accountId: "acct-test",
-      createdAt: "t",
-      updatedAt: "t",
-      resourceId: "r1",
-      activityId: "t3",
-      startDate: "2026-06-05",
-      endDate: "2026-06-06",
-      hoursPerDay: 8,
-      status: "confirmed",
-      projectId: "p1",
-    });
-    const next = deleteProjectCascade(data, "p1", CASCADE_REVISION);
+    const next = deleteProjectCascade(projectDataWithGeneralActivity(), "p1", CASCADE_REVISION);
     expect(next.activities.map((t) => t.id)).toEqual(["t3"]);
     expect(next.allocations.map((a) => a.id)).toEqual(["a3"]);
-    expect(next.allocations[0]?.projectId).toBeUndefined();
+    expect(next.allocations[0]?.projectId).toBeNull();
     expect(next.allocations[0]?.updatedAt).toBe(CASCADE_REVISION);
   });
 
@@ -696,7 +298,7 @@ function registerProjectCascadeTests(): void {
     const revision = "2026-07-15T00:00:00.000Z";
     const next = deleteProjectCascade(data, "p1", revision);
     const keep = assertEntityById(next.activities, "t-keep");
-    expect(keep.phaseId).toBeUndefined();
+    expect(keep.phaseId).toBeNull();
     expect(keep.updatedAt).toBe(revision);
     expect(next.phases).toHaveLength(0);
   });
@@ -719,6 +321,7 @@ function registerClientCascadeTests(): void {
   it("deleteClientCascade cascades through its projects", () => {
     const data = sampleData();
     data.activities.push({
+      ...NULLABLE_FIELDS.activities,
       id: "shared",
       accountId: "acct-test",
       name: "Shared",
@@ -727,6 +330,7 @@ function registerClientCascadeTests(): void {
       updatedAt: "t",
     });
     data.allocations.push({
+      ...NULLABLE_FIELDS.allocations,
       id: "attributed",
       accountId: "acct-test",
       resourceId: "r1",
@@ -744,9 +348,9 @@ function registerClientCascadeTests(): void {
     expect(next.projects).toHaveLength(0);
     expect(next.activities.map((activity) => activity.id)).toEqual(["shared"]);
     expect(next.allocations.map((allocation) => allocation.id)).toEqual(["attributed"]);
-    expect(next.allocations[0]?.projectId).toBeUndefined();
+    expect(next.allocations[0]?.projectId).toBeNull();
     expect(next.allocations[0]?.updatedAt).toBe(CASCADE_REVISION);
-    expect(assertEntityById(next.resources, "ph1").projectId).toBeUndefined();
+    expect(assertEntityById(next.resources, "ph1").projectId).toBeNull();
   });
 
   it("deleteClientCascade removes ONLY the target client’s subtree, sparing a sibling client", () => {
@@ -763,10 +367,10 @@ function registerClientCascadeTests(): void {
     expect(survivingActivity.name).toBe("A2");
     expect(survivingActivity.phaseId).toBe("ph2");
     const repairedActivity = assertEntityById(next.activities, "a3");
-    expect(repairedActivity.phaseId).toBeUndefined();
+    expect(repairedActivity.phaseId).toBeNull();
     expect(repairedActivity.updatedAt).toBe(revision);
     expect(next.allocations.map((a) => a.id)).toEqual(["al2"]);
-    expect(assertEntityById(next.resources, "phc1").projectId).toBeUndefined();
+    expect(assertEntityById(next.resources, "phc1").projectId).toBeNull();
     expect(assertEntityById(next.resources, "phc2").projectId).toBe("p2");
   });
 }
@@ -775,13 +379,14 @@ function registerDisciplineCascadeTests(): void {
   it("deleteDisciplineCascade ungroups resources but keeps them", () => {
     const next = deleteDisciplineCascade(sampleData(), "d1", CASCADE_REVISION);
     expect(next.disciplines).toHaveLength(0);
-    expect(next.resources.every((r) => r.disciplineId === undefined)).toBe(true);
+    expect(next.resources.every((r) => r.disciplineId === null)).toBe(true);
     expect(next.resources).toHaveLength(2);
   });
 
   it("deleteDisciplineCascade keeps OTHER disciplines and only ungroups its own resources", () => {
     const data = sampleData();
     data.disciplines.push({
+      ...NULLABLE_FIELDS.disciplines,
       id: "d2",
       accountId: "acct-test",
       createdAt: "t",
@@ -794,7 +399,7 @@ function registerDisciplineCascadeTests(): void {
     expect(next.disciplines.map((d) => d.id)).toEqual(["d2"]);
     expect(assertEntityById(next.resources, "r2").disciplineId).toBe("d2");
     const r1 = assertEntityById(next.resources, "r1");
-    expect(r1.disciplineId).toBeUndefined();
+    expect(r1.disciplineId).toBeNull();
     expect(r1.role).toBe("Senior Designer");
   });
 
@@ -804,22 +409,22 @@ function registerDisciplineCascadeTests(): void {
     const afterPhase = deletePhaseCascade(sampleData(), "phase1", revision);
     const activityWithoutPhase = afterPhase.activities.find((activity) => activity.id === "t1");
     expect(activityWithoutPhase).toMatchObject({ id: "t1", updatedAt: revision });
-    expect(activityWithoutPhase).not.toHaveProperty("phaseId");
+    expect(activityWithoutPhase).toHaveProperty("phaseId", null);
 
     const afterProject = deleteProjectCascade(sampleData(), "p1", revision);
     const projectlessAfterProject = afterProject.resources.find((resource) => resource.id === "ph1");
     expect(projectlessAfterProject).toMatchObject({ id: "ph1", updatedAt: revision });
-    expect(projectlessAfterProject).not.toHaveProperty("projectId");
+    expect(projectlessAfterProject).toHaveProperty("projectId", null);
 
     const afterClient = deleteClientCascade(sampleData(), "c1", revision);
     const projectlessAfterClient = afterClient.resources.find((resource) => resource.id === "ph1");
     expect(projectlessAfterClient).toMatchObject({ id: "ph1", updatedAt: revision });
-    expect(projectlessAfterClient).not.toHaveProperty("projectId");
+    expect(projectlessAfterClient).toHaveProperty("projectId", null);
 
     const afterDiscipline = deleteDisciplineCascade(sampleData(), "d1", revision);
     const undisciplined = afterDiscipline.resources.find((resource) => resource.id === "r1");
     expect(undisciplined).toMatchObject({ id: "r1", updatedAt: revision });
-    expect(undisciplined).not.toHaveProperty("disciplineId");
+    expect(undisciplined).toHaveProperty("disciplineId", null);
   });
 
   it("does not mutate the input", () => {

@@ -12,7 +12,7 @@ export interface CachedRecord<T> {
 export interface EncryptedRecord {
   key: string;
   savedAt: number;
-  version: 1;
+  version: 2;
   iv: ArrayBuffer;
   ciphertext: ArrayBuffer;
 }

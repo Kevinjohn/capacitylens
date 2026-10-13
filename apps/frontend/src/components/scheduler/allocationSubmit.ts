@@ -119,8 +119,8 @@ function parseAllocationCommandDraft(input: CommandInput): ValidatedDraft | null
     hoursPerDay: input.effHoursPerDay,
     status: input.status,
     ...(cleanNote ? { note: cleanNote } : {}),
-    // Include the optional field even when empty so editing can intentionally clear an existing task.
-    task: cleanTask ?? undefined,
+    // Include the field even when empty so editing can intentionally clear an existing task.
+    task: cleanTask ?? null,
     ...(input.attributedProjectId ? { projectId: input.attributedProjectId } : {}),
     ignoreWeekends: input.isExternal ? true : input.ignoreWeekends,
   };

@@ -10,6 +10,7 @@ import {
 import { assertActivityProjectAllowsDependents, assertScopedRefs } from "@capacitylens/shared/domain/mutations";
 import { hasUsablePrivateCodeName } from "@capacitylens/shared/domain/privateNames";
 import type { Activity, Client, Discipline, ID, Phase, Project } from "@capacitylens/shared/types/entities";
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { readNextDataRevision, stamp, touchAfter } from "@/store/storeInternal";
 import type { StoreInternals } from "@/store/storeInternal";
 import type { Draft, Patch, StoreState } from "@/store/types";
@@ -72,6 +73,7 @@ function createDisciplineActions(
   return {
     addDiscipline: createGuardedAddAction(
       (input: Draft<Discipline>): Discipline => ({
+        ...NULLABLE_FIELDS.disciplines,
         ...input,
         id: newId(),
         accountId: requireAccount(),
@@ -110,6 +112,7 @@ function createClientActions(internals: CatalogSliceInternals): Pick<CatalogSlic
         const stripped: Record<string, unknown> = { ...input };
         delete stripped.builtin;
         return {
+          ...NULLABLE_FIELDS.clients,
           ...(stripped as Draft<Client>),
           id: newId(),
           accountId: requireAccount(),
@@ -155,7 +158,13 @@ function createProjectActions(
     internals;
   return {
     addProject: createGuardedAddAction(
-      (input: Draft<Project>): Project => ({ ...input, id: newId(), accountId: requireAccount(), ...stamp() }),
+      (input: Draft<Project>): Project => ({
+        ...NULLABLE_FIELDS.projects,
+        ...input,
+        id: newId(),
+        accountId: requireAccount(),
+        ...stamp(),
+      }),
       (entity, input) => {
         if (!hasUsablePrivateCodeName(entity as unknown as Record<string, unknown>)) {
           throw new Error("A private project requires a code name.");
@@ -229,7 +238,13 @@ function createActivityActions(
     internals;
   return {
     addActivity: createGuardedAddAction(
-      (input: Draft<Activity>): Activity => ({ ...input, id: newId(), accountId: requireAccount(), ...stamp() }),
+      (input: Draft<Activity>): Activity => ({
+        ...NULLABLE_FIELDS.activities,
+        ...input,
+        id: newId(),
+        accountId: requireAccount(),
+        ...stamp(),
+      }),
       (entity, input) => {
         assertScopedRefs(get().data, entity.accountId, "activities", input);
         mutate((data) => ({ ...data, activities: [...data.activities, entity] }));
@@ -253,7 +268,7 @@ function createActivityActions(
           allocations:
             allocationAttributionAllowed(existing.kind) && !allocationAttributionAllowed(merged.kind)
               ? data.allocations.map((allocation) =>
-                  allocation.activityId === id && allocation.projectId !== undefined
+                  allocation.activityId === id && allocation.projectId != null
                     ? withoutAllocationAttribution(allocation, touchAfter(allocation.updatedAt))
                     : allocation,
                 )
