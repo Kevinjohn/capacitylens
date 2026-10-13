@@ -3,4 +3,7 @@
  * DO NOT EDIT manually
  */
 
-export const controllers = {}
+export const controllers = {
+  Batch: () => import('#controllers/batch_controller'),
+  Lifecycle: () => import('#controllers/lifecycle_controller'),
+}

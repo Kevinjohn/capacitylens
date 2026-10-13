@@ -6,6 +6,18 @@ import type { ApiDefinition } from './tree.d.ts'
 const placeholder: any = {}
 
 const routes = {
+  'api.batch': {
+    methods: ["POST"],
+    pattern: '/api/batch',
+    tokens: [{"old":"/api/batch","type":0,"val":"api","end":""},{"old":"/api/batch","type":0,"val":"batch","end":""}],
+    types: placeholder as Registry['api.batch']['types'],
+  },
+  'api.lifecycle': {
+    methods: ["POST"],
+    pattern: '/api/:entity/:id/:action',
+    tokens: [{"old":"/api/:entity/:id/:action","type":0,"val":"api","end":""},{"old":"/api/:entity/:id/:action","type":1,"val":"entity","end":""},{"old":"/api/:entity/:id/:action","type":1,"val":"id","end":""},{"old":"/api/:entity/:id/:action","type":1,"val":"action","end":""}],
+    types: placeholder as Registry['api.lifecycle']['types'],
+  },
   'api.health': {
     methods: ["GET","HEAD"],
     pattern: '/api/health',

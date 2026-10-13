@@ -4227,9 +4227,12 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M2a",
             "milestone": "M2a",
-            "package": "apps/backend/tests/functional/batch"
+            "package": "apps/backend/tests/functional/batch",
+            "source": "e2e/person-schedule.auth.spec.ts; e2e/company-closures.auth.spec.ts; apps/frontend/src/data/sync/batchWire.ts",
+            "method": "POST",
+            "path": "/api/batch"
           },
           "legacy_response_status_contract": {
             "status": "200 replacement; 400 invalid body; 403 authorization; 404 missing/wrong owner; 409 stale write; normalized failure for other errors",
@@ -4248,9 +4251,12 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M2a",
             "milestone": "M2a",
-            "package": "apps/backend/tests/functional/batch"
+            "package": "apps/backend/tests/functional/batch",
+            "source": "e2e/viewer.auth.spec.ts; e2e/private-name-permissions.auth.spec.ts; apps/frontend/src/data/sync/batchWire.ts",
+            "method": "POST",
+            "path": "/api/batch"
           },
           "legacy_response_status_contract": {
             "status": "200 replacement; 400 invalid body; 403 authorization; 404 missing/wrong owner; 409 stale write; normalized failure for other errors",
@@ -4269,9 +4275,12 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M2a",
             "milestone": "M2a",
-            "package": "apps/backend/tests/functional/batch"
+            "package": "apps/backend/tests/functional/batch",
+            "source": "e2e/private-name-permissions.auth.spec.ts; apps/frontend/src/data/sync/batchWire.ts",
+            "method": "POST",
+            "path": "/api/batch"
           },
           "legacy_response_status_contract": {
             "status": "200 replacement; 400 invalid body; 403 authorization; 404 missing/wrong owner; 409 stale write; normalized failure for other errors",
@@ -4290,9 +4299,12 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M2a",
             "milestone": "M2a",
-            "package": "apps/backend/tests/functional/batch"
+            "package": "apps/backend/tests/functional/batch",
+            "source": "e2e/viewer.auth.spec.ts; apps/frontend/src/data/sync/batchWire.ts",
+            "method": "POST",
+            "path": "/api/batch"
           },
           "legacy_response_status_contract": {
             "status": "200 replacement; 400 invalid body; 403 authorization; 404 missing/wrong owner; 409 stale write; normalized failure for other errors",
@@ -4987,5 +4999,793 @@
         "reason": "M1 server boot contract covers db and auth E2E flavours."
       }
     ]
+  },
+  "m2a_port_evidence": {
+    "source_maps": [
+      "/private/tmp/capacitylens_m2a_behavior_map.json",
+      "/private/tmp/capacitylens_m2a_input_port_map.json",
+      "/private/tmp/capacitylens_m2a_ordering_port_map.json"
+    ],
+    "entries": [
+      {
+        "source_path": "server/src/BatchStateProjection.test.ts",
+        "guarantee": "Projection indices, relationship effects, and attribution revisions mirror ordered writes.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/unit/batch/projection.spec.ts",
+            "cases": [
+              "projects cascade and SET NULL foreign-key effects into later lookups",
+              "keeps indexed relationship lookups correct after child updates and removals",
+              "mirrors the account, client, project, phase, resource, and activity cascades",
+              "updates and deletes the supported 5,000-row boundary without rebuilding arrays",
+              "reparents projects when replacing the generated Internal client",
+              "surfaces a corrupted row index instead of silently ignoring an indexed row",
+              "keeps reverse resource and activity allocation lookups current after edits",
+              "mirrors allocation attribution revisions produced by the database sweep"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "server/src/app.authz.test.ts",
+        "guarantee": "M2a data authorization checks per-company write capability and lifecycle policy.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/batch_core.spec.ts",
+            "cases": [
+              "rechecks provider-independent write capability for every affected company",
+              "uses the native policy boundary for reversible and irreversible lifecycle actions"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": [
+          {
+            "milestone": "M3a",
+            "package": "apps/backend/tests/functional/auth",
+            "reason": "Role/session authorization half is explicitly split to M3a in the existing census subdisposition."
+          },
+          {
+            "milestone": "M3b",
+            "package": "apps/backend/tests/functional/membership",
+            "reason": "Membership and account-administration matrix is explicitly split to M3b in the existing census subdisposition."
+          }
+        ]
+      },
+      {
+        "source_path": "server/src/app.batch-attribution.test.ts",
+        "guarantee": "Activity kind changes reconcile allocation project attribution and rewrite receipts.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/projection_attribution.spec.ts",
+            "cases": [
+              "clears project attribution at the activity flip and echoes the rewritten revision",
+              "retains at-flip clearing when the activity flips back before a dependent resource write",
+              "reconciles attribution when an activity edit follows corrupt existing attribution",
+              "repairs legacy attribution when an already ineligible activity is re-PUT",
+              "keeps projection validation consistent through a kind flip and placeholder rebind",
+              "clears and echoes attribution before a later project archive in the same batch"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "server/src/app.batch-validation.test.ts",
+        "guarantee": "Sequential batch validation and projection remain atomic across later failures.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/batch_core.spec.ts",
+            "cases": [
+              "rejects lifecycle and unscoped deletes atomically before retaining earlier writes",
+              "refuses a cross-company delete and rolls back its valid sibling",
+              "rolls back valid repeated allocation and time-off prefixes when a sibling is invalid"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/validation.spec.ts",
+            "cases": [
+              "requires complete ordinary rows and rejects references outside the account",
+              "rejects entity rebinds that would invalidate existing placeholder allocations"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/lifecycle_contract.spec.ts",
+            "cases": [
+              "keeps omitted lifecycle state on a batch PUT and atomically refuses archived or deleted ancestry"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/input_contract.spec.ts",
+            "cases": [
+              "rejects unknown fields, missing required fields, malformed operation roots and malformed nested rows"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "server/src/app.concurrency-ordered.test.ts",
+        "guarantee": "Ordered writes preserve same-session successor rules, external-edit rejection, lifecycle fences, and no-resurrection.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/ordering.spec.ts",
+            "cases": [
+              "accepts the exact same-session successor row hash and advances revisions monotonically",
+              "a higher sequence received first supersedes a later-arriving older write",
+              "ordered ARCHIVE retains its inactive row and fences an older creation",
+              "an external edit invalidates the successor hash and remains stored",
+              "a stale DELETE rolls back earlier operations and preserves the external row",
+              "a stale ARCHIVE rejects without changing the externally edited row",
+              "an ordered non-lifecycle DELETE prevents an older creation from being resurrected"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "server/src/app.crud-round-trip.test.ts",
+        "guarantee": "Batch writes persist full entity rows and return authoritative read-after-write state.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/batch_core.spec.ts",
+            "cases": [
+              "applies a valid write and returns its server revision",
+              "records audit and rejects an already applied sync sequence",
+              "rejects lifecycle and unscoped deletes atomically before retaining earlier writes",
+              "refuses a cross-company delete and rolls back its valid sibling"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/input_contract.spec.ts",
+            "cases": ["accepts a valid full-row fixture for every entity with a real calendar date"]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/policies_crud.spec.ts",
+            "cases": [
+              "round-trips a full create and update for every product entity",
+              "deletes ordinary rows once and counts a repeated missing deletion as unchanged",
+              "repeated fresh-revision PUTs overwrite one identity while stale ordinary replay remains rejected"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/normalization.spec.ts",
+            "cases": [
+              "public clients and projects store privacy as absence after a full-row update",
+              "private client and project code names lose only surrounding quotation marks",
+              "a normal client omits false builtin and a person stores canonical weekday sets",
+              "a new Sunday-start account defaults omitted working days and keeps them on omission"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/lifecycle_contract.spec.ts",
+            "cases": [
+              "persists unarchive as active and keeps inactive activities out of normal projections",
+              "scrubs deleted-resource values and writes field-only audit details",
+              "purges a client cascade and audits only privacy-safe per-table counts"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": [
+          {
+            "milestone": "M2a source-test fixture difference",
+            "package": "apps/backend/tests/functional/batch/policies_crud.spec.ts",
+            "reason": "The legacy idempotent PUT case disabled optimistic concurrency in its freshApp fixture; production defaults it on. The target covers a same-identity PUT at a fresh revision and separately verifies stale ordinary replay rejection. The fixture-only concurrency toggle is not part of the product contract."
+          }
+        ]
+      },
+      {
+        "source_path": "server/src/app.frozen-fields-errors.test.ts",
+        "guarantee": "Batch account writes preserve frozen-field rules and stable error mapping.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/frozen_fields.spec.ts",
+            "cases": [
+              "sets missing frozen values once, permits unchanged full-row sync, and rejects changes with the canonical message",
+              "rejects malformed frozen values and unknown retired preferences without changing the account",
+              "allows mutable preferences and distinguishes validation errors from frozen-field conflicts"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/sql_failures.spec.ts",
+            "cases": [
+              "maps real NOT NULL, primary-key, unique and foreign-key row constraints to a safe 400",
+              "redacts arbitrary decorated exceptions and constraint-like messages as 500"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/review_regressions.spec.ts",
+            "cases": [
+              "rejects CSP-only media types on the ordinary batch route before mutation",
+              "maps actual oversized form and unsupported encoding parser failures safely"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "server/src/app.input-contract.test.ts",
+        "guarantee": "HTTP batch input checks reject malformed values before persistence, accept valid full-row fixtures, and bind row identity to op.id; direct route URL identity is translated to the batch op identity rule.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/input_contract.spec.ts",
+            "cases": [
+              "rejects malformed supplied entity fields and leaves the seeded account unchanged",
+              "rejects unknown fields, missing required fields, malformed operation roots and malformed nested rows",
+              "accepts a valid full-row fixture for every entity with a real calendar date",
+              "requires named person and external resources and accepts a valid external company name",
+              "preserves opaque allocation identifiers beyond the text-name limit"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "server/src/app.lifecycle.test.ts",
+        "guarantee": "Batch lifecycle supports archive, unarchive, soft deletion, purge, dependency cleanup, and transactional policy.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/batch_core.spec.ts",
+            "cases": [
+              "supports archive, unarchive, and soft-delete lifecycle transitions",
+              "purges an aged tombstone and advances surviving unbound revisions",
+              "soft-deleting a resource obfuscates it and scrubs private dependent notes",
+              "uses the native policy boundary for reversible and irreversible lifecycle actions"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/lifecycle_contract.spec.ts",
+            "cases": [
+              "keeps transition refusals exact and leaves every refused row unchanged",
+              "protects the generated Internal client from every lifecycle verb",
+              "persists unarchive as active and keeps inactive activities out of normal projections",
+              "repairs a malformed deletion marker while unarchiving an archived legacy row",
+              "keeps the delete revision at or after a future archive timestamp",
+              "archives only its target and preserves unrelated tombstones and time-off notes",
+              "keeps omitted lifecycle state on a batch PUT and atomically refuses archived or deleted ancestry",
+              "scrubs deleted-resource values and writes field-only audit details",
+              "purges a client cascade and audits only privacy-safe per-table counts"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/review_regressions.spec.ts",
+            "cases": [
+              "logs lifecycle writes only after commit and keeps logger failure best-effort"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": [
+          {
+            "milestone": "M3a",
+            "package": "apps/backend/tests/functional/auth",
+            "reason": "Session freshness, role authorization, and authentication-mode cases from the legacy lifecycle suite are assigned to the M3a auth milestone."
+          },
+          {
+            "milestone": "M3b",
+            "package": "apps/backend/tests/functional/membership",
+            "reason": "Membership and non-member authorization cases from the legacy lifecycle suite are assigned to the M3b membership milestone."
+          }
+        ]
+      },
+      {
+        "source_path": "server/src/app.projections-guards.test.ts",
+        "guarantee": "Batch projection guards retain atomic error and body-size behavior.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/batch_core.spec.ts",
+            "cases": [
+              "enforces the 5 MiB ordinary request cap",
+              "records audit and rejects an already applied sync sequence",
+              "distinguishes accepted operations from changes and ignores a repeated archive"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/projection_guards.spec.ts",
+            "cases": ["performs no full product-table SELECT for empty or single-company batches"]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": [
+          {
+            "milestone": "M1",
+            "package": "apps/backend/tests/functional/state",
+            "reason": "Reset-route authorization, reset cascade and reset-on-seed rollback are reset-control behavior already owned by M1 state/database contract tests; they do not exercise batch projections."
+          }
+        ]
+      },
+      {
+        "source_path": "server/src/app.request-guards.test.ts",
+        "guarantee": "Batch root/op validation and size ceilings reject malformed requests before mutation.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/input_contract.spec.ts",
+            "cases": [
+              "rejects unknown fields, missing required fields, malformed operation roots and malformed nested rows"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/request_limits.spec.ts",
+            "cases": [
+              "rejects 5001 operations before changing storage",
+              "accepts exactly 5000 valid operations against existing scoped rows"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/batch_core.spec.ts",
+            "cases": ["enforces the 5 MiB ordinary request cap"]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "server/src/app.resourceLimits.test.ts",
+        "guarantee": "Backend request body, connection, and request-time bounds are finite.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/request_limits.spec.ts",
+            "cases": [
+              "applies the configured Node connection and request timeouts and rate-limits drop logs"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/review_regressions.spec.ts",
+            "cases": ["maps actual oversized form and unsupported encoding parser failures safely"]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/batch_core.spec.ts",
+            "cases": ["enforces the 5 MiB ordinary request cap"]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": [
+          {
+            "milestone": "M3a",
+            "package": "apps/backend",
+            "reason": "Accepted-connection drop rate-limit/operator signal (source line 18) belongs to the later auth/security milestone per parent ruling."
+          }
+        ]
+      },
+      {
+        "source_path": "server/src/app.sanitization.test.ts",
+        "guarantee": "Ordinary batch writes reject malformed/unknown data, retain text normalization, and strict JSON screening runs before writes.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/input_contract.spec.ts",
+            "cases": [
+              "rejects malformed supplied entity fields and leaves the seeded account unchanged",
+              "rejects unknown fields, missing required fields, malformed operation roots and malformed nested rows",
+              "rejects ambiguous and malformed JSON before a batch write",
+              "normalizes accepted composed text while preserving punctuation"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/normalization.spec.ts",
+            "cases": [
+              "public clients and projects store privacy as absence after a full-row update",
+              "private client and project code names lose only surrounding quotation marks",
+              "a normal client omits false builtin and a person stores canonical weekday sets",
+              "a new Sunday-start account defaults omitted working days and keeps them on omission"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "server/src/app.singleCompanyCap.test.ts",
+        "guarantee": "Account creation/update within a batch observes one-company policy atomically.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/company_batches.spec.ts",
+            "cases": [
+              "rolls back a batch that would exceed the single-company cap",
+              "creates one canonical Internal client beside a new company",
+              "atomically adopts a legacy Internal id without losing its projects",
+              "enforces first, concurrent, mixed, and multi-company creation policy atomically",
+              "rejects company replacement through a generic batch in either operation order"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "server/src/app.syncOrdering.integration.test.ts",
+        "guarantee": "The actual SPA adapter plus SQLite preserves both-arrival-order teardown and edit semantics.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/adapter_ordering.spec.ts",
+            "cases": [
+              "preserves the teardown availability boundary in both request arrival orders",
+              "preserves the newer discipline edit in both request arrival orders",
+              "does not resurrect an unacknowledged non-lifecycle creation in either arrival order"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "server/src/app.write-validation.test.ts",
+        "guarantee": "Full-row batch validation enforces account references, date spans, placeholder binding, and resource capacity rules.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/validation.spec.ts",
+            "cases": [
+              "requires complete ordinary rows and rejects references outside the account",
+              "rejects malformed and reversed entity dates and the first span beyond the supported limit",
+              "rejects entity rebinds that would invalidate existing placeholder allocations",
+              "enforces placeholder binding and the company/resource availability intersection",
+              "keeps external resources at zero capacity, rejects their time off, and forbids changing resource kind",
+              "accepts a closure without any resource reference"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "server/src/audit.test.ts",
+        "guarantee": "Batch SQL audit stays transactional while committed writes survive best-effort postcommit log failure.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/batch_core.spec.ts",
+            "cases": [
+              "records audit and rejects an already applied sync sequence",
+              "keeps a committed write successful when the after-commit log fails"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/review_regressions.spec.ts",
+            "cases": [
+              "logs lifecycle writes only after commit and keeps logger failure best-effort"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/sql_failures.spec.ts",
+            "cases": [
+              "records one SQL audit row with field names and no changed values",
+              "rolls back a single inserted row when its required audit write fails",
+              "rolls back a single upsert update when its required audit write fails"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "server/src/auditOutbox.test.ts",
+        "guarantee": "The SQL audit row rolls back with failed batch work; outbox delivery/recovery is retired by ruling 5.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/batch_core.spec.ts",
+            "cases": [
+              "rolls back preceding writes and their audit row when a later operation fails"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "server/src/batchAttribution.model.test.ts",
+        "guarantee": "Bounded sequential reference-model execution matches projected persisted results and rewrite receipts.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/projection_attribution.spec.ts",
+            "cases": [
+              "matches a sequential reference model for every accepted operation sequence through length four"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "server/src/fieldPolicy.test.ts",
+        "guarantee": "M2a preserves gated field redaction/pinning for batch echoes and writes.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/batch_core.spec.ts",
+            "cases": ["redacts a hidden time-off note from an optimistic conflict"]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/policies_crud.spec.ts",
+            "cases": [
+              "enforces the native role boundary without changing storage on a viewer write",
+              "pins private client and project names on blind updates and strips privacy on blind creates",
+              "pins an unseen time-off note on update and strips it on creation",
+              "redacts private-name conflict echoes and preserves the current row"
+            ]
+          },
+          {
+            "path": "packages/shared/src/domain/access.test.ts",
+            "cases": [
+              "owner may see the time-off note",
+              "admin may see the time-off note",
+              "editor may NOT see the time-off note",
+              "viewer may NOT see the time-off note",
+              "%s \u2192 %s"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": [
+          {
+            "milestone": "Retired, M2a policy refactor",
+            "package": "apps/backend/tests/functional/batch and packages/shared/src/domain/access.test.ts",
+            "reason": "The old GATED_FIELD_POLICIES/hasGatedFields implementation catalogue was removed; role visibility is now the shared canSeePrivateNames/canSeeTimeOffNote contract and batch effects are exercised through native Bouncer policy tests. The static governed-table inventory is an old helper-structure test, not a product behavior."
+          }
+        ]
+      },
+      {
+        "source_path": "server/src/resolveEntitlements.test.ts",
+        "guarantee": "Every account currently resolves to unlimited default entitlements.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/unit/batch/entitlements.spec.ts",
+            "cases": ["keeps every company unlimited under the current product contract"]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "server/src/revision.test.ts",
+        "guarantee": "Revision updates advance monotonically and repair invalid/out-of-domain values.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/unit/batch/revision.spec.ts",
+            "cases": [
+              "advances a canonical timestamp by one millisecond when the clock is behind",
+              "advances non-canonical ISO timestamps by chronology",
+              "uses the bounded clock after malformed or out-of-domain revisions"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "server/src/validate.allocationProject.test.ts",
+        "guarantee": "Allocation command validation enforces activity/project and placeholder scope.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/validation.spec.ts",
+            "cases": [
+              "enforces placeholder binding and the company/resource availability intersection"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/input_contract.spec.ts",
+            "cases": [
+              "rejects malformed supplied entity fields and leaves the seeded account unchanged"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/projection_attribution.spec.ts",
+            "cases": ["repairs legacy attribution when an already ineligible activity is re-PUT"]
+          },
+          {
+            "path": "apps/backend/tests/unit/batch/projection.spec.ts",
+            "cases": ["mirrors allocation attribution revisions produced by the database sweep"]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "server/src/validate.resourceAvailability.test.ts",
+        "guarantee": "Person availability inputs and allocation working-day intersection are validated.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/validation.spec.ts",
+            "cases": [
+              "rejects reversed availability and normalizes a valid person avatar URL",
+              "enforces placeholder binding and the company/resource availability intersection",
+              "keeps external resources at zero capacity, rejects their time off, and forbids changing resource kind"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/input_contract.spec.ts",
+            "cases": [
+              "rejects unknown fields, missing required fields, malformed operation roots and malformed nested rows",
+              "rejects malformed supplied entity fields and leaves the seeded account unchanged"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/batch_core.spec.ts",
+            "cases": [
+              "preserves omitted resource bounds and clears explicit null markers",
+              "returns stable resource domain codes through the real HTTP contract"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": [
+          {
+            "milestone": "M2b",
+            "package": "apps/backend/tests/functional/import",
+            "reason": "Person-default repair belongs to the import sanitization path; M2b explicitly ports import sanitization and repair, while ordinary batch writes must reject omitted values."
+          }
+        ]
+      },
+      {
+        "source_path": "server/src/validate.timeOff.test.ts",
+        "guarantee": "Time-off/closure validation requires personal resources where applicable and valid date/name semantics.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/validation.spec.ts",
+            "cases": [
+              "accepts a closure without any resource reference",
+              "rejects malformed and reversed entity dates and the first span beyond the supported limit",
+              "requires complete ordinary rows and rejects references outside the account"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "server/src/writePipeline.test.ts",
+        "guarantee": "Internal client adoption/replacement remains transactional and protected.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/company_batches.spec.ts",
+            "cases": [
+              "creates one canonical Internal client beside a new company",
+              "atomically adopts a legacy Internal id without losing its projects"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      }
+    ],
+    "additional_contracts": [
+      {
+        "source_path": "server/src/db.accountStore.test.ts",
+        "scope": "M1 read/redaction cases stay in m1_port_evidence; M2a write subset is lifecycle writes, validation lookup, scrub, and purge. Full account-slice replacement belongs to the M2b import path.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/batch_core.spec.ts",
+            "cases": [
+              "soft-deleting a resource obfuscates it and scrubs private dependent notes",
+              "purges an aged tombstone and advances surviving unbound revisions"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/validation.spec.ts",
+            "cases": [
+              "keeps external resources at zero capacity, rejects their time off, and forbids changing resource kind",
+              "requires complete ordinary rows and rejects references outside the account",
+              "enforces placeholder binding and the company/resource availability intersection"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/unit/batch/projection.spec.ts",
+            "cases": ["keeps indexed relationship lookups correct after child updates and removals"]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/lifecycle_contract.spec.ts",
+            "cases": [
+              "archives only its target and preserves unrelated tombstones and time-off notes",
+              "purges a client cascade and audits only privacy-safe per-table counts"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/policies_crud.spec.ts",
+            "cases": [
+              "writes one lifecycle product row without rewriting tenant siblings",
+              "keeps indexed mutation predicates scoped to the requested company"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": [
+          {
+            "milestone": "M2b",
+            "package": "apps/backend",
+            "reason": "replaceAccountSlice full-tenant replacement and reinsertion-failure rollback are used by import/replacement flows, outside batch entity writes."
+          }
+        ]
+      },
+      {
+        "source_path": "server/src/db.writeAtomicity.test.ts",
+        "scope": "Single-row entity insert and upsert each roll back when the mandatory SQL audit write fails; the `_meta.initialized` marker was implementation-specific to the legacy synchronous database and is retired by the native migrated database. Nested savepoint rollback is separately proven by transaction_faults.",
+        "targets": [
+          {
+            "path": "apps/backend/tests/functional/batch/transaction_faults.spec.ts",
+            "cases": ["rolls back a nested savepoint without rolling back the outer transaction"]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/batch_core.spec.ts",
+            "cases": [
+              "rolls back preceding writes and their audit row when a later operation fails"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/sql_failures.spec.ts",
+            "cases": [
+              "rolls back a single inserted row when its required audit write fails",
+              "rolls back a single upsert update when its required audit write fails"
+            ]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      },
+      {
+        "source_path": "packages/shared/src/data/strictJson.test.ts",
+        "scope": "remains shared; strict JSON is validated at its pure parser boundary and at the M2a batch HTTP boundary.",
+        "targets": [
+          {
+            "path": "packages/shared/src/data/strictJson.test.ts",
+            "cases": [
+              "accepts the maximum depth and safe integer boundary",
+              "rejects deeper documents, duplicate decoded names, and unsafe numbers"
+            ]
+          },
+          {
+            "path": "apps/backend/tests/functional/batch/input_contract.spec.ts",
+            "cases": ["rejects ambiguous and malformed JSON before a batch write"]
+          }
+        ],
+        "uncovered_guarantees": [],
+        "later_splits": []
+      }
+    ],
+    "native_batch_client": {
+      "source": "apps/frontend/src/data/sync/batchWire.ts",
+      "test": "apps/frontend/src/data/sync/batchWire.test.ts",
+      "case": "dispatches the exact prepared body once with ordering headers and automatic XSRF",
+      "route": "POST /api/batch",
+      "contract": "Tuyau api.batch; method PUT/DELETE/ARCHIVE; PUT carries row; optional M1 wire values remain unchanged until M2b."
+    },
+    "e2e_write_rebindings": [
+      {
+        "legacy_source": "e2e/person-schedule.auth.spec.ts:29",
+        "path": "e2e/person-schedule.auth.spec.ts",
+        "expected_batch_calls": 1,
+        "target": "POST /api/batch",
+        "implementation_source": "e2e/person-schedule.auth.spec.ts",
+        "status": "implemented-in-M2a"
+      },
+      {
+        "legacy_source": "e2e/company-closures.auth.spec.ts:32",
+        "path": "e2e/company-closures.auth.spec.ts",
+        "expected_batch_calls": 1,
+        "target": "POST /api/batch",
+        "implementation_source": "e2e/company-closures.auth.spec.ts",
+        "status": "implemented-in-M2a"
+      },
+      {
+        "legacy_source": "e2e/private-name-permissions.auth.spec.ts:93,107",
+        "path": "e2e/private-name-permissions.auth.spec.ts",
+        "expected_batch_calls": 2,
+        "target": "POST /api/batch",
+        "implementation_source": "e2e/private-name-permissions.auth.spec.ts",
+        "status": "implemented-in-M2a"
+      },
+      {
+        "legacy_source": "e2e/viewer.auth.spec.ts:38,59,72",
+        "path": "e2e/viewer.auth.spec.ts",
+        "expected_batch_calls": 3,
+        "target": "POST /api/batch",
+        "implementation_source": "e2e/viewer.auth.spec.ts",
+        "status": "implemented-in-M2a"
+      }
+    ],
+    "legacy_caller_identity_sha256": "850614ed8a6023b5601fa7a99143789ed761cf6fee4eef5ad00213ae189ae37f"
   }
 }

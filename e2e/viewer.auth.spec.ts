@@ -35,20 +35,30 @@ async function signInAndOpen(page: import("@playwright/test").Page, email: strin
 
 async function assertViewerWriteRejected(request: APIRequestContext, accountId: string, cookie: string) {
   const newClientId = `new-client-${STAMP}`;
-  const directWrite = await request.put(`${API}/api/clients/${newClientId}`, {
+  const directWrite = await request.post(`${API}/api/batch`, {
     headers: { cookie, "content-type": "application/json" },
     data: {
-      id: newClientId,
-      accountId,
-      name: "Should be rejected",
-      color: "#76a5e7",
-      createdAt: "2026-01-01T00:00:00.000Z",
-      updatedAt: "2026-01-01T00:00:00.000Z",
+      ops: [
+        {
+          method: "PUT",
+          table: "clients",
+          id: newClientId,
+          row: {
+            id: newClientId,
+            accountId,
+            name: "Should be rejected",
+            color: "#76a5e7",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          },
+        },
+      ],
     },
   });
   expect(directWrite.status()).toBe(403);
 }
 
+/* eslint-disable max-lines-per-function -- authenticated data setup keeps its batch assertions together. */
 async function seedViewerScenario(request: APIRequestContext) {
   const owner = await signUp(OWNER);
   const viewer = await signUp(VIEWER);
@@ -56,35 +66,53 @@ async function seedViewerScenario(request: APIRequestContext) {
   const accountId = await bootstrapOrg(request, owner.cookie, `Viewer Studio ${STAMP}`);
   const seededAt = new Date().toISOString();
   const clientId = `viewer-client-${STAMP}`;
-  const clientWrite = await request.put(`${API}/api/clients/${clientId}`, {
+  const clientWrite = await request.post(`${API}/api/batch`, {
     headers: { cookie: owner.cookie, "content-type": "application/json" },
     data: {
-      id: clientId,
-      accountId,
-      name: "Viewer-visible client",
-      color: "#76a5e7",
-      createdAt: seededAt,
-      updatedAt: seededAt,
+      ops: [
+        {
+          method: "PUT",
+          table: "clients",
+          id: clientId,
+          row: {
+            id: clientId,
+            accountId,
+            name: "Viewer-visible client",
+            color: "#76a5e7",
+            createdAt: seededAt,
+            updatedAt: seededAt,
+          },
+        },
+      ],
     },
   });
   expect(clientWrite.status()).toBe(200);
   const resourceId = `viewer-resource-${STAMP}`;
-  const resourceWrite = await request.put(`${API}/api/resources/${resourceId}`, {
+  const resourceWrite = await request.post(`${API}/api/batch`, {
     headers: { cookie: owner.cookie, "content-type": "application/json" },
     data: {
-      id: resourceId,
-      accountId,
-      kind: "person",
-      name: "Viewer-visible person",
-      avatarUrl: VIEWER_AVATAR_URL,
-      role: "Designer",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      color: "#76a5e7",
-      createdAt: seededAt,
-      updatedAt: seededAt,
+      ops: [
+        {
+          method: "PUT",
+          table: "resources",
+          id: resourceId,
+          row: {
+            id: resourceId,
+            accountId,
+            kind: "person",
+            name: "Viewer-visible person",
+            avatarUrl: VIEWER_AVATAR_URL,
+            role: "Designer",
+            employmentType: "permanent",
+            engagement: "studio" as const,
+            workingHoursPerDay: 8,
+            workingDays: [1, 2, 3, 4, 5],
+            color: "#76a5e7",
+            createdAt: seededAt,
+            updatedAt: seededAt,
+          },
+        },
+      ],
     },
   });
   expect(resourceWrite.status()).toBe(200);
@@ -97,6 +125,7 @@ async function seedViewerScenario(request: APIRequestContext) {
   await assertViewerWriteRejected(request, accountId, viewer.cookie);
   return { resourceId };
 }
+/* eslint-enable max-lines-per-function */
 
 // This end-to-end permission contrast intentionally keeps both roles in one session.
 /* eslint-disable max-lines-per-function -- one journey contrasts viewer and editor permissions. */

@@ -23,7 +23,10 @@
     "jsx": "react-jsx",
 
     // paths resolve relative to this config in bundler mode; baseUrl is deprecated in TypeScript 6.
-    "paths": { "@/*": ["./src/*"] },
+    "paths": {
+      "@/*": ["./src/*"],
+      "@capacitylens/backend/registry": ["../backend/.adonisjs/client/registry/index.ts"]
+    },
 
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -44,5 +47,6 @@
     "src/serve-dist.test.ts",
     "src/test/docs-lightbox.test.ts",
     "src/test/privacy-posture.test.ts"
-  ]
+  ],
+  "references": [{ "path": "../backend/tsconfig.client.json" }]
 }

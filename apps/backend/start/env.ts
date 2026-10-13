@@ -1,7 +1,80 @@
 import { Env } from '@adonisjs/core/env'
 const optional = Env.schema.string.optional()
 const optionalBoolean = Env.schema.boolean.optional()
-export default await Env.create(new URL('../', import.meta.url), {
+type StringValidator = ReturnType<typeof Env.schema.string>
+type NumberValidator = ReturnType<typeof Env.schema.number>
+type SecretValidator = ReturnType<typeof Env.schema.secret>
+type OptionalStringValidator = ReturnType<typeof Env.schema.string.optional>
+type OptionalBooleanValidator = ReturnType<typeof Env.schema.boolean.optional>
+type EnumValidator<Value extends string> = ReturnType<typeof Env.schema.enum<Value>>
+
+type OptionalStringKey =
+  | 'CAPACITYLENS_API'
+  | 'CAPACITYLENS_APPLICATION_ID'
+  | 'CAPACITYLENS_AUDIT'
+  | 'CAPACITYLENS_AUDIT_FILE'
+  | 'CAPACITYLENS_AUDIT_MAX_MB'
+  | 'CAPACITYLENS_BACKUP_DIR'
+  | 'CAPACITYLENS_BACKUP_INTERVAL_MIN'
+  | 'CAPACITYLENS_BACKUP_KEEP'
+  | 'CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD'
+  | 'CAPACITYLENS_BOOTSTRAP_TOKEN'
+  | 'CAPACITYLENS_CORS_ORIGIN'
+  | 'CAPACITYLENS_DB'
+  | 'CAPACITYLENS_DEPLOYMENT_PROFILE'
+  | 'CAPACITYLENS_GOOGLE_CLIENT_ID'
+  | 'CAPACITYLENS_GOOGLE_CLIENT_SECRET'
+  | 'CAPACITYLENS_HOST'
+  | 'CAPACITYLENS_INVALID_JSON_BOUNDARY'
+  | 'CAPACITYLENS_LOG'
+  | 'CAPACITYLENS_MAIL_FROM'
+  | 'CAPACITYLENS_MAIL_HOST'
+  | 'CAPACITYLENS_MAIL_PASSWORD'
+  | 'CAPACITYLENS_MAIL_PORT'
+  | 'CAPACITYLENS_MAIL_USER'
+  | 'CAPACITYLENS_MALFORMED_CSP_REPORT'
+  | 'CAPACITYLENS_MICROSOFT_CLIENT_ID'
+  | 'CAPACITYLENS_MICROSOFT_CLIENT_SECRET'
+  | 'CAPACITYLENS_MICROSOFT_TENANT_ID'
+  | 'CAPACITYLENS_MODE'
+  | 'CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS'
+  | 'CAPACITYLENS_PUBLIC_URL'
+  | 'CAPACITYLENS_RATE_LIMIT'
+  | 'CAPACITYLENS_RATE_LIMITED'
+  | 'CAPACITYLENS_SECRET'
+  | 'CAPACITYLENS_SETUP_TOKEN'
+  | 'CAPACITYLENS_TEST_HTTP_PORT'
+  | 'CAPACITYLENS_WEB_DIR'
+
+type OptionalBooleanKey =
+  | 'CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION'
+  | 'CAPACITYLENS_ALLOW_OPEN_SIGNUP'
+  | 'CAPACITYLENS_ALLOW_RESET'
+  | 'CAPACITYLENS_AUDIT_STDOUT'
+  | 'CAPACITYLENS_CREATE_ADMIN_ADMIN'
+  | 'CAPACITYLENS_DEMO'
+  | 'CAPACITYLENS_HEALTH_DEEP'
+  | 'CAPACITYLENS_HTTPS'
+  | 'CAPACITYLENS_MIGRATION_READY'
+  | 'CAPACITYLENS_MULTI_ACCOUNT'
+  | 'CAPACITYLENS_PASSWORD_BREACH_CHECK'
+  | 'CAPACITYLENS_REQUIRE_MFA'
+  | 'CAPACITYLENS_SEED_DEMO'
+  | 'CAPACITYLENS_TRUST_PROXY_HEADERS'
+
+type CapacityLensEnvironmentSchema = {
+  NODE_ENV: EnumValidator<'development' | 'production' | 'test'>
+  PORT: NumberValidator
+  HOST: StringValidator
+  LOG_LEVEL: StringValidator
+  APP_KEY: SecretValidator
+  APP_URL: StringValidator
+  SESSION_DRIVER: EnumValidator<'cookie' | 'memory' | 'database'>
+} & { [Key in OptionalStringKey]: OptionalStringValidator } & {
+  [Key in OptionalBooleanKey]: OptionalBooleanValidator
+}
+
+const envSchema: CapacityLensEnvironmentSchema = {
   NODE_ENV: Env.schema.enum(['development', 'production', 'test'] as const),
   PORT: Env.schema.number(),
   HOST: Env.schema.string({ format: 'host' }),
@@ -59,4 +132,10 @@ export default await Env.create(new URL('../', import.meta.url), {
   CAPACITYLENS_TEST_HTTP_PORT: optional,
   CAPACITYLENS_TRUST_PROXY_HEADERS: optionalBoolean,
   CAPACITYLENS_WEB_DIR: optional,
-})
+}
+
+type CapacityLensEnvironment = Awaited<ReturnType<typeof Env.create<typeof envSchema>>>
+
+const env: CapacityLensEnvironment = await Env.create(new URL('../', import.meta.url), envSchema)
+
+export default env

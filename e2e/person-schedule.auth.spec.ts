@@ -26,9 +26,9 @@ async function putEntity(
   id: string,
   data: Record<string, unknown>,
 ) {
-  const response = await request.put(`${AUTH_API}/api/${entity}/${id}`, {
+  const response = await request.post(`${AUTH_API}/api/batch`, {
     headers: { cookie, "content-type": "application/json" },
-    data: { id, ...data },
+    data: { ops: [{ method: "PUT", table: entity, id, row: { id, ...data } }] },
   });
   expect(response.status(), `seed ${entity}/${id}`).toBe(200);
 }

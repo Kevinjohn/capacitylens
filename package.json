@@ -33,7 +33,7 @@
     "dev:demo": "node scripts/with-lane.mjs node scripts/run-preset.mjs dev-demo",
     "dev:access": "node scripts/dev-access-lab.mjs",
     "lanes": "node scripts/lanes.mjs",
-    "build": "pnpm --filter @capacitylens/shared build && pnpm --dir apps/frontend build && node scripts/sync-adonis-public.mjs && pnpm --dir apps/backend build && pnpm run bundle:check",
+    "build": "pnpm --filter @capacitylens/shared build && pnpm --dir apps/backend codegen && pnpm --dir apps/backend typecheck:client && pnpm --dir apps/frontend build && node scripts/sync-adonis-public.mjs && pnpm --dir apps/backend build && pnpm run bundle:check",
     "package:managed-release": "node scripts/package-managed-release.mjs",
     "package:managed-release:test": "node --test scripts/package-managed-release.test.mjs",
     "package:release-archive": "node scripts/package-managed-release.mjs --archive",

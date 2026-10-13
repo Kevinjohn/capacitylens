@@ -8,7 +8,6 @@ import { inspectLifecycleAncestry, isLifecycleEntityKey } from "@capacitylens/sh
 import type { LifecycleAncestryLookup, LifecycleAncestryRow } from "@capacitylens/shared/domain/lifecycle";
 import {
   assertActivityProjectAllowsDependents,
-  assertAllocationWithinResourceAvailability,
   assertAllocationRefs,
   assertDateRange,
   assertResourceExists,
@@ -17,6 +16,7 @@ import {
   validateResourceAvailabilityPair,
   assertScopedRefs,
 } from "@capacitylens/shared/domain/mutations";
+import { assertAllocationPlacement } from "@capacitylens/shared/domain/placement";
 import type { ValidationDataLookup } from "@capacitylens/shared/domain/mutations";
 import { APP_DATA_KEYS, isScopedEntityKey } from "@capacitylens/shared/types/entities";
 import type { Activity, Allocation, AppData, AppDataKey, Resource, TimeOff } from "@capacitylens/shared/types/entities";
@@ -249,24 +249,19 @@ function assertAllocationWrite(input: AssertValidWriteInput, accountId: string):
     lookup,
   );
   assertDateRange(startDate, endDate);
-  const placementChanged =
-    existing === undefined ||
-    existing.resourceId !== resourceId ||
-    existing.startDate !== startDate ||
-    existing.endDate !== endDate ||
-    (existing.ignoreWeekends === true) !== (row.ignoreWeekends === true);
-  if (!placementChanged) return;
   const resourceRow =
     lookup?.row("resources", resourceId) ?? state.resources.find((resource) => resource.id === resourceId);
   if (!resourceRow) return;
   const resource = parseResource(resourceRow as Record<string, unknown>);
   const accountWorkingDays = resolveAccountWorkingDays(state, accountId, lookup);
-  assertAllocationWithinResourceAvailability({
+  assertAllocationPlacement({
     allocation: {
+      resourceId,
       startDate,
       endDate,
       ...(row.ignoreWeekends === true ? { ignoreWeekends: true } : {}),
     },
+    existing: existing as Pick<Allocation, "resourceId" | "startDate" | "endDate" | "ignoreWeekends"> | undefined,
     resource,
     accountWorkingDays,
   });

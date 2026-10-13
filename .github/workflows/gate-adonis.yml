@@ -26,6 +26,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
         env:
+          NODE_ENV: production
+          CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1"
           HOST: 127.0.0.1
           PORT: "0"
           LOG_LEVEL: error
@@ -42,3 +44,5 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm run lanes --stop-orphans
       - run: pnpm exec playwright test --project=chromium
+      - run: pnpm run lanes --stop-orphans
+      - run: pnpm exec playwright test --project=db-backed e2e/persistence.db.spec.ts e2e/resilience.db.spec.ts

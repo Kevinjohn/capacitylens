@@ -192,6 +192,14 @@
     {
       "path": "server/src/accounts/adminPort/invitationClaims.ts",
       "purpose": "Domain-separated SHA-256 bearer indexing for account commands"
+    },
+    {
+      "path": "apps/backend/app/services/audit.ts",
+      "purpose": "Random non-secret audit row identifiers; the audit row commits in the same SQLite transaction as its product mutation"
+    },
+    {
+      "path": "apps/backend/app/services/batch/sync_ordering.ts",
+      "purpose": "Unkeyed SHA-256 of the stored row for same-browser successor provenance; seven-day retention, no authentication or bearer material"
     }
   ]
 }

@@ -1,8 +1,10 @@
 import { defineConfig } from '@adonisjs/auth'
-import type { Authenticators, InferAuthenticators, InferAuthEvents } from '@adonisjs/auth/types'
+import type { InferAuthenticators } from '@adonisjs/auth/types'
 import { trustedLocalGuard } from '#auth/guards/trusted_local'
 
-const authConfig = defineConfig({
+type TrustedLocalConfig = { trustedLocal: ReturnType<typeof trustedLocalGuard> }
+
+const authConfig: ReturnType<typeof defineConfig<TrustedLocalConfig>> = defineConfig({
   default: 'trustedLocal',
   guards: { trustedLocal: trustedLocalGuard() },
 })
@@ -13,5 +15,6 @@ declare module '@adonisjs/auth/types' {
   export interface Authenticators extends InferAuthenticators<typeof authConfig> {}
 }
 declare module '@adonisjs/core/types' {
-  interface EventsList extends InferAuthEvents<Authenticators> {}
+  // The trusted-local guard emits no auth events to add to the core event map.
+  interface EventsList {}
 }

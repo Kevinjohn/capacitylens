@@ -69,4 +69,19 @@ export async function assertSchemaIntegrity() {
     'capacitylens_member_resource_kind_cleanup',
     "CREATE TRIGGER capacitylens_member_resource_kind_cleanup AFTER UPDATE OF kind ON resources WHEN OLD.kind = 'person' AND NEW.kind <> 'person' BEGIN DELETE FROM account_member_resources WHERE account_id = OLD.account_id AND resource_id = OLD.id; END"
   )
+  for (const [table, columns] of [
+    ['capacitylens_sync_sessions', ['id', 'session_id', 'last_sequence', 'updated_at']],
+    [
+      'capacitylens_sync_row_provenance',
+      ['id', 'table_name', 'row_id', 'account_id', 'session_id', 'sequence', 'row_hash'],
+    ],
+  ] as const) {
+    const actual = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>
+    if (JSON.stringify(actual.map((column) => column.name)) !== JSON.stringify(columns))
+      throw new Error(`Database schema drift: ${table} columns differ from the baseline`)
+  }
+  await assertIndex('capacitylens_sync_sessions', 'session_id')
+  await assertIndex('capacitylens_sync_row_provenance', 'table_name')
+  await assertIndex('capacitylens_sync_row_provenance', 'session_id')
+  await assertIndex('capacitylens_sync_row_provenance', 'account_id')
 }

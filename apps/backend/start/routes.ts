@@ -6,6 +6,13 @@ import type { Account as AccountRow } from '@capacitylens/shared/types/entities'
 import { fileURLToPath } from 'node:url'
 import { healthChecks } from '#start/health'
 import { reportCspViolation } from '#services/csp_report'
+import { middleware } from '#start/kernel'
+
+const BatchController = () => import('#controllers/batch_controller')
+const LifecycleController = () => import('#controllers/lifecycle_controller')
+
+router.post('/api/batch', [BatchController, 'store']).use(middleware.bodyLimits()).as('api.batch')
+router.post('/api/:entity/:id/:action', [LifecycleController, 'mutate']).as('api.lifecycle')
 
 router.get('/api/health', () => ({ ok: true })).as('api.health')
 router.get('/health/live', () => ({ ok: true }))
@@ -29,7 +36,7 @@ router.get('/api/diagnostics', async ({ response }) => {
     return {
       server: {
         connectivity: 'ok',
-        database: { status: 'ok', schemaVersion: 1 },
+        database: { status: 'ok', schemaVersion: 2 },
         persistence: 'unknown',
         backup: { status: 'unavailable', lastSuccessAt: null },
       },
