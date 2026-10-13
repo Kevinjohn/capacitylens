@@ -1,6 +1,7 @@
 import type { ApplicationService } from '@adonisjs/core/types'
 import env from '#start/env'
 import db from '@adonisjs/lucid/services/db'
+import { assertReleasedMigrations } from '#services/released_migrations'
 import { assertSchemaIntegrity } from '#services/schema_integrity'
 
 export function assertM1AuthenticationMode(mode: string | undefined) {
@@ -68,11 +69,21 @@ export default class ConfigurationProvider {
     }
   }
 
-  async ready() {
+  async start() {
+    // Code generation warms a web app without serving requests or closing database pools.
+    if (this.app.getMode() === 'warmup') return
+    const environment = this.app.getEnvironment()
+    const migrations = await assertReleasedMigrations({ allowPending: environment !== 'web' })
+    const command =
+      environment === 'console'
+        ? process.argv.slice(2).find((argument) => !argument.startsWith('-'))
+        : undefined
+    if (command === 'app:upgrade' || command === 'db:backup' || command?.startsWith('migration:'))
+      return
     const rows = await db
       .from('sqlite_master')
       .where({ type: 'table', name: 'accounts' })
       .select('name')
-    if (rows.length > 0) await assertSchemaIntegrity()
+    if (migrations.pending === 0 || rows.length > 0) await assertSchemaIntegrity()
   }
 }

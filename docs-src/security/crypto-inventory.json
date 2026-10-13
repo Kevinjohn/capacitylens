@@ -212,6 +212,14 @@
     {
       "path": "apps/backend/app/controllers/getting_started_controller.ts",
       "purpose": "Random non-secret surrogate identifiers for company getting-started dismissal records"
+    },
+    {
+      "path": "apps/backend/app/services/released_migrations.ts",
+      "purpose": "Unkeyed SHA-256 verification of released migration executable bytes against the local source or production build manifest"
+    },
+    {
+      "path": "apps/backend/hooks/released_migrations.ts",
+      "purpose": "Unkeyed SHA-256 verification of immutable migration sources and generation of checksums for their compiled production executables"
     }
   ]
 }
