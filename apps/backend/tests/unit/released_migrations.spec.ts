@@ -1,4 +1,6 @@
 import { test } from '@japa/runner'
+import { sourceFiles } from '@adonisjs/lucid/utils'
+import { pathToFileURL } from 'node:url'
 import { createHash } from 'node:crypto'
 import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -22,6 +24,28 @@ test('released manifest rejects malformed or duplicate migration pins', ({ asser
     /Invalid/
   )
   assert.throws(() => parseManifest({ version: 1, migrations: [], extra: true }), /Invalid/)
+})
+
+test('released manifest accepts the native timestamp order after the existing baseline', async ({
+  assert,
+}) => {
+  const migrations = [
+    { name: 'database/migrations/202610120001_baseline', sha256: digest('baseline') },
+    { name: 'database/migrations/1791999999999_create_next_table', sha256: digest('next') },
+  ]
+  const root = await mkdtemp(join(tmpdir(), 'capacitylens-native-order-'))
+  try {
+    await mkdir(join(root, 'database/migrations'), { recursive: true })
+    for (const { name } of migrations) await writeFile(join(root, `${name}.ts`), '')
+    const discovered = await sourceFiles(pathToFileURL(`${root}/`), 'database/migrations', true)
+    assert.deepEqual(
+      discovered.files.map(({ name }) => name),
+      migrations.map(({ name }) => name)
+    )
+    assert.deepEqual(parseManifest({ version: 1, migrations }), migrations)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
 })
 
 test('released journal accepts only a known prefix with valid batches', ({ assert }) => {

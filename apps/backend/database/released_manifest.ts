@@ -17,7 +17,7 @@ export function parseManifest(value: unknown): ReleasedMigration[] {
 
   const entries = (value as { migrations: unknown[] }).migrations
   if (!entries.length) throw new Error('Released migration manifest is empty')
-  let previous = ''
+  const names = new Set<string>()
   for (const entry of entries) {
     if (
       typeof entry !== 'object' ||
@@ -30,12 +30,12 @@ export function parseManifest(value: unknown): ReleasedMigration[] {
     if (
       typeof name !== 'string' ||
       !/^database\/migrations\/[a-zA-Z0-9_]+$/.test(name) ||
-      name <= previous ||
+      names.has(name) ||
       typeof sha256 !== 'string' ||
       !/^[0-9a-f]{64}$/.test(sha256)
     )
       throw new Error('Invalid released migration manifest entry')
-    previous = name
+    names.add(name)
   }
   return entries as ReleasedMigration[]
 }
