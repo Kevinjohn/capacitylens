@@ -291,7 +291,7 @@ test("adds the operator files, the exact version to the guide and the source rev
   assert.match(guide, /current backend uses open local access/);
 });
 
-test("ships an environment example with explicit current production posture", async () => {
+test("ships an environment example that refuses open production access by default", async () => {
   const example = await readFile(join(repositoryRoot, "packaging", "release", "capacitylens.env.example"), "utf8");
   const settings = example.split("\n").filter((line) => line !== "" && !line.startsWith("#"));
   assert.deepEqual(settings, [
@@ -303,7 +303,7 @@ test("ships an environment example with explicit current production posture", as
     "APP_KEY=",
     "SESSION_DRIVER=cookie",
     "CAPACITYLENS_MODE=off",
-    "CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1",
+    "CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=0",
     "CAPACITYLENS_AUDIT=on",
     "CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db",
     "CAPACITYLENS_BACKUP_DIR=/var/lib/capacitylens/backups",

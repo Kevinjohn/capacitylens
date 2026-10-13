@@ -6,7 +6,9 @@ SQLite addon for the host architecture on which it was packaged. Use Node 24.19.
 
 The current backend uses open local access. Until the account kit is integrated, put it behind a
 trusted access boundary and set `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1` deliberately. The archive
-does not contain the older password and company-provider setup commands.
+does not contain the older password and company-provider setup commands. The environment example
+disables this opt-in, so the production service refuses to start until you enable it. HTTPS alone
+does not restrict access; the supplied Caddy and nginx examples do not authenticate visitors.
 
 On a fresh Linux systemd host, create the service user and persistent data directories before
 starting the application. Keep the database and backups outside the release so they survive
@@ -26,7 +28,8 @@ sudoedit /etc/capacitylens.env
 
 In the editor, paste the generated `APP_KEY` and set `APP_URL` to your HTTPS address. The sample
 binds the backend to loopback port 8787; put HTTPS in front with the supplied Caddy or nginx
-example. The environment file stays root-only. Run the upgrade as `capacitylens` through systemd,
+example. Before enabling `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1`, restrict access to trusted
+users through your access boundary. The environment file stays root-only. Run the upgrade as `capacitylens` through systemd,
 which reads that file and gives the service user access to its settings without giving it read
 access to the file. The command checks the released migration manifest and takes a verified
 pre-upgrade snapshot when migrations are pending on an existing database.
