@@ -11,7 +11,11 @@ function main() {
     for (const args of gateCommands(mode)) {
       const label = `gate (${mode}): pnpm ${args.join(" ")}`;
       console.log(label);
-      const result = spawnPnpmSync(args, { cwd: root, stdio: "inherit" });
+      const env =
+        args[0] === "run" && args[1] === "build"
+          ? { ...process.env, NODE_ENV: "production", CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1" }
+          : process.env;
+      const result = spawnPnpmSync(args, { cwd: root, stdio: "inherit", env });
       const status = reportSpawnFailureAndResolveExitStatus(label, result);
       if (status !== 0) {
         process.exitCode = status;

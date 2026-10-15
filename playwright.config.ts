@@ -96,6 +96,8 @@ export default defineConfig({
           {
             name: "auth-backed",
             testMatch: flavourSpec("auth"),
+            // Microsoft sign-in is deferred; its removed verification route is outside current acceptance.
+            testIgnore: "**/microsoft-verification.auth.spec.ts",
             // All contexts share one loopback IP and its sign-in budget; overlapping login attempts
             // can exhaust the real limiter before successful authentication resets the budget.
             workers: 1,

@@ -167,3 +167,14 @@ test("runtime boundary checks follow the server bundle build in server and all g
     assert.deepEqual(commands[build + 1], ["run", "policy:node-runtime:test"]);
   }
 });
+
+test("only the root production build receives production settings while tests retain their environment", (t) => {
+  const fake = fixture(t);
+  const result = fake.run(["app"], { NODE_ENV: "test", CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "0" });
+  assert.equal(result.status, 0, result.stderr);
+  for (const entry of fake.entries()) {
+    const build = entry.args[0] === "run" && entry.args[1] === "build";
+    assert.equal(entry.nodeEnv, build ? "production" : "test", entry.args.join(" "));
+    assert.equal(entry.allowOpen, build ? "1" : "0", entry.args.join(" "));
+  }
+});

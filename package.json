@@ -88,7 +88,7 @@
     "policy:build-tsconfig:test": "node --test scripts/check-build-tsconfig.test.mjs",
     "policy:script-environments:test": "node --test scripts/check-script-environments.test.mjs",
     "policy:packaged-smoke:test": "node --test scripts/smoke-packaged-server.test.mjs",
-    "policy:node-runtime:test": "node --test scripts/check-node-runtime.test.mjs",
+    "policy:node-runtime:test": "node --test scripts/check-node-runtime.test.mjs scripts/check-node26.test.mjs",
     "policy:lint-coverage:test": "node --test scripts/check-lint-coverage.test.mjs"
   },
   "lint-staged": {

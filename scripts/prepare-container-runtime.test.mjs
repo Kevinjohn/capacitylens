@@ -32,6 +32,7 @@ test("Compose upgrades before API startup and preserves the private persistent d
   const { default: YAML } = await import("yaml");
   const compose = YAML.parse(await readFile(new URL("../docker-compose.yml", import.meta.url), "utf8"));
   assert.equal(compose.name, "capacitylens");
+  assert.deepEqual(compose.services.upgrade.tmpfs, ["/tmp:size=32m,mode=1777"]);
   assert.deepEqual(compose.services.upgrade.command, ["node", "ace.js", "app:upgrade"]);
   assert.equal(compose.services.api.depends_on.upgrade.condition, "service_completed_successfully");
   assert.deepEqual(compose.services.upgrade.environment, compose.services.api.environment);
