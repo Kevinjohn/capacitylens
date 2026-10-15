@@ -6,6 +6,8 @@ import { can, canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared
 import type { Role } from '@capacitylens/shared/account/types'
 import { authMode } from '#services/auth/mode'
 import { resolveCurrentActor } from '#services/auth/session_authority'
+import { restrictedCompanyIds } from '#services/auth/authorization'
+import { effectiveReadPrincipal } from '#services/auth/masquerade'
 
 export interface BatchCapabilities {
   role: 'owner' | 'admin' | 'editor' | 'viewer'
@@ -66,17 +68,21 @@ export async function dataContextForActor(
       logCommitted
     )
   const actor = await resolveCurrentActor(ctx, trx)
+  const principal = await effectiveReadPrincipal(ctx, trx)
   const rows = await trx
     .from('memberships')
-    .where({ user_id: actor.userId, status: 'active' })
+    .where({ user_id: principal.effectiveId, status: 'active' })
     .select('account_id', 'role')
+  const restricted = await restrictedCompanyIds(principal.effectiveId, trx)
   const roles = new Map<string, Role>()
   for (const row of rows) {
     if (
-      row.role === 'owner' ||
-      row.role === 'admin' ||
-      row.role === 'editor' ||
-      row.role === 'viewer'
+      !restricted.has(String(row.account_id)) &&
+      (principal.accountId === null || principal.accountId === String(row.account_id)) &&
+      (row.role === 'owner' ||
+        row.role === 'admin' ||
+        row.role === 'editor' ||
+        row.role === 'viewer')
     )
       roles.set(String(row.account_id), row.role)
   }

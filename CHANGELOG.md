@@ -16,6 +16,13 @@ new features and **patch** versions carry fixes.
 - The AdonisJS fork uses native password sign-in and fixed-lifetime sessions, with credential
   changes, audit and session revocation committed together.
 
+- Reusing a one-time invitation command returns a conflict instead of replaying its bearer link;
+  refresh the invitation list and replace the link if the original response was lost.
+
+- Ownership transfers now take effect when the Owner confirms a handover to an active, unrestricted
+  Admin. The selected Admin becomes Owner and the caller becomes Admin; the nominee does not
+  separately consent.
+
 - Body text, buttons, fields and menus use 13px type instead of 14px, for a denser desktop
   layout. Line heights and control sizes are unchanged.
 - Ordinary edits reject invalid supplied values instead of silently repairing them; imports retain

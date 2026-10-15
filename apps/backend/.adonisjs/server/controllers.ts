@@ -12,5 +12,11 @@ export const controllers = {
   Exports: () => import('#controllers/exports_controller'),
   GettingStarted: () => import('#controllers/getting_started_controller'),
   Imports: () => import('#controllers/imports_controller'),
+  Invitations: () => import('#controllers/invitations_controller'),
+  Joining: () => import('#controllers/joining_controller'),
   Lifecycle: () => import('#controllers/lifecycle_controller'),
+  Masquerade: () => import('#controllers/masquerade_controller'),
+  MemberResources: () => import('#controllers/member_resources_controller'),
+  Members: () => import('#controllers/members_controller'),
+  Ownership: () => import('#controllers/ownership_controller'),
 }

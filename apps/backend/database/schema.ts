@@ -488,7 +488,7 @@ export class InvitationSchema extends BaseModel {
 }
 
 export class MasqueradeSchema extends BaseModel {
-  static $columns = ['accountId', 'actorUserId', 'createdAt', 'id', 'role', 'sessionId', 'updatedAt'] as const
+  static $columns = ['accountId', 'actorUserId', 'createdAt', 'id', 'role', 'sessionId', 'startedAt', 'targetUserId', 'token', 'updatedAt'] as const
   $columns = MasqueradeSchema.$columns
   @column()
   declare accountId: string
@@ -502,6 +502,12 @@ export class MasqueradeSchema extends BaseModel {
   declare role: import('@capacitylens/shared/account/types').Role
   @column()
   declare sessionId: string
+  @column()
+  declare startedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  @column()
+  declare targetUserId: string | null
+  @column()
+  declare token: string | null
   @column()
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }

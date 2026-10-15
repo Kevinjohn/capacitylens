@@ -32,6 +32,7 @@ if (flavour === 'auth') {
     CAPACITYLENS_CREATE_ADMIN_ADMIN: '1',
     // Keep these fixtures aligned with e2e/authTestSupport.ts.
     CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: 'auth-e2e-password-2026',
+    CAPACITYLENS_BOOTSTRAP_TOKEN: 'auth-e2e-bootstrap-token-0123456789abcdef',
     CAPACITYLENS_PASSWORD_BREACH_CHECK: 'false',
     CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
     CAPACITYLENS_MULTI_ACCOUNT: '1',

@@ -54,10 +54,9 @@ schedule. Freelancers and contractors can be scheduled without ever getting a si
 
 ## Hand the company to someone else
 
-Ownership moves in three steps: the Owner nominates an active Admin, the Admin agrees, and the
-Owner confirms. Nothing changes until all three happen.
-[Transfer ownership](/owner/responsibilities#transfer-ownership) has the procedure and recovery
-steps.
+Only the Owner can transfer ownership. Choose an active, unrestricted Admin and confirm **Transfer
+ownership**. The selected Admin becomes Owner and you become Admin immediately; they do not need to
+agree separately. See [Transfer ownership](/owner/responsibilities#transfer-ownership).
 
 ## Take a role-based tour
 
@@ -87,13 +86,13 @@ An Owner or Admin can see what another active member sees without changing their
 access**, select the eye button on the member's row and confirm. A red bar reading **Masquerading as
 _name_** stays visible throughout.
 
-You see the company with that member's role and redactions, but you cannot change anything; the
-server blocks every change. It never applies to another company. An Admin who views the company as
-the Owner sees what the Owner sees, including real names.
+You can read the company using that member's role and redactions, but you cannot change data. The
+server refuses every write and every company, membership, or authentication route while this view is
+active, except **End now** and sign out. It never applies to another company. An Admin who views the
+company as the Owner sees what the Owner sees, including real names.
 
-Select **End now** to return to your own view. Switching company, signing out, a revoked or expired
-session, a disabled membership on either side, or a server restart also ends it. The server keeps a
-record of when it starts and ends.
+Select **End now** to return to your own view. Signing out also ends it. Switching company ends the
+view before changing company. The server records when a view starts and ends.
 
 ## Check what exports and offline snapshots contain
 

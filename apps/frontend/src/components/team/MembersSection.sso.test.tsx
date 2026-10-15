@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthContext } from "@/auth/authContext";
@@ -6,6 +6,7 @@ import { setOfflineReadState } from "@/data/offlineCache";
 import { resetStoreWithAccount } from "@/test/fixtures";
 import { MembersSection } from "./MembersSection";
 import { authValue, mockApi } from "./MembersSection.testSupport";
+import { renderWithQueryClient as render } from "@/test/renderWithQueryClient";
 
 vi.mock("@/data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfigured: () => true }));
 

@@ -1,10 +1,13 @@
 import { StrictMode } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
 // Import vendor tour CSS before app styles so equal-specificity theme overrides win.
 import "driver.js/dist/driver.css";
 import "./index.css";
 import { router } from "./router";
+import { QueryCacheLifecycle } from "./api/QueryCacheLifecycle";
+import { queryClient } from "./api/queryClient";
 import { AuthProvider } from "./auth/AuthProvider";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { useStore } from "./store/useStore";
@@ -33,8 +36,20 @@ let moduleDisposed = false;
 function startPersistence(identitySource: "live" | "offline" | "open"): void {
   if (persistenceStarted) return;
   persistenceStarted = true;
+  const masquerade = useStore.getState().masquerade;
+  const activeMasquerade = masquerade.kind !== "inactive" ? masquerade.state : undefined;
+  let bootstrapProjectionOptions: {
+    initialLoad?: "empty";
+    initialAccountId?: string;
+    skipExistingCheck?: boolean;
+  } = {};
+  if (activeMasquerade && isServerConfigured()) {
+    bootstrapProjectionOptions = { initialAccountId: activeMasquerade.accountId, skipExistingCheck: true };
+  } else if (identitySource === "live" && isServerConfigured()) {
+    bootstrapProjectionOptions = { initialLoad: "empty" };
+  }
   void bootstrap(useStore, persistenceAdapter, {
-    ...(identitySource === "live" && isServerConfigured() ? { initialLoad: "empty" as const } : {}),
+    ...bootstrapProjectionOptions,
     // Seed only the memory-only demo build. Server-backed instances load their own data
     // and begin at company creation when empty.
     ...(isDemoMode() ? { seedIfEmpty: seedForCurrentWeek() } : {}),
@@ -77,12 +92,15 @@ function startPersistence(identitySource: "live" | "offline" | "open"): void {
 const reactRoot = createRoot(rootEl);
 reactRoot.render(
   <StrictMode>
-    <ErrorBoundary>
-      {/* AuthProvider gates the router so an expired authenticated session also hides the picker. */}
-      <AuthProvider onTenantAccessReady={startPersistence}>
-        <RouterProvider router={router} />
-      </AuthProvider>
-    </ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <ErrorBoundary>
+        {/* AuthProvider gates the router so an expired authenticated session also hides the picker. */}
+        <AuthProvider onTenantAccessReady={startPersistence}>
+          <QueryCacheLifecycle />
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </ErrorBoundary>
+    </QueryClientProvider>
   </StrictMode>,
 );
 

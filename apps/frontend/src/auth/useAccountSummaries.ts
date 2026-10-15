@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { isServerConfigured } from "@/data/apiConfig";
 import { useStore } from "@/store/useStore";
 import type { AccountSummary } from "@/store/useStore";
@@ -8,6 +9,8 @@ import { cacheAccountSummaries, readCachedAccountSummaries, setOfflineReadState 
 import { isTransportFailure } from "@/data/requestTimeout";
 import { hasDuplicateIdentity } from "@/lib/hasDuplicateIdentity";
 import { m } from "@/i18n";
+import { useAuth } from "./authContext";
+import { api, scopeQueryKey } from "@/api/queryClient";
 
 // The picker needs the server directory before a tenant is selected because the loaded tenant slice cannot enumerate other companies. Demo mode derives its directory from local accounts.
 
@@ -211,21 +214,32 @@ export function useAccountSummaries({
   // Re-key the server request owner on the active account so a switch / sign-in re-pulls the list
   // (a freshly accepted invite or a just-created org then appears). Harmless in the demo build.
   const activeAccountId = useStore((state) => state.activeAccountId);
+  const masqueradeActive = useStore((state) => state.masquerade.kind !== "inactive");
   const membershipRevision = useStore((state) => state.membershipRevision);
+  const masqueradeGeneration = useStore((state) =>
+    state.masquerade.kind === "inactive" ? 0 : state.masquerade.generation,
+  );
+  const { user } = useAuth();
+  const accountRouteKey = api.api.accounts.index.queryKey({});
+  useQuery<AccountSummary[] | null>({
+    queryKey: scopeQueryKey({ principalId: user?.id ?? null, accountId: activeAccountId, masqueradeGeneration }, [
+      "account-summaries",
+      membershipRevision,
+      ...accountRouteKey,
+    ]),
+    enabled: serverMode && !masqueradeActive && (activeAccountId === null || refreshActiveAccount),
+    // Keep refresh triggers aligned with the existing effect dependencies; focus alone must not
+    // silently change the picker or its offline-read marker.
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+    queryFn: ({ signal }) =>
+      refreshAccountSummaries({
+        signal,
+        acceptEffects: () => !signal.aborted,
+      }),
+  });
   // Demo accounts are the complete local directory; server account rows hold only the hydrated tenant and cannot drive the picker.
   const localAccounts = useStore((state) => state.data.accounts);
-
-  useEffect(() => {
-    if (!serverMode) return;
-    if (activeAccountId !== null && !refreshActiveAccount) return;
-    let cancelled = false;
-    void (async () => {
-      await refreshAccountSummaries({ acceptEffects: () => !cancelled });
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [serverMode, activeAccountId, membershipRevision, refreshActiveAccount]);
 
   useEffect(() => {
     if (serverMode) return;

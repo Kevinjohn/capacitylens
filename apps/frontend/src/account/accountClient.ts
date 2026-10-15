@@ -16,6 +16,7 @@ import {
   resourceAvatarsUrl,
   setMemberResourceLink,
 } from "./memberResourceClient";
+import { apiRouteUrl } from "@/api/queryClient";
 
 interface ChangeMemberRoleInput {
   workspaceId: string;
@@ -24,23 +25,9 @@ interface ChangeMemberRoleInput {
   command?: BrowserAccountCommand | undefined;
 }
 
-/** The four steps that move an existing request, plus the cancellation that ends it. */
-export type OwnershipTransferStep = "accept" | "withdraw" | "decline" | "complete" | "cancel";
-
-interface InitiateOwnershipTransferInput {
+interface TransferOwnershipInput {
   workspaceId: string;
   targetPrincipalId: string;
-  /** The live request this nomination replaces, at the revision it was read at. Omitted when the
-   * caller believes there is none; the server refuses either belief if it is wrong. */
-  replaces?: { requestId: string; revision: string } | undefined;
-  command?: BrowserAccountCommand | undefined;
-}
-
-interface OwnershipTransferCommandInput {
-  workspaceId: string;
-  requestId: string;
-  step: OwnershipTransferStep;
-  expectedRevision: string;
   command?: BrowserAccountCommand | undefined;
 }
 
@@ -63,10 +50,10 @@ type SetMemberSignInTrackingOptions = { workspaceId: string; enabled: boolean };
 /** Provides typed request methods for account and membership endpoints. */
 export const accountClient = {
   me(signal?: AbortSignal): Promise<Response> {
-    return apiFetch(`${API_BASE}/api/auth/me`, { credentials: "include", ...(signal ? { signal } : {}) });
+    return apiFetch(apiRouteUrl("api.auth.me", {}), { credentials: "include", ...(signal ? { signal } : {}) });
   },
   listWorkspaces(signal?: AbortSignal): Promise<Response> {
-    return apiFetch(`${API_BASE}/api/accounts`, { credentials: "include", ...(signal ? { signal } : {}) });
+    return apiFetch(apiRouteUrl("api.accounts.index", {}), { credentials: "include", ...(signal ? { signal } : {}) });
   },
   diagnostics(signal?: AbortSignal): Promise<Response> {
     return apiFetch(`${API_BASE}/api/diagnostics`, { credentials: "include", ...(signal ? { signal } : {}) });
@@ -109,13 +96,14 @@ export const accountClient = {
     return runCommand({
       operationKey: await buildPayloadOperationKey("workspace-create", body),
       explicit: command,
-      request: (resolved) => apiFetch(`${API_BASE}/api/orgs`, buildJsonCommandRequestInit("POST", body, resolved)),
+      request: (resolved) =>
+        apiFetch(apiRouteUrl("api.orgs.store", {}), buildJsonCommandRequestInit("POST", body, resolved)),
     });
   },
 
   /** Add the small example company to an empty company. Not idempotent: a second call is refused. */
   addExampleData(workspaceId: string): Promise<Response> {
-    return apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/example-data`, {
+    return apiFetch(apiRouteUrl("api.example-data", { params: { accountId: workspaceId } }), {
       method: "POST",
       credentials: "include",
     });
@@ -127,7 +115,7 @@ export const accountClient = {
       explicit: command,
       request: (resolved) =>
         apiFetchReauth(
-          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}`,
+          apiRouteUrl("api.accounts.destroy", { params: { id: workspaceId } }),
           buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
           { timeoutMs: API_BULK_TIMEOUT_MS, action: "delete-company" satisfies ReauthAction },
         ),
@@ -135,9 +123,10 @@ export const accountClient = {
     });
   },
 
-  listMembers(workspaceId: string): Promise<Response> {
-    return apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members`, {
+  listMembers(workspaceId: string, signal?: AbortSignal): Promise<Response> {
+    return apiFetch(apiRouteUrl("api.members.index", { params: { accountId: workspaceId } }), {
       credentials: "include",
+      ...(signal ? { signal } : {}),
     });
   },
 
@@ -148,7 +137,7 @@ export const accountClient = {
 
   setMemberSignInTracking({ workspaceId, enabled }: SetMemberSignInTrackingOptions): Promise<Response> {
     return apiFetchReauth(
-      `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/member-sign-in-tracking`,
+      apiRouteUrl("api.members.tracking", { params: { accountId: workspaceId } }),
       {
         method: "PUT",
         credentials: "include",
@@ -159,16 +148,17 @@ export const accountClient = {
     );
   },
 
-  listInvitations(workspaceId: string): Promise<Response> {
-    return apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/invites`, {
+  listInvitations(workspaceId: string, signal?: AbortSignal): Promise<Response> {
+    return apiFetch(apiRouteUrl("api.invites.index", { params: { accountId: workspaceId } }), {
       credentials: "include",
+      ...(signal ? { signal } : {}),
     });
   },
 
   ...joiningPolicyClient,
 
   startMasquerade(workspaceId: string, body: StartMasqueradePayload): Promise<Response> {
-    return apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/masquerade`, {
+    return apiFetch(apiRouteUrl("api.masquerade.start", { params: { accountId: workspaceId } }), {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -177,11 +167,11 @@ export const accountClient = {
   },
 
   masqueradeStatus(): Promise<Response> {
-    return apiFetch(`${API_BASE}/api/masquerade`, { credentials: "include" });
+    return apiFetch(apiRouteUrl("api.masquerade.status", {}), { credentials: "include" });
   },
 
   endMasquerade(body: EndMasqueradePayload): Promise<Response> {
-    return apiFetch(`${API_BASE}/api/masquerade`, {
+    return apiFetch(apiRouteUrl("api.masquerade.end", {}), {
       method: "DELETE",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -195,7 +185,7 @@ export const accountClient = {
       explicit: command,
       request: (resolved) =>
         apiFetchReauth(
-          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}`,
+          apiRouteUrl("api.members.role", { params: { accountId: workspaceId, userId: principalId } }),
           buildJsonCommandRequestInit("PATCH", { role }, resolved),
           { action: "change-member-role" satisfies ReauthAction },
         ),
@@ -208,7 +198,7 @@ export const accountClient = {
       explicit: command,
       request: (resolved) =>
         apiFetchReauth(
-          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/status`,
+          apiRouteUrl("api.members.status", { params: { accountId: workspaceId, userId: principalId } }),
           buildJsonCommandRequestInit("PATCH", { status }, resolved),
           { action: "change-member-status" satisfies ReauthAction },
         ),
@@ -221,7 +211,7 @@ export const accountClient = {
       explicit: command,
       request: (resolved) =>
         apiFetchReauth(
-          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/enable-access`,
+          apiRouteUrl("api.members.enable-access", { params: { accountId: workspaceId, userId: principalId } }),
           buildJsonCommandRequestInit("POST", {}, resolved),
           { action: "change-member-status" satisfies ReauthAction },
         ),
@@ -234,61 +224,21 @@ export const accountClient = {
       explicit: command,
       request: (resolved) =>
         apiFetchReauth(
-          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}`,
+          apiRouteUrl("api.members.remove", { params: { accountId: workspaceId, userId: principalId } }),
           buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
           { action: "remove-member" satisfies ReauthAction },
         ),
     });
   },
 
-  readOwnershipTransfer(workspaceId: string, signal?: AbortSignal): Promise<Response> {
-    return apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/ownership-transfer`, {
-      credentials: "include",
-      ...(signal ? { signal } : {}),
-    });
-  },
-
-  initiateOwnershipTransfer(input: InitiateOwnershipTransferInput): Promise<Response> {
-    const { workspaceId, targetPrincipalId, replaces, command } = input;
+  transferOwnership({ workspaceId, targetPrincipalId, command }: TransferOwnershipInput): Promise<Response> {
     return runCommand({
-      operationKey: `ownership-transfer:initiate:${workspaceId}:${targetPrincipalId}`,
+      operationKey: `ownership-transfer:${workspaceId}:${targetPrincipalId}`,
       explicit: command,
       request: (resolved) =>
         apiFetchReauth(
-          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/ownership-transfer`,
-          buildJsonCommandRequestInit(
-            "POST",
-            {
-              toUserId: targetPrincipalId,
-              // Both halves or neither: half a predicate names no particular predecessor, and the
-              // server refuses it rather than replacing whatever happens to be live.
-              ...(replaces ? { expectedRequestId: replaces.requestId, expectedRevision: replaces.revision } : {}),
-            },
-            resolved,
-          ),
-          { action: "transfer-ownership" satisfies ReauthAction },
-        ),
-    });
-  },
-
-  /**
-   * One ceremony step against one request at one revision.
-   *
-   * `cancel` is the DELETE; the other four are POSTs to their own sub-path. The revision travels in
-   * the body for all five, including the DELETE, because it is the compare half of the transition,
-   * not an identifier, and it is part of the command payload the server hashes, so a retry naming
-   * a different revision is refused rather than replayed.
-   */
-  commandOwnershipTransfer(input: OwnershipTransferCommandInput): Promise<Response> {
-    const { workspaceId, requestId, step, expectedRevision, command } = input;
-    const base = `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/ownership-transfer/${encodeURIComponent(requestId)}`;
-    return runCommand({
-      operationKey: `ownership-transfer:${step}:${workspaceId}:${requestId}:${expectedRevision}`,
-      explicit: command,
-      request: (resolved) =>
-        apiFetchReauth(
-          step === "cancel" ? base : `${base}/${step}`,
-          buildJsonCommandRequestInit(step === "cancel" ? "DELETE" : "POST", { expectedRevision }, resolved),
+          apiRouteUrl("api.ownership.transfer", { params: { accountId: workspaceId } }),
+          buildJsonCommandRequestInit("POST", { toUserId: targetPrincipalId }, resolved),
           { action: "transfer-ownership" satisfies ReauthAction },
         ),
     });
@@ -300,7 +250,7 @@ export const accountClient = {
       explicit: command,
       request: (resolved) =>
         apiFetchReauth(
-          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/reset-password`,
+          apiRouteUrl("api.members.reset-password", { params: { accountId: workspaceId, userId: principalId } }),
           buildCommandRequestInit({ method: "POST", credentials: "include" }, resolved),
           { action: "issue-password-reset" satisfies ReauthAction },
         ),
@@ -313,7 +263,7 @@ export const accountClient = {
       explicit: command,
       request: (resolved) =>
         apiFetchReauth(
-          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/revoke-sessions`,
+          apiRouteUrl("api.members.revoke-sessions", { params: { accountId: workspaceId, userId: principalId } }),
           buildCommandRequestInit({ method: "POST", credentials: "include" }, resolved),
           { action: "revoke-member-sessions" satisfies ReauthAction },
         ),
@@ -326,7 +276,7 @@ export const accountClient = {
       operationKey: await buildPayloadOperationKey(`invitation-create:${accountId}`, body),
       explicit: command,
       request: (resolved) =>
-        apiFetchReauth(`${API_BASE}/api/invites`, buildJsonCommandRequestInit("POST", body, resolved), {
+        apiFetchReauth(apiRouteUrl("api.invites.create", {}), buildJsonCommandRequestInit("POST", body, resolved), {
           action: "create-invitation" satisfies ReauthAction,
         }),
     });
@@ -338,7 +288,7 @@ export const accountClient = {
       explicit: command,
       request: (resolved) =>
         apiFetchReauth(
-          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/invites/${encodeURIComponent(invitationId)}`,
+          apiRouteUrl("api.invites.revoke", { params: { accountId: workspaceId, id: invitationId } }),
           buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
           { action: "revoke-invitation" satisfies ReauthAction },
         ),
@@ -346,7 +296,7 @@ export const accountClient = {
   },
 
   previewInvitation(token: string): Promise<Response> {
-    return apiFetch(`${API_BASE}/api/invites/${encodeURIComponent(token)}/preview`, {
+    return apiFetch(apiRouteUrl("api.invites.preview", { params: { token } }), {
       credentials: "include",
     });
   },
@@ -357,7 +307,7 @@ export const accountClient = {
       explicit: command,
       request: (resolved) =>
         apiFetch(
-          `${API_BASE}/api/invites/${encodeURIComponent(token)}/accept`,
+          apiRouteUrl("api.invites.accept", { params: { token } }),
           buildCommandRequestInit({ method: "POST", credentials: "include" }, resolved),
         ),
     });
@@ -369,7 +319,7 @@ export const accountClient = {
       explicit: command,
       request: (resolved) =>
         apiFetch(
-          `${API_BASE}/api/invites/${encodeURIComponent(token)}/signup`,
+          apiRouteUrl("api.invites.sign-up", { params: { token } }),
           buildJsonCommandRequestInit("POST", body, resolved),
         ),
     });

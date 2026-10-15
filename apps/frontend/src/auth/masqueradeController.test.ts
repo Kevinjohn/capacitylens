@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MasqueradeState, MasqueradeStatus } from "@capacitylens/shared/domain/masquerade";
-import { resetStoreWithAccount } from "@/test/fixtures";
+import { makeAccount, makeAppData, resetStoreWithAccount } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
 import type { FlushPendingWritesResult } from "@/data/persist";
 import { MasqueradeController } from "./masqueradeController";
@@ -77,6 +77,31 @@ describe("MasqueradeController", () => {
     expect(resume).toHaveBeenCalledWith({ dropParkedEdits: true });
     expect(useStore.getState().masquerade).toEqual({ kind: "inactive" });
     expect(navigate).toHaveBeenCalledWith("/");
+  });
+
+  it("publishes the company name from the loaded account projection, not the member name", async () => {
+    useStore
+      .getState()
+      .replaceAll(makeAppData({ accounts: [makeAccount({ id: "a-studio", name: "Wayne Enterprises" })] }));
+    const { controller } = harness();
+
+    await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(true);
+
+    expect(useStore.getState().accountSummaries).toEqual([
+      { id: "a-studio", name: "Wayne Enterprises", role: "viewer" },
+    ]);
+  });
+
+  it("does not publish a cached company or target name before the projection is loaded", () => {
+    useStore.getState().setAccountSummaries({
+      list: [{ id: "old-company", name: "Stark Industries", role: "owner" }],
+    });
+    const { controller } = harness();
+
+    controller.adoptStatus({ active: true, ...state });
+
+    expect(useStore.getState().accountSummaries).toEqual([]);
+    expect(useStore.getState().accountSummariesComplete).toBe(false);
   });
 
   it("aborts before suspension when pending writes cannot be flushed", async () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
@@ -11,6 +11,7 @@ import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
 import { resolveBrowserTimeZone } from "@/lib/timezones";
+import { renderWithQueryClient as render } from "@/test/renderWithQueryClient";
 
 const serverFlag = vi.hoisted(() => ({ on: false }));
 vi.mock("@/data/apiConfig", () => ({
@@ -773,6 +774,7 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
     const user = userEvent.setup();
     let meCalls = 0;
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === "/api/masquerade") return jsonRes(200, { active: false });
       if (url === "/api/auth/me") {
         meCalls += 1;
         // Single-company instance: at the cap on boot, back under it (zero accounts, the
@@ -808,6 +810,7 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
     const user = userEvent.setup();
     let meCalls = 0;
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === "/api/masquerade") return jsonRes(200, { active: false });
       if (url === "/api/auth/me") {
         meCalls += 1;
         return jsonRes(200, { authMode: "off", user: null, canCreateAccount: meCalls === 1, multiAccount: false });

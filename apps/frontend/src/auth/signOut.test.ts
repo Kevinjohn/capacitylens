@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { queryClient } from "@/api/queryClient";
 import { signOutAndReload } from "./signOut";
 
 afterEach(() => {
@@ -7,6 +8,19 @@ afterEach(() => {
 });
 
 describe("signOutAndReload", () => {
+  it("clears account query data before ending the session", async () => {
+    queryClient.setQueryData(["private-account"], "sensitive data");
+
+    await signOutAndReload({
+      clearOfflineData: async () => {},
+      disableOfflineRead: async () => {},
+      requestSignOut: async () => ({ ok: true, status: 200 }),
+      reload: () => {},
+    });
+
+    expect(queryClient.getQueryData(["private-account"])).toBeUndefined();
+  });
+
   it("continues to the server request and reload when offline cleanup never settles", async () => {
     vi.useFakeTimers();
     vi.spyOn(console, "error").mockImplementation(() => {});

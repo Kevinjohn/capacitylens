@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { m } from "@/i18n";
 import { AppShell } from "./AppShell";
 import { useStore } from "@/store/useStore";
 import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "@/test/fixtures";
 import { setOfflineReadState } from "@/data/offlineCache";
+import { renderWithQueryClient as render } from "@/test/renderWithQueryClient";
 
 vi.mock("@/i18n", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/i18n")>()),

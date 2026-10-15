@@ -114,12 +114,14 @@ accept responses never include it.
    Company deletion is atomic and fail-closed: if a corrupt stored relationship would cascade a
    delete or unbind into another company, both companies remain intact and the picker surfaces the
    server refusal for operator repair. A completed authenticated deletion retains its anonymized
-   command receipt briefly: if the response is lost, retrying the same command returns success even
-   though that company's membership is already gone. A post-delete `403` from an older/mixed server
-   is treated as an unknown outcome, so the browser retains the command and refreshes the company
-   list without an offline-cache fallback instead of converting uncertainty into a new destructive
-   ceremony. The picker consumes that same erasure outcome classification rather than independently
-   reclassifying the response status.
+   command receipt briefly. If the response is lost, the same authenticated principal can retry the
+   command and receive success even though the deleted company's membership is gone. Deleting the
+   principal's last company also removes that principal and invalidates its session, so the receipt
+   cannot be replayed without a surviving authenticated session. A post-delete `403` from an
+   older/mixed server is treated as an unknown outcome, so the browser retains the command and
+   refreshes the company list without an offline-cache fallback instead of converting uncertainty
+   into a new destructive ceremony. The picker consumes that same erasure outcome classification
+   rather than independently reclassifying the response status.
    After a confirmed deletion completes, the picker announces that the named company was
    permanently deleted.
 5. The application opens with a non-blocking **How CapacityLens works** region
@@ -672,8 +674,8 @@ neighbouring columns supply the calendar context, so their one cross-year week m
 Weekday forms (`Mon 8th Jun` / `Mon Jun 8th`) always keep the ordinal.
 
 Server instants use the viewer's browser locale and local time zone instead. This includes session
-creation and expiry, password-reset expiry, invitation expiry in the Team & access member panel and
-on the invitee's Accept invite page, ownership-transfer deadlines and ownership outcome dates. The
+creation and expiry, password-reset expiry, and invitation expiry in the Team & access member panel
+and on the invitee's Accept invite page. The
 offline read-only banner's last-updated timestamp also uses the viewer's browser locale and local
 time zone. The exception also covers instants displayed as a compact date without a time: the
 browser time zone selects the local day, while the browser locale selects its date order. Existing
@@ -1220,12 +1222,10 @@ presented before the member directory, matching the action-first pattern of the 
   (`data-testid="joining-policy-link"`) and choose **Copy joining link**
   (`data-testid="joining-policy-copy-link"`) to share `/join/:accountId`.
   `/join/:accountId` is a public company-bound entry outside the app's account picker. It shows
-  the company's name and available sign-in methods. Eligible Google, Microsoft and GitHub
-  choices appear above the existing-password option in mixed mode; GitHub remains unavailable
-  in company-sign-in-only mode. Microsoft uses its same-browser mailbox ceremony when needed.
-  A person with an existing password account signs in, then chooses **Join company**. The server admits only a currently proven email that meets the
-  live policy. A password identity without trusted email proof gets recovery guidance to use an
-  eligible verified provider or an addressed invitation, or choose **Email me a verification link**
+  the company's name and offers password sign-in only; Google, Microsoft and GitHub sign-in are not
+  available there. A person with an existing password account signs in, then chooses
+  **Join company**. The server admits only a currently proven email that meets the live policy. A
+  password identity without trusted email proof can use an addressed invitation or choose **Email me a verification link**
   (`data-testid="joining-verify-email"`); successful delivery shows an inbox status
   (`data-testid="joining-verify-email-status"`). Open/domain policy joining does not
   create a new password account. On completion the normal authenticated company list verifies
@@ -1248,14 +1248,13 @@ The Owner row carries no pencil for anyone, and no gear for anyone but the Owner
 own row still offers the self-service Reset password and Revoke sessions): each company has exactly
 one Owner, ownership is changed only by explicit transfer, and the Owner can be neither demoted,
 removed nor disabled.
-Ownership transfer has no control in the member table at all: its own **Company ownership** section
-opens the three-step ceremony in a modal (see below), and the swap itself is a single transaction that demotes
-before it promotes. No generic
-role-change or invite endpoint can assign Owner, even for the current Owner. A partial unique SQLite
-index prevents multiple active owners for an account, and the server prevents removing/demoting the
-Owner outside the ceremony. The server remains the backstop: bypassing the UI cannot grant a second
-Owner, take part in somebody else's ceremony, revoke another account's invite or read another
-account's member list.
+Ownership transfer has no control in the member table: the Owner-only **Company ownership** card
+opens **Manage ownership** in a modal. The Owner chooses an active, unrestricted Admin in **Next
+Owner** and confirms **Transfer ownership** once. The confirmation explains that the selected Admin
+becomes Owner and the caller becomes Admin. The change takes effect immediately and atomically; the
+nominee does not separately consent, and there is no pending request or expiry. No generic role-change
+or invite endpoint can assign Owner. The server keeps exactly one active Owner and refuses transfer
+from anyone who is not the current Owner or to someone who is not an eligible Admin.
 
 The API routes: `GET /api/accounts/:accountId/members` (gated manageMembers; returns
 `{members, signInTrackingEnabled}` and each member carries `status` plus nullable
@@ -1282,29 +1281,20 @@ write-once) mints the reset link. The management UI is
 story `user-stories/settings/US-SET-10-member-management.md`;
 spec `e2e/members.auth.spec.ts`.
 
-**Company ownership (Team & access; server mode, auth on).** A compact entry point sits below member
-management as `src/components/team/OwnershipTransferCard.tsx`
-(`data-testid="ownership-transfer-card"`), driven by `src/components/team/useOwnershipTransfer.ts`
-and `src/account/ownershipTransferAccess.ts`. **Manage ownership**
-(`data-testid="ownership-transfer-open"`) opens the ceremony in a modal. Ownership moves in three acts — the Owner nominates,
-the nominated Admin agrees, the same Owner confirms — and nothing changes until all three have
-happened. Controls: **Next Owner** (`ownership-transfer-nominee`, active Admins only), **Start
-transfer** (`ownership-transfer-start`), **Nominate someone else instead**
-(`ownership-transfer-replace`), **Cancel the transfer** (`ownership-transfer-cancel`), **Confirm the
-transfer** (`ownership-transfer-complete`), **Agree to become Owner**
-(`ownership-transfer-accept`), **Decline** (`ownership-transfer-decline`), **Withdraw my agreement**
-(`ownership-transfer-withdraw`); the live status line is `ownership-transfer-state` and the
-explanation of a request that already ended is `ownership-transfer-outcome`. The entry point renders for
-participants only — a non-participant reads an empty projection, so hiding is presentation, not
-authorisation. Routes: `GET /api/accounts/:accountId/ownership-transfer`
-(`{live, latestOutcome}`, both nullable; refused under masquerade),
-`POST …/ownership-transfer {toUserId, expectedRequestId?, expectedRevision?}` (201),
-`POST …/ownership-transfer/:requestId/accept|withdraw|decline|complete`, and
-`DELETE …/ownership-transfer/:requestId` (cancel). Every command carries `expectedRevision`; a
-request the server has already ended answers **409** `{code: "OWNERSHIP_TRANSFER_TERMINAL", state,
-reason}`, which the client reads as a committed outcome rather than an error. A request expires
-seven days after it was made, and ends by itself when either participant's membership changes.
-Story `user-stories/settings/US-SET-18-ownership-transfer.md`;
+**Company ownership (Team & access; server mode, auth on).** The Owner-only
+`ownership-transfer-card` sits below member management. **Manage ownership**
+(`ownership-transfer-open`) opens its modal. **Next Owner** (`ownership-transfer-nominee`) lists active,
+unrestricted Admins. The Owner selects one and confirms **Transfer ownership**; the confirmation says
+the selected Admin becomes Owner and the caller becomes Admin. Submit uses
+`ownership-transfer-complete`. It immediately swaps the roles in one transaction; the nominee does
+not authenticate or consent, and no pending request, deadline, or nominee control is shown. The card
+and open test IDs remain `ownership-transfer-card` and `ownership-transfer-open`.
+
+The only transfer route is `POST /api/accounts/:accountId/ownership-transfer` with
+`{toUserId}`. A new transfer requires the current Owner and returns **200**
+`{fromUserId, toUserId}` after commit. Replaying the same command returns that semantic receipt,
+including after the caller is demoted; a changed command payload or scope conflicts. A new command
+requires a current Owner. Story `user-stories/settings/US-SET-18-ownership-transfer.md`;
 spec `e2e/ownership-transfer.auth.spec.ts`.
 
 `POST /api/accounts/:accountId/members/:userId/revoke-sessions` uses the same cross-account

@@ -41,7 +41,7 @@ function isSwitchSuccessful(outcome: RefreshOutcome, accountId: string | null): 
 export interface MasqueradeControllerDependencies {
   flush: () => Promise<FlushPendingWritesResult>;
   suspend: () => ResumeWrites;
-  reproject: (accountId: string) => Promise<boolean>;
+  reproject: (accountId: string, includeAccountSummaries?: boolean) => Promise<boolean>;
   switchAccount: (accountId: string | null) => Promise<RefreshOutcome>;
   api: typeof masqueradeApi;
 }
@@ -72,6 +72,18 @@ export class MasqueradeController {
     return false;
   }
 
+  private publishMasqueradeAccount(state: MasqueradeState, selectAccount = false): void {
+    const account = useStore.getState().data.accounts.find((candidate) => candidate.id === state.accountId);
+    useStore.getState().setAccountSummaries({
+      list: account ? [{ id: account.id, name: account.name, role: state.effectiveRole }] : [],
+      complete: account !== undefined,
+    });
+    if (selectAccount && useStore.getState().activeAccountId !== state.accountId) {
+      useStore.getState().setActiveAccount(state.accountId);
+    }
+    useStore.getState().setActiveRole(state.effectiveRole, "resolved");
+  }
+
   private ownsRuntime(generation: number, kind: "starting" | "active" | "ending"): boolean {
     const runtime = useStore.getState().masquerade;
     return runtime.kind === kind && runtime.generation === generation && this.generation === generation;
@@ -97,7 +109,7 @@ export class MasqueradeController {
 
   private async finishStartProjection(generation: number, accountId: string, state: MasqueradeState): Promise<boolean> {
     try {
-      const projected = await this.dependencies.reproject(accountId);
+      const projected = await this.dependencies.reproject(accountId, false);
       if (!this.ownsRuntime(generation, "starting")) return false;
       if (!projected) {
         return this.fail("The member view started, but its data could not be loaded. Retry or end the masquerade.");
@@ -109,6 +121,7 @@ export class MasqueradeController {
       return this.fail("The member view started, but its data could not be loaded. Retry or end the masquerade.");
     }
     useStore.getState().clearUndoHistory();
+    this.publishMasqueradeAccount(state);
     useStore.getState().setMasquerade({ kind: "active", state, generation });
     return true;
   }
@@ -156,7 +169,7 @@ export class MasqueradeController {
     if (!state) return false;
     const generation = runtime.generation;
     try {
-      const projected = await this.dependencies.reproject(state.accountId);
+      const projected = await this.dependencies.reproject(state.accountId, false);
       if (!this.ownsRuntime(generation, runtime.kind)) return false;
       if (!projected) {
         return this.fail("The member view could not be loaded.");
@@ -168,6 +181,7 @@ export class MasqueradeController {
       return this.fail("The member view could not be loaded.");
     }
     useStore.getState().clearUndoHistory();
+    this.publishMasqueradeAccount(state);
     useStore.getState().setMasquerade({ kind: "active", state, generation });
     return true;
   }
@@ -272,7 +286,17 @@ export class MasqueradeController {
     // The controller already owns these transitions. A membership invalidation triggered by its
     // own reproject must not publish `active` before that authoritative reload has completed.
     if (current.kind === "starting" || current.kind === "ending") return;
+    if (
+      current.kind === "active" &&
+      current.state.token === status.token &&
+      current.state.accountId === status.accountId &&
+      current.state.targetUserId === status.targetUserId &&
+      current.state.effectiveRole === status.effectiveRole
+    ) {
+      return;
+    }
     this.acquireSuspension();
+    this.publishMasqueradeAccount(status, true);
     useStore.getState().setMasquerade({ kind: "active", state: status, generation: ++this.generation });
   }
 

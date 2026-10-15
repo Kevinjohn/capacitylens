@@ -6,6 +6,7 @@ import router from '@adonisjs/core/services/router'
 import db from '@adonisjs/lucid/services/db'
 import mail from '@adonisjs/mail/services/main'
 import env from '#start/env'
+import { usersAdapter } from '#services/account_kit/users_adapter'
 import { requestAdministrativeReset } from '#services/credentials/operations'
 
 const setupToken = 'credential-admin-setup-token-2026'
@@ -167,6 +168,76 @@ test.group('Administrative recovery issuance', (group) => {
     } finally {
       fake.messages.assertNoneSent()
       mail.restore()
+      data.restore()
+    }
+  })
+
+  test('a stale indexed session may request its own reset but not another member reset', async ({
+    client,
+    assert,
+  }) => {
+    const fake = mail.fake()
+    const data = await fixture(client)
+    const realNow = Date.now
+    const post = (targetUserId: string) =>
+      withSession(client.post('/api/test/credential-admin-reset'), data.cookie)
+        .json({
+          accountId: data.accountId,
+          targetUserId,
+          commandId: randomUUID(),
+          idempotencyKey: randomUUID(),
+        })
+        .send()
+    try {
+      Date.now = () => realNow() + 16 * 60 * 1000
+      const self = await post(data.actorId)
+      self.assertStatus(201)
+      assert.isNotNull(
+        await db.from('account_recovery_tokens').where('user_id', data.actorId).first()
+      )
+      const other = await post(data.targetUserId)
+      other.assertStatus(403)
+      assert.equal(other.body().code, 'SESSION_NOT_FRESH')
+      assert.isNull(
+        await db.from('account_recovery_tokens').where('user_id', data.targetUserId).first()
+      )
+      fake.messages.assertNoneSent()
+    } finally {
+      Date.now = realNow
+      mail.restore()
+      data.restore()
+    }
+  })
+
+  test('another-member issuance rechecks freshness inside the issuance transaction', async ({
+    client,
+    assert,
+  }) => {
+    const data = await fixture(client)
+    const realNow = Date.now
+    const findById = usersAdapter.findById
+    try {
+      usersAdapter.findById = async (id, trx) => {
+        const user = await findById(id, trx)
+        if (!trx && String(id) === data.targetUserId) Date.now = () => realNow() + 16 * 60 * 1000
+        return user
+      }
+      const denied = await withSession(client.post('/api/test/credential-admin-reset'), data.cookie)
+        .json({
+          accountId: data.accountId,
+          targetUserId: data.targetUserId,
+          commandId: randomUUID(),
+          idempotencyKey: randomUUID(),
+        })
+        .send()
+      denied.assertStatus(403)
+      assert.equal(denied.body().code, 'SESSION_NOT_FRESH')
+      assert.isNull(
+        await db.from('account_recovery_tokens').where('user_id', data.targetUserId).first()
+      )
+    } finally {
+      usersAdapter.findById = findById
+      Date.now = realNow
       data.restore()
     }
   })

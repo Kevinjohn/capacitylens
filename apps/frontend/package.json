@@ -4,9 +4,12 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@capacitylens/shared": "workspace:*",
     "@capacitylens/backend": "workspace:*",
-    "@tuyau/core": "1.2.2"
+    "@capacitylens/shared": "workspace:*",
+    "@tanstack/query-core": "5.104.2",
+    "@tanstack/react-query": "5.104.2",
+    "@tuyau/core": "1.2.2",
+    "@tuyau/react-query": "1.1.0"
   },
   "scripts": {
     "paraglide:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide",

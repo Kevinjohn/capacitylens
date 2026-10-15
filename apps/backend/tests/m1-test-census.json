@@ -398,7 +398,7 @@
       "disposition": "port",
       "proposed_package": "apps/backend",
       "proposed_test_path": "tests/functional/operations/check_node.test.ts",
-      "reason": "\u00a75 M4 explicitly carries scripts/check-node as the Node-version refusal check."
+      "reason": "§5 M4 explicitly carries scripts/check-node as the Node-version refusal check."
     },
     {
       "source_path": "server/src/BatchStateProjection.test.ts",
@@ -765,7 +765,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/app.authz.test.ts",
@@ -826,7 +826,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/app.concurrency-ordered.test.ts",
@@ -1418,7 +1418,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/backup.health.test.ts",
@@ -1526,7 +1526,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/controlTables.test.ts",
@@ -1535,7 +1535,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/controlTables/accountMemberResources.concurrency.test.ts",
@@ -1684,7 +1684,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/db.writeAtomicity.test.ts",
@@ -1702,7 +1702,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/documentation.test.ts",
@@ -1997,7 +1997,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/runImportWorker.test.ts",
@@ -2024,7 +2024,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/sharedCore.test.ts",
@@ -2042,7 +2042,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/signInModes.test.ts",
@@ -2060,7 +2060,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/tables.test.ts",
@@ -2069,7 +2069,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/tables/columns.test.ts",
@@ -2078,7 +2078,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/testHelpers/passwordAuth.test.ts",
@@ -2105,7 +2105,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/userStories.test.ts",
@@ -2495,7 +2495,8 @@
           "legacy_response_status_contract": {
             "status": "200 demo/authenticated identity; 401 missing/invalid session; 503 auth backend failure",
             "source": "server/src/routes/authProxyRoutes.ts:212-250"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:52-54; src/api/queryClient.ts:34-40; src/auth/fetchAuthStatus.ts:181-199"
         },
         {
           "method": "GET",
@@ -2515,7 +2516,8 @@
           "legacy_response_status_contract": {
             "status": "200 allowed account list; authorization may send 401/403; ended masquerade can send 403",
             "source": "server/src/routes/stateRoutes.ts:74-109,151"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:55-57; src/api/queryClient.ts:34-40"
         },
         {
           "method": "GET",
@@ -2535,7 +2537,8 @@
           "legacy_response_status_contract": {
             "status": "200 schema available; 503 database schema probe unavailable",
             "source": "server/src/routes/systemRoutes.ts:133-155"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:58-60"
         },
         {
           "method": "POST",
@@ -2560,7 +2563,7 @@
             "status": "200 {ok:true} success; typed failures map through account status mapping",
             "source": "server/src/accounts/accountRoutes.ts:64; server/src/accounts/routes/handlers/session.ts:20-38; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:73"
+          "current_source": "src/auth/signOut.ts:34-43; src/auth/authClient.ts:82-108"
         },
         {
           "method": "PATCH",
@@ -2582,7 +2585,7 @@
             "status": "204 corrected email; 400 invalid email/provider; 403 authorization/identity restriction; 409 mode conflict; unexpected 500",
             "source": "server/src/accounts/federatedIdentityRoutes.ts:138-157,166-210"
           },
-          "current_source": "src/account/accountClient.ts:78-88"
+          "current_source": "src/account/accountClient.ts:65-75"
         },
         {
           "method": "DELETE",
@@ -2604,7 +2607,7 @@
             "status": "204 unlink; 400 invalid coordinates/provider; 403 authorization/identity restriction; 409 concurrent conflict; unexpected 500",
             "source": "server/src/accounts/federatedIdentityRoutes.ts:232-255,263-315"
           },
-          "current_source": "src/account/accountClient.ts:91-105"
+          "current_source": "src/account/accountClient.ts:78-93"
         },
         {
           "method": "POST",
@@ -2618,15 +2621,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M2b",
-            "package": "apps/backend/tests/functional/companies"
+            "status": "implemented-in-M3b",
+            "milestone": "M3b",
+            "package": "apps/backend/tests/functional/companies",
+            "source": "apps/backend/start/routes.ts:28; apps/backend/app/controllers/companies_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "201 provisioned product row; 400 non-object body; typed command/provider/cap/auth refusals use statusForAccountFailure; unexpected errors 500",
             "source": "server/src/routes/stateRoutes.ts:217-280; shared/src/account/errors.ts:55-96; server/src/routes/appRootHooks.ts:247-264; server/src/routes/appErrors.ts:37-75"
           },
-          "current_source": "src/account/accountClient.ts:108-113; src/account/accountRequestTypes.ts:5-9"
+          "current_source": "src/account/accountClient.ts:95-101; src/api/queryClient.ts:34-40; src/account/accountRequestTypes.ts:5-9"
         },
         {
           "method": "POST",
@@ -2640,15 +2644,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/routes.ts:32-34; apps/backend/app/controllers/example_data_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "201 added count; 404 account missing; 403 insufficient authority; 409 company non-empty; unexpected error 500",
             "source": "server/src/routes/exampleDataRoutes.ts:62-101"
           },
-          "current_source": "src/account/accountClient.ts:116-122"
+          "current_source": "src/account/accountClient.ts:104-110; src/api/queryClient.ts:34-40"
         },
         {
           "method": "DELETE",
@@ -2662,15 +2667,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/routes.ts:30-31; apps/backend/app/controllers/companies_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "204 account erasure/idempotent missing account; authorization or typed freshness/authority errors via accountFail; unexpected error 500",
             "source": "server/src/routes/accountEntity/lifecycleHandlers.ts:124-167; server/src/routes/accountEntityRoutes.ts:22-28; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:124-135"
+          "current_source": "src/account/accountClient.ts:112-124; src/api/queryClient.ts:34-40"
         },
         {
           "method": "GET",
@@ -2684,15 +2690,16 @@
             "verification": "verified: GET RequestInit/call construction has no body"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/membership_routes.ts:6-8; apps/backend/app/controllers/members_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 member projection or empty result in auth-off mode; authorization and typed failures use account status map",
             "source": "server/src/accounts/accountRoutes.ts:104-105; server/src/accounts/routes/handlers/memberAdmin.ts:60-124; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:138-142"
+          "current_source": "src/account/accountClient.ts:126-131; src/api/queryClient.ts:34-40; src/components/team/useOwnershipTransfer.ts:44-51"
         },
         {
           "method": "GET",
@@ -2706,15 +2713,16 @@
             "verification": "verified: GET RequestInit/call construction has no body"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/admission_routes.ts:68-69; apps/backend/app/controllers/member_resources_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 avatar projection or empty result in auth-off mode; authorization 401/403",
             "source": "server/src/accounts/accountRoutes.ts:105-107; server/src/accounts/routes/handlers/memberAdmin.ts:127-141"
           },
-          "current_source": "src/account/memberResourceClient.ts:7-9; src/account/accountClient.ts:144"
+          "current_source": "src/account/memberResourceClient.ts:6-9; src/account/accountClient.ts:133-137; src/api/queryClient.ts:34-40"
         },
         {
           "method": "PUT",
@@ -2728,14 +2736,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/admission_routes.ts:49-54; apps/backend/app/controllers/member_resources_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 link result; 400 malformed revision/body; typed failures through account status map",
             "source": "server/src/accounts/routes/handlers/memberResourceLink.ts:49-80; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/memberResourceClient.ts:11-13,24-53; src/api/queryClient.ts:34-40"
         },
         {
           "method": "DELETE",
@@ -2749,14 +2759,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/admission_routes.ts:56-60; apps/backend/app/controllers/member_resources_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "204 link removed; 400 missing expectedRevision; typed failures through account status map",
             "source": "server/src/accounts/routes/handlers/memberResourceLink.ts:83-111; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/memberResourceClient.ts:11-13,55-85; src/api/queryClient.ts:34-40"
         },
         {
           "method": "DELETE",
@@ -2770,14 +2782,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/admission_routes.ts:62-66; apps/backend/app/controllers/member_resources_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "204 exception dismissed; handler failure uses typed account map",
             "source": "server/src/accounts/routes/handlers/memberResourceLink.ts:114-134; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/memberResourceClient.ts:88-102; src/api/queryClient.ts:34-40"
         },
         {
           "method": "PUT",
@@ -2791,15 +2805,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/membership_routes.ts:9-11; apps/backend/app/controllers/members_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 {enabled}; 400 invalid enabled; typed failures through account status map",
             "source": "server/src/accounts/routes/handlers/memberAdmin.ts:147-180; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:149-160"
+          "current_source": "src/account/accountClient.ts:138-149; src/api/queryClient.ts:34-40"
         },
         {
           "method": "GET",
@@ -2813,15 +2828,16 @@
             "verification": "verified: GET RequestInit/call construction has no body"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/admission_routes.ts:10-12; apps/backend/app/controllers/invitations_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 invitations or empty list in auth-off mode; authorization and typed failures use account status map",
             "source": "server/src/accounts/accountRoutes.ts:205-207; server/src/accounts/routes/handlers/invitation.ts:259-290; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:162-166"
+          "current_source": "src/account/accountClient.ts:151-156; src/api/queryClient.ts:34-40"
         },
         {
           "method": "GET",
@@ -2835,14 +2851,16 @@
             "verification": "verified: GET RequestInit/call construction has no body"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/admission_routes.ts:27-28; apps/backend/app/controllers/joining_controller.ts:29-38"
           },
           "legacy_response_status_contract": {
             "status": "200 settings; authorization refusal or generic 500 on unexpected error",
             "source": "server/src/accounts/accountRoutes.ts:75-77; server/src/accounts/routes/handlers/joiningPolicy.ts:16-34"
-          }
+          },
+          "current_source": "src/account/joiningPolicyClient.ts:1-14; src/api/queryClient.ts:34-40"
         },
         {
           "method": "PUT",
@@ -2856,14 +2874,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/admission_routes.ts:30-31; apps/backend/app/controllers/joining_controller.ts:40-66"
           },
           "legacy_response_status_contract": {
             "status": "200 settings; 400 invalid policy/domains or off-mode contract; auth 401/403; typed failures through account map",
             "source": "server/src/accounts/routes/handlers/joiningPolicy.ts:41-83; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/joiningPolicyClient.ts:1-34; src/api/queryClient.ts:34-40"
         },
         {
           "method": "POST",
@@ -2877,15 +2897,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/masquerade_routes.ts:6-8; apps/backend/app/controllers/masquerade_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 state; 400 invalid/self request; 401/403 auth or authority refusal; 404 nonmember; 409 already active or race; session expiry cannot be verified (null expiresAt) returns 503",
             "source": "server/src/routes/masqueradeRoutes.ts:98-152"
           },
-          "current_source": "src/account/accountClient.ts:170-177; src/account/accountClient.ts:8,170-177"
+          "current_source": "src/account/accountClient.ts:160-167; src/api/queryClient.ts:34-40; src/auth/masqueradeApi.ts:91-94"
         },
         {
           "method": "GET",
@@ -2899,15 +2920,16 @@
             "verification": "verified: GET RequestInit/call construction has no body"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/masquerade_routes.ts:9; apps/backend/app/controllers/masquerade_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 inactive/current projection; 401 absent session; 403 off-mode, ended, or unauthorized",
             "source": "server/src/routes/masqueradeRoutes.ts:155-170"
           },
-          "current_source": "src/account/accountClient.ts:179-181"
+          "current_source": "src/account/accountClient.ts:169-171; src/api/queryClient.ts:34-40; src/auth/masqueradeApi.ts:71-89; src/auth/fetchAuthStatus.ts:181-192"
         },
         {
           "method": "DELETE",
@@ -2921,15 +2943,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/masquerade_routes.ts:10; apps/backend/app/controllers/masquerade_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "204 idempotent end; 400 invalid token/body; 403 off mode or refusal",
             "source": "server/src/routes/masqueradeRoutes.ts:172-185"
           },
-          "current_source": "src/account/accountClient.ts:183-189; src/account/accountClient.ts:8,183-189"
+          "current_source": "src/account/accountClient.ts:173-180; src/api/queryClient.ts:34-40; src/auth/masqueradeApi.ts:96-99"
         },
         {
           "method": "PATCH",
@@ -2943,15 +2966,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/membership_routes.ts:12-14; apps/backend/app/controllers/members_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 changed member role; 400 invalid role; authorization and typed failures through account map",
             "source": "server/src/accounts/routes/handlers/memberAdmin.ts:186-230; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:192-202; src/account/accountClient.ts:20-25,192-202"
+          "current_source": "src/account/accountClient.ts:182-193; src/api/queryClient.ts:34-40"
         },
         {
           "method": "PATCH",
@@ -2965,15 +2989,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/membership_routes.ts:15-17; apps/backend/app/controllers/members_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 changed member status; 400 invalid status; authorization and typed failures through account map",
             "source": "server/src/accounts/routes/handlers/memberAdmin.ts:237-283; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:205-216; src/account/accountClient.ts:47-52,205-216"
+          "current_source": "src/account/accountClient.ts:195-206; src/api/queryClient.ts:34-40"
         },
         {
           "method": "POST",
@@ -2987,15 +3012,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/membership_routes.ts:18-23; apps/backend/app/controllers/members_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 access status; authorization and typed failures through account map",
             "source": "server/src/accounts/routes/handlers/memberAdmin.ts:289-322; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:218-229"
+          "current_source": "src/account/accountClient.ts:208-219; src/api/queryClient.ts:34-40"
         },
         {
           "method": "DELETE",
@@ -3009,15 +3035,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/membership_routes.ts:24-26; apps/backend/app/controllers/members_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "204 member removed; authorization/authority and typed failures through account map",
             "source": "server/src/accounts/routes/handlers/memberAdmin.ts:318-364; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:231-242"
+          "current_source": "src/account/accountClient.ts:221-232; src/api/queryClient.ts:34-40"
         },
         {
           "method": "GET",
@@ -3031,15 +3058,16 @@
             "verification": "verified: GET RequestInit/call construction has no body"
           },
           "implementation": {
-            "status": "planned",
+            "status": "retired-by-owner-ruling-28",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/ownership_routes.ts:6-9 registers only the atomic POST transfer; the former projection and request-step routes are not registered"
           },
           "legacy_response_status_contract": {
             "status": "200 transfer projection; 403 denied/masquerade; typed errors through account map",
             "source": "server/src/accounts/routes/handlers/ownershipTransfer.ts:57-80; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:244-249"
+          "current_source": "src/account/accountClient.ts:234-245; src/api/queryClient.ts:34-40; src/components/team/OwnershipTransferCard.tsx:12-50,96-134"
         },
         {
           "method": "POST",
@@ -3053,15 +3081,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/ownership_routes.ts:6-9; apps/backend/app/controllers/ownership_controller.ts:20-50; apps/backend/tests/functional/membership/ownership_transfer.spec.ts:108-149"
           },
           "legacy_response_status_contract": {
             "status": "201 initiated request; 400 invalid target/revision pair; 409 terminal conflict; typed permission errors through account map",
             "source": "server/src/accounts/routes/handlers/ownershipTransfer.ts:95-171; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:251-271; src/account/accountClient.ts:30-37,251-271"
+          "current_source": "src/account/accountClient.ts:234-245; src/api/queryClient.ts:34-40; src/components/team/OwnershipTransferCard.tsx:12-50,96-134; src/components/team/useOwnershipTransfer.ts:94-100,140-153"
         },
         {
           "method": "DELETE",
@@ -3075,15 +3104,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "retired-by-owner-ruling-28",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/ownership_routes.ts:6-9 registers only the atomic POST transfer; the former projection and request-step routes are not registered"
           },
           "legacy_response_status_contract": {
             "status": "200 cancellation result; 400 missing revision; 409 terminal conflict; auth/typed failures through account map",
             "source": "server/src/accounts/routes/handlers/ownershipTransfer.ts:202-240; server/src/accounts/accountRoutes.ts:184-187; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:282-293; src/account/accountClient.ts:39-45,282-293"
+          "current_source": "src/account/accountClient.ts:234-245; src/api/queryClient.ts:34-40; src/components/team/OwnershipTransferCard.tsx:12-50,96-134"
         },
         {
           "method": "POST",
@@ -3097,15 +3127,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "retired-by-owner-ruling-28",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/ownership_routes.ts:6-9 registers only the atomic POST transfer; the former projection and request-step routes are not registered"
           },
           "legacy_response_status_contract": {
             "status": "200 stepped request; 400 missing revision; 409 terminal conflict; auth/typed failures through account map",
             "source": "server/src/accounts/routes/handlers/ownershipTransfer.ts:202-240; server/src/accounts/accountRoutes.ts:162-182; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:282-293; src/account/accountClient.ts:27-45,282-293"
+          "current_source": "src/account/accountClient.ts:234-245; src/api/queryClient.ts:34-40; src/components/team/OwnershipTransferCard.tsx:12-50,96-134"
         },
         {
           "method": "POST",
@@ -3119,15 +3150,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/membership_routes.ts:27-31; apps/backend/app/controllers/members_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "201 reset token; 400 password reset unavailable; typed authority/freshness errors through account map",
             "source": "server/src/accounts/routes/handlers/credentialAdmin.ts:20-70; server/src/accounts/accountRoutes.ts:192-194; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:297-307"
+          "current_source": "src/account/accountClient.ts:247-258; src/api/queryClient.ts:34-40"
         },
         {
           "method": "POST",
@@ -3141,15 +3173,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/membership_routes.ts:32-36; apps/backend/app/controllers/members_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "204 sessions revoked; 400 auth disabled/off; typed authority errors through account map",
             "source": "server/src/accounts/routes/handlers/credentialAdmin.ts:85-134; server/src/accounts/accountRoutes.ts:199-201; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:310-320"
+          "current_source": "src/account/accountClient.ts:260-271; src/api/queryClient.ts:34-40"
         },
         {
           "method": "POST",
@@ -3163,15 +3196,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/admission_routes.ts:9; apps/backend/app/controllers/invitations_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "201 invitation receipt; invalid payload/policy errors map through account status helper",
             "source": "server/src/accounts/routes/handlers/invitation.ts:41-106; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:323-332; src/account/accountClient.ts:10,323-332; src/account/accountRequestTypes.ts:11-17"
+          "current_source": "src/account/accountClient.ts:273-283; src/api/queryClient.ts:34-40; src/account/accountRequestTypes.ts:11-17"
         },
         {
           "method": "DELETE",
@@ -3185,15 +3219,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/admission_routes.ts:13-15; apps/backend/app/controllers/invitations_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "204 revoke (even if no invitation exists); authorization and typed errors through account map",
             "source": "server/src/accounts/routes/handlers/invitation.ts:320-337; server/src/accounts/accountRoutes.ts:209-211; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:335-345"
+          "current_source": "src/account/accountClient.ts:285-296; src/api/queryClient.ts:34-40"
         },
         {
           "method": "GET",
@@ -3207,15 +3242,16 @@
             "verification": "verified: GET RequestInit/call construction has no body"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/admission_routes.ts:16-19; apps/backend/app/controllers/invitations_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 safe preview; token/domain failures mapped through accountFail",
             "source": "server/src/accounts/accountRoutes.ts:86-88; server/src/accounts/routes/handlers/invitation.ts:112-133; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:348-352"
+          "current_source": "src/account/accountClient.ts:298-303; src/api/queryClient.ts:34-40"
         },
         {
           "method": "POST",
@@ -3229,15 +3265,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/admission_routes.ts:20-23; apps/backend/app/controllers/invitations_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 accountId/role; missing actor or provider/token errors map through account status helper; reused token 409",
             "source": "server/src/accounts/routes/handlers/invitation.ts:148-210; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:354-363"
+          "current_source": "src/account/accountClient.ts:304-315; src/api/queryClient.ts:34-40"
         },
         {
           "method": "POST",
@@ -3251,15 +3288,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/admission_routes.ts:24-26; apps/backend/app/controllers/invitations_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "201 signup receipt; disabled 404; invalid body 400; typed failures through helper",
             "source": "server/src/accounts/routes/handlers/invitation.ts:216-253; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:366-375; src/account/accountClient.ts:10,366-375; src/account/accountRequestTypes.ts:19-23"
+          "current_source": "src/account/accountClient.ts:316-326; src/api/queryClient.ts:34-40; src/account/accountRequestTypes.ts:19-23"
         },
         {
           "method": "POST",
@@ -3281,7 +3319,7 @@
             "status": "200 command receipt; malformed command 400; missing command 404; typed errors through account status map",
             "source": "server/src/accounts/accountRoutes.ts:62; server/src/accounts/routes/handlers/reconcile.ts:10-66; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/account/accountClient.ts:378-388"
+          "current_source": "src/account/accountClient.ts:328-339"
         },
         {
           "method": "GET",
@@ -3295,14 +3333,16 @@
             "verification": "verified: GET RequestInit/call construction has no body"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "implemented-in-M3b",
+            "milestone": "M3b",
+            "package": "apps/backend/tests/functional/auth or providers",
+            "source": "apps/backend/start/admission_routes.ts:33-34; apps/backend/app/controllers/joining_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 safe metadata projection; missing account maps to 404",
             "source": "server/src/routes/joiningProofRoutes.ts:105-127"
-          }
+          },
+          "current_source": "src/account/companyJoinClient.ts:13-17"
         },
         {
           "method": "GET",
@@ -3316,14 +3356,16 @@
             "verification": "verified: GET RequestInit/call construction has no body"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "implemented-in-M3b",
+            "milestone": "M3b",
+            "package": "apps/backend/tests/functional/auth or providers",
+            "source": "apps/backend/start/admission_routes.ts:35; apps/backend/app/controllers/joining_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 join lifecycle status",
             "source": "server/src/routes/joiningProofRoutes.ts:130-133"
-          }
+          },
+          "current_source": "src/account/companyJoinClient.ts:13-17"
         },
         {
           "method": "POST",
@@ -3344,7 +3386,8 @@
           "legacy_response_status_contract": {
             "status": "200 provider URL; validation 400; upstream unavailable 503; auth/policy/invitation errors through fail boundary",
             "source": "server/src/routes/joiningProofRoutes.ts:140-167,176-209; server/src/routes/appErrors.ts:37-75"
-          }
+          },
+          "current_source": "src/account/companyJoinClient.ts:4-10,18-31"
         },
         {
           "method": "GET",
@@ -3365,7 +3408,8 @@
           "legacy_response_status_contract": {
             "status": "200 proof.status projection",
             "source": "server/src/routes/microsoftProofRoutes.ts:98-100; server/src/app.microsoftProof.test.ts:43-66"
-          }
+          },
+          "current_source": "src/account/companyJoinClient.ts:32; src/auth/microsoftConnectionClient.ts:21-29,66-84"
         },
         {
           "method": "POST",
@@ -3386,7 +3430,8 @@
           "legacy_response_status_contract": {
             "status": "200 provider URL; 400 parse errors; typed proof errors use their status; unexpected errors propagate to root error handler",
             "source": "server/src/routes/microsoftProofRoutes.ts:18-66,83-97; server/src/routes/appErrors.ts:37-75"
-          }
+          },
+          "current_source": "src/account/companyJoinClient.ts:33-52; src/auth/microsoftConnectionClient.ts:21-30,57-64"
         },
         {
           "method": "POST",
@@ -3407,7 +3452,8 @@
           "legacy_response_status_contract": {
             "status": "200 {ok:true}; typed proof errors use their status; unexpected errors propagate to root error handler",
             "source": "server/src/routes/microsoftProofRoutes.ts:112-119"
-          }
+          },
+          "current_source": "src/account/companyJoinClient.ts:54; src/auth/microsoftConnectionClient.ts:105-119"
         },
         {
           "method": "POST",
@@ -3428,7 +3474,8 @@
           "legacy_response_status_contract": {
             "status": "200 {ok:true} when route registered",
             "source": "server/src/routes/microsoftProofRoutes.ts:121-126"
-          }
+          },
+          "current_source": "src/account/companyJoinClient.ts:55; src/auth/microsoftConnectionClient.ts:110-119"
         },
         {
           "method": "POST",
@@ -3449,7 +3496,8 @@
           "legacy_response_status_contract": {
             "status": "200 {ok:true} and cookie update",
             "source": "server/src/routes/joiningProofRoutes.ts:134-137"
-          }
+          },
+          "current_source": "src/account/companyJoinClient.ts:4-10,56"
         },
         {
           "method": "POST",
@@ -3463,14 +3511,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "implemented-in-M3b",
+            "milestone": "M3b",
+            "package": "apps/backend/tests/functional/auth or providers",
+            "source": "apps/backend/start/admission_routes.ts:43-44; apps/backend/app/controllers/joining_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 sent; 400 malformed request; 401 required auth; 429 rate budget; 503 email delivery unavailable",
             "source": "server/src/routes/joiningProofRoutes.ts:227-263"
-          }
+          },
+          "current_source": "src/account/companyJoinClient.ts:4-10,57-58"
         },
         {
           "method": "POST",
@@ -3484,14 +3534,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "implemented-in-M3b",
+            "milestone": "M3b",
+            "package": "apps/backend/tests/functional/auth or providers",
+            "source": "apps/backend/start/admission_routes.ts:46-47; apps/backend/app/controllers/joining_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 verified; 400 invalid token/email; 401 password assurance; 403 active-owner restriction",
             "source": "server/src/routes/joiningProofRoutes.ts:265-281"
-          }
+          },
+          "current_source": "src/account/companyJoinClient.ts:4-10,59"
         },
         {
           "method": "POST",
@@ -3505,14 +3557,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "implemented-in-M3b",
+            "milestone": "M3b",
+            "package": "apps/backend/tests/functional/auth or providers",
+            "source": "apps/backend/start/admission_routes.ts:37-41; apps/backend/app/controllers/joining_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 completion receipt; 400 malformed request; 401 assurance; other typed join errors through fail boundary",
             "source": "server/src/routes/joiningProofRoutes.ts:284-301; server/src/routes/appErrors.ts:37-75"
-          }
+          },
+          "current_source": "src/account/companyJoinClient.ts:4-10,60-61"
         },
         {
           "method": "POST",
@@ -3533,7 +3587,8 @@
           "legacy_response_status_contract": {
             "status": "200 completion; 400 invalid provider/auth inputs; other join failures through fail boundary",
             "source": "server/src/routes/joiningProofRoutes.ts:308-332; server/src/routes/appErrors.ts:37-75"
-          }
+          },
+          "current_source": "src/account/companyJoinClient.ts:4-10,62-63"
         },
         {
           "method": "POST",
@@ -3554,7 +3609,8 @@
           "legacy_response_status_contract": {
             "status": "200 completion; 400 invalid provider/auth inputs; other join failures through fail boundary",
             "source": "server/src/routes/joiningProofRoutes.ts:335-359; server/src/routes/appErrors.ts:37-75"
-          }
+          },
+          "current_source": "src/account/companyJoinClient.ts:4-10,64-65"
         },
         {
           "method": "GET",
@@ -3575,7 +3631,8 @@
           "legacy_response_status_contract": {
             "status": "200 provider projection; 400 repeated/non-string providerId; 404 provider not configured; unexpected errors 500",
             "source": "server/src/accounts/federatedIdentityRoutes.ts:44-63"
-          }
+          },
+          "current_source": "src/account/identityProviderClient.ts:6-10"
         },
         {
           "method": "POST",
@@ -3596,7 +3653,8 @@
           "legacy_response_status_contract": {
             "status": "200 provider authorization URL; 400 invalid fields/callback; 403 unverified email; 409 stale session or linked identity conflicts; provider statuses mapped by providerLinkFailure; unexpected 500",
             "source": "server/src/accounts/federatedIdentityRoutes.ts:68-126; server/src/accounts/providerLinkFailure.ts:4-12,32-44"
-          }
+          },
+          "current_source": "src/account/identityProviderClient.ts:12-24"
         },
         {
           "method": "POST",
@@ -3732,7 +3790,8 @@
           "legacy_response_status_contract": {
             "status": "200 successful receipt (including no-op/ordered empty); 400 malformed envelope, invalid sync headers, >MAX_BATCH_OPS, unknown target/method, invalid operation body or revision metadata; 403 authorization/account-cap refusal; 409 stale write; remaining account/general failures use typed account/general error handlers",
             "source": "server/src/routes/batchRoutes.ts:106-127,142-160,169-204; server/src/routes/batch/validateRequest.ts:21-43,45-117,120-134; server/src/routes/appErrors.ts:37-75"
-          }
+          },
+          "current_source": "src/data/sync/batchWire.ts:138-166"
         },
         {
           "method": "POST",
@@ -3753,7 +3812,8 @@
           "legacy_response_status_contract": {
             "status": "200 archived projection; 400 malformed accountId; 403 authorization; 404 missing row; 409 transition/protected entity; normalized failure for other errors",
             "source": "server/src/routes/lifecycleRoutes.ts:202-232; server/src/routes/lifecycleRoutes.ts:53-62"
-          }
+          },
+          "current_source": "src/data/sync/lifecycleOps.ts:145-162; src/hooks/useLifecycleActions.ts:127-151"
         },
         {
           "method": "POST",
@@ -3774,7 +3834,8 @@
           "legacy_response_status_contract": {
             "status": "200 unarchived projection; 400 malformed accountId; 403 authorization; 404 missing row; 409 transition/protected entity; normalized failure for other errors",
             "source": "server/src/routes/lifecycleRoutes.ts:202-232; server/src/routes/lifecycleRoutes.ts:53-62"
-          }
+          },
+          "current_source": "src/data/sync/lifecycleOps.ts:105-117; src/hooks/useLifecycleActions.ts:127-151"
         },
         {
           "method": "POST",
@@ -3795,7 +3856,8 @@
           "legacy_response_status_contract": {
             "status": "200 import receipt; 400 invalid/empty import; 403 not owner; 409 stale snapshot; 503 queue pressure; parse/authorization typed status branches",
             "source": "server/src/routes/importRoutes.ts:159-209,235-251"
-          }
+          },
+          "current_source": "src/components/import-export/useServerImport.ts:100-111"
         },
         {
           "method": "POST",
@@ -3895,7 +3957,7 @@
             "status": "200 {ok:true} success; typed failures map through account status mapping",
             "source": "server/src/accounts/accountRoutes.ts:64; server/src/accounts/routes/handlers/session.ts:20-38; shared/src/account/errors.ts:55-96"
           },
-          "current_source": "src/auth/signOut.ts:38-41; src/account/accountClient.ts:73"
+          "current_source": "src/auth/signOut.ts:34-43; src/auth/authClient.ts:82-108"
         },
         {
           "method": "POST",
@@ -3936,7 +3998,8 @@
           "legacy_response_status_contract": {
             "status": "200 demo/authenticated identity; 401 missing/invalid session; 503 auth backend failure",
             "source": "server/src/routes/authProxyRoutes.ts:212-250"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:52-54; src/api/queryClient.ts:34-40; src/auth/fetchAuthStatus.ts:181-199"
         },
         {
           "method": "POST",
@@ -3950,14 +4013,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M2b",
-            "package": "apps/backend/tests/functional/companies"
+            "status": "implemented-in-M3b",
+            "milestone": "M3b",
+            "package": "apps/backend/tests/functional/companies",
+            "source": "apps/backend/start/routes.ts:28; apps/backend/app/controllers/companies_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "201 provisioned product row; 400 non-object body; typed command/provider/cap/auth refusals use statusForAccountFailure; unexpected errors 500",
             "source": "server/src/routes/stateRoutes.ts:217-280; shared/src/account/errors.ts:55-96; server/src/routes/appRootHooks.ts:247-264; server/src/routes/appErrors.ts:37-75"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:95-101; src/api/queryClient.ts:34-40; src/account/accountRequestTypes.ts:5-9"
         },
         {
           "method": "POST",
@@ -4011,14 +4076,16 @@
             "verification": "verified: GET RequestInit/call construction has no body"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/membership_routes.ts:6-8; apps/backend/app/controllers/members_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 member projection or empty result in auth-off mode; authorization and typed failures use account status map",
             "source": "server/src/accounts/accountRoutes.ts:104-105; server/src/accounts/routes/handlers/memberAdmin.ts:60-124; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:126-131; src/api/queryClient.ts:34-40; src/components/team/useOwnershipTransfer.ts:44-51"
         },
         {
           "method": "GET",
@@ -4032,14 +4099,16 @@
             "verification": "verified: GET RequestInit/call construction has no body"
           },
           "implementation": {
-            "status": "planned",
+            "status": "retired-by-owner-ruling-28",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/ownership_routes.ts:6-9 registers only the atomic POST transfer; the former projection and request-step routes are not registered"
           },
           "legacy_response_status_contract": {
             "status": "200 transfer projection; 403 denied/masquerade; typed errors through account map",
             "source": "server/src/accounts/routes/handlers/ownershipTransfer.ts:57-80; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "e2e/ownership-transfer.auth.spec.ts:74-95 exercises the atomic transfer UI without the retired request and accept routes"
         },
         {
           "method": "POST",
@@ -4053,14 +4122,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "retired-by-owner-ruling-28",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/ownership_routes.ts:6-9 registers only the atomic POST transfer; the former projection and request-step routes are not registered"
           },
           "legacy_response_status_contract": {
             "status": "200 stepped request; 400 missing revision; 409 terminal conflict; auth/typed failures through account map",
             "source": "server/src/accounts/routes/handlers/ownershipTransfer.ts:202-240; server/src/accounts/accountRoutes.ts:162-182; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "e2e/ownership-transfer.auth.spec.ts:74-95 exercises the atomic transfer UI without the retired request and accept routes"
         },
         {
           "method": "POST",
@@ -4074,14 +4145,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/ownership_routes.ts:6-9; apps/backend/app/controllers/ownership_controller.ts:20-50; apps/backend/tests/functional/membership/ownership_transfer.spec.ts:108-149"
           },
           "legacy_response_status_contract": {
             "status": "201 initiated request; 400 invalid target/revision pair; 409 terminal conflict; typed permission errors through account map",
             "source": "server/src/accounts/routes/handlers/ownershipTransfer.ts:95-171; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "e2e/ownership-transfer.auth.spec.ts:74-95; e2e/members.auth.spec.ts:45-53"
         },
         {
           "method": "PATCH",
@@ -4137,14 +4210,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/routes.ts:30-31; apps/backend/app/controllers/companies_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "204 account erasure/idempotent missing account; authorization or typed freshness/authority errors via accountFail; unexpected error 500",
             "source": "server/src/routes/accountEntity/lifecycleHandlers.ts:124-167; server/src/routes/accountEntityRoutes.ts:22-28; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:112-124; src/api/queryClient.ts:34-40"
         },
         {
           "method": "PUT",
@@ -4158,14 +4233,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/admission_routes.ts:30-31; apps/backend/app/controllers/joining_controller.ts:40-66"
           },
           "legacy_response_status_contract": {
             "status": "200 settings; 400 invalid policy/domains or off-mode contract; auth 401/403; typed failures through account map",
             "source": "server/src/accounts/routes/handlers/joiningPolicy.ts:41-83; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/joiningPolicyClient.ts:1-34; src/api/queryClient.ts:34-40"
         },
         {
           "method": "GET",
@@ -4185,7 +4262,8 @@
           "legacy_response_status_contract": {
             "status": "200 allowed account list; authorization may send 401/403; ended masquerade can send 403",
             "source": "server/src/routes/stateRoutes.ts:74-109,151"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:55-57; src/api/queryClient.ts:34-40"
         },
         {
           "method": "POST",
@@ -4199,14 +4277,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/admission_routes.ts:9; apps/backend/app/controllers/invitations_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "201 invitation receipt; invalid payload/policy errors map through account status helper",
             "source": "server/src/accounts/routes/handlers/invitation.ts:41-106; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:273-283; src/api/queryClient.ts:34-40; src/account/accountRequestTypes.ts:11-17"
         },
         {
           "method": "POST",
@@ -4220,14 +4300,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/admission_routes.ts:20-23; apps/backend/app/controllers/invitations_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 accountId/role; missing actor or provider/token errors map through account status helper; reused token 409",
             "source": "server/src/accounts/routes/handlers/invitation.ts:148-210; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:304-315; src/api/queryClient.ts:34-40"
         },
         {
           "method": "POST",
@@ -4441,14 +4523,16 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "retired-legacy-alias-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "e2e/members.auth.spec.ts:134-150 asserts the retired alias is absent; the only current ownership route is apps/backend/start/ownership_routes.ts:6-9"
           },
           "legacy_response_status_contract": {
             "status": "404 not registered in current legacy route tree; E2E explicitly asserts 404",
             "source": "e2e/members.auth.spec.ts:145-149; server/src/accounts/accountRoutes.ts:62-211"
-          }
+          },
+          "current_source": "e2e/members.auth.spec.ts:134-150"
         },
         {
           "method": "POST",
@@ -4469,7 +4553,8 @@
           "legacy_response_status_contract": {
             "status": "200 provider URL; 400 malformed token; typed proof errors use their status; unexpected errors propagate to root error handler",
             "source": "server/src/routes/microsoftProofRoutes.ts:68-72,101-110; server/src/routes/appErrors.ts:37-75"
-          }
+          },
+          "current_source": "src/auth/microsoftConnectionClient.ts:21-30,95-102"
         },
         {
           "method": "POST",
@@ -4490,7 +4575,8 @@
           "legacy_response_status_contract": {
             "status": "200 {ok:true} when route registered",
             "source": "server/src/routes/microsoftProofRoutes.ts:121-126"
-          }
+          },
+          "current_source": "src/account/companyJoinClient.ts:55; src/auth/microsoftConnectionClient.ts:110-119"
         },
         {
           "method": "POST",
@@ -4511,7 +4597,8 @@
           "legacy_response_status_contract": {
             "status": "200 provider URL; 400 parse errors; typed proof errors use their status; unexpected errors propagate to root error handler",
             "source": "server/src/routes/microsoftProofRoutes.ts:18-66,83-97; server/src/routes/appErrors.ts:37-75"
-          }
+          },
+          "current_source": "src/account/companyJoinClient.ts:33-52; src/auth/microsoftConnectionClient.ts:21-30,57-64"
         },
         {
           "method": "GET",
@@ -4532,7 +4619,8 @@
           "legacy_response_status_contract": {
             "status": "200 proof.status projection",
             "source": "server/src/routes/microsoftProofRoutes.ts:98-100"
-          }
+          },
+          "current_source": "src/account/companyJoinClient.ts:32; src/auth/microsoftConnectionClient.ts:21-29,66-84"
         },
         {
           "method": "GET",
@@ -4552,7 +4640,8 @@
           "legacy_response_status_contract": {
             "status": "200 demo/authenticated identity; 401 missing/invalid session; 503 auth backend failure",
             "source": "server/src/routes/authProxyRoutes.ts:212-250"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:52-54; src/api/queryClient.ts:34-40; src/auth/fetchAuthStatus.ts:181-199"
         },
         {
           "method": "GET",
@@ -4566,14 +4655,16 @@
             "verification": "verified: GET RequestInit/call construction has no body"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/admission_routes.ts:16-19; apps/backend/app/controllers/invitations_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 safe preview; token/domain failures mapped through accountFail",
             "source": "server/src/accounts/accountRoutes.ts:86-88; server/src/accounts/routes/handlers/invitation.ts:112-133; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:298-303; src/api/queryClient.ts:34-40"
         },
         {
           "method": "GET",
@@ -4587,14 +4678,16 @@
             "verification": "verified: GET RequestInit/call construction has no body"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3b",
             "milestone": "M3b",
-            "package": "apps/backend/tests/functional/membership"
+            "package": "apps/backend/tests/functional/membership",
+            "source": "apps/backend/start/admission_routes.ts:68-69; apps/backend/app/controllers/member_resources_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 avatar projection or empty result in auth-off mode; authorization 401/403",
             "source": "server/src/accounts/accountRoutes.ts:105-107; server/src/accounts/routes/handlers/memberAdmin.ts:127-141"
-          }
+          },
+          "current_source": "src/account/memberResourceClient.ts:6-9; src/account/accountClient.ts:133-137; src/api/queryClient.ts:34-40"
         },
         {
           "method": "GET",
@@ -4635,7 +4728,8 @@
           "legacy_response_status_contract": {
             "status": "200 successful receipt (including no-op/ordered empty); 400 malformed envelope, invalid sync headers, >MAX_BATCH_OPS, unknown target/method, invalid operation body or revision metadata; 403 authorization/account-cap refusal; 409 stale write; remaining account/general failures use typed account/general error handlers",
             "source": "server/src/routes/batchRoutes.ts:106-127,142-160,169-204; server/src/routes/batch/validateRequest.ts:21-43,45-117,120-134; server/src/routes/appErrors.ts:37-75"
-          }
+          },
+          "current_source": "src/data/sync/batchWire.ts:138-166"
         },
         {
           "method": "GET",
@@ -4649,14 +4743,16 @@
             "verification": "verified from cited caller construction and current legacy route handler"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M2b",
-            "package": "apps/backend/tests/functional/companies"
+            "status": "implemented-in-M3b",
+            "milestone": "M3b",
+            "package": "apps/backend/tests/functional/companies",
+            "source": "apps/backend/start/routes.ts:35-37; apps/backend/app/controllers/getting_started_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 {dismissed:boolean}; 401 missing session; 403 account access denied; 404 account missing",
             "source": "server/src/routes/gettingStartedRoutes.ts:32-37; server/src/routes/appSessionResolution.ts:192-204; server/src/routes/appAuthorization.ts:157-171"
-          }
+          },
+          "current_source": "src/account/gettingStartedClient.ts:4-11"
         },
         {
           "method": "PUT",
@@ -4670,14 +4766,16 @@
             "verification": "verified from cited caller construction and current legacy route handler"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M2b",
-            "package": "apps/backend/tests/functional/companies"
+            "status": "implemented-in-M3b",
+            "milestone": "M3b",
+            "package": "apps/backend/tests/functional/companies",
+            "source": "apps/backend/start/routes.ts:38-40; apps/backend/app/controllers/getting_started_controller.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 {dismissed:true}; 400 body must be exactly {dismissed:true}; 401 missing session; 403 role/account denial; 404 account missing",
             "source": "server/src/routes/gettingStartedRoutes.ts:39-46; server/src/routes/appSessionResolution.ts:192-204; server/src/routes/appAuthorization.ts:117-124,157-171; server/src/app.gettingStarted.test.ts:87-117"
-          }
+          },
+          "current_source": "src/account/gettingStartedClient.ts:13-20"
         },
         {
           "method": "POST",
@@ -4698,7 +4796,8 @@
           "legacy_response_status_contract": {
             "status": "200 provider URL; 400 malformed request; typed MicrosoftProofError status; unexpected error reaches root handler; 403 cross-site mutation refusal",
             "source": "server/src/routes/microsoftProofRoutes.ts:9-23,34-65,83-96; server/src/app.microsoftProof.test.ts:69-88"
-          }
+          },
+          "current_source": "src/account/companyJoinClient.ts:33-52; src/auth/microsoftConnectionClient.ts:21-30,57-64"
         },
         {
           "method": "POST",
@@ -4719,7 +4818,8 @@
           "legacy_response_status_contract": {
             "status": "200 {ok:true}; typed MicrosoftProofError status; unexpected error reaches root handler; 403 cross-site mutation refusal",
             "source": "server/src/routes/microsoftProofRoutes.ts:112-119,121-126; server/src/app.microsoftProof.test.ts:69-88"
-          }
+          },
+          "current_source": "src/account/companyJoinClient.ts:54; src/auth/microsoftConnectionClient.ts:105-119"
         },
         {
           "method": "POST",
@@ -4740,7 +4840,8 @@
           "legacy_response_status_contract": {
             "status": "200 {ok:true}; typed MicrosoftProofError status; unexpected error reaches root handler; 403 cross-site mutation refusal",
             "source": "server/src/routes/microsoftProofRoutes.ts:112-119,121-126; server/src/app.microsoftProof.test.ts:69-88"
-          }
+          },
+          "current_source": "src/account/companyJoinClient.ts:55; src/auth/microsoftConnectionClient.ts:110-119"
         },
         {
           "method": "POST",
@@ -4761,7 +4862,8 @@
           "legacy_response_status_contract": {
             "status": "200 provider continuation URL; 400 malformed token; typed MicrosoftProofError status; unexpected error reaches root handler; 403 cross-site mutation refusal",
             "source": "server/src/routes/microsoftProofRoutes.ts:68-72,101-110; server/src/app.microsoftProof.test.ts:69-88"
-          }
+          },
+          "current_source": "src/auth/microsoftConnectionClient.ts:21-30,95-102"
         },
         {
           "method": "POST",
@@ -4806,7 +4908,8 @@
           "legacy_response_status_contract": {
             "status": "200 deleted/redacted projection; 400 malformed accountId; 403 authorization; 404 missing row; 409 protected entity/transition refusal; unexpected failure uses shared failure boundary",
             "source": "server/src/routes/lifecycleRoutes.ts:202-220,260-277; server/src/routes/lifecycleRoutes.ts:230-232"
-          }
+          },
+          "current_source": "src/hooks/useLifecycleActions.ts:21-22,127-151,261-264"
         },
         {
           "method": "POST",
@@ -4827,7 +4930,8 @@
           "legacy_response_status_contract": {
             "status": "204 purge success; 400 malformed accountId; 403 authorization; 404 missing row; 409 purge too recent/protected entity; unexpected failure uses shared failure boundary",
             "source": "server/src/routes/lifecycleRoutes.ts:202-220,279-295; server/src/routes/lifecycleRoutes.ts:230-232"
-          }
+          },
+          "current_source": "src/hooks/useLifecycleActions.ts:21-22,127-151,261-264"
         }
       ],
       "implementation_boundary": "Only start/routes.ts endpoints described in main_route_contracts are implemented in M1. Other call sites are mapped to future milestone ownership, not represented as implemented routes.",
@@ -5576,7 +5680,7 @@
               "admin may see the time-off note",
               "editor may NOT see the time-off note",
               "viewer may NOT see the time-off note",
-              "%s \u2192 %s"
+              "%s → %s"
             ]
           }
         ],

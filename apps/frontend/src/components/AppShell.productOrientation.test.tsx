@@ -1,5 +1,5 @@
 import { act } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +9,7 @@ import { AppShell } from "./AppShell";
 import { AuthContext } from "@/auth/authContext";
 import type { AuthContextValue } from "@/auth/authContext";
 import { buildProductOrientationKey } from "@/lib/productOrientation";
+import { renderWithQueryClient as render } from "@/test/renderWithQueryClient";
 
 const serverFlag = vi.hoisted(() => ({ on: false }));
 vi.mock("@/data/apiConfig", () => ({

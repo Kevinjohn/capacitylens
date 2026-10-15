@@ -3,11 +3,11 @@ import db from '@adonisjs/lucid/services/db'
 import { randomUUID, timingSafeEqual } from 'node:crypto'
 import env from '#start/env'
 import User from '#models/user'
+import { createPasswordSession } from '#services/auth/session_login'
 import { withTransaction } from '#services/with_transaction'
 import { authMode, availableProviders, passwordEnabled } from '#services/auth/mode'
 import {
   destroyNativeSessions,
-  registerProvenSession,
   resolveCurrentActor,
   SessionAuthorityError,
 } from '#services/auth/session_authority'
@@ -21,6 +21,8 @@ import { assertPasswordAllowed } from '#services/password_screening'
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password'
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
 import { consumeFailedSignInBudget, resetFailedSignInBudget } from '#services/auth/request_limit'
+import { endMasqueradeForSignOut } from '#services/auth/masquerade'
+import { restrictedCompanyIds } from '#services/auth/authorization'
 
 function bodyFields(value: unknown, fields: string[]): value is Record<string, unknown> {
   return (
@@ -67,24 +69,6 @@ async function withRequestPasswordWork<T>(ctx: HttpContext, work: () => Promise<
   }
 }
 
-async function createSession(ctx: HttpContext, user: User, credentialHash: string) {
-  const previousSessionId = ctx.session.sessionId
-  await ctx.auth.use('web').login(user)
-  const authenticatedAt = Date.now()
-  const sessionId = ctx.session.sessionId
-  ctx.session.put('authenticatedAt', authenticatedAt)
-  ctx.session.put('lastActivityAt', authenticatedAt)
-  await ctx.session.tag(String(user.id))
-  await withTransaction(async (trx) => {
-    await registerProvenSession(
-      { userId: String(user.id), sessionId, credentialHash, authenticatedAt },
-      trx
-    )
-    if (previousSessionId !== sessionId)
-      await trx.from('user_session_index').where('session_id', previousSessionId).delete()
-  })
-}
-
 export default class AuthController {
   providerStart({ response }: HttpContext) {
     return response.notFound({ error: 'Provider sign-in is unavailable.' })
@@ -107,14 +91,16 @@ export default class AuthController {
       const actor = await resolveCurrentActor(ctx)
       const mayCreateAnother =
         multiAccount &&
-        Boolean(
-          await db
+        (await withTransaction(async (trx) => {
+          const standing = await trx
             .from('memberships')
             .where('user_id', actor.userId)
             .where('status', 'active')
             .whereIn('role', ['owner', 'admin'])
-            .first()
-        )
+            .select('account_id')
+          const restricted = await restrictedCompanyIds(actor.userId, trx)
+          return standing.some((row) => !restricted.has(String(row.account_id)))
+        }))
       return {
         authMode: mode,
         user: userProjection(actor.user),
@@ -159,7 +145,7 @@ export default class AuthController {
         !(await withRequestPasswordWork(ctx, () => verifyPassword(hash, body.password as string)))
       )
         return ctx.response.unauthorized({ error: 'Invalid email or password.' })
-      await createSession(ctx, user, hash)
+      await createPasswordSession(ctx, user, hash)
       await resetFailedSignInBudget(ctx)
       return ctx.response.ok({ user: userProjection(user) })
     } catch (error) {
@@ -221,7 +207,7 @@ export default class AuthController {
       throw error
     }
     const user = await User.findOrFail(id)
-    await createSession(ctx, user, hash)
+    await createPasswordSession(ctx, user, hash)
     return ctx.response.created({ user: userProjection(user) })
   }
 
@@ -230,6 +216,7 @@ export default class AuthController {
     try {
       const actor = await resolveCurrentActor(ctx)
       await withTransaction(async (trx) => {
+        await endMasqueradeForSignOut(ctx, trx)
         await trx
           .from('user_session_index')
           .where({ user_id: actor.userId, session_id: actor.sessionId })

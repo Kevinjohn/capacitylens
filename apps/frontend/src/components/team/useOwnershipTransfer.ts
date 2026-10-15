@@ -1,175 +1,87 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { Dispatch, RefObject, SetStateAction } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { m } from "@/i18n";
 import { teamAccessClient } from "@/account/teamAccessClient";
-import type {
-  OwnershipTransferOutcomeView,
-  OwnershipTransferTerminalView,
-  OwnershipTransferProjectionView,
-  TeamAccessResult,
-  TeamMember,
-} from "@/account/teamAccessClient";
+import type { TeamMember } from "@/account/teamAccessClient";
 import { resolveRejectionMessage } from "@/account/accessResult";
-import type { OwnershipTransferStep } from "@/account/accountClient";
+import type { TeamAccessResult } from "@/account/accessResult";
+import { api, queryClient, scopeQueryKey } from "@/api/queryClient";
+import type { ApiQueryScope } from "@/api/queryClient";
+import { useAuth } from "@/auth/authContext";
+import { usePermissionStatus, useRole } from "@/auth/permissionContext";
 import { reprojectAccess } from "@/auth/reprojectAccess";
+import { useOfflineState } from "@/data/useOfflineState";
 import { useStore } from "@/store/useStore";
 
-// Re-read the server projection after commands because other participants and expiry processing can change the ceremony outside this screen.
-
-interface OwnershipTransferReadState {
-  projection: OwnershipTransferProjectionView | null;
-  members: readonly TeamMember[];
+interface OwnershipTransferState {
+  available: boolean;
+  loading: boolean;
+  directoryLoaded: boolean;
+  candidates: readonly TeamMember[];
   busy: boolean;
   error: string | null;
 }
 
-/** Current transfer record, loading status, and latest outcome. */
-export interface OwnershipTransferState extends OwnershipTransferReadState {
-  /** Loading remains distinct from an authoritative empty projection until the first read succeeds or reports an error. */
-  loading: boolean;
-}
-
-interface CommandInput {
-  requestId: string;
-  step: OwnershipTransferStep;
-  expectedRevision: string;
-}
-
-/** Ownership transfer state and operations exposed to the card. */
 export interface OwnershipTransferController extends OwnershipTransferState {
   refresh(): Promise<void>;
-  nominate(targetPrincipalId: string): Promise<void>;
-  command(input: CommandInput): Promise<void>;
-  /** The committed terminal outcome of the last command, if it had one. Cleared by the next
-   * command, so a stale explanation cannot outlive the thing it explains. */
-  lastTerminal: OwnershipTransferTerminalView | null;
+  transfer(targetPrincipalId: string): Promise<void>;
 }
 
 const EMPTY_MEMBERS: readonly TeamMember[] = [];
+type OwnershipTransferResult = Awaited<ReturnType<typeof teamAccessClient.transferOwnership>>;
 
-interface CeremonyRead {
-  projection: OwnershipTransferProjectionView | null;
-  members: readonly TeamMember[] | null;
-  error: string | null;
-}
-
-// Failed reads return a visible error and nullable projections rather than rejecting the card lifecycle. Callers may retain stale state while observing, but a post-command refresh discards stale controls.
-async function readCeremony(accountId: string): Promise<CeremonyRead> {
-  try {
-    const [projection, directory] = await Promise.all([
-      teamAccessClient.readOwnershipTransfer(accountId),
-      teamAccessClient.listMembers(accountId),
-    ]);
-    return {
-      projection: projection.kind === "ok" ? projection.value : null,
-      members: directory.kind === "ok" ? directory.value.members : null,
-      // A failed directory read must remain visible because an empty card would falsely imply there is no ownership action available.
-      error: projection.kind === "ok" && directory.kind === "ok" ? null : m.ownership_transfer_read_failed(),
-    };
-  } catch (cause) {
-    // Report the safe user message and log the read failure so operators can distinguish transport and timeout causes.
-    console.error("OwnershipTransferCard: ceremony read failed", cause);
-    return { projection: null, members: null, error: m.ownership_transfer_read_failed() };
-  }
-}
-
-type MergeCeremonyReadOptions = { previous: OwnershipTransferReadState; next: CeremonyRead; keepStale?: boolean };
-// Retain the previous projection during passive refresh failure; after a command, discard stale controls because their revision may have changed.
-function mergeCeremonyRead({ previous, next, keepStale = true }: MergeCeremonyReadOptions): OwnershipTransferReadState {
-  return {
-    ...previous,
-    projection: next.projection ?? (keepStale ? previous.projection : null),
-    members: next.members ?? previous.members,
-    error: next.error,
-  };
-}
-
-// Match both account and request generation so an older same-company read cannot restore stale ceremony controls.
-function useLatestRead(): () => () => boolean {
-  const issued = useRef(0);
-  return useCallback(() => {
-    const mine = ++issued.current;
-    return () => issued.current === mine;
-  }, []);
-}
-
-const EMPTY_STATE: OwnershipTransferReadState = {
-  projection: null,
-  members: EMPTY_MEMBERS,
-  busy: false,
-  error: null,
-};
-
-// Clear projections on account change so a failed new read cannot expose the previous company's participants.
-interface CeremonyReadInput {
+function useOwnerDirectory({
+  accountId,
+  available,
+  scope,
+  principalId,
+}: {
   accountId: string | null;
-  beginRead: () => () => boolean;
-  apply: Dispatch<SetStateAction<OwnershipTransferReadState>>;
-  forgetOutcome: (outcome: OwnershipTransferTerminalView | null) => void;
+  available: boolean;
+  scope: ApiQueryScope;
+  principalId: string | null;
+}) {
+  const routeKey = api.api.members.index.queryKey({ params: { accountId: accountId ?? "" } });
+  const query = useQuery({
+    queryKey: scopeQueryKey(scope, ["team-members", 0, ...routeKey]),
+    enabled: available && accountId !== null,
+    refetchOnWindowFocus: false,
+    retry: false,
+    queryFn: ({ signal }) => teamAccessClient.listMembers(accountId ?? "", signal),
+  });
+  const members = query.data?.kind === "ok" ? query.data.value.members : EMPTY_MEMBERS;
+  const candidates = useMemo(
+    () =>
+      members.filter(
+        (member) => member.role === "admin" && member.status === "active" && member.userId !== principalId,
+      ),
+    [members, principalId],
+  );
+  const error = readDirectoryError(query.data, query.error);
+  const refresh = useCallback(async (): Promise<void> => {
+    await query.refetch();
+  }, [query]);
+
+  return { candidates, error, loading: query.isPending, loaded: query.data?.kind === "ok", refresh };
 }
 
-function useCeremonyRead({ accountId, beginRead, apply, forgetOutcome }: CeremonyReadInput): void {
-  useEffect(() => {
-    const isLatest = beginRead();
-    apply(EMPTY_STATE);
-
-    forgetOutcome(null);
-    if (!accountId) return;
-    void (async () => {
-      const next = await readCeremony(accountId);
-      if (isLatest()) apply((previous) => mergeCeremonyRead({ previous: previous, next: next }));
-    })();
-  }, [accountId, beginRead, apply, forgetOutcome]);
+function readDirectoryError(result: TeamAccessResult<unknown> | undefined, error: Error | null): string | null {
+  if (result?.kind === "ok") return null;
+  if (result) return resolveRejectionMessage(result, m.ownership_transfer_read_failed());
+  return error ? m.ownership_transfer_read_failed() : null;
 }
 
-// A committed terminal response is a successful outcome to explain; refusals use safe server copy, while ambiguous responses use local recovery wording. Failures must release the card's busy state.
-interface CommandAnswer {
-  failure: string | null;
-  /** The committed terminal outcome to explain, if the server committed one. Returned rather than
-   * stored directly, so it can be discarded with the rest of a superseded answer. */
-  terminal: OwnershipTransferTerminalView | null;
-  /** Did the roles actually move? Only completion changes the caller's own authority. */
-  completed: boolean;
-  uncertain: boolean;
-}
-
-async function submit(perform: () => Promise<TeamAccessResult<OwnershipTransferOutcomeView>>): Promise<CommandAnswer> {
-  try {
-    const result = await perform();
-    if (result.kind !== "ok") {
-      return {
-        failure: resolveRejectionMessage(result, m.ownership_transfer_command_failed()),
-        ...NOTHING_MOVED,
-        uncertain: result.kind === "unknown" || result.kind === "invalid",
-      };
-    }
-    return {
-      failure: null,
-      terminal: result.value.kind === "terminal" ? result.value : null,
-      completed: result.value.kind === "applied" && result.value.request.state === "completed",
-      uncertain: false,
-    };
-  } catch (cause) {
-    // A request that never came back may still have been applied, so the reason matters: this is the
-    // one failure the user is told about without the server having said anything.
-    console.error("OwnershipTransferCard: ceremony command failed", cause);
-    return { failure: m.ownership_transfer_command_failed(), ...NOTHING_MOVED, uncertain: true };
-  }
-}
-
-const NOTHING_MOVED = { terminal: null, completed: false } as const;
-
-async function refreshCallerAccess(
-  accountId: string,
-  currentAccount: RefObject<string | null>,
-  refreshAuth: () => Promise<void>,
-): Promise<boolean> {
+async function reconcileCallerAccess(accountId: string, refreshAuth: () => Promise<void>): Promise<boolean> {
+  queryClient.clear();
   try {
     await refreshAuth();
-    if (currentAccount.current !== accountId) return true;
+  } catch (cause) {
+    console.error("OwnershipTransferCard: authentication refresh failed", cause);
+  }
+  if (useStore.getState().activeAccountId !== accountId) return true;
+  try {
     if (await reprojectAccess(accountId)) return true;
   } catch (cause) {
-    // Log failed access refresh so a confirmed transfer is not silently followed by stale authorization state.
     console.error("OwnershipTransferCard: access refresh failed", cause);
   }
   if (useStore.getState().activeAccountId === accountId) {
@@ -179,126 +91,104 @@ async function refreshCallerAccess(
   return false;
 }
 
-interface TransferCommandInput {
-  accountId: string | null;
-  beginRead: () => () => boolean;
-  currentAccount: RefObject<string | null>;
-  apply: Dispatch<SetStateAction<OwnershipTransferReadState>>;
-  setLastTerminal: (outcome: OwnershipTransferTerminalView | null) => void;
-  refreshAuth: () => Promise<void>;
+async function sendTransfer(accountId: string, targetPrincipalId: string): Promise<OwnershipTransferResult | null> {
+  try {
+    return await teamAccessClient.transferOwnership({ workspaceId: accountId, targetPrincipalId });
+  } catch (cause) {
+    console.error("OwnershipTransferCard: transfer response was not received", cause);
+    return null;
+  }
 }
 
-type RunTransferCommandOptions = {
-  perform: () => Promise<TeamAccessResult<OwnershipTransferOutcomeView>>;
-  mayChangeCallerAccess?: boolean;
-};
+async function settleTransfer({
+  result,
+  accountId,
+  refreshAuth,
+  setError,
+}: {
+  result: OwnershipTransferResult | null;
+  accountId: string;
+  refreshAuth: () => Promise<void>;
+  setError: (message: string | null) => void;
+}): Promise<void> {
+  if (result?.kind === "ok") {
+    if (await reconcileCallerAccess(accountId, refreshAuth)) {
+      useStore.getState().setNotice(m.ownership_transfer_success());
+    }
+    return;
+  }
+  if (result === null || result.kind === "unknown" || result.kind === "invalid") {
+    setError(m.ownership_transfer_uncertain());
+    await reconcileCallerAccess(accountId, refreshAuth);
+    return;
+  }
+  setError(resolveRejectionMessage(result, m.ownership_transfer_command_failed()));
+}
 
 function useTransferCommand({
   accountId,
-  beginRead,
-  currentAccount,
-  apply,
-  setLastTerminal,
+  available,
   refreshAuth,
-}: TransferCommandInput) {
-  const issuedCommand = useRef(0);
-  return useCallback(
-    async ({ perform, mayChangeCallerAccess = false }: RunTransferCommandOptions): Promise<void> => {
-      if (!accountId) return;
-      const commandId = ++issuedCommand.current;
-      const ownsCommand = () => issuedCommand.current === commandId && currentAccount.current === accountId;
-      beginRead();
-      apply((previous) => ({ ...previous, busy: true, error: null }));
-      setLastTerminal(null);
-      const answer = await submit(perform);
-      if (currentAccount.current !== accountId) return;
-      if (mayChangeCallerAccess && (answer.completed || answer.uncertain)) {
-        if (!(await refreshCallerAccess(accountId, currentAccount, refreshAuth))) return;
+}: {
+  accountId: string | null;
+  available: boolean;
+  refreshAuth: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const lock = useRef(false);
+  const transfer = useCallback(
+    async (targetPrincipalId: string): Promise<void> => {
+      if (!available || accountId === null || targetPrincipalId === "" || lock.current) return;
+      lock.current = true;
+      setBusy(true);
+      setError(null);
+      try {
+        const result = await sendTransfer(accountId, targetPrincipalId);
+        await settleTransfer({ result, accountId, refreshAuth, setError });
+      } finally {
+        lock.current = false;
+        setBusy(false);
       }
-      if (!ownsCommand()) return;
-      // A read from reopening the dialog may have overtaken the command. Once it settles, clear
-      // this command's busy state and issue a fresh read after the possible server write.
-      apply((previous) => ({ ...previous, busy: false }));
-      const isLatest = beginRead();
-      const next = await readCeremony(accountId);
-      if (!isLatest() || !ownsCommand()) return;
-      setLastTerminal(answer.terminal);
-      apply((previous) => ({
-        ...mergeCeremonyRead({ previous: previous, next: next, keepStale: false }),
-        busy: false,
-        error: answer.failure ?? next.error,
-      }));
     },
-    [accountId, beginRead, currentAccount, apply, setLastTerminal, refreshAuth],
+    [accountId, available, refreshAuth],
   );
+  return { busy, error, transfer };
 }
 
-/** Loads and mutates ownership transfers for the requested account. */
+/** Reads current eligible Admins and performs one immediate ownership transfer. */
 export function useOwnershipTransfer(
   accountId: string | null,
   refreshAuth: () => Promise<void>,
 ): OwnershipTransferController {
-  const [state, setState] = useState<OwnershipTransferReadState>(EMPTY_STATE);
-  const [lastTerminal, setLastTerminal] = useState<OwnershipTransferTerminalView | null>(null);
-
-  const beginRead = useLatestRead();
-  const currentAccount = useRef(accountId);
-  useLayoutEffect(() => {
-    currentAccount.current = accountId;
-  }, [accountId]);
-  useCeremonyRead({ accountId, beginRead, apply: setState, forgetOutcome: setLastTerminal });
-
-  const refresh = useCallback(async (): Promise<void> => {
-    if (!accountId) return;
-    const isLatest = beginRead();
-    const next = await readCeremony(accountId);
-    if (isLatest() && currentAccount.current === accountId)
-      setState((previous) => mergeCeremonyRead({ previous: previous, next: next }));
-  }, [accountId, beginRead]);
-
-  // Completion can change the caller's role, including when its response is uncertain.
-  const run = useTransferCommand({
+  const { authMode, user } = useAuth();
+  const role = useRole();
+  const permissionStatus = usePermissionStatus();
+  const offline = useOfflineState();
+  const masquerade = useStore((state) => state.masquerade);
+  const scope: ApiQueryScope = {
+    principalId: user?.id ?? null,
     accountId,
-    beginRead,
-    currentAccount,
-    apply: setState,
-    setLastTerminal,
-    refreshAuth,
-  });
+    masqueradeGeneration: masquerade.kind === "inactive" ? 0 : masquerade.generation,
+  };
+  const available =
+    authMode !== "off" &&
+    user !== null &&
+    role === "owner" &&
+    permissionStatus === "resolved" &&
+    !offline.readOnly &&
+    masquerade.kind === "inactive";
+  const directory = useOwnerDirectory({ accountId, available, scope, principalId: user?.id ?? null });
+  const command = useTransferCommand({ accountId, available, refreshAuth });
 
-  const nominate = useCallback(
-    async (targetPrincipalId: string): Promise<void> => {
-      const live = state.projection?.live ?? null;
-      await run({
-        perform: () =>
-          teamAccessClient.initiateOwnershipTransfer({
-            workspaceId: accountId ?? "",
-            targetPrincipalId,
-            // Naming the predecessor is what makes replacement atomic: if it moved since this card
-            // read it, the server refuses rather than replacing something else.
-            ...(live ? { replaces: { requestId: live.id, revision: live.revision } } : {}),
-          }),
-      });
-    },
-    [accountId, run, state.projection],
-  );
-
-  const command = useCallback(
-    async ({ requestId, step, expectedRevision }: CommandInput): Promise<void> => {
-      await run({
-        perform: () =>
-          teamAccessClient.commandOwnershipTransfer({
-            workspaceId: accountId ?? "",
-            requestId,
-            step,
-            expectedRevision,
-          }),
-        mayChangeCallerAccess: step === "complete",
-      });
-    },
-    [accountId, run],
-  );
-
-  const loading = accountId !== null && state.projection === null && state.error === null;
-  return { ...state, loading, lastTerminal, refresh, nominate, command };
+  return {
+    available,
+    loading: directory.loading,
+    directoryLoaded: directory.loaded,
+    candidates: directory.candidates,
+    busy: command.busy,
+    error: command.error ?? directory.error,
+    refresh: directory.refresh,
+    transfer: command.transfer,
+  };
 }

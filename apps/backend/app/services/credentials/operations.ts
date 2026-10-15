@@ -161,7 +161,7 @@ async function issueAdministrativeReset(
 ) {
   const actor = await resolveCurrentActor(input.ctx)
   if (actor.userId !== initialActorId) throw new SessionAuthorityError('Session identity changed.')
-  assertFreshSession(actor)
+  if (actor.userId !== input.targetUserId) assertFreshSession(actor)
   await db.transaction(async (trx) =>
     assertAdminScope(actor.userId, input.targetUserId, input.accountId, trx)
   )

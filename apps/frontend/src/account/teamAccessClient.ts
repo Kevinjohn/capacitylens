@@ -13,12 +13,7 @@ import type { TeamMember, TeamDirectory, TeamInvitation, OneTimeToken } from "./
 
 export { resolveRejectionMessage, type TeamAccessResult } from "./accessResult";
 export type { TeamMember, TeamDirectory, TeamInvitation, OneTimeToken } from "./teamAccessTypes";
-export type {
-  OwnershipTransferOutcomeView,
-  OwnershipTransferTerminalView,
-  OwnershipTransferProjectionView,
-  OwnershipTransferView,
-} from "./ownershipTransferAccess";
+export type { OwnershipTransferReceipt } from "./ownershipTransferAccess";
 
 const isOptionalBoolean = (value: unknown): value is boolean | undefined =>
   value === undefined || typeof value === "boolean";
@@ -251,8 +246,8 @@ type SetMemberSignInTrackingOptions = { workspaceId: string; enabled: boolean };
 export const teamAccessClient = {
   ...ownershipTransferAccess,
 
-  async listMembers(workspaceId: string): Promise<TeamAccessResult<TeamDirectory>> {
-    return readResult(await accountClient.listMembers(workspaceId), parseMembers);
+  async listMembers(workspaceId: string, signal?: AbortSignal): Promise<TeamAccessResult<TeamDirectory>> {
+    return readResult(await accountClient.listMembers(workspaceId, signal), parseMembers);
   },
 
   async setMemberSignInTracking({
@@ -264,8 +259,8 @@ export const teamAccessClient = {
     );
   },
 
-  async listInvitations(workspaceId: string): Promise<TeamAccessResult<TeamInvitation[]>> {
-    return readResult(await accountClient.listInvitations(workspaceId), parseInvitations);
+  async listInvitations(workspaceId: string, signal?: AbortSignal): Promise<TeamAccessResult<TeamInvitation[]>> {
+    return readResult(await accountClient.listInvitations(workspaceId, signal), parseInvitations);
   },
 
   async readJoiningPolicy(workspaceId: string): Promise<TeamAccessResult<JoiningPolicySettings>> {

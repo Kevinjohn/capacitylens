@@ -1,4 +1,5 @@
 import { clearStoredAccountCommands } from "@/account/accountClient";
+import { queryClient } from "@/api/queryClient";
 import { authClient } from "./authClient";
 import { clearOfflineDataForCurrentUser, setOfflineReadEnabled } from "@/data/offlineCache";
 
@@ -48,6 +49,8 @@ export async function signOutAndReload(overrides: Partial<SignOutDependencies> =
   // attempt: the server may have accepted a request whose response was lost. Reloading re-checks
   // /me and either restores the authenticated UI or presents the sign-in wall.
   try {
+    // Server query results belong to the outgoing principal and must not survive sign-out.
+    queryClient.clear();
     // End identity-bound retry ceremonies synchronously. Unlike IndexedDB, sessionStorage survives
     // this tab's mandatory reload and could otherwise carry an administrative command into the
     // next session on a shared browser.

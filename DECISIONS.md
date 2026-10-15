@@ -167,9 +167,9 @@ This is the short, present-tense record of decisions that constrain future work.
   format is deliberately NOT among them: a company reads one convention, so it is an account setting
   (editor and up), present in export and undoable like any other account change. It governs planning
   calendar dates and ranges. Server instants — session creation and expiry, password-reset expiry,
-  invitation expiry in the Team & access member panel and on the invitee's Accept invite page,
-  ownership-transfer deadlines and ownership outcome dates — instead use the viewer's browser locale
-  and local time zone, including when an instant is displayed as a date only. The offline read-only
+  invitation expiry in the Team & access member panel and on the invitee's Accept invite page —
+  instead use the viewer's browser locale and local time zone, including when an instant is displayed
+  as a date only. The offline read-only
   banner's last-updated timestamp also uses the viewer's browser locale and local time zone. Existing
   date-and-time and compact date-only shapes remain distinct; never recover a local date by slicing
   the stored UTC timestamp.
@@ -290,8 +290,8 @@ This is the short, present-tense record of decisions that constrain future work.
   company, import/purge and SSO identity link/repair (2026-09-11). Every other administrative read
   or action — invite create, invite revoke, role change, status change, member removal, the
   sign-in-tracking toggle, masquerade start and internal-client adoption — needs only the actor's
-  role, not a fresh session. Ownership transfer's own confirmation ceremony is
-  tracked separately as issue #780 and is unchanged by this decision.
+  role, not a fresh session. The transfer's explicit Owner confirmation is separate from this
+  freshness decision.
 - Cross-site writes are gated by Fetch Metadata and Origin, with two deliberate exemptions: an
   Origin on the credentialed CORS allow-list always passes (the allow-list is the operator's
   explicit cross-site contract), and an Origin whose host:port matches the request Host and
