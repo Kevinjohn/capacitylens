@@ -288,6 +288,14 @@
     {
       "path": "server/src/cutoverRepair.ts",
       "purpose": "Random non-secret audit identifiers for explicit company-provider identity repair operations"
+    },
+    {
+      "path": "apps/backend/app/services/admission/google_joining.ts",
+      "purpose": "Random 256-bit browser-bound Google joining secrets and non-secret intent identifiers, with domain-separated SHA-256 hashes for expiring company admission ceremonies"
+    },
+    {
+      "path": "apps/backend/app/services/auth/google_identity.ts",
+      "purpose": "Random non-secret principal, provider-identity and durable address-proof identifiers; Google OAuth credentials and tokens are never persisted"
     }
   ]
 }

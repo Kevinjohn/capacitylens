@@ -146,4 +146,18 @@ describe("product auth client", () => {
       }),
     );
   });
+
+  it.each(["javascript:alert(1)", "https://user:pass@example.test/start", "not a URL"])(
+    "rejects an unsafe provider continuation URL: %s",
+    async (url) => {
+      vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(Response.json({ url })));
+      await expect(
+        authClient.signIn.social({
+          provider: "google",
+          callbackURL: "https://app.example.test/team",
+          errorCallbackURL: "https://app.example.test/team?externalSignInError=1",
+        }),
+      ).resolves.toMatchObject({ data: null, error: { status: 502 } });
+    },
+  );
 });

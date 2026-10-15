@@ -1,5 +1,6 @@
 import { API_BASE } from "@/data/apiConfig";
 import { apiFetch } from "@/data/requestTimeout";
+import { apiRouteUrl } from "@/api/queryClient";
 
 function post(path: string, body?: unknown, signal?: AbortSignal): Promise<Response> {
   return apiFetch(`${API_BASE}${path}`, {
@@ -13,14 +14,14 @@ function post(path: string, body?: unknown, signal?: AbortSignal): Promise<Respo
 /** Provides request methods for company-join metadata and status. */
 export const companyJoinClient = {
   metadata: (accountId: string) =>
-    apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(accountId)}/join/metadata`, { credentials: "include" }),
-  status: () => apiFetch(`${API_BASE}/api/company-join/status`, { credentials: "include" }),
+    apiFetch(apiRouteUrl("api.joining.metadata", { params: { accountId } }), { credentials: "include" }),
+  status: () => apiFetch(apiRouteUrl("api.joining.status", {}), { credentials: "include" }),
   startProvider: (
-    input: { accountId: string; email: string; invitationToken: string | null; providerId: "google" | "github" },
+    input: { accountId: string; email: string; invitationToken: string | null; providerId: "google" },
     signal?: AbortSignal,
   ) =>
     post(
-      `/api/accounts/${encodeURIComponent(input.accountId)}/join/provider/start`,
+      apiRouteUrl("api.google.join-start", { params: { accountId: input.accountId } }).replace(API_BASE, ""),
       {
         purpose: input.invitationToken ? "invitation" : "policy",
         email: input.email,
@@ -29,38 +30,12 @@ export const companyJoinClient = {
       },
       signal,
     ),
-  microsoftStatus: () => apiFetch(`${API_BASE}/api/account/microsoft/status`, { credentials: "include" }),
-  startMicrosoft: (
-    input: { accountId: string; email: string; invitationToken: string | null },
-    signal?: AbortSignal,
-  ) => {
-    const target = new URL(`/join/${encodeURIComponent(input.accountId)}`, window.location.origin);
-    if (input.invitationToken) target.searchParams.set("invite", input.invitationToken);
-    const failure = new URL(target);
-    failure.searchParams.set("externalSignInError", "1");
-    return post(
-      "/api/account/microsoft/start",
-      {
-        purpose: "join",
-        accountId: input.accountId,
-        email: input.email,
-        ...(input.invitationToken ? { inviteToken: input.invitationToken } : {}),
-        callbackURL: target.href,
-        errorCallbackURL: failure.href,
-      },
-      signal,
-    );
-  },
-  microsoftResend: () => post("/api/account/microsoft/resend"),
-  microsoftCancel: () => post("/api/account/microsoft/cancel"),
-  cancel: () => post("/api/company-join/cancel"),
+  cancel: () => post(apiRouteUrl("api.google.join-cancel", {}).replace(API_BASE, "")),
   requestJoinEmailVerification: (accountId: string) =>
     post(`/api/accounts/${encodeURIComponent(accountId)}/join/verify-email`, {}),
   confirmJoinEmailVerification: (token: string) => post("/api/company-join/verify-email", { token }),
   completeExisting: (accountId: string) =>
     post(`/api/accounts/${encodeURIComponent(accountId)}/join/complete-existing`, {}),
   completeProvider: (invitationToken: string | null) =>
-    post("/api/company-join/complete-provider", invitationToken ? { invitationToken } : {}),
-  completeMicrosoft: (invitationToken: string | null) =>
-    post("/api/company-join/complete-microsoft", invitationToken ? { invitationToken } : {}),
+    post(apiRouteUrl("api.google.join-complete", {}).replace(API_BASE, ""), invitationToken ? { invitationToken } : {}),
 };

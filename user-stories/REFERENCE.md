@@ -10,9 +10,8 @@ does not provide a separate team-link workflow.
 
 **Disable Access** is a company restriction separate from archiving or removing membership. It
 denies current requests and later invitations. It also follows a recreated identity at the same
-address when both identities have durable mailbox proof from a verified provider sign-in or a
-completed mailbox ceremony. This includes a verified GitHub address in mixed mode; a legacy
-email-verified flag or addressed invitation is not proof.
+address when both identities have durable mailbox proof from a verified Google sign-in or a
+completed mailbox ceremony; a legacy email-verified flag or addressed invitation is not proof.
 **Enable Access** clears the restriction; a removed or archived person still needs the
 ordinary invitation or restore path. Removed restrictions remain visible to administrators in
 the inactive member directory. Owner and self protections apply to both actions.
@@ -89,8 +88,7 @@ accept responses never include it.
    SOME account — or any user on a zero-account instance — may create, so an editor-only or
    membership-less login never sees the button (its empty picker says "ask an admin for an
    invite" instead of "create your first one"). In SSO-only mode the current session must also come
-   from a configured company provider. An existing GitHub session is rejected in provider-required
-   mode; it cannot provision an Owner membership. A direct `POST /api/accounts` still 403s
+   from Google. A direct `POST /api/accounts` still 403s
    regardless, so this is UX only. The
    button stays visible whenever the fact is unavailable or doesn't apply: the demo build (no
    server, no cap), a zero-account instance (the bootstrap exemption — you must be able to create
@@ -951,26 +949,20 @@ The product auth client uses `POST /api/auth/sign-in`, `POST /api/auth/sign-up` 
 `POST /api/auth/provider-start`. These requests retain the existing form outcomes,
 setup-token header and flat error responses.
 
-**External provider action labels (login, invitation acceptance and reauthentication).** Provider
+**Google sign-in action (login, invitation acceptance and reauthentication).** Provider
 reauthentication explains before redirect that returning does not complete the original action;
-the person must submit it again. The
-configured Google provider uses the
-exact branded action **Sign in with Google** and the
-recognisable Google mark on the sign-in wall, the invite acceptance sign-in form and the
-reauthentication dialog. The action stays visibly busy/disabled during hand-off. Other external
-providers use their branded accessible action, including **Sign in with Microsoft**.
-Provider presentation is server-owned and is never inferred from a user-editable provider label.
-On an ordinary sign-in screen, every configured provider appears once in the server-supplied order
-in one vertical stack above the password form. Google keeps its sharp, undistorted artwork without
-an outer wrapper shadow; Microsoft and other providers retain their branded, accessible actions.
-When providers and password sign-in are both available, the localized **or use your password**
-separator appears once between the stack and form. Provider-only sign-in has no password separator,
-and password-only sign-in has no empty provider area. First-owner setup keeps its separate field
-order and provider bootstrap flow, including Microsoft's mailbox-proof requirements. SSO-only still
-omits password controls.
+the person must submit it again. The configured Google provider uses the exact branded action
+**Sign in with Google** and recognisable Google mark on the sign-in wall, invite acceptance sign-in
+form and reauthentication dialog. The action stays visibly busy/disabled during hand-off. Provider
+presentation is server-owned and is never inferred from a user-editable provider label.
+When Google and password sign-in are both available, the Google action appears above the password
+form with the localized **or use your password** separator. Google-only sign-in has no password
+form or separator; password-only sign-in has no provider area.
+First-owner Google setup requires the allowlisted address while no user exists; its callback creates
+a sign-in identity but no company. SSO-only omits password controls.
 
 See [Passwords and company sign-in](../docs-src/company-login/index.md#passwords-and-company-sign-in)
-for the sign-in layout and [Set up Google or Microsoft sign-in](../docs-src/company-login/set-up-company-login.md)
+for the sign-in layout and [Set up Google sign-in](../docs-src/company-login/set-up-company-login.md)
 for provider setup.
 
 Identity display-name and label limits count Unicode code points, so an astral CJK character is one
@@ -983,32 +975,18 @@ row and supply their current password in the dialog. The **Security** section
 (`data-testid="security-section"`) appears when a configured company-provider connection is
 available. Session tokens are never displayed after their one-time use.
 CapacityLens has no local authenticator or recovery-code controls. A company that requires MFA
-sets and manages it with its Google or Microsoft provider; enabling company sign-in alone does
-not enable MFA.
+sets and manages it with Google; enabling company sign-in alone does not enable MFA.
 
 On a mixed deployment, Account's Security section shows **Company sign-in**
-(`data-testid="sso-connection"`) for each configured company provider. **Connect _provider_**
-requires a fresh session and connects the provider to that same principal. Named Google and Microsoft
-connections require a verified local email and matching proof of the provider address; Microsoft may
-ask for the one-time mailbox verification below. A conflicting identity is rejected without merging
-accounts. A successful callback shows **Connected to _provider_**. The same verified provider identity
-is used for subsequent sign-in. GitHub retains its existing experimental sign-in behavior.
+(`data-testid="sso-connection"`) when Google can be connected. **Connect Google** requires a fresh
+session, a verified local email and proof that the Google address matches it. A conflicting identity
+is rejected without merging accounts. A successful callback shows **Connected to Google**. The same
+Google subject is used for subsequent sign-in, even if its profile email later changes.
 
-If the session is stale, **Connect _provider_** opens **Confirm it's you**. Cancelling does not start a
+If the session is stale, **Connect Google** opens **Confirm it's you**. Cancelling does not start a
 provider connection; success continues the request once, and another freshness refusal directs the
 person to sign out and back in. An unverified local email directs the person to ask the server
 operator for sign-in email correction through the guarded repair route, then sign in again.
-
-**Microsoft mailbox verification (`/verify-microsoft`, with an optional trailing slash).** This is a
-public entry before auth or company-data hydration. If the first connection needs email proof, the
-person opens the emailed link in the browser that started the request and chooses **Confirm and
-continue**. The secret fragment is removed from the address bar and retained only in memory. After
-confirmation, **Continue to Microsoft** can resume an approved request without the email token.
-The flow checks the same Microsoft identity and the still-valid invitation or local session before
-creating its connection. Expired, replaced and consumed proofs cannot be reused. Delivery failures
-are shown honestly; **Resend verification email**, retry and cancellation provide recovery. Ordinary
-returning sign-in uses the established identity and does not repeat this mailbox check. See
-[Set up company login](../docs-src/company-login/set-up-company-login.md).
 
 **First-run Owner setup (password-capable mode, zero users).** When the server reports `needsSetup: true`
 on the 401 (password-only or password-and-sso with an **empty** user table — sign-up is open for exactly one
@@ -1029,12 +1007,11 @@ zero-users (it boots with the `--create-owner-admin-admin` bootstrap credential 
 production now mints a one-time generated password; see `BOOTSTRAP_ADMIN` in `e2e/authTestSupport.ts`),
 so the setup form
 itself is covered by unit tests, not a spec. Spec `e2e/login.auth.spec.ts`.
-On a mixed deployment, every configured external provider remains available below
-the setup form. Google uses the branded **Sign in with Google** action; other providers use
-their branded sign-in action. Named Google/Microsoft bootstrap uses
-`CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS`. Microsoft asks for the intended email before starting
-and proves it during first connection; provider-required setup does not ask for a password. The
-operator does not need a temporary password identity.
+On a mixed deployment, the configured Google action remains available alongside the setup form.
+The first Google identity must use an address in `CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS` while no
+user exists. The callback creates the sign-in identity but no company or membership; the Owner then
+sets up the company. Later new Google identities require an unused invitation addressed to their
+verified Google email. Provider-required setup does not ask for a password.
 
 **Invite accept route (`/invite/:token`; server mode).** A single-use, expiring invite link
 carries a pre-set Admin, Editor or Viewer role for one company; Owner is never invitational.
@@ -1048,9 +1025,10 @@ Merely opening or previewing the URL never changes membership. Permission and ex
 consequences wrap in full. Expiry uses the viewer's local date and time without seconds; the year
 appears when it differs from the current year. An addressed invite can be accepted with an existing password sign-in, or used to create a
 password account where invitation signup is allowed. The invitation stays bound to its exact
-address and company. Eligible providers return to `/invite/:token` after sign-in, then explicitly accept the
-invitation under the current policy. A new or restored member receives
-the invitation role; an already-active member keeps the current role. The server rechecks the
+address and company. An existing Google identity, or a new identity admitted through this addressed
+invitation, returns to `/invite/:token` after sign-in; the person must explicitly accept the
+invitation under the current policy. A new or restored member receives the invitation role; an
+already-active member keeps the current role. The server rechecks the
 address, current policy, invitation, access restrictions and session at acceptance. Completion
 refreshes the authenticated company list and activates the joined company without persisting
 `activeAccountId` or treating the URL as membership proof.
@@ -1222,10 +1200,11 @@ presented before the member directory, matching the action-first pattern of the 
   (`data-testid="joining-policy-link"`) and choose **Copy joining link**
   (`data-testid="joining-policy-copy-link"`) to share `/join/:accountId`.
   `/join/:accountId` is a public company-bound entry outside the app's account picker. It shows
-  the company's name and offers password sign-in only; Google, Microsoft and GitHub sign-in are not
-  available there. A person with an existing password account signs in, then chooses
-  **Join company**. The server admits only a currently proven email that meets the live policy. A
-  password identity without trusted email proof can use an addressed invitation or choose **Email me a verification link**
+  the company's name and offers Google and, when enabled, password sign-in. An existing Google
+  identity or password identity signs in, then chooses **Join company**. The server rechecks the
+  live policy and current email proof at completion. A new Google identity still needs an unused
+  addressed invitation; an open or domain joining policy does not create one. A password identity
+  without trusted email proof can use an addressed invitation or choose **Email me a verification link**
   (`data-testid="joining-verify-email"`); successful delivery shows an inbox status
   (`data-testid="joining-verify-email-status"`). Open/domain policy joining does not
   create a new password account. On completion the normal authenticated company list verifies

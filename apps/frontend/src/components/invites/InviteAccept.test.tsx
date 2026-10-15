@@ -404,7 +404,7 @@ registerInviteAcceptTest(() =>
         ...signedInAuth,
         authMode: "sso-only",
         user: null,
-        providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
+        providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
       },
       strict: false,
       path: "/invite/secret-token?externalSignInError=1&error=provider-secret",

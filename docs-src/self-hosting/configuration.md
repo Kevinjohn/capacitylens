@@ -29,17 +29,17 @@ helper, are in the [development guide](/reference/development#development-enviro
 | `CAPACITYLENS_DEPLOYMENT_PROFILE` | An optional named policy: `self-hosted-password`, `self-hosted-mixed`, `self-hosted-sso-only` or `hosted-sso-only`. Enforced at startup. |
 | `CAPACITYLENS_SECRET` | The session-signing secret. Required for every authenticated mode. The `init` command generates one; anything 32 characters or longer is fine. |
 | `CAPACITYLENS_PUBLIC_URL` | The exact browser-facing origin, for example `https://capacity.example.com`. Required for every authenticated mode. |
-| `CAPACITYLENS_SETUP_TOKEN` | The one-time secret the first Owner enters on a fresh password-mode instance. For Google/Microsoft setup, use `CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS` for the first identity or a pre-authorised invitation after that. |
+| `CAPACITYLENS_SETUP_TOKEN` | The one-time secret the first Owner enters on a fresh password-mode instance. For Google sign-in, use `CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS` for the first identity or an addressed invitation for each later new identity. |
 | `CAPACITYLENS_ALLOW_OPEN_SIGNUP` | Re-opens self-service sign-up. Closed by default: CapacityLens is invite-only. Leave it unset in production. |
 | `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION` | Allows the `off` posture under production. Without it, a production instance with no sign-in refuses to start. |
 | `CAPACITYLENS_PASSWORD_BREACH_CHECK` | On by default: new passwords are checked against known breaches. Set `off` only for an isolated deployment that accepts the production warning. |
 
 A profile must match the mode: `self-hosted-password` requires `password-only`,
 `self-hosted-mixed` requires `password-and-sso`, and `self-hosted-sso-only` and `hosted-sso-only`
-require `sso-only`. The mixed and SSO-only profiles require Google or tenant-specific Microsoft.
-Without a profile, mixed mode can also use experimental GitHub. `hosted-sso-only` is reserved for
+require `sso-only`. The mixed and SSO-only profiles require Google sign-in.
+`hosted-sso-only` is reserved for
 hosted deployments; a self-hosted installation that requires company sign-in uses
-`self-hosted-sso-only` (see [Require company sign-in](/company-login/move-to-single-sign-on)).
+`self-hosted-sso-only` (see [Require Google sign-in](/company-login/move-to-single-sign-on)).
 
 Send the setup token to the first Owner through a secure channel, never in chat, tickets,
 screenshots, command output or logs. It must be entered exactly, without surrounding quotes or
@@ -52,22 +52,16 @@ secret away from operators and future processes.
 | Variable | What it does |
 | --- | --- |
 | `CAPACITYLENS_GOOGLE_CLIENT_ID` / `CAPACITYLENS_GOOGLE_CLIENT_SECRET` | Credentials for a Google web application. Use an Internal audience restricted to your Workspace organisation. |
-| `CAPACITYLENS_MICROSOFT_CLIENT_ID` / `CAPACITYLENS_MICROSOFT_CLIENT_SECRET` | Application ID and secret value from your Microsoft Entra app registration. |
-| `CAPACITYLENS_MICROSOFT_TENANT_ID` | Required organisation tenant GUID. `common`, `organizations`, personal-account tenants and a missing value are refused. |
-| `CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS` | Comma-separated company email addresses allowed to create the first named-provider identity. Later new identities require an unused invitation addressed to them. |
-| `CAPACITYLENS_GITHUB_CLIENT_ID` / `CAPACITYLENS_GITHUB_CLIENT_SECRET` | Optional credentials for the experimental GitHub sign-in in mixed mode. |
+| `CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS` | Comma-separated verified Google email addresses allowed to create the first Google identity. Later new identities require an unused invitation addressed to them. |
 
-[Set up company login](/company-login/set-up-company-login) has the registration steps. Register
-`https://your-capacitylens-address/api/auth/callback/google` for Google and
-`https://your-capacitylens-address/api/auth/callback/microsoft` for Microsoft, using your actual
-HTTPS origin. These paths must match exactly. Restart after changing these settings.
+[Set up Google sign-in](/company-login/set-up-company-login) has the registration steps. Register
+`https://your-capacitylens-address/api/auth/callback/google` as the redirect URI, using your actual
+HTTPS origin. This path must match exactly. Restart after changing these settings.
 
 - A partial credential pair refuses startup when provider sign-in is enabled.
 - `password-only` ignores retained provider credentials. The `self-hosted-password` profile
   rejects them, and the account email settings, at startup: remove them before selecting it.
-- `password-and-sso` enables password and configured provider sign-in; `sso-only` accepts only
-  configured company providers. GitHub cannot provide company-only access.
-- Microsoft also needs all five [account email](#account-email) settings.
+- `password-and-sso` enables password and Google sign-in; `sso-only` accepts only Google sign-in.
 - The invitation policy, not the sign-in mode, decides who may join a company.
 
 ## Account email
@@ -93,11 +87,6 @@ With email on:
   confirmation is the same for every address; unknown addresses and accounts using only company
   sign-in receive no email. Admin-issued copy-links send no email. With SMTP disabled, the sign-in form has no
   recovery-email control.
-- A first Microsoft connection may need a one-time email verification, so all five settings are
-  required whenever Microsoft is configured. The link expires after 15 minutes and must be
-  confirmed in the browser that started sign-in. An SMTP failure blocks completion without
-  granting access and allows retry. Returning Microsoft sign-in sends no further email. The
-  [company-login guide](/company-login/set-up-company-login) covers resend, expiry and recovery.
 
 ## The database and backups
 

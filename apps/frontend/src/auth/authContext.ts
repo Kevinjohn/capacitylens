@@ -23,10 +23,10 @@ interface AuthProviderBase {
 }
 
 /** Brand used to label a configured social sign-in provider. */
-export type AuthProviderBrand = "generic" | "google" | "microsoft";
+export type AuthProviderBrand = "generic" | "google";
 
 /** Social provider IDs the client recognises from server metadata. */
-export const SUPPORTED_SOCIAL_PROVIDER_IDS = ["google", "microsoft", "github"] as const;
+export const SUPPORTED_SOCIAL_PROVIDER_IDS = ["google"] as const;
 /** Provider ID accepted by social sign-in flows. */
 export type SupportedSocialProviderId = (typeof SUPPORTED_SOCIAL_PROVIDER_IDS)[number];
 const supportedSocialProviderIds: ReadonlySet<string> = new Set(SUPPORTED_SOCIAL_PROVIDER_IDS);
@@ -40,7 +40,7 @@ export function isSupportedSocialProviderId(value: unknown): value is SupportedS
 export type AuthProviderInfo = AuthProviderBase & { id: SupportedSocialProviderId; kind: "social" };
 
 /** Returns whether the provider uses Google branding, using its legacy ID only when brand is absent. */
-export function hasGoogleProviderBrand(provider: Pick<AuthProviderInfo, "id" | "kind" | "brand">): boolean {
+export function hasGoogleProviderBrand(provider: { id: string; kind: "social"; brand?: AuthProviderBrand }): boolean {
   return provider.brand === "google" || (provider.brand === undefined && provider.id === "google");
 }
 

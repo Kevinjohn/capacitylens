@@ -227,7 +227,6 @@ export function InviteProviderButtons({
           provider={provider}
           label={m.invite_continue_provider({ provider: provider.label })}
           googleLabel={m.login_sign_in_with_google()}
-          microsoftLabel={m.login_sign_in_with_microsoft()}
           disabled={busy}
           onClick={() => onSelect(provider)}
         />

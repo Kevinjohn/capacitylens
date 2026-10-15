@@ -5,7 +5,7 @@ import limiter from '@adonisjs/limiter/services/main'
 import { withTransaction } from '#services/with_transaction'
 import { activeCompanyRole } from '#services/auth/authorization'
 import { resolveCurrentActor } from '#services/auth/session_authority'
-import { passwordEnabled } from '#services/auth/mode'
+import { passwordEnabled, googleEnabled } from '#services/auth/mode'
 import {
   claimAccountCommand,
   completeAccountCommand,
@@ -94,7 +94,7 @@ export default class JoiningController {
           accountId: ctx.params.accountId,
           companyName: account.name,
           passwordAvailable: passwordEnabled(),
-          providerAvailable: false,
+          providerAvailable: googleEnabled(),
           emailVerificationAvailable:
             passwordEnabled() && Boolean(env.get('CAPACITYLENS_MAIL_HOST')),
         }

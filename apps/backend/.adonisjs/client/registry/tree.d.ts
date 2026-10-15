@@ -71,6 +71,14 @@ export interface ApiDefinition {
     ownership: {
       transfer: typeof routes['api.ownership.transfer']
     }
+    google: {
+      callback: typeof routes['api.google.callback']
+      link: typeof routes['api.google.link']
+      identity: typeof routes['api.google.identity']
+      joinStart: typeof routes['api.google.join-start']
+      joinCancel: typeof routes['api.google.join-cancel']
+      joinComplete: typeof routes['api.google.join-complete']
+    }
     lifecycle: typeof routes['api.lifecycle']
     health: typeof routes['api.health']
   }

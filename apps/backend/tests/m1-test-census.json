@@ -577,8 +577,8 @@
       "milestone": "M3c",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half.",
+      "proposed_test_path": "tests/functional/auth/google_http.spec.ts",
+      "reason": "Native Google link checks cover fresh matching local proof and bound-subject conflict; identity inspection and link status use Google HTTP tests. Microsoft is deferred by ruling 26; the original mixed-provider source remains legacy reference until M7a.",
       "subdispositions": [
         {
           "milestone": "M3b",
@@ -591,8 +591,8 @@
           "milestone": "M3c",
           "disposition": "port",
           "proposed_package": "apps/backend",
-          "proposed_test_path": "tests/functional/providers",
-          "reason": "Provider half ports with provider identity routes."
+          "proposed_test_path": "tests/functional/auth/google_http.spec.ts",
+          "reason": "Google link and provider inspection outcomes are covered by google_http.spec.ts; Microsoft remains deferred and GitHub retired. Original source remains until M7a."
         }
       ]
     },
@@ -701,8 +701,8 @@
       "milestone": "M3c",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half."
+      "proposed_test_path": "tests/functional/auth/google_admission.spec.ts",
+      "reason": "Native Google admission checks first allowlisted identity and concurrent single-winner bootstrap. Password setup is covered separately by native auth tests; original Better Auth bootstrap internals remain legacy reference until M7a."
     },
     {
       "source_path": "server/src/app.auth.providers.test.ts",
@@ -710,8 +710,8 @@
       "milestone": "M3c",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half."
+      "proposed_test_path": "tests/functional/auth/google_http.spec.ts",
+      "reason": "Native Google HTTP checks configured mixed/SSO availability and a stateful redirect; native configuration unit tests reject incomplete Google settings. Microsoft is deferred and GitHub retired; original provider/avatar mechanics remain legacy reference until M7a."
     },
     {
       "source_path": "server/src/app.auth.proxySurface.test.ts",
@@ -1099,20 +1099,20 @@
     {
       "source_path": "server/src/app.microsoftProof.test.ts",
       "plan_identity": "app.microsoftProof",
-      "milestone": "M3c",
-      "disposition": "port",
+      "milestone": "post-M3c",
+      "disposition": "deferred",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half."
+      "proposed_test_path": null,
+      "reason": "Microsoft provider, linking, and mailbox-proof behavior is deferred by owner ruling 26; no native Microsoft implementation is claimed. The original test remains legacy reference until M7a."
     },
     {
       "source_path": "server/src/app.microsoftProviderLink.test.ts",
       "plan_identity": "app.microsoftProviderLink",
-      "milestone": "M3c",
-      "disposition": "port",
+      "milestone": "post-M3c",
+      "disposition": "deferred",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half."
+      "proposed_test_path": null,
+      "reason": "Microsoft provider, linking, and mailbox-proof behavior is deferred by owner ruling 26; no native Microsoft implementation is claimed. The original test remains legacy reference until M7a."
     },
     {
       "source_path": "server/src/app.projections-guards.test.ts",
@@ -1279,11 +1279,11 @@
     {
       "source_path": "server/src/authConfig/authRequestHandler.microsoftReturn.test.ts",
       "plan_identity": "authConfig/authRequestHandler.microsoftReturn",
-      "milestone": "M3c",
-      "disposition": "port",
+      "milestone": "post-M3c",
+      "disposition": "deferred",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half."
+      "proposed_test_path": null,
+      "reason": "Microsoft provider, linking, and mailbox-proof behavior is deferred by owner ruling 26; no native Microsoft implementation is claimed. The original test remains legacy reference until M7a."
     },
     {
       "source_path": "server/src/authConfig/captureContexts.test.ts",
@@ -1291,8 +1291,8 @@
       "milestone": "M3c",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half."
+      "proposed_test_path": "tests/functional/auth/credential_issuance_faults.spec.ts",
+      "reason": "Native issuance fault tests cover committed cleanup and duplicate token outcomes. Better Auth capture-chain internals are not directly ported and remain legacy reference until M7a."
     },
     {
       "source_path": "server/src/authConfig/errorRedirect.test.ts",
@@ -1300,8 +1300,8 @@
       "milestone": "M3c",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half."
+      "proposed_test_path": "tests/functional/auth/google_http.spec.ts",
+      "reason": "Native google_http.spec.ts checks callback state and foreign-origin refusal. google_negative_http.spec.ts also proves expired browser and company-join callback intents and provider access denial grant no identity, membership, or session authority. Better Auth namespaced state lookup is not ported; original source remains legacy reference until M7a."
     },
     {
       "source_path": "server/src/authConfig/federatedEmailProof.test.ts",
@@ -1309,8 +1309,8 @@
       "milestone": "M3c",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half."
+      "proposed_test_path": "tests/functional/auth/google_negative_http.spec.ts",
+      "reason": "Native Google negative HTTP checks unverified/mismatched local link and Owner-restriction rollback of proof and identity; Google success linking is in google_http.spec.ts. GitHub proof is retired and original source remains legacy reference until M7a."
     },
     {
       "source_path": "server/src/authConfig/githubAdmission.test.ts",
@@ -1327,8 +1327,8 @@
       "milestone": "M3c",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half."
+      "proposed_test_path": "tests/functional/auth/google_admission.spec.ts",
+      "reason": "Native Google admission checks allowlisted first identity, uninvited subject refusal, and concurrent single-winner bootstrap; google_negative_http.spec.ts also checks a second uninvited subject and Owner-restriction rollback. Original Better Auth state mechanics remain legacy reference until M7a."
     },
     {
       "source_path": "server/src/authConfig/mailSender.test.ts",
@@ -1336,53 +1336,53 @@
       "milestone": "M3c",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half."
+      "proposed_test_path": "tests/functional/auth/admission_mail.spec.ts",
+      "reason": "Native admission_mail.spec.ts covers company send budgets and failed-send behavior. tests/unit/mail_timeout.spec.ts sends through the configured Adonis SMTP transport to a loopback peer that accepts but never greets, proving the original bounded nonresponse refusal. Original mail sender remains legacy reference until M7a."
     },
     {
       "source_path": "server/src/authConfig/microsoftIdentityConflicts.test.ts",
       "plan_identity": "authConfig/microsoftIdentityConflicts",
-      "milestone": "M3c",
-      "disposition": "port",
+      "milestone": "post-M3c",
+      "disposition": "deferred",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half."
+      "proposed_test_path": null,
+      "reason": "Microsoft provider, linking, and mailbox-proof behavior is deferred by owner ruling 26; no native Microsoft implementation is claimed. The original test remains legacy reference until M7a."
     },
     {
       "source_path": "server/src/authConfig/microsoftProof.mailFailure.test.ts",
       "plan_identity": "authConfig/microsoftProof.mailFailure",
-      "milestone": "M3c",
-      "disposition": "port",
+      "milestone": "post-M3c",
+      "disposition": "deferred",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half."
+      "proposed_test_path": null,
+      "reason": "Microsoft provider, linking, and mailbox-proof behavior is deferred by owner ruling 26; no native Microsoft implementation is claimed. The original test remains legacy reference until M7a."
     },
     {
       "source_path": "server/src/authConfig/microsoftProof.test.ts",
       "plan_identity": "authConfig/microsoftProof",
-      "milestone": "M3c",
-      "disposition": "port",
+      "milestone": "post-M3c",
+      "disposition": "deferred",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half."
+      "proposed_test_path": null,
+      "reason": "Microsoft provider, linking, and mailbox-proof behavior is deferred by owner ruling 26; no native Microsoft implementation is claimed. The original test remains legacy reference until M7a."
     },
     {
       "source_path": "server/src/authConfig/microsoftProofMailbox.test.ts",
       "plan_identity": "authConfig/microsoftProofMailbox",
-      "milestone": "M3c",
-      "disposition": "port",
+      "milestone": "post-M3c",
+      "disposition": "deferred",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half."
+      "proposed_test_path": null,
+      "reason": "Microsoft provider, linking, and mailbox-proof behavior is deferred by owner ruling 26; no native Microsoft implementation is claimed. The original test remains legacy reference until M7a."
     },
     {
       "source_path": "server/src/authConfig/microsoftProofTransport.test.ts",
       "plan_identity": "authConfig/microsoftProofTransport",
-      "milestone": "M3c",
-      "disposition": "port",
+      "milestone": "post-M3c",
+      "disposition": "deferred",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half."
+      "proposed_test_path": null,
+      "reason": "Microsoft provider, linking, and mailbox-proof behavior is deferred by owner ruling 26; no native Microsoft implementation is claimed. The original test remains legacy reference until M7a."
     },
     {
       "source_path": "server/src/authConfig/passwordPolicy.test.ts",
@@ -1390,8 +1390,8 @@
       "milestone": "M3c",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half."
+      "proposed_test_path": "tests/unit/password_service.spec.ts",
+      "reason": "Native password service tests cover exact-byte hashing and derivation bounds; the original Better Auth prehash-before-signup hook is not directly ported. Original source remains legacy reference until M7a."
     },
     {
       "source_path": "server/src/authConfig/providerRetirement.test.ts",
@@ -1399,8 +1399,8 @@
       "milestone": "M3c",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half."
+      "proposed_test_path": "tests/functional/auth/google_negative_http.spec.ts",
+      "reason": "Native Google negative HTTP refuses a second uninvited subject; Google availability by mode is in google_http.spec.ts. Microsoft is deferred by ruling 26 and GitHub retired; original source remains legacy reference until M7a."
     },
     {
       "source_path": "server/src/authConfig/providers.test.ts",
@@ -1408,8 +1408,8 @@
       "milestone": "M3c",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half."
+      "proposed_test_path": "tests/unit/native_auth_configuration.spec.ts",
+      "reason": "Native configuration tests reject half-configured Google credentials and require complete Google in hosted SSO; google_http.spec.ts verifies offered modes. Microsoft is deferred and GitHub retired; original source remains legacy reference until M7a."
     },
     {
       "source_path": "server/src/authTransactionGate.test.ts",
@@ -1795,11 +1795,11 @@
     {
       "source_path": "server/src/microsoftProofRedaction.test.ts",
       "plan_identity": "microsoftProofRedaction",
-      "milestone": "M3c",
-      "disposition": "port",
+      "milestone": "post-M3c",
+      "disposition": "deferred",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half."
+      "proposed_test_path": null,
+      "reason": "Microsoft provider, linking, and mailbox-proof behavior is deferred by owner ruling 26; no native Microsoft implementation is claimed. The original test remains legacy reference until M7a."
     },
     {
       "source_path": "server/src/ownershipTransferRecovery.test.ts",
@@ -1969,8 +1969,8 @@
       "milestone": "M3c",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/providers",
-      "reason": "M3c Google/Microsoft provider admission, same-browser proof, linking, redaction, or bootstrap behavior; configuration-library tests deleted; federatedIdentityRoutes provider half."
+      "proposed_test_path": "tests/functional/auth/google_http.spec.ts",
+      "reason": "Native Google HTTP checks linked-principal policy joining and explicit invitation completion; google_negative_http.spec.ts refuses missing browser, changed policy, and mismatched verified address. GitHub joining is retired; original source remains legacy reference until M7a."
     },
     {
       "source_path": "server/src/routes/masqueradeRoutes.test.ts",
@@ -2496,7 +2496,7 @@
             "status": "200 demo/authenticated identity; 401 missing/invalid session; 503 auth backend failure",
             "source": "server/src/routes/authProxyRoutes.ts:212-250"
           },
-          "current_source": "src/account/accountClient.ts:52-54; src/api/queryClient.ts:34-40; src/auth/fetchAuthStatus.ts:181-199"
+          "current_source": "src/account/accountClient.ts:52-54; src/auth/fetchAuthStatus.ts:181-199; src/auth/authStatus.ts:82-104"
         },
         {
           "method": "GET",
@@ -3356,16 +3356,18 @@
             "verification": "verified: GET RequestInit/call construction has no body"
           },
           "implementation": {
-            "status": "implemented-in-M3b",
-            "milestone": "M3b",
-            "package": "apps/backend/tests/functional/auth or providers",
-            "source": "apps/backend/start/admission_routes.ts:35; apps/backend/app/controllers/joining_controller.ts"
+            "status": "implemented-in-M3c",
+            "milestone": "M3c",
+            "package": "apps/backend",
+            "source": "apps/backend/start/admission_routes.ts:40; apps/backend/app/controllers/google_controller.ts:266-270; apps/backend/tests/functional/auth/google_http.spec.ts",
+            "method": "GET",
+            "path": "/api/company-join/status"
           },
           "legacy_response_status_contract": {
             "status": "200 join lifecycle status",
             "source": "server/src/routes/joiningProofRoutes.ts:130-133"
           },
-          "current_source": "src/account/companyJoinClient.ts:13-17"
+          "current_source": "src/account/companyJoinClient.ts:14-18; src/components/join/useCompanyJoin.ts:60-83"
         },
         {
           "method": "POST",
@@ -3379,15 +3381,18 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "implemented-in-M3c",
+            "milestone": "M3c",
+            "package": "apps/backend",
+            "source": "apps/backend/start/google_routes.ts:10-12; apps/backend/app/controllers/google_controller.ts:162-178; apps/backend/tests/functional/auth/google_http.spec.ts",
+            "method": "POST",
+            "path": "/api/accounts/:accountId/join/provider/start"
           },
           "legacy_response_status_contract": {
             "status": "200 provider URL; validation 400; upstream unavailable 503; auth/policy/invitation errors through fail boundary",
             "source": "server/src/routes/joiningProofRoutes.ts:140-167,176-209; server/src/routes/appErrors.ts:37-75"
           },
-          "current_source": "src/account/companyJoinClient.ts:4-10,18-31"
+          "current_source": "src/account/companyJoinClient.ts:19-32; src/components/join/useCompanyJoin.ts:97-117"
         },
         {
           "method": "GET",
@@ -3401,15 +3406,15 @@
             "verification": "verified: GET RequestInit/call construction has no body"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "deferred-by-owner-ruling-26",
+            "milestone": "post-M3c",
+            "package": null
           },
           "legacy_response_status_contract": {
             "status": "200 proof.status projection",
             "source": "server/src/routes/microsoftProofRoutes.ts:98-100; server/src/app.microsoftProof.test.ts:43-66"
           },
-          "current_source": "src/account/companyJoinClient.ts:32; src/auth/microsoftConnectionClient.ts:21-29,66-84"
+          "current_source": "src/auth/microsoftConnectionClient.ts:21-30,66-84"
         },
         {
           "method": "POST",
@@ -3423,15 +3428,15 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "deferred-by-owner-ruling-26",
+            "milestone": "post-M3c",
+            "package": null
           },
           "legacy_response_status_contract": {
             "status": "200 provider URL; 400 parse errors; typed proof errors use their status; unexpected errors propagate to root error handler",
             "source": "server/src/routes/microsoftProofRoutes.ts:18-66,83-97; server/src/routes/appErrors.ts:37-75"
           },
-          "current_source": "src/account/companyJoinClient.ts:33-52; src/auth/microsoftConnectionClient.ts:21-30,57-64"
+          "current_source": "src/auth/microsoftConnectionClient.ts:21-30,57-64"
         },
         {
           "method": "POST",
@@ -3445,15 +3450,15 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "deferred-by-owner-ruling-26",
+            "milestone": "post-M3c",
+            "package": null
           },
           "legacy_response_status_contract": {
             "status": "200 {ok:true}; typed proof errors use their status; unexpected errors propagate to root error handler",
             "source": "server/src/routes/microsoftProofRoutes.ts:112-119"
           },
-          "current_source": "src/account/companyJoinClient.ts:54; src/auth/microsoftConnectionClient.ts:105-119"
+          "current_source": "src/auth/microsoftConnectionClient.ts:21-30,105-119"
         },
         {
           "method": "POST",
@@ -3467,15 +3472,15 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "deferred-by-owner-ruling-26",
+            "milestone": "post-M3c",
+            "package": null
           },
           "legacy_response_status_contract": {
             "status": "200 {ok:true} when route registered",
             "source": "server/src/routes/microsoftProofRoutes.ts:121-126"
           },
-          "current_source": "src/account/companyJoinClient.ts:55; src/auth/microsoftConnectionClient.ts:110-119"
+          "current_source": "src/auth/microsoftConnectionClient.ts:21-30,110-119"
         },
         {
           "method": "POST",
@@ -3489,15 +3494,18 @@
             "verification": "verified: cited request construction omits body"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "implemented-in-M3c",
+            "milestone": "M3c",
+            "package": "apps/backend",
+            "source": "apps/backend/start/google_routes.ts:13-15; apps/backend/app/controllers/google_controller.ts:274-280; apps/backend/tests/functional/auth/google_http.spec.ts",
+            "method": "POST",
+            "path": "/api/company-join/cancel"
           },
           "legacy_response_status_contract": {
             "status": "200 {ok:true} and cookie update",
             "source": "server/src/routes/joiningProofRoutes.ts:134-137"
           },
-          "current_source": "src/account/companyJoinClient.ts:4-10,56"
+          "current_source": "src/account/companyJoinClient.ts:33; src/components/join/useCompanyJoin.ts:147-152"
         },
         {
           "method": "POST",
@@ -3520,7 +3528,7 @@
             "status": "200 sent; 400 malformed request; 401 required auth; 429 rate budget; 503 email delivery unavailable",
             "source": "server/src/routes/joiningProofRoutes.ts:227-263"
           },
-          "current_source": "src/account/companyJoinClient.ts:4-10,57-58"
+          "current_source": "src/account/companyJoinClient.ts:5-11,34-35"
         },
         {
           "method": "POST",
@@ -3543,7 +3551,7 @@
             "status": "200 verified; 400 invalid token/email; 401 password assurance; 403 active-owner restriction",
             "source": "server/src/routes/joiningProofRoutes.ts:265-281"
           },
-          "current_source": "src/account/companyJoinClient.ts:4-10,59"
+          "current_source": "src/account/companyJoinClient.ts:5-11,36"
         },
         {
           "method": "POST",
@@ -3566,7 +3574,7 @@
             "status": "200 completion receipt; 400 malformed request; 401 assurance; other typed join errors through fail boundary",
             "source": "server/src/routes/joiningProofRoutes.ts:284-301; server/src/routes/appErrors.ts:37-75"
           },
-          "current_source": "src/account/companyJoinClient.ts:4-10,60-61"
+          "current_source": "src/account/companyJoinClient.ts:5-11,37-38"
         },
         {
           "method": "POST",
@@ -3580,15 +3588,18 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "implemented-in-M3c",
+            "milestone": "M3c",
+            "package": "apps/backend",
+            "source": "apps/backend/start/google_routes.ts:16-18; apps/backend/app/controllers/google_controller.ts:283-294; apps/backend/tests/functional/auth/google_http.spec.ts",
+            "method": "POST",
+            "path": "/api/company-join/complete-provider"
           },
           "legacy_response_status_contract": {
             "status": "200 completion; 400 invalid provider/auth inputs; other join failures through fail boundary",
             "source": "server/src/routes/joiningProofRoutes.ts:308-332; server/src/routes/appErrors.ts:37-75"
           },
-          "current_source": "src/account/companyJoinClient.ts:4-10,62-63"
+          "current_source": "src/account/companyJoinClient.ts:39-40; src/components/join/useCompanyJoin.ts:220-224"
         },
         {
           "method": "POST",
@@ -3602,15 +3613,15 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "deferred-by-owner-ruling-26",
+            "milestone": "post-M3c",
+            "package": null
           },
           "legacy_response_status_contract": {
             "status": "200 completion; 400 invalid provider/auth inputs; other join failures through fail boundary",
             "source": "server/src/routes/joiningProofRoutes.ts:335-359; server/src/routes/appErrors.ts:37-75"
           },
-          "current_source": "src/account/companyJoinClient.ts:4-10,64-65"
+          "current_source": "Deferred: no active company-join Microsoft completion caller after Google-only cutover"
         },
         {
           "method": "GET",
@@ -3624,15 +3635,18 @@
             "verification": "verified: GET RequestInit/call construction has no body"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "implemented-in-M3c",
+            "milestone": "M3c",
+            "package": "apps/backend",
+            "source": "apps/backend/start/google_routes.ts:9; apps/backend/app/controllers/google_controller.ts:144-159; apps/backend/tests/functional/auth/google_http.spec.ts",
+            "method": "GET",
+            "path": "/api/identity/provider"
           },
           "legacy_response_status_contract": {
             "status": "200 provider projection; 400 repeated/non-string providerId; 404 provider not configured; unexpected errors 500",
             "source": "server/src/accounts/federatedIdentityRoutes.ts:44-63"
           },
-          "current_source": "src/account/identityProviderClient.ts:6-10"
+          "current_source": "src/account/identityProviderClient.ts:7-10; src/components/settings/useProviderConnection.ts:55-58"
         },
         {
           "method": "POST",
@@ -3646,15 +3660,18 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "implemented-in-M3c",
+            "milestone": "M3c",
+            "package": "apps/backend",
+            "source": "apps/backend/start/google_routes.ts:8; apps/backend/app/controllers/google_controller.ts:121-141; apps/backend/tests/functional/auth/google_http.spec.ts",
+            "method": "POST",
+            "path": "/api/identity/link-provider"
           },
           "legacy_response_status_contract": {
             "status": "200 provider authorization URL; 400 invalid fields/callback; 403 unverified email; 409 stale session or linked identity conflicts; provider statuses mapped by providerLinkFailure; unexpected 500",
             "source": "server/src/accounts/federatedIdentityRoutes.ts:68-126; server/src/accounts/providerLinkFailure.ts:4-12,32-44"
           },
-          "current_source": "src/account/identityProviderClient.ts:12-24"
+          "current_source": "src/account/identityProviderClient.ts:13-29; src/components/settings/useProviderConnection.ts:61-68"
         },
         {
           "method": "POST",
@@ -3907,7 +3924,7 @@
             "status": "local proxy errors 404 unconfigured/disallowed, 400 invalid URL, 403 local policy refusal; otherwise Better Auth response status/body forwarded unchanged; observed pass-through 200 successful sign-in (`server/src/app.auth.bootstrap.test.ts:335-341`); invalid old password 401 (`e2e/reset-password.auth.spec.ts:74-77`)",
             "source": "server/src/routes/authProxyRoutes.ts:30-49,302-367,370-378"
           },
-          "current_source": "src/auth/usePasswordSignIn.ts:34; src/auth/ReauthDialog.tsx:68; src/auth/authClient.ts:10-109; src/components/invites/inviteSignupActions.ts:100-115,154-159; src/components/invites/inviteSignInActions.ts:53-59; src/components/join/useCompanyJoin.ts:225-240; src/auth/usePasswordSignIn.ts:34-37"
+          "current_source": "src/auth/usePasswordSignIn.ts:34-37; src/auth/ReauthDialog.tsx:68; src/auth/authClient.ts:103-117; src/components/invites/inviteSignupActions.ts:100-115,154-159; src/components/invites/inviteSignInActions.ts:43; src/components/join/useCompanyJoin.ts:213"
         },
         {
           "method": "POST",
@@ -3921,18 +3938,18 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "client-bound-in-M3a; provider-implementation-in-M3c",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/start/auth_routes.ts",
+            "status": "implemented-in-M3c",
+            "milestone": "M3c",
+            "package": "apps/backend",
             "method": "POST",
             "path": "/api/auth/provider-start",
-            "source": "apps/frontend/src/auth/authClient.ts"
+            "source": "apps/backend/start/auth_routes.ts:12-14; apps/backend/app/controllers/google_controller.ts:88-119; apps/backend/tests/functional/auth/google_http.spec.ts"
           },
           "legacy_response_status_contract": {
             "status": "local proxy errors 404 unconfigured/disallowed, 400 invalid URL/direct Microsoft token, 403 sso-only disallowed provider or masquerade; otherwise Better Auth status/body forwarded unchanged",
             "source": "server/src/routes/authProxyRoutes.ts:30-49,302-367,370-378"
           },
-          "current_source": "src/auth/externalProviderSignIn.ts:10; src/auth/authClient.ts:10-109; src/components/invites/inviteSignInActions.ts:45-50; src/auth/externalProviderSignIn.ts:9-14"
+          "current_source": "src/auth/externalProviderSignIn.ts:9-14; src/auth/authClient.ts:103-117; src/components/invites/inviteSignInActions.ts:30-36; src/auth/LoginScreen.tsx:118-133"
         },
         {
           "method": "POST",
@@ -3999,7 +4016,7 @@
             "status": "200 demo/authenticated identity; 401 missing/invalid session; 503 auth backend failure",
             "source": "server/src/routes/authProxyRoutes.ts:212-250"
           },
-          "current_source": "src/account/accountClient.ts:52-54; src/api/queryClient.ts:34-40; src/auth/fetchAuthStatus.ts:181-199"
+          "current_source": "src/account/accountClient.ts:52-54; src/auth/fetchAuthStatus.ts:181-199; src/auth/authStatus.ts:82-104"
         },
         {
           "method": "POST",
@@ -4546,15 +4563,15 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "deferred-by-owner-ruling-26",
+            "milestone": "post-M3c",
+            "package": null
           },
           "legacy_response_status_contract": {
             "status": "200 provider URL; 400 malformed token; typed proof errors use their status; unexpected errors propagate to root error handler",
             "source": "server/src/routes/microsoftProofRoutes.ts:68-72,101-110; server/src/routes/appErrors.ts:37-75"
           },
-          "current_source": "src/auth/microsoftConnectionClient.ts:21-30,95-102"
+          "current_source": "e2e/microsoft-verification.auth.spec.ts:37,66 (deferred mocked case)"
         },
         {
           "method": "POST",
@@ -4568,15 +4585,15 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "deferred-by-owner-ruling-26",
+            "milestone": "post-M3c",
+            "package": null
           },
           "legacy_response_status_contract": {
             "status": "200 {ok:true} when route registered",
             "source": "server/src/routes/microsoftProofRoutes.ts:121-126"
           },
-          "current_source": "src/account/companyJoinClient.ts:55; src/auth/microsoftConnectionClient.ts:110-119"
+          "current_source": "e2e/microsoft-verification.auth.spec.ts:97 (deferred mocked case)"
         },
         {
           "method": "POST",
@@ -4590,15 +4607,15 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "deferred-by-owner-ruling-26",
+            "milestone": "post-M3c",
+            "package": null
           },
           "legacy_response_status_contract": {
             "status": "200 provider URL; 400 parse errors; typed proof errors use their status; unexpected errors propagate to root error handler",
             "source": "server/src/routes/microsoftProofRoutes.ts:18-66,83-97; server/src/routes/appErrors.ts:37-75"
           },
-          "current_source": "src/account/companyJoinClient.ts:33-52; src/auth/microsoftConnectionClient.ts:21-30,57-64"
+          "current_source": "e2e/microsoft-verification.auth.spec.ts:121 (deferred mocked case)"
         },
         {
           "method": "GET",
@@ -4612,15 +4629,15 @@
             "verification": "verified: GET RequestInit/call construction has no body"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "deferred-by-owner-ruling-26",
+            "milestone": "post-M3c",
+            "package": null
           },
           "legacy_response_status_contract": {
             "status": "200 proof.status projection",
             "source": "server/src/routes/microsoftProofRoutes.ts:98-100"
           },
-          "current_source": "src/account/companyJoinClient.ts:32; src/auth/microsoftConnectionClient.ts:21-29,66-84"
+          "current_source": "e2e/microsoft-verification.auth.spec.ts:13,34,63,89 (deferred mocked cases)"
         },
         {
           "method": "GET",
@@ -4641,7 +4658,7 @@
             "status": "200 demo/authenticated identity; 401 missing/invalid session; 503 auth backend failure",
             "source": "server/src/routes/authProxyRoutes.ts:212-250"
           },
-          "current_source": "src/account/accountClient.ts:52-54; src/api/queryClient.ts:34-40; src/auth/fetchAuthStatus.ts:181-199"
+          "current_source": "src/account/accountClient.ts:52-54; src/auth/fetchAuthStatus.ts:181-199; src/auth/authStatus.ts:82-104"
         },
         {
           "method": "GET",
@@ -4789,15 +4806,15 @@
             "verification": "verified from cited caller construction and current legacy route handler"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "deferred-by-owner-ruling-26",
+            "milestone": "post-M3c",
+            "package": null
           },
           "legacy_response_status_contract": {
             "status": "200 provider URL; 400 malformed request; typed MicrosoftProofError status; unexpected error reaches root handler; 403 cross-site mutation refusal",
             "source": "server/src/routes/microsoftProofRoutes.ts:9-23,34-65,83-96; server/src/app.microsoftProof.test.ts:69-88"
           },
-          "current_source": "src/account/companyJoinClient.ts:33-52; src/auth/microsoftConnectionClient.ts:21-30,57-64"
+          "current_source": "src/auth/microsoftConnectionClient.ts:21-30,57-64"
         },
         {
           "method": "POST",
@@ -4811,15 +4828,15 @@
             "verification": "verified from cited caller construction and current legacy route handler"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "deferred-by-owner-ruling-26",
+            "milestone": "post-M3c",
+            "package": null
           },
           "legacy_response_status_contract": {
             "status": "200 {ok:true}; typed MicrosoftProofError status; unexpected error reaches root handler; 403 cross-site mutation refusal",
             "source": "server/src/routes/microsoftProofRoutes.ts:112-119,121-126; server/src/app.microsoftProof.test.ts:69-88"
           },
-          "current_source": "src/account/companyJoinClient.ts:54; src/auth/microsoftConnectionClient.ts:105-119"
+          "current_source": "src/auth/microsoftConnectionClient.ts:21-30,105-119"
         },
         {
           "method": "POST",
@@ -4833,15 +4850,15 @@
             "verification": "verified from cited caller construction and current legacy route handler"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "deferred-by-owner-ruling-26",
+            "milestone": "post-M3c",
+            "package": null
           },
           "legacy_response_status_contract": {
             "status": "200 {ok:true}; typed MicrosoftProofError status; unexpected error reaches root handler; 403 cross-site mutation refusal",
             "source": "server/src/routes/microsoftProofRoutes.ts:112-119,121-126; server/src/app.microsoftProof.test.ts:69-88"
           },
-          "current_source": "src/account/companyJoinClient.ts:55; src/auth/microsoftConnectionClient.ts:110-119"
+          "current_source": "src/auth/microsoftConnectionClient.ts:21-30,110-119"
         },
         {
           "method": "POST",
@@ -4855,9 +4872,9 @@
             "verification": "verified from cited caller construction and current legacy route handler"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "deferred-by-owner-ruling-26",
+            "milestone": "post-M3c",
+            "package": null
           },
           "legacy_response_status_contract": {
             "status": "200 provider continuation URL; 400 malformed token; typed MicrosoftProofError status; unexpected error reaches root handler; 403 cross-site mutation refusal",
@@ -4936,7 +4953,7 @@
       ],
       "implementation_boundary": "Only start/routes.ts endpoints described in main_route_contracts are implemented in M1. Other call sites are mapped to future milestone ownership, not represented as implemented routes.",
       "factual_gaps": [],
-      "status_note": "Every listed caller has a verified request-body contract and legacy status-handler source refs. Better Auth proxy local refusal statuses are listed; current tests observe 200 sign-up/sign-in, 401 invalid sign-in, 400 reset-token reuse, and 422 duplicate signup where noted. For other downstream Better Auth outcomes, the proxy forwards status and body verbatim, so outcomes depend on the pinned provider library and request state.",
+      "status_note": "The 109 caller identities and historical request/response contracts remain pinned to the original source. current_source and implementation identify native Adonis bindings. The active M3c provider is Google only; Microsoft behavior is deferred by owner ruling 26 and GitHub is retired. Original Better Auth source remains as a legacy reference until M7a, outside the active dependency graph.",
       "normalization": {
         "source_inventory_counts": {
           "spa_call_patterns": 76,

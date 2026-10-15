@@ -50,4 +50,4 @@ export interface WriteBoundary {
 
 /** Outcome of attempting to persist a record in the offline cache. */
 export type OfflineCacheWriteResult =
-  { kind: "written" } | { kind: "skipped"; reason: "disabled" | "unscoped" | "unchanged" | "discarded" };
+  { kind: "written" } | { kind: "skipped"; reason: "disabled" | "unscoped" | "unchanged" | "discarded" | "masquerade" };

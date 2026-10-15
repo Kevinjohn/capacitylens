@@ -11,6 +11,7 @@ export const controllers = {
   ExampleData: () => import('#controllers/example_data_controller'),
   Exports: () => import('#controllers/exports_controller'),
   GettingStarted: () => import('#controllers/getting_started_controller'),
+  Google: () => import('#controllers/google_controller'),
   Imports: () => import('#controllers/imports_controller'),
   Invitations: () => import('#controllers/invitations_controller'),
   Joining: () => import('#controllers/joining_controller'),

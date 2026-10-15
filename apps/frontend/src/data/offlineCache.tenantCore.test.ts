@@ -12,11 +12,15 @@ import {
   cacheAuthSnapshot,
   clearAllOfflineData,
   clearOfflineDataForCurrentUser,
+  beginMasqueradeRestorationWrites,
+  finishMasqueradeRestorationWrites,
   isOfflineReadEnabled,
   readOfflineStateSnapshot,
   readCachedAuthSnapshot,
   readCachedAccountSlice,
+  readCachedAccountSummaries,
   setOfflineReadEnabled,
+  markMasqueradeOfflineIsolation,
 } from "./offlineCache";
 
 import { resetOfflineState } from "./offline/state";
@@ -149,6 +153,47 @@ function registerTenantCacheHooks() {
 
 describe("offline tenant cache", () => {
   registerTenantCacheHooks();
+  it("withholds and blocks snapshots during masquerade until live restoration completes", async () => {
+    await cacheAuthSnapshot(authSnapshot("real-user"));
+    await cacheAccountSummaries([{ id: "a-studio", name: "Wayne Enterprises", role: "owner" }]);
+    await cacheAccountSlice("a-studio", accountSlice("a-studio"));
+
+    markMasqueradeOfflineIsolation();
+
+    await expect(readCachedAuthSnapshot()).resolves.toBeNull();
+    await expect(readCachedAccountSummaries()).resolves.toBeNull();
+    await expect(readCachedAccountSlice("a-studio")).resolves.toBeNull();
+    await expect(cacheAuthSnapshot(authSnapshot("projected-user"))).resolves.toEqual({
+      kind: "skipped",
+      reason: "masquerade",
+    });
+    await expect(cacheAccountSummaries([])).resolves.toEqual({ kind: "skipped", reason: "masquerade" });
+    await expect(cacheAccountSlice("a-studio", accountSlice("a-studio"))).resolves.toEqual({
+      kind: "skipped",
+      reason: "masquerade",
+    });
+
+    beginMasqueradeRestorationWrites();
+    await expect(cacheAuthSnapshot(authSnapshot("restored-real-user"))).resolves.toEqual({ kind: "written" });
+    await expect(
+      cacheAccountSummaries([{ id: "a-studio", name: "Restored Wayne Enterprises", role: "owner" }]),
+    ).resolves.toEqual({ kind: "written" });
+    const restoredSlice = accountSlice("a-studio");
+    const restoredAccount = restoredSlice.accounts[0];
+    if (!restoredAccount) throw new Error("Expected a restored company fixture");
+    restoredAccount.name = "Restored Wayne Enterprises";
+    await expect(cacheAccountSlice("a-studio", restoredSlice)).resolves.toEqual({ kind: "written" });
+    finishMasqueradeRestorationWrites(true);
+
+    await expect(readCachedAuthSnapshot()).resolves.toMatchObject({ value: { user: { id: "restored-real-user" } } });
+    await expect(readCachedAccountSummaries()).resolves.toMatchObject({
+      value: [{ id: "a-studio", name: "Restored Wayne Enterprises" }],
+    });
+    await expect(readCachedAccountSlice("a-studio")).resolves.toMatchObject({
+      value: { accounts: [{ id: "a-studio", name: "Restored Wayne Enterprises" }] },
+    });
+  });
+
   it("reports why writes are skipped instead of resolving ambiguously", async () => {
     localStorage.removeItem("capacitylens/offlineRead");
     await expect(cacheAccountSummaries([])).resolves.toEqual({ kind: "skipped", reason: "disabled" });
@@ -341,6 +386,7 @@ describe("offline tenant cache durable boundary", () => {
     const cause = new Error("getItem blocked");
     const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     vi.spyOn(Storage.prototype, "getItem").mockImplementation((key) => {
+      if (key.endsWith("masqueradeOfflineIsolation")) return null;
       if (key.endsWith("offlineWriteBoundary")) throw cause;
       return "on";
     });

@@ -55,8 +55,8 @@ export default defineConfig({
   // that half. Every worker drives a browser, so the reservation is the right unit here.
   workers: testShare(),
   retries: process.env.CI ? 2 : 0,
-  // Only db-backed and rehearsal share a mutable SQLite fixture, so each sets workers to one.
-  // Chromium and auth-backed tests use isolated browser contexts and can run in parallel.
+  // Shared SQLite fixtures and the authentication limiter require serial server-backed projects.
+  // The browser-only projects keep their normal parallelism.
   reporter: process.env.CI
     ? [
         ["github"],
@@ -86,7 +86,7 @@ export default defineConfig({
             // Every DB-backed test resets the same SQLite fixture in beforeEach. Running those resets
             // concurrently can abort another page's in-flight account read and makes the suite pass by
             // luck against mutually changing state. Keep this one shared-database project serial; the
-            // browser-only and auth projects retain their normal parallelism.
+            // browser-only projects retain their normal parallelism.
             workers: 1,
             use: {
               ...devices["Desktop Chrome"],
@@ -96,6 +96,9 @@ export default defineConfig({
           {
             name: "auth-backed",
             testMatch: flavourSpec("auth"),
+            // All contexts share one loopback IP and its sign-in budget; overlapping login attempts
+            // can exhaust the real limiter before successful authentication resets the budget.
+            workers: 1,
             use: {
               ...devices["Desktop Chrome"],
               baseURL: `http://localhost:${AUTH_WEB_PORT}`,

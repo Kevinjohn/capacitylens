@@ -1,7 +1,7 @@
 import { requireCreated } from "@/test/requireCreated";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { StrictMode } from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ResourceForm } from "./ResourceForm";
 import { useStore } from "@/store/useStore";
@@ -10,6 +10,12 @@ import * as persistence from "@/data/persist";
 import { BatchConflictError, BatchTooLargeError, BatchValidationError } from "@/data/sync/batchErrors";
 
 beforeEach(() => resetStoreWithAccount());
+
+afterEach(async () => {
+  cleanup();
+  // Radix dispatches its unmount autofocus event on the next timer turn, while this jsdom realm is still alive.
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+});
 
 describe("ResourceForm layout", () => {
   it("uses compact label-control rows while leaving working days full width", () => {

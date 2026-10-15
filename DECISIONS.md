@@ -225,14 +225,14 @@ This is the short, present-tense record of decisions that constrain future work.
   records with another installation. Federated correlation uses the exact provider
   and provider-owned stable identifier, never email; local deprovisioning cannot delete an upstream
   provider identity.
-- Email/password and named Google/Microsoft company providers are implemented for self-hosting.
-  GitHub retains its experimental mixed-mode behavior. Generic OIDC support and the
+- Email/password and Google company sign-in are supported for self-hosting. Microsoft is not a
+  current sign-in option, and GitHub sign-in is retired. Generic OIDC support and the
   `hosted-oidc-only` profile were removed; their names are now unknown configuration, so
   `hosted-oidc-only` is an invalid profile like any other unrecognised value.
   Deterministic and library evidence never substitutes for live-provider checks.
 - Named profiles are `self-hosted-password`, `self-hosted-mixed`, `self-hosted-sso-only` and
-  `hosted-sso-only`. Hosted SSO requires `mode=sso-only`, complete Google and/or tenant-specific
-  Microsoft configuration, and refuses passwords, GitHub, open signup or incomplete provider
+  `hosted-sso-only`. Hosted SSO requires `mode=sso-only`, complete Google configuration, and
+  refuses passwords, open signup or incomplete provider
   settings. Its shared conformance capability is `companyProviderRequired`; it has an independent
   contract version. A future product grouping layer must use the public named-provider boundary,
   never account internals.
@@ -243,44 +243,35 @@ This is the short, present-tense record of decisions that constrain future work.
   a live invitation; initial SSO ownership requires an operator email allow-list.
 - External-identity admission and explicit linking are distinct. Creating a new local principal
   requires verified control of an email plus a live pre-authorised invitation (or the first-principal
-  bootstrap allow-list). Named Google/Microsoft bootstrap uses
-  `CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS`. An already-admitted principal may explicitly attach
-  a company provider without a second invitation, through their own fresh session and matching
-  verified email. Named-provider linking also requires the local address to be verified.
-- Microsoft uses the configured work/school tenant and provider-owned `oid`, not `sub`. When native
-  claims do not adequately prove the intended email, an operator-configured SMTP transport sends a
-  15-minute, single-use verification link. Confirmation is bound to the initiating browser,
-  purpose, principal or invitation and the same Microsoft identity. The final provider callback
-  rechecks live authorization before creating a binding. Stored challenges are hashed and return
-  URLs encrypted; verification state is removed by anonymisation. This is not passwordless login.
-  Returning sign-in preserves the established proven email even when profile claims change; it
-  does not repeat verification or merge identities by email. No deployed social-user conversion is
-  required under the operator's confirmed alpha deployment context.
+  bootstrap allow-list). Google bootstrap uses `CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS`; later new
+  Google identities need an unused invitation addressed to the verified Google email. An
+  already-admitted principal may explicitly link Google without a second invitation, through their
+  own fresh session and matching verified email. Linking also requires the local address to be
+  verified. Google identities use Google's stable identifier and are never merged by email.
+- A Google callback that creates a principal does not create company membership or consume an
+  invitation. The user must explicitly accept the addressed invitation or complete a company join;
+  the server rechecks current authorization and company policy at completion.
 - Self-hosted provider-required access uses `self-hosted-sso-only` and requires a configured Google
-  or Microsoft company-provider session, including for invitation acceptance. GitHub and password
-  sessions cannot satisfy that requirement. Existing password credentials remain available if an
-  operator returns the installation to `mode=password-only`; that restores the password entrance but
-  does not reset credentials or change provider connections. The in-app readiness panel is retired;
-  the read-only `cutover:preflight` and guarded stopped-server `cutover:repair` operator commands
-  remain available for named-provider preparation and recovery. Preflight checks the full configured
-  Google/Microsoft provider set against the same provider-required conditions as startup. Operators
-  and teams verify provider access directly before changing mode.
+  session, including for invitation acceptance. Password sessions cannot satisfy that requirement.
+  Existing password credentials remain available if an operator returns the installation to
+  `mode=password-only`; that restores the password entrance but does not reset credentials or
+  change provider connections. The in-app readiness panel is retired. `cutover:preflight` and
+  `cutover:repair` remain commands of the legacy `capacitylens-server` package and are unavailable
+  in the current Adonis app. Operators and teams verify Google access directly before changing mode.
 - The named-provider replacement supersedes the earlier generic OIDC and staged-cutover decisions
   below. Those dated entries preserve implementation history, not current configuration or
   operator procedure. No identity conversion or deleted-staging migration is required.
-- The earlier generic-OIDC email-claim policy below is historical and superseded. Current named
-  Google/Microsoft admission and linking use their provider-specific verified-email evidence and
-  the explicit Microsoft mailbox-proof flow described above; identities are never merged by email.
-- CapacityLens cannot infer an upstream multi-factor policy from a provider link, so operator
-  enforcement and testing at the IdP is required; this responsibility also applies to experimental
-  named providers used in mixed mode.
+- The earlier generic-OIDC email-claim policy below is historical and superseded. Google admission
+  and linking require verified-email evidence; identities are never merged by email.
+- CapacityLens cannot infer an upstream multi-factor policy from a Google link, so operator
+  enforcement and testing at Google is required.
 - Secure-cookie behavior follows the public `CAPACITYLENS_PUBLIC_URL`, including behind a TLS
   proxy. Legacy account environment names were removed before beta with no migration window; they
   are now unknown and ignored like any other unrecognised variable.
 - Password mode defaults to breached-password screening. Password sign-in offers no
   authenticator-code step to enable or require. Local MFA implementation was removed
-  (2026-10-09). Google and Microsoft providers own any MFA policy, enrolment and recovery;
-  enabling company sign-in alone does not enable MFA, and a federated session does not prove
+  (2026-10-09). Google owns any MFA policy, enrolment and recovery; enabling company sign-in alone
+  does not enable MFA, and a federated session does not prove
   that an upstream MFA challenge occurred. Sessions have a fixed twelve-hour lifetime; privileged actions
   require a session no older than fifteen minutes. The client answers the freshness refusal with an
   in-place "confirm it's you" re-authentication dialog that mints a fresh session and retries,
@@ -338,7 +329,7 @@ This is the short, present-tense record of decisions that constrain future work.
 - CSP violations enter the bounded, data-minimised security stream. Socket, scrypt and HIBP work
   limits are finite and fail closed under overload.
 - Better Auth telemetry is disabled. CapacityLens ships no product analytics. Optional SMTP
-  delivers addressed invitations, password resets and Microsoft mailbox proof only.
+  delivers addressed invitations and password resets.
 - Errors on data paths are surfaced, not swallowed. See `DEFENSIVE-CODING.md`.
 
 ## Installation

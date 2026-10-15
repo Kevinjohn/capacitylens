@@ -183,8 +183,8 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['providerStart']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['providerStart']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/google_controller').default['providerStart']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/google_controller').default['providerStart']>>>
     }
   }
   'api.auth.request-reset': {
@@ -435,8 +435,8 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/joining_controller').default['status']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/joining_controller').default['status']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/google_controller').default['joinStatus']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/google_controller').default['joinStatus']>>>
     }
   }
   'api.joining.complete-existing': {
@@ -569,6 +569,78 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/ownership_controller').default['transfer']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ownership_controller').default['transfer']>>>
+    }
+  }
+  'api.google.callback': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/auth/callback/google'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/google_controller').default['callback']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/google_controller').default['callback']>>>
+    }
+  }
+  'api.google.link': {
+    methods: ["POST"]
+    pattern: '/api/identity/link-provider'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/google_controller').default['linkStart']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/google_controller').default['linkStart']>>>
+    }
+  }
+  'api.google.identity': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/identity/provider'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/google_controller').default['providerInfo']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/google_controller').default['providerInfo']>>>
+    }
+  }
+  'api.google.join-start': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/join/provider/start'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { accountId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/google_controller').default['joinStart']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/google_controller').default['joinStart']>>>
+    }
+  }
+  'api.google.join-cancel': {
+    methods: ["POST"]
+    pattern: '/api/company-join/cancel'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/google_controller').default['joinCancel']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/google_controller').default['joinCancel']>>>
+    }
+  }
+  'api.google.join-complete': {
+    methods: ["POST"]
+    pattern: '/api/company-join/complete-provider'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/google_controller').default['joinComplete']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/google_controller').default['joinComplete']>>>
     }
   }
   'api.lifecycle': {

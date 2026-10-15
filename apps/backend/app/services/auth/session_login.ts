@@ -12,6 +12,7 @@ export async function createPasswordSession(ctx: HttpContext, user: User, creden
   const sessionId = ctx.session.sessionId
   ctx.session.put('authenticatedAt', authenticatedAt)
   ctx.session.put('lastActivityAt', authenticatedAt)
+  ctx.session.forget('authenticationProvider')
   await ctx.session.tag(String(user.id))
   await withTransaction(async (trx) => {
     await registerProvenSession(
