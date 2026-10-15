@@ -53,6 +53,8 @@ allowBuilds:
   tree-sitter-bash: false
 
 minimumReleaseAgeExclude:
+  # The reviewed local archive is pinned by source revision and integrity, with no registry release date.
+  - adonisjs-account-kit@0.0.0
   - browserslist@4.28.7
   - fast-uri@4.1.4
   - fast-uri@3.1.7
