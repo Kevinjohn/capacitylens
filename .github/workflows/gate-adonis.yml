@@ -4,7 +4,7 @@ on:
   push:
     branches: [platform/adonisjs]
   pull_request:
-    branches: [platform/adonisjs, "feature/adonis-m3*"]
+    branches: [platform/adonisjs, "feature/adonis-m3*", "feature/adonis-m4*"]
   workflow_dispatch:
 
 permissions:
@@ -67,8 +67,21 @@ jobs:
           e2e/viewer.auth.spec.ts
 
   packaged:
-    name: Standalone native package (Linux x64)
-    runs-on: ubuntu-latest
+    name: Standalone native package (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: Linux x64
+            platform: linux
+            architecture: x64
+          - runner: macos-15
+            target: macOS arm64
+            platform: darwin
+            architecture: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v5
@@ -78,7 +91,16 @@ jobs:
         with:
           node-version: 24.21.0
           cache: pnpm
-      - run: node --version
+      - name: Verify native target
+        env:
+          EXPECTED_PLATFORM: ${{ matrix.platform }}
+          EXPECTED_ARCHITECTURE: ${{ matrix.architecture }}
+        run: >-
+          node --input-type=module -e
+          "import assert from 'node:assert/strict';
+          assert.equal(process.platform, process.env.EXPECTED_PLATFORM);
+          assert.equal(process.arch, process.env.EXPECTED_ARCHITECTURE);
+          console.log(process.version, process.platform, process.arch);"
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
         env:
@@ -101,6 +123,6 @@ jobs:
           package_scratch="$(mktemp -d)"
           trap 'rm -rf "$package_scratch"' EXIT
           archive_name="capacitylens-$package_version.tar.gz"
-          (cd release && sha256sum -c "$archive_name.sha256")
+          (cd release && shasum -a 256 --check "$archive_name.sha256")
           tar -xzf "release/$archive_name" -C "$package_scratch"
           pnpm run smoke:packaged-server "$package_scratch/capacitylens-$package_version/backend"
