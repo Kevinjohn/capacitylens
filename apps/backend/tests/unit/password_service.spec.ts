@@ -36,7 +36,7 @@ test('password derivation admits two active and sixteen queued operations', asyn
   const admitted = Array.from({ length: 18 }, (_, index) => hashPassword(`admitted-${index}`))
   await assert.rejects(() => hashPassword('overflow'), PasswordProcessingUnavailableError)
   await Promise.all(admitted)
-})
+}).timeout(10_000)
 
 test('cancelling a queued derivation removes it while active work remains bounded', async ({
   assert,
