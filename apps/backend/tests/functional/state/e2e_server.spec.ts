@@ -5,10 +5,15 @@ import { ports } from '../../../../../scripts/ports.mjs'
 
 const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds))
 
-async function waitForReadiness(child: ReturnType<typeof spawn>, url: string, flavour: string) {
+async function waitForReadiness(
+  child: ReturnType<typeof spawn>,
+  url: string,
+  flavour: string,
+  output: () => string
+) {
   for (let attempt = 0; attempt < 80; attempt++) {
     if (child.exitCode !== null || child.signalCode !== null) {
-      throw new Error(`The ${flavour} E2E server exited before readiness.`)
+      throw new Error(`The ${flavour} E2E server exited before readiness. ${output()}`)
     }
     try {
       const response = await fetch(url, { signal: AbortSignal.timeout(1000) })
@@ -61,11 +66,17 @@ test('E2E database flavour permits reset while auth flavour refuses installation
     const child = spawn(process.execPath, ['scripts/e2e-server.mjs', flavour], {
       cwd: new URL('../../../', import.meta.url),
       detached: process.platform !== 'win32',
-      stdio: 'ignore',
+      stdio: ['ignore', 'pipe', 'pipe'],
     })
 
+    let output = ''
+    const capture = (chunk: Buffer) => {
+      output = (output + chunk.toString()).slice(-12_000)
+    }
+    child.stdout?.on('data', capture)
+    child.stderr?.on('data', capture)
     try {
-      await waitForReadiness(child, `http://127.0.0.1:${port}/health/ready`, flavour)
+      await waitForReadiness(child, `http://127.0.0.1:${port}/health/ready`, flavour, () => output)
       const resetUrl = `http://127.0.0.1:${port}/api/test/reset`
       if (flavour === 'db') {
         const unauthorized = await fetch(resetUrl, { method: 'POST' })

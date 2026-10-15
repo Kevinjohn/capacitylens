@@ -1,3 +1,4 @@
+import { assertReleasedMigrations } from '#services/released_migrations'
 import db from '@adonisjs/lucid/services/db'
 import type { AppData } from '@capacitylens/shared/types/entities'
 import { seed } from '@capacitylens/shared/data/seed'
@@ -178,6 +179,7 @@ export async function resetState(seedRequested: boolean) {
 export const replaceWithSeed = () => resetState(true)
 
 export async function checkDatabase() {
+  await assertReleasedMigrations()
   await db.rawQuery('select 1')
   await assertSchemaIntegrity()
 }
