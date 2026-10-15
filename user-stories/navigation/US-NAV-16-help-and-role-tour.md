@@ -1,6 +1,6 @@
 # US-NAV-16 — Find help and start the role-based tour
 
-**Area:** Navigation & shell · **Persona:** Any company member · **Linked coverage:** `e2e/navigation.spec.ts`, `e2e/mobile.spec.ts`, `e2e/help.auth.spec.ts`, `src/components/AppShell.test.tsx`, `src/components/CommandPalette.test.tsx`, `src/components/HelpView.test.tsx`
+**Area:** Navigation & shell · **Persona:** Any company member · **Linked coverage:** `e2e/navigation.spec.ts`, `e2e/mobile.spec.ts`, `e2e/help.auth.spec.ts`, `apps/frontend/src/components/AppShell.test.tsx`, `apps/frontend/src/components/CommandPalette.test.tsx`, `apps/frontend/src/components/HelpView.test.tsx`
 
 **Documentation:** [Help](../../docs-src/using/help.md), [Take a role-based tour](../../docs-src/getting-started/roles-and-permissions.md#take-a-role-based-tour)
 

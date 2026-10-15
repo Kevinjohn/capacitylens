@@ -130,31 +130,31 @@
       "purpose": "Unkeyed SHA-256 digests of non-secret synchronised row state for exact same-session successor-write provenance checks"
     },
     {
-      "path": "shared/src/lib/id.ts",
+      "path": "packages/shared/src/lib/id.ts",
       "purpose": "Secure-context UUID generation"
     },
     {
-      "path": "src/data/offline/crypto.ts",
+      "path": "apps/frontend/src/data/offline/crypto.ts",
       "purpose": "Non-extractable AES-256-GCM offline snapshot encryption with random IV and AAD"
     },
     {
-      "path": "src/data/offline/records.ts",
+      "path": "apps/frontend/src/data/offline/records.ts",
       "purpose": "AES-256-GCM offline snapshot decryption and authentication with record-key and timestamp AAD"
     },
     {
-      "path": "public/offline-worker.js",
+      "path": "apps/frontend/public/offline-worker.js",
       "purpose": "CSPRNG installation identifiers that isolate staged service-worker shell caches until activation"
     },
     {
-      "path": "src/data/sync/SyncState.ts",
+      "path": "apps/frontend/src/data/sync/SyncState.ts",
       "purpose": "CSPRNG non-secret browser sync-session identifiers for server-side request ordering"
     },
     {
-      "path": "src/account/accountCommands.ts",
+      "path": "apps/frontend/src/account/accountCommands.ts",
       "purpose": "Secure-context UUID generation for non-secret account-command correlation and safe unknown-outcome reconciliation"
     },
     {
-      "path": "src/account/commandOutcome.ts",
+      "path": "apps/frontend/src/account/commandOutcome.ts",
       "purpose": "SHA-256 semantic payload fingerprints for non-secret account-command correlation and safe unknown-outcome reconciliation"
     },
     {
@@ -192,6 +192,122 @@
     {
       "path": "server/src/accounts/adminPort/invitationClaims.ts",
       "purpose": "Domain-separated SHA-256 bearer indexing for account commands"
+    },
+    {
+      "path": "apps/backend/app/services/audit.ts",
+      "purpose": "Random non-secret audit row identifiers; the audit row commits in the same SQLite transaction as its product mutation"
+    },
+    {
+      "path": "apps/backend/app/services/batch/sync_ordering.ts",
+      "purpose": "Unkeyed SHA-256 of the stored row for same-browser successor provenance; seven-day retention, no authentication or bearer material"
+    },
+    {
+      "path": "apps/backend/app/services/import_account.ts",
+      "purpose": "Deterministic SHA-256 fingerprint of the company scheduling slice, detecting accepted changes during import preparation without retaining row contents in a receipt"
+    },
+    {
+      "path": "apps/backend/config/hash.ts",
+      "purpose": "Framework scrypt hashing configuration"
+    },
+    {
+      "path": "apps/backend/app/controllers/getting_started_controller.ts",
+      "purpose": "Random non-secret surrogate identifiers for company getting-started dismissal records"
+    },
+    {
+      "path": "apps/backend/app/controllers/auth_controller.ts",
+      "purpose": "Constant-time first-run setup-token comparison and random principal identifiers; native session cookies and signing remain owned by the framework"
+    },
+    {
+      "path": "apps/backend/app/controllers/companies_controller.ts",
+      "purpose": "Constant-time comparison of the operator bootstrap token before authenticated company provisioning"
+    },
+    {
+      "path": "apps/backend/providers/configuration_provider.ts",
+      "purpose": "Random identifiers for the development-only operator bootstrap principal; passwords use the bounded product password service"
+    },
+    {
+      "path": "apps/backend/app/services/credentials/operation_factory.ts",
+      "purpose": "SHA-256 private limiter-key derivation and random audit/command row identifiers; no persisted recovery bearer"
+    },
+    {
+      "path": "apps/backend/app/services/credentials/operations.ts",
+      "purpose": "SHA-256 administrative credential-command payload fingerprints; no persisted recovery bearer"
+    },
+    {
+      "path": "apps/backend/app/services/password_service.ts",
+      "purpose": "Bounded scrypt password hashing with N=131072, r=8, p=1, random 16-byte salts and constant-time verification; stored parameters are checked before derivation"
+    },
+    {
+      "path": "apps/backend/app/services/password_screening.ts",
+      "purpose": "SHA-1 password-range lookup for breached-password screening; only the hash prefix is sent and the password and complete hash are not logged or stored"
+    },
+    {
+      "path": "apps/backend/app/services/auth/request_limit.ts",
+      "purpose": "SHA-256 fingerprints of the explicitly trusted client address for private native sign-in and API rate-limiter keys"
+    },
+    {
+      "path": "apps/backend/app/services/account_commands.ts",
+      "purpose": "Random non-secret command identifiers and domain-separated SHA-256 fingerprints for actor-bound semantic payload comparison; command receipts never retain invitation or password-reset bearers"
+    },
+    {
+      "path": "apps/backend/app/controllers/invitations_controller.ts",
+      "purpose": "Random principal identifiers for transactionally admitted password users; password hashing remains owned by the bounded product credential service"
+    },
+    {
+      "path": "apps/backend/app/controllers/joining_controller.ts",
+      "purpose": "Random non-secret membership identifiers for explicitly completed company admission"
+    },
+    {
+      "path": "apps/backend/app/services/admission/invitations.ts",
+      "purpose": "Random 256-bit single-use invitation bearers, domain-separated SHA-256 hash-only invitation storage, and random non-secret invitation and membership identifiers"
+    },
+    {
+      "path": "apps/backend/app/services/admission/email_proof.ts",
+      "purpose": "Random 256-bit single-use mailbox tokens with one-hour expiry, domain-separated SHA-256 token and browser-session bindings, and random non-secret intent and proof identifiers"
+    },
+    {
+      "path": "apps/backend/app/services/admission/joining_policy.ts",
+      "purpose": "Random non-secret company joining-policy row identifiers"
+    },
+    {
+      "path": "apps/backend/app/services/member_resources/links.ts",
+      "purpose": "Random non-secret resource-link identifiers and optimistic-concurrency revisions"
+    },
+    {
+      "path": "e2e/authTestSupport.ts",
+      "purpose": "Random non-secret membership identifiers in the disposable native authentication browser-test database"
+    },
+    {
+      "path": "apps/backend/app/services/auth/masquerade.ts",
+      "purpose": "Random 256-bit session-bound end tokens and non-secret view identifiers for explicit read-only member viewing; native session authentication and real-actor audit remain authoritative"
+    },
+    {
+      "path": "server/src/auditOutbox.ts",
+      "purpose": "Random non-secret durable audit-outbox record identifiers"
+    },
+    {
+      "path": "server/src/cutoverRepair.ts",
+      "purpose": "Random non-secret audit identifiers for explicit company-provider identity repair operations"
+    },
+    {
+      "path": "apps/backend/app/services/admission/google_joining.ts",
+      "purpose": "Random 256-bit browser-bound Google joining secrets and non-secret intent identifiers, with domain-separated SHA-256 hashes for expiring company admission ceremonies"
+    },
+    {
+      "path": "apps/backend/app/services/auth/google_identity.ts",
+      "purpose": "Random non-secret principal, provider-identity and durable address-proof identifiers; Google OAuth credentials and tokens are never persisted"
+    },
+    {
+      "path": "apps/backend/app/services/released_migrations.ts",
+      "purpose": "Unkeyed SHA-256 verification of released migration executable bytes against the local source or production build manifest"
+    },
+    {
+      "path": "apps/backend/hooks/released_migrations.ts",
+      "purpose": "Unkeyed SHA-256 verification of immutable migration sources and generation of checksums for their compiled production executables"
+    },
+    {
+      "path": "apps/backend/app/services/operations/owner_recovery.ts",
+      "purpose": "Unkeyed SHA-256 comparison of the operator-captured recovery bearer with its committed token hash; only the digest enters the private audit"
     }
   ]
 }

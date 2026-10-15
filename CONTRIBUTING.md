@@ -42,9 +42,8 @@ pnpm run e2e
 ```
 
 A prose-only change needs formatting and a content and link review instead; rebuild the
-documentation when its sources change. The
-[development guide](docs-src/reference/development.md#checks) lists when to add the account
-boundary check, migration rehearsal and mutation testing.
+documentation when its sources change. Run the focused checks for changed behavior and preserve
+the security, data-integrity and migration invariants in [DECISIONS.md](DECISIONS.md).
 
 Authentication, account, invitation, membership, authorization, session and erasure changes must
 also run the portable account boundary check. For changes to Google or Microsoft integration, use
@@ -56,8 +55,7 @@ pnpm run test:account-conformance
 ```
 
 Run `pnpm run rehearse:migrations` whenever a change touches a database migration, persisted
-authentication shape or Better Auth version. Account-security changes also follow
-[account-security versioning](docs-src/reference/development.md#account-security-versioning).
+authentication shape or Better Auth version.
 
 ## Formatting
 
@@ -66,9 +64,9 @@ the vendored shadcn primitives in `src/components/ui/`, which retain the upstrea
 so registry diffs show substantive changes instead of reflow noise. Everything else is stock. Run
 `pnpm run format` before committing — `pnpm run gate` fails on unformatted files.
 
-Names, parameters and result shapes follow `docs-src/reference/conventions.md`; the review
-checks them. Style is not reviewable: if Prettier produced it, it is correct. Reach for `// prettier-ignore`
-only when a hand-aligned block genuinely reads better, and say why in the patch.
+Use clear names, small result shapes and explicit module boundaries. Style is not reviewable: if
+Prettier produced it, it is correct. Reach for `// prettier-ignore` only when a hand-aligned block
+genuinely reads better, and say why in the patch.
 
 Run the applicable cross-browser suite for interaction or layout changes:
 
@@ -91,7 +89,10 @@ sanitisation so the compile-time exhaustiveness checks can protect them.
 
 ## Engineering standard
 
-Read [DEFENSIVE-CODING.md](DEFENSIVE-CODING.md) before changing a data path. In brief:
+Write comments to explain why rather than restating what the code does; exported APIs need TSDoc.
+
+When changing a data path, preserve the product and security invariants in [DECISIONS.md](DECISIONS.md).
+In brief:
 
 - Surface errors; never silently swallow them.
 - Keep account reads scoped and let the server enforce membership on every write.
@@ -100,9 +101,9 @@ Read [DEFENSIVE-CODING.md](DEFENSIVE-CODING.md) before changing a data path. In 
 - Add tests that fail without the change.
 - Never commit secrets, production data, generated output or personal deployment notes.
 
-Authentication and offline-cache changes need explicit threat-oriented tests. GitHub remains an
-experimental provider, while Google and Microsoft are the supported company providers. Provider
-changes must remain secure when configuration is missing, partial or malicious.
+Authentication and offline-cache changes need explicit threat-oriented tests. Google is the
+supported company provider; Microsoft is deferred and GitHub is retired. Provider changes must
+remain secure when configuration is missing, partial or malicious.
 
 ## Pull requests
 

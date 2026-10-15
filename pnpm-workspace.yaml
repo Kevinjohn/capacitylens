@@ -1,12 +1,15 @@
 # Root owns the web app; shared supplies the pure domain core to app and server; server supplies the SQLite API.
 packages:
-  - shared
+  - apps/*
+  - packages/*
   - server
 
 # Keep workspace packages as injected copies so `pnpm deploy --prod` can create a
 # dedicated, minimal production lockfile instead of the legacy deploy copying the
 # root application's dependency graph into the API image.
 injectWorkspacePackages: true
+syncInjectedDepsAfterScripts:
+  - build
 
 # Require each project to declare the peers it actually uses. This prevents optional peers
 # from silently expanding the install and keeps the server's production graph independent
@@ -41,6 +44,8 @@ overrides:
 # trust and need (it links the platform binary Vite/Vitest shell out to). Keep the
 # allowlist explicit so a newly introduced lifecycle script fails a clean install.
 allowBuilds:
+  "@swc/core": true
+  better-sqlite3: true
   esbuild: true
   # The repository's prepare script installs the configured hooks; the dependency lifecycle is redundant.
   simple-git-hooks: false
@@ -48,6 +53,8 @@ allowBuilds:
   tree-sitter-bash: false
 
 minimumReleaseAgeExclude:
+  # The reviewed local archive is pinned by source revision and integrity, with no registry release date.
+  - adonisjs-account-kit@0.0.0
   - browserslist@4.28.7
   - fast-uri@4.1.4
   - fast-uri@3.1.7

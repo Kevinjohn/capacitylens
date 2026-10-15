@@ -55,8 +55,8 @@ export default defineConfig({
   // that half. Every worker drives a browser, so the reservation is the right unit here.
   workers: testShare(),
   retries: process.env.CI ? 2 : 0,
-  // Only db-backed and rehearsal share a mutable SQLite fixture, so each sets workers to one.
-  // Chromium and auth-backed tests use isolated browser contexts and can run in parallel.
+  // Shared SQLite fixtures and the authentication limiter require serial server-backed projects.
+  // The browser-only projects keep their normal parallelism.
   reporter: process.env.CI
     ? [
         ["github"],
@@ -86,7 +86,7 @@ export default defineConfig({
             // Every DB-backed test resets the same SQLite fixture in beforeEach. Running those resets
             // concurrently can abort another page's in-flight account read and makes the suite pass by
             // luck against mutually changing state. Keep this one shared-database project serial; the
-            // browser-only and auth projects retain their normal parallelism.
+            // browser-only projects retain their normal parallelism.
             workers: 1,
             use: {
               ...devices["Desktop Chrome"],
@@ -96,6 +96,9 @@ export default defineConfig({
           {
             name: "auth-backed",
             testMatch: flavourSpec("auth"),
+            // All contexts share one loopback IP and its sign-in budget; overlapping login attempts
+            // can exhaust the real limiter before successful authentication resets the budget.
+            workers: 1,
             use: {
               ...devices["Desktop Chrome"],
               baseURL: `http://localhost:${AUTH_WEB_PORT}`,
@@ -131,65 +134,48 @@ export default defineConfig({
           },
         ]
       : []),
-    // The browser-upgrade rehearsal exists only when CAPACITYLENS_REHEARSAL_URL is set.
-    ...(projectEnabled("rehearsal")
-      ? [
-          {
-            name: "rehearsal",
-            testMatch: flavourSpec("db"),
-            // Rehearsal reuses the DB specs, whose resets share one SQLite fixture, so this project must remain serial.
-            workers: 1,
-            use: {
-              ...devices["Desktop Chrome"],
-              baseURL: process.env.CAPACITYLENS_REHEARSAL_URL,
-            },
-          },
-        ]
-      : []),
   ],
-  // Rehearsal runs provide their own stack. Cross-browser core runs need only Vite; other runs
+  // Cross-browser core runs need only Vite; other runs
   // start the SQLite and auth servers required by their specs.
   webServer:
-    runMode.serverProfile === "rehearsal"
-      ? []
-      : runMode.serverProfile === "vite"
-        ? [devWebServer]
-        : [
-            devWebServer,
-            {
-              command: "pnpm run start:e2e",
-              cwd: "./server",
-              url: `http://localhost:${API_PORT}/api/health`,
-              reuseExistingServer: false,
-              timeout: 120_000,
-            },
-            {
-              command: "pnpm run dev:api",
-              // Warm and verify the browser's real Vite → API path before the first page mounts.
-              // Waiting on the Vite root alone can race its first proxied fetch on a cold start.
-              url: `http://localhost:${DB_WEB_PORT}/api/health`,
-              reuseExistingServer: false,
-              timeout: 120_000,
-              // Match the packaged nginx topology: the browser stays same-origin and Vite proxies
-              // /api. This keeps the production CSP meaningful in E2E instead of granting a test-only
-              // cross-origin exception that the shipped app never has.
-              env: { CAPACITYLENS_DEV_API_PORT: String(API_PORT), VITE_CAPACITYLENS_API: "" },
-            },
-            {
-              // Start a fresh auth API for each run because its database wipe and admin bootstrap
-              // execute only during startup.
-              command: "pnpm run start:auth-e2e",
-              cwd: "./server",
-              url: `http://localhost:${AUTH_API_PORT}/api/health`,
-              reuseExistingServer: false,
-              timeout: 120_000,
-            },
-            {
-              command: "pnpm run dev:auth",
-              url: `http://localhost:${AUTH_WEB_PORT}/api/health`,
-              reuseExistingServer: false,
-              timeout: 120_000,
-              env: { CAPACITYLENS_DEV_API_PORT: String(AUTH_API_PORT), VITE_CAPACITYLENS_API: "" },
-            },
-          ],
+    runMode.serverProfile === "vite"
+      ? [devWebServer]
+      : [
+          devWebServer,
+          {
+            command: "pnpm run start:e2e",
+            cwd: "./apps/backend",
+            url: `http://127.0.0.1:${API_PORT}/health/ready`,
+            reuseExistingServer: false,
+            timeout: 120_000,
+          },
+          {
+            command: "pnpm run dev:api",
+            // Warm and verify the browser's real Vite → API path before the first page mounts.
+            // Waiting on the Vite root alone can race its first proxied fetch on a cold start.
+            url: `http://127.0.0.1:${DB_WEB_PORT}/health/ready`,
+            reuseExistingServer: false,
+            timeout: 120_000,
+            // Match the packaged nginx topology: the browser stays same-origin and Vite proxies
+            // /api. This keeps the production CSP meaningful in E2E instead of granting a test-only
+            // cross-origin exception that the shipped app never has.
+            env: { CAPACITYLENS_DEV_API_PORT: String(API_PORT), VITE_CAPACITYLENS_API: "" },
+          },
+          {
+            // Start a fresh auth API for each run because its database wipe and admin bootstrap
+            // execute only during startup.
+            command: "pnpm run start:auth-e2e",
+            cwd: "./apps/backend",
+            url: `http://127.0.0.1:${AUTH_API_PORT}/health/ready`,
+            reuseExistingServer: false,
+            timeout: 120_000,
+          },
+          {
+            command: "pnpm run dev:auth",
+            url: `http://127.0.0.1:${AUTH_WEB_PORT}/health/ready`,
+            reuseExistingServer: false,
+            timeout: 120_000,
+            env: { CAPACITYLENS_DEV_API_PORT: String(AUTH_API_PORT), VITE_CAPACITYLENS_API: "" },
+          },
+        ],
 });

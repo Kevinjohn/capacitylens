@@ -27,6 +27,7 @@ const BASES = Object.freeze({
   authWeb: 5373,
   dbApi: 8787,
   authApi: 8887,
+  testHttp: 8987,
   preview: 4173,
   docsDev: 5900,
   docsPreview: 5910,

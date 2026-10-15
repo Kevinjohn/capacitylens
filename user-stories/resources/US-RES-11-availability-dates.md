@@ -1,6 +1,6 @@
 # US-RES-11 — Set a person's availability dates
 
-**Area:** Resources · **Persona:** Studio manager · **Coverage:** unit (`shared/src/domain/resourceAvailability.test.ts`, `src/lib/capacity.test.ts`) + component (`src/components/resources/ResourceForm.test.tsx`) + store (`src/store/useStore.allocations.test.ts`) + server migration (`server/src/db.migrate.test.ts`); manual server/API and browser flow (no dedicated E2E spec yet)
+**Area:** Resources · **Persona:** Studio manager · **Coverage:** unit (`packages/shared/src/domain/resourceAvailability.test.ts`, `apps/frontend/src/lib/capacity.test.ts`) + component (`apps/frontend/src/components/resources/ResourceForm.test.tsx`) + store (`apps/frontend/src/store/useStore.allocations.test.ts`) + server migration (`apps/backend/tests/unit/released_migrations.spec.ts`); manual server/API and browser flow (no dedicated E2E spec yet)
 
 **Documentation:** [Resources — set availability dates](../../docs-src/using/resources.md#set-availability-dates)
 

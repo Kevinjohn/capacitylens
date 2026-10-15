@@ -1,21 +1,18 @@
 ---
-title: Require company sign-in
-description: Configure Google or Microsoft company sign-in, connect existing accounts, and require a company provider.
+title: Require Google sign-in
+description: Configure Google sign-in, connect existing accounts, and require Google for company access.
 ---
 
-# Require company sign-in
+# Require Google sign-in
 
-Run Google or Microsoft alongside passwords, or require everyone to use one of them. This page is
-for the server operator.
+Run Google alongside passwords, or require everyone to use Google. This page is for the server
+operator.
 
-![Company-sign-in-only screen with Google and Microsoft provider buttons and no password form](../screenshots/company_sign_in_only.png)
+![Google-only sign-in screen without a password form](../screenshots/company_sign_in_only.png)
 
-## Configure and check a provider
+## Configure and check Google sign-in
 
-1. Register Google, Microsoft or both by following
-   [Set up Google or Microsoft sign-in](/company-login/set-up-company-login). Microsoft also needs a
-   tenant-specific Entra registration and working SMTP for first connections that need mailbox
-   proof.
+1. Register Google by following [Set up Google sign-in](/company-login/set-up-company-login).
 2. Set both values below while password and company sign-in should both remain available, and
    restart:
 
@@ -24,7 +21,7 @@ for the server operator.
    CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-mixed
    ```
 
-3. Check the provider buttons appear and complete one sign-in with an allowed account before
+3. Check **Sign in with Google** appears and complete one sign-in with an allowed account before
    asking teammates to connect.
 
 ## Connect existing accounts
@@ -33,25 +30,22 @@ Each person connects their existing account from **Account → Security**, as
 [Connect an existing account](/company-login/#connect-an-existing-account) describes. Connecting
 keeps their memberships, role and scheduled work.
 
-If CapacityLens reports that the local account email is unverified, the server operator first
-confirms which mailbox the person controls. Then, in mixed mode, an authorised administrator
-sends the guarded repair request:
+If someone's local email is unverified, they can prove their current address through the existing
+company-joining flow when password sign-in and email verification are available: open the company's
+**Join company** link, sign in, and choose **Join company**. When prompted, choose **Email me a
+verification link** and open it within 60 minutes in the same signed-in session. The link returns
+them to the join page; they choose **Join company** again to verify the address and finish joining
+when company policy allows it. They can then return to **Account → Security** and connect Google
+when its verified address matches their local email. This proves the existing address; it does not
+change or correct the address on the account.
 
-```http
-PATCH /api/accounts/{accountId}/members/{principalId}/email
-Content-Type: application/json
+<span id="require-a-company-provider"></span>
 
-{"email":"verified-address@example.com"}
-```
+## Prepare a legacy server cutover
 
-Take the company and principal IDs from the member directory. The request needs a fresh
-authenticated session, membership-management permission in that company and identity-wide
-authority over the target across their companies; the server rechecks these in the write
-transaction. The repair marks the address verified and revokes the target's sessions, so they sign
-in again before connecting. There is no email-correction control in Account, and a joining
-verification link does not satisfy this check.
-
-## Require a company provider
+The preflight and repair commands in this section are provided by the legacy `capacitylens-server`
+package. They are not available in the current Adonis app. Do not run them against a current Adonis
+deployment.
 
 Keep `CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-mixed` while preparing. The check and repair
 commands run from a maintenance checkout of the running release, as
@@ -61,8 +55,8 @@ the instance's environment file into the shell first; in a POSIX shell,
 `set -a; . /path/to/capacitylens.env; set +a` does this. On a Linux host the file is readable only
 by root, so run this and the commands below as root, for example in `sudo -s`.
 
-With Google, Microsoft or both configured, run the read-only all-company check against the current
-database:
+With Google configured on a legacy server, run the read-only all-company check against that
+server's database:
 
 ```bash
 pnpm --filter capacitylens-server cutover:preflight -- /path/to/capacitylens.db
@@ -103,14 +97,14 @@ CAPACITYLENS_MODE=sso-only
 CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-sso-only
 ```
 
-Keep at least one company provider's credentials configured. After restart, sign-in and
-invitation acceptance need a company-provider session
+Keep the Google credentials configured. After restart, sign-in and invitation acceptance need a
+Google session
 ([Passwords and company sign-in](/company-login/#passwords-and-company-sign-in)).
 There is no in-app readiness panel, so verify provider access directly before switching.
 
 ## Restore password sign-in
 
-If a provider becomes unavailable or someone cannot use their connected identity, set both values
+If Google becomes unavailable or someone cannot use their connected identity, set both values
 and restart:
 
 ```dotenv
@@ -118,7 +112,7 @@ CAPACITYLENS_MODE=password-and-sso
 CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-mixed
 ```
 
-Local-password accounts can sign in again, and company sign-in stays available. This does not
+Local-password accounts can sign in again, and Google sign-in stays available. This does not
 reset passwords or change provider connections; use the ordinary password reset for a lost
 password. A sole Owner who cannot use any available sign-in method can use the stopped-server
 [Owner password recovery procedure](/self-hosting/incidents#the-sole-owner-has-lost-their-password).

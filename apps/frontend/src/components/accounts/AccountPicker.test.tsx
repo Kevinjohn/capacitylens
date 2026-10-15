@@ -1,0 +1,863 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { MemoryRouter } from "react-router-dom";
+import userEvent from "@testing-library/user-event";
+import { AppShell } from "@/components/AppShell";
+import { AccountPicker } from "./AccountPicker";
+import { AuthContext } from "@/auth/authContext";
+import { AuthProvider } from "@/auth/AuthProvider";
+import { useStore } from "@/store/useStore";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
+import { resolveBrowserTimeZone } from "@/lib/timezones";
+import { renderWithQueryClient as render } from "@/test/renderWithQueryClient";
+
+const serverFlag = vi.hoisted(() => ({ on: false }));
+vi.mock("@/data/apiConfig", () => ({
+  API_BASE: "",
+  isDemoMode: () => !serverFlag.on,
+  isServerConfigured: () => serverFlag.on,
+}));
+
+vi.mock("@/auth/accountTransition", () => ({
+  transitionAccount: vi.fn(async (id: string | null) => {
+    useStore.getState().setActiveAccount(id);
+    return true;
+  }),
+}));
+
+type WithCanCreateAccountOptions = { canCreateAccount: boolean; ui: ReactNode };
+function withCanCreateAccount({ canCreateAccount, ui }: WithCanCreateAccountOptions) {
+  return render(
+    <AuthContext.Provider
+      value={{
+        authMode: "off",
+        user: null,
+        canCreateAccount,
+        multiAccount: canCreateAccount,
+        refreshAuth: async () => {},
+        signOut: async () => {},
+      }}
+    >
+      {ui}
+    </AuthContext.Provider>,
+  );
+}
+
+function seedAccounts(...accounts: ReturnType<typeof makeAccount>[]) {
+  useStore.getState().replaceAll(makeAppData({ accounts }));
+  useStore
+    .getState()
+    .setAccountSummaries({ list: accounts.map((a) => ({ id: a.id, name: a.name, role: "owner" as const })) });
+}
+
+function requireAccount(name: string) {
+  const account = useStore.getState().data.accounts.find((candidate) => candidate.name === name);
+  if (!account) throw new Error(`Expected account ${name} to exist`);
+  return account;
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+beforeEach(() => {
+  serverFlag.on = false;
+  useStore.getState().replaceAll(emptyAppData());
+  useStore.getState().setActiveAccount(null);
+  useStore.getState().setAccountSummaries({ list: [] });
+  useStore.getState().setHydrated(true);
+  useStore.getState().setNotice(null);
+  // Sign through the cosmetic demo gate so AppShell renders the picker (the demo sign-in
+  // sits in front of it). These tests exercise the account gate, not the demo one.
+  useStore.getState().setFakeSignedIn(true);
+});
+
+function renderShell() {
+  return render(
+    <MemoryRouter initialEntries={["/"]}>
+      <AppShell />
+    </MemoryRouter>,
+  );
+}
+
+describe("AppShell account gate", () => {
+  it("shows the AccountPicker (not the nav) when hydrated with no active account", () => {
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
+    renderShell();
+    expect(screen.getByText("Choose a company")).toBeInTheDocument();
+    expect(screen.getByText("Wayne Enterprises")).toBeInTheDocument();
+
+    expect(screen.queryByRole("link", { name: "Schedule" })).not.toBeInTheDocument();
+  });
+
+  it("renders store notices as Sonner toasts while the account picker is visible", async () => {
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
+    renderShell();
+
+    act(() => {
+      useStore.getState().setNotice("Company deletion was refused.", "error");
+    });
+
+    const message = await screen.findByText("Company deletion was refused.");
+    expect(message.closest("[data-sonner-toast]")).not.toBeNull();
+  });
+
+  it("shows the shell (with the active company + Switch company) once an account is active", () => {
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
+    useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
+    renderShell();
+    expect(screen.queryByText("Choose a company")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Schedule" })).toBeInTheDocument();
+    expect(screen.getByText("Wayne Enterprises")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Switch company" })).toBeInTheDocument();
+  });
+
+  it('"Switch company" returns to the picker', async () => {
+    const user = userEvent.setup();
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
+    useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
+    renderShell();
+    await user.click(screen.getByRole("button", { name: "Switch company" }));
+    expect(screen.getByText("Choose a company")).toBeInTheDocument();
+    expect(useStore.getState().activeAccountId).toBeNull();
+  });
+});
+
+describe("AccountPicker create + open + delete", () => {
+  registerCreateAndActivateTests();
+  registerCreateFormValidationTests();
+  registerOpenAndEnterTests();
+  registerDeleteConfirmationTests();
+});
+
+function registerCreateAndActivateTests() {
+  it("creates a company inline and activates it", async () => {
+    const user = userEvent.setup();
+    render(<AccountPicker />);
+
+    expect(screen.queryByRole("heading", { name: "New company" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+    const nameInput = screen.getByLabelText("Company name");
+    await user.type(nameInput, "Stark Industries");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+
+    expect(useStore.getState().data.accounts.map((a) => a.name)).toContain("Stark Industries");
+
+    const created = requireAccount("Stark Industries");
+    expect(useStore.getState().activeAccountId).toBe(created.id);
+  });
+
+  it("keeps the New company heading when creating an additional company", async () => {
+    const user = userEvent.setup();
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
+    render(<AccountPicker />);
+
+    await user.click(screen.getByRole("button", { name: "New company" }));
+    expect(screen.getByRole("heading", { name: "New company" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
+  it("captures week-start, timezone and language at creation and passes them to addAccount (P1.14)", async () => {
+    const user = userEvent.setup();
+    render(<AccountPicker />);
+
+    expect(screen.queryByText(/Week start, timezone, and language apply/)).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Company planning settings" })).not.toHaveAttribute("aria-describedby");
+    expect(screen.getByLabelText("Company name")).not.toHaveAccessibleDescription(
+      "You can change the company name later; the calendar choices below are fixed after creation.",
+    );
+
+    expect(screen.getByRole("radio", { name: "Monday" })).toHaveAttribute("aria-checked", "true");
+    const tz = screen.getByLabelText("Timezone");
+    expect(tz).toHaveTextContent(/(?:GMT|UTC|London)/);
+    expect(tz).not.toHaveAccessibleDescription();
+    expect(screen.getByRole("radio", { name: "Monday" }).parentElement).not.toHaveAccessibleDescription();
+    expect(screen.getByRole("combobox", { name: "Language" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Language" })).toHaveTextContent("English");
+    expect(screen.getByRole("group", { name: "Language" })).not.toHaveAccessibleDescription();
+
+    await user.click(screen.getByRole("radio", { name: "Sunday" }));
+    fireEvent.keyDown(tz, { key: "ArrowDown" });
+    fireEvent.click(screen.getByRole("option", { name: /Europe\/London/ }));
+    await user.type(screen.getByLabelText("Company name"), "Frozen Co");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+
+    const created = requireAccount("Frozen Co");
+    expect(created.weekStartsOn).toBe(0);
+    expect(created.timezone).toBe("Europe/London");
+    expect(created.language).toBe("en");
+    // This interaction needs a longer timeout on contended CI because its modal, listbox, and typing sequence is slower than a single-field test.
+  }, 15_000);
+
+  it("detects the browser zone, searches friendly names, and selects it with the keyboard", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
+      locale: "en-GB",
+      timeZone: "Europe/London",
+    } as Intl.ResolvedDateTimeFormatOptions);
+    render(<AccountPicker />);
+
+    const timezone = screen.getByRole("combobox", { name: "Timezone" });
+    expect(timezone).toHaveTextContent("London");
+    await user.click(timezone);
+    const popup = document.getElementById(timezone.getAttribute("aria-controls") ?? "");
+    expect(popup).toHaveAttribute("role", "dialog");
+    expect(popup).toHaveClass("max-w-[calc(100vw-1rem)]", "max-h-[calc(100dvh-1rem)]");
+    const search = screen.getByRole("combobox", { name: "Search time zones" });
+    expect(search).toHaveClass("min-w-0");
+    await user.type(search, "London");
+    await user.keyboard("{Enter}");
+
+    expect(timezone).toHaveTextContent("London");
+    expect(timezone).toHaveAttribute("aria-expanded", "false");
+    expect(document.activeElement).toBe(timezone);
+
+    await user.type(screen.getByLabelText("Company name"), "Queen Industries");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+    await waitFor(() => expect(requireAccount("Queen Industries").timezone).toBe("Europe/London"));
+  });
+}
+
+function registerCreateFormValidationTests() {
+  it("validates a blank name", async () => {
+    const user = userEvent.setup();
+    render(<AccountPicker />);
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+    expect(screen.getByText("Name is required.")).toBeInTheDocument();
+    expect(useStore.getState().data.accounts).toHaveLength(0);
+  });
+
+  it("reopens the create form without the previous attempt's validation error", async () => {
+    const user = userEvent.setup();
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
+    render(<AccountPicker />);
+
+    await user.click(screen.getByRole("button", { name: "New company" }));
+    const firstInput = screen.getByLabelText("Company name");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+    expect(firstInput).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText("Name is required.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("button", { name: "New company" }));
+
+    expect(screen.getByLabelText("Company name")).not.toHaveAttribute("aria-invalid", "true");
+    expect(screen.queryByText("Name is required.")).not.toBeInTheDocument();
+  });
+}
+
+function registerOpenAndEnterTests() {
+  it("opens an existing company by clicking it", async () => {
+    const user = userEvent.setup();
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
+    render(<AccountPicker />);
+    await user.click(screen.getByRole("button", { name: "Wayne Enterprises" }));
+    expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID);
+  });
+
+  it("creates a company when pressing Enter in the company name input", async () => {
+    const user = userEvent.setup();
+    render(<AccountPicker />);
+
+    await user.type(screen.getByLabelText("Company name"), "Enter Co");
+    await user.keyboard("{Enter}");
+
+    expect(useStore.getState().data.accounts.map((a) => a.name)).toContain("Enter Co");
+    const created = requireAccount("Enter Co");
+    expect(useStore.getState().activeAccountId).toBe(created.id);
+  });
+}
+
+function registerDeleteConfirmationTests() {
+  it("deletes a company only after typing its name to confirm", async () => {
+    const user = userEvent.setup();
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
+    render(<AccountPicker />);
+
+    await user.click(screen.getByRole("button", { name: "Delete Wayne Enterprises" }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent(/Delete company\?/i);
+
+    // Company erasure requires exact-name confirmation because it cannot be undone.
+    const deleteBtn = within(dialog).getByRole("button", { name: "Delete" });
+    expect(deleteBtn).toBeEnabled();
+    expect(deleteBtn).toHaveAttribute("aria-disabled", "true");
+    await user.type(within(dialog).getByLabelText(/Type/i), "Wayne Enterprises");
+    expect(deleteBtn).toBeEnabled();
+    expect(deleteBtn).not.toHaveAttribute("aria-disabled");
+    await user.click(deleteBtn);
+
+    expect(useStore.getState().data.accounts).toHaveLength(0);
+  });
+}
+
+describe("AccountPicker server-mode list (P1.13)", () => {
+  registerServerListMembershipTests();
+  registerServerListAccessTests();
+  registerUnloadedAccountActivationTest();
+});
+
+function registerServerListMembershipTests() {
+  it("lists from accountSummaries, NOT data.accounts (server mode holds only the active slice in data)", () => {
+    serverFlag.on = true;
+    // Simulate server mode: `data` holds only one account (the active slice would, post-load), but the
+    // login has two memberships in accountSummaries. The picker must show both from the summaries.
+    useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ id: "a1", name: "Active Co" })] }));
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Active Co", role: "owner" },
+
+        { id: "a2", name: "Other Co", role: "editor" },
+      ],
+    });
+    render(
+      <AuthContext.Provider
+        value={{
+          authMode: "password-only",
+          user: { id: "me", email: "me@example.com" },
+          canCreateAccount: true,
+          multiAccount: true,
+          refreshAuth: async () => {},
+          signOut: async () => {},
+        }}
+      >
+        <AccountPicker />
+      </AuthContext.Provider>,
+    );
+    expect(screen.getByText("Active Co")).toBeInTheDocument();
+    expect(screen.getByText("Other Co")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Active Co" })).toHaveAccessibleDescription("Owner");
+    expect(screen.getByRole("button", { name: "Other Co" })).toHaveAccessibleDescription("Editor");
+  });
+}
+
+function registerServerListAccessTests() {
+  it("labels an auth-off persisted server as open access instead of demo or Owner", () => {
+    serverFlag.on = true;
+    useStore.getState().setAccountSummaries({ list: [{ id: "a1", name: "Open Co", role: "owner" }] });
+
+    render(<AccountPicker />);
+
+    expect(screen.getByRole("button", { name: "Open Co" })).toHaveAccessibleDescription("Open access");
+    expect(screen.getByRole("button", { name: "Open Co" })).not.toHaveAccessibleDescription("Owner");
+  });
+
+  it("does not present a malformed authenticated role as Viewer or allow owner-only actions", () => {
+    serverFlag.on = true;
+    useStore
+      .getState()
+      .setAccountSummaries({ list: [{ id: "a1", name: "Unclear Co", role: "viewer", roleStatus: "unavailable" }] });
+
+    render(
+      <AuthContext.Provider
+        value={{
+          authMode: "password-only",
+          user: { id: "me", email: "me@example.com" },
+          canCreateAccount: true,
+          multiAccount: true,
+          refreshAuth: async () => {},
+          signOut: async () => {},
+        }}
+      >
+        <AccountPicker />
+      </AuthContext.Provider>,
+    );
+
+    expect(screen.getByRole("button", { name: "Unclear Co" })).toHaveAccessibleDescription("Access unavailable");
+    expect(screen.getByRole("button", { name: "Unclear Co" })).not.toHaveAccessibleDescription("Viewer");
+    expect(screen.queryByRole("button", { name: "Delete Unclear Co" })).not.toBeInTheDocument();
+  });
+}
+
+function registerUnloadedAccountActivationTest() {
+  it("activates an account whose slice is NOT loaded (existence via summaries)", async () => {
+    const user = userEvent.setup();
+
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setAccountSummaries({ list: [{ id: "a2", name: "Other Co", role: "editor" }] });
+    render(<AccountPicker />);
+    await user.click(screen.getByRole("button", { name: "Other Co" }));
+    // setActiveAccount validates against the union of data.accounts + summaries, so it activates
+    // (the switch orchestrator then hydrates the slice) rather than bouncing back to the picker.
+    expect(useStore.getState().activeAccountId).toBe("a2");
+  });
+}
+
+function stubFetch(response: { ok: boolean; status: number; body?: unknown }) {
+  const fetchMock = vi.fn(async () => ({
+    ok: response.ok,
+    status: response.status,
+    json: async () => response.body ?? {},
+  }));
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
+describe("AccountPicker server-mode create/delete (P1.13 client migration)", () => {
+  registerServerCreateRequestTest();
+  registerServerCreateUnusableBodyTest();
+  registerServerCreateWhitespaceBodyTest();
+  registerServerCreateRefusalTest();
+  registerServerCreateUnknownResponseTest();
+  registerServerCreateTransportFailureTest();
+  registerServerDeleteUnloadedTest();
+  registerServerDeleteInFlightTest();
+  registerServerDeleteReconciliationTest();
+  registerServerDeleteUnknownResponseTest();
+  registerServerDeleteTransportFailureTest();
+  registerServerDeletePermissionsTest();
+});
+
+function registerServerCreateRequestTest() {
+  it("creates via POST /api/orgs (the atomic org path — NOT the local addAccount), seeds the summary, activates", async () => {
+    serverFlag.on = true;
+    const user = userEvent.setup();
+    const fetchMock = stubFetch({ ok: true, status: 201, body: { id: "org-1", name: "Stark Industries" } });
+    render(<AccountPicker />);
+
+    await user.type(screen.getByLabelText("Company name"), "Stark Industries");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+
+    await waitFor(() => expect(useStore.getState().activeAccountId).toBe("org-1"));
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("/api/orgs");
+    expect(init.method).toBe("POST");
+    expect(init.credentials).toBe("include");
+
+    const body = JSON.parse(init.body as string) as Record<string, unknown>;
+    expect(body.name).toBe("Stark Industries");
+    expect(body.weekStartsOn).toBe(1);
+    expect(body.timezone).toBe(resolveBrowserTimeZone());
+    expect(body.schedulingMode).toBe("days");
+    expect(body.inlineActivityCreateEnabled).toBe(false);
+
+    expect(useStore.getState().accountSummaries.map((a) => a.id)).toContain("org-1");
+
+    expect(useStore.getState().data.accounts).toHaveLength(0);
+  });
+}
+
+function registerServerCreateUnusableBodyTest() {
+  it("on a 2xx create with an unusable body: NO error, form closes, list refetched, nothing activated", async () => {
+    // A 2xx means the org EXISTS server-side. An unreadable/off-spec body must therefore not surface
+    // an error over a create that succeeded (a resubmit would duplicate / trip the cap-403), and must
+    // not seed a bogus {id: undefined} summary that setActiveAccount would then accept. Instead: the
+    // form closes and the authoritative /api/accounts refetch lists the new company.
+    serverFlag.on = true;
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === "/api/orgs") return { ok: true, status: 201, json: async () => ({ ok: true }) };
+      return { ok: true, status: 200, json: async () => [{ id: "org-9", name: "Stark Industries", role: "owner" }] };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<AccountPicker />);
+
+    await user.type(screen.getByLabelText("Company name"), "Stark Industries");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+
+    expect(await screen.findByText("Stark Industries")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(useStore.getState().notice).toMatchObject({
+        message:
+          "The create request had an unknown outcome. The company list was refreshed; check it before trying again.",
+        tone: "warning",
+      }),
+    );
+    expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.map((c) => c[0] as unknown as string)).toContain("/api/accounts");
+
+    expect(useStore.getState().activeAccountId).toBeNull();
+    expect(useStore.getState().accountSummaries.map((a) => a.id)).toEqual(["org-9"]);
+  });
+}
+
+function registerServerCreateWhitespaceBodyTest() {
+  it.each([
+    { id: " ", name: "Stark Industries" },
+    { id: "org-9", name: "\t" },
+  ])("recovers authoritatively from a whitespace-only created-company field", async (createdBody) => {
+    serverFlag.on = true;
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === "/api/orgs") return { ok: true, status: 201, json: async () => createdBody };
+      return { ok: true, status: 200, json: async () => [{ id: "org-9", name: "Stark Industries", role: "owner" }] };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<AccountPicker />);
+
+    await user.type(screen.getByLabelText("Company name"), "Stark Industries");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+
+    expect(await screen.findByText("Stark Industries")).toBeInTheDocument();
+    expect(useStore.getState().activeAccountId).toBeNull();
+    expect(useStore.getState().accountSummaries.map((account) => account.id)).toEqual(["org-9"]);
+  });
+}
+
+function registerServerCreateRefusalTest() {
+  it("surfaces the server refusal (cap / org gate) as the form error and does NOT activate", async () => {
+    serverFlag.on = true;
+    const user = userEvent.setup();
+    stubFetch({ ok: false, status: 403, body: { error: "This instance allows a single company." } });
+    render(<AccountPicker />);
+
+    await user.type(screen.getByLabelText("Company name"), "Second Co");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+
+    expect(await screen.findByText("This instance allows a single company.")).toBeInTheDocument();
+    expect(useStore.getState().activeAccountId).toBeNull();
+    expect(useStore.getState().accountSummaries).toHaveLength(0);
+  });
+}
+
+function registerServerCreateUnknownResponseTest() {
+  it("uses the localised refreshed-list guidance for an unknown create response", async () => {
+    serverFlag.on = true;
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (url: string) =>
+      url === "/api/orgs"
+        ? { ok: false, status: 503, json: async () => ({}) }
+        : { ok: true, status: 200, json: async () => [] },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<AccountPicker />);
+
+    await user.type(screen.getByLabelText("Company name"), "Uncertain Co");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+
+    await waitFor(() =>
+      expect(useStore.getState().notice?.message).toBe(
+        "The create request had an unknown outcome. The company list was refreshed; check it before trying again.",
+      ),
+    );
+    expect(screen.getByLabelText("Company name")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create company" })).toBeEnabled();
+  });
+}
+
+function registerServerCreateTransportFailureTest() {
+  it("uses the localised stale-list guidance and preserves diagnostics after a create transport failure", async () => {
+    serverFlag.on = true;
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (url: string) => {
+      throw new Error(url === "/api/orgs" ? "create transport failed" : "directory refresh failed");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<AccountPicker />);
+
+    await user.type(screen.getByLabelText("Company name"), "Uncertain Co");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+
+    await waitFor(() =>
+      expect(useStore.getState().notice?.message).toBe(
+        "The create request had an unknown outcome and the company list could not be refreshed. Reload before trying again. create transport failed",
+      ),
+    );
+    expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create company" })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/orgs")).toHaveLength(1);
+  });
+
+  it("locks creation when a successful response cannot be reconciled", async () => {
+    serverFlag.on = true;
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === "/api/orgs") return { ok: true, status: 201, json: async () => ({ ok: true }) };
+      throw new Error("directory refresh failed");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<AccountPicker />);
+
+    await user.type(screen.getByLabelText("Company name"), "Unresolved Co");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+
+    await waitFor(() => expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(useStore.getState().notice).toMatchObject({
+        message:
+          "The create request had an unknown outcome and the company list could not be refreshed. Reload before trying again.",
+        tone: "warning",
+      }),
+    );
+    expect(screen.queryByRole("button", { name: "Create company" })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/orgs")).toHaveLength(1);
+  });
+}
+
+function registerServerDeleteUnloadedTest() {
+  it("deletes an UNLOADED company via DELETE /api/accounts/:id and drops its summary", async () => {
+    // Deleting an unloaded company must use the dedicated server route because local snapshot diffs cannot represent erasing its unknown slice.
+    serverFlag.on = true;
+    const user = userEvent.setup();
+    const fetchMock = stubFetch({ ok: true, status: 204 });
+    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Ghost Co", role: "owner" }] });
+    render(<AccountPicker />);
+
+    await user.click(screen.getByRole("button", { name: "Delete Ghost Co" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText(/Type/i), "Ghost Co");
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => expect(useStore.getState().accountSummaries).toHaveLength(0));
+    expect(useStore.getState().notice).toMatchObject({
+      message: "Ghost Co was permanently deleted.",
+      tone: "info",
+    });
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("/api/accounts/a9");
+    expect(init.method).toBe("DELETE");
+  });
+}
+
+function registerServerDeleteInFlightTest() {
+  it("disarms Delete while the DELETE is in flight (double-click sends ONE request)", async () => {
+    // Only one company-deletion command may be in flight; another click must not race it or report a spurious rejection after success.
+    serverFlag.on = true;
+    const user = userEvent.setup();
+    let resolveDelete!: (v: { ok: boolean; status: number; json: () => Promise<unknown> }) => void;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveDelete = resolve;
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Ghost Co", role: "owner" }] });
+    render(<AccountPicker />);
+
+    await user.click(screen.getByRole("button", { name: "Delete Ghost Co" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText(/Type/i), "Ghost Co");
+    const deleteBtn = within(dialog).getByRole("button", { name: "Delete" });
+    await user.click(deleteBtn);
+
+    expect(deleteBtn).toBeDisabled();
+    await user.click(deleteBtn);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    resolveDelete({ ok: true, status: 204, json: async () => ({}) });
+    await waitFor(() => expect(useStore.getState().accountSummaries).toHaveLength(0));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(useStore.getState().notice).toMatchObject({
+      message: "Ghost Co was permanently deleted.",
+      tone: "info",
+    });
+  });
+}
+
+function registerServerDeleteReconciliationTest() {
+  it("reconciles an ambiguous post-erasure 403 against the authoritative company directory", async () => {
+    serverFlag.on = true;
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) =>
+      url === "/api/accounts/a9" && init?.method === "DELETE"
+        ? { ok: false, status: 403, json: async () => ({ error: "Forbidden." }) }
+        : { ok: true, status: 200, json: async () => [] },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Ghost Co", role: "owner" }] });
+    render(<AccountPicker />);
+
+    await user.click(screen.getByRole("button", { name: "Delete Ghost Co" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText(/Type/i), "Ghost Co");
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => expect(useStore.getState().accountSummaries).toHaveLength(0));
+    expect(fetchMock).toHaveBeenCalledWith("/api/accounts", expect.objectContaining({ credentials: "include" }));
+    expect(useStore.getState().notice).toMatchObject({
+      message: "The delete request had an unknown outcome. The company list was refreshed — verify it before retrying.",
+      tone: "warning",
+    });
+  });
+}
+
+function registerServerDeleteUnknownResponseTest() {
+  it("uses the localised refreshed-list guidance for an unknown delete response", async () => {
+    serverFlag.on = true;
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) =>
+      url === "/api/accounts/a9" && init?.method === "DELETE"
+        ? { ok: false, status: 503, json: async () => ({}) }
+        : { ok: true, status: 200, json: async () => [{ id: "a9", name: "Ghost Co", role: "owner" }] },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Ghost Co", role: "owner" }] });
+    render(<AccountPicker />);
+
+    await user.click(screen.getByRole("button", { name: "Delete Ghost Co" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText(/Type/i), "Ghost Co");
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+    await waitFor(() =>
+      expect(useStore.getState().notice?.message).toBe(
+        "The delete request had an unknown outcome. The company list was refreshed — verify it before retrying.",
+      ),
+    );
+  });
+}
+
+function registerServerDeleteTransportFailureTest() {
+  it("uses the localised stale-list guidance and preserves diagnostics after a delete transport failure", async () => {
+    serverFlag.on = true;
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (url: string) => {
+      throw new Error(url === "/api/accounts/a9" ? "delete transport failed" : "directory refresh failed");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Ghost Co", role: "owner" }] });
+    render(<AccountPicker />);
+
+    await user.click(screen.getByRole("button", { name: "Delete Ghost Co" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText(/Type/i), "Ghost Co");
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+    await waitFor(() =>
+      expect(useStore.getState().notice?.message).toBe(
+        "The delete request had an unknown outcome and the company list could not be refreshed. Reload before retrying. delete transport failed",
+      ),
+    );
+  });
+}
+
+function registerServerDeletePermissionsTest() {
+  it("offers a Delete button only on an owner summary", () => {
+    serverFlag.on = true;
+    useStore.getState().setAccountSummaries({
+      list: [
+        { id: "a1", name: "Owner Co", role: "owner" },
+        { id: "a2", name: "Admin Co", role: "admin" },
+        { id: "a3", name: "Editor Co", role: "editor" },
+        { id: "a4", name: "Viewer Co", role: "viewer" },
+      ],
+    });
+    render(
+      <AuthContext.Provider
+        value={{
+          authMode: "password-only",
+          user: { id: "me", email: "me@example.com" },
+          canCreateAccount: true,
+          multiAccount: true,
+          refreshAuth: async () => {},
+          signOut: async () => {},
+        }}
+      >
+        <AccountPicker />
+      </AuthContext.Provider>,
+    );
+    expect(screen.getByRole("button", { name: "Delete Owner Co" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete Admin Co" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete Editor Co" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete Viewer Co" })).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("company-role").map((badge) => badge.textContent)).toEqual([
+      "Owner",
+      "Admin",
+      "Editor",
+      "Viewer",
+    ]);
+  });
+}
+
+describe("AccountPicker — refreshAuth after org create/delete (canCreateAccount stays fresh)", () => {
+  // Company creation or deletion changes the server creation capability, so the picker must recheck it before showing further creation actions.
+
+  const jsonRes = (status: number, body: unknown) => ({ ok: status < 400, status, json: async () => body });
+
+  it("after a successful DELETE, /api/auth/me is refetched and a flipped canCreateAccount re-surfaces the New company button", async () => {
+    serverFlag.on = true;
+    const user = userEvent.setup();
+    let meCalls = 0;
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === "/api/masquerade") return jsonRes(200, { active: false });
+      if (url === "/api/auth/me") {
+        meCalls += 1;
+        // Single-company instance: at the cap on boot, back under it (zero accounts, the
+        // bootstrap exemption) once the only company is deleted.
+        return jsonRes(200, { authMode: "off", user: null, canCreateAccount: meCalls > 1, multiAccount: false });
+      }
+      if (url === "/api/accounts/a9" && init?.method === "DELETE") return jsonRes(204, {});
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    useStore.getState().setAccountSummaries({ list: [{ id: "a9", name: "Only Co", role: "owner" }] });
+    render(
+      <AuthProvider>
+        <AccountPicker />
+      </AuthProvider>,
+    );
+
+    expect(await screen.findByText("Only Co")).toBeInTheDocument();
+    expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Delete Only Co" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText(/Type/i), "Only Co");
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+    expect(await screen.findByLabelText("Company name")).toBeInTheDocument();
+    expect(screen.queryByTestId("company-empty-options")).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter((c) => c[0] === "/api/auth/me")).toHaveLength(2);
+  });
+
+  it("after a successful create, /api/auth/me is refetched (a now-capped instance hides the button)", async () => {
+    serverFlag.on = true;
+    const user = userEvent.setup();
+    let meCalls = 0;
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === "/api/masquerade") return jsonRes(200, { active: false });
+      if (url === "/api/auth/me") {
+        meCalls += 1;
+        return jsonRes(200, { authMode: "off", user: null, canCreateAccount: meCalls === 1, multiAccount: false });
+      }
+      if (url === "/api/orgs" && init?.method === "POST")
+        return jsonRes(201, { id: "org-1", name: "Stark Industries" });
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <AuthProvider>
+        <AccountPicker />
+      </AuthProvider>,
+    );
+
+    await screen.findByLabelText("Company name");
+    await user.type(screen.getByLabelText("Company name"), "Stark Industries");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+
+    await waitFor(() => expect(useStore.getState().activeAccountId).toBe("org-1"));
+
+    await waitFor(() => expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument());
+    expect(fetchMock.mock.calls.filter((c) => c[0] === "/api/auth/me")).toHaveLength(2);
+  });
+});
+
+describe("AccountPicker — single-company-per-instance policy (canCreateAccount)", () => {
+  it('hides the "New company" button when the auth context reports the cap is reached', () => {
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
+    withCanCreateAccount({ canCreateAccount: false, ui: <AccountPicker /> });
+    expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "New company" })).not.toBeInTheDocument();
+
+    expect(screen.getByText("Choose a company to plan.")).toBeInTheDocument();
+    expect(screen.queryByText("Choose a company to plan, or create another one.")).not.toBeInTheDocument();
+  });
+
+  it('shows the "New company" button when the auth context allows another company', () => {
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
+    withCanCreateAccount({ canCreateAccount: true, ui: <AccountPicker /> });
+    expect(screen.getByTestId("new-company-button")).toBeInTheDocument();
+    expect(screen.getByText("Choose a company to plan, or create another one.")).toBeInTheDocument();
+  });
+
+  it("REGRESSION GUARD: no AuthContext provider (demo build / older callers) fails OPEN — button stays visible", () => {
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
+    render(<AccountPicker />);
+    expect(screen.getByTestId("new-company-button")).toBeInTheDocument();
+  });
+});
