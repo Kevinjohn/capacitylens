@@ -36,5 +36,5 @@ export function resolvePlaywrightRunMode(
   selectsOnlyExplicitCoreSpecs: (argv: readonly string[]) => boolean,
 ): {
   projects: readonly PlaywrightProjectName[];
-  serverProfile: "rehearsal" | "vite" | "standard";
+  serverProfile: "vite" | "standard";
 };
