@@ -3,6 +3,7 @@ import testUtils from '@adonisjs/core/services/test_utils'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
 import { resetState } from '#services/state_repository'
+import { acceptInvitation } from '#services/admission/invitations'
 
 const setupToken = 'member-setup-token-0123456789abcdef'
 const password = 'batman-secret-2026'
@@ -136,6 +137,106 @@ test.group('company member access and tracking', (group) => {
     assert.isFalse(
       after.body().members.find((member: { userId: string }) => member.userId === editorId)
         .signInConfirmed
+    )
+  })
+
+  test('Disable binds an alias only after current durable proof and rejects its readmission', async ({
+    client,
+    assert,
+  }) => {
+    const owner = await client
+      .post('/api/auth/sign-up')
+      .header('x-capacitylens-setup-token', setupToken)
+      .json({ email: 'bruce.wayne@wayne.example', password, name: 'Bruce Wayne' })
+      .send()
+    owner.assertStatus(201)
+    const ownerCookie = owner.cookie('adonis-session')!.value
+    const company = await signed(client.post('/api/orgs'), ownerCookie)
+      .json({ id: 'a-studio', name: 'Wayne Enterprises' })
+      .send()
+    company.assertStatus(201)
+    const editor = await client
+      .post('/api/auth/sign-up')
+      .json({ email: 'clark.kent@wayne.example', password, name: 'Clark Kent' })
+      .send()
+    editor.assertStatus(201)
+    const editorId = await userId('clark.kent@wayne.example')
+    const now = new Date().toISOString()
+    await db.table('memberships').insert({
+      id: 'member-clark',
+      account_id: 'a-studio',
+      user_id: editorId,
+      role: 'editor',
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+    })
+    const disable = () =>
+      signed(client.patch(`/api/accounts/a-studio/members/${editorId}/status`), ownerCookie)
+        .json({ status: 'disabled' })
+        .send()
+    const restriction = () =>
+      db
+        .from('account_access_restrictions')
+        .where({ account_id: 'a-studio', principal_id: editorId })
+        .first()
+    const first = await disable()
+    first.assertStatus(200)
+    const initialRestriction = await restriction()
+    assert.isNull(initialRestriction?.verified_email)
+    await db.from('users').where('id', editorId).update({ email_verified: true })
+    const legacyFlagOnly = await disable()
+    legacyFlagOnly.assertStatus(200)
+    const unprovenRestriction = await restriction()
+    assert.isNull(unprovenRestriction?.verified_email)
+    await db.table('email_proofs').insert({
+      id: 'proof-clark',
+      user_id: editorId,
+      email: 'clark.kent@wayne.example',
+      verified_at: now,
+      created_at: now,
+      updated_at: now,
+    })
+    const proven = await disable()
+    proven.assertStatus(200)
+    const provenRestriction = await restriction()
+    assert.equal(provenRestriction?.verified_email, 'clark.kent@wayne.example')
+    const removed = await signed(
+      client.delete(`/api/accounts/a-studio/members/${editorId}`),
+      ownerCookie
+    ).send()
+    removed.assertStatus(204)
+    await db.from('users').where('id', editorId).update({ email: 'kal-el@wayne.example' })
+    await db.table('users').insert({
+      id: 'alias-clark',
+      email: 'clark.kent@wayne.example',
+      email_verified: true,
+      display_name: 'Clark Kent',
+      created_at: now,
+      updated_at: now,
+    })
+    await db.table('email_proofs').insert({
+      id: 'proof-alias-clark',
+      user_id: 'alias-clark',
+      email: 'clark.kent@wayne.example',
+      verified_at: now,
+      created_at: now,
+      updated_at: now,
+    })
+    await assert.rejects(
+      () =>
+        db.transaction((trx) =>
+          acceptInvitation(
+            trx,
+            { account_id: 'a-studio', email: null },
+            'alias-clark',
+            'clark.kent@wayne.example'
+          )
+        ),
+      /administrator restoration/
+    )
+    assert.isNull(
+      await db.from('memberships').where({ account_id: 'a-studio', user_id: 'alias-clark' }).first()
     )
   })
 
@@ -384,10 +485,34 @@ test.group('company member access and tracking', (group) => {
     removed.assertStatus(204)
     assert.isNull(await membership())
     assert.isNotNull(await restriction())
+    const removedDirectory = await signed(
+      client.get('/api/accounts/a-studio/members'),
+      ownerCookie
+    ).send()
+    removedDirectory.assertStatus(200)
+    const remembered = removedDirectory
+      .body()
+      .members.find((member: { userId: string }) => member.userId === editorId)
+    assert.isDefined(remembered)
+    assert.isFalse(remembered.membershipPresent)
+    assert.isTrue(remembered.accessDisabled)
+    assert.equal(remembered.status, 'disabled')
+    assert.isFalse(remembered.mayResetPassword)
+    assert.isFalse(remembered.mayRevokeSessions)
     const enabledRemoved = await enable()
     enabledRemoved.assertStatus(200)
     assert.isNull(await membership())
     assert.isNull(await restriction())
+    const enabledDirectory = await signed(
+      client.get('/api/accounts/a-studio/members'),
+      ownerCookie
+    ).send()
+    enabledDirectory.assertStatus(200)
+    assert.isUndefined(
+      enabledDirectory
+        .body()
+        .members.find((member: { userId: string }) => member.userId === editorId)
+    )
   })
 
   test('failed Enable Access audit leaves an active membership restricted', async ({

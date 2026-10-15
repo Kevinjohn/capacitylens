@@ -9,6 +9,7 @@ import {
 import { newId } from '@capacitylens/shared/lib/id'
 import { writeAudit } from '#services/audit'
 import { resetMemberSignIn } from '#services/membership/sign_in_tracking'
+import { hasCurrentEmailProof } from '#services/admission/joining_policy'
 
 export class MembershipError extends Error {
   constructor(
@@ -88,17 +89,31 @@ export async function changeMemberStatus(
     .where({ account_id: input.accountId, principal_id: input.userId })
     .first()
   const disabling = input.status === 'disabled'
-  const changed = disabling ? !restriction : member.status !== input.status
+  const principal = disabling
+    ? await trx.from('users').where('id', input.userId).select('email').first()
+    : null
+  const currentEmail = principal ? String(principal.email).trim().toLowerCase() : null
+  const provenEmail =
+    currentEmail && (await hasCurrentEmailProof(trx, input.userId, currentEmail))
+      ? currentEmail
+      : null
+  const capturesEmail = Boolean(restriction && !restriction.verified_email && provenEmail)
+  const changed = disabling ? !restriction || capturesEmail : member.status !== input.status
   if (disabling && !restriction) {
     await trx.table('account_access_restrictions').insert({
       id: newId(),
       account_id: input.accountId,
       principal_id: input.userId,
-      verified_email: null,
+      verified_email: provenEmail,
       role: member.role,
       created_at: new Date().toISOString(),
     })
   }
+  if (disabling && capturesEmail)
+    await trx
+      .from('account_access_restrictions')
+      .where({ account_id: input.accountId, principal_id: input.userId, verified_email: null })
+      .update({ verified_email: provenEmail })
   if (changed) {
     if (!disabling)
       await trx

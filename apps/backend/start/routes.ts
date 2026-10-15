@@ -10,6 +10,7 @@ import { registerMembershipRoutes } from '#start/membership_routes'
 import { registerAdmissionRoutes } from '#start/admission_routes'
 import { registerMasqueradeRoutes } from '#start/masquerade_routes'
 import { registerOwnershipRoutes } from '#start/ownership_routes'
+import { registerGoogleRoutes } from '#start/google_routes'
 
 const BatchController = () => import('#controllers/batch_controller')
 const LifecycleController = () => import('#controllers/lifecycle_controller')
@@ -43,6 +44,7 @@ registerMembershipRoutes()
 registerAdmissionRoutes()
 registerMasqueradeRoutes()
 registerOwnershipRoutes()
+registerGoogleRoutes()
 router.post('/api/:entity/:id/:action', [LifecycleController, 'mutate']).as('api.lifecycle')
 
 router.get('/api/health', () => ({ ok: true })).as('api.health')

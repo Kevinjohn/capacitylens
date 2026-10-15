@@ -16,6 +16,10 @@ new features and **patch** versions carry fixes.
 - The AdonisJS fork uses native password sign-in and fixed-lifetime sessions, with credential
   changes, audit and session revocation committed together.
 
+- Google is the available company sign-in provider. A new Google identity needs the first-user
+  allowlist or an invitation addressed to its verified email; returning from Google does not join a
+  company or accept an invitation until the person completes that action.
+
 - Reusing a one-time invitation command returns a conflict instead of replaying its bearer link;
   refresh the invitation list and replace the link if the original response was lost.
 

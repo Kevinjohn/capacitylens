@@ -32,8 +32,8 @@ export async function adoptMasqueradeStatus(
 ): Promise<boolean> {
   const controller = await loadMasqueradeController();
   if (!isCurrent()) return false;
-  controller.adoptStatus(status);
-  return true;
+  await controller.adoptStatus(status);
+  return isCurrent();
 }
 
 /** Retry the active read projection through the lazily loaded transition owner. */

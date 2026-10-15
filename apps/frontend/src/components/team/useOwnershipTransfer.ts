@@ -53,7 +53,11 @@ function useOwnerDirectory({
   const candidates = useMemo(
     () =>
       members.filter(
-        (member) => member.role === "admin" && member.status === "active" && member.userId !== principalId,
+        (member) =>
+          member.role === "admin" &&
+          member.status === "active" &&
+          !member.accessDisabled &&
+          member.userId !== principalId,
       ),
     [members, principalId],
   );

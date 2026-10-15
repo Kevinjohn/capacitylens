@@ -2,7 +2,7 @@ import type { ApplicationService } from '@adonisjs/core/types'
 import env from '#start/env'
 import db from '@adonisjs/lucid/services/db'
 import { assertSchemaIntegrity } from '#services/schema_integrity'
-import { authMode, passwordEnabled } from '#services/auth/mode'
+import { authMode, googleEnabled, passwordEnabled } from '#services/auth/mode'
 import { hashPassword } from '#services/password_service'
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password'
 
@@ -43,10 +43,28 @@ function assertAuthenticationConfiguration(inProduction: boolean) {
   const setupToken = env.get('CAPACITYLENS_SETUP_TOKEN')
   if (setupToken && setupToken.length < 32)
     throw new Error('CAPACITYLENS_SETUP_TOKEN must contain at least 32 characters')
-  if (authMode() === 'sso-only')
-    throw new Error('SSO-only mode is unavailable until a provider is configured and enabled')
+  assertGoogleProviderConfiguration({
+    mode: authMode(),
+    clientId: env.get('CAPACITYLENS_GOOGLE_CLIENT_ID'),
+    clientSecret: env.get('CAPACITYLENS_GOOGLE_CLIENT_SECRET'),
+  })
+  if (authMode() === 'sso-only' && !googleEnabled())
+    throw new Error('SSO-only mode requires a configured Google provider')
   if (env.get('CAPACITYLENS_CREATE_ADMIN_ADMIN') && !passwordEnabled())
     throw new Error('CAPACITYLENS_CREATE_ADMIN_ADMIN requires password authentication')
+}
+
+/** Refuses a half-configured provider before the application accepts traffic. */
+export function assertGoogleProviderConfiguration(options: {
+  mode: string
+  clientId?: string
+  clientSecret?: string
+}) {
+  if (
+    (options.mode === 'password-and-sso' || options.mode === 'sso-only') &&
+    Boolean(options.clientId) !== Boolean(options.clientSecret)
+  )
+    throw new Error('Google provider requires both client ID and secret')
 }
 
 interface HostedProfileOptions {
@@ -69,9 +87,7 @@ export function assertHostedDeploymentProfile(options: HostedProfileOptions) {
   if (options.setupToken || options.createAdmin)
     throw new Error('hosted-sso-only forbids password-account configuration')
   const google = options.googleClientId && options.googleClientSecret
-  const microsoft =
-    options.microsoftClientId && options.microsoftClientSecret && options.microsoftTenantId
-  if (!google && !microsoft) throw new Error('hosted-sso-only requires a complete named provider')
+  if (!google) throw new Error('hosted-sso-only requires a complete Google provider')
 }
 
 interface ProductionPosture {

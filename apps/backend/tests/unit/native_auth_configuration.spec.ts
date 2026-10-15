@@ -3,6 +3,7 @@ import {
   assertM1AuthenticationMode,
   assertHostedDeploymentProfile,
   assertProductionPosture,
+  assertGoogleProviderConfiguration,
 } from '#providers/configuration_provider'
 import ConfigurationProvider from '#providers/configuration_provider'
 import env from '#start/env'
@@ -63,9 +64,28 @@ test('auth mode validation accepts all product modes and rejects unknown values'
   assert.throws(() => assertM1AuthenticationMode('unexpected'), /Unknown CAPACITYLENS_MODE/)
 })
 
-test('hosted SSO profile validates Google and tenant-specific Microsoft configuration', ({
-  assert,
-}) => {
+test('provider modes refuse either half of Google credentials', ({ assert }) => {
+  for (const mode of ['password-and-sso', 'sso-only']) {
+    for (const credentials of [{ clientId: 'google-id' }, { clientSecret: 'google-secret' }])
+      assert.throws(
+        () => assertGoogleProviderConfiguration({ mode, ...credentials }),
+        /both client ID and secret/
+      )
+    assert.doesNotThrow(() => assertGoogleProviderConfiguration({ mode }))
+    assert.doesNotThrow(() =>
+      assertGoogleProviderConfiguration({
+        mode,
+        clientId: 'google-id',
+        clientSecret: 'google-secret',
+      })
+    )
+  }
+  assert.doesNotThrow(() =>
+    assertGoogleProviderConfiguration({ mode: 'password-only', clientId: 'google-id' })
+  )
+})
+
+test('hosted SSO profile requires complete Google configuration', ({ assert }) => {
   const base = { profile: 'hosted-sso-only', mode: 'sso-only' }
   const google = { googleClientId: 'google-id', googleClientSecret: 'private-google-secret' }
   const microsoft = {
@@ -75,11 +95,14 @@ test('hosted SSO profile validates Google and tenant-specific Microsoft configur
   }
 
   assert.doesNotThrow(() => assertHostedDeploymentProfile({ ...base, ...google }))
-  assert.doesNotThrow(() => assertHostedDeploymentProfile({ ...base, ...microsoft }))
+  assert.throws(
+    () => assertHostedDeploymentProfile({ ...base, ...microsoft }),
+    /complete Google provider/
+  )
   assert.doesNotThrow(() => assertHostedDeploymentProfile({ ...base, ...google, ...microsoft }))
   assert.throws(
     () => assertHostedDeploymentProfile({ ...base, googleClientId: 'only-half-configured' }),
-    /complete named provider/
+    /complete Google provider/
   )
   assert.throws(
     () => assertHostedDeploymentProfile({ ...base, mode: 'password-only', ...google }),

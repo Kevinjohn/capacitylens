@@ -20,17 +20,12 @@ async function responseError(response: Response): Promise<string> {
   return (await readApiError(response)) ?? m.joining_failed();
 }
 
-async function readJoinResponses([metadataResponse, statusResponse, microsoftResponse]: [
-  Response,
-  Response,
-  Response,
-]) {
-  if (!metadataResponse.ok || !statusResponse.ok || !microsoftResponse.ok) throw new Error();
+async function readJoinResponses([metadataResponse, statusResponse]: [Response, Response]) {
+  if (!metadataResponse.ok || !statusResponse.ok) throw new Error();
   const metadata = readMetadata(await metadataResponse.json());
-  const local = readStatus(await statusResponse.json());
-  const microsoft = readStatus(await microsoftResponse.json());
-  if (!metadata || !local || !microsoft) throw new Error();
-  return { metadata, local, microsoft };
+  const status = readStatus(await statusResponse.json());
+  if (!metadata || !status) throw new Error();
+  return { metadata, status };
 }
 
 /** Coordinates the account joining journey across sign-in methods and completion. */
@@ -56,30 +51,26 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
       window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
     }
   }, [verificationToken]);
-  const hasMicrosoft = providers.some((provider) => provider.id === "microsoft");
-
   useEffect(() => {
     if (!accountId || !isServerConfigured()) return;
     const request = { active: true };
     const isRequestActive = () => request.active;
     void (async () => {
       try {
-        const [metadataResponse, statusResponse, microsoftResponse] = await Promise.all([
+        const [metadataResponse, statusResponse] = await Promise.all([
           companyJoinClient.metadata(accountId),
           companyJoinClient.status(),
-          hasMicrosoft ? companyJoinClient.microsoftStatus() : Promise.resolve(Response.json({ state: "expired" })),
         ]);
         if (!isRequestActive()) return;
-        const decoded = await readJoinResponses([metadataResponse, statusResponse, microsoftResponse]);
+        const decoded = await readJoinResponses([metadataResponse, statusResponse]);
         if (!isRequestActive()) return;
         setMetadata(decoded.metadata);
         if (new URLSearchParams(window.location.search).has("externalSignInError"))
           setError(m.joining_provider_failed());
         const status = resolveJoinStatus({
           accountId,
-          purpose: invitationToken ? "invitation" : "policy",
-          local: decoded.local,
-          microsoft: decoded.microsoft,
+          ...(invitationToken ? { purpose: "invitation" } : {}),
+          status: decoded.status,
         });
         if (!status.matched) {
           setStage("entry");
@@ -101,7 +92,7 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     return () => {
       request.active = false;
     };
-  }, [accountId, invitationToken, hasMicrosoft]);
+  }, [accountId, invitationToken]);
 
   const startProvider = async (provider: AuthProviderInfo) => {
     const selectedProviderId = provider.id;
@@ -114,13 +105,10 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     setError(null);
     await runExternalSignIn({
       start: async (signal) => {
-        const response =
-          selectedProviderId === "microsoft"
-            ? await companyJoinClient.startMicrosoft({ accountId, email, invitationToken }, signal)
-            : await companyJoinClient.startProvider(
-                { accountId, email, invitationToken, providerId: selectedProviderId },
-                signal,
-              );
+        const response = await companyJoinClient.startProvider(
+          { accountId, email, invitationToken, providerId: selectedProviderId },
+          signal,
+        );
         if (!response.ok) return { error: { message: await responseError(response) } };
         const body: unknown = await response.json();
         if (!body || typeof body !== "object" || !("url" in body) || typeof body.url !== "string")
@@ -156,22 +144,10 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     }
   };
 
-  const resend = async () => {
-    if (busy || providerId !== "microsoft") return;
-    await runAction(m.joining_failed(), async () => {
-      const response = await companyJoinClient.microsoftResend();
-      if (!response.ok) throw new Error(await responseError(response));
-    });
-  };
-
   const restart = async () => {
     await runAction(m.joining_failed(), async () => {
-      const responses = await Promise.all([
-        companyJoinClient.cancel(),
-        ...(hasMicrosoft ? [companyJoinClient.microsoftCancel()] : []),
-      ]);
-      const failed = responses.find((response) => !response.ok);
-      if (failed) throw new Error(await responseError(failed));
+      const response = await companyJoinClient.cancel();
+      if (!response.ok) throw new Error(await responseError(response));
       setStage("entry");
     });
   };
@@ -244,16 +220,12 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
   const completeProvider = async () => {
     if (busy) return;
     await runAction(m.joining_failed(), async () => {
-      await finish(
-        await (providerId === "microsoft"
-          ? companyJoinClient.completeMicrosoft(invitationToken)
-          : companyJoinClient.completeProvider(invitationToken)),
-      );
+      await finish(await companyJoinClient.completeProvider(invitationToken));
     });
   };
 
   const eligibleProviders = metadata?.providerAvailable
-    ? providers.filter((provider) => authMode !== "sso-only" || (provider.id !== "github" && !provider.experimental))
+    ? providers.filter((provider) => authMode !== "sso-only" || !provider.experimental)
     : [];
   return {
     stage,
@@ -274,7 +246,6 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     setEmail,
     setExistingPassword,
     startProvider,
-    resend,
     restart,
     signInAndJoin,
     completeProvider,

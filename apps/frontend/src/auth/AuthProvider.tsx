@@ -24,11 +24,6 @@ import { useAuthContextValue } from "./useAuthContextValue";
 // lazy chunk so interactive auth forms never load unless a login is actually shown.
 
 const LoginScreen = lazy(() => import("./LoginScreen").then((screenModule) => ({ default: screenModule.LoginScreen })));
-const MicrosoftVerificationScreen = lazy(() =>
-  import("./MicrosoftVerificationScreen").then((screenModule) => ({
-    default: screenModule.MicrosoftVerificationScreen,
-  })),
-);
 
 type CheckAuth = (onNull: "fail-open" | "keep-previous") => Promise<AuthStatusResult | null>;
 
@@ -211,13 +206,6 @@ export function AuthProvider({
    * cached offline, or open; the callback must be idempotent under StrictMode effect replay. */
   onTenantAccessReady?: (identitySource: "live" | "offline" | "open") => void;
 }) {
-  if (/^\/verify-microsoft\/?$/.test(window.location.pathname)) {
-    return (
-      <Suspense fallback={<AuthLoading message={m.auth_loading_confirmation()} />}>
-        <MicrosoftVerificationScreen />
-      </Suspense>
-    );
-  }
   return (
     <AuthenticatedAppProvider {...(onTenantAccessReady ? { onTenantAccessReady } : {})}>
       {children}

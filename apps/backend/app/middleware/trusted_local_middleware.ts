@@ -12,6 +12,9 @@ export default class TrustedLocalMiddleware {
       (ctx.request.method() === 'GET' &&
         /^\/api\/accounts\/[^/]+\/join\/metadata$/.test(pathname)) ||
       (ctx.request.method() === 'GET' && pathname === '/api/company-join/status') ||
+      (ctx.request.method() === 'POST' && pathname === '/api/company-join/cancel') ||
+      (ctx.request.method() === 'POST' &&
+        /^\/api\/accounts\/[^/]+\/join\/provider\/start$/.test(pathname)) ||
       (ctx.request.method() === 'GET' && pathname === '/api/masquerade')
     if (authMode() === 'off') await ctx.auth.authenticate()
     else if (

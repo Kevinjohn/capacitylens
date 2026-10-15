@@ -127,9 +127,19 @@ export default class MembersController {
             )
             .orderBy('member.created_at', 'asc'),
           trx
-            .from('account_access_restrictions')
-            .where('account_id', accountId)
-            .select('principal_id'),
+            .from('account_access_restrictions as restriction')
+            .leftJoin('users as principal', 'principal.id', 'restriction.principal_id')
+            .where('restriction.account_id', accountId)
+            .select(
+              'restriction.principal_id',
+              'restriction.role',
+              'restriction.verified_email',
+              'restriction.created_at',
+              'principal.display_name',
+              'principal.email'
+            )
+            .orderBy('restriction.created_at', 'asc')
+            .orderBy('restriction.principal_id', 'asc'),
           readMemberSignInTracking(accountId, trx),
           trx
             .from('memberships as member')
@@ -139,6 +149,7 @@ export default class MembersController {
           restrictedCompanyIds(actor.actorId, trx),
         ])
       const denied = new Set(restrictions.map((row) => String(row.principal_id)))
+      const memberIds = new Set(rows.map((row) => String(row.user_id)))
       const actorRoles = new Map<string, Role>()
       for (const row of allRoles) {
         if (
@@ -177,6 +188,26 @@ export default class MembersController {
           mayResetPassword: allowsPasswordSignIn(authMode()) && mayAdminister,
           mayRevokeSessions: mayAdminister,
           ...resourceFields,
+        })
+      }
+      for (const row of restrictions) {
+        const userId = String(row.principal_id)
+        if (memberIds.has(userId)) continue
+        members.push({
+          userId,
+          role: row.role,
+          status: 'disabled',
+          accessDisabled: true,
+          membershipPresent: false,
+          createdAt: row.created_at,
+          name: row.display_name ?? null,
+          email: row.email ?? row.verified_email ?? null,
+          signInConfirmed: tracking.enabled ? tracking.confirmations.has(userId) : null,
+          isSelf: actor.actorId === userId,
+          mayResetPassword: false,
+          mayRevokeSessions: false,
+          resourceLink: null,
+          resourceLinkException: null,
         })
       }
       return { members, signInTrackingEnabled: tracking.enabled, resourceCandidates }

@@ -2,6 +2,7 @@ import router from '@adonisjs/core/services/router'
 
 const InvitationsController = () => import('#controllers/invitations_controller')
 const JoiningController = () => import('#controllers/joining_controller')
+const GoogleController = () => import('#controllers/google_controller')
 const MemberResourcesController = () => import('#controllers/member_resources_controller')
 
 /** Registers company admission, invitation, and member resource routes. */
@@ -32,7 +33,7 @@ export function registerAdmissionRoutes() {
   router
     .get('/api/accounts/:accountId/join/metadata', [JoiningController, 'metadata'])
     .as('api.joining.metadata')
-  router.get('/api/company-join/status', [JoiningController, 'status']).as('api.joining.status')
+  router.get('/api/company-join/status', [GoogleController, 'joinStatus']).as('api.joining.status')
   router
     .post('/api/accounts/:accountId/join/complete-existing', [
       JoiningController,

@@ -45,7 +45,7 @@ async function showsStableRetryGuidanceAndRemovesProviderQueryValues() {
   render(
     <LoginScreen
       authMode="sso-only"
-      providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
+      providers={[{ id: "google", label: "Google", kind: "social", experimental: false }]}
       onSignedIn={vi.fn()}
     />,
   );
@@ -62,7 +62,7 @@ async function mapsApplicationOwnedCallbackCodeToActionableCopy(code: string, ex
   render(
     <LoginScreen
       authMode="sso-only"
-      providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
+      providers={[{ id: "google", label: "Google", kind: "social", experimental: false }]}
       onSignedIn={vi.fn()}
     />,
   );
@@ -246,13 +246,13 @@ function registerOwnerSetupDisplayTests() {
       <LoginScreen
         authMode="password-and-sso"
         needsSetup
-        providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
+        providers={[{ id: "google", label: "Google", kind: "social", experimental: false }]}
         onSignedIn={vi.fn()}
       />,
     );
 
     expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign in with Microsoft" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeInTheDocument();
     expect(
       screen.getByText(
         "Company login is a separate route. If your installer configured it, choose its button below to create the first Owner without a local password.",
@@ -264,7 +264,7 @@ function registerOwnerSetupDisplayTests() {
     render(
       <LoginScreen
         authMode="password-and-sso"
-        providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
+        providers={[{ id: "google", label: "Google", kind: "social", experimental: false }]}
         onSignedIn={vi.fn()}
       />,
     );

@@ -23,7 +23,8 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("MicrosoftVerificationScreen", () => {
+// Deferred provider coverage retained for the later Microsoft milestone; M3c ships Google only.
+describe.skip("MicrosoftVerificationScreen (deferred)", () => {
   it("removes the mail token from the URL and waits for an explicit confirmation", async () => {
     client.getStatus.mockResolvedValue({ state: "pending", emailHint: "a…@example.com" });
     client.confirm.mockResolvedValue({ url: "https://login.microsoftonline.com/authorize" });

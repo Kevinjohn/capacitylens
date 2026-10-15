@@ -11,7 +11,17 @@ export function passwordEnabled() {
   return mode === 'password-only' || mode === 'password-and-sso'
 }
 
+export function googleEnabled() {
+  const mode = authMode()
+  return (
+    (mode === 'password-and-sso' || mode === 'sso-only') &&
+    Boolean(env.get('CAPACITYLENS_GOOGLE_CLIENT_ID')) &&
+    Boolean(env.get('CAPACITYLENS_GOOGLE_CLIENT_SECRET'))
+  )
+}
+
 export function availableProviders() {
-  // Provider admission and callbacks arrive in M3c. Configuration alone is not a usable method.
-  return []
+  return googleEnabled()
+    ? [{ id: 'google', label: 'Google', kind: 'social', brand: 'google', experimental: false }]
+    : []
 }

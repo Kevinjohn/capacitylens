@@ -9,6 +9,11 @@ import { setMasqueradeEndedHandler } from "@/data/requestTimeout";
 import { useStore } from "@/store/useStore";
 import { masqueradeApi } from "./masqueradeApi";
 import { reprojectAccess } from "./reprojectAccess";
+import { refreshOfflineIdentityAfterMasquerade } from "./fetchAuthStatus";
+import { refreshAccountSummaries } from "./useAccountSummaries";
+import { MasqueradeOfflineRecovery } from "./masqueradeOfflineRecovery";
+import { publishMasqueradeAccount, restoreMasqueradeProjection } from "./masqueradeProjectionRecovery";
+import type { FinishProjectionResult } from "./masqueradeProjectionRecovery";
 
 interface ReleaseSuspensionInput {
   dropParkedEdits: boolean;
@@ -30,7 +35,6 @@ interface EndProjectionInput {
 
 type ResumeWrites = (options?: { dropParkedEdits?: boolean }) => void;
 type EndProjectionResult = { kind: "inactive" } | { kind: "superseded" } | { kind: "noop" } | { kind: "failed" };
-type FinishProjectionResult = { kind: "finished" } | { kind: "failed"; message: string };
 type NoStatePolicy = "succeed" | "wait";
 
 function isSwitchSuccessful(outcome: RefreshOutcome, accountId: string | null): boolean {
@@ -43,6 +47,8 @@ export interface MasqueradeControllerDependencies {
   suspend: () => ResumeWrites;
   reproject: (accountId: string, includeAccountSummaries?: boolean) => Promise<boolean>;
   switchAccount: (accountId: string | null) => Promise<RefreshOutcome>;
+  refreshIdentity?: () => Promise<boolean>;
+  refreshSummaries?: () => Promise<boolean>;
   api: typeof masqueradeApi;
 }
 
@@ -52,9 +58,14 @@ export class MasqueradeController {
   private resumeWrites: ResumeWrites | null = null;
   private generation = 0;
   private startPendingGeneration: number | null = null;
+  private readonly offlineRecovery: MasqueradeOfflineRecovery;
 
   constructor(dependencies: MasqueradeControllerDependencies) {
     this.dependencies = dependencies;
+    this.offlineRecovery = new MasqueradeOfflineRecovery({
+      refreshIdentity: () => dependencies.refreshIdentity?.() ?? Promise.resolve(true),
+      refreshSummaries: () => dependencies.refreshSummaries?.() ?? Promise.resolve(true),
+    });
   }
 
   private acquireSuspension(): void {
@@ -72,18 +83,6 @@ export class MasqueradeController {
     return false;
   }
 
-  private publishMasqueradeAccount(state: MasqueradeState, selectAccount = false): void {
-    const account = useStore.getState().data.accounts.find((candidate) => candidate.id === state.accountId);
-    useStore.getState().setAccountSummaries({
-      list: account ? [{ id: account.id, name: account.name, role: state.effectiveRole }] : [],
-      complete: account !== undefined,
-    });
-    if (selectAccount && useStore.getState().activeAccountId !== state.accountId) {
-      useStore.getState().setActiveAccount(state.accountId);
-    }
-    useStore.getState().setActiveRole(state.effectiveRole, "resolved");
-  }
-
   private ownsRuntime(generation: number, kind: "starting" | "active" | "ending"): boolean {
     const runtime = useStore.getState().masquerade;
     return runtime.kind === kind && runtime.generation === generation && this.generation === generation;
@@ -95,6 +94,7 @@ export class MasqueradeController {
     if (this.generation !== generation) return false;
     if (useStore.getState().masquerade.kind !== "inactive") return false;
     if (flush.kind !== "clean") return this.fail("Save pending changes before starting a masquerade.");
+    this.offlineRecovery.mark();
     this.acquireSuspension();
     useStore.getState().setMasquerade({ kind: "starting", pending: { accountId, targetUserId }, generation });
     return true;
@@ -121,7 +121,7 @@ export class MasqueradeController {
       return this.fail("The member view started, but its data could not be loaded. Retry or end the masquerade.");
     }
     useStore.getState().clearUndoHistory();
-    this.publishMasqueradeAccount(state);
+    publishMasqueradeAccount(state);
     useStore.getState().setMasquerade({ kind: "active", state, generation });
     return true;
   }
@@ -150,6 +150,12 @@ export class MasqueradeController {
       return this.fail(error instanceof Error ? error.message : "Pending changes could not be saved.");
     }
     if (!this.beginStartAfterFlush({ generation, accountId, targetUserId, flush })) return false;
+    try {
+      await this.offlineRecovery.prepare();
+    } catch (error) {
+      return this.failOwnedStart(generation, error);
+    }
+    if (!this.ownsRuntime(generation, "starting")) return false;
     let state: MasqueradeState;
     try {
       state = await this.dependencies.api.start(accountId, targetUserId);
@@ -181,7 +187,7 @@ export class MasqueradeController {
       return this.fail("The member view could not be loaded.");
     }
     useStore.getState().clearUndoHistory();
-    this.publishMasqueradeAccount(state);
+    publishMasqueradeAccount(state);
     useStore.getState().setMasquerade({ kind: "active", state, generation });
     return true;
   }
@@ -213,16 +219,34 @@ export class MasqueradeController {
         ++this.generation;
         this.startPendingGeneration = null;
       }
-      const outcome = await this.dependencies.switchAccount(accountId);
-      return isSwitchSuccessful(outcome, accountId);
+      if (!this.offlineRecovery.isIsolated()) {
+        return isSwitchSuccessful(await this.dependencies.switchAccount(accountId), accountId);
+      }
+      try {
+        const generation = this.generation;
+        return await this.offlineRecovery.transitionAccount({
+          readStatus: () => this.dependencies.api.status(),
+          adoptActiveStatus: (status) => this.adoptStatus(status),
+          switchAccount: () => this.dependencies.switchAccount(accountId),
+          isSuccessful: (outcome) => isSwitchSuccessful(outcome, accountId),
+          isGenerationCurrent: () => generation === this.generation,
+          isAccountSelected: () => useStore.getState().activeAccountId === accountId,
+        });
+      } catch (error) {
+        return this.fail(error instanceof Error ? error.message : "Masquerade status could not be confirmed.");
+      }
     }
     const ended = await this.endProjection({
       reason: "account_switch",
       finish: async () => {
         const outcome = await this.dependencies.switchAccount(accountId);
-        return isSwitchSuccessful(outcome, accountId)
-          ? { kind: "finished" }
-          : { kind: "failed", message: "The selected company could not be loaded." };
+        if (!isSwitchSuccessful(outcome, accountId)) {
+          return { kind: "failed", message: "The selected company could not be loaded." };
+        }
+        if (this.offlineRecovery.isIsolated() && !(await this.offlineRecovery.refreshSummaries())) {
+          return { kind: "failed", message: "The real company directory could not be restored." };
+        }
+        return { kind: "finished" };
       },
       failureMessage: "The company switch could not be completed.",
       options: { onNoState: "wait" },
@@ -252,18 +276,19 @@ export class MasqueradeController {
     try {
       await this.dependencies.api.end(state.token, reason);
       if (!this.ownsRuntime(generation, "ending")) return { kind: "superseded" };
-      const status = await this.dependencies.api.status();
-      if (!this.ownsRuntime(generation, "ending")) return { kind: "superseded" };
-      if (status.active) {
-        useStore.getState().setMasquerade({ kind: "active", state: status, generation });
-        return { kind: "superseded" };
-      }
-      const finishResult = await finish(state);
-      if (!this.ownsRuntime(generation, "ending")) return { kind: "superseded" };
-      if (finishResult.kind === "failed") {
-        this.fail(finishResult.message);
-        return { kind: "failed" };
-      }
+      const projection = await restoreMasqueradeProjection({
+        state,
+        readStatus: () => this.dependencies.api.status(),
+        isCurrent: () => this.ownsRuntime(generation, "ending"),
+        publishActive: (status) => useStore.getState().setMasquerade({ kind: "active", state: status, generation }),
+        offlineRecovery: this.offlineRecovery,
+        restoreProjection: finish,
+        onIdentityFailure: () =>
+          this.fail("The real account identity could not be restored. Retry ending the masquerade."),
+        onProjectionFailure: (message) => this.fail(message),
+      });
+      if (projection.kind === "active" || projection.kind === "superseded") return { kind: "superseded" };
+      if (projection.kind === "failed") return { kind: "failed" };
       this.releaseSuspension({ dropParkedEdits: true });
       useStore.getState().clearUndoHistory();
       useStore.getState().setMasquerade({ kind: "inactive" });
@@ -277,12 +302,17 @@ export class MasqueradeController {
   }
 
   /** Adopt status before PermissionProvider publishes an effective role, preventing a writable frame. */
-  adoptStatus(status: MasqueradeStatus): void {
-    const current = useStore.getState().masquerade;
+  async adoptStatus(status: MasqueradeStatus): Promise<void> {
     if (!status.active) {
+      const current = useStore.getState().masquerade;
       if (current.kind === "active" || current.kind === "starting") this.restoreServerEndedProjection();
       return;
     }
+    await this.adoptActiveStatus(status);
+  }
+
+  private async adoptActiveStatus(status: Extract<MasqueradeStatus, { active: true }>): Promise<void> {
+    const current = useStore.getState().masquerade;
     // The controller already owns these transitions. A membership invalidation triggered by its
     // own reproject must not publish `active` before that authoritative reload has completed.
     if (current.kind === "starting" || current.kind === "ending") return;
@@ -295,8 +325,15 @@ export class MasqueradeController {
     ) {
       return;
     }
+    const generation = this.generation;
+    try {
+      await this.offlineRecovery.prepare();
+    } catch (error) {
+      console.warn("Masquerade offline snapshots could not be cleared", error);
+    }
+    if (generation !== this.generation) return;
     this.acquireSuspension();
-    this.publishMasqueradeAccount(status, true);
+    publishMasqueradeAccount(status, true);
     useStore.getState().setMasquerade({ kind: "active", state: status, generation: ++this.generation });
   }
 
@@ -314,14 +351,27 @@ export class MasqueradeController {
 
   private async restoreAfterServerEnd(state: MasqueradeState, generation: number): Promise<void> {
     try {
-      const projected = await this.dependencies.reproject(state.accountId);
-      if (!this.ownsRuntime(generation, "ending")) return;
-      if (!projected) {
-        this.fail("The masquerade ended, but the real account view could not be restored. Retry.");
-        return;
-      }
+      const projection = await restoreMasqueradeProjection({
+        state,
+        readStatus: () => this.dependencies.api.status(),
+        isCurrent: () => this.ownsRuntime(generation, "ending"),
+        publishActive: (status) => useStore.getState().setMasquerade({ kind: "active", state: status, generation }),
+        offlineRecovery: this.offlineRecovery,
+        restoreProjection: async (current) =>
+          (await this.dependencies.reproject(current.accountId))
+            ? { kind: "finished" }
+            : {
+                kind: "failed",
+                message: "The masquerade ended, but the real account view could not be restored. Retry.",
+              },
+        onIdentityFailure: () =>
+          this.fail("The real account identity could not be restored. Retry ending the masquerade."),
+        onProjectionFailure: (message) => this.fail(message),
+      });
+      if (projection.kind !== "restored") return;
     } catch (error) {
       // A completed remote end still needs visible recovery if reloading the real account fails.
+      this.offlineRecovery.finish(false);
       if (!this.ownsRuntime(generation, "ending")) return;
       console.error("The real account projection could not be restored", error);
       this.fail("The masquerade ended, but the real account view could not be restored. Retry.");
@@ -340,6 +390,8 @@ export const masqueradeController = new MasqueradeController({
   suspend: suspendServerWrites,
   reproject: reprojectAccess,
   switchAccount: switchAndAwaitHydration,
+  refreshIdentity: refreshOfflineIdentityAfterMasquerade,
+  refreshSummaries: async () => (await refreshAccountSummaries({ allowCachedFallback: false })) !== null,
   api: masqueradeApi,
 });
 

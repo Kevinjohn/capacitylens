@@ -139,6 +139,26 @@ async function readOfflineIdentity(error: unknown, acceptEffects: () => boolean)
   }
 }
 
+async function resolveIdentityWhileMasqueradeStatusIsUnknown(
+  statusError: unknown,
+  acceptEffects: () => boolean,
+): Promise<AuthStatusResult> {
+  if (!isTransportFailure(statusError)) return authServiceError(statusError);
+  try {
+    const response = await accountClient.me();
+    if (response.status === 401) return readAuthResponse(response, acceptEffects);
+    if (!response.ok) return readAuthResponse(response, acceptEffects);
+    // /me does not prove that masquerade is inactive. Keep the auth boundary closed even if
+    // the endpoint succeeds while the status endpoint is unreachable.
+    return authServiceError(statusError);
+  } catch (error) {
+    const cached = await readOfflineIdentity(error, acceptEffects);
+    if (cached) return cached;
+    console.warn("AuthProvider: /api/auth/me also failed while masquerade status was unknown", error);
+    return authServiceError(error);
+  }
+}
+
 /** Ask the server who we are. This function is total and never throws. */
 async function readActiveMasqueradeAuthStatus(
   masquerade: Extract<Awaited<ReturnType<typeof masqueradeApi.status>>, { active: true }>,
@@ -183,9 +203,10 @@ export async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Aut
   try {
     masquerade = await masqueradeApi.status();
   } catch (error) {
-    // Never use a cached principal to guess whether a session is in the server-only masquerade projection.
+    // A network outage may still allow a validated offline identity when no uncertain projection
+    // is marked. /me can resolve only a 401 here; a successful response does not prove inactivity.
     console.warn("AuthProvider: masquerade status could not be checked", error);
-    return authServiceError(error);
+    return resolveIdentityWhileMasqueradeStatusIsUnknown(error, acceptEffects);
   }
   if (masquerade.active) return readActiveMasqueradeAuthStatus(masquerade, acceptEffects);
   try {
@@ -196,5 +217,18 @@ export async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Aut
     if (cached) return cached;
     console.warn("AuthProvider: /api/auth/me check failed", error);
     return authServiceError(error);
+  }
+}
+
+/** Refill the encrypted identity snapshot only after a server-confirmed return to the real principal. */
+export async function refreshOfflineIdentityAfterMasquerade(): Promise<boolean> {
+  try {
+    const status = await masqueradeApi.status();
+    if (status.active) return false;
+    const result = await readAuthResponse(await accountClient.me(), () => true);
+    return result.kind === "pass" && result.identitySource === "live";
+  } catch (error) {
+    console.warn("AuthProvider: the real identity could not be refreshed after masquerade", error);
+    return false;
   }
 }

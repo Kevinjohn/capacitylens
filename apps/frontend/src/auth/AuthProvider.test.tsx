@@ -271,7 +271,8 @@ function registerServerModeTest06() {
     });
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
-    const { AuthProvider, useAuth, useStore } = await freshProvider();
+    const { AuthProvider, useAuth, useStore, resetStoreWithAccount } = await freshProvider();
+    resetStoreWithAccount("a-studio");
 
     render(
       <AuthProvider>
@@ -287,7 +288,7 @@ function registerServerModeTest06() {
 }
 
 function registerServerModeTest07() {
-  it("surfaces and clears a Microsoft step-up failure for an authenticated session", async () => {
+  it("surfaces and clears a Google step-up failure for an authenticated session", async () => {
     window.history.replaceState(
       {},
       "",
@@ -303,8 +304,8 @@ function registerServerModeTest07() {
             user: { id: "owner", name: "Owner", email: "owner@example.com" },
             providers: [
               {
-                id: "microsoft",
-                label: "Microsoft",
+                id: "google",
+                label: "Google",
                 kind: "social",
                 experimental: false,
               },
@@ -421,13 +422,13 @@ function registerServerModeTest11() {
           authMode: "sso-only",
           providers: [
             {
-              id: "microsoft",
-              label: "Microsoft",
+              id: "google",
+              label: "Google",
               kind: "social",
               experimental: false,
             },
             {
-              id: "microsoft",
+              id: "google",
               label: "Other label",
               kind: "social",
               experimental: false,
@@ -466,8 +467,8 @@ function registerServerModeTest12() {
               experimental: true,
             },
             {
-              id: "microsoft",
-              label: "Microsoft",
+              id: "google",
+              label: "Google",
               kind: "social",
               experimental: false,
             },
@@ -482,7 +483,7 @@ function registerServerModeTest12() {
       </AuthProvider>,
     );
 
-    expect(await screen.findByRole("button", { name: "Sign in with Microsoft" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Sign in with Google" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Continue with Mastodon" })).not.toBeInTheDocument();
     expect(warn).toHaveBeenCalledWith("AuthProvider: dropped an unsupported or malformed /api/auth/me provider", {
       id: "mastodon",
@@ -635,8 +636,8 @@ function registerServerModeTest19() {
             authMode: "sso-only",
             providers: [
               {
-                id: "microsoft",
-                label: "Microsoft",
+                id: "google",
+                label: "Google",
                 kind: "social",
                 experimental: false,
               },
@@ -746,7 +747,13 @@ function registerServerModeTest23() {
       })),
       has: vi.fn().mockResolvedValue(true),
     });
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("signal timed out", "TimeoutError")));
+    const fetchFailure = vi.fn().mockRejectedValue(new DOMException("signal timed out", "TimeoutError"));
+    vi.stubGlobal("fetch", fetchFailure);
+    authBootstrapMocks.masqueradeStatus.mockImplementation(async () => {
+      const { accountClient } = await import("@/account/accountClient");
+      await accountClient.masqueradeStatus();
+      return { active: false };
+    });
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const { AuthProvider, useAuth, cacheAuthSnapshot, readOfflineStateSnapshot } = await freshProvider();
     const onTenantAccessReady = vi.fn();
@@ -770,6 +777,9 @@ function registerServerModeTest23() {
     );
 
     expect(await screen.findByText("authMode:password-only user:offline-user")).toBeInTheDocument();
+    expect(fetchFailure).toHaveBeenCalledTimes(2);
+    expect(String(fetchFailure.mock.calls[0]?.[0])).toContain("/api/masquerade");
+    expect(String(fetchFailure.mock.calls[1]?.[0])).toContain("/api/auth/me");
     // The readiness signal comes from an effect that can commit after the text renders.
     await waitFor(() => expect(onTenantAccessReady).toHaveBeenCalledWith("offline"));
     expect(readOfflineStateSnapshot()).toEqual({

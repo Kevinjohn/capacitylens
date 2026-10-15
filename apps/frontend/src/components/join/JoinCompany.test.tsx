@@ -41,14 +41,8 @@ type StubJoinOptions = {
   extra?: ((url: string, init?: RequestInit) => Response) | undefined;
   providerAvailable?: boolean;
   status?: (() => Record<string, unknown>) | undefined;
-  microsoftStatus?: Record<string, unknown>;
 };
-function stubJoin({
-  extra,
-  providerAvailable = false,
-  status = () => ({ state: "expired" }),
-  microsoftStatus = { state: "expired" },
-}: StubJoinOptions) {
+function stubJoin({ extra, providerAvailable = false, status = () => ({ state: "expired" }) }: StubJoinOptions) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith("/join/metadata"))
@@ -60,7 +54,6 @@ function stubJoin({
         emailVerificationAvailable: true,
       });
     if (url.endsWith("/api/company-join/status")) return Response.json(status());
-    if (url.endsWith("/api/account/microsoft/status")) return Response.json(microsoftStatus);
     if (extra) return extra(url, init);
     throw new Error(`Unexpected request: ${url}`);
   });
@@ -75,29 +68,23 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-it("shows eligible providers above existing password and excludes GitHub in company-sign-in-only mode", async () => {
+it("shows only the available Google provider above existing password in company-sign-in-only mode", async () => {
   stubJoin({ extra: undefined, providerAvailable: true });
   renderJoin("/join/a-studio", {
     ...auth,
     authMode: "sso-only",
-    providers: [
-      { id: "google", label: "Google", kind: "social", experimental: false },
-      { id: "microsoft", label: "Microsoft", kind: "social", experimental: false },
-      { id: "github", label: "GitHub", kind: "social", experimental: true },
-    ],
+    providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
   });
   expect(await screen.findByRole("button", { name: "Sign in with Google" })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Sign in with Microsoft" })).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Continue with GitHub" })).not.toBeInTheDocument();
   expect(screen.queryByText("Or sign in with your password")).not.toBeInTheDocument();
   expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
 });
 
-it("uses company-bound Microsoft start with the addressed invitation", async () => {
+it("uses the company-bound Google start with the addressed invitation", async () => {
   const fetchMock = stubJoin({
     extra: (url) => {
-      if (url.endsWith("/api/account/microsoft/start"))
-        return Response.json({ url: "https://login.microsoftonline.com/authorize" });
+      if (url.endsWith("/api/accounts/a-studio/join/provider/start"))
+        return Response.json({ url: "https://accounts.google.test/authorize" });
       throw new Error(`Unexpected request: ${url}`);
     },
     providerAvailable: true,
@@ -106,66 +93,55 @@ it("uses company-bound Microsoft start with the addressed invitation", async () 
   renderJoin("/join/a-studio?invite=invite-token", {
     ...auth,
     authMode: "sso-only",
-    providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
+    providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
   });
   await user.type(await screen.findByLabelText("Email"), "diana@example.test");
-  await user.click(screen.getByRole("button", { name: "Sign in with Microsoft" }));
+  await user.click(screen.getByRole("button", { name: "Sign in with Google" }));
   await vi.waitFor(() =>
-    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/api/account/microsoft/start"))).toBe(true),
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).endsWith("/api/accounts/a-studio/join/provider/start")),
+    ).toBe(true),
   );
-  const start = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/api/account/microsoft/start"));
+  const start = fetchMock.mock.calls.find(([url]) =>
+    String(url).endsWith("/api/accounts/a-studio/join/provider/start"),
+  );
   expect(JSON.parse(String(start?.[1]?.body))).toMatchObject({
-    purpose: "join",
-    accountId: "a-studio",
+    purpose: "invitation",
     email: "diana@example.test",
-    inviteToken: "invite-token",
+    invitationToken: "invite-token",
+    providerId: "google",
   });
   window.dispatchEvent(new Event("pagehide"));
 });
 
-it("preserves a prior provider journey when switching providers is rejected", async () => {
-  let priorIntentLive = true;
-  let priorIntentState: "pending" | "approved" = "pending";
+it("restarts a pending Google callback journey through its same-browser cancellation route", async () => {
   const fetchMock = stubJoin({
     extra: (url) => {
-      if (url.endsWith("/api/company-join/cancel") || url.endsWith("/api/account/microsoft/cancel")) {
-        priorIntentLive = false;
-        return Response.json({ ok: true });
-      }
-      if (url.endsWith("/api/account/microsoft/start"))
-        return Response.json({ error: "Provider start unavailable" }, { status: 503 });
+      if (url.endsWith("/api/company-join/cancel")) return Response.json({ ok: true });
       throw new Error(`Unexpected request: ${url}`);
     },
     providerAvailable: true,
-    status: () =>
-      priorIntentLive
-        ? {
-            state: priorIntentState,
-            accountId: "a-studio",
-            purpose: "policy",
-            providerId: "google",
-            email: "diana@example.test",
-          }
-        : { state: "expired" },
+    status: () => ({
+      state: "pending",
+      accountId: "a-studio",
+      purpose: "policy",
+      providerId: "google",
+      emailHint: "diana@example.test",
+    }),
   });
-  const context: AuthContextValue = {
-    ...auth,
-    providers: [
-      { id: "google", label: "Google", kind: "social", experimental: false },
-      { id: "microsoft", label: "Microsoft", kind: "social", experimental: false },
-    ],
-  };
   const user = userEvent.setup();
-  const view = renderJoin("/join/a-studio", context);
-  await user.click(await screen.findByRole("button", { name: "Sign in with Microsoft" }));
-  expect(await screen.findByText("Provider start unavailable")).toBeInTheDocument();
-  view.unmount();
-  priorIntentState = "approved";
-  renderJoin("/join/a-studio", context);
-  expect(
-    await screen.findByText("Your sign-in provider verified this address. Join this company to finish."),
-  ).toBeInTheDocument();
-  expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/cancel"))).toBe(false);
+  renderJoin("/join/a-studio", {
+    ...auth,
+    providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+  });
+  expect(await screen.findByText("Checking company joining…")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Start again" }));
+  expect(await screen.findByLabelText("Email")).toBeInTheDocument();
+  expect(fetchMock).toHaveBeenCalledWith(
+    "http://api.test/api/company-join/cancel",
+    expect.objectContaining({ method: "POST" }),
+  );
+  expect(screen.queryByRole("button", { name: "Resend email" })).not.toBeInTheDocument();
 });
 
 it("signs in an existing password identity and joins only through the policy endpoint", async () => {
@@ -376,170 +352,73 @@ it("does not offer email verification where the server cannot send it", async ()
   expect(screen.queryByTestId("joining-verify-email")).not.toBeInTheDocument();
 });
 
-it.each([
-  { providerId: "google", label: "Google", endpoint: "complete-provider" },
-  { providerId: "microsoft", label: "Microsoft", endpoint: "complete-microsoft" },
-] as const)(
-  "completes an approved $label invitation and hands off after refreshing auth",
-  async ({ providerId, label, endpoint }) => {
-    const status = {
-      state: "approved",
-      accountId: "a-studio",
-      purpose: "invitation",
-      providerId,
-      email: "diana@example.test",
-    };
-    const fetchMock = stubJoin({
-      extra: (url) => {
-        if (url.endsWith(`/api/company-join/${endpoint}`))
-          return Response.json({ accountId: "a-studio", role: "viewer" });
-        throw new Error(`Unexpected request: ${url}`);
-      },
-      providerAvailable: true,
-      status: () => (providerId === "google" ? status : { state: "expired" }),
-      microsoftStatus: providerId === "microsoft" ? status : { state: "expired" },
-    });
-    const refreshAuth = vi.fn(async () => {
-      expect(handoffMock.replaceWithJoinedAccount).not.toHaveBeenCalled();
-    });
-    const user = userEvent.setup();
-    renderJoin("/join/a-studio?invite=invite-token", {
-      ...auth,
-      refreshAuth,
-      providers: [{ id: providerId, label, kind: "social", experimental: false }],
-    });
-    expect(
-      await screen.findByText("Your sign-in provider verified this address. Join this company to finish."),
-    ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Join company" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Join company");
-    expect(fetchMock).toHaveBeenCalledWith(
-      `http://api.test/api/company-join/${endpoint}`,
-      expect.objectContaining({ method: "POST", body: JSON.stringify({ invitationToken: "invite-token" }) }),
-    );
-    expect(refreshAuth).toHaveBeenCalledTimes(1);
-    expect(handoffMock.replaceWithJoinedAccount).toHaveBeenCalledExactlyOnceWith("a-studio");
-    expect(screen.queryByRole("button", { name: "Join company" })).not.toBeInTheDocument();
-  },
-);
-
-it("resends pending Microsoft verification and keeps the journey retryable after a server error", async () => {
-  let resendCount = 0;
+it("completes an approved Google invitation explicitly after the token-free callback", async () => {
+  const status = {
+    state: "approved",
+    accountId: "a-studio",
+    purpose: "invitation",
+    providerId: "google",
+    email: "diana@example.test",
+  };
   const fetchMock = stubJoin({
     extra: (url) => {
-      if (url.endsWith("/api/account/microsoft/resend")) {
-        resendCount += 1;
-        return resendCount === 1
-          ? Response.json({ ok: true })
-          : Response.json({ error: "Verification email unavailable" }, { status: 503 });
-      }
+      if (url.endsWith("/api/company-join/complete-provider"))
+        return Response.json({ accountId: "a-studio", role: "viewer" });
       throw new Error(`Unexpected request: ${url}`);
     },
     providerAvailable: true,
-    status: undefined,
-    microsoftStatus: {
-      state: "pending",
-      accountId: "a-studio",
-      purpose: "policy",
-      providerId: "microsoft",
-      emailHint: "diana@example.test",
-    },
+    status: () => status,
+  });
+  const refreshAuth = vi.fn(async () => {
+    expect(handoffMock.replaceWithJoinedAccount).not.toHaveBeenCalled();
   });
   const user = userEvent.setup();
   renderJoin("/join/a-studio", {
     ...auth,
-    providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
+    refreshAuth,
+    providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
   });
-  const resend = await screen.findByRole("button", { name: "Resend email" });
-  await user.click(resend);
+  expect(
+    await screen.findByText("Your sign-in provider verified this address. Join this company to finish."),
+  ).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Join company" }));
+  expect(await screen.findByRole("status")).toHaveTextContent("Join company");
   expect(fetchMock).toHaveBeenCalledWith(
-    "http://api.test/api/account/microsoft/resend",
+    "http://api.test/api/company-join/complete-provider",
+    expect.objectContaining({ method: "POST", body: JSON.stringify({}) }),
+  );
+  expect(refreshAuth).toHaveBeenCalledTimes(1);
+  expect(handoffMock.replaceWithJoinedAccount).toHaveBeenCalledExactlyOnceWith("a-studio");
+  expect(screen.queryByRole("button", { name: "Join company" })).not.toBeInTheDocument();
+});
+
+it("keeps the pending Google journey retryable when cancellation fails", async () => {
+  const fetchMock = stubJoin({
+    extra: (url) => {
+      if (url.endsWith("/api/company-join/cancel"))
+        return Response.json({ error: "Could not cancel provider sign-in" }, { status: 503 });
+      throw new Error(`Unexpected request: ${url}`);
+    },
+    providerAvailable: true,
+    status: () => ({
+      state: "pending",
+      accountId: "a-studio",
+      purpose: "policy",
+      providerId: "google",
+      emailHint: "diana@example.test",
+    }),
+  });
+  const user = userEvent.setup();
+  renderJoin("/join/a-studio", {
+    ...auth,
+    providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+  });
+  await user.click(await screen.findByRole("button", { name: "Start again" }));
+  expect(await screen.findByText("Could not cancel provider sign-in")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Start again" })).toBeEnabled();
+  expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
+  expect(fetchMock).toHaveBeenCalledWith(
+    "http://api.test/api/company-join/cancel",
     expect.objectContaining({ method: "POST" }),
   );
-  expect(resendCount).toBe(1);
-  expect(
-    screen.getByText(
-      "Check diana@example.test for a verification link. Open it in this same browser within 15 minutes.",
-    ),
-  ).toBeInTheDocument();
-  expect(resend).toBeEnabled();
-  await user.click(resend);
-  expect(await screen.findByText("Verification email unavailable")).toBeInTheDocument();
-  expect(resendCount).toBe(2);
-  expect(screen.getByRole("button", { name: "Resend email" })).toBeEnabled();
-  expect(
-    screen.getByText(
-      "Check diana@example.test for a verification link. Open it in this same browser within 15 minutes.",
-    ),
-  ).toBeInTheDocument();
-  expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
-});
-
-it("restarts a pending Microsoft journey by cancelling both intents and returning to entry", async () => {
-  const fetchMock = stubJoin({
-    extra: (url) => {
-      if (url.endsWith("/api/company-join/cancel") || url.endsWith("/api/account/microsoft/cancel"))
-        return Response.json({ ok: true });
-      throw new Error(`Unexpected request: ${url}`);
-    },
-    providerAvailable: true,
-    status: undefined,
-    microsoftStatus: {
-      state: "pending",
-      accountId: "a-studio",
-      purpose: "policy",
-      providerId: "microsoft",
-      emailHint: "diana@example.test",
-    },
-  });
-  const user = userEvent.setup();
-  renderJoin("/join/a-studio", {
-    ...auth,
-    providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
-  });
-  await user.click(await screen.findByRole("button", { name: "Start again" }));
-  expect(await screen.findByLabelText("Email")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Sign in with Microsoft" })).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Resend email" })).not.toBeInTheDocument();
-  for (const endpoint of ["/api/company-join/cancel", "/api/account/microsoft/cancel"]) {
-    expect(fetchMock).toHaveBeenCalledWith(`http://api.test${endpoint}`, expect.objectContaining({ method: "POST" }));
-  }
-});
-
-it("keeps a pending Microsoft journey retryable when restarting fails", async () => {
-  const fetchMock = stubJoin({
-    extra: (url) => {
-      if (url.endsWith("/api/company-join/cancel")) return Response.json({ ok: true });
-      if (url.endsWith("/api/account/microsoft/cancel"))
-        return Response.json({ error: "Could not cancel verification" }, { status: 503 });
-      throw new Error(`Unexpected request: ${url}`);
-    },
-    providerAvailable: true,
-    status: undefined,
-    microsoftStatus: {
-      state: "pending",
-      accountId: "a-studio",
-      purpose: "policy",
-      providerId: "microsoft",
-      emailHint: "diana@example.test",
-    },
-  });
-  const user = userEvent.setup();
-  renderJoin("/join/a-studio", {
-    ...auth,
-    providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
-  });
-  await user.click(await screen.findByRole("button", { name: "Start again" }));
-  expect(await screen.findByText("Could not cancel verification")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Start again" })).toBeEnabled();
-  expect(screen.getByRole("button", { name: "Resend email" })).toBeEnabled();
-  expect(
-    screen.getByText(
-      "Check diana@example.test for a verification link. Open it in this same browser within 15 minutes.",
-    ),
-  ).toBeInTheDocument();
-  expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
-  for (const endpoint of ["/api/company-join/cancel", "/api/account/microsoft/cancel"]) {
-    expect(fetchMock).toHaveBeenCalledWith(`http://api.test${endpoint}`, expect.objectContaining({ method: "POST" }));
-  }
 });

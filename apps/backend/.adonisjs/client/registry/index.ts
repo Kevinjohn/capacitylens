@@ -288,6 +288,42 @@ const routes = {
     tokens: [{"old":"/api/accounts/:accountId/ownership-transfer","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/ownership-transfer","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/ownership-transfer","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/ownership-transfer","type":0,"val":"ownership-transfer","end":""}],
     types: placeholder as Registry['api.ownership.transfer']['types'],
   },
+  'api.google.callback': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/auth/callback/google',
+    tokens: [{"old":"/api/auth/callback/google","type":0,"val":"api","end":""},{"old":"/api/auth/callback/google","type":0,"val":"auth","end":""},{"old":"/api/auth/callback/google","type":0,"val":"callback","end":""},{"old":"/api/auth/callback/google","type":0,"val":"google","end":""}],
+    types: placeholder as Registry['api.google.callback']['types'],
+  },
+  'api.google.link': {
+    methods: ["POST"],
+    pattern: '/api/identity/link-provider',
+    tokens: [{"old":"/api/identity/link-provider","type":0,"val":"api","end":""},{"old":"/api/identity/link-provider","type":0,"val":"identity","end":""},{"old":"/api/identity/link-provider","type":0,"val":"link-provider","end":""}],
+    types: placeholder as Registry['api.google.link']['types'],
+  },
+  'api.google.identity': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/identity/provider',
+    tokens: [{"old":"/api/identity/provider","type":0,"val":"api","end":""},{"old":"/api/identity/provider","type":0,"val":"identity","end":""},{"old":"/api/identity/provider","type":0,"val":"provider","end":""}],
+    types: placeholder as Registry['api.google.identity']['types'],
+  },
+  'api.google.join-start': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/join/provider/start',
+    tokens: [{"old":"/api/accounts/:accountId/join/provider/start","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/join/provider/start","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/join/provider/start","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/join/provider/start","type":0,"val":"join","end":""},{"old":"/api/accounts/:accountId/join/provider/start","type":0,"val":"provider","end":""},{"old":"/api/accounts/:accountId/join/provider/start","type":0,"val":"start","end":""}],
+    types: placeholder as Registry['api.google.join-start']['types'],
+  },
+  'api.google.join-cancel': {
+    methods: ["POST"],
+    pattern: '/api/company-join/cancel',
+    tokens: [{"old":"/api/company-join/cancel","type":0,"val":"api","end":""},{"old":"/api/company-join/cancel","type":0,"val":"company-join","end":""},{"old":"/api/company-join/cancel","type":0,"val":"cancel","end":""}],
+    types: placeholder as Registry['api.google.join-cancel']['types'],
+  },
+  'api.google.join-complete': {
+    methods: ["POST"],
+    pattern: '/api/company-join/complete-provider',
+    tokens: [{"old":"/api/company-join/complete-provider","type":0,"val":"api","end":""},{"old":"/api/company-join/complete-provider","type":0,"val":"company-join","end":""},{"old":"/api/company-join/complete-provider","type":0,"val":"complete-provider","end":""}],
+    types: placeholder as Registry['api.google.join-complete']['types'],
+  },
   'api.lifecycle': {
     methods: ["POST"],
     pattern: '/api/:entity/:id/:action',

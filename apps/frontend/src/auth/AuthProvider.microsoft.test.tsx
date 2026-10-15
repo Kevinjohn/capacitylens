@@ -8,7 +8,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("AuthProvider — Microsoft verification entry", () => {
+// Deferred provider coverage retained for the later Microsoft milestone; M3c ships Google only.
+describe.skip("AuthProvider — Microsoft verification entry (deferred)", () => {
   it.each(["/verify-microsoft", "/verify-microsoft/"])(
     "checks verification at %s without opening tenant access",
     async (path) => {

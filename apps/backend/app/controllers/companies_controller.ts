@@ -121,8 +121,6 @@ export default class CompaniesController {
 
   private async creationActor(ctx: HttpContext, trx: TransactionClientContract) {
     const actor = await resolveCurrentActor(ctx, trx)
-    // The provider admission seam stays closed until a configured company provider can prove it.
-    if (authMode() === 'sso-only') throw new IdentityAuthorityError('Company provider required.')
     const hasCompany = Boolean(await trx.from('accounts').select('id').first())
     if (!hasCompany) return actor.userId
     if (
@@ -236,6 +234,7 @@ export default class CompaniesController {
             created_at: now,
             updated_at: now,
           })
+          await trx.from('account_recovery_tokens').where('user_id', actorId).delete()
           await trx
             .from('command_results')
             .where('command_id', command!.commandId)

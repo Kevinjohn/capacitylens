@@ -18,16 +18,16 @@ afterEach(() => {
 });
 
 describe("dispatchExternalProviderSignIn", () => {
-  it("dispatches Microsoft through signIn.social with the marked callback URLs", async () => {
+  it("dispatches Google sign-in with the marked callback URLs", async () => {
     window.history.replaceState({}, "", "/team?tab=access");
     const outcome = { data: { url: "https://accounts.example.test/start" }, error: null };
     signInSocial.mockResolvedValue(outcome);
-    const provider: AuthProviderInfo = { id: "microsoft", label: "Microsoft", kind: "social", experimental: false };
+    const provider: AuthProviderInfo = { id: "google", label: "Google", kind: "social", experimental: false };
 
     const result = await dispatchExternalProviderSignIn(provider);
 
     expect(signInSocial).toHaveBeenCalledWith({
-      provider: "microsoft",
+      provider: "google",
       callbackURL: "http://localhost:3000/team?tab=access",
       errorCallbackURL: "http://localhost:3000/team?tab=access&externalSignInError=1",
     });

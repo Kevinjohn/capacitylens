@@ -70,10 +70,6 @@ async function withRequestPasswordWork<T>(ctx: HttpContext, work: () => Promise<
 }
 
 export default class AuthController {
-  providerStart({ response }: HttpContext) {
-    return response.notFound({ error: 'Provider sign-in is unavailable.' })
-  }
-
   async me(ctx: HttpContext) {
     const mode = authMode()
     const multiAccount = env.get('CAPACITYLENS_MULTI_ACCOUNT') === true
@@ -107,7 +103,8 @@ export default class AuthController {
         providers: availableProviders(),
         multiAccount,
         canCreateAccount: !hasCompany || mayCreateAnother,
-        ...(passwordEnabled() ? { reauthMethod: 'password', reauthProviderId: null } : {}),
+        reauthMethod: passwordEnabled() && actor.user.passwordHash ? 'password' : 'provider',
+        reauthProviderId: passwordEnabled() && actor.user.passwordHash ? null : 'google',
       }
     } catch (error) {
       if (
