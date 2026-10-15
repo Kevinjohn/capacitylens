@@ -3,6 +3,7 @@ import type { ApiClient } from '@japa/api-client'
 import testUtils from '@adonisjs/core/services/test_utils'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
+import { hashPassword } from '#services/password_service'
 
 type Cleanup = (callback: () => void) => void
 type MutableKey =
@@ -155,4 +156,20 @@ test.group('native auth and API rate limits', (group) => {
       assert.notInclude(String(entry.key), 'never-store-this-password-012345')
     }
   })
+
+  test('an unknown address waits for the same password work as a real account', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    captureEnvironment(cleanup, ['CAPACITYLENS_MODE', 'CAPACITYLENS_RATE_LIMIT'])
+    setEnvironment('CAPACITYLENS_MODE', 'password-only')
+    setEnvironment('CAPACITYLENS_RATE_LIMIT', '0')
+
+    // Two active and sixteen queued derivations fill the queue, so any sign-in that derives is refused.
+    const saturating = Array.from({ length: 18 }, (_, index) => hashPassword(`saturate-${index}`))
+    const unknown = await signIn(client, undefined, `nobody-${crypto.randomUUID()}@example.test`)
+    await Promise.all(saturating)
+    assert.equal(unknown.status(), 503)
+  }).timeout(20_000)
 })

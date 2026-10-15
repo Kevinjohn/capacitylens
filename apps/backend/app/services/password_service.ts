@@ -111,6 +111,9 @@ function parseStoredHash(encodedHash: string): (ScryptInput & { expected: Buffer
   return { password: '', salt, n, r, p, expected }
 }
 
+/** A well-formed hash that no password matches; verifying it costs the same as a real one. */
+export const UNMATCHABLE_PASSWORD_HASH = `scrypt$N=${SCRYPT_N},r=${SCRYPT_R},p=${SCRYPT_P}$${Buffer.alloc(SALT_BYTES).toString('base64url')}$${Buffer.alloc(KEY_BYTES).toString('base64url')}`
+
 /** Verifies a stored product scrypt hash, returning false only for malformed or non-matching credentials. */
 export async function verifyPassword(encodedHash: string, password: string): Promise<boolean> {
   const parsed = parseStoredHash(encodedHash)

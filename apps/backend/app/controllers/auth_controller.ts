@@ -15,6 +15,7 @@ import {
   hashPassword,
   verifyPassword,
   PasswordProcessingUnavailableError,
+  UNMATCHABLE_PASSWORD_HASH,
   runWithPasswordAbortSignal,
 } from '#services/password_service'
 import { assertPasswordAllowed } from '#services/password_screening'
@@ -137,10 +138,11 @@ export default class AuthController {
     try {
       if (!(await consumeFailedSignInBudget(ctx)))
         return ctx.response.tooManyRequests({ error: 'Rate limit exceeded.' })
-      if (
-        !hash ||
-        !(await withRequestPasswordWork(ctx, () => verifyPassword(hash, body.password as string)))
+      // Unknown and provider-only addresses pay the same derivation, so timing reveals no account.
+      const verified = await withRequestPasswordWork(ctx, () =>
+        verifyPassword(hash || UNMATCHABLE_PASSWORD_HASH, body.password as string)
       )
+      if (!hash || !verified)
         return ctx.response.unauthorized({ error: 'Invalid email or password.' })
       await createPasswordSession(ctx, user, hash)
       await resetFailedSignInBudget(ctx)
