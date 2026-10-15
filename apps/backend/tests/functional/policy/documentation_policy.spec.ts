@@ -342,10 +342,22 @@ test.group('M5 documentation and policy contracts', () => {
 
   test('keeps operational execution and resource boundaries in current runbooks', ({ assert }) => {
     const install = read('docs-src/self-hosting/install.md').replace(/\s+/g, ' ')
-    const managedHost = read('docs-src/self-hosting/managed-vps/index.md').replace(/\s+/g, ' ')
+    const managedHost = read('docs-src/self-hosting/managed-vps/index.md')
     const monitoring = read('docs-src/self-hosting/monitoring.md').replace(/\s+/g, ' ')
+    const managedSiteUser = /^-\s+run as the dedicated site user from\b/im
     assert.match(install, /background process runs as a dedicated site user/i)
-    assert.match(managedHost, /run as the dedicated site user/i)
+    assert.match(managedHost, managedSiteUser)
+    assert.isTrue(managedSiteUser.test('- run as the dedicated site user from current/backend'))
+    assert.isFalse(
+      managedSiteUser.test('- do not run as the dedicated site user from current/backend')
+    )
+    assert.isFalse(managedSiteUser.test('- run as root from current/backend'))
+    assert.isFalse(
+      managedSiteUser.test('- no longer run as the dedicated site user from current/backend')
+    )
+    assert.isFalse(
+      managedSiteUser.test('- do not run under the dedicated site user from current/backend')
+    )
     assert.match(
       monitoring,
       /Authentication and request-work safeguards are process-wide, not per-company reservations/
