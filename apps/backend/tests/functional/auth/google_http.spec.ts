@@ -467,6 +467,19 @@ test.group('Google browser entry', (group) => {
     )
   })
 
+  test('refuses a same-origin callback whose path would redirect to another host', async ({
+    client,
+  }) => {
+    for (const path of ['//evil.example/login', '/\\evil.example/login']) {
+      const callbackURL = `${env.get('APP_URL')}${path}`
+      const refused = await client
+        .post('/api/auth/provider-start')
+        .json({ provider: 'google', callbackURL, errorCallbackURL: callbackURL })
+        .send()
+      refused.assertStatus(400)
+    }
+  })
+
   test('starts a stateful Google browser journey and refuses a callback without matching state', async ({
     client,
     assert,

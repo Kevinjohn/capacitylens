@@ -26,7 +26,13 @@ export function callbackPath(value: unknown) {
   } catch {
     throw new GoogleIdentityError('Invalid callback URL.', 400, 'INVALID_CALLBACK_URL')
   }
-  if (url.origin !== origin || url.hash || url.pathname.startsWith('/api/'))
+  // A leading `//` survives as a protocol-relative Location and would leave the product origin.
+  if (
+    url.origin !== origin ||
+    url.hash ||
+    url.pathname.startsWith('//') ||
+    url.pathname.startsWith('/api/')
+  )
     throw new GoogleIdentityError('Invalid callback URL.', 400, 'INVALID_CALLBACK_URL')
   return `${url.pathname}${url.search}`
 }
