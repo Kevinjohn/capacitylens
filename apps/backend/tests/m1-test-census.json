@@ -4962,7 +4962,7 @@
       ],
       "implementation_boundary": "Only start/routes.ts endpoints described in main_route_contracts are implemented in M1. Other call sites are mapped to future milestone ownership, not represented as implemented routes.",
       "factual_gaps": [],
-      "status_note": "The 109 caller identities and historical request/response contracts remain pinned to the original source. current_source and implementation identify native Adonis bindings. The active M3c provider is Google only; Microsoft behavior is deferred by owner ruling 26 and GitHub is retired. Original Better Auth source remains as a legacy reference until M7a, outside the active dependency graph.",
+      "status_note": "The 109 caller identities and historical request/response contracts remain pinned to the original source. current_source and implementation identify native Adonis bindings. The active M3c provider is Google only; Microsoft behavior is deferred by owner ruling 26 and GitHub is retired. The legacy Better Auth source and dependency graph were removed in M7a; active callers use the native Adonis backend.",
       "normalization": {
         "source_inventory_counts": {
           "spa_call_patterns": 76,

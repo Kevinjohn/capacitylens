@@ -9,6 +9,9 @@ import { fileURLToPath } from "node:url";
 export const ZERO_COVERAGE_ALLOWLIST = new Set([
   "../../packages/shared/src/account/sessionPolicy.ts",
   "src/components/ui/skeleton.tsx",
+  // Microsoft mailbox verification is explicitly deferred and has no current route or provider entry.
+  "src/auth/MicrosoftVerificationScreen.tsx",
+  "src/auth/microsoftConnectionClient.ts",
 ]);
 
 /**
