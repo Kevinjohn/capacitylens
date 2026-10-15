@@ -1711,7 +1711,7 @@
       "disposition": "port",
       "proposed_package": "apps/backend",
       "proposed_test_path": "tests/functional/policy/documentation_policy.spec.ts",
-      "reason": "Ported README fragments, active operator command paths and user-story source/documentation targets to named Japa cases in the backend policy suite."
+      "reason": "Ported README fragments, changelog links and the APP_NAME/localization guard to Japa policy cases."
     },
     {
       "source_path": "server/src/envComposeDocs.test.ts",
@@ -1720,7 +1720,7 @@
       "disposition": "port",
       "proposed_package": "apps/backend",
       "proposed_test_path": "tests/functional/policy/documentation_policy.spec.ts",
-      "reason": "Ported current Adonis environment/sample and operator documentation contracts to Japa. Docker-only Compose pass-through, TLS initializer, image-stage and nginx-edge clauses are explicitly deferred to M7a; M5 runs no Docker work.",
+      "reason": "Ported current Adonis environment/sample and backup-setting bounds to Japa. Docker-only Compose pass-through, TLS initializer, image-stage and nginx-edge clauses are explicitly deferred to M7a; M5 runs no Docker work.",
       "subdispositions": [
         {
           "milestone": "M7a",
@@ -2024,7 +2024,7 @@
       "disposition": "port",
       "proposed_package": "apps/backend",
       "proposed_test_path": "tests/functional/policy/documentation_policy.spec.ts",
-      "reason": "Ported current native install, backup, upgrade, reset, health and provider wording contracts to named Japa cases."
+      "reason": "Ported native commands and service-user execution, process-wide limits, identity-global authentication, isolation guidance, journal time syntax, backup bounds and local-password recovery conditions to named Japa cases."
     },
     {
       "source_path": "server/src/schema/historicalSpecs.test.ts",
@@ -2123,7 +2123,7 @@
       "disposition": "port",
       "proposed_package": "apps/backend",
       "proposed_test_path": "tests/functional/policy/documentation_policy.spec.ts",
-      "reason": "Ported story source and documentation page/fragment resolution to a named Japa case using the current Adonis paths."
+      "reason": "Ported exact story-catalogue/file set, required story structure, current source-path existence, and documentation page/fragment resolution to Japa using Adonis paths."
     },
     {
       "source_path": "server/src/validate.allocationProject.test.ts",

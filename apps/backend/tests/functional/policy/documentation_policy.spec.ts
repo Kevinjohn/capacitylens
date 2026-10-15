@@ -21,6 +21,12 @@ function storyFiles(directory = resolve(ROOT, 'user-stories')): string[] {
   })
 }
 
+function storyPaths(): string[] {
+  return storyFiles()
+    .map((file) => relative(resolve(ROOT, 'user-stories'), file).replaceAll('\\', '/'))
+    .sort()
+}
+
 function slug(heading: string): string {
   return heading
     .replace(/\s+\{#[^}]+\}\s*$/, '')
@@ -159,6 +165,41 @@ test.group('M5 documentation and policy contracts', () => {
     assert.include(configuration, 'GitHub sign-in is retired')
   })
 
+  test('keeps backup bounds, flooring, and warning fallbacks documented', ({ assert }) => {
+    const configuration = read('docs-src/self-hosting/configuration.md').replace(/\s+/g, ' ')
+    assert.match(configuration, /default interval is 60 minutes and retention is 48 snapshots/)
+    assert.match(
+      configuration,
+      /positive fractional retention values are floored to whole snapshots/i
+    )
+    assert.match(
+      configuration,
+      /invalid or nonpositive values use the 48-snapshot default with a startup warning/
+    )
+    assert.match(configuration, /values above 10,000 clamp to 10,000 with a startup warning/)
+    assert.match(
+      configuration,
+      /invalid interval values use the 60-minute default with a startup warning/i
+    )
+    assert.match(configuration, /values above 35,000 clamp to 35,000 with a startup warning/)
+  })
+
+  test('limits sole-owner password recovery to an existing local password', ({ assert }) => {
+    for (const path of [
+      'docs-src/self-hosting/backups-and-restore.md',
+      'docs-src/self-hosting/incidents.md',
+      'docs-src/self-hosting/faq.md',
+    ]) {
+      const document = read(path).replace(/\s+/g, ' ')
+      assert.include(document, '`password-only`')
+      assert.include(document, '`password-and-sso`')
+      assert.include(document, 'already has a local password')
+      assert.include(document, 'A Google-only')
+      assert.include(document, 'cannot use')
+      assert.include(document, 'to create local password credentials')
+    }
+  })
+
   test('states that Docker deployment mechanics remain deferred and unvalidated', ({ assert }) => {
     const dockerGuide = read('docs-src/self-hosting/install-with-docker.md')
     assert.match(dockerGuide, /not (?:yet )?available|not validated|not supported/i)
@@ -241,9 +282,17 @@ test.group('M5 documentation and policy contracts', () => {
     const indexed = [...catalogue.matchAll(/\]\(([^)]+\/US-[^)]+\.md)\)/g)].map((match) => match[1])
     assert.equal(Number(catalogue.match(/\n(\d+) stories across/)?.[1]), files.length)
     assert.equal(indexed.length, files.length)
+    assert.equal(new Set(indexed).size, files.length)
+    assert.deepEqual(indexed.toSorted(), storyPaths())
 
     for (const file of files) {
       const content = readFileSync(file, 'utf8')
+      assert.match(content, /^## Goal$/m)
+      assert.match(content, /^## Why$/m)
+      assert.match(content, /^## How(?: \([^\n]+\))?$/m)
+      assert.match(content, /^1\. /m)
+      assert.match(content, /^## Acceptance criteria$/m)
+      assert.match(content, /^- (?:✅ )?\S/m)
       const metadata = content.split(/^## Goal$/m, 1)[0] ?? ''
       for (const [, path] of metadata.matchAll(sourceReferences)) {
         if (path) assert.isTrue(existsSync(resolve(ROOT, path)), `Missing source ${path}`)
@@ -271,5 +320,41 @@ test.group('M5 documentation and policy contracts', () => {
       read('docs-src/using/resources.md'),
       /permanent deletion[^.]*\]\(\/using\/settings\)/i
     )
+  })
+
+  test('keeps the product name and literal plural marker out of localized copy', ({ assert }) => {
+    const brand = read('packages/shared/src/brand.ts').match(
+      /export const APP_NAME = "([^"]+)"/
+    )?.[1]
+    assert.isDefined(brand, 'Expected the shared brand module to export APP_NAME')
+    const messages = Object.values(
+      JSON.parse(read('apps/frontend/messages/en.json')) as Record<string, string>
+    )
+    assert.deepEqual(
+      messages.filter((message) => message.includes(brand!)),
+      []
+    )
+    assert.deepEqual(
+      messages.filter((message) => message.includes('(s)')),
+      []
+    )
+  })
+
+  test('keeps operational execution and resource boundaries in current runbooks', ({ assert }) => {
+    const install = read('docs-src/self-hosting/install.md').replace(/\s+/g, ' ')
+    const managedHost = read('docs-src/self-hosting/managed-vps/index.md').replace(/\s+/g, ' ')
+    const monitoring = read('docs-src/self-hosting/monitoring.md').replace(/\s+/g, ' ')
+    assert.match(install, /background process runs as a dedicated site user/i)
+    assert.match(managedHost, /run as the dedicated site user/i)
+    assert.match(
+      monitoring,
+      /Authentication and request-work safeguards are process-wide, not per-company reservations/
+    )
+    assert.match(monitoring, /Authentication is identity-global before company selection/)
+    assert.match(
+      monitoring,
+      /Use edge\/global quotas or separate CapacityLens instances when installations require resource isolation/
+    )
+    assert.include(monitoring, 'journalctl -u capacitylens --since "30 min ago"')
   })
 })

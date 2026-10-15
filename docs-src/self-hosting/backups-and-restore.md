@@ -44,10 +44,12 @@ Restore into a new path so the current database remains available for investigat
 Never replace or delete the only copy of the current database before the restored copy passes
 startup checks. Do not edit migration ledgers or released database files by hand.
 
-## Recover the sole Owner
+## Recover a sole Owner's local password
 
-If the only Owner cannot sign in, stop the service and run the command from `backend/` with the
-same private environment used by the service:
+This recovery command is available only when `CAPACITYLENS_MODE` is `password-only` or
+`password-and-sso`, and the sole active Owner already has a local password. A Google-only
+`sso-only` Owner cannot use it to create local password credentials. Stop the service and run the
+command from `backend/` with the same private environment used by the service:
 
 ```bash
 node ace.js owner:reset-password owner@example.com --confirm-server-stopped

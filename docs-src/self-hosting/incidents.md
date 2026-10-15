@@ -31,10 +31,12 @@ database, the pre-upgrade snapshot and the service logs. Check whether the relea
 recorded migration manifest. Do not edit the migration ledger or retry over a partial destination.
 Use [Upgrades](/self-hosting/upgrades) for rollback and recovery.
 
-## The sole Owner cannot sign in
+## Sole Owner password recovery
 
-Confirm the target is the sole active Owner. Stop the service and run the audited command from the
-release's `backend/` directory:
+This applies only when `CAPACITYLENS_MODE` is `password-only` or `password-and-sso` and the sole
+active Owner already has a local password. A Google-only `sso-only` Owner cannot use this command
+to create local password credentials. Confirm the target is the sole active Owner, stop the service
+and run the audited command from the release's `backend/` directory:
 
 ```bash
 node ace.js owner:reset-password owner@example.com --confirm-server-stopped

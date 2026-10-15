@@ -13,7 +13,8 @@ one SQLite database, and runs as one process. The native release archive is the 
 route documented for this application.
 
 You need a Linux host, Node 24 within the supported 24.x line, a persistent data directory and a
-public HTTPS address. Keep the database and backup directory outside the versioned release folder.
+public HTTPS address. A background process runs as a dedicated site user; keep the database and
+backup directory outside the versioned release folder under that user's access.
 The full procedure is [Install without Docker](/self-hosting/install-without-docker); managed
 platforms can follow [Deploy on a managed host](/self-hosting/managed-vps/).
 

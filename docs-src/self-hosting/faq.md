@@ -53,9 +53,12 @@ See [Upgrades](/self-hosting/upgrades).
 
 ### How do I recover the sole Owner's access?
 
-Stop the service and use `node ace.js owner:reset-password <email> --confirm-server-stopped`
-from the release's `backend/` directory. The audited command issues a single-use recovery link;
-deliver it privately and never set a password directly. See [When something goes wrong](/self-hosting/incidents).
+The command applies only when `CAPACITYLENS_MODE` is `password-only` or `password-and-sso` and the
+sole active Owner already has a local password. A Google-only `sso-only` Owner cannot use it to
+create local password credentials. Stop the service and use
+`node ace.js owner:reset-password <email> --confirm-server-stopped` from the release's `backend/`
+directory. The audited command issues a single-use recovery link; deliver it privately and never
+set a password directly. See [When something goes wrong](/self-hosting/incidents).
 
 ### How do I move to a new host?
 
