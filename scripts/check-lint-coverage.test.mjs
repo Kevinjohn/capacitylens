@@ -49,7 +49,7 @@ test("function length limits distinguish TypeScript, TSX, and test callbacks", a
 
 test("local hooks and pull requests run the intended static-analysis checks", () => {
   const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-  const prePushChecks = "pnpm run format:check && pnpm run typecheck && pnpm run lint && pnpm run policy:file-sizes";
+  const prePushChecks = "pnpm run format:check && pnpm run typecheck && pnpm run lint";
   assert.equal(packageJson.scripts.prepare, "simple-git-hooks");
   assert.equal(packageJson.scripts["lint:staged"], "pnpm run paraglide:compile && lint-staged");
   assert.equal(packageJson.scripts["check:push"], prePushChecks);

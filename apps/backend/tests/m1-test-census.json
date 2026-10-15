@@ -1710,8 +1710,8 @@
       "milestone": "M5",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/policy",
-      "reason": "M5 docs/policy checks re-pointed to the new framework-led documentation and paths; logging preserved as product behavior."
+      "proposed_test_path": "tests/functional/policy/documentation_policy.spec.ts",
+      "reason": "Ported README fragments, changelog links and the APP_NAME/localization guard to Japa policy cases."
     },
     {
       "source_path": "server/src/envComposeDocs.test.ts",
@@ -1719,8 +1719,17 @@
       "milestone": "M5",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/policy",
-      "reason": "M5 docs/policy checks re-pointed to the new framework-led documentation and paths; logging preserved as product behavior."
+      "proposed_test_path": "tests/functional/policy/documentation_policy.spec.ts",
+      "reason": "Ported current Adonis environment/sample and backup-setting bounds to Japa. Docker-only Compose pass-through, TLS initializer, image-stage and nginx-edge clauses are explicitly deferred to M7a; M5 runs no Docker work.",
+      "subdispositions": [
+        {
+          "milestone": "M7a",
+          "disposition": "defer",
+          "proposed_package": ".github/workflows",
+          "proposed_test_path": ".github/workflows/docker.yml",
+          "reason": "Docker-only Compose and image behavior is not exercised or claimed by M5; M7a owns the rebuilt workflow and its smoke coverage."
+        }
+      ]
     },
     {
       "source_path": "server/src/erasure.test.ts",
@@ -1897,8 +1906,8 @@
       "milestone": "M5",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/policy",
-      "reason": "M5 docs/policy checks re-pointed to the new framework-led documentation and paths; logging preserved as product behavior."
+      "proposed_test_path": "tests/functional/policy/documentation_policy.spec.ts",
+      "reason": "Ported runtime database ignore rules and tracked released migration manifest policy to a named Japa case."
     },
     {
       "source_path": "server/src/resetOwnerPassword.test.ts",
@@ -2014,8 +2023,8 @@
       "milestone": "M5",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/policy",
-      "reason": "M5 docs/policy checks re-pointed to the new framework-led documentation and paths; logging preserved as product behavior."
+      "proposed_test_path": "tests/functional/policy/documentation_policy.spec.ts",
+      "reason": "Ported native commands and service-user execution, process-wide limits, identity-global authentication, isolation guidance, journal time syntax, backup bounds and local-password recovery conditions to named Japa cases."
     },
     {
       "source_path": "server/src/schema/historicalSpecs.test.ts",
@@ -2032,8 +2041,8 @@
       "milestone": "M5",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/policy",
-      "reason": "M5 docs/policy checks re-pointed to the new framework-led documentation and paths; logging preserved as product behavior."
+      "proposed_test_path": "tests/functional/policy/documentation_policy.spec.ts",
+      "reason": "Ported shared date-range and import remapping behavior as a Node-runtime Japa smoke case."
     },
     {
       "source_path": "server/src/shutdown.test.ts",
@@ -2113,8 +2122,8 @@
       "milestone": "M5",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/policy",
-      "reason": "M5 docs/policy checks re-pointed to the new framework-led documentation and paths; logging preserved as product behavior."
+      "proposed_test_path": "tests/functional/policy/documentation_policy.spec.ts",
+      "reason": "Ported exact story-catalogue/file set, required story structure, current source-path existence, and documentation page/fragment resolution to Japa using Adonis paths."
     },
     {
       "source_path": "server/src/validate.allocationProject.test.ts",
