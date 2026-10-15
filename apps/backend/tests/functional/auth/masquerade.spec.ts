@@ -301,6 +301,38 @@ test.group('native read-only masquerade', (group) => {
     stale.assertStatus(401)
   })
 
+  test('ends an open view as soon as the viewer loses the role that permits it', async ({
+    client,
+    assert,
+  }) => {
+    const { cookie, ownerId, targetId } = await fixture(client, 'editor')
+    const started = await asSession(
+      client.post('/api/accounts/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
+      cookie
+    )
+      .json({ targetUserId: targetId })
+      .send()
+    started.assertStatus(200)
+    const token = (started.body() as { token: string }).token
+    await db
+      .from('memberships')
+      .where({ account_id: 'a-studio', user_id: ownerId })
+      .update({ role: 'viewer' })
+    const read = await asSession(client.get('/api/state?accountId=a-studio'), cookie).send()
+    read.assertStatus(403)
+    const exported = await asSession(client.get('/api/export?accountId=a-studio'), cookie).send()
+    assert.oneOf(exported.status(), [403, 404])
+    const status = await asSession(client.get('/api/masquerade'), cookie).send()
+    status.assertStatus(403)
+    const ended = await asSession(
+      client.delete('/api/masquerade').header('sec-fetch-site', 'same-origin'),
+      cookie
+    )
+      .json({ token, reason: 'explicit' })
+      .send()
+    ended.assertStatus(204)
+  })
+
   test('allows a valid Owner session older than the fresh-action window to start viewing', async ({
     client,
     assert,

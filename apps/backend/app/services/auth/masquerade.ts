@@ -56,7 +56,11 @@ export async function activeMasquerade(
   return parseActive(await connection.from('masquerades').where('session_id', sessionId).first())
 }
 
+/** Re-checks the viewer too, so removal or demotion ends an open view on the next request. */
 async function targetRole(record: ActiveMasquerade, trx: TransactionClientContract) {
+  const actorRole = await activeCompanyRole(record.actorId, record.accountId, trx)
+  if (!actorRole || !can(actorRole, 'masquerade'))
+    throw new IdentityAuthorityError('Viewer is no longer permitted.')
   const target = await trx.from('users').where('id', record.targetId).first()
   if (!target) throw new IdentityAuthorityError('Target is unavailable.')
   const role = await activeCompanyRole(record.targetId, record.accountId, trx)
