@@ -316,6 +316,7 @@ test("ships an environment example that refuses open production access by defaul
     "CAPACITYLENS_SETUP_TOKEN=",
     "CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=0",
     "CAPACITYLENS_AUDIT=on",
+    "CAPACITYLENS_TRUST_PROXY_HEADERS=1",
     "CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db",
     "CAPACITYLENS_BACKUP_DIR=/var/lib/capacitylens/backups",
     "CAPACITYLENS_BACKUP_INTERVAL_MIN=60",
