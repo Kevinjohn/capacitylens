@@ -169,6 +169,40 @@ async function assertReady(baseUrl, child) {
   );
 }
 
+/** Create an authenticated company and write scheduling rows scoped to its server-issued id. */
+export async function writeSmokeSchedule(baseUrl, cookie, fixture) {
+  const account = fixture.accounts.find((row) => row.id === "a-studio");
+  assert.ok(account);
+  const created = await fetchOk(`${baseUrl}/api/orgs`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", cookie },
+    body: JSON.stringify({ name: account.name, color: account.color }),
+  });
+  const company = JSON.parse(created.body);
+  assert.ok(typeof company.id === "string" && company.id.length > 0, "Company creation returned no id");
+  const accountId = company.id;
+  const resource = {
+    ...fixture.resources.find((row) => row.kind === "person" && row.accountId === "a-studio"),
+    accountId,
+    name: RESOURCE_NAME,
+  };
+  assert.ok(resource.id);
+  const sourceDiscipline = fixture.disciplines.find((row) => row.id === resource.disciplineId);
+  assert.ok(sourceDiscipline);
+  const discipline = { ...sourceDiscipline, accountId };
+  await fetchOk(`${baseUrl}/api/batch`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", cookie },
+    body: JSON.stringify({
+      ops: [
+        { method: "PUT", table: "disciplines", id: discipline.id, row: discipline },
+        { method: "PUT", table: "resources", id: resource.id, row: resource },
+      ],
+    }),
+  });
+  return { accountId, resource };
+}
+
 async function main() {
   const backend = resolve(process.argv.slice(2).find((argument) => argument !== "--") ?? "");
   if (!process.argv[2]) throw new Error("Usage: pnpm run smoke:packaged-server <extracted-artifact>/backend");
@@ -256,31 +290,7 @@ async function main() {
     const { seed } = await import(
       pathToFileURL(join(backend, "node_modules", "@capacitylens", "shared", "dist", "data", "seed.js")).href
     );
-    const fixture = seed();
-    const account = fixture.accounts.find((row) => row.id === "a-studio");
-    assert.ok(account);
-    await fetchOk(`${baseUrl}/api/accounts`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", cookie },
-      body: JSON.stringify(account),
-    });
-    const resource = {
-      ...fixture.resources.find((row) => row.kind === "person" && row.accountId === "a-studio"),
-      name: RESOURCE_NAME,
-    };
-    assert.ok(resource.id);
-    const discipline = fixture.disciplines.find((row) => row.id === resource.disciplineId);
-    assert.ok(discipline);
-    await fetchOk(`${baseUrl}/api/batch`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", cookie },
-      body: JSON.stringify({
-        ops: [
-          { method: "PUT", table: "disciplines", id: discipline.id, row: discipline },
-          { method: "PUT", table: "resources", id: resource.id, row: resource },
-        ],
-      }),
-    });
+    const { accountId, resource } = await writeSmokeSchedule(baseUrl, cookie, seed());
     assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, 7);
 
     const beforeExplicit = await snapshotFiles(backupDir);
@@ -312,7 +322,9 @@ async function main() {
       log += chunk;
     });
     await assertReady(baseUrl, child);
-    const state = JSON.parse((await fetchOk(`${baseUrl}/api/state?accountId=a-studio`, { headers: { cookie } })).body);
+    const state = JSON.parse(
+      (await fetchOk(`${baseUrl}/api/state?accountId=${encodeURIComponent(accountId)}`, { headers: { cookie } })).body,
+    );
     assert.equal(state.resources.find((row) => row.id === resource.id)?.name, RESOURCE_NAME);
     assert.deepEqual(await stopServer(child), { code: 0, signal: null });
     passed = true;

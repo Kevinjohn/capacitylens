@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { buildSmokeEnvironment, startServer, waitFor } from "./smoke-packaged-server.mjs";
+import { buildSmokeEnvironment, startServer, waitFor, writeSmokeSchedule } from "./smoke-packaged-server.mjs";
 
 test("packaged smoke strips deployment settings before applying its loopback fixture", () => {
   const inherited = {
@@ -91,5 +91,34 @@ test("failure preservation errors do not hide the original failure or leave scra
     assert.deepEqual(readdirSync(parent).sort(), ["blocked-artifacts", "broken-deployment"]);
   } finally {
     rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("authenticated smoke creates a company through orgs and binds every fixture row to its returned id", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (url, options) => {
+    requests.push({ url, headers: options.headers, body: JSON.parse(options.body) });
+    return new Response(JSON.stringify(requests.length === 1 ? { id: "created-company" } : { ok: true }), {
+      status: requests.length === 1 ? 201 : 200,
+    });
+  };
+  try {
+    const fixture = {
+      accounts: [{ id: "a-studio", name: "Wayne Enterprises", color: "#6366f1" }],
+      disciplines: [{ id: "design", accountId: "a-studio", name: "Design" }],
+      resources: [{ id: "bruce", accountId: "a-studio", kind: "person", disciplineId: "design" }],
+    };
+    const written = await writeSmokeSchedule("http://localhost:8787", "fixture-session", fixture);
+    assert.equal(requests[0].url, "http://localhost:8787/api/orgs");
+    assert.deepEqual(requests[0].body, { name: "Wayne Enterprises", color: "#6366f1" });
+    assert.equal(requests[0].headers.cookie, "fixture-session");
+    assert.equal(requests[1].url, "http://localhost:8787/api/batch");
+    assert.ok(requests[1].body.ops.every(({ row }) => row.accountId === "created-company"));
+    assert.equal(written.accountId, "created-company");
+    assert.equal(written.resource.accountId, "created-company");
+    assert.equal(fixture.resources[0].accountId, "a-studio");
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });
