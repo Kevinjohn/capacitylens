@@ -31,8 +31,9 @@ export async function restrictedCompanyIds(userId: string, trx: TransactionClien
   const rows = await trx
     .from('account_access_restrictions')
     .where((query) => {
-      query.where('principal_id', userId)
-      if (proof) query.orWhere('verified_email', String(proof.email))
+      // These clauses configure the enclosing awaited query.
+      void query.where('principal_id', userId)
+      if (proof) void query.orWhere('verified_email', String(proof.email))
     })
     .select('account_id')
   return new Set(rows.map((row) => String(row.account_id)))
@@ -43,7 +44,7 @@ async function memberRoles(userId: string, trx: TransactionClientContract, activ
     .from('memberships as membership')
     .innerJoin('accounts as account', 'account.id', 'membership.account_id')
     .where('membership.user_id', userId)
-  if (activeOnly) query.where('membership.status', 'active')
+  if (activeOnly) void query.where('membership.status', 'active')
   const rows = await query.select('membership.account_id', 'membership.role')
   const restricted = activeOnly ? await restrictedCompanyIds(userId, trx) : new Set<string>()
   return new Map(

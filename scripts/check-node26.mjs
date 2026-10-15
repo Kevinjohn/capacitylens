@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { supportsNodeVersion } from "../server/scripts/check-node.mjs";
+import { supportsNodeVersion } from "../apps/backend/start/node_version.ts";
 import { reportSpawnFailureAndResolveExitStatus, spawnPnpmSync } from "./pnpmSpawn.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -55,27 +55,25 @@ try {
   }
 
   deployDir = mkdtempSync(join(tmpdir(), "capacitylens-node26-deploy-"));
-  run("browser storage regression", "pnpm", ["exec", "vitest", "run", "src/test/storageCompatibility.test.ts"]);
-  run("SQLite authorization and backup regressions", "pnpm", [
-    "--filter",
-    "capacitylens-server",
+  run("browser storage regression", "pnpm", [
+    "--dir",
+    "apps/frontend",
     "exec",
     "vitest",
     "run",
-    "src/accounts/sqliteAccountAdminPort.authorityIntegrity.test.ts",
-    "src/backup.test.ts",
-    "src/backup.health.test.ts",
-    "--pool=forks",
-    "--no-file-parallelism",
+    "src/test/storageCompatibility.test.ts",
   ]);
-  run("SQLite timer backup probe", process.execPath, [join(root, "scripts/sqlite-backup-timer-probe.mjs")]);
-  run("production runtime build", "pnpm", ["--filter", "capacitylens-server", "build:runtime"]);
-  run("production server deployment", "pnpm", ["--filter", "capacitylens-server", "deploy", "--prod", deployDir]);
-  run("deployed server startup, import, snapshots, integrity, and shutdown", "pnpm", [
-    "run",
-    "smoke:packaged-server",
-    deployDir,
+  run("backend lifecycle regressions", "pnpm", [
+    "--dir",
+    "apps/backend",
+    "test",
+    "--files=tests/unit/app_reset_command.spec.ts",
+    "--files=tests/unit/owner_reset_command.spec.ts",
+    "--files=tests/unit/backup.spec.ts",
   ]);
+  run("production build", "pnpm", ["run", "build"]);
+  run("production package", "pnpm", ["run", "package:managed-release", join(deployDir, "production")]);
+  run("deployed runtime smoke", "pnpm", ["run", "smoke:packaged-server", join(deployDir, "production/backend")]);
   passed = true;
 } finally {
   if (deployDir) rmSync(deployDir, { recursive: true, force: true });

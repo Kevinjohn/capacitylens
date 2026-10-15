@@ -11,6 +11,10 @@ on:
       - "scripts/ports.mjs"
       - "package.json"
       - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "apps/frontend/package.json"
+      - "packages/shared/package.json"
+      - ".github/actions/setup/action.yml"
       - ".github/workflows/docs.yml"
   push:
     branches: [main]
@@ -23,6 +27,10 @@ on:
       - "scripts/ports.mjs"
       - "package.json"
       - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "apps/frontend/package.json"
+      - "packages/shared/package.json"
+      - ".github/actions/setup/action.yml"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 

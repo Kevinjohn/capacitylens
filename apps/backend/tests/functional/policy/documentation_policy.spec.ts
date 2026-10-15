@@ -200,11 +200,14 @@ test.group('M5 documentation and policy contracts', () => {
     }
   })
 
-  test('states that Docker deployment mechanics remain deferred and unvalidated', ({ assert }) => {
+  test('documents the current standalone Docker lifecycle and persistent data', ({ assert }) => {
     const dockerGuide = read('docs-src/self-hosting/install-with-docker.md')
-    assert.match(dockerGuide, /not (?:yet )?available|not validated|not supported/i)
-    assert.match(dockerGuide, /native (?:release )?archive/i)
-    assert.notMatch(dockerGuide, /^\s*(?:docker|docker-compose)\s+/m)
+    assert.include(dockerGuide, 'docker compose up --build --detach --wait')
+    assert.include(dockerGuide, '`app:upgrade`')
+    assert.include(dockerGuide, '`capacitylens-db`')
+    assert.include(dockerGuide, '`capacitylens-backups`')
+    assert.include(dockerGuide, '/health/ready')
+    assert.include(dockerGuide, 'Keep open production access disabled')
   })
 
   test('ignores runtime databases while tracking the released migration manifest', ({ assert }) => {

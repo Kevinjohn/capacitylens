@@ -24,9 +24,5 @@ The first-run page uses `CAPACITYLENS_SETUP_TOKEN` to create the first identity 
 that token after setup. Configure an external proxy to terminate TLS and forward requests to the
 loopback listener; see [TLS and networking](/self-hosting/tls-and-networking).
 
-The Docker files in this source tree describe the retired server layout. A Docker deployment for
-the current application is not validated; use the native archive instructions here.
-
-Read [Configuration](/self-hosting/configuration), [Backups and restore](/self-hosting/backups-and-restore),
-[Monitoring](/self-hosting/monitoring), and [Verify and hand over](/self-hosting/verify-and-hand-over)
-before handing the installation to its Owner.
+The [Docker Compose guide](/self-hosting/install-with-docker) builds separate web and API images.
+It runs the checked upgrade command before the API starts and keeps data in persistent volumes.

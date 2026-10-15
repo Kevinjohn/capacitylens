@@ -72,7 +72,8 @@ async function existingClaim(connection: TransactionClientContract, input: Claim
   const row = await connection
     .from('command_results')
     .where((query) => {
-      query
+      // Configure the enclosing builder; its query executes at the awaited first().
+      void query
         .where('command_id', input.command.commandId)
         .orWhere({ operation, idempotency_key: input.command.idempotencyKey })
     })

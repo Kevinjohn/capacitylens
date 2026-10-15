@@ -7,6 +7,8 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+- Retired the legacy server workspace and switched validation, native packaging and Docker deployment to the current application.
+
 ### Fixed
 
 - The native archive uses password authentication and database sessions, with open production

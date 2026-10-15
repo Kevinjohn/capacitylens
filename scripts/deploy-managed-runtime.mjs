@@ -51,7 +51,7 @@ export async function deployManagedRuntime(repositoryRoot, deployment, backend) 
     await stageRuntimeSource(repositoryRoot, source);
     checked(["--filter", "@capacitylens/backend...", "install", "--frozen-lockfile", "--ignore-scripts"], source);
     // The pinned local archive is resolved correctly by legacy deploy; dedicated-lockfile deploy tries the registry.
-    checked(["--filter", "@capacitylens/backend", "deploy", "--prod", "--legacy", deployment], source);
+    checked(["--filter", "@capacitylens/backend", "deploy", "--prod", "--legacy", "--no-optional", deployment], source);
     await repairBackendSelfLinks(join(deployment, "node_modules"), backend);
   } finally {
     await rm(source, { recursive: true, force: true });

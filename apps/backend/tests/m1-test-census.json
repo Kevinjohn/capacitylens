@@ -398,7 +398,7 @@
       "disposition": "port",
       "proposed_package": "apps/backend",
       "proposed_test_path": "tests/unit/node_entry.spec.ts",
-      "reason": "§5 M4 explicitly carries scripts/check-node as the Node-version refusal check."
+      "reason": "\u00a75 M4 explicitly carries scripts/check-node as the Node-version refusal check."
     },
     {
       "source_path": "server/src/BatchStateProjection.test.ts",
@@ -460,7 +460,7 @@
       "milestone": "M3b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/unit/membership",
+      "proposed_test_path": "tests/functional/auth",
       "reason": "M3b retained product rules expressed as model/service/unit behavior; federatedIdentityRoutes membership half."
     },
     {
@@ -469,7 +469,7 @@
       "milestone": "M3b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/unit/membership",
+      "proposed_test_path": "tests/functional/auth",
       "reason": "M3b retained product rules expressed as model/service/unit behavior; federatedIdentityRoutes membership half."
     },
     {
@@ -478,7 +478,7 @@
       "milestone": "M3b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/unit/membership",
+      "proposed_test_path": "tests/functional/auth",
       "reason": "M3b retained product rules expressed as model/service/unit behavior; federatedIdentityRoutes membership half."
     },
     {
@@ -487,7 +487,7 @@
       "milestone": "M3b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/unit/membership",
+      "proposed_test_path": "tests/functional/auth",
       "reason": "M3b retained product rules expressed as model/service/unit behavior; federatedIdentityRoutes membership half."
     },
     {
@@ -496,7 +496,7 @@
       "milestone": "M3b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/unit/membership",
+      "proposed_test_path": "tests/functional/auth",
       "reason": "M3b retained product rules expressed as model/service/unit behavior; federatedIdentityRoutes membership half."
     },
     {
@@ -505,7 +505,7 @@
       "milestone": "M3b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/unit/membership",
+      "proposed_test_path": "tests/functional/auth",
       "reason": "M3b retained product rules expressed as model/service/unit behavior; federatedIdentityRoutes membership half."
     },
     {
@@ -611,7 +611,7 @@
       "milestone": "M3b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/unit/membership",
+      "proposed_test_path": "tests/functional/auth",
       "reason": "M3b retained product rules expressed as model/service/unit behavior; federatedIdentityRoutes membership half."
     },
     {
@@ -620,7 +620,7 @@
       "milestone": "M3b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/unit/membership",
+      "proposed_test_path": "tests/functional/auth",
       "reason": "M3b retained product rules expressed as model/service/unit behavior; federatedIdentityRoutes membership half."
     },
     {
@@ -629,7 +629,7 @@
       "milestone": "M3b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/unit/membership",
+      "proposed_test_path": "tests/functional/auth",
       "reason": "M3b retained product rules expressed as model/service/unit behavior; federatedIdentityRoutes membership half."
     },
     {
@@ -638,7 +638,7 @@
       "milestone": "M3b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/unit/membership",
+      "proposed_test_path": "tests/functional/auth",
       "reason": "M3b retained product rules expressed as model/service/unit behavior; federatedIdentityRoutes membership half."
     },
     {
@@ -656,7 +656,7 @@
       "milestone": "M3b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/unit/membership",
+      "proposed_test_path": "tests/functional/auth",
       "reason": "M3b retained product rules expressed as model/service/unit behavior; federatedIdentityRoutes membership half."
     },
     {
@@ -665,7 +665,7 @@
       "milestone": "M3b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/unit/membership",
+      "proposed_test_path": "tests/functional/auth",
       "reason": "M3b retained product rules expressed as model/service/unit behavior; federatedIdentityRoutes membership half."
     },
     {
@@ -674,7 +674,7 @@
       "milestone": "M3b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/unit/membership",
+      "proposed_test_path": "tests/functional/auth",
       "reason": "M3b retained product rules expressed as model/service/unit behavior; federatedIdentityRoutes membership half."
     },
     {
@@ -765,7 +765,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/app.authz.test.ts",
@@ -826,7 +826,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/app.concurrency-ordered.test.ts",
@@ -897,7 +897,7 @@
       "milestone": "M2b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/data",
+      "proposed_test_path": "tests/functional/data_routes.spec.ts",
       "reason": "M2b import/export/example/getting-started/null wire behavior; db.joiningLifecycle import case retained here and reset case moves to M4."
     },
     {
@@ -929,7 +929,7 @@
           "milestone": "M2b",
           "disposition": "port",
           "proposed_package": "apps/backend",
-          "proposed_test_path": "tests/functional/data",
+          "proposed_test_path": "tests/functional/data_routes.spec.ts",
           "reason": "Write half ports in M2b for fixture round-trip/import/export coverage."
         }
       ]
@@ -940,7 +940,7 @@
       "milestone": "M2b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/data",
+      "proposed_test_path": "tests/functional/data_routes.spec.ts",
       "reason": "M2b import/export/example/getting-started/null wire behavior; db.joiningLifecycle import case retained here and reset case moves to M4."
     },
     {
@@ -967,7 +967,7 @@
       "milestone": "M2b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/data",
+      "proposed_test_path": "tests/functional/data_routes.spec.ts",
       "reason": "M2b import/export/example/getting-started/null wire behavior; db.joiningLifecycle import case retained here and reset case moves to M4."
     },
     {
@@ -985,7 +985,7 @@
       "milestone": "M2b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/data",
+      "proposed_test_path": "tests/functional/data_routes.spec.ts",
       "reason": "M2b import/export/example/getting-started/null wire behavior; db.joiningLifecycle import case retained here and reset case moves to M4."
     },
     {
@@ -1156,7 +1156,7 @@
       "milestone": "M2b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/data",
+      "proposed_test_path": "tests/functional/data_routes.spec.ts",
       "reason": "M2b import/export/example/getting-started/null wire behavior; db.joiningLifecycle import case retained here and reset case moves to M4."
     },
     {
@@ -1174,7 +1174,7 @@
       "milestone": "M2b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/data",
+      "proposed_test_path": "tests/functional/data_routes.spec.ts",
       "reason": "M2b import/export/example/getting-started/null wire behavior; db.joiningLifecycle import case retained here and reset case moves to M4."
     },
     {
@@ -1418,7 +1418,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/backup.health.test.ts",
@@ -1516,8 +1516,8 @@
       "milestone": "M4",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/operations",
-      "reason": "M4 backup/restore/migration manifest, reset, startup refusal, Node, and Ace command behavior."
+      "proposed_test_path": "tests/functional/auth/company_authorization.spec.ts",
+      "reason": "First-run owner and company setup are covered through the native signup and company API; the retired init CLI is replaced by explicit release configuration and app:upgrade."
     },
     {
       "source_path": "server/src/controlTables.assert.test.ts",
@@ -1526,7 +1526,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/controlTables.test.ts",
@@ -1535,7 +1535,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/controlTables/accountMemberResources.concurrency.test.ts",
@@ -1543,7 +1543,7 @@
       "milestone": "M3b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/unit/membership",
+      "proposed_test_path": "tests/functional/auth",
       "reason": "M3b retained product rules expressed as model/service/unit behavior; federatedIdentityRoutes membership half."
     },
     {
@@ -1552,7 +1552,7 @@
       "milestone": "M3b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/unit/membership",
+      "proposed_test_path": "tests/functional/auth",
       "reason": "M3b retained product rules expressed as model/service/unit behavior; federatedIdentityRoutes membership half."
     },
     {
@@ -1561,7 +1561,7 @@
       "milestone": "M3b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/unit/membership",
+      "proposed_test_path": "tests/functional/auth",
       "reason": "M3b retained product rules expressed as model/service/unit behavior; federatedIdentityRoutes membership half."
     },
     {
@@ -1570,7 +1570,7 @@
       "milestone": "M3b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/unit/membership",
+      "proposed_test_path": "tests/functional/auth",
       "reason": "M3b retained product rules expressed as model/service/unit behavior; federatedIdentityRoutes membership half."
     },
     {
@@ -1579,7 +1579,7 @@
       "milestone": "M3b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/unit/membership",
+      "proposed_test_path": "tests/functional/auth",
       "reason": "M3b retained product rules expressed as model/service/unit behavior; federatedIdentityRoutes membership half."
     },
     {
@@ -1588,7 +1588,7 @@
       "milestone": "M3b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/unit/membership",
+      "proposed_test_path": "tests/functional/auth",
       "reason": "M3b retained product rules expressed as model/service/unit behavior; federatedIdentityRoutes membership half."
     },
     {
@@ -1649,21 +1649,21 @@
       "milestone": "M2b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/data",
+      "proposed_test_path": "tests/functional/data_routes.spec.ts",
       "reason": "M2b import/export/example/getting-started/null wire behavior; db.joiningLifecycle import case retained here and reset case moves to M4.",
       "subdispositions": [
         {
           "milestone": "M2b",
           "disposition": "port",
           "proposed_package": "apps/backend",
-          "proposed_test_path": "tests/functional/data",
+          "proposed_test_path": "tests/functional/data_routes.spec.ts",
           "reason": "Import case ports with import behavior."
         },
         {
           "milestone": "M4",
           "disposition": "port",
           "proposed_package": "apps/backend",
-          "proposed_test_path": "tests/functional/operations",
+          "proposed_test_path": "tests/unit/app_reset_command.spec.ts",
           "reason": "Reset case moves to app:reset operations coverage."
         }
       ]
@@ -1674,7 +1674,7 @@
       "milestone": "M4",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/operations",
+      "proposed_test_path": "tests/unit/upgrade_command.spec.ts",
       "reason": "M4 backup/restore/migration manifest, reset, startup refusal, Node, and Ace command behavior."
     },
     {
@@ -1684,7 +1684,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/db.writeAtomicity.test.ts",
@@ -1702,7 +1702,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/documentation.test.ts",
@@ -1951,7 +1951,7 @@
       "milestone": "M2b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/data",
+      "proposed_test_path": "tests/functional/data_routes.spec.ts",
       "reason": "M2b import/export/example/getting-started/null wire behavior; db.joiningLifecycle import case retained here and reset case moves to M4."
     },
     {
@@ -1960,7 +1960,7 @@
       "milestone": "M2b",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/data",
+      "proposed_test_path": "tests/functional/data_routes.spec.ts",
       "reason": "M2b import/export/example/getting-started/null wire behavior; db.joiningLifecycle import case retained here and reset case moves to M4."
     },
     {
@@ -2006,7 +2006,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/runImportWorker.test.ts",
@@ -2033,7 +2033,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/sharedCore.test.ts",
@@ -2051,7 +2051,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/signInModes.test.ts",
@@ -2069,7 +2069,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/tables.test.ts",
@@ -2078,7 +2078,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/tables/columns.test.ts",
@@ -2087,7 +2087,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/testHelpers/passwordAuth.test.ts",
@@ -2114,7 +2114,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/userStories.test.ts",
@@ -5706,7 +5706,7 @@
               "admin may see the time-off note",
               "editor may NOT see the time-off note",
               "viewer may NOT see the time-off note",
-              "%s → %s"
+              "%s \u2192 %s"
             ]
           }
         ],

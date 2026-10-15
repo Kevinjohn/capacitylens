@@ -302,7 +302,7 @@ export async function applyBatch(
           )
       }
       const query = trx.from(TABLE_NAMES[op.table]).where('id', op.id)
-      if (isScoped(op.table)) query.where('account_id', op.accountId!)
+      if (isScoped(op.table)) void query.where('account_id', op.accountId!)
       await query.delete()
       projection.delete(op.table, op.id)
       await writeAudit(trx, {

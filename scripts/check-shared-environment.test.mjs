@@ -12,13 +12,13 @@ function diagnostics(program) {
 }
 
 function programFor(configName, source) {
-  const configPath = `${root}shared/${configName}`;
+  const configPath = `${root}packages/shared/${configName}`;
   const config = ts.readConfigFile(configPath, ts.sys.readFile);
   assert.equal(config.error, undefined);
-  const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, `${root}shared`, {}, configPath);
+  const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, `${root}packages/shared`, {}, configPath);
   assert.deepEqual(parsed.errors, []);
   const host = ts.createCompilerHost(parsed.options);
-  const probe = `${root}shared/src/environmentProbe.ts`;
+  const probe = `${root}packages/shared/src/environmentProbe.ts`;
   if (source !== undefined) {
     const original = host.getSourceFile.bind(host);
     host.getSourceFile = (path, version, ...rest) =>
@@ -30,12 +30,13 @@ function programFor(configName, source) {
 test("the production compiler graph contains no Node types or test files and type-checks cleanly", () => {
   const program = programFor("tsconfig.json");
   const paths = program.getSourceFiles().map(({ fileName }) => fileName);
-  assert.ok(paths.some((path) => path.endsWith("/shared/src/lib/id.ts")));
+  assert.ok(paths.some((path) => path.endsWith("/packages/shared/src/lib/id.ts")));
   assert.deepEqual(
     paths.filter(
       (path) =>
         path.includes("/@types/node/") ||
-        (path.startsWith(`${root}shared/src/`) && /\.(test|spec)\.|\/__tests__\//.test(path.slice(root.length))),
+        (path.startsWith(`${root}packages/shared/src/`) &&
+          /\.(test|spec)\.|\/__tests__\//.test(path.slice(root.length))),
     ),
     [],
   );
@@ -71,7 +72,7 @@ test("the test project retains Node-backed filesystem checks and typed linting",
   const program = programFor("tsconfig.test.json");
   assert.ok(program.getRootFileNames().some((path) => path.endsWith("/packageExports.test.ts")));
   assert.deepEqual(diagnostics(program), []);
-  const directory = mkdtempSync(`${root}shared/src/environment-lint-`);
+  const directory = mkdtempSync(`${root}packages/shared/src/environment-lint-`);
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const invalidPath = `${directory}/floating.test.ts`;
   const validPath = `${directory}/handled.test.ts`;
@@ -92,7 +93,7 @@ test("the test project retains Node-backed filesystem checks and typed linting",
 
 test("production lint rejects platform globals while retaining existing portable capabilities and types", async () => {
   const eslint = new ESLint({ cwd: root });
-  const filePath = "shared/src/lib/id.ts";
+  const filePath = "packages/shared/src/lib/id.ts";
   for (const source of [
     "void process;",
     "void Buffer;",
@@ -126,7 +127,7 @@ test("production lint rejects platform globals while retaining existing portable
 });
 
 test("future test suffixes and support directories stay in the test project", async (t) => {
-  const directory = mkdtempSync(`${root}shared/src/environment-fixture-`);
+  const directory = mkdtempSync(`${root}packages/shared/src/environment-fixture-`);
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   mkdirSync(`${directory}/__tests__`);
   const paths = [
@@ -145,7 +146,7 @@ test("future test suffixes and support directories stay in the test project", as
     assert.ok(!production.includes(path), path);
     assert.ok(tests.includes(path), path);
     const config = await eslint.calculateConfigForFile(path);
-    assert.deepEqual(config.languageOptions.parserOptions.project, ["./shared/tsconfig.test.json"], path);
+    assert.deepEqual(config.languageOptions.parserOptions.project, ["./packages/shared/tsconfig.test.json"], path);
     assert.equal(config.rules["@typescript-eslint/no-floating-promises"][0], 2, path);
     assert.equal(config.rules["no-restricted-globals"], undefined, path);
   }

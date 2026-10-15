@@ -41,56 +41,15 @@ change or correct the address on the account.
 
 <span id="require-a-company-provider"></span>
 
-## Prepare a legacy server cutover
+## Require company sign-in
 
-The preflight and repair commands in this section are provided by the legacy `capacitylens-server`
-package. They are not available in the current Adonis app. Do not run them against a current Adonis
-deployment.
+Before switching modes, verify Google sign-in for every member who needs access, including every
+Owner. Connect each existing password account to its matching verified Google address while
+password sign-in is still available. Keep a backup and an operator recovery route.
 
-Keep `CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-mixed` while preparing. The check and repair
-commands run from a maintenance checkout of the running release, as
-[Run recovery commands](/self-hosting/incidents#run-recovery-commands-on-docker-or-a-managed-host)
-describes. They read the profile, mode and provider settings from their own environment, so load
-the instance's environment file into the shell first; in a POSIX shell,
-`set -a; . /path/to/capacitylens.env; set +a` does this. On a Linux host the file is readable only
-by root, so run this and the commands below as root, for example in `sudo -s`.
-
-With Google configured on a legacy server, run the read-only all-company check against that
-server's database:
-
-```bash
-pnpm --filter capacitylens-server cutover:preflight -- /path/to/capacitylens.db
-```
-
-To pass, every existing sign-in account needs a verified connection to any configured company
-provider, every company needs active members and an active Owner, and open password signup must
-be disabled.
-
-Decide from the top-level `ready` result and `issues` list; each issue has a stable reason code and
-an explanation. The `diagnostics` list gives per-provider repair details and may flag a missing
-connection to one provider even when another satisfies the check; it adds no restrictions. The
-same checks run when the server starts. Resolve blocking issues in mixed mode and rerun the check.
-It does not switch modes itself.
-
-If a finding needs identity or membership repair, the guarded `cutover:repair` command can:
-
-- remove one exact provider link
-- remove a credential-only or providerless identity with no active company memberships
-- make an existing active member Owner of an ownerless company
-- erase a company with no active members.
-
-::: warning
-Some repairs permanently remove identity or company data. Keep a backup, follow the command's
-exact target checks, and do not use it to work around a finding you do not understand.
-:::
-
-The command requires `CAPACITYLENS_DEPLOYMENT_PROFILE=self-hosted-mixed`,
-`CAPACITYLENS_MODE=password-and-sso`, a configured company provider and a current supported schema.
-Stop the server first: the command refuses without the exact `--confirm-server-stopped` flag. It
-locks and checks the database, refuses ambiguous identities and unsafe targets, and records
-successful repairs in the audit outbox.
-
-When preflight reports ready, set these values and restart:
+The retired server's preflight and repair commands are not part of the current application.
+There is no automatic all-company readiness check. Verify the actual provider and membership
+access before changing these values and restarting:
 
 ```dotenv
 CAPACITYLENS_MODE=sso-only

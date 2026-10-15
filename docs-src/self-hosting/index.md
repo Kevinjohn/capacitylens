@@ -8,8 +8,8 @@ next: false
 # Install and run CapacityLens
 
 CapacityLens runs as one Node process and stores company data in a SQLite database. The current
-installation route uses a native release archive; the checked-in Docker files still describe the
-retired server and are not validated for this application.
+installation route uses a native release archive. [Docker Compose](/self-hosting/install-with-docker)
+builds the same compiled backend with persistent database and backup volumes.
 
 1. [Install the archive](/self-hosting/install-without-docker) on Linux or follow the
    [managed-host guide](/self-hosting/managed-vps/).

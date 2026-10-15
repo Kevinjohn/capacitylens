@@ -52,7 +52,7 @@ function fixture(t, installCommand = true) {
 
 test("all gates execute their ordered commands once, from the repository, with inherited environment", (t) => {
   const fake = fixture(t);
-  for (const gate of ["app", "server", "all"]) {
+  for (const gate of ["app", "backend", "all"]) {
     const result = fake.run([gate]);
     assert.equal(result.status, 0, result.stderr);
     const entries = fake.entries();
@@ -68,7 +68,7 @@ test("all gates execute their ordered commands once, from the repository, with i
 
 test("a command failure keeps its exit code and prevents every later check", (t) => {
   const fake = fixture(t);
-  for (const gate of ["app", "server", "all"]) {
+  for (const gate of ["app", "backend", "all"]) {
     const commands = gateCommands(gate);
     const failing = commands.findIndex((args) => args.includes("policy:import-cycles"));
     assert.ok(failing > 0);
@@ -98,7 +98,7 @@ test("a terminated child is reported through the repository launcher policy and 
 
 test("a missing executable fails visibly before another command can run", (t) => {
   const fake = fixture(t, false);
-  const result = fake.run(["server"]);
+  const result = fake.run(["backend"]);
   assert.equal(result.status, 2);
   assert.match(result.stderr, /could not start/);
   assert.deepEqual(fake.entries(), []);
@@ -109,14 +109,14 @@ test("invalid modes and extra arguments fail before launching anything", (t) => 
   for (const args of [[], ["unknown"], ["constructor"], ["__proto__"], ["app", "extra"]]) {
     const result = fake.run(args);
     assert.equal(result.status, 2);
-    assert.match(result.stderr, /Expected app, server, or all/);
+    assert.match(result.stderr, /Expected app, backend, or all/);
     assert.deepEqual(fake.entries(), []);
   }
 });
 
 test("all mode runs shared checks once before the app-only and server-only checks", () => {
   const app = gateCommands("app");
-  const server = gateCommands("server");
+  const server = gateCommands("backend");
   const all = gateCommands("all");
   const key = (args) => JSON.stringify(args);
   const appKeys = new Set(app.map(key));
@@ -151,16 +151,18 @@ test("mode selection returns independent argument arrays and includes the runner
   const first = gateCommands("app");
   first[0].push("mutated");
   assert.ok(!gateCommands("app")[0].includes("mutated"));
-  for (const mode of ["app", "server", "all"]) {
+  for (const mode of ["app", "backend", "all"]) {
     assert.ok(gateCommands(mode).some((args) => args.includes("policy:gate-runner:test")));
   }
-  assert.throws(() => gateCommands("unknown"), /Expected app, server, or all/);
+  assert.throws(() => gateCommands("unknown"), /Expected app, backend, or all/);
 });
 
 test("runtime boundary checks follow the server bundle build in server and all gates", () => {
-  for (const mode of ["server", "all"]) {
+  for (const mode of ["backend", "all"]) {
     const commands = gateCommands(mode);
-    const build = commands.findIndex((args) => args.includes("build:runtime"));
+    const build = commands.findIndex(
+      (args) => args[0] === "--dir" && args[1] === "apps/backend" && args[2] === "build",
+    );
     assert.ok(build >= 0);
     assert.deepEqual(commands[build + 1], ["run", "policy:node-runtime:test"]);
   }

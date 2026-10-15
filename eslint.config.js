@@ -165,7 +165,7 @@ export default defineConfig([
 
   // Node packages: Node globals (process, etc.).
   {
-    files: ["server/**/*.ts", "apps/backend/**/*.ts", ...sharedTestFiles, "packages/shared/vitest.config.ts"],
+    files: ["apps/backend/**/*.ts", ...sharedTestFiles, "packages/shared/vitest.config.ts"],
     languageOptions: { globals: globals.node },
   },
 
@@ -219,7 +219,7 @@ export default defineConfig([
   // These paths belong to their package's TypeScript project, including operational server scripts.
   // Root configuration files and JavaScript tooling retain the untyped baseline above.
   {
-    files: ["server/src/**/*.ts", "server/scripts/**/*.ts", "packages/shared/src/**/*.{ts,tsx,mts,cts}"],
+    files: ["packages/shared/src/**/*.{ts,tsx,mts,cts}"],
     languageOptions: {
       parserOptions: {
         projectService: true,
@@ -269,12 +269,7 @@ export default defineConfig([
 
   // Apply this rule to authored production code.
   {
-    files: [
-      "apps/frontend/src/**/*.{ts,tsx}",
-      "server/src/**/*.ts",
-      "server/scripts/**/*.ts",
-      "packages/shared/src/**/*.{ts,tsx,mts,cts}",
-    ],
+    files: ["apps/frontend/src/**/*.{ts,tsx}", "packages/shared/src/**/*.{ts,tsx,mts,cts}"],
     ignores: ["**/*.{test,spec}.{ts,tsx,mts,cts}", "**/__tests__/**/*.{ts,tsx,mts,cts}"],
     rules: { "@typescript-eslint/no-unnecessary-type-assertion": "error" },
   },
@@ -283,12 +278,7 @@ export default defineConfig([
   // Properties, methods and imports are unformatted because many mirror wire fields, SQL columns
   // and library names. Existing violations are baselined in eslint-suppressions.json.
   {
-    files: [
-      "apps/frontend/src/**/*.{ts,tsx}",
-      "server/src/**/*.ts",
-      "server/scripts/**/*.ts",
-      "packages/shared/src/**/*.{ts,tsx,mts,cts}",
-    ],
+    files: ["apps/frontend/src/**/*.{ts,tsx}", "packages/shared/src/**/*.{ts,tsx,mts,cts}"],
     rules: {
       "max-params": ["error", 3],
       "@typescript-eslint/naming-convention": [
@@ -341,12 +331,7 @@ export default defineConfig([
 
   // One record guard for the whole tree: shared/src/lib/isRecord.ts.
   {
-    files: [
-      "apps/frontend/src/**/*.{ts,tsx}",
-      "server/src/**/*.ts",
-      "server/scripts/**/*.ts",
-      "packages/shared/src/**/*.{ts,tsx,mts,cts}",
-    ],
+    files: ["apps/frontend/src/**/*.{ts,tsx}", "packages/shared/src/**/*.{ts,tsx,mts,cts}"],
     ignores: ["packages/shared/src/lib/isRecord.ts"],
     rules: {
       "no-restricted-syntax": ["error", recordGuard, inlineTypeImportGuard],

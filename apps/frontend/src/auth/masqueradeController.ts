@@ -9,7 +9,7 @@ import { setMasqueradeEndedHandler } from "@/data/requestTimeout";
 import { useStore } from "@/store/useStore";
 import { masqueradeApi } from "./masqueradeApi";
 import { reprojectAccess } from "./reprojectAccess";
-import { refreshOfflineIdentityAfterMasquerade } from "./fetchAuthStatus";
+import { refreshOfflineIdentityAfterMasquerade } from "./authResponse";
 import { refreshAccountSummaries } from "./useAccountSummaries";
 import { MasqueradeOfflineRecovery } from "./masqueradeOfflineRecovery";
 import { publishMasqueradeAccount, restoreMasqueradeProjection } from "./masqueradeProjectionRecovery";

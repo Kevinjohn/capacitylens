@@ -14,24 +14,31 @@ const promiseRuleIds = (messages) =>
 
 test("real new production and test files reject both promise defects in each typed package", async (t) => {
   const paths = [];
-  for (const directory of ["apps/frontend/src", "server/src", "packages/shared/src"]) {
+  for (const directory of ["apps/frontend/src", "apps/backend/app", "packages/shared/src"]) {
     const fixture = mkdtempSync(`${root}${directory}/lint-coverage-`);
     t.after(() => rmSync(fixture, { recursive: true, force: true }));
     for (const suffix of [".ts", ".test.ts"]) {
       const invalid = `${fixture}/invalid${suffix}`;
       const valid = `${fixture}/valid${suffix}`;
       writeFileSync(invalid, "Promise.resolve();\nif (Promise.resolve(true)) console.log('invalid');\nexport {};\n");
-      writeFileSync(valid, "await Promise.resolve();\nvoid Promise.resolve();\nexport {};\n");
-      paths.push({ invalid, valid });
+      writeFileSync(
+        valid,
+        directory === "apps/backend/app"
+          ? "await Promise.resolve()\nvoid Promise.resolve()\nexport {}\n"
+          : "await Promise.resolve();\nvoid Promise.resolve();\nexport {};\n",
+      );
+      paths.push({ invalid, valid, backend: directory === "apps/backend/app" });
     }
   }
   // Create files before the parser builds projects, including its CI single-run programs.
   const fixtureLint = new ESLint({ cwd: root });
-  for (const { invalid, valid } of paths) {
-    const [failure] = await fixtureLint.lintFiles([invalid]);
+  const backendLint = new ESLint({ cwd: `${root}apps/backend` });
+  for (const { invalid, valid, backend } of paths) {
+    const selectedLint = backend ? backendLint : fixtureLint;
+    const [failure] = await selectedLint.lintFiles([invalid]);
     assert.equal(failure.fatalErrorCount, 0, invalid);
     assert.deepEqual(promiseRuleIds(failure.messages).sort(), [...promiseRules].sort(), invalid);
-    const [success] = await fixtureLint.lintFiles([valid]);
+    const [success] = await selectedLint.lintFiles([valid]);
     assert.deepEqual(success.messages, [], valid);
   }
 });

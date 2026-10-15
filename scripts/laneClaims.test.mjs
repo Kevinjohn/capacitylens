@@ -365,7 +365,7 @@ test("a signalled launcher exits unsuccessfully even when its child exits zero",
   assert.notEqual(outcome.code, 0);
 });
 
-test("both launchers report child startup failures with exit status 2", () => {
+test("the lane launcher reports startup failure and the backend launcher rejects an invalid flavour", () => {
   const environment = scratch();
   const withLane = spawnSync(
     process.execPath,
@@ -384,10 +384,11 @@ test("both launchers report child startup failures with exit status 2", () => {
 
   const server = spawnSync(
     process.execPath,
-    [new URL("../server/scripts/e2e-server.mjs", import.meta.url).pathname, "db"],
+    [new URL("../apps/backend/scripts/e2e-server.mjs", import.meta.url).pathname, "invalid"],
     {
       env: { ...process.env, PATH: "", CAPACITYLENS_PORT_LANE: "0" },
       encoding: "utf8",
+      timeout: 10_000,
     },
   );
   assert.equal(server.status, 2);

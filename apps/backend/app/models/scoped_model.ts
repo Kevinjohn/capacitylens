@@ -5,7 +5,8 @@ const scopedQueries = new WeakSet<object>()
 export const forCompany = scope((query, accountId: string) => {
   if (accountId.trim() === '') throw new Error('A company scope is required')
   scopedQueries.add(query)
-  query.where('account_id', accountId)
+  // Lucid applies this scope to the caller's awaited builder.
+  void query.where('account_id', accountId)
 })
 
 /** Marks the trusted-local whole-database read used only when no tenant is selected. */

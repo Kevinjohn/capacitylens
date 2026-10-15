@@ -457,3 +457,16 @@ rows preserve the legacy rationale for checks retained at that time.
 | `scripts/check-script-environments.test.mjs` (trimmed)                                                       | Proves browser scripts reject Node globals and Node tooling rejects browser globals through the real configuration.                                                                                                                                                                                                                                                           |
 | `scripts/check-lint-coverage.test.mjs` (trimmed to one test)                                                 | Its test "real new production and test files reject both promise defects in each typed package" writes real files into app, server and shared, then proves both promise rules reject them. None of the other suites exercises the app and server typed-lint configuration that way. The four other tests in the file enumerate the inventory or assert gate ownership and go. |
 | `scripts/check-health.mjs`, `tlsRenewalVerifier.ts` and their tests                                          | Extracted from inline Dockerfile and workflow JavaScript so they can be unit-tested. The Dockerfile depends on the first. Not touched by this plan.                                                                                                                                                                                                                           |
+
+### Production mail dependency compatibility
+
+Production deployment omits optional dependencies, keeping the assembler and its unpatched braces
+transitive dependency out of shipped runtimes. Development tooling still contains that advisory;
+this is not a claim that every workspace dependency is patched. The production audit uses the same
+optional-free graph and retains its high-severity failure threshold.
+
+The exact `@adonisjs/mail>nodemailer` override to 10.1.1 is a reviewed major-version exception for
+the mail security fixes. CapacityLens configures SMTP only. Authenticated TLS delivery, attachment
+encoding, authentication and recipient refusal, and pooled connection closure are verified through
+the public Adonis SMTP adapter. Nodemailer 10 is incompatible with the unused Postmark transport's
+internal MIME import; Postmark is unsupported and must be reassessed before enabling that transport.

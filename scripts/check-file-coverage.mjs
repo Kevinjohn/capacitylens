@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
  * Additions require policy review; use exact paths so new untested modules remain detectable.
  */
 export const ZERO_COVERAGE_ALLOWLIST = new Set([
-  "shared/src/account/sessionPolicy.ts",
+  "../../packages/shared/src/account/sessionPolicy.ts",
   "src/components/ui/skeleton.tsx",
 ]);
 
@@ -49,7 +49,7 @@ export function uncoveredExecutableFiles(lcov, allowlist = ZERO_COVERAGE_ALLOWLI
  * Checks the coverage report and throws when an unapproved module has no covered lines.
  * @throws When the report cannot be read or an unapproved executable module has no covered lines.
  */
-export function checkFileCoverage(path = "coverage/lcov.info") {
+export function checkFileCoverage(path = "apps/frontend/coverage/lcov.info") {
   const lcov = readFileSync(resolve(path), "utf8");
   const failures = uncoveredExecutableFiles(lcov);
   if (failures.length === 0) return;

@@ -4,7 +4,15 @@ import { fileURLToPath } from "node:url";
 import { createDependencyParser, resolveDependency } from "./dependencyScanner.mjs";
 const root = resolve(process.argv[2] ?? fileURLToPath(new URL("..", import.meta.url)));
 const parseDependencies = createDependencyParser(root);
-const roots = ["src", "server/src", "shared/src"].map((d) => resolve(root, d));
+const roots = [
+  "apps/frontend/src",
+  "apps/backend/app",
+  "apps/backend/commands",
+  "apps/backend/providers",
+  "apps/backend/start",
+  "apps/backend/config",
+  "packages/shared/src",
+].map((d) => resolve(root, d));
 function files(d) {
   return readdirSync(d, { withFileTypes: true }).flatMap((e) => {
     const p = resolve(d, e.name);
@@ -19,7 +27,10 @@ let invalidEdges = 0;
 function deps(file) {
   const dependencies = [];
   for (const edge of parseDependencies(readFileSync(file, "utf8"), file)) {
-    if (relative(root, file).replaceAll("\\", "/") === "src/i18n/index.ts" && generatedImports.has(edge.specifier))
+    if (
+      relative(root, file).replaceAll("\\", "/") === "apps/frontend/src/i18n/index.ts" &&
+      generatedImports.has(edge.specifier)
+    )
       continue;
     const resolved = resolveDependency(edge.specifier, file, root);
     if (resolved.classification === "unresolved" || resolved.classification === "nonliteral") {

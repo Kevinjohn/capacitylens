@@ -81,7 +81,7 @@ configure HTTPS at an external reverse proxy. The operator guides cover
 [backups](https://kevinjohn.github.io/capacitylens/self-hosting/backups-and-restore.html),
 [upgrades](https://kevinjohn.github.io/capacitylens/self-hosting/upgrades.html) and
 [monitoring](https://kevinjohn.github.io/capacitylens/self-hosting/monitoring.html). Docker
-deployment is not currently validated. Google company sign-in is supported; Microsoft is deferred
+deployment uses separate web and API images with a checked upgrade step before startup. Google company sign-in is supported; Microsoft is deferred
 and GitHub sign-in is retired. See [company login](https://kevinjohn.github.io/capacitylens/company-login/index.html).
 
 ## Documentation

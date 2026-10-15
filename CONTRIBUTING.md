@@ -45,22 +45,15 @@ A prose-only change needs formatting and a content and link review instead; rebu
 documentation when its sources change. Run the focused checks for changed behavior and preserve
 the security, data-integrity and migration invariants in [DECISIONS.md](DECISIONS.md).
 
-Authentication, account, invitation, membership, authorization, session and erasure changes must
-also run the portable account boundary check. For changes to Google or Microsoft integration, use
-controlled provider responses in the focused tests; any live-provider check must use an authorized
-test registration and must be reported separately from deterministic evidence:
-
-```bash
-pnpm run test:account-conformance
-```
-
-Run `pnpm run rehearse:migrations` whenever a change touches a database migration, persisted
-authentication shape or Better Auth version.
+Authentication and account changes require focused backend tests for the affected authority and
+failure paths. Provider checks use controlled responses; live-provider checks need an authorized
+test registration and must be reported separately. Migration changes must preserve every released
+migration checksum and exercise `app:upgrade`, backup and rollback refusal behavior.
 
 ## Formatting
 
 Prettier owns whitespace, quoting and line breaks. The project uses `printWidth: 120`, except for
-the vendored shadcn primitives in `src/components/ui/`, which retain the upstream 80-column width
+the vendored shadcn primitives in `apps/frontend/src/components/ui/`, which retain the upstream 80-column width
 so registry diffs show substantive changes instead of reflow noise. Everything else is stock. Run
 `pnpm run format` before committing — `pnpm run gate` fails on unformatted files.
 
@@ -79,7 +72,7 @@ pnpm run e2e:all
 
 These conditions are local-development guidance for choosing extra checks before opening a pull
 request. Pull requests run static analysis and CodeQL; documentation changes also run the docs
-build. The full gate, account-conformance checks, migration rehearsal and Chromium/Firefox/WebKit
+build. The full application/backend gate, native packages and Chromium/Firefox/WebKit
 E2E suites run on `main` pushes, schedules or manual dispatch. Check the workflow files for the
 current triggers and dispatch any required pre-merge evidence explicitly.
 
@@ -96,7 +89,7 @@ In brief:
 
 - Surface errors; never silently swallow them.
 - Keep account reads scoped and let the server enforce membership on every write.
-- Put environment-independent domain rules in `shared/`; do not duplicate them in UI/server code.
+- Put environment-independent domain rules in `packages/shared/`; do not duplicate them in UI/server code.
 - Preserve the three distinct workload signals and their time windows.
 - Add tests that fail without the change.
 - Never commit secrets, production data, generated output or personal deployment notes.

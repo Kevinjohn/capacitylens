@@ -107,7 +107,8 @@ export async function commandExists(
   const existing = await connection
     .from('command_results')
     .where((query) => {
-      query
+      // Configure the enclosing builder; its query executes at the awaited first().
+      void query
         .where('command_id', commandId)
         .orWhere({ operation: commandOperation, idempotency_key: idempotencyKey })
     })
