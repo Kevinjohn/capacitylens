@@ -7,7 +7,12 @@ import {
   PasswordPolicyError,
   PasswordScreeningUnavailableError,
 } from '#services/password_screening'
-import { classifyLogError, safeRequestMethod, safeRoutePattern } from '#services/logging_safety'
+import {
+  classifyLogError,
+  reportPrivateFailure,
+  safeRequestMethod,
+  safeRoutePattern,
+} from '#services/logging_safety'
 
 export default class HttpExceptionHandler extends ExceptionHandler {
   /**
@@ -73,11 +78,11 @@ export default class HttpExceptionHandler extends ExceptionHandler {
     const errorType = classifyLogError(error)
     if (errorType !== 'unexpected') return
 
-    ctx.logger.error(
+    reportPrivateFailure(
+      ctx,
       {
         event: 'http.request.error',
         errorType,
-        err: error,
         method: safeRequestMethod(ctx.request.method()),
         path: safeRoutePattern(ctx.route?.pattern),
         status: 500,

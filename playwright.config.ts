@@ -134,65 +134,48 @@ export default defineConfig({
           },
         ]
       : []),
-    // The browser-upgrade rehearsal exists only when CAPACITYLENS_REHEARSAL_URL is set.
-    ...(projectEnabled("rehearsal")
-      ? [
-          {
-            name: "rehearsal",
-            testMatch: flavourSpec("db"),
-            // Rehearsal reuses the DB specs, whose resets share one SQLite fixture, so this project must remain serial.
-            workers: 1,
-            use: {
-              ...devices["Desktop Chrome"],
-              baseURL: process.env.CAPACITYLENS_REHEARSAL_URL,
-            },
-          },
-        ]
-      : []),
   ],
-  // Rehearsal runs provide their own stack. Cross-browser core runs need only Vite; other runs
+  // Cross-browser core runs need only Vite; other runs
   // start the SQLite and auth servers required by their specs.
   webServer:
-    runMode.serverProfile === "rehearsal"
-      ? []
-      : runMode.serverProfile === "vite"
-        ? [devWebServer]
-        : [
-            devWebServer,
-            {
-              command: "pnpm run start:e2e",
-              cwd: "./apps/backend",
-              url: `http://127.0.0.1:${API_PORT}/health/ready`,
-              reuseExistingServer: false,
-              timeout: 120_000,
-            },
-            {
-              command: "pnpm run dev:api",
-              // Warm and verify the browser's real Vite → API path before the first page mounts.
-              // Waiting on the Vite root alone can race its first proxied fetch on a cold start.
-              url: `http://127.0.0.1:${DB_WEB_PORT}/health/ready`,
-              reuseExistingServer: false,
-              timeout: 120_000,
-              // Match the packaged nginx topology: the browser stays same-origin and Vite proxies
-              // /api. This keeps the production CSP meaningful in E2E instead of granting a test-only
-              // cross-origin exception that the shipped app never has.
-              env: { CAPACITYLENS_DEV_API_PORT: String(API_PORT), VITE_CAPACITYLENS_API: "" },
-            },
-            {
-              // Start a fresh auth API for each run because its database wipe and admin bootstrap
-              // execute only during startup.
-              command: "pnpm run start:auth-e2e",
-              cwd: "./apps/backend",
-              url: `http://127.0.0.1:${AUTH_API_PORT}/health/ready`,
-              reuseExistingServer: false,
-              timeout: 120_000,
-            },
-            {
-              command: "pnpm run dev:auth",
-              url: `http://127.0.0.1:${AUTH_WEB_PORT}/health/ready`,
-              reuseExistingServer: false,
-              timeout: 120_000,
-              env: { CAPACITYLENS_DEV_API_PORT: String(AUTH_API_PORT), VITE_CAPACITYLENS_API: "" },
-            },
-          ],
+    runMode.serverProfile === "vite"
+      ? [devWebServer]
+      : [
+          devWebServer,
+          {
+            command: "pnpm run start:e2e",
+            cwd: "./apps/backend",
+            url: `http://127.0.0.1:${API_PORT}/health/ready`,
+            reuseExistingServer: false,
+            timeout: 120_000,
+          },
+          {
+            command: "pnpm run dev:api",
+            // Warm and verify the browser's real Vite → API path before the first page mounts.
+            // Waiting on the Vite root alone can race its first proxied fetch on a cold start.
+            url: `http://127.0.0.1:${DB_WEB_PORT}/health/ready`,
+            reuseExistingServer: false,
+            timeout: 120_000,
+            // Match the packaged nginx topology: the browser stays same-origin and Vite proxies
+            // /api. This keeps the production CSP meaningful in E2E instead of granting a test-only
+            // cross-origin exception that the shipped app never has.
+            env: { CAPACITYLENS_DEV_API_PORT: String(API_PORT), VITE_CAPACITYLENS_API: "" },
+          },
+          {
+            // Start a fresh auth API for each run because its database wipe and admin bootstrap
+            // execute only during startup.
+            command: "pnpm run start:auth-e2e",
+            cwd: "./apps/backend",
+            url: `http://127.0.0.1:${AUTH_API_PORT}/health/ready`,
+            reuseExistingServer: false,
+            timeout: 120_000,
+          },
+          {
+            command: "pnpm run dev:auth",
+            url: `http://127.0.0.1:${AUTH_WEB_PORT}/health/ready`,
+            reuseExistingServer: false,
+            timeout: 120_000,
+            env: { CAPACITYLENS_DEV_API_PORT: String(AUTH_API_PORT), VITE_CAPACITYLENS_API: "" },
+          },
+        ],
 });

@@ -288,7 +288,7 @@ test("adds the operator files, the exact version to the guide and the source rev
   assert.match(guide, /EnvironmentFile=\/etc\/capacitylens\.env/);
   assert.match(guide, /ace\.js app:upgrade/);
   assert.match(guide, /\/opt\/capacitylens\/current\/backend/);
-  assert.match(guide, /current backend uses open local access/);
+  assert.match(guide, /supports password authentication and native database sessions/);
 });
 
 test("ships an environment example that refuses open production access by default", async () => {
@@ -301,8 +301,11 @@ test("ships an environment example that refuses open production access by defaul
     "LOG_LEVEL=info",
     "APP_URL=https://capacity.example.com",
     "APP_KEY=",
-    "SESSION_DRIVER=cookie",
-    "CAPACITYLENS_MODE=off",
+    "SESSION_DRIVER=database",
+    "CAPACITYLENS_MODE=password-only",
+    "CAPACITYLENS_SECRET=",
+    "CAPACITYLENS_PUBLIC_URL=https://capacity.example.com",
+    "CAPACITYLENS_SETUP_TOKEN=",
     "CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=0",
     "CAPACITYLENS_AUDIT=on",
     "CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db",

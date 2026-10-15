@@ -152,11 +152,12 @@ export default class ConfigurationProvider {
     // Code generation warms a web app without serving requests or closing database pools.
     if (this.app.getMode() === 'warmup') return
     const environment = this.app.getEnvironment()
-    const migrations = await assertReleasedMigrations({ allowPending: environment !== 'web' })
     const command =
       environment === 'console'
         ? process.argv.slice(2).find((argument) => !argument.startsWith('-'))
         : undefined
+    if (command === 'owner:reset-password' || command === 'app:reset') return
+    const migrations = await assertReleasedMigrations({ allowPending: environment !== 'web' })
     if (command === 'app:upgrade' || command === 'db:backup' || command?.startsWith('migration:'))
       return
     const rows = await db

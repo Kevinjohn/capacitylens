@@ -397,7 +397,7 @@
       "milestone": "M4",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/operations/check_node.test.ts",
+      "proposed_test_path": "tests/unit/node_entry.spec.ts",
       "reason": "§5 M4 explicitly carries scripts/check-node as the Node-version refusal check."
     },
     {
@@ -1426,7 +1426,7 @@
       "milestone": "M4",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/operations",
+      "proposed_test_path": "tests/functional/backup_health.spec.ts",
       "reason": "M4 backup/restore/migration manifest, reset, startup refusal, Node, and Ace command behavior."
     },
     {
@@ -1444,7 +1444,7 @@
       "milestone": "M4",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/operations",
+      "proposed_test_path": "tests/unit/upgrade_command.spec.ts",
       "reason": "M4 backup/restore/migration manifest, reset, startup refusal, Node, and Ace command behavior."
     },
     {
@@ -1462,7 +1462,7 @@
       "milestone": "M4",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/operations",
+      "proposed_test_path": "tests/unit/configuration_provider.spec.ts",
       "reason": "M4 backup/restore/migration manifest, reset, startup refusal, Node, and Ace command behavior."
     },
     {
@@ -1471,7 +1471,7 @@
       "milestone": "M4",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/operations",
+      "proposed_test_path": "tests/unit/configuration_provider.spec.ts",
       "reason": "M4 backup/restore/migration manifest, reset, startup refusal, Node, and Ace command behavior."
     },
     {
@@ -1480,7 +1480,7 @@
       "milestone": "M4",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/operations",
+      "proposed_test_path": "tests/functional/state/http_contract.spec.ts",
       "reason": "M4 backup/restore/migration manifest, reset, startup refusal, Node, and Ace command behavior."
     },
     {
@@ -1780,7 +1780,7 @@
       "milestone": "M4",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/operations",
+      "proposed_test_path": "tests/unit/upgrade_command.spec.ts",
       "reason": "M4 backup/restore/migration manifest, reset, startup refusal, Node, and Ace command behavior."
     },
     {
@@ -1906,7 +1906,7 @@
       "milestone": "M4",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/operations",
+      "proposed_test_path": "tests/unit/owner_reset_command.spec.ts",
       "reason": "M4 backup/restore/migration manifest, reset, startup refusal, Node, and Ace command behavior."
     },
     {
@@ -1924,7 +1924,7 @@
       "milestone": "M4",
       "disposition": "port",
       "proposed_package": "apps/backend",
-      "proposed_test_path": "tests/functional/operations",
+      "proposed_test_path": "tests/unit/backup.spec.ts",
       "reason": "M4 backup/restore/migration manifest, reset, startup refusal, Node, and Ace command behavior."
     },
     {
@@ -6388,8 +6388,8 @@
       },
       "later_split": {
         "milestone": "M4",
-        "package": "apps/backend/tests/functional/operations",
-        "reason": "The separate trusted-local reset/deletion case remains in app:reset operations coverage.",
+        "package": "apps/backend/tests/unit/app_reset_command.spec.ts",
+        "reason": "The trusted-local reset case is implemented by the archived-state and fresh-database app:reset case.",
         "case_count": 1
       }
     },

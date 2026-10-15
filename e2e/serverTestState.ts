@@ -6,7 +6,7 @@ import { serverTestApiOrigin } from "../scripts/playwrightRunMode.mjs";
 // Database-backed specs reset server state between tests, then exercise the app through
 // real UI flows. This keeps each assertion tied to the SQLite API and its rehydrated state.
 
-/** Resolves the server API origin for lane tests or the rehearsal same-origin stack. */
+/** Resolves the server API origin for the claimed local lane. */
 export const API = serverTestApiOrigin(ports().dbApi);
 
 type ResetServerOptions = { request: APIRequestContext; withSeed?: boolean };

@@ -4,11 +4,13 @@ This archive contains the built web app, compiled AdonisJS backend, production d
 SQLite addon for the host architecture on which it was packaged. Use Node 24.19.0 or newer within
 24.x. The `VERSION` file identifies the release and source revision.
 
-The current backend uses open local access. Until the account kit is integrated, put it behind a
-trusted access boundary and set `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1` deliberately. The archive
-does not contain the older password and company-provider setup commands. The environment example
-disables this opt-in, so the production service refuses to start until you enable it. HTTPS alone
-does not restrict access; the supplied Caddy and nginx examples do not authenticate visitors.
+The backend supports password authentication and native database sessions. The environment example
+keeps open access disabled. Set `APP_KEY`, a random `CAPACITYLENS_SECRET` of at least 32 characters,
+a separate random `CAPACITYLENS_SETUP_TOKEN` of at least 32 characters, and matching HTTPS
+`APP_URL` / `CAPACITYLENS_PUBLIC_URL` origins before starting. Complete the first-run browser setup
+with the setup token to create the initial identity and company. Remove the setup token afterwards.
+Google sign-in is optional; configure both provider credentials and the named-provider bootstrap
+addresses before enabling it. Microsoft sign-in remains deferred.
 
 On a fresh Linux systemd host, create the service user and persistent data directories before
 starting the application. Keep the database and backups outside the release so they survive
@@ -28,8 +30,7 @@ sudoedit /etc/capacitylens.env
 
 In the editor, paste the generated `APP_KEY` and set `APP_URL` to your HTTPS address. The sample
 binds the backend to loopback port 8787; put HTTPS in front with the supplied Caddy or nginx
-example. Before enabling `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1`, restrict access to trusted
-users through your access boundary. The environment file stays root-only. Run the upgrade as `capacitylens` through systemd,
+example. Keep `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=0`. The environment file stays root-only. Run the upgrade as `capacitylens` through systemd,
 which reads that file and gives the service user access to its settings without giving it read
 access to the file. The command checks the released migration manifest and takes a verified
 pre-upgrade snapshot when migrations are pending on an existing database.
@@ -57,3 +58,13 @@ sha256sum -c capacitylens-X.Y.Z.tar.gz.sha256
 
 The archive is platform-specific because it includes a native SQLite addon. Use an archive built
 on the same operating system and architecture as the target host.
+
+For sole-Owner recovery, stop the service and run the same environment-aware operator command with
+`owner:reset-password owner@example.com --confirm-server-stopped`. Its JSON output contains a
+single-use, 24-hour reset link: deliver it privately. It never sets a password directly.
+
+For the separately authorised cutover reset, stop the service and run
+`app:reset /var/lib/capacitylens/new-capacitylens.db --confirm-server-stopped`. The command preserves
+a verified snapshot and archived original, then initializes an empty database at the new path.
+Update `CAPACITYLENS_DB`, bootstrap the new owner and re-invite testers before restarting. If it
+fails, preserve the named recovery files and inspect the partial destination; never retry over them.

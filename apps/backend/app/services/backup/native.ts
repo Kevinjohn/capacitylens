@@ -4,6 +4,7 @@ import Database from 'better-sqlite3'
 
 /** Native driver operations consumed by the backup boundary. */
 export interface NativeDatabase {
+  readonly inTransaction: boolean
   prepare(sql: string): { get(): unknown; all(): unknown[]; run(): unknown }
   pragma(sql: string): unknown
   backup(path: string): Promise<unknown>

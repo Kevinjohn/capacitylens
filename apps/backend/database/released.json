@@ -20,6 +20,14 @@
     {
       "name": "database/migrations/202610130002_retain_company_deletion_audit",
       "sha256": "3767010e37d86952b068dfb94b202f331055996d85afdf1868969f40c38ba4fb"
+    },
+    {
+      "name": "database/migrations/202610150001_create_native_auth_storage",
+      "sha256": "4d0ee3e11ffcb630f35230d8f6d68d2ffc8414a2ebfb7a542a8781c876201daf"
+    },
+    {
+      "name": "database/migrations/202610150002_add_masquerade_projection_storage",
+      "sha256": "e6c065bdb8acead0391bd535c399e0123173f6150455acd431e15834a2aef928"
     }
   ]
 }

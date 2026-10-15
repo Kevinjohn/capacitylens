@@ -1,3 +1,4 @@
+import { deployManagedRuntime, assertInternalDependencyLinks } from "./deploy-managed-runtime.mjs";
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { createReadStream } from "node:fs";
@@ -252,14 +253,10 @@ export async function packageManagedRelease(outputPath = "production") {
 
   const deployment = join(output, ".runtime-deploy");
   try {
-    const deployed = spawnSync("pnpm", ["--filter", "@capacitylens/backend", "--prod", "deploy", deployment], {
-      cwd: repositoryRoot,
-      encoding: "utf8",
-      stdio: "inherit",
-    });
-    assertDeploySucceeded(deployed);
+    await deployManagedRuntime(repositoryRoot, deployment, backend);
     await carryBuildPolicy(backend, repositoryRoot, deployment);
     await rename(join(deployment, "node_modules"), join(backend, "node_modules"));
+    await assertInternalDependencyLinks(backend);
   } finally {
     await rm(deployment, { recursive: true, force: true });
   }

@@ -30,8 +30,9 @@ test("packaged smoke strips deployment settings before applying its loopback fix
   assert.equal(environment.NODE_OPTIONS, undefined);
   assert.equal(environment.HOST, "127.0.0.1");
   assert.equal(environment.NODE_ENV, "production");
-  assert.equal(environment.CAPACITYLENS_MODE, "off");
-  assert.equal(environment.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION, "1");
+  assert.equal(environment.CAPACITYLENS_MODE, "password-only");
+  assert.equal(environment.SESSION_DRIVER, "database");
+  assert.equal(environment.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION, undefined);
   assert.equal(environment.CAPACITYLENS_INTERNAL_TLS_KEY, undefined);
   assert.equal(environment.SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL, undefined);
   assert.equal(environment.CAPACITYLENS_OIDC_DISCOVERY_URL, undefined);

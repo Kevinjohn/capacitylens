@@ -70,7 +70,7 @@ test('native upgrade initializes a fresh database without a snapshot', ({
     const dbPath = join(root, 'live.db')
     const result = ace(appRoot, dbPath, 'app:upgrade')
     assert.equal(result.status, 0, result.output)
-    assert.lengthOf(journal(dbPath), 5)
+    assert.lengthOf(journal(dbPath), 7)
     assert.isFalse(result.output.includes('Pre-upgrade backup written'))
     const repeated = ace(appRoot, dbPath, 'app:upgrade')
     assert.equal(repeated.status, 0, repeated.output)
@@ -94,7 +94,7 @@ test('native upgrade backs up a known partial journal and refuses a failed backu
     const rollback = command(appRoot, dbPath, [
       'ace.js',
       'migration:rollback',
-      '--step=4',
+      '--step=6',
       '--force',
       '--no-schema-generate',
     ])
@@ -110,8 +110,8 @@ test('native upgrade backs up a known partial journal and refuses a failed backu
 
     const upgrade = ace(appRoot, dbPath, 'app:upgrade')
     assert.equal(upgrade.status, 0, upgrade.output)
-    assert.lengthOf(journal(dbPath), 5)
-    const snapshot = join(root, 'live.db.backups/capacitylens-pre-migration-v1-to-v5.db')
+    assert.lengthOf(journal(dbPath), 7)
+    const snapshot = join(root, 'live.db.backups/capacitylens-pre-migration-v1-to-v7.db')
     assert.lengthOf(journal(snapshot), 1)
   } finally {
     rmSync(root, { recursive: true, force: true })
@@ -219,8 +219,8 @@ test('a failing later migration rolls back its own DDL after an earlier file com
       filter: (path) => !path.endsWith('/node_modules') && !path.endsWith('/build'),
     })
     symlinkSync(join(appRoot, 'node_modules'), join(scratch, 'node_modules'), 'dir')
-    const first = 'database/migrations/202610140001_commit_before_failure'
-    const second = 'database/migrations/202610140002_fail_after_ddl'
+    const first = 'database/migrations/202610160001_commit_before_failure'
+    const second = 'database/migrations/202610160002_fail_after_ddl'
     const committedSource = `import { BaseSchema } from '@adonisjs/lucid/schema'\nexport default class extends BaseSchema { async up() { this.schema.createTable('upgrade_committed', (table) => table.increments('id')) } async down() { this.schema.dropTable('upgrade_committed') } }\n`
     const failedSource = `import { BaseSchema } from '@adonisjs/lucid/schema'\nexport default class extends BaseSchema { async up() { this.schema.createTable('upgrade_rolled_back', (table) => table.increments('id')); await this.schema.raw('SELECT * FROM table_that_does_not_exist') } async down() { this.schema.dropTable('upgrade_rolled_back') } }\n`
     writeFileSync(join(scratch, `${first}.ts`), committedSource)
@@ -238,7 +238,7 @@ test('a failing later migration rolls back its own DDL after an earlier file com
 
     const upgrade = ace(scratch, dbPath, 'app:upgrade')
     assert.notEqual(upgrade.status, 0, upgrade.output)
-    assert.lengthOf(journal(dbPath), 6)
+    assert.lengthOf(journal(dbPath), 8)
     const database = openNativeDatabase(dbPath, { readonly: true, fileMustExist: true })
     try {
       const tables = database
@@ -255,8 +255,8 @@ test('a failing later migration rolls back its own DDL after an earlier file com
     } finally {
       database.close()
     }
-    const snapshot = join(root, 'live.db.backups/capacitylens-pre-migration-v5-to-v7.db')
-    assert.lengthOf(journal(snapshot), 5)
+    const snapshot = join(root, 'live.db.backups/capacitylens-pre-migration-v7-to-v9.db')
+    assert.lengthOf(journal(snapshot), 7)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

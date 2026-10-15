@@ -9,6 +9,9 @@
 |
 */
 
+const { assertSupportedNodeVersion } = await import('#start/node_version')
+assertSupportedNodeVersion()
+
 await import('reflect-metadata')
 const { Ignitor, prettyPrintError } = await import('@adonisjs/core/ignitor')
 const { createServer } = await import('node:http')

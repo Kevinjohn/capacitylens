@@ -304,6 +304,10 @@
     {
       "path": "apps/backend/hooks/released_migrations.ts",
       "purpose": "Unkeyed SHA-256 verification of immutable migration sources and generation of checksums for their compiled production executables"
+    },
+    {
+      "path": "apps/backend/app/services/operations/owner_recovery.ts",
+      "purpose": "Unkeyed SHA-256 comparison of the operator-captured recovery bearer with its committed token hash; only the digest enters the private audit"
     }
   ]
 }
