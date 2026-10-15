@@ -61,28 +61,36 @@ test("accepts the complete production runtime", async (context) => {
   assert.equal(result.packageCount, 2);
 });
 
-test("carries only the approved build-script policy from the deploy", async (context) => {
+test("carries only the committed approved policy when legacy deploy emits no workspace file", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "capacitylens-policy-test-"));
   context.after(() => rm(root, { recursive: true, force: true }));
   const backend = join(root, "backend");
-  const deployment = join(root, "deploy");
   await mkdir(backend);
-  await mkdir(deployment);
   const policy = { "@swc/core": true, "better-sqlite3": true, esbuild: true, "simple-git-hooks": false };
-  await writeFile(join(root, "pnpm-workspace.yaml"), YAML.stringify({ packages: ["apps/*"], allowBuilds: policy }));
   await writeFile(
-    join(deployment, "pnpm-workspace.yaml"),
+    join(root, "pnpm-workspace.yaml"),
     YAML.stringify({
+      packages: ["apps/*"],
       patchedDependencies: { "sonner@2": "../../outside.patch" },
       allowBuilds: policy,
     }),
   );
-  await carryBuildPolicy(backend, root, deployment);
+  await carryBuildPolicy(backend, root);
   const carried = await readFile(join(backend, "pnpm-workspace.yaml"), "utf8");
   assert.deepEqual(YAML.parse(carried), { allowBuilds: policy });
   assert.doesNotMatch(carried, /outside|packages:|patchedDependencies:/);
-  await writeFile(join(deployment, "pnpm-workspace.yaml"), YAML.stringify({ allowBuilds: { esbuild: false } }));
-  await assert.rejects(() => carryBuildPolicy(backend, root, deployment), /build-script policy differs/);
+});
+
+test("refuses missing or invalid committed build-script approvals", async (context) => {
+  const root = await mkdtemp(join(tmpdir(), "capacitylens-invalid-policy-test-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  const backend = join(root, "backend");
+  await mkdir(backend);
+  for (const allowBuilds of [undefined, null, {}, [], "esbuild", { esbuild: "true" }]) {
+    await writeFile(join(root, "pnpm-workspace.yaml"), YAML.stringify({ allowBuilds }));
+    await assert.rejects(() => carryBuildPolicy(backend, root), /Committed build-script policy/);
+    await assert.rejects(() => readFile(join(backend, "pnpm-workspace.yaml")), { code: "ENOENT" });
+  }
 });
 
 test("rejects a direct development-tool link in the production runtime", async (context) => {

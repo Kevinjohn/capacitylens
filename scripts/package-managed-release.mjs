@@ -1,6 +1,5 @@
 import { deployManagedRuntime, assertInternalDependencyLinks } from "./deploy-managed-runtime.mjs";
 import { createHash } from "node:crypto";
-import { isDeepStrictEqual } from "node:util";
 import { createReadStream } from "node:fs";
 import {
   cp,
@@ -137,13 +136,19 @@ export async function inspectManagedRelease(root, forbiddenPackages) {
 }
 
 /** Carry the approved native build policy without deploy paths that escape the artifact. */
-export async function carryBuildPolicy(backend, repositoryRoot, deployment) {
+export async function carryBuildPolicy(backend, repositoryRoot) {
   const committed = YAML.parse(await readFile(join(repositoryRoot, "pnpm-workspace.yaml"), "utf8"));
-  const deployed = YAML.parse(await readFile(join(deployment, "pnpm-workspace.yaml"), "utf8"));
-  if (!committed?.allowBuilds || !isDeepStrictEqual(deployed?.allowBuilds, committed.allowBuilds)) {
-    throw new Error("Deployed build-script policy differs from committed policy.");
+  const policy = committed?.allowBuilds;
+  if (
+    !policy ||
+    typeof policy !== "object" ||
+    Array.isArray(policy) ||
+    Object.keys(policy).length === 0 ||
+    Object.values(policy).some((approved) => typeof approved !== "boolean")
+  ) {
+    throw new Error("Committed build-script policy must be a nonempty map of boolean approvals.");
   }
-  await writeFile(join(backend, "pnpm-workspace.yaml"), YAML.stringify({ allowBuilds: deployed.allowBuilds }));
+  await writeFile(join(backend, "pnpm-workspace.yaml"), YAML.stringify({ allowBuilds: policy }));
 }
 
 /**
@@ -254,7 +259,7 @@ export async function packageManagedRelease(outputPath = "production") {
   const deployment = join(output, ".runtime-deploy");
   try {
     await deployManagedRuntime(repositoryRoot, deployment, backend);
-    await carryBuildPolicy(backend, repositoryRoot, deployment);
+    await carryBuildPolicy(backend, repositoryRoot);
     await rename(join(deployment, "node_modules"), join(backend, "node_modules"));
     await assertInternalDependencyLinks(backend);
   } finally {
