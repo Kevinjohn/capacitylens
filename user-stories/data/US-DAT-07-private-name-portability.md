@@ -1,9 +1,9 @@
 # US-DAT-07 — Export, import and upgrade private names safely
 
 **Area:** Data management / privacy · **Persona:** Account owner and account administrator ·
-**Coverage:** `server/src/app.authz.test.ts` → owner-only import + redacted re-import tests;
-`src/components/ImportExport.test.tsx`; `shared/src/lib/sanitizeImport.test.ts`; migration criterion
-`DAT-PRIV-01` → `shared/src/data/migrate.test.ts`
+**Coverage:** `apps/backend/tests/functional/auth/native_authorization.spec.ts` → owner-only import + redacted re-import tests;
+`apps/frontend/src/components/ImportExport.test.tsx`; `packages/shared/src/lib/sanitizeImport.test.ts`; migration criterion
+`DAT-PRIV-01` → `packages/shared/src/data/migrate.test.ts`
 
 ## Goal
 

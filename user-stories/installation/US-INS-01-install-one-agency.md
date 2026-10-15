@@ -1,6 +1,6 @@
 # US-INS-01 — Install CapacityLens for one agency
 
-**Area:** Installation · **Persona:** Technical person at a small agency, or a managed host's site owner · **Coverage:** the gate's `release-package-smoke` job (unpacks the release archive, starts it and checks deep health, the web app and the bundled recovery tool), `server/src/cli/init.test.ts`, `server/src/routes/staticWeb.test.ts` and `server/src/boot/productionDefaults.test.ts`; manual for a managed host and a Linux host
+**Area:** Installation · **Persona:** Technical person at a small agency, or a managed host's site owner · **Coverage:** the gate's `release-package-smoke` job (unpacks the native release archive, starts the Adonis service and checks health and the web app), `apps/backend/tests/unit/upgrade_command.spec.ts`, `apps/backend/tests/functional/state/static_fallback.spec.ts` and `apps/backend/tests/unit/native_auth_configuration.spec.ts`; manual for a managed host and a Linux host
 
 **Documentation:** [Install CapacityLens](../../docs-src/self-hosting/install.md)
 

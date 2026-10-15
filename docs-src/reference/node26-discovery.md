@@ -9,8 +9,8 @@ description: Historical SQLite backup investigation and the current supported No
 
 Node 24.x from 24.19.0 is supported and recommended. Node 26.x from 26.9.0 has experimental,
 best-effort compatibility. The runtime floors are enforced for source and packaged usage.
-The [local compatibility check](/reference/development#check-node-26-compatibility) provides
-selected coverage without scheduled Node 26 GitHub runs or a new check on every small fix.
+The `pnpm run check:node26` command provides selected coverage without scheduled Node 26 GitHub
+runs or a new check on every small fix.
 Complete Node 26 functionality is not guaranteed; current results and limitations are recorded
 in [issue #710](https://github.com/Kevinjohn/capacitylens/issues/710).
 
@@ -186,4 +186,4 @@ A private durable local archive retains 1,601 available evidence files, includin
 
 CI artifacts can expire. Their available local copies and this consolidated report preserve the findings independently of that retention window. Historical scripts contain scratch paths and historical reports contain superseded interpretations; use this report for conclusions and inspect scripts before rerunning them. Current issue/PR snapshots and the final report are stored alongside the archive as supplementary records.
 
-For maintained commands, see [Check Node 26 compatibility](/reference/development#check-node-26-compatibility).
+For the maintained check, run `pnpm run check:node26`.

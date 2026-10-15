@@ -1,11 +1,11 @@
 # US-NAV-12 — See a concise explanation of how CapacityLens works
 
-**Area:** Navigation & shell · **Persona:** Anyone entering a company or the personal Account page · **Linked coverage:** `src/components/ProductOrientation.test.tsx`, `src/components/AppShell.productOrientation.test.tsx`, `src/lib/productOrientation.test.ts`, `e2e/fake-signin.spec.ts`
+**Area:** Navigation & shell · **Persona:** Anyone entering a company or the personal Account page · **Linked coverage:** `apps/frontend/src/components/ProductOrientation.test.tsx`, `apps/frontend/src/components/AppShell.productOrientation.test.tsx`, `apps/frontend/src/lib/productOrientation.test.ts`, `e2e/fake-signin.spec.ts`
 
 **Documentation:** [What is CapacityLens?](../../docs-src/getting-started/what-is-capacitylens.md), [Editor journey](../../docs-src/using/editor.md), [Viewer journey](../../docs-src/using/viewer.md)
 
-**Sources:** `src/components/ProductOrientation.tsx`, `src/components/useProductOrientation.ts`,
-`src/lib/productOrientation.ts`, `src/components/AppShell.tsx`, `src/components/AppSidebar.tsx`
+**Sources:** `apps/frontend/src/components/ProductOrientation.tsx`, `apps/frontend/src/components/useProductOrientation.ts`,
+`apps/frontend/src/lib/productOrientation.ts`, `apps/frontend/src/components/AppShell.tsx`, `apps/frontend/src/components/AppSidebar.tsx`
 
 ## Goal
 

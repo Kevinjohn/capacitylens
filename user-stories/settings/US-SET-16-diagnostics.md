@@ -1,9 +1,9 @@
 # US-SET-16 — Copy privacy-safe diagnostics
 
 **Area:** Settings · **Persona:** An Owner or Admin reporting a problem · **Coverage:**
-`src/data/buildInfo.test.ts` + `src/components/diagnostics/DiagnosticsView.test.tsx` +
-`src/router.test.tsx` + `src/components/CommandPalette.test.tsx` + `e2e/a11y.spec.ts` +
-`server/src/app.health.test.ts`
+`apps/frontend/src/data/buildInfo.test.ts` + `apps/frontend/src/components/diagnostics/DiagnosticsView.test.tsx` +
+`apps/frontend/src/router.test.tsx` + `apps/frontend/src/components/CommandPalette.test.tsx` + `e2e/a11y.spec.ts` +
+`apps/backend/tests/functional/backup_health.spec.ts`
 
 **Documentation:** [Diagnostics](../../docs-src/admin/diagnostics.md)
 

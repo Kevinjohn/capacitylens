@@ -1221,7 +1221,7 @@ function registerAccountPolicyTest07() {
   it("a FAILED refresh keeps the previous (stale) snapshot with a warn breadcrumb — no crash, no reset", async () => {
     // Fail-open posture (see fetchAuthStatus): an unresolved refresh must not flip a live session
     // to authMode 'off' / canCreateAccount true, stale beats wrong, and the server 403 remains
-    // the real enforcer. Handled-but-logged per DEFENSIVE-CODING.md §5.
+    // the real enforcer. The handler logs and surfaces its failure.
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetchSpy = vi

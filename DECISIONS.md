@@ -72,11 +72,11 @@ This is the short, present-tense record of decisions that constrain future work.
 
 - SQLite-backed server persistence is the default. Missing API access is an error, never a silent
   browser-storage fallback.
-- Portable JSON/export versions and physical SQLite versions are separate contracts. SQLite uses
-  an immutable, one-way migration list and `PRAGMA user_version`; a database-side history ledger
-  records each version, name, SHA-256 definition checksum and application timestamp. Missing or
-  altered history refuses startup. Every released older database fixture remains upgrade-tested
-  indefinitely.
+- Portable JSON/export versions and physical SQLite versions are separate contracts. SQLite
+  migrations are append-only from the Adonis baseline; released definitions are SHA-256 pinned in
+  `database/released.json`, and boot refuses a database containing a migration unknown to the
+  running build. Each migration file rolls back as one unit, and the pre-upgrade online backup is
+  the recovery point. Never edit a released migration definition.
 - New builds upgrade older databases. Older builds never write a newer database: they refuse it.
   Rollback means the old image plus the verified pre-migration snapshot, never a down migration.
 - SQLite upgrades are coordinated single-server restarts. CapacityLens does not promise mixed-version
@@ -103,10 +103,11 @@ This is the short, present-tense record of decisions that constrain future work.
   ambiguous responses never do.
   A page-local memory copy is authoritative while the page lives, with session storage extending
   the same identity across reloads when browser policy permits it.
-- Each local audit-log generation is hard-bounded by the configured rotation size. Rotation occurs
-  before the next complete JSONL line would cross that bound; a single entry larger than the bound
-  is rejected, leaves its durable outbox row queued and marks audit health degraded rather than
-  consuming unbounded space or truncating security evidence.
+- The retired server's local JSONL audit mirror was hard-bounded by its configured rotation size;
+  an oversized entry stayed queued in that server's durable outbox and degraded audit health rather
+  than consuming unbounded space or truncating security evidence. In the Adonis application,
+  `AuditEntry` is written inside the mutation's Lucid transaction. Post-commit logging is diagnostic
+  only; the retired outbox and delivery recovery are not current mechanisms.
 - A scheduled SQLite snapshot is file-synced and its published directory entry is synced before
   retention may remove an older recovery point. Retention metadata is synced again after deletes;
   a failure at that second barrier warns but does not deny an already-durable new snapshot, because
@@ -197,30 +198,23 @@ This is the short, present-tense record of decisions that constrain future work.
 - Each authenticated company has exactly one Owner. Owner is not an invite or ordinary role-change
   option; ownership moves only through an explicit atomic transfer to an existing member, with the
   former Owner becoming Admin.
-- Sole-Owner credential recovery (2026-08-05) is an operator CLI (`reset:owner-password`), not a
-  product feature. It drives the ordinary reset ceremony against a stopped
-  server, enforced by an exclusive SQLite lock, and refuses unless the target is the sole active
-  Owner — the one state no in-product actor can recover. In-app policy is unchanged: Admins still
-  cannot administer an Owner, and a credential reset never moves ownership. Origin: Delivery Diary
-  divergence report; ruling recorded in `to-my-siblings/_sole-owner-recovery-playbook-2026-08-05.md`.
+- Sole-Owner credential recovery is an operator command, not a product feature. It uses the ordinary
+  recovery ceremony, an exclusive database lock and an audit event, and refuses unless the target
+  is the sole active Owner. Admins cannot administer an Owner, and credential recovery never moves
+  ownership.
 - App members and scheduled Resources are separate records. Adding a Resource never grants access,
   and inviting a member never creates a schedulable person.
 - Team & access is a first-class destination visible to every role so members can understand their
   own access; only Owner/Admin receive directory, invitation and access-management controls.
-- Identity masquerade is explicitly an **identity masquerade, read projection**. It substitutes the
-  target member only for actor-dependent reads in the selected company; it never grants write
-  capability or claims to become that person's login. The registry is session-keyed and in memory,
-  rather than stored in a table or cookie: the supported topology is one process, and restart loss
-  fails closed. A method-based root guard plus a Better Auth proxy guard enforce read-only access.
-  Starting requires an Owner/Admin role but not a fresh session (per the 2026-09-11 freshness
-  decision below), cannot replace an existing projection, and ends before an account switch.
-  Start/end audits use explicit, account-switch, sign-out, expiry, revocation and caller/target
-  invalidation reasons; the start event carries the session expiry so
-  a restart-lost projection remains bounded in the ledger.
-- The account layer is an embedded repository-local boundary: neutral contracts, `IdentityPort`,
-  `AccountAdminPort` and an orchestration-only `AccountFlows` coordinator. It permanently shares the
-  product process, SQLite file and checksummed product migration ledger unless a separately approved
-  future trigger changes topology.
+- Masquerade is a session-keyed, in-memory read projection within one company, not another login or
+  write authority. Only an Owner or Admin may start it; no fresh session is required, and an active
+  projection cannot be replaced. Every unsafe method and account, membership or authentication
+  route is refused. Explicit end, account switch, sign-out, expiry, revocation or caller/target
+  invalidation ends it; restart loss fails closed. Start and end are audited, and the projection is
+  bounded by the session expiry.
+- Native Adonis authentication, sessions, Bouncer, Ally and Mail own their framework capabilities.
+  The account-kit owns password/recovery primitives where their contracts preserve product
+  guarantees. Company invitations, membership and admission remain product-owned and transactional.
 - Each installation owns its local principals, sessions and memberships and never shares account
   records with another installation. Federated correlation uses the exact provider
   and provider-owned stable identifier, never email; local deprovisioning cannot delete an upstream
@@ -251,13 +245,15 @@ This is the short, present-tense record of decisions that constrain future work.
 - A Google callback that creates a principal does not create company membership or consume an
   invitation. The user must explicitly accept the addressed invitation or complete a company join;
   the server rechecks current authorization and company policy at completion.
+- Repeated invitation or password-reset issuance with the same command id returns
+  `409 IDEMPOTENCY_CONFLICT`. Secret bearers are never replayed or stored in command results;
+  completed non-secret results may replay, and a payload mismatch is refused.
 - Self-hosted provider-required access uses `self-hosted-sso-only` and requires a configured Google
   session, including for invitation acceptance. Password sessions cannot satisfy that requirement.
   Existing password credentials remain available if an operator returns the installation to
   `mode=password-only`; that restores the password entrance but does not reset credentials or
-  change provider connections. The in-app readiness panel is retired. `cutover:preflight` and
-  `cutover:repair` remain commands of the legacy `capacitylens-server` package and are unavailable
-  in the current Adonis app. Operators and teams verify Google access directly before changing mode.
+  change provider connections. Operators and teams verify Google access directly before changing
+  mode; deterministic checks do not establish live-provider acceptance.
 - The named-provider replacement supersedes the earlier generic OIDC and staged-cutover decisions
   below. Those dated entries preserve implementation history, not current configuration or
   operator procedure. No identity conversion or deleted-staging migration is required.
@@ -324,13 +320,41 @@ This is the short, present-tense record of decisions that constrain future work.
   (e.g. the rate limiter), so a value the runtime would silently ignore refuses startup instead.
 - Encrypted persistent storage and logically separate security-log forwarding are recommended
   deployment hardening that operators provide; CapacityLens has no setting or warning for them.
-- The packaged production proxy/API hop uses a private per-install CA and verified TLS 1.2/1.3.
-  Bare-metal deployments may instead use HTTP only across a same-host loopback proxy hop.
+- TLS terminates at the packaged edge or the operator's trusted external proxy. Internal TLS
+  generation and renewal are retired; bare-metal HTTP is limited to a same-host loopback proxy hop.
 - CSP violations enter the bounded, data-minimised security stream. Socket, scrypt and HIBP work
   limits are finite and fail closed under overload.
-- Better Auth telemetry is disabled. CapacityLens ships no product analytics. Optional SMTP
-  delivers addressed invitations and password resets.
-- Errors on data paths are surfaced, not swallowed. See `DEFENSIVE-CODING.md`.
+- CapacityLens ships no product analytics. Optional mail delivers addressed invitations and
+  password resets.
+- Errors on data paths are surfaced, not swallowed.
+
+## AdonisJS framework departures
+
+The AdonisJS documentation is the structural reference. These product choices deliberately differ
+from framework defaults; other departures require an explicit decision.
+
+1. `packages/shared` is imported by the backend and SPA. It contains pure domain rules and wire
+   types, never backend code.
+2. Request objects reject unknown fields; scalars are strict, and empty strings are not silently
+   converted to null. Product JSON bodies are screened for duplicate keys, excessive depth, unsafe
+   numbers and malformed UTF-8 before validation.
+3. Product models fail closed without an explicit tenant scope. Bulk updates and deletes use a
+   scoped helper because model hooks do not cover them.
+4. Product sessions record authentication and last-activity times. Middleware enforces absolute and
+   inactive expiry independently of the session store's sliding age; freshness uses authentication
+   time.
+5. Validation and domain errors use the flat `{ error, code? }` status-400 envelope. Account-command
+   errors use the shared status table and `{ error, code, retryable, commandId?, retryAfterSeconds? }`,
+   including `Retry-After`.
+6. Product timestamps are ISO strings on the wire and in columns; revisions are strings. Columns
+   use snake_case, explicit transformers own camelCase wire fields, and empty optional values are
+   null.
+7. Product environment variables use the `CAPACITYLENS_` prefix; framework variables retain
+   framework names.
+8. The Adonis backend serves the SPA from `public/` with product security headers and a history
+   fallback rather than relying on a separate static-file proxy.
+9. Off mode uses the validated product guard. SQLite has a pool of one connection, configured when
+   it is created. Network and mail work stays outside transactions.
 
 ## Installation
 
@@ -387,10 +411,8 @@ This is the short, present-tense record of decisions that constrain future work.
   state-owner invariants, transaction order and failure propagation.
 - Principal filenames match their named exports; cohesive collections name the capability they
   own. Component/type names use PascalCase, hooks/utilities use camelCase, and executable scripts
-  use kebab-case. The detailed naming, import and ownership tables live in
-  `docs-src/reference/development.md`, and the in-module conventions (function verbs, variable
-  names, parameter style, result shapes) in `docs-src/reference/conventions.md`; root guidance
-  stays short.
+  use kebab-case. Use clear function verbs, descriptive variables, small parameter lists and
+  explicit result shapes; ESLint enforces the mechanical rules.
 - Existing product account names, portable workspace/principal aliases and vendor provider-account
   names describe different contracts. Keep those distinctions and existing semantic aliases;
   do not introduce branded IDs or rename public fields as part of structural cleanup.
@@ -402,30 +424,36 @@ This is the short, present-tense record of decisions that constrain future work.
   can, never increases an existing count, and new code meets the rules. A newly introduced rule
   may have one reviewed initial baseline with classified residual findings; that baseline then only
   shrinks.
-- A new verb, abbreviation or result shape enters `docs-src/reference/conventions.md` in the same
-  pull request as its first use, with a tree example, and is reviewed like code.
 - Debt a batch declines to fix is recorded on the closing issue or pull request, never dropped.
   For historical context, the last revision of the conventions audit ledger is
   [`3b455884`](https://github.com/Kevinjohn/capacitylens/blob/3b455884/tasks/conventions-audit.md),
   linked from issue #638 for the untouched deviations it recorded.
 
-## Structural checks kept after the 2026-09 tooling removal
+## Historical structural-check rationale (2026-09)
 
-The structural-measurement tooling added in PRs #593–#613 was removed on 2026-09-05; these checks were kept for the reasons below.
+The table records the rationale at the time, against the legacy server layout; its paths and gate
+placement are not claims about the current Adonis application. The M4 migration retired the old
+account-conformance architecture assertion and table/column guards (test census rows 530, 2075 and
+2084); those framework-owned checks are not promised in M5. The private TLS and renewal tooling is
+also retired under ruling 16. Docker helper and workflow validation remains deferred to M7a. M5
+retains import-cycle detection (`scripts/check-import-cycles.mjs` and
+`scripts/check-import-cycles.test.mjs`) and the cryptography inventory
+(`scripts/check-crypto-inventory.mjs` and `scripts/check-crypto-inventory.test.mjs`).
 
-| Check                                                                                                        | Why it earns its place                                                                                                                                                                                                                                                                                                                                                                                                             |
-| ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scripts/check-file-sizes.mjs`, its test and `file-size-exceptions.json`, restored verbatim from `34a1702a`  | A 400-line cap on production files is the most direct mechanical guard for "one implementation fits in one read". One permanent exception (the shadcn sidebar). Its informational print of approximate top-level function spans over 150 lines is 25 lines, has no dependencies, enforces nothing and predates the previous run; it stays because it is the cheapest possible signal on function length, not a measurement system. |
-| Test-file extension of `scripts/check-file-sizes.mjs`, its test and `file-size-exceptions.json`              | An 800-line test ceiling catches drift after the #827 test split while preserving one shared exception mechanism. Five deliberately structural test ledgers are permanent; other current over-limit tests have fixed temporary maxima and become stale/removable once their files reach 800 lines or fewer.                                                                                                                        |
-| `scripts/dependencyScanner.mjs`, `scripts/check-import-cycles.mjs`, `policy:dependencies:test` in both gates | A runtime import cycle is the usual way two "small" files become unreadable together. The scanner fixed a real gap (dynamic imports were invisible) and now runs in the app and server gates.                                                                                                                                                                                                                                      |
-| `server/src/tables/columns.ts` compile-time column guards and their negative fixtures                        | Before the change a missing column typed as `never` compiled; now the schema list and the table specs must agree or the build fails. Product correctness, not measurement.                                                                                                                                                                                                                                                         |
-| `server/src/accounts/conformance/architecture.test.ts`                                                       | Enforces the ownership boundaries of the account and auth code: which directories may depend on which, with a short list of named adapter and `Db` type edges allowed. This is the "one behaviour in one place" invariant for the most security-sensitive subsystem.                                                                                                                                                               |
-| `scripts/run-gate.mjs`, `scripts/gateCommands.mjs`, their test and `scripts/__tests__/gate-command.mjs`      | Replaces a 600-character `&&` chain in `package.json` with a readable ordered list; the test proves a failing step stops the rest. 86 lines, no new dependencies (it spawns through the existing `pnpmSpawn.mjs`).                                                                                                                                                                                                                 |
-| `scripts/check-dependabot.mjs`, its test and the `yaml` devDependency                                        | The same validation existed at `34a1702a` as a Ruby step in `gate.yml`; PR #606 moved it into the gate so it also runs locally. Deleting it would remove a baseline check. The `dependabot.yml` it validates encodes the patch-only update policy.                                                                                                                                                                                 |
-| `scripts/check-sonner-csp.test.mjs` and `scripts/__tests__/sonner-import.mjs`                                | Guards the CSP-compatible stylesheet patch on the Sonner dependency so a routine update cannot silently drop it.                                                                                                                                                                                                                                                                                                                   |
-| The environment split in `eslint.config.js` (browser / worker / Node / shared production / shared test)      | `shared/` is imported by both the browser app and the Node server, so a Node or DOM global there is a runtime failure on one side. The split makes it a lint error.                                                                                                                                                                                                                                                                |
-| `scripts/check-shared-environment.test.mjs` (trimmed)                                                        | Proves the shared production compiler graph contains no Node types or test files, and that the production lint rejects platform globals. This is the executable form of the boundary above.                                                                                                                                                                                                                                        |
-| `scripts/check-server-script-lint.test.mjs` (trimmed)                                                        | Proves, with synthetic probes through the real configuration, that the typed promise rules (`no-floating-promises`, `no-misused-promises`) apply to operator scripts. ESLint does the enforcing; this test catches the configuration silently dropping it. An unawaited promise in a reset or backup script is the kind of defect that otherwise surfaces only in production.                                                      |
-| `scripts/check-script-environments.test.mjs` (trimmed)                                                       | Proves browser scripts reject Node globals and Node tooling rejects browser globals through the real configuration.                                                                                                                                                                                                                                                                                                                |
-| `scripts/check-lint-coverage.test.mjs` (trimmed to one test)                                                 | Its test "real new production and test files reject both promise defects in each typed package" writes real files into app, server and shared, then proves both promise rules reject them. None of the other suites exercises the app and server typed-lint configuration that way. The four other tests in the file enumerate the inventory or assert gate ownership and go.                                                      |
-| `scripts/check-health.mjs`, `tlsRenewalVerifier.ts` and their tests                                          | Extracted from inline Dockerfile and workflow JavaScript so they can be unit-tested. The Dockerfile depends on the first. Not touched by this plan.                                                                                                                                                                                                                                                                                |
+The structural-measurement tooling added in PRs #593–#613 was removed on 2026-09-05; the remaining
+rows preserve the legacy rationale for checks retained at that time.
+
+| Check                                                                                                        | Why it earns its place                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scripts/dependencyScanner.mjs`, `scripts/check-import-cycles.mjs`, `policy:dependencies:test` in both gates | A runtime import cycle is the usual way two "small" files become unreadable together. The scanner fixed a real gap (dynamic imports were invisible) and now runs in the app and server gates.                                                                                                                                                                                 |
+| `server/src/tables/columns.ts` compile-time column guards and their negative fixtures                        | Before the change a missing column typed as `never` compiled; now the schema list and the table specs must agree or the build fails. Product correctness, not measurement.                                                                                                                                                                                                    |
+| `server/src/accounts/conformance/architecture.test.ts`                                                       | Enforces the ownership boundaries of the account and auth code: which directories may depend on which, with a short list of named adapter and `Db` type edges allowed. This is the "one behaviour in one place" invariant for the most security-sensitive subsystem.                                                                                                          |
+| `scripts/run-gate.mjs`, `scripts/gateCommands.mjs`, their test and `scripts/__tests__/gate-command.mjs`      | Replaces a 600-character `&&` chain in `package.json` with a readable ordered list; the test proves a failing step stops the rest. 86 lines, no new dependencies (it spawns through the existing `pnpmSpawn.mjs`).                                                                                                                                                            |
+| `scripts/check-dependabot.mjs`, its test and the `yaml` devDependency                                        | The same validation existed at `34a1702a` as a Ruby step in `gate.yml`; PR #606 moved it into the gate so it also runs locally. Deleting it would remove a baseline check. The `dependabot.yml` it validates encodes the patch-only update policy.                                                                                                                            |
+| `scripts/check-sonner-csp.test.mjs` and `scripts/__tests__/sonner-import.mjs`                                | Guards the CSP-compatible stylesheet patch on the Sonner dependency so a routine update cannot silently drop it.                                                                                                                                                                                                                                                              |
+| The environment split in `eslint.config.js` (browser / worker / Node / shared production / shared test)      | `packages/shared/` is imported by both the browser app and the Node server, so a Node or DOM global there is a runtime failure on one side. The split makes it a lint error.                                                                                                                                                                                                  |
+| `scripts/check-shared-environment.test.mjs` (trimmed)                                                        | Proves the shared production compiler graph contains no Node types or test files, and that the production lint rejects platform globals. This is the executable form of the boundary above.                                                                                                                                                                                   |
+| `scripts/check-server-script-lint.test.mjs` (trimmed)                                                        | Proves, with synthetic probes through the real configuration, that the typed promise rules (`no-floating-promises`, `no-misused-promises`) apply to operator scripts. ESLint does the enforcing; this test catches the configuration silently dropping it. An unawaited promise in a reset or backup script is the kind of defect that otherwise surfaces only in production. |
+| `scripts/check-script-environments.test.mjs` (trimmed)                                                       | Proves browser scripts reject Node globals and Node tooling rejects browser globals through the real configuration.                                                                                                                                                                                                                                                           |
+| `scripts/check-lint-coverage.test.mjs` (trimmed to one test)                                                 | Its test "real new production and test files reject both promise defects in each typed package" writes real files into app, server and shared, then proves both promise rules reject them. None of the other suites exercises the app and server typed-lint configuration that way. The four other tests in the file enumerate the inventory or assert gate ownership and go. |
+| `scripts/check-health.mjs`, `tlsRenewalVerifier.ts` and their tests                                          | Extracted from inline Dockerfile and workflow JavaScript so they can be unit-tested. The Dockerfile depends on the first. Not touched by this plan.                                                                                                                                                                                                                           |

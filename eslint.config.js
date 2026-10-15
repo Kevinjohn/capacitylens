@@ -18,8 +18,7 @@ const forbiddenSharedGlobals = [
 
 // `isNotNull` is the SQL term in server/src/schema/introspection.ts, not a negated boolean.
 const negatedBooleanName = "^(hasNo|not[A-Z]|isNot(?!Null))";
-// conventions.md leaves `find` and `handle` out of the verb table: use `get`, or name the callback
-// for what it does.
+// Avoid generic search and event-handler names when a clearer action name is available.
 const excludedVerbName = "^(find|handle)([A-Z]|$)";
 
 const sharedTestFiles = [
@@ -280,10 +279,9 @@ export default defineConfig([
     rules: { "@typescript-eslint/no-unnecessary-type-assertion": "error" },
   },
 
-  // The mechanical part of docs-src/reference/conventions.md: identifier casing, no negated
-  // boolean names, and at most three positional parameters. Properties, methods and imports are
-  // unformatted because many mirror wire fields, SQL columns and library names. Existing
-  // violations are baselined in eslint-suppressions.json (see the page for how to prune it).
+  // Enforce identifier casing, no negated boolean names, and at most three positional parameters.
+  // Properties, methods and imports are unformatted because many mirror wire fields, SQL columns
+  // and library names. Existing violations are baselined in eslint-suppressions.json.
   {
     files: [
       "apps/frontend/src/**/*.{ts,tsx}",

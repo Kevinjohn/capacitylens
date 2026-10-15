@@ -6,8 +6,8 @@ description: The automated test suites that run on CapacityLens, what each one c
 # How CapacityLens is tested
 
 See what the automated checks cover before you rely on CapacityLens. It is alpha software with a
-single maintainer, so those checks carry most of the safety net. The
-[development guide](/reference/development) has the commands, coverage floors and CI jobs.
+single maintainer, so those checks carry most of the safety net. Contributor check commands are
+listed in [`CONTRIBUTING.md`](https://github.com/Kevinjohn/capacitylens/blob/main/CONTRIBUTING.md).
 
 Sizes were counted once on 2026-10-01 and are not enforced, so they will drift.
 
