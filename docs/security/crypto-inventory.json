@@ -212,6 +212,38 @@
     {
       "path": "apps/backend/app/controllers/getting_started_controller.ts",
       "purpose": "Random non-secret surrogate identifiers for company getting-started dismissal records"
+    },
+    {
+      "path": "apps/backend/app/controllers/auth_controller.ts",
+      "purpose": "Constant-time first-run setup-token comparison and random principal identifiers; native session cookies and signing remain owned by the framework"
+    },
+    {
+      "path": "apps/backend/app/controllers/companies_controller.ts",
+      "purpose": "Constant-time comparison of the operator bootstrap token before authenticated company provisioning"
+    },
+    {
+      "path": "apps/backend/providers/configuration_provider.ts",
+      "purpose": "Random identifiers for the development-only operator bootstrap principal; passwords use the bounded product password service"
+    },
+    {
+      "path": "apps/backend/app/services/credentials/operation_factory.ts",
+      "purpose": "SHA-256 private limiter-key derivation and random audit/command row identifiers; no persisted recovery bearer"
+    },
+    {
+      "path": "apps/backend/app/services/credentials/operations.ts",
+      "purpose": "SHA-256 administrative credential-command payload fingerprints; no persisted recovery bearer"
+    },
+    {
+      "path": "apps/backend/app/services/password_service.ts",
+      "purpose": "Bounded scrypt password hashing with N=131072, r=8, p=1, random 16-byte salts and constant-time verification; stored parameters are checked before derivation"
+    },
+    {
+      "path": "apps/backend/app/services/password_screening.ts",
+      "purpose": "SHA-1 password-range lookup for breached-password screening; only the hash prefix is sent and the password and complete hash are not logged or stored"
+    },
+    {
+      "path": "apps/backend/app/services/auth/request_limit.ts",
+      "purpose": "SHA-256 fingerprints of the explicitly trusted client address for private native sign-in and API rate-limiter keys"
     }
   ]
 }

@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from "react";
 import type { FormEvent } from "react";
 import { useParams } from "react-router-dom";
-import { API_BASE, isServerConfigured } from "@/data/apiConfig";
+import { isServerConfigured } from "@/data/apiConfig";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -10,9 +10,9 @@ import { APP_NAME } from "@capacitylens/shared/brand";
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
 import { resolveResetPasswordFailureMessage } from "./resetPasswordFailure";
 import { m } from "@/i18n";
-import { createRequestSignal } from "@/data/requestTimeout";
+import { authClient } from "./authClient";
 
-// Password recovery must render before a session exists. The public redeem request keeps this lazy route independent of the auth client bundle; the server enforces token consumption and password policy.
+// Password recovery must render before a session exists. The server enforces token consumption and password policy.
 
 type State = { kind: "form" } | { kind: "working" } | { kind: "done" } | { kind: "unknown" } | { kind: "local" };
 
@@ -146,6 +146,10 @@ export function ResetPassword() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!token) {
+      setError(m.reset_err_missing_token());
+      return;
+    }
     const validationError = resolvePasswordValidationError(token, password, confirm);
     if (validationError) {
       setError(validationError);
@@ -154,26 +158,20 @@ export function ResetPassword() {
     setError(null);
     setState({ kind: "working" });
     try {
-      const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newPassword: password, token }),
-        signal: createRequestSignal(),
-      });
-      if (res.ok) {
+      const res = await authClient.resetPassword({ newPassword: password, token });
+      if (!res.error) {
         setState({ kind: "done" });
         return;
       }
       // A proxy-generated timeout/5xx can arrive after the upstream consumed the one-use token and
       // changed the password. Do not reopen the form and invite a misleading retry; use the same
       // honest verification path as a transport failure.
-      if (res.status === 408 || res.status >= 500) {
+      if (res.error.status === 408 || res.error.status >= 500) {
         setError(null);
         setState({ kind: "unknown" });
         return;
       }
-      const body = (await res.json().catch(() => ({}))) as { code?: string };
-      setError(resolveResetPasswordFailureMessage(body, res.status));
+      setError(resolveResetPasswordFailureMessage(res.error.code ? { code: res.error.code } : {}, res.error.status));
       setState({ kind: "form" });
     } catch (error) {
       // A pre-response transport error (server down, DNS, offline), surface a generic, actionable

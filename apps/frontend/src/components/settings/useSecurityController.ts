@@ -54,7 +54,7 @@ function usePasswordChange({ fail, clear, setMessage, setBusy }: PasswordChangeI
     try {
       const result = await authClient.changePassword({ currentPassword, newPassword, revokeOtherSessions: true });
       if (requestGeneration !== generation.current) return;
-      if (result.error) return fail("current", result.error.message ?? m.settings_security_err_password_change());
+      if (result.error) return fail("current", result.error.message);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");

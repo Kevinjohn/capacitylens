@@ -46,3 +46,5 @@ jobs:
       - run: pnpm exec playwright test --project=chromium
       - run: pnpm run lanes --stop-orphans
       - run: pnpm exec playwright test --project=db-backed
+      - run: pnpm run lanes --stop-orphans
+      - run: pnpm exec playwright test --project=auth-backed e2e/input-contract.auth.spec.ts

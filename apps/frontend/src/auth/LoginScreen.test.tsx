@@ -2,12 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-// Mock the Better Auth client so the forms can submit without a real server. signIn.email /
-// signUp.email return the library's failure shape ({ error }) so each form sets its inline error
+// Mock the product auth client so the forms can submit without a real server. Its methods return
+// a typed { data, error } result so each form sets its inline error
 // and the per-control describedby wires up.
 const signInEmail = vi.fn();
 const signInSocial = vi.fn();
 const signUpEmail = vi.fn();
+const requestPasswordReset = vi.fn();
 vi.mock("./authClient", () => ({
   authClient: {
     signIn: {
@@ -15,6 +16,7 @@ vi.mock("./authClient", () => ({
       social: (...args: unknown[]) => signInSocial(...args),
     },
     signUp: { email: (...args: unknown[]) => signUpEmail(...args) },
+    requestPasswordReset: (...args: unknown[]) => requestPasswordReset(...args),
   },
 }));
 
@@ -27,6 +29,7 @@ beforeEach(() => {
   signInEmail.mockReset();
   signInSocial.mockReset();
   signUpEmail.mockReset();
+  requestPasswordReset.mockReset();
 });
 
 function setsDescriptiveTitleOutsideAppShell() {
@@ -69,7 +72,7 @@ async function mapsApplicationOwnedCallbackCodeToActionableCopy(code: string, ex
 }
 
 async function keepsProviderRedirectPendingAfterDispatchingNamedSocialProvider() {
-  signInSocial.mockResolvedValue({ data: {}, error: null });
+  signInSocial.mockResolvedValue({ data: { url: "https://accounts.example.test/start" }, error: null });
   window.history.replaceState({}, "", "/invite/token?source=mail");
   render(
     <LoginScreen
@@ -154,15 +157,15 @@ describe("LoginScreen — per-control error cues (WCAG 3.3.1)", () => {
     expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
   });
 
-  it("uses the generic fallback when password sign-in fails without a message", async () => {
-    signInEmail.mockResolvedValue({ data: null, error: {} });
+  it("surfaces the product API message for password sign-in rejection", async () => {
+    signInEmail.mockResolvedValue({ data: null, error: { message: "Invalid email or password." } });
     render(<LoginScreen authMode="password-only" onSignedIn={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrong-password" } });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_failed());
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid email or password.");
   });
 
   it("normalizes a pasted sign-in email before authenticating", async () => {
@@ -429,14 +432,14 @@ function registerOwnerSetupErrorTests() {
     expect(loggedValues).not.toContain(token);
   });
 
-  it("uses the setup fallback when owner signup fails without a message", async () => {
-    signUpEmail.mockResolvedValue({ data: null, error: {} });
+  it("surfaces the product API message when owner sign-up is refused", async () => {
+    signUpEmail.mockResolvedValue({ data: null, error: { message: "Sign-up is unavailable." } });
     render(<LoginScreen authMode="password-only" needsSetup onSignedIn={vi.fn()} />);
     fillOwnerSetup();
 
     fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_setup_failed());
+    expect(await screen.findByRole("alert")).toHaveTextContent("Sign-up is unavailable.");
     expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeEnabled();
   });
 }
@@ -481,10 +484,10 @@ function registerOwnerSetupValidationTests() {
 
 function registerOwnerSetupAccessibilityAndRaceTests() {
   it("drops out of setup into the ordinary sign-in form when another operator wins the setup race", async () => {
-    // Better Auth's live per-request gate (server/src/auth.ts) refuses a second sign-up with this
+    // The native first-owner gate refuses a second sign-up with this
     // exact typed code once a user exists, the shape a losing second tab/operator would see.
     signUpEmail.mockResolvedValue({
-      error: { message: "Email and password sign up is not enabled", code: "EMAIL_PASSWORD_SIGN_UP_DISABLED" },
+      error: { message: "Sign-up is closed.", code: "SIGN_UP_CLOSED" },
     });
     const onSignedIn = vi.fn();
     render(<LoginScreen authMode="password-only" needsSetup onSignedIn={onSignedIn} />);
@@ -524,18 +527,16 @@ describe("LoginScreen — first-run owner setup (needsSetup)", () => {
 
 describe("LoginScreen — provider failures", () => {
   const provider = { id: "google", label: "Google", kind: "social", experimental: true } as const;
-  type ProviderResponse = { data: Record<string, never>; error: null };
+  type ProviderResponse = { data: { url: string }; error: null };
 
-  it.each([
-    [{ message: "Provider refused the request." }, "Provider refused the request."],
-    [{}, m.login_failed()],
-  ])("surfaces a provider failure and re-enables controls", async (error, expected) => {
+  it("surfaces a provider API refusal and re-enables controls", async () => {
+    const error = { message: "Provider refused the request." };
     signInSocial.mockResolvedValue({ data: null, error });
     render(<LoginScreen authMode="sso-only" providers={[provider]} onSignedIn={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(expected);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Provider refused the request.");
     expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeEnabled();
   });
 
@@ -552,7 +553,7 @@ describe("LoginScreen — provider failures", () => {
       expect(await screen.findByRole("status")).toHaveTextContent("Redirecting to Google…");
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
       expect(button).toBeDisabled();
-      resolveProvider({ data: {}, error: null });
+      resolveProvider({ data: { url: "https://accounts.example.test/start" }, error: null });
       await providerResponse;
       await waitFor(() => {
         expect(screen.getByRole("status")).toHaveTextContent("Redirecting to Google…");
@@ -564,7 +565,7 @@ describe("LoginScreen — provider failures", () => {
 
   it("clears a prior provider error before announcing the redirect", async () => {
     signInSocial.mockResolvedValueOnce({ data: null, error: { message: "Provider refused the request." } });
-    signInSocial.mockResolvedValueOnce({ data: {}, error: null });
+    signInSocial.mockResolvedValueOnce({ data: { url: "https://accounts.example.test/start" }, error: null });
     render(<LoginScreen authMode="sso-only" providers={[provider]} onSignedIn={vi.fn()} />);
 
     const button = screen.getByRole("button", { name: "Sign in with Google" });
@@ -618,7 +619,7 @@ describe("LoginScreen — unsaved session-expiry notice", () => {
 });
 
 it("reveals email password recovery and shows a neutral confirmation", async () => {
-  const request = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 200 }));
+  requestPasswordReset.mockResolvedValue({ data: { ok: true }, error: null });
   render(<LoginScreen authMode="password-only" passwordResetEmail onSignedIn={vi.fn()} />);
   expect(screen.queryByTestId("forgot-password-email")).not.toBeInTheDocument();
   fireEvent.click(screen.getByTestId("forgot-password"));
@@ -627,12 +628,5 @@ it("reveals email password recovery and shows a neutral confirmation", async () 
   expect(await screen.findByTestId("forgot-password-confirmation")).toHaveTextContent(
     "If an account uses that address, we've emailed a reset link.",
   );
-  expect(request).toHaveBeenCalledWith(
-    "/api/auth/request-password-reset",
-    expect.objectContaining({
-      method: "POST",
-      body: JSON.stringify({ email: "bruce@example.test" }),
-    }),
-  );
-  request.mockRestore();
+  expect(requestPasswordReset).toHaveBeenCalledWith("bruce@example.test");
 });

@@ -16,7 +16,7 @@ const migration = (direction: 'up' | 'down') =>
     app,
     direction === 'up'
       ? { direction, disableLocks: true }
-      : { direction, step: 1, disableLocks: true }
+      : { direction, step: 2, disableLocks: true }
   )
 
 test.group('M2b deletion audit retention', (group) => {
@@ -71,27 +71,30 @@ test.group('M2b deletion audit retention', (group) => {
     const columns = await db.rawQuery('PRAGMA table_info(audit_entries)')
     const down = migration('down')
     await down.run()
-    assert.isNull(down.error)
-    assert.deepEqual(await db.from('audit_entries').orderBy('id'), rows)
-    assert.deepEqual(await db.rawQuery('PRAGMA table_info(audit_entries)'), columns)
-    assert.isTrue(
-      (
-        (await db.rawQuery('PRAGMA foreign_key_list(audit_entries)')) as Array<{
-          table: string
-          on_delete: string
-        }>
-      ).some((key) => key.table === 'accounts' && key.on_delete === 'CASCADE')
-    )
-    assert.isTrue(
-      ((await db.rawQuery('PRAGMA index_list(audit_entries)')) as Array<{ name: string }>).some(
-        (index) => index.name.includes('account_id')
+    try {
+      assert.isNull(down.error)
+      assert.deepEqual(await db.from('audit_entries').orderBy('id'), rows)
+      assert.deepEqual(await db.rawQuery('PRAGMA table_info(audit_entries)'), columns)
+      assert.isTrue(
+        (
+          (await db.rawQuery('PRAGMA foreign_key_list(audit_entries)')) as Array<{
+            table: string
+            on_delete: string
+          }>
+        ).some((key) => key.table === 'accounts' && key.on_delete === 'CASCADE')
       )
-    )
-    const orphan = { ...rows[0], id: 'audit-orphan', account_id: 'missing-account' }
-    await assert.rejects(() => db.table('audit_entries').insert(orphan))
-    const up = migration('up')
-    await up.run()
-    assert.isNull(up.error)
+      assert.isTrue(
+        ((await db.rawQuery('PRAGMA index_list(audit_entries)')) as Array<{ name: string }>).some(
+          (index) => index.name.includes('account_id')
+        )
+      )
+      const orphan = { ...rows[0], id: 'audit-orphan', account_id: 'missing-account' }
+      await assert.rejects(() => db.table('audit_entries').insert(orphan))
+    } finally {
+      const up = migration('up')
+      await up.run()
+      assert.isNull(up.error)
+    }
     assert.deepEqual(await db.from('audit_entries').orderBy('id'), rows)
     assert.deepEqual(await db.rawQuery('PRAGMA table_info(audit_entries)'), columns)
     assert.isFalse(
@@ -196,10 +199,25 @@ test.group('M2b deletion audit retention', (group) => {
     const schema = await db.rawQuery('PRAGMA foreign_key_list(audit_entries)')
     const refused = migration('down')
     await refused.run()
-    assert.match(String(refused.error), /Cannot restore audit account foreign key/)
-    assert.deepEqual(await db.from('adonis_schema').orderBy('id'), journal)
-    assert.deepEqual(await db.rawQuery('PRAGMA foreign_key_list(audit_entries)'), schema)
-    assert.lengthOf(await db.from('audit_entries').where('account_id', 'a-audit-wayne'), 2)
+    try {
+      assert.match(String(refused.error), /Cannot restore audit account foreign key/)
+      assert.lengthOf(await db.from('adonis_schema'), journal.length - 1)
+      assert.deepEqual(await db.rawQuery('PRAGMA foreign_key_list(audit_entries)'), schema)
+      assert.lengthOf(await db.from('audit_entries').where('account_id', 'a-audit-wayne'), 2)
+    } finally {
+      const restore = migration('up')
+      await restore.run()
+      assert.isNull(restore.error)
+    }
+    const restoredJournal = await db.from('adonis_schema').orderBy('id')
+    assert.sameMembers(
+      restoredJournal.map((entry) => entry.name),
+      journal.map((entry) => entry.name)
+    )
+    assert.deepEqual(
+      restoredJournal.filter((entry) => !String(entry.name).includes('create_native_auth_storage')),
+      journal.filter((entry) => !String(entry.name).includes('create_native_auth_storage'))
+    )
     await db.from('audit_entries').where('account_id', 'a-audit-wayne').delete()
   })
 

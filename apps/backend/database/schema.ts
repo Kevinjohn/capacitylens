@@ -23,6 +23,25 @@ export class AccountAccessRestrictionSchema extends BaseModel {
   declare verifiedEmail: string | null
 }
 
+export class AccountEmailChangeSchema extends BaseModel {
+  static $columns = ['createdAt', 'currentEmail', 'expiresAt', 'id', 'newEmail', 'tokenHash', 'userId'] as const
+  $columns = AccountEmailChangeSchema.$columns
+  @column()
+  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare currentEmail: string
+  @column()
+  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare newEmail: string
+  @column()
+  declare tokenHash: string
+  @column()
+  declare userId: string
+}
+
 export class AccountGettingStartedDismissalSchema extends BaseModel {
   static $columns = ['accountId', 'createdAt', 'id', 'updatedAt'] as const
   $columns = AccountGettingStartedDismissalSchema.$columns
@@ -70,6 +89,32 @@ export class AccountMemberResourceSchema extends BaseModel {
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column()
   declare userId: string
+}
+
+export class AccountRecoveryTokenSchema extends BaseModel {
+  static $columns = ['createdAt', 'email', 'expiresAt', 'id', 'tokenHash', 'userId'] as const
+  $columns = AccountRecoveryTokenSchema.$columns
+  @column()
+  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare email: string
+  @column()
+  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare tokenHash: string
+  @column()
+  declare userId: string
+}
+
+export class AccountTransactionLockSchema extends BaseModel {
+  static $columns = ['id', 'version'] as const
+  $columns = AccountTransactionLockSchema.$columns
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare version: number
 }
 
 export class AccountSchema extends BaseModel {
@@ -134,6 +179,19 @@ export class ActivitySchema extends BaseModel {
   declare projectId: string | null
   @column()
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+}
+
+export class AdonisSessionSchema extends BaseModel {
+  static $columns = ['data', 'expiresAt', 'id', 'userId'] as const
+  $columns = AdonisSessionSchema.$columns
+  @column()
+  declare data: string
+  @column()
+  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare userId: string | null
 }
 
 export class AllocationSchema extends BaseModel {
@@ -273,7 +331,7 @@ export class ClosureSchema extends BaseModel {
 }
 
 export class CommandResultSchema extends BaseModel {
-  static $columns = ['accountId', 'commandId', 'createdAt', 'id', 'payloadHash', 'result', 'updatedAt'] as const
+  static $columns = ['accountId', 'commandId', 'createdAt', 'id', 'idempotencyKey', 'operation', 'payloadHash', 'result', 'updatedAt'] as const
   $columns = CommandResultSchema.$columns
   @column()
   declare accountId: string | null
@@ -283,6 +341,10 @@ export class CommandResultSchema extends BaseModel {
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column({ isPrimary: true })
   declare id: string
+  @column()
+  declare idempotencyKey: string | null
+  @column()
+  declare operation: string | null
   @column()
   declare payloadHash: string
   @column()
@@ -569,20 +631,14 @@ export class ProviderIdentitySchema extends BaseModel {
 }
 
 export class RateLimitSchema extends BaseModel {
-  static $columns = ['createdAt', 'hits', 'id', 'key', 'resetAt', 'updatedAt'] as const
+  static $columns = ['expire', 'key', 'points'] as const
   $columns = RateLimitSchema.$columns
   @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column()
-  declare hits: number
+  declare expire: bigint | number | null
   @column({ isPrimary: true })
-  declare id: string
-  @column()
   declare key: string
   @column()
-  declare resetAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  declare points: number
 }
 
 export class ResourceSchema extends BaseModel {
@@ -673,8 +729,12 @@ export class TimeOffSchema extends BaseModel {
 }
 
 export class UserSessionIndexSchema extends BaseModel {
-  static $columns = ['sessionId', 'userId'] as const
+  static $columns = ['authenticatedAt', 'lastActivityAt', 'sessionId', 'userId'] as const
   $columns = UserSessionIndexSchema.$columns
+  @column()
+  declare authenticatedAt: bigint | number | null
+  @column()
+  declare lastActivityAt: bigint | number | null
   @column()
   declare sessionId: string
   @column({ isPrimary: true })
@@ -682,7 +742,7 @@ export class UserSessionIndexSchema extends BaseModel {
 }
 
 export class UserSchema extends BaseModel {
-  static $columns = ['createdAt', 'displayName', 'email', 'emailVerified', 'id', 'updatedAt'] as const
+  static $columns = ['createdAt', 'displayName', 'email', 'emailVerified', 'id', 'passwordHash', 'updatedAt'] as const
   $columns = UserSchema.$columns
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
@@ -694,6 +754,8 @@ export class UserSchema extends BaseModel {
   declare emailVerified: boolean
   @column({ isPrimary: true })
   declare id: string
+  @column()
+  declare passwordHash: string | null
   @column()
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }

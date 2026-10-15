@@ -78,6 +78,54 @@ const routes = {
     tokens: [{"old":"/api/health","type":0,"val":"api","end":""},{"old":"/api/health","type":0,"val":"health","end":""}],
     types: placeholder as Registry['api.health']['types'],
   },
+  'api.auth.me': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/auth/me',
+    tokens: [{"old":"/api/auth/me","type":0,"val":"api","end":""},{"old":"/api/auth/me","type":0,"val":"auth","end":""},{"old":"/api/auth/me","type":0,"val":"me","end":""}],
+    types: placeholder as Registry['api.auth.me']['types'],
+  },
+  'api.auth.sign-up': {
+    methods: ["POST"],
+    pattern: '/api/auth/sign-up',
+    tokens: [{"old":"/api/auth/sign-up","type":0,"val":"api","end":""},{"old":"/api/auth/sign-up","type":0,"val":"auth","end":""},{"old":"/api/auth/sign-up","type":0,"val":"sign-up","end":""}],
+    types: placeholder as Registry['api.auth.sign-up']['types'],
+  },
+  'api.auth.sign-in': {
+    methods: ["POST"],
+    pattern: '/api/auth/sign-in',
+    tokens: [{"old":"/api/auth/sign-in","type":0,"val":"api","end":""},{"old":"/api/auth/sign-in","type":0,"val":"auth","end":""},{"old":"/api/auth/sign-in","type":0,"val":"sign-in","end":""}],
+    types: placeholder as Registry['api.auth.sign-in']['types'],
+  },
+  'api.auth.sign-out': {
+    methods: ["POST"],
+    pattern: '/api/auth/sign-out',
+    tokens: [{"old":"/api/auth/sign-out","type":0,"val":"api","end":""},{"old":"/api/auth/sign-out","type":0,"val":"auth","end":""},{"old":"/api/auth/sign-out","type":0,"val":"sign-out","end":""}],
+    types: placeholder as Registry['api.auth.sign-out']['types'],
+  },
+  'api.auth.provider-start': {
+    methods: ["POST"],
+    pattern: '/api/auth/provider-start',
+    tokens: [{"old":"/api/auth/provider-start","type":0,"val":"api","end":""},{"old":"/api/auth/provider-start","type":0,"val":"auth","end":""},{"old":"/api/auth/provider-start","type":0,"val":"provider-start","end":""}],
+    types: placeholder as Registry['api.auth.provider-start']['types'],
+  },
+  'api.auth.request-reset': {
+    methods: ["POST"],
+    pattern: '/api/auth/request-reset',
+    tokens: [{"old":"/api/auth/request-reset","type":0,"val":"api","end":""},{"old":"/api/auth/request-reset","type":0,"val":"auth","end":""},{"old":"/api/auth/request-reset","type":0,"val":"request-reset","end":""}],
+    types: placeholder as Registry['api.auth.request-reset']['types'],
+  },
+  'api.auth.reset-password': {
+    methods: ["POST"],
+    pattern: '/api/auth/reset-password',
+    tokens: [{"old":"/api/auth/reset-password","type":0,"val":"api","end":""},{"old":"/api/auth/reset-password","type":0,"val":"auth","end":""},{"old":"/api/auth/reset-password","type":0,"val":"reset-password","end":""}],
+    types: placeholder as Registry['api.auth.reset-password']['types'],
+  },
+  'api.auth.change-password': {
+    methods: ["POST"],
+    pattern: '/api/auth/change-password',
+    tokens: [{"old":"/api/auth/change-password","type":0,"val":"api","end":""},{"old":"/api/auth/change-password","type":0,"val":"auth","end":""},{"old":"/api/auth/change-password","type":0,"val":"change-password","end":""}],
+    types: placeholder as Registry['api.auth.change-password']['types'],
+  },
 } as const satisfies Record<string, AdonisEndpoint>
 
 export { routes }

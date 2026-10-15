@@ -6,7 +6,10 @@ import { fileURLToPath } from 'node:url'
 import { healthChecks } from '#start/health'
 import { reportCspViolation } from '#services/csp_report'
 import { middleware } from '#start/kernel'
-import db from '@adonisjs/lucid/services/db'
+import { registerAuthRoutes } from '#start/auth_routes'
+import { authMode } from '#services/auth/mode'
+import { resolveCurrentActor } from '#services/auth/session_authority'
+import { withTransaction } from '#services/with_transaction'
 
 const BatchController = () => import('#controllers/batch_controller')
 const LifecycleController = () => import('#controllers/lifecycle_controller')
@@ -75,19 +78,19 @@ router.get('/api/diagnostics', async ({ response }) => {
     })
   }
 })
-router.get('/api/auth/me', async ({ auth }) => {
-  const user = auth.use('trustedLocal').getUserOrFail()
-  const multiAccount = env.get('CAPACITYLENS_MULTI_ACCOUNT') === true
-  const hasCompany = Boolean(await db.from('accounts').select('id').first())
-  return {
-    authMode: 'off',
-    user,
-    providers: [],
-    multiAccount,
-    canCreateAccount: multiAccount || !hasCompany,
+registerAuthRoutes()
+router.get('/api/accounts', async (ctx) => {
+  if (authMode() !== 'off') {
+    return withTransaction(async (trx) => {
+      const actor = await resolveCurrentActor(ctx, trx)
+      const rows = await trx
+        .from('memberships as member')
+        .innerJoin('accounts as account', 'account.id', 'member.account_id')
+        .where({ 'member.user_id': actor.userId, 'member.status': 'active' })
+        .select('account.id', 'account.name', 'member.role')
+      return rows.sort((left, right) => String(left.name).localeCompare(String(right.name)))
+    })
   }
-})
-router.get('/api/accounts', async () => {
   const state = await readState()
   return state.accounts
     .map(({ id, name }: AccountRow) => ({ id, name, role: 'owner' }))

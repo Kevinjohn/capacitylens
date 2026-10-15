@@ -21,9 +21,9 @@ export const AUTH_PASSWORD = "demo-password-123456";
  */
 export const BOOTSTRAP_ADMIN = { email: "admin@admin.admin", password: "auth-e2e-password-2026" };
 
-/** The operator bootstrap token (set in server's start:auth-e2e script). The auth-e2e DB is seeded,
- * so a fresh sign-up is not a first-run bootstrap and holds no membership, this is the documented
- * operator path to provision an org (`POST /api/orgs`) on an already-populated instance. */
+/** The operator bootstrap token (set in server's start:auth-e2e script). A fresh sign-up is not a
+ * first-run bootstrap and holds no membership; this is the documented operator path to provision
+ * an org (`POST /api/orgs`) on an already-populated instance. */
 export const BOOTSTRAP_TOKEN = "auth-e2e-bootstrap-token-0123456789abcdef";
 
 function cookiesOf(setCookie: string): string {
@@ -35,7 +35,7 @@ function cookiesOf(setCookie: string): string {
 }
 
 async function postSignUp(ctx: APIRequestContext, email: string, name = email.split("@")[0]): Promise<string> {
-  const res = await ctx.post(`${AUTH_API}/api/auth/sign-up/email`, {
+  const res = await ctx.post(`${AUTH_API}/api/auth/sign-up`, {
     data: { email, password: AUTH_PASSWORD, name },
   });
   expect(res.ok(), `sign-up ${email}`).toBeTruthy();
@@ -70,11 +70,10 @@ export function seedFixtureMember(accountId: string, email: string, role: "admin
  * sign-in. When the test needs the user ID (for a PATCH/DELETE .../members/<userId> or a
  * toUserId transfer), use signUpUserWithId; it makes a second request to GET /api/auth/me.
  *
- * Each user gets a separate context because an APIRequestContext keeps a cookie jar. Better Auth
- * rejects a sign-up request when that jar is already authenticated, so one user's session cannot
- * be reused for another sign-up. Better Auth signs the new user in during sign-up, and its
- * Set-Cookie header contains the session. This matches the server unit fixtures, which do not need
- * a separate sign-in or email step. Callers add a unique suffix to each email so a reused server
+ * Each user gets a separate context because an APIRequestContext keeps a cookie jar. Product
+ * sign-up creates a session in the same request, and its Set-Cookie header belongs only to this
+ * fixture. This matches the server unit fixtures, which do not need a separate sign-in or email
+ * step. Callers add a unique suffix to each email so a reused server
  * does not encounter duplicates.
  */
 export async function signUpUser(email: string, name?: string): Promise<{ email: string; cookie: string }> {

@@ -16,6 +16,14 @@ export type ScannedRoutes = {
     'api.getting-started.update': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.lifecycle': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'entity': ParamValue,'id': ParamValue,'action': ParamValue} }
     'api.health': { paramsTuple?: []; params?: {} }
+    'api.auth.me': { paramsTuple?: []; params?: {} }
+    'api.auth.sign-up': { paramsTuple?: []; params?: {} }
+    'api.auth.sign-in': { paramsTuple?: []; params?: {} }
+    'api.auth.sign-out': { paramsTuple?: []; params?: {} }
+    'api.auth.provider-start': { paramsTuple?: []; params?: {} }
+    'api.auth.request-reset': { paramsTuple?: []; params?: {} }
+    'api.auth.reset-password': { paramsTuple?: []; params?: {} }
+    'api.auth.change-password': { paramsTuple?: []; params?: {} }
   }
   POST: {
     'api.batch': { paramsTuple?: []; params?: {} }
@@ -24,16 +32,25 @@ export type ScannedRoutes = {
     'api.accounts.store': { paramsTuple?: []; params?: {} }
     'api.example-data': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.lifecycle': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'entity': ParamValue,'id': ParamValue,'action': ParamValue} }
+    'api.auth.sign-up': { paramsTuple?: []; params?: {} }
+    'api.auth.sign-in': { paramsTuple?: []; params?: {} }
+    'api.auth.sign-out': { paramsTuple?: []; params?: {} }
+    'api.auth.provider-start': { paramsTuple?: []; params?: {} }
+    'api.auth.request-reset': { paramsTuple?: []; params?: {} }
+    'api.auth.reset-password': { paramsTuple?: []; params?: {} }
+    'api.auth.change-password': { paramsTuple?: []; params?: {} }
   }
   GET: {
     'api.state': { paramsTuple?: []; params?: {} }
     'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.health': { paramsTuple?: []; params?: {} }
+    'api.auth.me': { paramsTuple?: []; params?: {} }
   }
   HEAD: {
     'api.state': { paramsTuple?: []; params?: {} }
     'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.health': { paramsTuple?: []; params?: {} }
+    'api.auth.me': { paramsTuple?: []; params?: {} }
   }
   PATCH: {
     'api.accounts.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

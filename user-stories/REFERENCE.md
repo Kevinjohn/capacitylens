@@ -942,6 +942,13 @@ local mode, no login screen exists, Account has no credential controls, and loca
 auth request at all. The server's reported `authMode` is the single source of truth — there is no
 client-side auth flag.
 
+The product auth client uses `POST /api/auth/sign-in`, `POST /api/auth/sign-up` and
+`POST /api/auth/sign-out`. Password recovery uses `POST /api/auth/request-reset` and
+`POST /api/auth/reset-password`; a signed-in password change uses
+`POST /api/auth/change-password`. Provider redirects start through
+`POST /api/auth/provider-start`. These requests retain the existing form outcomes,
+setup-token header and flat error responses.
+
 **External provider action labels (login, invitation acceptance and reauthentication).** Provider
 reauthentication explains before redirect that returning does not complete the original action;
 the person must submit it again. The

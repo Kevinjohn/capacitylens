@@ -398,7 +398,7 @@
       "disposition": "port",
       "proposed_package": "apps/backend",
       "proposed_test_path": "tests/functional/operations/check_node.test.ts",
-      "reason": "§5 M4 explicitly carries scripts/check-node as the Node-version refusal check."
+      "reason": "\u00a75 M4 explicitly carries scripts/check-node as the Node-version refusal check."
     },
     {
       "source_path": "server/src/BatchStateProjection.test.ts",
@@ -765,7 +765,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/app.authz.test.ts",
@@ -826,7 +826,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/app.concurrency-ordered.test.ts",
@@ -1418,7 +1418,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/backup.health.test.ts",
@@ -1526,7 +1526,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/controlTables.test.ts",
@@ -1535,7 +1535,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/controlTables/accountMemberResources.concurrency.test.ts",
@@ -1684,7 +1684,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/db.writeAtomicity.test.ts",
@@ -1702,7 +1702,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/documentation.test.ts",
@@ -1997,7 +1997,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/runImportWorker.test.ts",
@@ -2024,7 +2024,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/sharedCore.test.ts",
@@ -2042,7 +2042,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/signInModes.test.ts",
@@ -2060,7 +2060,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/tables.test.ts",
@@ -2069,7 +2069,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/tables/columns.test.ts",
@@ -2078,7 +2078,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/testHelpers/passwordAuth.test.ts",
@@ -2105,7 +2105,7 @@
       "disposition": "retire",
       "proposed_package": null,
       "proposed_test_path": null,
-      "reason": "§5 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
+      "reason": "\u00a75 assigns the mechanic to AdonisJS/Knex/Lucid or deletes it; rowCodec corruption case moves to JSON rule; app.concurrency-direct guarantee remains in batch form."
     },
     {
       "source_path": "server/src/userStories.test.ts",
@@ -2549,14 +2549,18 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3a",
             "milestone": "M3a",
-            "package": "apps/backend/tests/functional/auth"
+            "package": "apps/backend/start/auth_routes.ts",
+            "method": "POST",
+            "path": "/api/auth/sign-out",
+            "source": "apps/frontend/src/auth/authClient.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 {ok:true} success; typed failures map through account status mapping",
             "source": "server/src/accounts/accountRoutes.ts:64; server/src/accounts/routes/handlers/session.ts:20-38; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:73"
         },
         {
           "method": "PATCH",
@@ -2577,7 +2581,8 @@
           "legacy_response_status_contract": {
             "status": "204 corrected email; 400 invalid email/provider; 403 authorization/identity restriction; 409 mode conflict; unexpected 500",
             "source": "server/src/accounts/federatedIdentityRoutes.ts:138-157,166-210"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:78-88"
         },
         {
           "method": "DELETE",
@@ -2598,7 +2603,8 @@
           "legacy_response_status_contract": {
             "status": "204 unlink; 400 invalid coordinates/provider; 403 authorization/identity restriction; 409 concurrent conflict; unexpected 500",
             "source": "server/src/accounts/federatedIdentityRoutes.ts:232-255,263-315"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:91-105"
         },
         {
           "method": "POST",
@@ -2619,7 +2625,8 @@
           "legacy_response_status_contract": {
             "status": "201 provisioned product row; 400 non-object body; typed command/provider/cap/auth refusals use statusForAccountFailure; unexpected errors 500",
             "source": "server/src/routes/stateRoutes.ts:217-280; shared/src/account/errors.ts:55-96; server/src/routes/appRootHooks.ts:247-264; server/src/routes/appErrors.ts:37-75"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:108-113; src/account/accountRequestTypes.ts:5-9"
         },
         {
           "method": "POST",
@@ -2640,7 +2647,8 @@
           "legacy_response_status_contract": {
             "status": "201 added count; 404 account missing; 403 insufficient authority; 409 company non-empty; unexpected error 500",
             "source": "server/src/routes/exampleDataRoutes.ts:62-101"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:116-122"
         },
         {
           "method": "DELETE",
@@ -2661,7 +2669,8 @@
           "legacy_response_status_contract": {
             "status": "204 account erasure/idempotent missing account; authorization or typed freshness/authority errors via accountFail; unexpected error 500",
             "source": "server/src/routes/accountEntity/lifecycleHandlers.ts:124-167; server/src/routes/accountEntityRoutes.ts:22-28; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:124-135"
         },
         {
           "method": "GET",
@@ -2682,7 +2691,8 @@
           "legacy_response_status_contract": {
             "status": "200 member projection or empty result in auth-off mode; authorization and typed failures use account status map",
             "source": "server/src/accounts/accountRoutes.ts:104-105; server/src/accounts/routes/handlers/memberAdmin.ts:60-124; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:138-142"
         },
         {
           "method": "GET",
@@ -2703,7 +2713,8 @@
           "legacy_response_status_contract": {
             "status": "200 avatar projection or empty result in auth-off mode; authorization 401/403",
             "source": "server/src/accounts/accountRoutes.ts:105-107; server/src/accounts/routes/handlers/memberAdmin.ts:127-141"
-          }
+          },
+          "current_source": "src/account/memberResourceClient.ts:7-9; src/account/accountClient.ts:144"
         },
         {
           "method": "PUT",
@@ -2787,7 +2798,8 @@
           "legacy_response_status_contract": {
             "status": "200 {enabled}; 400 invalid enabled; typed failures through account status map",
             "source": "server/src/accounts/routes/handlers/memberAdmin.ts:147-180; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:149-160"
         },
         {
           "method": "GET",
@@ -2808,7 +2820,8 @@
           "legacy_response_status_contract": {
             "status": "200 invitations or empty list in auth-off mode; authorization and typed failures use account status map",
             "source": "server/src/accounts/accountRoutes.ts:205-207; server/src/accounts/routes/handlers/invitation.ts:259-290; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:162-166"
         },
         {
           "method": "GET",
@@ -2871,7 +2884,8 @@
           "legacy_response_status_contract": {
             "status": "200 state; 400 invalid/self request; 401/403 auth or authority refusal; 404 nonmember; 409 already active or race; session expiry cannot be verified (null expiresAt) returns 503",
             "source": "server/src/routes/masqueradeRoutes.ts:98-152"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:170-177; src/account/accountClient.ts:8,170-177"
         },
         {
           "method": "GET",
@@ -2892,7 +2906,8 @@
           "legacy_response_status_contract": {
             "status": "200 inactive/current projection; 401 absent session; 403 off-mode, ended, or unauthorized",
             "source": "server/src/routes/masqueradeRoutes.ts:155-170"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:179-181"
         },
         {
           "method": "DELETE",
@@ -2913,7 +2928,8 @@
           "legacy_response_status_contract": {
             "status": "204 idempotent end; 400 invalid token/body; 403 off mode or refusal",
             "source": "server/src/routes/masqueradeRoutes.ts:172-185"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:183-189; src/account/accountClient.ts:8,183-189"
         },
         {
           "method": "PATCH",
@@ -2934,7 +2950,8 @@
           "legacy_response_status_contract": {
             "status": "200 changed member role; 400 invalid role; authorization and typed failures through account map",
             "source": "server/src/accounts/routes/handlers/memberAdmin.ts:186-230; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:192-202; src/account/accountClient.ts:20-25,192-202"
         },
         {
           "method": "PATCH",
@@ -2955,7 +2972,8 @@
           "legacy_response_status_contract": {
             "status": "200 changed member status; 400 invalid status; authorization and typed failures through account map",
             "source": "server/src/accounts/routes/handlers/memberAdmin.ts:237-283; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:205-216; src/account/accountClient.ts:47-52,205-216"
         },
         {
           "method": "POST",
@@ -2976,7 +2994,8 @@
           "legacy_response_status_contract": {
             "status": "200 access status; authorization and typed failures through account map",
             "source": "server/src/accounts/routes/handlers/memberAdmin.ts:289-322; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:218-229"
         },
         {
           "method": "DELETE",
@@ -2997,7 +3016,8 @@
           "legacy_response_status_contract": {
             "status": "204 member removed; authorization/authority and typed failures through account map",
             "source": "server/src/accounts/routes/handlers/memberAdmin.ts:318-364; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:231-242"
         },
         {
           "method": "GET",
@@ -3018,7 +3038,8 @@
           "legacy_response_status_contract": {
             "status": "200 transfer projection; 403 denied/masquerade; typed errors through account map",
             "source": "server/src/accounts/routes/handlers/ownershipTransfer.ts:57-80; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:244-249"
         },
         {
           "method": "POST",
@@ -3039,7 +3060,8 @@
           "legacy_response_status_contract": {
             "status": "201 initiated request; 400 invalid target/revision pair; 409 terminal conflict; typed permission errors through account map",
             "source": "server/src/accounts/routes/handlers/ownershipTransfer.ts:95-171; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:251-271; src/account/accountClient.ts:30-37,251-271"
         },
         {
           "method": "DELETE",
@@ -3060,7 +3082,8 @@
           "legacy_response_status_contract": {
             "status": "200 cancellation result; 400 missing revision; 409 terminal conflict; auth/typed failures through account map",
             "source": "server/src/accounts/routes/handlers/ownershipTransfer.ts:202-240; server/src/accounts/accountRoutes.ts:184-187; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:282-293; src/account/accountClient.ts:39-45,282-293"
         },
         {
           "method": "POST",
@@ -3081,7 +3104,8 @@
           "legacy_response_status_contract": {
             "status": "200 stepped request; 400 missing revision; 409 terminal conflict; auth/typed failures through account map",
             "source": "server/src/accounts/routes/handlers/ownershipTransfer.ts:202-240; server/src/accounts/accountRoutes.ts:162-182; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:282-293; src/account/accountClient.ts:27-45,282-293"
         },
         {
           "method": "POST",
@@ -3102,7 +3126,8 @@
           "legacy_response_status_contract": {
             "status": "201 reset token; 400 password reset unavailable; typed authority/freshness errors through account map",
             "source": "server/src/accounts/routes/handlers/credentialAdmin.ts:20-70; server/src/accounts/accountRoutes.ts:192-194; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:297-307"
         },
         {
           "method": "POST",
@@ -3123,7 +3148,8 @@
           "legacy_response_status_contract": {
             "status": "204 sessions revoked; 400 auth disabled/off; typed authority errors through account map",
             "source": "server/src/accounts/routes/handlers/credentialAdmin.ts:85-134; server/src/accounts/accountRoutes.ts:199-201; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:310-320"
         },
         {
           "method": "POST",
@@ -3144,7 +3170,8 @@
           "legacy_response_status_contract": {
             "status": "201 invitation receipt; invalid payload/policy errors map through account status helper",
             "source": "server/src/accounts/routes/handlers/invitation.ts:41-106; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:323-332; src/account/accountClient.ts:10,323-332; src/account/accountRequestTypes.ts:11-17"
         },
         {
           "method": "DELETE",
@@ -3165,7 +3192,8 @@
           "legacy_response_status_contract": {
             "status": "204 revoke (even if no invitation exists); authorization and typed errors through account map",
             "source": "server/src/accounts/routes/handlers/invitation.ts:320-337; server/src/accounts/accountRoutes.ts:209-211; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:335-345"
         },
         {
           "method": "GET",
@@ -3186,7 +3214,8 @@
           "legacy_response_status_contract": {
             "status": "200 safe preview; token/domain failures mapped through accountFail",
             "source": "server/src/accounts/accountRoutes.ts:86-88; server/src/accounts/routes/handlers/invitation.ts:112-133; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:348-352"
         },
         {
           "method": "POST",
@@ -3207,7 +3236,8 @@
           "legacy_response_status_contract": {
             "status": "200 accountId/role; missing actor or provider/token errors map through account status helper; reused token 409",
             "source": "server/src/accounts/routes/handlers/invitation.ts:148-210; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:354-363"
         },
         {
           "method": "POST",
@@ -3228,7 +3258,8 @@
           "legacy_response_status_contract": {
             "status": "201 signup receipt; disabled 404; invalid body 400; typed failures through helper",
             "source": "server/src/accounts/routes/handlers/invitation.ts:216-253; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:366-375; src/account/accountClient.ts:10,366-375; src/account/accountRequestTypes.ts:19-23"
         },
         {
           "method": "POST",
@@ -3249,7 +3280,8 @@
           "legacy_response_status_contract": {
             "status": "200 command receipt; malformed command 400; missing command 404; typed errors through account status map",
             "source": "server/src/accounts/accountRoutes.ts:62; server/src/accounts/routes/handlers/reconcile.ts:10-66; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/account/accountClient.ts:378-388"
         },
         {
           "method": "GET",
@@ -3578,14 +3610,18 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "implemented-in-M3a",
+            "milestone": "M3a",
+            "package": "apps/backend/start/auth_routes.ts",
+            "method": "POST",
+            "path": "/api/auth/request-reset",
+            "source": "apps/frontend/src/auth/authClient.ts"
           },
           "legacy_response_status_contract": {
             "status": "local proxy 404 unless password mode and reset email configured; otherwise Better Auth response status/body forwarded unchanged",
             "source": "server/src/routes/authProxyRoutes.ts:30-49,302-367,370-378"
-          }
+          },
+          "current_source": "src/auth/ForgotPassword.tsx:28-29"
         },
         {
           "method": "POST",
@@ -3599,14 +3635,18 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "implemented-in-M3a",
+            "milestone": "M3a",
+            "package": "apps/backend/start/auth_routes.ts",
+            "method": "POST",
+            "path": "/api/auth/reset-password",
+            "source": "apps/frontend/src/auth/authClient.ts"
           },
           "legacy_response_status_contract": {
             "status": "local proxy errors 404 unconfigured/disallowed, 400 invalid URL, 403 local policy refusal; otherwise Better Auth response status/body forwarded unchanged; observed 400 for reused reset token (`e2e/reset-password.auth.spec.ts:79-84`); sso-only refusal 404 (`server/src/app.auth.providers.test.ts:45-56`)",
             "source": "server/src/routes/authProxyRoutes.ts:30-49,302-367,370-378"
-          }
+          },
+          "current_source": "src/auth/ResetPassword.tsx:161-162"
         },
         {
           "method": "GET",
@@ -3769,14 +3809,18 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "implemented-in-M3a",
+            "milestone": "M3a",
+            "package": "apps/backend/start/auth_routes.ts",
+            "method": "POST",
+            "path": "/api/auth/sign-up",
+            "source": "apps/frontend/src/auth/authClient.ts"
           },
           "legacy_response_status_contract": {
             "status": "local proxy errors 404 unconfigured/disallowed, 400 invalid URL, 403 local policy refusal; otherwise Better Auth response status/body forwarded unchanged; observed pass-through 200 successful signup (`server/src/app.auth.proxySurface.test.ts:48-51`; also `server/src/app.auth.test.ts:626-651`); duplicate signup 422 when reused (`e2e/login.auth.spec.ts:22-30`)",
             "source": "server/src/routes/authProxyRoutes.ts:30-49,302-367,370-378"
-          }
+          },
+          "current_source": "src/auth/useOwnerSetup.ts:97; src/auth/authClient.ts:10-109; src/auth/useOwnerSetup.ts:97-102"
         },
         {
           "method": "POST",
@@ -3790,14 +3834,18 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
-            "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "status": "implemented-in-M3a",
+            "milestone": "M3a",
+            "package": "apps/backend/start/auth_routes.ts",
+            "method": "POST",
+            "path": "/api/auth/sign-in",
+            "source": "apps/frontend/src/auth/authClient.ts"
           },
           "legacy_response_status_contract": {
             "status": "local proxy errors 404 unconfigured/disallowed, 400 invalid URL, 403 local policy refusal; otherwise Better Auth response status/body forwarded unchanged; observed pass-through 200 successful sign-in (`server/src/app.auth.bootstrap.test.ts:335-341`); invalid old password 401 (`e2e/reset-password.auth.spec.ts:74-77`)",
             "source": "server/src/routes/authProxyRoutes.ts:30-49,302-367,370-378"
-          }
+          },
+          "current_source": "src/auth/usePasswordSignIn.ts:34; src/auth/ReauthDialog.tsx:68; src/auth/authClient.ts:10-109; src/components/invites/inviteSignupActions.ts:100-115,154-159; src/components/invites/inviteSignInActions.ts:53-59; src/components/join/useCompanyJoin.ts:225-240; src/auth/usePasswordSignIn.ts:34-37"
         },
         {
           "method": "POST",
@@ -3811,14 +3859,18 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "client-bound-in-M3a; provider-implementation-in-M3c",
             "milestone": "M3a/M3c",
-            "package": "apps/backend/tests/functional/auth or providers"
+            "package": "apps/backend/start/auth_routes.ts",
+            "method": "POST",
+            "path": "/api/auth/provider-start",
+            "source": "apps/frontend/src/auth/authClient.ts"
           },
           "legacy_response_status_contract": {
             "status": "local proxy errors 404 unconfigured/disallowed, 400 invalid URL/direct Microsoft token, 403 sso-only disallowed provider or masquerade; otherwise Better Auth status/body forwarded unchanged",
             "source": "server/src/routes/authProxyRoutes.ts:30-49,302-367,370-378"
-          }
+          },
+          "current_source": "src/auth/externalProviderSignIn.ts:10; src/auth/authClient.ts:10-109; src/components/invites/inviteSignInActions.ts:45-50; src/auth/externalProviderSignIn.ts:9-14"
         },
         {
           "method": "POST",
@@ -3832,14 +3884,18 @@
             "verification": "verified from cited caller construction and type definitions"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3a",
             "milestone": "M3a",
-            "package": "apps/backend/tests/functional/auth"
+            "package": "apps/backend/start/auth_routes.ts",
+            "method": "POST",
+            "path": "/api/auth/sign-out",
+            "source": "apps/frontend/src/auth/authClient.ts"
           },
           "legacy_response_status_contract": {
             "status": "200 {ok:true} success; typed failures map through account status mapping",
             "source": "server/src/accounts/accountRoutes.ts:64; server/src/accounts/routes/handlers/session.ts:20-38; shared/src/account/errors.ts:55-96"
-          }
+          },
+          "current_source": "src/auth/signOut.ts:38-41; src/account/accountClient.ts:73"
         },
         {
           "method": "POST",
@@ -4719,9 +4775,12 @@
             "verification": "verified from cited caller construction and current legacy route handler"
           },
           "implementation": {
-            "status": "planned",
+            "status": "implemented-in-M3a",
             "milestone": "M3a",
-            "package": "apps/backend/tests/functional/auth"
+            "package": "apps/backend/start/auth_routes.ts",
+            "method": "POST",
+            "path": "/api/auth/change-password",
+            "source": "apps/frontend/src/auth/authClient.ts"
           },
           "legacy_response_status_contract": {
             "status": "local proxy 404 when auth mode/route disallows; downstream Better Auth status/body forwarded unchanged; observed 404 for password mutation in sso-only mode and 401 for inactive session",
@@ -4995,8 +5054,10 @@
       },
       {
         "target": "apps/backend/tests/functional/state/e2e_server.spec.ts",
-        "cases": ["both E2E flavours boot to database readiness and enable reset"],
-        "reason": "M1 server boot contract covers db and auth E2E flavours."
+        "cases": [
+          "E2E database flavour permits reset while auth flavour refuses installation reset"
+        ],
+        "reason": "Both E2E flavours boot to database readiness; M3a retains off-mode reset and refuses installation reset under authentication."
       }
     ]
   },
@@ -5515,7 +5576,7 @@
               "admin may see the time-off note",
               "editor may NOT see the time-off note",
               "viewer may NOT see the time-off note",
-              "%s → %s"
+              "%s \u2192 %s"
             ]
           }
         ],

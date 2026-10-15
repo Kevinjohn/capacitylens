@@ -25,7 +25,7 @@ describe("ForgotPassword", () => {
 
   it("normalizes a valid recovery address before submitting it", async () => {
     const fetch = vi.fn();
-    fetch.mockResolvedValue({ ok: true });
+    fetch.mockResolvedValue(Response.json({ ok: true }));
     vi.stubGlobal("fetch", fetch);
     render(<ForgotPassword />);
 

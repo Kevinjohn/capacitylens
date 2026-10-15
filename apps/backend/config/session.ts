@@ -1,6 +1,7 @@
 import env from '#start/env'
 import app from '@adonisjs/core/services/app'
 import { defineConfig, stores } from '@adonisjs/session'
+import { authMode } from '#services/auth/mode'
 
 const sessionConfig = defineConfig({
   /**
@@ -11,7 +12,7 @@ const sessionConfig = defineConfig({
   /**
    * Cookie name storing the session identifier.
    */
-  cookieName: 'adonis-session',
+  cookieName: app.inProduction ? '__Host-adonis-session' : 'adonis-session',
 
   /**
    * When set to true, the session id cookie will be deleted
@@ -23,7 +24,7 @@ const sessionConfig = defineConfig({
    * Define how long to keep the session data alive without
    * any activity.
    */
-  age: '2h',
+  age: '30m',
 
   /**
    * Configuration for session cookie and the
@@ -56,7 +57,7 @@ const sessionConfig = defineConfig({
    * variable in order to infer the store name without any
    * errors.
    */
-  store: env.get('SESSION_DRIVER'),
+  store: authMode() === 'off' ? env.get('SESSION_DRIVER') : 'database',
 
   /**
    * List of configured stores. Refer documentation to see
@@ -71,7 +72,7 @@ const sessionConfig = defineConfig({
     /**
      * Store session data inside the configured database.
      */
-    database: stores.database(),
+    database: stores.database({ tableName: 'adonis_sessions' }),
   },
 })
 

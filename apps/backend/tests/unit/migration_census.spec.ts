@@ -50,6 +50,7 @@ interface Ledger {
         path: string
         path_expansion?: { variant: string; source: string; meaning: string }
         source: string
+        current_source?: string
         source_kind: string
         request_body_contract: {
           kind: string
@@ -328,7 +329,9 @@ test('pins every legacy server test to exactly one explicit migration dispositio
     ledger.route_inventory.caller_inventory.calls
       .filter((call) => call.source_kind === 'SPA caller')
       .flatMap((call) =>
-        [...call.source.matchAll(/(?:^|;\s*)src\/([^:;\s]+)/g)].map((match) => match[1])
+        [...(call.current_source ?? call.source).matchAll(/(?:^|;\s*)src\/([^:;\s]+)/g)].map(
+          (match) => match[1]
+        )
       )
   )
   const discoveredModules = await discoverFrontendCallerModules(resolve(process.cwd(), '..', '..'))
@@ -341,7 +344,9 @@ test('pins every legacy server test to exactly one explicit migration dispositio
   const citedLinesByModule = new Map<string, Set<number>>()
   for (const call of ledger.route_inventory.caller_inventory.calls) {
     if (call.source_kind !== 'SPA caller') continue
-    for (const citationText of [call.source, call.request_body_contract.source]) {
+    for (const citationText of call.current_source
+      ? [call.current_source]
+      : [call.source, call.request_body_contract.source]) {
       for (const [, modulePath, ranges] of citationText.matchAll(/src\/([^:;\s]+):([\d,-]+)/g)) {
         const citedLines = citedLinesByModule.get(modulePath) ?? new Set<number>()
         for (const range of ranges.split(',')) {

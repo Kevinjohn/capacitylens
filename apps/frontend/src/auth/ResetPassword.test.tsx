@@ -38,7 +38,7 @@ afterEach(() => {
 });
 
 // The redeem endpoint returns typed failure codes, so each supported code and malformed shape must map to a fixed user-facing recovery message.
-describe("ResetPassword — messageForFailure (Better Auth 400 body → surfaced message)", () => {
+describe("ResetPassword — maps native API error codes to recovery guidance", () => {
   it("maps INVALID_TOKEN to the invalid-link message", () => {
     expect(resolveResetPasswordFailureMessage({ code: "INVALID_TOKEN" })).toBe(m.reset_err_invalid());
   });

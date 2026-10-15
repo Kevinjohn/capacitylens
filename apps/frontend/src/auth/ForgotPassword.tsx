@@ -2,11 +2,10 @@ import { useId, useState } from "react";
 import type { FormEvent } from "react";
 import { m } from "@/i18n";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
-import { API_BASE } from "@/data/apiConfig";
-import { createRequestSignal } from "@/data/requestTimeout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { authClient } from "./authClient";
 
 /** Optional self-service recovery; success never reveals whether an address is registered. */
 export function ForgotPassword() {
@@ -26,14 +25,8 @@ export function ForgotPassword() {
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/auth/request-password-reset`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: normalizedEmail }),
-        signal: createRequestSignal(),
-      });
-      if (response.ok) setPhase("sent");
+      const response = await authClient.requestPasswordReset(normalizedEmail);
+      if (!response.error) setPhase("sent");
       else setError(m.login_failed());
     } catch {
       // Surface a transport failure inline so password recovery remains retryable without reporting whether the address exists.

@@ -21,5 +21,15 @@ export interface ApiDefinition {
     }
     lifecycle: typeof routes['api.lifecycle']
     health: typeof routes['api.health']
+    auth: {
+      me: typeof routes['api.auth.me']
+      signUp: typeof routes['api.auth.sign-up']
+      signIn: typeof routes['api.auth.sign-in']
+      signOut: typeof routes['api.auth.sign-out']
+      providerStart: typeof routes['api.auth.provider-start']
+      requestReset: typeof routes['api.auth.request-reset']
+      resetPassword: typeof routes['api.auth.reset-password']
+      changePassword: typeof routes['api.auth.change-password']
+    }
   }
 }

@@ -45,7 +45,6 @@ function startProviderSignIn(provider: AuthProviderInfo, token: string | undefin
   const options = {
     callbackURL: window.location.href,
     errorCallbackURL: buildExternalSignInErrorUrl(window.location.href),
-    disableRedirect: true,
     fetchOptions: { signal },
   };
   return authClient.signIn.social({ ...options, provider: provider.id });
@@ -56,7 +55,7 @@ export function createInviteSignInActions({ token, email, password, refreshAuth,
   const signInAndReload = async (): Promise<void> => {
     if (password.length > MAX_PASSWORD_INPUT_CODE_UNITS) throw new Error(m.login_password_input_too_long());
     const { error } = await authClient.signIn.email({ email, password });
-    if (error) throw new Error(error.message ?? m.login_failed());
+    if (error) throw new Error(error.message);
     reloadPage();
   };
 
@@ -100,7 +99,7 @@ export function createInviteSignInActions({ token, email, password, refreshAuth,
     setBusy(true);
     setState({ kind: "auth" });
     await runExternalSignIn({
-      // Keep redirect ownership in runExternalSignIn so Better Auth and the Microsoft start
+      // Keep redirect ownership in runExternalSignIn so provider and Microsoft start
       // endpoint share the same abort-before-retry and navigation lifecycle.
       start: (signal) => startProviderSignIn(provider, token, signal),
       onFailure: (message) => {

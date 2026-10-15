@@ -235,7 +235,7 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
           return;
         }
         const signIn = await authClient.signIn.email({ email: normalizedEmail, password: existingPassword });
-        if (signIn.error) throw new Error(signIn.error.message ?? m.login_failed());
+        if (signIn.error) throw new Error(signIn.error.message);
       }
       await completeExisting();
     });

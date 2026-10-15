@@ -1,5 +1,12 @@
 import app from '@adonisjs/core/services/app'
 import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http'
+import { SessionAuthorityError } from '#services/auth/session_authority'
+import { IdentityAuthorityError } from '#services/auth/authorization'
+import { PasswordProcessingUnavailableError } from '#services/password_service'
+import {
+  PasswordPolicyError,
+  PasswordScreeningUnavailableError,
+} from '#services/password_screening'
 
 export default class HttpExceptionHandler extends ExceptionHandler {
   /**
@@ -13,6 +20,17 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    * response to the client
    */
   async handle(error: unknown, ctx: HttpContext) {
+    if (
+      error instanceof PasswordProcessingUnavailableError ||
+      error instanceof PasswordScreeningUnavailableError
+    )
+      return ctx.response.serviceUnavailable({ error: error.message, code: error.code })
+    if (error instanceof PasswordPolicyError)
+      return ctx.response.badRequest({ error: error.message, code: error.code })
+    if (error instanceof SessionAuthorityError)
+      return ctx.response.status(error.status).send({ error: error.message, code: error.code })
+    if (error instanceof IdentityAuthorityError)
+      return ctx.response.forbidden({ error: error.message, code: error.code })
     if (typeof error === 'object' && error !== null) {
       const code = 'code' in error ? error.code : undefined
       if (code === 'E_VALIDATION_ERROR') {
