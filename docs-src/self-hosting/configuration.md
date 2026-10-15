@@ -62,8 +62,9 @@ default with a startup warning, and values above 10,000 clamp to 10,000 with a s
 
 Set `CAPACITYLENS_TRUST_PROXY_HEADERS=1` only when the application listener is reachable solely
 through a trusted proxy that overwrites forwarded headers. Keep `APP_URL` and
-`CAPACITYLENS_PUBLIC_URL` aligned with the browser-visible address. `CAPACITYLENS_HTTPS` can disable
-the application's HSTS header when the edge already supplies it. `CAPACITYLENS_CORS_ORIGIN` is
+`CAPACITYLENS_PUBLIC_URL` aligned with the browser-visible address. Set `CAPACITYLENS_HTTPS=1` to make
+the application send an HSTS header; it sends none when unset. The supplied nginx file adds HSTS
+itself, and the Caddy example does not. `CAPACITYLENS_CORS_ORIGIN` is
 only needed when the browser app and API use different origins.
 
 `CAPACITYLENS_LOG=1` enables routine request-completion logs. Sensitive request/response values are

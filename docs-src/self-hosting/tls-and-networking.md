@@ -18,7 +18,8 @@ for your hostname, certificate paths and network before installation.
 ## Caddy
 
 Use the release's `Caddyfile.example`, replacing the hostname. Caddy obtains and renews public
-certificates and proxies the whole site to the loopback application listener. If you add access
+certificates and proxies the whole site to the loopback application listener. Caddy adds no HSTS
+header, so set `CAPACITYLENS_HTTPS=1` in the environment file. If you add access
 logging, exclude request paths that contain single-use invitation and password-reset secrets.
 
 ## nginx
