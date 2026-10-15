@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PermissionProvider } from "./PermissionProvider";
 import { AuthContext } from "./authContext";
 import type { AuthContextValue } from "./authContext";
@@ -54,9 +55,11 @@ function SharedDirectoryProvider() {
 
 function renderSharedDirectoryProvider() {
   return render(
-    <AuthContext.Provider value={auth}>
-      <SharedDirectoryProvider />
-    </AuthContext.Provider>,
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <AuthContext.Provider value={auth}>
+        <SharedDirectoryProvider />
+      </AuthContext.Provider>
+    </QueryClientProvider>,
   );
 }
 
@@ -91,11 +94,13 @@ function addSecondAccount() {
 beforeEach(() => {
   permissionMocks.masqueradeStatus.mockReset().mockResolvedValue({ active: false });
   resetStoreWithAccount();
+  useStore.setState({ masquerade: { kind: "inactive" } });
   setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.stubEnv("VITE_CAPACITYLENS_DEMO", "");
 });
 
 afterEach(() => {
+  useStore.setState({ masquerade: { kind: "inactive" } });
   setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -103,6 +108,32 @@ afterEach(() => {
 });
 
 describe("PermissionProvider authenticated lookup posture", () => {
+  it("uses the active target role without requesting account membership", async () => {
+    useStore.setState({
+      activeAccountId: "a-studio",
+      masquerade: {
+        kind: "active",
+        generation: 4,
+        state: {
+          accountId: "a-studio",
+          targetUserId: "u-viewer",
+          targetName: "Selina Kyle",
+          effectiveRole: "viewer",
+          startedAt: "2026-09-01T10:00:00.000Z",
+          token: "session-token",
+        },
+      },
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderProvider();
+
+    expect(await screen.findByText("resolved:viewer:read")).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(permissionMocks.masqueradeStatus).not.toHaveBeenCalled();
+  });
+
   it("is read-only immediately while role lookup is pending", async () => {
     vi.stubGlobal(
       "fetch",

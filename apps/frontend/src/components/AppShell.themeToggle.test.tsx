@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { AppShell } from "./AppShell";
 import { useStore } from "@/store/useStore";
 import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
 import { stubMatchMedia } from "@/test/stubMatchMedia";
+import { renderWithQueryClient as render } from "@/test/renderWithQueryClient";
 
 vi.mock("@/data/apiConfig", () => ({
   API_BASE: "",

@@ -4,7 +4,7 @@ on:
   push:
     branches: [platform/adonisjs]
   pull_request:
-    branches: [platform/adonisjs]
+    branches: [platform/adonisjs, "feature/adonis-m3*"]
   workflow_dispatch:
 
 permissions:
@@ -37,6 +37,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm --dir apps/backend lint
       - run: pnpm --dir apps/frontend lint
+      - run: pnpm run security:crypto-inventory
       - run: pnpm run lanes --stop-orphans
       - run: pnpm --dir apps/backend exec node ace.js test
       - run: pnpm run lanes --stop-orphans
@@ -47,4 +48,19 @@ jobs:
       - run: pnpm run lanes --stop-orphans
       - run: pnpm exec playwright test --project=db-backed
       - run: pnpm run lanes --stop-orphans
-      - run: pnpm exec playwright test --project=auth-backed e2e/input-contract.auth.spec.ts
+      - name: Password-auth browser journeys
+        run: >-
+          pnpm exec playwright test --project=auth-backed
+          e2e/capacity-overview.auth.spec.ts
+          e2e/company-closures.auth.spec.ts
+          e2e/help.auth.spec.ts
+          e2e/input-contract.auth.spec.ts
+          e2e/invite.auth.spec.ts
+          e2e/login.auth.spec.ts
+          e2e/masquerade.auth.spec.ts
+          e2e/members.auth.spec.ts
+          e2e/ownership-transfer.auth.spec.ts
+          e2e/person-schedule.auth.spec.ts
+          e2e/private-name-permissions.auth.spec.ts
+          e2e/reset-password.auth.spec.ts
+          e2e/viewer.auth.spec.ts

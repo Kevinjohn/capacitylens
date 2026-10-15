@@ -24,6 +24,12 @@ const state = {
   startedAt: "2026-09-01T10:00:00.000Z",
   token: "token-1",
 };
+const activeStatus = {
+  active: true,
+  ...state,
+  principal: { id: "u-actor", email: "actor@example.test" },
+  authMode: "password-only",
+};
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -40,9 +46,9 @@ beforeEach(() => {
 
 describe("masqueradeApi", () => {
   it("decodes status transported by the account client", async () => {
-    mocks.status.mockResolvedValue(json({ active: true, ...state }));
+    mocks.status.mockResolvedValue(json(activeStatus));
 
-    await expect(masqueradeApi.status()).resolves.toEqual({ active: true, ...state });
+    await expect(masqueradeApi.status()).resolves.toEqual(activeStatus);
     expect(mocks.status).toHaveBeenCalledOnce();
   });
 
@@ -76,7 +82,7 @@ describe("masqueradeApi", () => {
     ["an empty token", { token: "" }],
     ["an invalid timestamp", { startedAt: "2026-02-30T10:00:00.000Z" }],
   ])("rejects active state with %s", async (_description, change) => {
-    mocks.status.mockResolvedValue(json({ active: true, ...state, ...change }));
+    mocks.status.mockResolvedValue(json({ ...activeStatus, ...change }));
 
     await expect(masqueradeApi.status()).rejects.toThrow("The server returned an invalid masquerade status.");
   });
@@ -86,7 +92,9 @@ describe("masqueradeApi", () => {
     ["a non-string account id", { ...state, accountId: 1 }],
     ["an unsupported role", { ...state, effectiveRole: "auditor" }],
   ])("rejects active state with %s", async (_description, malformedState) => {
-    mocks.status.mockResolvedValue(json({ active: true, ...malformedState }));
+    mocks.status.mockResolvedValue(
+      json({ active: true, ...malformedState, principal: activeStatus.principal, authMode: activeStatus.authMode }),
+    );
 
     await expect(masqueradeApi.status()).rejects.toThrow("The server returned an invalid masquerade status.");
   });
@@ -102,8 +110,8 @@ describe("masqueradeApi", () => {
   });
 
   it("preserves an empty target name", async () => {
-    mocks.status.mockResolvedValue(json({ active: true, ...state, targetName: "" }));
+    mocks.status.mockResolvedValue(json({ ...activeStatus, targetName: "" }));
 
-    await expect(masqueradeApi.status()).resolves.toEqual({ active: true, ...state, targetName: "" });
+    await expect(masqueradeApi.status()).resolves.toEqual({ ...activeStatus, targetName: "" });
   });
 });

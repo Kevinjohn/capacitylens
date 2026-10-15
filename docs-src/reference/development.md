@@ -344,6 +344,41 @@ client projections control visibility and affordances; they never authorize a se
 `src/store/multitenancy.test.ts`; use `e2e/private-name-permissions.auth.spec.ts` when role-based
 projection reaches the signed-in browser flow.
 
+#### Company membership and admission {#task-company-membership}
+
+**Start:** `apps/frontend/src/components/team/TeamAccessView.tsx` composes the member directory,
+invitations, joining policy and resource associations. `apps/frontend/src/account/teamAccessClient.ts`
+validates their responses; `accountClient.ts` owns the request methods.
+
+**Follow through:** `apps/backend/start/membership_routes.ts` and `admission_routes.ts` register the
+routes. Controllers in `apps/backend/app/controllers/` map HTTP requests to the membership,
+admission and member-resource services under `apps/backend/app/services/`. Those services enforce
+company authority and keep admission, membership, audit and command results in the same product
+transaction.
+
+**Tests:** Start with the focused frontend suites under `apps/frontend/src/components/team/` and
+the matching functional suites under `apps/backend/tests/functional/membership/` and
+`apps/backend/tests/functional/auth/`. Include `e2e/invite.auth.spec.ts`,
+`e2e/joining.auth.spec.ts` and `e2e/members.auth.spec.ts` when a change crosses the browser flow.
+
+#### Typed API routes and account queries {#task-typed-account-queries}
+
+**Start:** `apps/frontend/src/api/queryClient.ts` builds the Tuyau client from the generated
+`@capacitylens/backend/registry`, exposes typed route URLs and React Query options, and owns the
+query cache. `apps/frontend/src/auth/useAccountSummaries.ts` uses the typed account-directory
+query options; Team & access currently keeps its directory lifecycle in
+`apps/frontend/src/components/team/useTeamDirectory.ts` and decodes responses through
+`teamAccessClient.ts`.
+
+Account query keys include the principal, active company and masquerade generation. The
+`QueryCacheLifecycle` clears cached API results when that scope changes. Keep one-time commands and
+their uncertain-outcome reconciliation in the account command clients rather than caching bearer
+responses as query data.
+
+**Tests:** Start with `apps/frontend/src/api/queryClient.test.tsx`,
+`apps/frontend/src/auth/useAccountSummaries.test.tsx` and the affected client tests. Use the focused
+Team & access browser suites when the changed route or cache behavior is user-visible.
+
 #### Server tenant authorization {#task-server-tenant-authorization}
 
 **Start:** `server/src/routes/appAuthorization.ts` resolves membership, capability and fresh-session
@@ -547,6 +582,12 @@ never apply a sorting fix that changes initialization behavior.
 
 | Owner | Responsibility | Allowed boundary |
 | --- | --- | --- |
+| `apps/frontend/src/api` | Typed HTTP routes and React Query cache | Generated backend route registry, existing request/reauth boundary, explicit principal/company/masquerade scope. |
+| `apps/frontend/src/account`, `apps/frontend/src/auth` | Product account protocol, session and identity coordination | Validated API results consumed by UI features; commands retain their own one-time result handling. |
+| `apps/frontend/src/components/team` | Company membership, invitation and resource-link UI | Account clients and validated directory data; never server authorization. |
+| `apps/backend/app/controllers` | Product HTTP parsing, authorization and response mapping | Owned services and the request transaction. |
+| `apps/backend/app/services/{admission,membership,member_resources}` | Company joining, member lifecycle and member/resource association | Transaction-scoped product operations, audit and semantic command results. |
+| `apps/backend/start` | Adonis route registration | Controllers and middleware; no domain mutations. |
 | `shared/src/domain`, `shared/src/lib`, `shared/src/types` | Pure scheduling rules and entities | Other pure shared modules; no browser, Node, HTTP or database capabilities. |
 | `shared/src/account` | Portable identity, workspace and membership contracts | Explicit ports and pure policy; no auth-vendor or storage implementation. |
 | `src/store` | Client mutations, IDs, timestamps and undo/redo | Shared domain rules and explicit local slice capabilities. |
@@ -558,12 +599,10 @@ never apply a sorting fix that changes initialization behavior.
 | `server/src/routes`, `server/src/accounts/routes` | HTTP parsing, authorization and response mapping | Owned use cases and storage boundaries; UI visibility never authorizes an operation. |
 | `server/src/accountStore.ts`, `server/src/tables` | Scoped product storage and column specifications | Explicit storage operations and immutable versioned migrations. |
 
-The company-joining client in `src/account/companyJoinClient.ts` owns its browser URLs alongside
-`accountClient.ts`. On the server, `accounts/adminPort/joiningProviderIntent.ts` checks the local
-identity and access restrictions when starting a provider journey.
-`accounts/adminPort/joiningProviderCallbacks.ts` reads the exact provider account, local identity
-and durable email proof at the callback boundary, then updates the company-bound intent. Invitation
-storage stays in `controlTables/invites.ts`; HTTP routes do not read these tables directly.
+Company-joining and invitation requests use typed route names from the generated Adonis registry;
+response validation and one-time command handling stay in the frontend account clients. The
+Adonis controllers delegate to transaction-scoped services rather than reading membership or
+invitation tables from browser-facing components.
 
 `src/store/useStore.ts`, `server/src/app.ts` and the auth configuration entry points compose
 their owned capabilities. Their ability to connect implementations is an explicit composition

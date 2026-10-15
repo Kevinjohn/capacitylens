@@ -19,6 +19,25 @@ function role(value: unknown): Role {
   return value as Role
 }
 
+/** Restricts a principal directly or by a still-current, durable mailbox proof. */
+export async function restrictedCompanyIds(userId: string, trx: TransactionClientContract) {
+  const proof = await trx
+    .from('email_proofs as proof')
+    .innerJoin('users as principal', 'principal.id', 'proof.user_id')
+    .where('proof.user_id', userId)
+    .whereRaw('proof.email = principal.email')
+    .select('proof.email')
+    .first()
+  const rows = await trx
+    .from('account_access_restrictions')
+    .where((query) => {
+      query.where('principal_id', userId)
+      if (proof) query.orWhere('verified_email', String(proof.email))
+    })
+    .select('account_id')
+  return new Set(rows.map((row) => String(row.account_id)))
+}
+
 async function memberRoles(userId: string, trx: TransactionClientContract, activeOnly: boolean) {
   const query = trx
     .from('memberships as membership')
@@ -26,7 +45,12 @@ async function memberRoles(userId: string, trx: TransactionClientContract, activ
     .where('membership.user_id', userId)
   if (activeOnly) query.where('membership.status', 'active')
   const rows = await query.select('membership.account_id', 'membership.role')
-  return new Map(rows.map((row) => [String(row.account_id), role(row.role)]))
+  const restricted = activeOnly ? await restrictedCompanyIds(userId, trx) : new Set<string>()
+  return new Map(
+    rows
+      .filter((row) => !restricted.has(String(row.account_id)))
+      .map((row) => [String(row.account_id), role(row.role)])
+  )
 }
 
 /** Checks identity-wide standing from transaction-current memberships before cross-user security changes. */
@@ -54,7 +78,10 @@ export async function activeCompanyRole(
     .where({ user_id: actorUserId, account_id: accountId, status: 'active' })
     .select('role')
     .first()
-  return row ? role(row.role) : null
+  if (!row) return null
+  const restricted = await restrictedCompanyIds(actorUserId, trx)
+  if (restricted.has(accountId)) return null
+  return role(row.role)
 }
 
 /** Authorizes one company action from live membership and session state inside the caller's transaction. */

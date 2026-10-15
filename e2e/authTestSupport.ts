@@ -48,17 +48,17 @@ async function postSignUp(ctx: APIRequestContext, email: string, name = email.sp
  * @throws When the principal is absent or database writes fail.
  */
 export function seedFixtureMember(accountId: string, email: string, role: "admin" | "editor" | "viewer"): void {
-  const path = fileURLToPath(new URL("../server/.auth-e2e.db", import.meta.url));
+  const path = fileURLToPath(new URL("../apps/backend/.auth-e2e.db", import.meta.url));
   const db = new DatabaseSync(path);
   try {
     db.exec("PRAGMA busy_timeout = 5000");
-    const principal = db.prepare("SELECT id FROM user WHERE lower(email) = ?").get(email.toLowerCase()) as
+    const principal = db.prepare("SELECT id FROM users WHERE lower(email) = ?").get(email.toLowerCase()) as
       { id: string } | undefined;
     if (!principal) throw new Error(`Missing E2E fixture identity for ${email}`);
     db.prepare(
-      `INSERT INTO account_members (accountId, userId, role, status, createdAt)
-       VALUES (?, ?, ?, 'active', ?)`,
-    ).run(accountId, principal.id, role, new Date().toISOString());
+      `INSERT INTO memberships (id, account_id, user_id, role, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'active', ?, ?)`,
+    ).run(crypto.randomUUID(), accountId, principal.id, role, new Date().toISOString(), new Date().toISOString());
   } finally {
     db.close();
   }
@@ -101,10 +101,13 @@ export async function bootstrapOrg(request: APIRequestContext, cookie: string, n
  * the sign-up). Use this only when a test needs the ID. Other tests should use the cheaper
  * `signUpUser` helper above. See its TSDoc for the isolated-context rationale.
  */
-export async function signUpUserWithId(email: string): Promise<{ email: string; cookie: string; userId: string }> {
+export async function signUpUserWithId(
+  email: string,
+  name?: string,
+): Promise<{ email: string; cookie: string; userId: string }> {
   const ctx = await playwrightRequest.newContext();
   try {
-    const cookie = await postSignUp(ctx, email);
+    const cookie = await postSignUp(ctx, email, name);
     const me = await ctx.get(`${AUTH_API}/api/auth/me`, { headers: { cookie } });
     const userId = (await me.json()).user.id as string;
     return { email, cookie, userId };

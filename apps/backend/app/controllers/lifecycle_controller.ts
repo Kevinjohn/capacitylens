@@ -13,9 +13,6 @@ export default class LifecycleController {
   async mutate(ctx: HttpContext) {
     const { params, request, response, logger } = ctx
     try {
-      const body = await request.validateUsing(lifecycleValidator, {
-        data: request.body(),
-      })
       const action = params.action
       if (
         action !== 'archive' &&
@@ -24,6 +21,9 @@ export default class LifecycleController {
         action !== 'purge'
       )
         throw new BatchRequestError('Not found.', 404)
+      const body = await request.validateUsing(lifecycleValidator, {
+        data: request.body(),
+      })
       let auditWarning = false
       const result = await withTransaction(async (trx) => {
         if (action === 'purge' && authMode() !== 'off')

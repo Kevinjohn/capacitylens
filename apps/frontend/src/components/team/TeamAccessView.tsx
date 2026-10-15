@@ -162,6 +162,7 @@ export function TeamAccessView() {
   const permissionStatus = usePermissionStatus();
   const { authMode } = useAuth();
   const offline = useOfflineState();
+  const masqueradeActive = useStore((state) => state.masquerade.kind !== "inactive");
   const accessExperience = resolveAccessExperience(authMode);
   const authenticated = accessExperience === "authenticated";
   const resolvedRole = authenticated && permissionStatus === "resolved" ? role : null;
@@ -207,8 +208,8 @@ export function TeamAccessView() {
 
       <PolicyManagement accountId={activeAccountId} role={resolvedRole} enabled={authenticated && mayManage} />
 
-      {/* Ownership controls require a participant projection and remain unavailable while writes are suspended. */}
-      {authenticated && mayManage && <OwnershipTransferCard />}
+      {/* Ownership changes remain an online action of the real Owner, never the masqueraded target. */}
+      {authenticated && !offline.readOnly && !masqueradeActive && resolvedRole === "owner" && <OwnershipTransferCard />}
     </div>
   );
 }

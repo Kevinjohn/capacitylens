@@ -2,8 +2,8 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { readState, readStateWithClient } from '#services/state_repository'
 import { transformState } from '#transformers/state_transformer'
 import { authMode } from '#services/auth/mode'
-import { resolveCurrentActor } from '#services/auth/session_authority'
 import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization'
+import { effectiveReadPrincipal } from '#services/auth/masquerade'
 import { withTransaction } from '#services/with_transaction'
 import { APP_DATA_KEYS, emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
 
@@ -23,17 +23,25 @@ export default class ExportsController {
       return response.ok(transformState(state, accountId, 'owner'))
     }
     return withTransaction(async (trx) => {
-      const actor = await resolveCurrentActor(ctx, trx)
+      const principal = await effectiveReadPrincipal(ctx, trx)
+      if (principal.accountId && accountId && principal.accountId !== accountId)
+        throw new IdentityAuthorityError('Forbidden.')
       const memberships = accountId
-        ? [{ account_id: accountId, role: await activeCompanyRole(actor.userId, accountId, trx) }]
+        ? [
+            {
+              account_id: accountId,
+              role: await activeCompanyRole(principal.effectiveId, accountId, trx),
+            },
+          ]
         : await trx
             .from('memberships')
-            .where({ user_id: actor.userId, status: 'active' })
+            .where({ user_id: principal.effectiveId, status: 'active' })
             .select('account_id', 'role')
       const combined = emptyAppData()
       for (const membership of memberships) {
         const id = String(membership.account_id)
-        const role = await activeCompanyRole(actor.userId, id, trx)
+        if (principal.accountId && principal.accountId !== id) continue
+        const role = await activeCompanyRole(principal.effectiveId, id, trx)
         if (!role) {
           if (accountId) throw new IdentityAuthorityError('Forbidden.')
           continue

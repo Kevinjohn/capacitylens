@@ -42,13 +42,12 @@ async function setupMembersApi(request: APIRequestContext) {
     data: { role: "editor" },
   });
   expect(touchOwner.status()).toBe(403);
-  // An Admin cannot start the ownership ceremony: it belongs to the Owner, and the nominee's own
-  // consent belongs to the nominee. The ceremony itself is covered by ownership-transfer.auth.spec.
-  const adminNominate = await request.post(`${API}/api/accounts/${accountId}/ownership-transfer`, {
+  // Only the current Owner can confirm the atomic handover, covered by ownership-transfer.auth.spec.
+  const adminTransfer = await request.post(`${API}/api/accounts/${accountId}/ownership-transfer`, {
     headers: { cookie: admin.cookie },
     data: { toUserId: editor.userId },
   });
-  expect(adminNominate.status()).toBe(403);
+  expect(adminTransfer.status()).toBe(403);
   const selfRemove = await request.delete(`${API}/api/accounts/${accountId}/members/${owner.userId}`, {
     headers: { cookie: owner.cookie },
   });

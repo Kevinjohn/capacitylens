@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Dispatch, MutableRefObject, SetStateAction } from "react";
+import { useQuery } from "@tanstack/react-query";
+import type { Dispatch, SetStateAction } from "react";
 import { m } from "@/i18n";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import { teamAccessClient } from "@/account/teamAccessClient";
 import type { TeamAccessResult, TeamDirectory, TeamInvitation, TeamMember } from "@/account/teamAccessClient";
 import type { FieldError } from "@/hooks/useFieldError";
+import { api, scopeQueryKey } from "@/api/queryClient";
+import type { ApiQueryScope } from "@/api/queryClient";
+import { useAuth } from "@/auth/authContext";
+import { useStore } from "@/store/useStore";
 
 interface TeamDirectoryOptions {
   enabled: boolean;
@@ -32,15 +37,6 @@ type DirectoryState =
     };
 
 type SetDirectory = Dispatch<SetStateAction<DirectoryState>>;
-
-interface DirectoryLoad {
-  accountId: string;
-  hadAuthorizedDirectory: boolean;
-  current: () => boolean;
-  setDirectory: SetDirectory;
-  fail: FieldError["fail"];
-  onInvitesLoaded: TeamDirectoryOptions["onInvitesLoaded"];
-}
 
 function directorySnapshot(state: DirectoryState, accountId: string): DirectorySnapshot | null {
   if (state.accountId !== accountId) return null;
@@ -72,140 +68,180 @@ function failureMessage<T>(result: TeamAccessResult<T>, fallback: string): strin
   return result.kind === "rejected" && result.message ? result.message : fallback;
 }
 
-async function loadMembers({
-  accountId,
-  hadAuthorizedDirectory,
-  current,
-  setDirectory,
+function useScopedDirectoryQueries({
+  options,
+  reloadKey,
+  inviteReloadKey,
+  scope,
+}: {
+  options: TeamDirectoryOptions;
+  reloadKey: number;
+  inviteReloadKey: number;
+  scope: ApiQueryScope;
+}) {
+  const { enabled, activeAccountId, offlineReadOnly } = options;
+  const scopeId = JSON.stringify([scope.principalId, scope.accountId, scope.masqueradeGeneration]);
+  const memberRouteKey = api.api.members.index.queryKey({ params: { accountId: activeAccountId ?? "" } });
+  const membersQuery = useQuery<TeamAccessResult<TeamDirectory>>({
+    queryKey: scopeQueryKey(scope, ["team-members", reloadKey, ...memberRouteKey]),
+    enabled: enabled && !!activeAccountId && !offlineReadOnly,
+    refetchOnWindowFocus: false,
+    queryFn: ({ signal }) => teamAccessClient.listMembers(activeAccountId ?? "", signal),
+  });
+  const inviteRouteKey = api.api.invites.index.queryKey({ params: { accountId: activeAccountId ?? "" } });
+  const invitationsQuery = useQuery<TeamAccessResult<TeamInvitation[]>>({
+    queryKey: scopeQueryKey(scope, ["team-invitations", inviteReloadKey, ...inviteRouteKey]),
+    enabled: enabled && !!activeAccountId && !offlineReadOnly && membersQuery.data?.kind === "ok",
+    refetchOnWindowFocus: false,
+    queryFn: ({ signal }) => teamAccessClient.listInvitations(activeAccountId ?? "", signal),
+  });
+  return { membersQuery, invitationsQuery, scopeId };
+}
+
+function useMemberQueryEffects({
+  activeAccountId,
   fail,
-}: DirectoryLoad): Promise<boolean> {
-  const result = await teamAccessClient.listMembers(accountId);
-  if (result.kind === "rejected" && result.status === 403) {
-    if (!current()) return false;
-    if (hadAuthorizedDirectory) {
-      setDirectory({ kind: "error", accountId, content: { kind: "unavailable" } });
-      fail(null, m.settings_members_err_access_changed());
-    } else {
-      setDirectory({ kind: "hidden", accountId });
-    }
-    return false;
-  }
-  if (result.kind === "invalid") throw new Error("The server returned an invalid members response.");
-  if (result.kind !== "ok") {
-    if (!current()) return false;
-    setDirectory((previous) => errorDirectory(previous, accountId));
-    fail(null, failureMessage(result, m.settings_members_err_load({ status: result.status })));
-    return false;
-  }
-  if (!current()) return false;
-  setDirectory((previous) => ({
-    kind: "ready",
-    accountId,
-    snapshot: {
-      members: result.value.members,
-      signInTrackingEnabled: result.value.signInTrackingEnabled,
-      resourceCandidates: result.value.resourceCandidates,
-      // Preserve the last authoritative invitation list while a same-account refresh is in
-      // flight. On an account switch, the old list is discarded before this account's
-      // separately-authorized invite read completes.
-      invites: directorySnapshot(previous, accountId)?.invites ?? [],
-    },
-  }));
-  return true;
-}
-
-async function loadInvitations(
-  accountId: string,
-  current: () => boolean,
-  fail: FieldError["fail"],
-): Promise<TeamInvitation[] | null> {
-  const result = await teamAccessClient.listInvitations(accountId);
-  if (result.kind === "invalid") throw new Error("The server returned an invalid invites response.");
-  if (result.kind !== "ok") {
-    if (current()) fail(null, failureMessage(result, m.settings_invites_err_load({ status: result.status })));
-    return null;
-  }
-  return current() ? result.value : null;
-}
-
-async function loadDirectory(load: DirectoryLoad): Promise<void> {
-  let membersLoaded = false;
-  try {
-    membersLoaded = await loadMembers(load);
-    if (!membersLoaded) return;
-    const invites = await loadInvitations(load.accountId, load.current, load.fail);
-    if (invites === null || !load.current()) return;
-    load.setDirectory((previous) => replaceInvites(previous, load.accountId, invites));
-    load.onInvitesLoaded?.(invites);
-  } catch (error) {
-    // Only the owning read may clear or report directory state; stale failures must not erase a newer authorized projection.
-    if (!load.current()) return;
-    if (!membersLoaded) {
-      load.setDirectory((previous) => errorDirectory(previous, load.accountId));
-    }
-    load.fail(null, m.settings_err_server({ error: resolveErrorMessage(error) }));
-  }
-}
-
-function useDirectoryRead({ enabled, activeAccountId, offlineReadOnly, fail, onInvitesLoaded }: TeamDirectoryOptions) {
-  const [directory, setDirectory] = useState<DirectoryState>({ kind: "loading", accountId: null });
-  // Keep the authorized account ID in a ref so a later same-account refusal can explain changed access without rerunning the directory load on each list update.
-  const authorizedAccountRef = useRef<string | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
-  const requestGeneration = useRef(0);
-  const reload = useCallback(() => setReloadKey((key) => key + 1), []);
-
+  authorizedAccountRef,
+  setDirectory,
+  membersQuery,
+  scopeId,
+}: {
+  activeAccountId: string | null;
+  fail: FieldError["fail"];
+  authorizedAccountRef: { current: { scopeId: string; accountId: string } | null };
+  setDirectory: SetDirectory;
+  membersQuery: ReturnType<typeof useScopedDirectoryQueries>["membersQuery"];
+  scopeId: string;
+}) {
   useEffect(() => {
-    authorizedAccountRef.current =
-      directory.kind === "ready" || (directory.kind === "error" && directory.content.kind === "authorized")
-        ? directory.accountId
-        : null;
-  }, [directory]);
-  useEffect(() => {
-    if (!enabled || !activeAccountId || offlineReadOnly) return;
-    const generation = ++requestGeneration.current;
-    let cancelled = false;
-    const current = () => !cancelled && requestGeneration.current === generation;
-    void loadDirectory({
+    if (!activeAccountId || !membersQuery.data) return;
+    const result = membersQuery.data;
+    if (result.kind === "rejected" && result.status === 403) {
+      if (
+        authorizedAccountRef.current?.scopeId === scopeId &&
+        authorizedAccountRef.current.accountId === activeAccountId
+      ) {
+        setDirectory({ kind: "error", accountId: activeAccountId, content: { kind: "unavailable" } });
+        fail(null, m.settings_members_err_access_changed());
+      } else {
+        setDirectory({ kind: "hidden", accountId: activeAccountId });
+      }
+      return;
+    }
+    if (result.kind === "invalid") {
+      setDirectory((previous) => errorDirectory(previous, activeAccountId));
+      fail(null, "The server returned an invalid members response.");
+      return;
+    }
+    if (result.kind !== "ok") {
+      setDirectory((previous) => errorDirectory(previous, activeAccountId));
+      fail(null, failureMessage(result, m.settings_members_err_load({ status: result.status })));
+      return;
+    }
+    authorizedAccountRef.current = { scopeId, accountId: activeAccountId };
+    setDirectory((previous) => ({
+      kind: "ready",
       accountId: activeAccountId,
-      hadAuthorizedDirectory: authorizedAccountRef.current === activeAccountId,
-      current,
-      setDirectory,
-      fail,
-      onInvitesLoaded,
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [enabled, activeAccountId, reloadKey, fail, offlineReadOnly, onInvitesLoaded]);
+      snapshot: {
+        members: result.value.members,
+        signInTrackingEnabled: result.value.signInTrackingEnabled,
+        resourceCandidates: result.value.resourceCandidates,
+        invites: directorySnapshot(previous, activeAccountId)?.invites ?? [],
+      },
+    }));
+  }, [activeAccountId, membersQuery.data, fail, authorizedAccountRef, setDirectory, scopeId]);
+  useEffect(() => {
+    if (membersQuery.error && activeAccountId) {
+      setDirectory((previous) => errorDirectory(previous, activeAccountId));
+      fail(null, m.settings_err_server({ error: resolveErrorMessage(membersQuery.error) }));
+    }
+  }, [activeAccountId, membersQuery.error, fail, setDirectory]);
+}
 
-  return { directory, setDirectory, requestGeneration, reload };
+function useInvitationQueryEffects({
+  activeAccountId,
+  fail,
+  onInvitesLoaded,
+  membersQuery,
+  invitationsQuery,
+  setDirectory,
+}: {
+  activeAccountId: string | null;
+  fail: FieldError["fail"];
+  onInvitesLoaded: TeamDirectoryOptions["onInvitesLoaded"];
+  membersQuery: ReturnType<typeof useScopedDirectoryQueries>["membersQuery"];
+  invitationsQuery: ReturnType<typeof useScopedDirectoryQueries>["invitationsQuery"];
+  setDirectory: SetDirectory;
+}) {
+  useEffect(() => {
+    if (!activeAccountId || membersQuery.data?.kind !== "ok" || !invitationsQuery.data) return;
+    const result = invitationsQuery.data;
+    if (result.kind === "invalid") {
+      fail(null, "The server returned an invalid invites response.");
+      return;
+    }
+    if (result.kind !== "ok") {
+      fail(null, failureMessage(result, m.settings_invites_err_load({ status: result.status })));
+      return;
+    }
+    setDirectory((previous) => replaceInvites(previous, activeAccountId, result.value));
+    onInvitesLoaded?.(result.value);
+  }, [activeAccountId, membersQuery.data, invitationsQuery.data, fail, onInvitesLoaded, setDirectory]);
+  useEffect(() => {
+    if (membersQuery.data?.kind === "ok" && invitationsQuery.error)
+      fail(null, m.settings_err_server({ error: resolveErrorMessage(invitationsQuery.error) }));
+  }, [invitationsQuery.error, membersQuery.data, fail]);
+}
+
+function useDirectoryRead(options: TeamDirectoryOptions) {
+  const { activeAccountId, fail, onInvitesLoaded } = options;
+  const { user } = useAuth();
+  const masqueradeGeneration = useStore((state) =>
+    state.masquerade.kind === "inactive" ? 0 : state.masquerade.generation,
+  );
+  const masqueradeActive = useStore((state) => state.masquerade.kind !== "inactive");
+  const scope: ApiQueryScope = { principalId: user?.id ?? null, accountId: activeAccountId, masqueradeGeneration };
+  const scopeId = JSON.stringify([scope.principalId, scope.accountId, scope.masqueradeGeneration]);
+  const [directoryState, setDirectoryState] = useState({
+    scopeId,
+    directory: { kind: "loading", accountId: activeAccountId } as DirectoryState,
+  });
+  const setDirectory = useCallback<SetDirectory>(
+    (next) =>
+      setDirectoryState((current) => {
+        const previous: DirectoryState =
+          current.scopeId === scopeId ? current.directory : { kind: "loading", accountId: activeAccountId };
+        return { scopeId, directory: typeof next === "function" ? next(previous) : next };
+      }),
+    [activeAccountId, scopeId],
+  );
+  // Remember which principal projection returned an authorized company directory.
+  const authorizedAccountRef = useRef<{ scopeId: string; accountId: string } | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [inviteReloadKey, setInviteReloadKey] = useState(0);
+  const reload = useCallback(() => setReloadKey((key) => key + 1), []);
+  const reloadInvites = useCallback(async () => setInviteReloadKey((key) => key + 1), []);
+  const { membersQuery, invitationsQuery } = useScopedDirectoryQueries({
+    options: { ...options, enabled: options.enabled && !masqueradeActive },
+    reloadKey,
+    inviteReloadKey,
+    scope,
+  });
+  useMemberQueryEffects({ activeAccountId, fail, authorizedAccountRef, setDirectory, membersQuery, scopeId });
+  useInvitationQueryEffects({ activeAccountId, fail, onInvitesLoaded, membersQuery, invitationsQuery, setDirectory });
+
+  return {
+    directory:
+      directoryState.scopeId === scopeId
+        ? directoryState.directory
+        : ({ kind: "loading", accountId: activeAccountId } satisfies DirectoryState),
+    setDirectory,
+    reload,
+    reloadInvites,
+  };
 }
 
 // Invitation-only writes refresh the independently authorized invite read. Apply its response only while both its account and authorizing member-load generation remain current.
-function useInviteReload(
-  { enabled, activeAccountId, offlineReadOnly, fail, onInvitesLoaded }: TeamDirectoryOptions,
-  requestGeneration: MutableRefObject<number>,
-  setDirectory: SetDirectory,
-) {
-  const inviteGeneration = useRef(0);
-  return useCallback(async (): Promise<void> => {
-    if (!enabled || !activeAccountId || offlineReadOnly) return;
-    const accountId = activeAccountId;
-    const generation = ++inviteGeneration.current;
-    const loadGeneration = requestGeneration.current;
-    const current = () => inviteGeneration.current === generation && requestGeneration.current === loadGeneration;
-    try {
-      const invites = await loadInvitations(accountId, current, fail);
-      if (invites === null || !current()) return;
-      setDirectory((previous) => replaceInvites(previous, accountId, invites));
-      onInvitesLoaded?.(invites);
-    } catch (error) {
-      if (current()) fail(null, m.settings_err_server({ error: resolveErrorMessage(error) }));
-    }
-  }, [enabled, activeAccountId, offlineReadOnly, fail, onInvitesLoaded, requestGeneration, setDirectory]);
-}
-
 function useActionState() {
   const actionLock = useRef<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -225,8 +261,7 @@ function useActionState() {
 /** Owns authoritative directory reads, self-gating, reload generations and action exclusion. */
 export function useTeamDirectory(options: TeamDirectoryOptions) {
   const { activeAccountId } = options;
-  const { directory, setDirectory, requestGeneration, reload } = useDirectoryRead(options);
-  const reloadInvites = useInviteReload(options, requestGeneration, setDirectory);
+  const { directory, setDirectory, reload, reloadInvites } = useDirectoryRead(options);
   const { busyAction, beginAction, endAction } = useActionState();
   const currentAccountLoaded = directory.accountId === activeAccountId;
   const replaceAuthorizedDirectory = useCallback(

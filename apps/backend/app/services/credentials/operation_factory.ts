@@ -18,6 +18,7 @@ import {
 } from '#services/auth/session_authority'
 import { assertMayAdministerTarget, IdentityAuthorityError } from '#services/auth/authorization'
 import { writeAudit } from '#services/audit'
+import { clearMemberSignIn } from '#services/membership/sign_in_tracking'
 import { canAdministerIdentity } from '@capacitylens/shared/account/policy'
 import type { Role } from '@capacitylens/shared/account/types'
 import {
@@ -221,7 +222,7 @@ export function makeKit(operation: Operation) {
       const actor = await resolveCurrentActor(operation.ctx, trx)
       if (actor.userId !== operation.actorId)
         throw new SessionAuthorityError('Session identity changed.')
-      assertFreshSession(actor)
+      if (actor.userId !== operation.targetId) assertFreshSession(actor)
       await assertAdminScope(actor.userId, operation.targetId, operation.accountId, trx)
       if (String(user.id) !== operation.targetId || !user.hasPassword)
         throw new PasswordIneligibleError()
@@ -264,6 +265,7 @@ export function makeKit(operation: Operation) {
         created_at: now,
         updated_at: now,
       })
+      await clearMemberSignIn(operation.targetId, trx)
     },
     async onCredentialsChangedTransaction(user, _context, trx) {
       invalidatedIds = []

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { parseAuthProviders } from "./authStatus";
+import { masqueradeApi } from "./masqueradeApi";
 
 describe("parseAuthProviders", () => {
   it.each([undefined, "generic", "google", "microsoft"])(
@@ -29,6 +30,7 @@ describe("parseAuthProviders", () => {
 it.each([true, false, undefined, "true"])("parses the signed-out reset-email flag %s", async (passwordResetEmail) => {
   const { accountClient } = await import("@/account/accountClient");
   const { fetchAuthStatus } = await import("./fetchAuthStatus");
+  const status = vi.spyOn(masqueradeApi, "status").mockResolvedValue({ active: false });
   const request = vi
     .spyOn(accountClient, "me")
     .mockResolvedValue(
@@ -40,6 +42,7 @@ it.each([true, false, undefined, "true"])("parses the signed-out reset-email fla
       passwordResetEmail: passwordResetEmail === true,
     });
   } finally {
+    status.mockRestore();
     request.mockRestore();
   }
 });

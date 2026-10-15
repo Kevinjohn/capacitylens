@@ -5,9 +5,18 @@ import { resolveCurrentActor, SessionAuthorityError } from '#services/auth/sessi
 
 export default class TrustedLocalMiddleware {
   async handle(ctx: HttpContext, next: NextFn) {
+    const pathname = ctx.request.url().split('?')[0]
+    const publicAdmission =
+      (ctx.request.method() === 'GET' && /^\/api\/invites\/[^/]+\/preview$/.test(pathname)) ||
+      (ctx.request.method() === 'POST' && /^\/api\/invites\/[^/]+\/signup$/.test(pathname)) ||
+      (ctx.request.method() === 'GET' &&
+        /^\/api\/accounts\/[^/]+\/join\/metadata$/.test(pathname)) ||
+      (ctx.request.method() === 'GET' && pathname === '/api/company-join/status') ||
+      (ctx.request.method() === 'GET' && pathname === '/api/masquerade')
     if (authMode() === 'off') await ctx.auth.authenticate()
     else if (
       ctx.request.url().startsWith('/api/') &&
+      !publicAdmission &&
       ![
         '/api/auth/',
         '/api/health',

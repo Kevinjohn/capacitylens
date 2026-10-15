@@ -302,9 +302,18 @@ importers:
       '@capacitylens/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@tanstack/query-core':
+        specifier: 5.104.2
+        version: 5.104.2
+      '@tanstack/react-query':
+        specifier: 5.104.2
+        version: 5.104.2
       '@tuyau/core':
         specifier: 1.2.2
         version: 1.2.2
+      '@tuyau/react-query':
+        specifier: 1.1.0
+        version: 1.1.0(@tanstack/query-core@5.104.2)(@tanstack/react-query@5.104.2)(@tuyau/core@1.2.2)
 
   packages/shared:
     dependencies:
@@ -3618,6 +3627,14 @@ packages:
     peerDependencies:
       vite: ^5.2.0 || ^6 || ^7 || ^8
 
+  '@tanstack/query-core@5.104.2':
+    resolution: {integrity: sha512-/qbsxJK5c3Ve1aFIULWYNcT2jeRUAiD4HME6Eu2ZdpofHoVgAjpkQhLg5xHuOoBkTPQUJLfP7zOxy0qsBcqROA==}
+
+  '@tanstack/react-query@5.104.2':
+    resolution: {integrity: sha512-xKmzWGhadbE5wGS/ZmXShRITnI9oItox5GO14KvFZco3+vhTAyXS1erYzJWdiY280zapAGJXFUL9nHgwP6SV/g==}
+    peerDependencies:
+      react: ^18 || ^19
+
   '@testing-library/dom@10.4.2':
     resolution: {integrity: sha512-yzr2S9HyAIdhz2/6qHgbs665Q7PKVcDF05vsOlHPxG1mo36gKVesdYVeDLnXgfjJ03CrKRk08knc6+E/9m8v2Q==}
     engines: {node: '>=18'}
@@ -3698,6 +3715,20 @@ packages:
         optional: true
       '@adonisjs/core':
         optional: true
+
+  '@tuyau/query-core@1.1.0':
+    resolution: {integrity: sha512-5g7t0QBdB5jETSzJvPOF3Mnjzh3QbuM3Oo2W/7SbUBqAhS+alRAxvBPC4HkAJN5aTlfGnpTEpQlETkI61y77bA==}
+    engines: {node: '>=24.0.0'}
+    peerDependencies:
+      '@tanstack/query-core': ^5.74.7
+      '@tuyau/core': ^1.0.0-beta.9
+
+  '@tuyau/react-query@1.1.0':
+    resolution: {integrity: sha512-lnfv7xPpYgSUlw+xezqWLxhjDW1QEH/Mek98j8brLLnei0FAUcAFASwnh7LRk5/cKfjUapVurJetLrFr9mpxHg==}
+    engines: {node: '>=24.0.0'}
+    peerDependencies:
+      '@tanstack/react-query': ^5.74.7
+      '@tuyau/core': ^1.0.0-beta.9
 
   '@tybys/wasm-util@0.10.4':
     resolution: {integrity: sha512-W3c4gRigFS0T/Ma4qIYF3GDAc5AQdHb1yL5znJT1Zv1YaD9Kitx656wBjvr19qbiosmZT8lWDM5BEMynUqX65A==}
@@ -8115,6 +8146,7 @@ snapshots:
       '@japa/api-client': 3.2.1
       '@tuyau/core': 1.2.2(@adonisjs/core@7.5.2(@vinejs/vine@4.4.0))
       '@vinejs/vine': 4.4.0
+      adonisjs-account-kit: file:vendor/adonisjs-account-kit/cf552ecf5e3c0c4a9da6fc5f3a0d13aab656e7d4.tgz(@adonisjs/core@7.5.2(@vinejs/vine@4.4.0))(@adonisjs/limiter@3.0.1(@adonisjs/core@7.5.2(@vinejs/vine@4.4.0))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.5.2(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2)))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.5.2(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2))(luxon@3.7.2)
       better-sqlite3: 13.0.3
       luxon: 3.7.2
       reflect-metadata: 0.2.2
@@ -10269,6 +10301,12 @@ snapshots:
       tailwindcss: 4.3.3
       vite: 8.3.1(@types/node@24.13.6)(yaml@2.9.1)
 
+  '@tanstack/query-core@5.104.2': {}
+
+  '@tanstack/react-query@5.104.2':
+    dependencies:
+      '@tanstack/query-core': 5.104.2
+
   '@testing-library/dom@10.4.2':
     dependencies:
       '@babel/code-frame': 7.29.7
@@ -10355,6 +10393,19 @@ snapshots:
       object-to-formdata: 4.5.1
     optionalDependencies:
       '@adonisjs/core': 7.5.2(@vinejs/vine@4.4.0)
+
+  '@tuyau/query-core@1.1.0(@tanstack/query-core@5.104.2)(@tuyau/core@1.2.2)':
+    dependencies:
+      '@tanstack/query-core': 5.104.2
+      '@tuyau/core': 1.2.2
+
+  '@tuyau/react-query@1.1.0(@tanstack/query-core@5.104.2)(@tanstack/react-query@5.104.2)(@tuyau/core@1.2.2)':
+    dependencies:
+      '@tanstack/react-query': 5.104.2
+      '@tuyau/core': 1.2.2
+      '@tuyau/query-core': 1.1.0(@tanstack/query-core@5.104.2)(@tuyau/core@1.2.2)
+    transitivePeerDependencies:
+      - '@tanstack/query-core'
 
   '@tybys/wasm-util@0.10.4':
     dependencies:
@@ -10798,6 +10849,13 @@ snapshots:
       luxon: 3.7.2
     optionalDependencies:
       '@adonisjs/assembler': 8.5.2(typescript@6.0.3)
+
+  adonisjs-account-kit@file:vendor/adonisjs-account-kit/cf552ecf5e3c0c4a9da6fc5f3a0d13aab656e7d4.tgz(@adonisjs/core@7.5.2(@vinejs/vine@4.4.0))(@adonisjs/limiter@3.0.1(@adonisjs/core@7.5.2(@vinejs/vine@4.4.0))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.5.2(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2)))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.5.2(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2))(luxon@3.7.2):
+    dependencies:
+      '@adonisjs/core': 7.5.2(@vinejs/vine@4.4.0)
+      '@adonisjs/limiter': 3.0.1(@adonisjs/core@7.5.2(@vinejs/vine@4.4.0))(@adonisjs/lucid@22.4.2(@adonisjs/core@7.5.2(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2))
+      '@adonisjs/lucid': 22.4.2(@adonisjs/core@7.5.2(@vinejs/vine@4.4.0))(@vinejs/vine@4.4.0)(better-sqlite3@13.0.3)(luxon@3.7.2)
+      luxon: 3.7.2
 
   ajv-formats@3.0.1:
     dependencies:

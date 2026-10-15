@@ -1,0 +1,99 @@
+import { QueryClient } from "@tanstack/react-query";
+import { describe, expect, it } from "vitest";
+import { clearQueryCacheForScopeChange, scopeQueryKey } from "./queryClient";
+
+describe("account query cache scope", () => {
+  it("partitions route keys by principal, company, and masquerade generation", () => {
+    expect(
+      scopeQueryKey({ principalId: "bruce", accountId: "wayne", masqueradeGeneration: 2 }, [
+        "api.members.index",
+        { params: { accountId: "wayne" } },
+      ] as const),
+    ).toEqual(["capacitylens", "bruce", "wayne", 2, "api.members.index", { params: { accountId: "wayne" } }]);
+  });
+
+  it.each([
+    [
+      "principal",
+      { principalId: "bruce", accountId: "wayne", masqueradeGeneration: 0 },
+      { principalId: "alfred", accountId: "wayne", masqueradeGeneration: 0 },
+    ],
+    [
+      "company",
+      { principalId: "bruce", accountId: "wayne", masqueradeGeneration: 0 },
+      { principalId: "bruce", accountId: "stark", masqueradeGeneration: 0 },
+    ],
+    [
+      "masquerade generation",
+      { principalId: "bruce", accountId: "wayne", masqueradeGeneration: 1 },
+      { principalId: "bruce", accountId: "wayne", masqueradeGeneration: 2 },
+    ],
+  ])("clears data when the %s changes", (_label, previous, next) => {
+    const client = new QueryClient();
+    client.setQueryData(["private"], { name: "Wayne Enterprises" });
+
+    expect(clearQueryCacheForScopeChange(client, previous, next)).toBe(true);
+    expect(client.getQueryData(["private"])).toBeUndefined();
+  });
+
+  it("keeps cached data when the entire identity scope is unchanged", () => {
+    const client = new QueryClient();
+    const scope = { principalId: "bruce", accountId: "wayne", masqueradeGeneration: 1 } as const;
+    client.setQueryData(["private"], { name: "Wayne Enterprises" });
+
+    expect(clearQueryCacheForScopeChange(client, scope, scope)).toBe(false);
+    expect(client.getQueryData(["private"])).toEqual({ name: "Wayne Enterprises" });
+  });
+});
+
+describe("QueryCacheLifecycle", () => {
+  it("clears private results across principal, company, and masquerade transitions", async () => {
+    const { act, render } = await import("@testing-library/react");
+    const { AuthContext } = await import("@/auth/authContext");
+    const { useStore } = await import("@/store/useStore");
+    const { QueryCacheLifecycle } = await import("./QueryCacheLifecycle");
+    const cache = new QueryClient();
+    const authValue = (id: string | null) => ({
+      authMode: "password-only" as const,
+      user: id ? { id } : null,
+      providers: [],
+      canCreateAccount: true,
+      multiAccount: true,
+      refreshAuth: async () => {},
+      signOut: async () => {},
+    });
+    useStore.setState({ activeAccountId: null, masquerade: { kind: "inactive" } });
+    const tree = (principalId: string | null) => (
+      <AuthContext.Provider value={authValue(principalId)}>
+        <QueryCacheLifecycle cache={cache} />
+      </AuthContext.Provider>
+    );
+    const { rerender, unmount } = render(tree("bruce"));
+    const seed = () => cache.setQueryData(["private"], "sensitive data");
+    const expectCleared = () => expect(cache.getQueryData(["private"])).toBeUndefined();
+
+    seed();
+    rerender(tree("alfred"));
+    expectCleared();
+
+    seed();
+    await act(async () => useStore.setState({ activeAccountId: "wayne" }));
+    expectCleared();
+
+    seed();
+    await act(async () =>
+      useStore.setState({
+        masquerade: { kind: "starting", pending: { accountId: "wayne", targetUserId: "target" }, generation: 1 },
+      }),
+    );
+    expectCleared();
+
+    unmount();
+    const remounted = render(tree("alfred"));
+    seed();
+    remounted.unmount();
+    render(tree("bruce"));
+    expectCleared();
+    useStore.setState({ activeAccountId: null, masquerade: { kind: "inactive" } });
+  });
+});

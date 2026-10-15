@@ -7,7 +7,8 @@ import type { PersistenceAdapter } from "./PersistenceAdapter";
 import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { seed } from "@capacitylens/shared/data/seed";
-import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from "@/test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeAccount, makeAppData, resetStoreWithAccount } from "@/test/fixtures";
+import type { MasqueradeState } from "@capacitylens/shared/domain/masquerade";
 
 beforeEach(() => {
   localStorage.clear();
@@ -110,6 +111,65 @@ describe("bootstrap", () => {
       expect(useStore.getState().data).toEqual(emptyAppData());
     } finally {
       detach();
+    }
+  });
+
+  it("loads only the validated masquerade account and skips metadata/seed probes", async () => {
+    const target = makeAppData({ accounts: [makeAccount({ id: "target-account", name: "Wayne Enterprises" })] });
+    const loadAll = vi.fn().mockResolvedValue(target);
+    const hasExisting = vi.fn().mockResolvedValue(false);
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    const adapter: PersistenceAdapter = { loadAll, hasExisting, saveAll };
+
+    const detach = await bootstrap(useStore, adapter, {
+      debounceMs: 0,
+      initialAccountId: "target-account",
+      skipExistingCheck: true,
+      seedIfEmpty: seed(),
+    });
+
+    expect(loadAll).toHaveBeenCalledExactlyOnceWith("target-account");
+    expect(hasExisting).not.toHaveBeenCalled();
+    expect(saveAll).not.toHaveBeenCalled();
+    expect(useStore.getState().data).toEqual(target);
+    detach();
+  });
+
+  it("reconciles a status-first masquerade summary from the loaded account projection", async () => {
+    const accountId = "a-studio";
+    const masquerade: MasqueradeState = {
+      accountId,
+      targetUserId: "target-user",
+      targetName: "Clark Kent",
+      effectiveRole: "viewer",
+      startedAt: "2026-09-01T10:00:00.000Z",
+      token: "session-token",
+    };
+    useStore.getState().setMasquerade({ kind: "active", state: masquerade, generation: 1 });
+    useStore.getState().setAccountSummaries({
+      list: [{ id: accountId, name: masquerade.targetName, role: masquerade.effectiveRole }],
+    });
+    const loadAll = vi
+      .fn()
+      .mockResolvedValue(makeAppData({ accounts: [makeAccount({ id: accountId, name: "Wayne Enterprises" })] }));
+    const hasExisting = vi.fn();
+    const adapter: PersistenceAdapter = { loadAll, hasExisting, saveAll: vi.fn().mockResolvedValue(undefined) };
+
+    const detach = await bootstrap(useStore, adapter, {
+      debounceMs: 0,
+      initialAccountId: accountId,
+      skipExistingCheck: true,
+    });
+
+    try {
+      expect(loadAll).toHaveBeenCalledExactlyOnceWith(accountId);
+      expect(hasExisting).not.toHaveBeenCalled();
+      expect(useStore.getState().accountSummaries).toEqual([
+        { id: accountId, name: "Wayne Enterprises", role: "viewer" },
+      ]);
+    } finally {
+      detach();
+      useStore.getState().setMasquerade({ kind: "inactive" });
     }
   });
 

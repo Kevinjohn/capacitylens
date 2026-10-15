@@ -1,15 +1,15 @@
 import env from '#start/env'
 import router from '@adonisjs/core/services/router'
 import { checkDatabase, readState, resetState } from '#services/state_repository'
-import type { Account as AccountRow } from '@capacitylens/shared/types/entities'
 import { fileURLToPath } from 'node:url'
 import { healthChecks } from '#start/health'
 import { reportCspViolation } from '#services/csp_report'
 import { middleware } from '#start/kernel'
 import { registerAuthRoutes } from '#start/auth_routes'
-import { authMode } from '#services/auth/mode'
-import { resolveCurrentActor } from '#services/auth/session_authority'
-import { withTransaction } from '#services/with_transaction'
+import { registerMembershipRoutes } from '#start/membership_routes'
+import { registerAdmissionRoutes } from '#start/admission_routes'
+import { registerMasqueradeRoutes } from '#start/masquerade_routes'
+import { registerOwnershipRoutes } from '#start/ownership_routes'
 
 const BatchController = () => import('#controllers/batch_controller')
 const LifecycleController = () => import('#controllers/lifecycle_controller')
@@ -38,6 +38,11 @@ router
 router
   .put('/api/accounts/:accountId/getting-started', [GettingStartedController, 'update'])
   .as('api.getting-started.update')
+registerAuthRoutes()
+registerMembershipRoutes()
+registerAdmissionRoutes()
+registerMasqueradeRoutes()
+registerOwnershipRoutes()
 router.post('/api/:entity/:id/:action', [LifecycleController, 'mutate']).as('api.lifecycle')
 
 router.get('/api/health', () => ({ ok: true })).as('api.health')
@@ -78,24 +83,7 @@ router.get('/api/diagnostics', async ({ response }) => {
     })
   }
 })
-registerAuthRoutes()
-router.get('/api/accounts', async (ctx) => {
-  if (authMode() !== 'off') {
-    return withTransaction(async (trx) => {
-      const actor = await resolveCurrentActor(ctx, trx)
-      const rows = await trx
-        .from('memberships as member')
-        .innerJoin('accounts as account', 'account.id', 'member.account_id')
-        .where({ 'member.user_id': actor.userId, 'member.status': 'active' })
-        .select('account.id', 'account.name', 'member.role')
-      return rows.sort((left, right) => String(left.name).localeCompare(String(right.name)))
-    })
-  }
-  const state = await readState()
-  return state.accounts
-    .map(({ id, name }: AccountRow) => ({ id, name, role: 'owner' }))
-    .sort((left, right) => left.name.localeCompare(right.name))
-})
+router.get('/api/accounts', [CompaniesController, 'index']).as('api.accounts.index')
 router.post('/api/security/csp-report', ({ request, response, logger }) => {
   const event = reportCspViolation(request.body())
   if (event) logger.info(event, 'CSP violation reported')

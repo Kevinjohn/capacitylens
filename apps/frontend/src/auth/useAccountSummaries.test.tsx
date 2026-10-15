@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, render } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { fetchAccountSummaries, refreshAccountSummaries, useAccountSummaries } from "./useAccountSummaries";
 import { useStore } from "@/store/useStore";
 import {
@@ -22,7 +24,7 @@ vi.mock("@/data/offlineCache", async (importOriginal) => {
 // Only a genuine empty array may clear the picker. Malformed responses or an array with no valid rows preserve the existing list; mixed responses keep valid rows and log discarded entries.
 
 afterEach(() => {
-  useStore.setState({ activeAccountId: null });
+  useStore.setState({ activeAccountId: null, masquerade: { kind: "inactive" } });
   useStore.getState().setAccountSummaries({ list: [] });
   useStore.getState().setNotice(null);
   setOfflineReadState({ owner: "cleanup", readOnly: false });
@@ -393,7 +395,38 @@ function HookHost() {
   return null;
 }
 
+function renderWithQuery(node: ReactNode) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={client}>{node}</QueryClientProvider>);
+}
+
 function createYieldingHookTest() {
+  it("does not fetch the blocked company directory during an active masquerade", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    useStore.setState({
+      activeAccountId: "a1",
+      masquerade: {
+        kind: "active",
+        generation: 1,
+        state: {
+          accountId: "a1",
+          targetUserId: "target",
+          targetName: "Selina Kyle",
+          effectiveRole: "viewer",
+          startedAt: "2026-09-01T10:00:00.000Z",
+          token: "session-token",
+        },
+      },
+    });
+
+    const view = renderWithQuery(<HookHost />);
+    await act(async () => {});
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    view.unmount();
+  });
+
   it("yields active-account reads when the permission provider owns that generation", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -403,7 +436,7 @@ function createYieldingHookTest() {
       useAccountSummaries({ refreshActiveAccount: false });
       return null;
     }
-    const view = render(<YieldingHost />);
+    const view = renderWithQuery(<YieldingHost />);
     await act(async () => {});
 
     expect(fetchMock).not.toHaveBeenCalled();
@@ -427,7 +460,7 @@ function createMalformedHookTests() {
         return json(200, { not: "an array" });
       }),
     );
-    render(<HookHost />);
+    renderWithQuery(<HookHost />);
     await act(async () => {
       await done;
       // One extra macrotask so the hook's `await fetchAccountSummaries()` continuation (json parse +
@@ -453,7 +486,7 @@ function createMembershipHookTest() {
         return json(200, [null]);
       }),
     );
-    render(<HookHost />);
+    renderWithQuery(<HookHost />);
     await act(async () => {
       await done;
       await new Promise((r) => setTimeout(r, 0));
@@ -466,7 +499,7 @@ function createMembershipHookTest() {
     const fetchMock = vi.fn(async () => json(200, [{ id: "a1", name: "Studio A", role }]));
     vi.stubGlobal("fetch", fetchMock);
     useStore.setState({ membershipRevision: 0 });
-    render(<HookHost />);
+    renderWithQuery(<HookHost />);
 
     await act(async () => {
       await vi.waitFor(() => expect(useStore.getState().accountSummaries[0]?.role).toBe("owner"));

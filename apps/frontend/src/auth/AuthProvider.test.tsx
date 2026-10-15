@@ -1,10 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { IDBFactory } from "fake-indexeddb";
+import type { MasqueradeBootstrapStatus } from "./masqueradeApi";
+
+const authBootstrapMocks = vi.hoisted(() => ({
+  masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({ active: false })),
+}));
+vi.mock("./masqueradeApi", () => ({ masqueradeApi: { status: authBootstrapMocks.masqueradeStatus } }));
 
 // The API base captures build settings at module load, so each test creates a fresh module graph for its configured deployment. Auth context must come from that same graph.
 
 afterEach(() => {
+  authBootstrapMocks.masqueradeStatus.mockReset().mockResolvedValue({ active: false });
   localStorage.clear();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
@@ -247,6 +254,35 @@ function registerServerModeTest06() {
     expect(request).toBe("http://api.test/api/auth/me");
     expect(init?.credentials).toBe("include");
     expect(init?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("bootstraps an active masquerade from its validated real principal without calling auth/me", async () => {
+    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    authBootstrapMocks.masqueradeStatus.mockResolvedValue({
+      active: true,
+      accountId: "a-studio",
+      targetUserId: "target-user",
+      targetName: "Selina Kyle",
+      effectiveRole: "viewer",
+      startedAt: "2026-09-01T10:00:00.000Z",
+      token: "session-token",
+      principal: { id: "real-principal", name: "Bruce Wayne", email: "bruce@example.test" },
+      authMode: "password-only",
+    });
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const { AuthProvider, useAuth, useStore } = await freshProvider();
+
+    render(
+      <AuthProvider>
+        <SessionProbe useAuth={useAuth} />
+      </AuthProvider>,
+    );
+
+    expect(await screen.findByText("authMode:password-only user:real-principal")).toBeInTheDocument();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(useStore.getState().activeAccountId).toBe("a-studio");
+    expect(useStore.getState().masquerade.kind).toBe("active");
   });
 }
 

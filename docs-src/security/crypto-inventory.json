@@ -244,6 +244,50 @@
     {
       "path": "apps/backend/app/services/auth/request_limit.ts",
       "purpose": "SHA-256 fingerprints of the explicitly trusted client address for private native sign-in and API rate-limiter keys"
+    },
+    {
+      "path": "apps/backend/app/services/account_commands.ts",
+      "purpose": "Random non-secret command identifiers and domain-separated SHA-256 fingerprints for actor-bound semantic payload comparison; command receipts never retain invitation or password-reset bearers"
+    },
+    {
+      "path": "apps/backend/app/controllers/invitations_controller.ts",
+      "purpose": "Random principal identifiers for transactionally admitted password users; password hashing remains owned by the bounded product credential service"
+    },
+    {
+      "path": "apps/backend/app/controllers/joining_controller.ts",
+      "purpose": "Random non-secret membership identifiers for explicitly completed company admission"
+    },
+    {
+      "path": "apps/backend/app/services/admission/invitations.ts",
+      "purpose": "Random 256-bit single-use invitation bearers, domain-separated SHA-256 hash-only invitation storage, and random non-secret invitation and membership identifiers"
+    },
+    {
+      "path": "apps/backend/app/services/admission/email_proof.ts",
+      "purpose": "Random 256-bit single-use mailbox tokens with one-hour expiry, domain-separated SHA-256 token and browser-session bindings, and random non-secret intent and proof identifiers"
+    },
+    {
+      "path": "apps/backend/app/services/admission/joining_policy.ts",
+      "purpose": "Random non-secret company joining-policy row identifiers"
+    },
+    {
+      "path": "apps/backend/app/services/member_resources/links.ts",
+      "purpose": "Random non-secret resource-link identifiers and optimistic-concurrency revisions"
+    },
+    {
+      "path": "e2e/authTestSupport.ts",
+      "purpose": "Random non-secret membership identifiers in the disposable native authentication browser-test database"
+    },
+    {
+      "path": "apps/backend/app/services/auth/masquerade.ts",
+      "purpose": "Random 256-bit session-bound end tokens and non-secret view identifiers for explicit read-only member viewing; native session authentication and real-actor audit remain authoritative"
+    },
+    {
+      "path": "server/src/auditOutbox.ts",
+      "purpose": "Random non-secret durable audit-outbox record identifiers"
+    },
+    {
+      "path": "server/src/cutoverRepair.ts",
+      "purpose": "Random non-secret audit identifiers for explicit company-provider identity repair operations"
     }
   ]
 }
