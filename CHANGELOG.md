@@ -7,11 +7,34 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+- Retired the legacy server workspace and switched validation, native packaging and Docker deployment to the current application.
+
 ### Fixed
+
+- The native archive uses password authentication and database sessions, with open production
+  access disabled in the installation example.
 
 - Invalid account-access, checklist and masquerade responses now show the existing error feedback instead of accepting malformed fields (#1449).
 
 ### Changed
+
+- Native operator commands provide verified online backups, backup-before-upgrade, audited
+  sole-Owner recovery links and a guarded snapshot/archive reset into a new database path.
+  Readiness includes scheduled-backup status and refuses unknown migration histories.
+
+- The AdonisJS fork uses native password sign-in and fixed-lifetime sessions, with credential
+  changes, audit and session revocation committed together.
+
+- Google is the available company sign-in provider. A new Google identity needs the first-user
+  allowlist or an invitation addressed to its verified email; returning from Google does not join a
+  company or accept an invitation until the person completes that action.
+
+- Reusing a one-time invitation command returns a conflict instead of replaying its bearer link;
+  refresh the invitation list and replace the link if the original response was lost.
+
+- Ownership transfers now take effect when the Owner confirms a handover to an active, unrestricted
+  Admin. The selected Admin becomes Owner and the caller becomes Admin; the nominee does not
+  separately consent.
 
 - Body text, buttons, fields and menus use 13px type instead of 14px, for a denser desktop
   layout. Line heights and control sizes are unchanged.
@@ -26,7 +49,10 @@ new features and **patch** versions carry fixes.
 
 ### Documentation
 
-- Rewrote the documentation front door and README around four roles, each with a short step-by-step quick start with thumbnail screenshots, plus a one-page quick start for the person doing the whole setup. Every user guide was edited for length and one consistent voice, and the managed-host guide is now a single page. Statements that contradicted the app or each other were corrected, and upgrades now include a working rollback for Docker Compose, Linux and managed hosts.
+- Replaced retired framework and repository-policy references with the native Adonis operator
+  guides. Installation, backup, upgrade, reset, monitoring and external TLS instructions now use
+  the current packaged commands and paths; Docker mechanics remain deferred pending image work.
+- Rewrote the documentation front door and README around four roles, each with a short step-by-step quick start with thumbnail screenshots, plus a one-page quick start for the person doing the whole setup. Every user guide was edited for length and one consistent voice, and the managed-host guide is now a single page. Statements that contradicted the app or each other were corrected, and upgrades include verified-snapshot rollback for Linux and managed hosts; Docker rollback remains deferred pending image work.
 - Added complete Editor and Viewer starting routes, expanded Owner, Admin, joining, Account and discipline journeys, and added current screenshots for role-specific controls. Corrected operator guidance for MFA, provider linking, backups and monitoring.
 
 ### Added

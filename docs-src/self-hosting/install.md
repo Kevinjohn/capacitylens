@@ -1,147 +1,28 @@
 ---
 title: Install CapacityLens
-description: Install CapacityLens from a release archive in five steps, on a managed host or a Linux host, with three values to fill in.
+description: Install the native AdonisJS release archive on a Linux host.
+next:
+  text: Install without Docker
+  link: /self-hosting/install-without-docker
 ---
 
 # Install CapacityLens
 
-Five steps, three values to fill in. Each step notes where a managed host and a Linux host differ;
-the host guides under [Choose your host](#choose-your-host) have every command in full. On a host
-that already runs Node 24 and has a hostname pointing at it, it takes about ten minutes; an
-internet-facing instance takes longer, mostly because of DNS and certificates.
+The current server is a single AdonisJS application. It serves the web app and API, stores data in
+one SQLite database, and runs as one process. The native release archive is the installation
+route documented for this application.
 
-## You need
+You need a Linux host, Node 24 within the supported 24.x line, a persistent data directory and a
+public HTTPS address. A background process runs as a dedicated site user; keep the database and
+backup directory outside the versioned release folder under that user's access.
+The full procedure is [Install without Docker](/self-hosting/install-without-docker); managed
+platforms can follow [Deploy on a managed host](/self-hosting/managed-vps/).
 
-- <span id="server-size"></span>A server with 1 vCPU, 1 GB of memory and 10 GB of disk. The data
-  is small, a few MB a year; the hourly backups, 48 full copies, take most of the disk.
-- Node 24.19.0 or newer within 24.x on the host's system path. Check with `node --version`.
-- A hostname that points at the host, with HTTPS in front. A managed host issues the certificate;
-  on your own host, [Caddy](/self-hosting/install-without-docker#https) does it in four lines.
-- Linux. The archive is tested on Ubuntu x86-64; other Linux distributions and macOS are expected
-  to work but are not tested.
-- Persistent storage for the database, the audit log and the scheduled backups that production
-  writes by default.
+Before opening the service to users, configure the secrets and public URL in a private environment
+file, run `node ace.js app:upgrade` from the archive's `backend/` directory, then start the service.
+The first-run page uses `CAPACITYLENS_SETUP_TOKEN` to create the first identity and company. Remove
+that token after setup. Configure an external proxy to terminate TLS and forward requests to the
+loopback listener; see [TLS and networking](/self-hosting/tls-and-networking).
 
-Node 26.9.0 or newer within 26.x is experimental, best-effort and not guaranteed to be fully
-functional. Use current patches within either line. See
-[the compatibility policy](/reference/development#check-node-26-compatibility).
-
-Want a look first? [Try the demo](/getting-started/try-the-demo) instead.
-
-## 1. Download
-
-Download the release archive and unpack it. It holds the built web app and the server, so there
-is nothing to build and no Docker. The release also lists a `.sha256` file to check it against.
-
-```text
-https://github.com/Kevinjohn/capacitylens/releases/download/v0.73.0-alpha.1/capacitylens-0.73.0-alpha.1.tar.gz
-```
-
-0.73.0-alpha.1 is the first release with an archive; for an earlier one, use
-[Docker](/self-hosting/install-with-docker). For a newer release, use its version in place of
-0.73.0-alpha.1.
-
-- **Managed host:** put the data-folder, download, unpack and link commands in the site's deploy
-  script. Its first line creates the data folder from step 2, so no terminal is needed.
-- **Linux host:** download it, unpack it into `/opt/capacitylens` and link `current` to the release
-  folder:
-
-  ```bash
-  curl -LO https://github.com/Kevinjohn/capacitylens/releases/download/v0.73.0-alpha.1/capacitylens-0.73.0-alpha.1.tar.gz
-  ```
-
-  ```bash
-  sudo mkdir -p /opt/capacitylens && sudo tar -xzf capacitylens-0.73.0-alpha.1.tar.gz -C /opt/capacitylens && sudo ln -sfn /opt/capacitylens/capacitylens-0.73.0-alpha.1 /opt/capacitylens/current
-  ```
-
-## 2. Pick a folder for the data
-
-The database file is created here on first start. Keep it outside the unpacked release, so an
-upgrade never touches it.
-
-- **Managed host:** `/home/forge/capacitylens-data`, next to the site folder. The deploy script
-  creates it. `forge` is the site's user; a site with website isolation uses its own user, so
-  use that name in this path and in `CAPACITYLENS_DB`.
-- **Linux host:** `/var/lib/capacitylens`, owned by a `capacitylens` user. Create both:
-
-  ```bash
-  sudo useradd --system --home /var/lib/capacitylens --shell /usr/sbin/nologin capacitylens
-  ```
-
-  ```bash
-  sudo install -d -o capacitylens -g capacitylens -m 0700 /var/lib/capacitylens
-  ```
-
-## 3. Configure
-
-Run `init` from the unpacked release folder, with the address people open and a database file
-in the data folder:
-
-```bash
-node server/dist/index.mjs init --public-url https://capacity.example.com --db /var/lib/capacitylens/capacitylens.db
-```
-
-It prints the environment file, with the session secret and setup token generated. Everything
-else has a default.
-
-```dotenv
-NODE_ENV=production
-CAPACITYLENS_PUBLIC_URL=https://capacity.example.com
-CAPACITYLENS_SECRET=<generated>
-CAPACITYLENS_SETUP_TOKEN=<generated>
-CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db
-```
-
-It then prints the setup token again; it is entered once, to create the Owner. The server refuses
-to start while a required line is empty, and names the missing one.
-
-- **Managed host:** run it in the site's command runner (Forge: the site's Commands panel, which
-  starts in the site's folder) as `node current/server/dist/index.mjs init`, with
-  `--db /home/forge/capacitylens-data/capacitylens.db` (or your site user's folder). Paste the
-  output into the site's environment editor.
-- **Linux host:** add `--out /etc/capacitylens.env` and run it with `sudo`. It writes the file
-  readable only by root, and refuses to overwrite an existing one.
-
-## 4. Start it
-
-- **Managed host:** add a background process (daemon) that runs as the site's user and runs
-  `node --env-file=../.env server/dist/index.mjs` in the site's `current` folder. In the site's
-  nginx file, replace the generated `location /` block with the locations on
-  [Deploy on a managed host](/self-hosting/managed-vps/#the-five-steps), which proxy to port 8787.
-- **Linux host:** install the `capacitylens.service` file from the archive as a systemd service,
-  and put Caddy or nginx in front:
-
-  ```bash
-  sudo cp /opt/capacitylens/current/capacitylens.service /etc/systemd/system/ && sudo systemctl enable --now capacitylens
-  ```
-
-The server serves the web app as well as the API, so one reverse-proxy line covers the whole
-site. The archive's optional nginx file serves the web app itself instead;
-[TLS and networking](/self-hosting/tls-and-networking) has both and the proxy requirements.
-
-## 5. Open the address
-
-Open the address from step 3 and check the first-Owner screen loads. It asks for the setup token:
-the `CAPACITYLENS_SETUP_TOKEN` line from step 3.
-
-If you are also the Owner, continue with [Set up your company](/owner/). Otherwise, send the
-address to the Owner, and send the setup token separately and privately.
-
-After the Owner has signed in, remove `CAPACITYLENS_SETUP_TOKEN` and restart.
-
-## Choose your host
-
-- [Deploy on a managed host](/self-hosting/managed-vps/) such as Forge, Ploi or
-  RunCloud, in the platform's screens.
-- [Install without Docker](/self-hosting/install-without-docker) on a Linux host you manage,
-  with Caddy for HTTPS.
-
-Both end with [TLS and networking](/self-hosting/tls-and-networking) and
-[Verify and hand over](/self-hosting/verify-and-hand-over).
-[Configuration](/self-hosting/configuration) covers every other setting.
-
-## Other ways to install
-
-- [Install with Docker](/self-hosting/install-with-docker) builds and runs the Compose stack from
-  a checkout, if your host already runs Docker.
-- To run your own changes, build from a clone with the [development guide](/reference/development).
+The [Docker Compose guide](/self-hosting/install-with-docker) builds separate web and API images.
+It runs the checked upgrade command before the API starts and keeps data in persistent volumes.

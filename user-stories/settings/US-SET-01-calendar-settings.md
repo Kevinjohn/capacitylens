@@ -1,6 +1,6 @@
 # US-SET-01 — Team calendar settings are set at creation, then frozen
 
-**Area:** Settings · **Persona:** Studio manager · **Linked automated coverage:** `e2e/onboarding.spec.ts` (capture at creation + read-only summary in Settings), `e2e/settings-calendar.spec.ts` (frozen summary/help + Settings axe), `e2e/onboarding.db.spec.ts` (server 409), `src/lib/timezones.test.ts` (numeric UTC offset labels and DST)
+**Area:** Settings · **Persona:** Studio manager · **Linked automated coverage:** `e2e/onboarding.spec.ts` (capture at creation + read-only summary in Settings), `e2e/settings-calendar.spec.ts` (frozen summary/help + Settings axe), `e2e/onboarding.db.spec.ts` (server 409), `apps/frontend/src/lib/timezones.test.ts` (numeric UTC offset labels and DST)
 
 **Documentation:** [Settings](../../docs-src/using/settings.md)
 

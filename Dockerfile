@@ -5,14 +5,14 @@ FROM public.ecr.aws/docker/library/node:24-bookworm-slim@sha256:0e0ff40c39bc0878
 WORKDIR /app
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY patches ./patches
-COPY shared/package.json ./shared/
-COPY server/package.json ./server/
+# better-sqlite3 compiles its native binding during the frozen dependency install.
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
+COPY . .
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS source
-COPY . .
 
 FROM source AS web-build
 WORKDIR /app
@@ -24,29 +24,23 @@ ENV VITE_CAPACITYLENS_API=${VITE_CAPACITYLENS_API}
 ENV VITE_CAPACITYLENS_DEMO=${VITE_CAPACITYLENS_DEMO}
 ENV VITE_CAPACITYLENS_BUILD_SHA=${VITE_CAPACITYLENS_BUILD_SHA}
 ENV VITE_CAPACITYLENS_FEEDBACK_MAILTO=${VITE_CAPACITYLENS_FEEDBACK_MAILTO}
-RUN pnpm run build
+RUN NODE_ENV=production CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1 HOST=127.0.0.1 PORT=0 LOG_LEVEL=error APP_KEY=capacitylens-build-key-0123456789abcdef APP_URL=http://127.0.0.1 SESSION_DRIVER=memory pnpm run build
 
 FROM web-build AS web-client-build
 # The client-only runtime has no same-origin proxy. Bake its validated remote API origin (if any)
 # into the CSP rather than weakening connect-src or templating mutable runtime configuration.
 RUN node scripts/render-client-nginx.mjs nginx.client.conf.template /tmp/nginx.client.conf
 
-# Bundle the API and its CPU-isolated import worker once during image construction. The production
-# container executes plain JavaScript and carries neither the TypeScript transformer nor build tools.
-FROM source AS server-deploy
-RUN pnpm --filter capacitylens-server run build:runtime \
-    && pnpm --filter capacitylens-server deploy --prod /prod/server
-# Fail the image build if optional web/test peers leak back into the isolated API graph.
-RUN for package in vite vitest jsdom eslint react react-dom playwright playwright-core typescript; do \
-      test -z "$(find /prod/server/node_modules/.pnpm -mindepth 1 -maxdepth 1 -type d -name "$package@*" -print -quit)" \
-      || { echo "unexpected API runtime package: $package" >&2; exit 1; }; \
-    done
+# Deployment runs in this disposable build stage, preserving the pinned local archive.
+FROM web-build AS server-deploy
+RUN pnpm --filter @capacitylens/backend deploy --prod --legacy --no-optional /runtime-deploy \
+    && node scripts/prepare-container-runtime.mjs /app /runtime-deploy /prod/backend
 
 FROM public.ecr.aws/docker/library/node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 AS api
-WORKDIR /app/server
+WORKDIR /app/backend
 ENV NODE_ENV=production
-ENV CAPACITYLENS_HOST=0.0.0.0
-COPY --from=server-deploy /prod/server ./
+ENV HOST=0.0.0.0 PORT=8787 SESSION_DRIVER=database
+COPY --from=server-deploy /prod/backend ./
 # Apply Debian security updates and remove package managers that the runtime does not need.
 RUN apt-get update \
     && apt-get upgrade --yes \
@@ -59,13 +53,8 @@ RUN apt-get update \
 USER node
 EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD ["node", "scripts/check-health.mjs"]
-CMD ["sh", "-c", "node scripts/check-node.mjs && exec node dist/index.mjs"]
-
-FROM public.ecr.aws/docker/library/alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 AS internal-tls
-RUN apk add --no-cache openssl
-COPY scripts/internal-tls.sh /usr/local/bin/capacitylens-internal-tls
-ENTRYPOINT ["/usr/local/bin/capacitylens-internal-tls"]
+  CMD ["node", "-e", "fetch('http://127.0.0.1:'+process.env.PORT+'/health/ready',{signal:AbortSignal.timeout(4000)}).then(r=>{if(!r.ok)process.exitCode=1}).catch(()=>{process.exitCode=1})"]
+CMD ["node", "bin/server.js"]
 
 FROM ghcr.io/nginx/nginx-unprivileged:1.31.6-alpine@sha256:26b0bf6fbf07297983cb341998d79c831508787de26627dd2a112321b9c3a4af AS web-runtime
 USER root

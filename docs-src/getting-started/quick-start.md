@@ -23,12 +23,9 @@ you never open a terminal.
 
 2. **Pick a folder** for the data. The database file is created there on first start.
 
-3. **Configure** with one command. It prints your settings, with the secrets and a one-time
-   setup token generated for you:
-
-   ```bash
-   node server/dist/index.mjs init --public-url https://capacity.example.com --db /var/lib/capacitylens/capacitylens.db
-   ```
+3. **Configure** the private environment file from the archive's example. Fill in the public
+   address, database path, application key, account secret and one-time setup token. Follow the
+   [native installation guide](/self-hosting/install-without-docker) for the exact commands.
 
 4. **Start it** as a background process, with HTTPS in front.
 

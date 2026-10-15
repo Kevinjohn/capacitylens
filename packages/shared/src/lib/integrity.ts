@@ -1,0 +1,314 @@
+import { daysInclusive } from "./dateMath.js";
+import { MAX_SPAN_DAYS } from "./schedulingDays.js";
+import type { DomainErrorCode } from "../domain/errors.js";
+import type { Activity, Allocation, AppData, ID, ISODate, Resource } from "../types/entities.js";
+
+// Keep referential-integrity validation and cascade transforms pure. Cascades return a new AppData.
+// FK-clearing cascades require an updatedAt revision so synchronization observes surviving relationship edits.
+
+/**
+ * Length of a Gregorian calendar month, leap years included. `month` is 1-based and must already
+ * be 1–12 (callers range-check first, see `isValidISODate` below and repeatingDates' typed
+ * wrapper). Exported so the calendar-validity check here and repeatingDates' month arithmetic
+ * share one leap rule; two copies could drift on a century year (1900 vs 2000).
+ * @throws RangeError when month is not an integer from 1 through 12; callers must range-check it first.
+ */
+export function daysInMonth(year: number, month: number): number {
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+  if (days === undefined) throw new RangeError("Month must be between 1 and 12.");
+  return days;
+}
+
+/**
+ * Is `s` a well-formed, real calendar date in date-only ISO form ("YYYY-MM-DD")?
+ * The shape regex alone would accept `2026-13-40` or `2026-02-30` (lexicographic
+ * order is fine, but the date is nonsense and breaks later formatting/geometry),
+ * so Gregorian month-length arithmetic validates it without consulting the host timezone.
+ */
+export function isValidISODate(value: unknown): value is ISODate {
+  if (typeof value !== "string") return false;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (year < 1 || month < 1 || month > 12 || day < 1) return false;
+  return day <= daysInMonth(year, month);
+}
+
+const ISO_TIMESTAMP_RE = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(Z|([+-])(\d{2}):(\d{2}))$/;
+
+interface TimestampOffsetParts {
+  zone: string | undefined;
+  sign: string | undefined;
+  offsetHourText: string | undefined;
+  offsetMinuteText: string | undefined;
+}
+
+function timestampOffsetMinutes({ zone, sign, offsetHourText, offsetMinuteText }: TimestampOffsetParts): number | null {
+  if (zone === undefined) return null;
+  if (zone === "Z") return 0;
+  const offsetHour = Number(offsetHourText);
+  const offsetMinute = Number(offsetMinuteText);
+  if (offsetHour > 23 || offsetMinute > 59) return null;
+  return (sign === "-" ? -1 : 1) * (offsetHour * 60 + offsetMinute);
+}
+
+/**
+ * Parse the supported ISO timestamp form without accepting implementation-defined Date.parse
+ * shorthand or calendar rollover. UTC and explicit numeric offsets are accepted; seconds are
+ * required and fractional precision is capped at the millisecond precision the product stores.
+ */
+export function parseISOTimestamp(value: unknown): number | null {
+  if (typeof value !== "string") return null;
+  const match = ISO_TIMESTAMP_RE.exec(value);
+  if (!match) return null;
+  const [, date, hourText, minuteText, secondText, fraction, zone, sign, offsetHourText, offsetMinuteText] = match;
+  if (!isValidISODate(date)) return null;
+
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  const second = Number(secondText);
+  const milliseconds = Number((fraction ?? "").padEnd(3, "0") || "0");
+  if (hour > 23 || minute > 59 || second > 59) return null;
+
+  const offsetMinutes = timestampOffsetMinutes({ zone, sign, offsetHourText, offsetMinuteText });
+  if (offsetMinutes === null) return null;
+
+  const localAsUtc = Date.parse(
+    `${date}T${hourText}:${minuteText}:${secondText}.${String(milliseconds).padStart(3, "0")}Z`,
+  );
+  const expected = localAsUtc - offsetMinutes * 60_000;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) && parsed === expected ? parsed : null;
+}
+
+/** Outcome of a validation: `ok`, display-safe `errors`, and their stable `codes`. */
+export interface ValidationResult {
+  ok: boolean;
+  errors: string[];
+  codes: DomainErrorCode[];
+}
+
+type ValidationIssue = { code: DomainErrorCode; message: string };
+
+const toResult = (issues: ValidationIssue[]): ValidationResult => ({
+  ok: issues.length === 0,
+  errors: issues.map((issue) => issue.message),
+  codes: issues.map((issue) => issue.code),
+});
+
+/** A project must belong to a client. */
+export function validateProjectClient(clientId: ID | undefined | null): ValidationResult {
+  return toResult(
+    clientId
+      ? []
+      : [
+          {
+            code: "project_client_required",
+            message: "A project must belong to a client.",
+          },
+        ],
+  );
+}
+
+/**
+ * A scheduled range (allocation / time off) must have both ends present, be
+ * well-formed real dates, not be reversed, and stay within the product's finite calendar-span
+ * bound. Dates are date-only ISO strings
+ * ("YYYY-MM-DD"), which sort lexicographically, so a plain string compare is a
+ * correct date compare. This is the single source of truth the store enforces so
+ * no caller can persist an empty, malformed, or reversed range (which would
+ * otherwise produce NaN / negative bar geometry on the timeline). The malformed
+ * check matters most on the import / direct-store paths, which bypass the native
+ * date inputs that keep the UI well-formed.
+ */
+export function validateDateRange(startDate?: ISODate | null, endDate?: ISODate | null): ValidationResult {
+  if (!startDate || !endDate)
+    return toResult([{ code: "date_required", message: "Start and end dates are required." }]);
+  if (!isValidISODate(startDate) || !isValidISODate(endDate)) {
+    return toResult([
+      {
+        code: "date_invalid",
+        message: "Dates must be valid calendar dates (YYYY-MM-DD).",
+      },
+    ]);
+  }
+  if (endDate < startDate)
+    return toResult([
+      {
+        code: "date_reversed",
+        message: "End date cannot be before the start date.",
+      },
+    ]);
+  // Enforce the span bound before callers can allocate one entry per day.
+  if (daysInclusive(startDate, endDate) > MAX_SPAN_DAYS) {
+    return toResult([
+      {
+        code: "date_span_too_long",
+        message: `Date span cannot exceed ${MAX_SPAN_DAYS.toLocaleString("en-GB")} calendar days.`,
+      },
+    ]);
+  }
+  return toResult([]);
+}
+
+/** Resolve the project a booking counts toward. Allocation attribution takes precedence over the
+ * activity's project because repeatable activities are project-less and attribute each booking. */
+export function effectiveProjectId(
+  allocation: Partial<Pick<Allocation, "projectId">>,
+  activity: Partial<Pick<Activity, "projectId">>,
+): ID | undefined {
+  return allocation.projectId ?? activity.projectId ?? undefined;
+}
+
+/** Allocation-level project attribution belongs only to all-projects activities. */
+export function allocationAttributionAllowed(kind: unknown): boolean {
+  return kind === "repeatable";
+}
+
+/** Return a fresh row with allocation-level attribution removed and, when supplied, restamped. */
+export function withoutAllocationAttribution<T extends object>(row: T, updatedAt?: unknown): T {
+  const cleared = { ...row } as T & { projectId?: unknown; updatedAt?: unknown };
+  Object.assign(cleared, { projectId: null });
+  if (updatedAt !== undefined) cleared.updatedAt = updatedAt;
+  return cleared;
+}
+
+/** Check that a project-attributed placeholder allocation matches its bound project.
+ * Unattributed work is assignable to any resource; people and externals are unrestricted by this rule. Pure. */
+export function validateAllocationAssignment(resource: Resource, projectId: ID | undefined): ValidationResult {
+  const issues: ValidationIssue[] = [];
+  // Only placeholders are project-restricted. `person` and `external` are intentionally
+  // unrestricted (an external 3rd party can be assigned any activity), don't add a guard here.
+  if (resource.kind === "placeholder" && projectId !== undefined) {
+    if (!resource.projectId) {
+      issues.push({
+        code: "placeholder_project_missing",
+        message: "This placeholder is not bound to a project yet.",
+      });
+    } else if (resource.projectId !== projectId) {
+      issues.push({
+        code: "placeholder_project_mismatch",
+        message: "A placeholder can only be assigned to activities from its bound project.",
+      });
+    }
+  }
+  return toResult(issues);
+}
+
+// Cascades return a new AppData without mutating the input.
+// Entity IDs are table-global; callers must first authorize the root within its account.
+// FK-clearing cascades require a revision so sync observes surviving relationship changes.
+// Account deletion removes scoped rows by accountId rather than by an entity subtree.
+
+/** Delete a resource and its allocations + time off. Pure, returns a new AppData. */
+export function deleteResourceCascade(data: AppData, resourceId: ID): AppData {
+  return {
+    ...data,
+    resources: data.resources.filter((resource) => resource.id !== resourceId),
+    allocations: data.allocations.filter((allocation) => allocation.resourceId !== resourceId),
+    timeOff: data.timeOff.filter((timeOff) => timeOff.resourceId !== resourceId),
+  };
+}
+
+/** Delete an activity and its allocations. Pure, returns a new AppData. */
+export function deleteActivityCascade(data: AppData, activityId: ID): AppData {
+  return {
+    ...data,
+    activities: data.activities.filter((activity) => activity.id !== activityId),
+    allocations: data.allocations.filter((allocation) => allocation.activityId !== activityId),
+  };
+}
+
+/** Deleting a phase is non-destructive to its activities. It just ungroups them. */
+export function deletePhaseCascade(data: AppData, phaseId: ID, updatedAt: string): AppData {
+  return {
+    ...data,
+    phases: data.phases.filter((phase) => phase.id !== phaseId),
+    activities: data.activities.map((activity) => {
+      if (activity.phaseId !== phaseId) return activity;
+      const remaining = { ...activity };
+      remaining.phaseId = null;
+      return { ...remaining, updatedAt };
+    }),
+  };
+}
+
+// Share project-subtree traversal so client and project deletion apply identical cascade rules.
+// Collect removed IDs before filtering each table once.
+// Clear surviving activity and placeholder references to removed parents to avoid dangling links.
+function dropProjectSubtree(data: AppData, removedProjectIds: Set<ID>, updatedAt: string): AppData {
+  const removedPhaseIds = new Set(
+    data.phases.filter((phase) => removedProjectIds.has(phase.projectId)).map((phase) => phase.id),
+  );
+  const removedActivityIds = new Set(
+    data.activities
+      .filter((activity) => activity.projectId != null && removedProjectIds.has(activity.projectId))
+      .map((activity) => activity.id),
+  );
+  return {
+    ...data,
+    projects: data.projects.filter((project) => !removedProjectIds.has(project.id)),
+    phases: data.phases.filter((phase) => !removedPhaseIds.has(phase.id)),
+    activities: data.activities
+      .filter((activity) => !removedActivityIds.has(activity.id))
+      .map((activity) => {
+        if (activity.phaseId === null || !removedPhaseIds.has(activity.phaseId)) return activity;
+        const remaining = { ...activity };
+        remaining.phaseId = null;
+        return { ...remaining, updatedAt };
+      }),
+    allocations: data.allocations
+      .filter((allocation) => !removedActivityIds.has(allocation.activityId))
+      .map((allocation) => {
+        if (allocation.projectId === null || !removedProjectIds.has(allocation.projectId)) return allocation;
+        const remaining = { ...allocation };
+        remaining.projectId = null;
+        return { ...remaining, updatedAt };
+      }),
+    resources: data.resources.map((resource) => {
+      if (resource.projectId === null || !removedProjectIds.has(resource.projectId)) return resource;
+      const remaining = { ...resource };
+      remaining.projectId = null;
+      return { ...remaining, updatedAt };
+    }),
+  };
+}
+
+/** Delete a project subtree and its allocations.
+ * Surviving activity phase links and matching project links are cleared.
+ * Returns a new `AppData`.
+ */
+export function deleteProjectCascade(data: AppData, projectId: ID, updatedAt: string): AppData {
+  return dropProjectSubtree(data, new Set([projectId]), updatedAt);
+}
+
+/** Delete a client and its project subtree.
+ * Surviving activity phase links and matching project links are cleared.
+ * Returns a new `AppData`.
+ */
+export function deleteClientCascade(data: AppData, clientId: ID, updatedAt: string): AppData {
+  const removedProjectIds = new Set(
+    data.projects.filter((project) => project.clientId === clientId).map((project) => project.id),
+  );
+  return {
+    ...dropProjectSubtree(data, removedProjectIds, updatedAt),
+    clients: data.clients.filter((client) => client.id !== clientId),
+  };
+}
+
+/** Deleting a discipline ungroups its resources rather than deleting them. */
+export function deleteDisciplineCascade(data: AppData, disciplineId: ID, updatedAt: string): AppData {
+  return {
+    ...data,
+    disciplines: data.disciplines.filter((discipline) => discipline.id !== disciplineId),
+    resources: data.resources.map((resource) => {
+      if (resource.disciplineId !== disciplineId) return resource;
+      const remaining = { ...resource };
+      remaining.disciplineId = null;
+      return { ...remaining, updatedAt };
+    }),
+  };
+}

@@ -1,4 +1,4 @@
-import { existsSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, extname, resolve, sep } from "node:path";
 import ts from "typescript";
 
@@ -65,6 +65,18 @@ export function parseDependencies(source, filename, { verbatimModuleSyntax = fal
   return edges;
 }
 
+function resolveBackendAlias(specifier, root) {
+  const manifest = resolve(root, "apps/backend/package.json");
+  if (!existsSync(manifest)) return null;
+  const { imports = {} } = JSON.parse(readFileSync(manifest, "utf8"));
+  for (const [pattern, target] of Object.entries(imports)) {
+    const prefix = pattern.replace(/\*$/, "");
+    if (specifier.startsWith(prefix))
+      return resolve(root, "apps/backend", target.replace("*", specifier.slice(prefix.length)));
+  }
+  return null;
+}
+
 const sourceExtensions = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"];
 
 /** Resolve the repository's relative and workspace aliases. External packages are
@@ -76,10 +88,12 @@ export function resolveDependency(specifier, filename, root) {
   const base = specifier.startsWith(".")
     ? resolve(dirname(filename), specifier)
     : specifier.startsWith("@/")
-      ? resolve(root, "src", specifier.slice(2))
+      ? resolve(root, "apps/frontend/src", specifier.slice(2))
       : specifier.startsWith("@capacitylens/shared/")
-        ? resolve(root, "shared/src", specifier.slice("@capacitylens/shared/".length))
-        : null;
+        ? resolve(root, "packages/shared/src", specifier.slice("@capacitylens/shared/".length))
+        : specifier.startsWith("#")
+          ? resolveBackendAlias(specifier, root)
+          : null;
   if (base === null) return { classification: "external" };
   const extension = extname(base);
   const substitutions = { ".js": [".ts", ".tsx"], ".jsx": [".tsx"], ".mjs": [".mts"], ".cjs": [".cts"] };
@@ -111,9 +125,9 @@ function readVerbatimSetting(configPath) {
  */
 export function createDependencyParser(root) {
   const projects = [
-    ["src", "tsconfig.app.json"],
-    ["server/src", "server/tsconfig.json"],
-    ["shared/src", "shared/tsconfig.json"],
+    ["apps/frontend/src", "apps/frontend/tsconfig.app.json"],
+    ["apps/backend", "apps/backend/tsconfig.json"],
+    ["packages/shared/src", "packages/shared/tsconfig.json"],
   ].map(([directory, config]) => ({
     prefix: resolve(root, directory) + sep,
     verbatimModuleSyntax: readVerbatimSetting(resolve(root, config)),

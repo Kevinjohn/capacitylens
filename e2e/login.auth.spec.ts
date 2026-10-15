@@ -23,7 +23,7 @@ const ORG_NAME = `Login Studio ${Date.now()}`;
 // USER_ALREADY_EXISTS (422) when rerun against a reused server. It uses the request cookie jar because
 // this test does not need the returned session; the shared signUpUser helper requires a fresh signup.
 async function seedUser(request: APIRequestContext, email = EMAIL) {
-  const res = await request.post(`${API}/api/auth/sign-up/email`, {
+  const res = await request.post(`${API}/api/auth/sign-up`, {
     data: { email, password: PASSWORD, name: "Tester" },
   });
   if (!res.ok()) expect(res.status()).toBe(422);

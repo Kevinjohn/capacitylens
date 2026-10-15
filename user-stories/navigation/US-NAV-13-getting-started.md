@@ -1,6 +1,6 @@
 # US-NAV-13 — Track five first-schedule milestones
 
-**Area:** Navigation & shell · **Persona:** New Owner, Admin or Editor setting up a company · **Linked coverage:** `e2e/getting-started.spec.ts`, `e2e/getting-started.db.spec.ts`, `e2e/members.auth.spec.ts`, `e2e/viewer.auth.spec.ts`, `src/components/GettingStarted.test.tsx`, `src/lib/gettingStarted.test.ts`, `src/lib/tourSteps.test.ts`
+**Area:** Navigation & shell · **Persona:** New Owner, Admin or Editor setting up a company · **Linked coverage:** `e2e/getting-started.spec.ts`, `e2e/getting-started.db.spec.ts`, `e2e/members.auth.spec.ts`, `e2e/viewer.auth.spec.ts`, `apps/frontend/src/components/GettingStarted.test.tsx`, `apps/frontend/src/lib/gettingStarted.test.ts`, `apps/frontend/src/lib/tourSteps.test.ts`
 
 **Documentation:** [Make your first schedule useful](../../docs-src/getting-started/quick-start.md#make-your-first-schedule-useful)
 
