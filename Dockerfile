@@ -5,6 +5,10 @@ FROM public.ecr.aws/docker/library/node:24-bookworm-slim@sha256:0e0ff40c39bc0878
 WORKDIR /app
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
+# better-sqlite3 compiles its native binding during the frozen dependency install.
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
 COPY . .
 RUN pnpm install --frozen-lockfile
 

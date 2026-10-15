@@ -49,3 +49,18 @@ test("Compose upgrades before API startup and preserves the private persistent d
   assert.equal(Object.hasOwn(workflow.on, "pull_request"), false);
   assert.equal(Object.hasOwn(workflow.on, "workflow_dispatch"), true);
 });
+
+test("native compilation tools are installed before dependencies and stay outside the runtime stage", async () => {
+  const dockerfile = await readFile(new URL("../Dockerfile", import.meta.url), "utf8");
+  const stages = dockerfile.split(/(?=^FROM )/m);
+  const dependencies = stages.find((stage) => / AS deps\n/.test(stage));
+  const runtime = stages.find((stage) => / AS api\n/.test(stage));
+  assert.ok(dependencies);
+  assert.ok(runtime);
+  assert.match(dependencies, /apt-get install --yes --no-install-recommends python3 make g\+\+/);
+  assert.ok(dependencies.indexOf("apt-get install") < dependencies.indexOf("pnpm install --frozen-lockfile"));
+  assert.match(runtime, /^FROM public\.ecr\.aws\/docker\/library\/node:[^\n]+ AS api/m);
+  assert.doesNotMatch(runtime, /\b(?:python3|make|build-essential)\b|g\+\+/);
+  const copies = [...runtime.matchAll(/^COPY --from=(.+)$/gm)].map((match) => match[1]);
+  assert.deepEqual(copies, ["server-deploy /prod/backend ./"]);
+});
