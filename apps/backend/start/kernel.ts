@@ -23,6 +23,7 @@ server.errorHandler(() => import('#exceptions/handler'))
  * the request URL.
  */
 server.use([
+  () => import('#middleware/request_logging_middleware'),
   () => import('#middleware/security_headers_middleware'),
   () => import('#middleware/api_rate_limit_middleware'),
   () => import('@adonisjs/session/session_middleware'),
