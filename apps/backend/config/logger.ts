@@ -2,6 +2,7 @@ import env from '#start/env'
 import app from '@adonisjs/core/services/app'
 import type { LoggerConfig, LoggerManagerConfig } from '@adonisjs/logger/types'
 import { defineConfig, syncDestination, targets } from '@adonisjs/core/logger'
+import { classifyLogError } from '#services/logging_safety'
 
 type AppLoggerConfig = LoggerConfig & {
   enabled: true
@@ -35,6 +36,29 @@ const loggerConfig: CapacityLensLoggerConfig = defineConfig<{ app: AppLoggerConf
        * Minimum level to output (trace, debug, info, warn, error, fatal).
        */
       level: env.get('LOG_LEVEL'),
+
+      /** Keep Pino's standard `err` fields from exposing private messages or stacks. */
+      serializers: {
+        err(error: unknown) {
+          return { category: classifyLogError(error) }
+        },
+      },
+
+      /** Remove native request/response payload containers and the framework's untrusted id. */
+      redact: {
+        paths: [
+          'request_id',
+          'req.headers',
+          'req.body',
+          'res.headers',
+          'res.body',
+          'request.headers',
+          'request.body',
+          'response.headers',
+          'response.body',
+        ],
+        remove: true,
+      },
 
       /**
        * Use sync destination in non-production for immediate flush.

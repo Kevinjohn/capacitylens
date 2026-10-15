@@ -11,6 +11,9 @@
 |
 */
 
+const { assertSupportedNodeVersion } = await import('#start/node_version')
+assertSupportedNodeVersion()
+
 await import('reflect-metadata')
 const { Ignitor, prettyPrintError } = await import('@adonisjs/core/ignitor')
 
@@ -40,7 +43,7 @@ new Ignitor(APP_ROOT, { importer: IMPORTER })
     app.listenIf(app.managedByPm2, 'SIGINT', () => app.terminate())
   })
   .ace()
-  .handle(process.argv.splice(2))
+  .handle(process.argv.slice(2))
   .catch((error) => {
     process.exitCode = 1
     prettyPrintError(error)

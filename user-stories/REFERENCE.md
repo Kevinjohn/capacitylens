@@ -4,6 +4,11 @@ This file pins the exact, current facts every user story and test script depends
 routes, control labels, `data-testid`s, the first-run seed data, and shared conventions.
 If the app changes, update this file first, then the affected stories.
 
+Operator recovery uses `node ace owner:reset-password <email> --confirm-server-stopped`.
+It prints one single-use recovery link after committing its private audit. Installation reset uses
+`node ace app:reset <new-database-path> --confirm-server-stopped`, preserving the old database
+and a verified snapshot before creating an empty database at a new path.
+
 All member linking and invitations are managed in **Team & access**. Owners and Admins open the
 member's actions there to link, change, or remove an eligible person Resource; the Resources page
 does not provide a separate team-link workflow.

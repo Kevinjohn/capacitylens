@@ -7,6 +7,12 @@ import {
   PasswordPolicyError,
   PasswordScreeningUnavailableError,
 } from '#services/password_screening'
+import {
+  classifyLogError,
+  reportPrivateFailure,
+  safeRequestMethod,
+  safeRoutePattern,
+} from '#services/logging_safety'
 
 export default class HttpExceptionHandler extends ExceptionHandler {
   /**
@@ -69,6 +75,33 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    * @note You should not attempt to send a response from this method.
    */
   async report(error: unknown, ctx: HttpContext) {
-    return super.report(error, ctx)
+    if (
+      error instanceof SessionAuthorityError ||
+      error instanceof IdentityAuthorityError ||
+      error instanceof PasswordPolicyError
+    )
+      return
+    const dependencyFailure =
+      error instanceof PasswordProcessingUnavailableError ||
+      error instanceof PasswordScreeningUnavailableError
+    const errorType =
+      error instanceof PasswordProcessingUnavailableError
+        ? 'password_processing_unavailable'
+        : error instanceof PasswordScreeningUnavailableError
+          ? 'password_screening_unavailable'
+          : classifyLogError(error)
+    if (!dependencyFailure && errorType !== 'unexpected') return
+
+    reportPrivateFailure(
+      ctx,
+      {
+        event: 'http.request.error',
+        errorType,
+        method: safeRequestMethod(ctx.request.method()),
+        path: safeRoutePattern(ctx.route?.pattern),
+        status: dependencyFailure ? 503 : 500,
+      },
+      'HTTP request failed'
+    )
   }
 }

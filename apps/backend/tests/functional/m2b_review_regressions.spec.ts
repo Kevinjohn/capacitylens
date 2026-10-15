@@ -1,11 +1,11 @@
 import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import db from '@adonisjs/lucid/services/db'
-import logger from '@adonisjs/core/services/logger'
 import { seed } from '@capacitylens/shared/data/seed'
 import { serializeData } from '@capacitylens/shared/data/transfer'
 import { readState } from '#services/state_repository'
 import { SINGLE_COMPANY_CAP_MESSAGE } from '@capacitylens/shared/account/policy'
+import { interceptChildLoggers } from '../helpers/logger.js'
 
 const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
   request.header('sec-fetch-site', 'same-origin')
@@ -291,17 +291,12 @@ test.group('M2b review regressions', (group) => {
     cleanup,
   }) => {
     await client.post('/api/test/reset').json({ seed: false }).send()
-    const originalChild = logger.child
-    logger.child = ((...args: Parameters<typeof logger.child>) => {
-      const child = originalChild.apply(logger, args)
+    const restoreLogger = interceptChildLoggers((child) => {
       child.info = (() => {
         throw new Error('logger unavailable')
       }) as typeof child.info
-      return child
-    }) as typeof logger.child
-    cleanup(() => {
-      logger.child = originalChild
     })
+    cleanup(restoreLogger)
     const created = await trusted(client.post('/api/accounts'))
       .json({ ...seed().accounts[0]!, id: 'a-review-warning' })
       .send()

@@ -1,3 +1,4 @@
+import { reportPrivateFailure } from '#services/logging_safety'
 import type { HttpContext } from '@adonisjs/core/http'
 import { withTransaction } from '#services/with_transaction'
 import { googleEnabled, availableProviders } from '#services/auth/mode'
@@ -261,8 +262,9 @@ export default class GoogleController {
         !(error instanceof AdmissionError) &&
         !(error instanceof SessionAuthorityError)
       )
-        ctx.logger.error(
-          { errorType: error instanceof Error ? error.name : typeof error },
+        reportPrivateFailure(
+          ctx,
+          { event: 'auth.google.callback_failed', errorType: 'provider_unavailable' },
           'Google callback failed'
         )
       const code =
