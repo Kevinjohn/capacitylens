@@ -88,6 +88,7 @@ function deferred<T>() {
 }
 
 describe("AuthProvider — demo mode (VITE_CAPACITYLENS_DEMO=1)", () => {
+  // Full coverage instruments the cold application graph on this first import; DOM waits retain their normal bounds.
   it("renders children and performs no fetch at all", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
     const fetchSpy = vi.fn();
@@ -102,7 +103,7 @@ describe("AuthProvider — demo mode (VITE_CAPACITYLENS_DEMO=1)", () => {
     expect(screen.getByText("app-content")).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
     await waitFor(() => expect(onTenantAccessReady).toHaveBeenCalledTimes(1));
-  });
+  }, 10_000);
 });
 
 function registerServerModeTest01() {
