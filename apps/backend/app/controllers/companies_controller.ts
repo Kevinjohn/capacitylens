@@ -3,7 +3,7 @@ import { newId } from '@capacitylens/shared/lib/id'
 import { readState, readStateWithClient } from '#services/state_repository'
 import { applyBatch } from '#services/batch/service'
 import { BatchRequestError } from '#services/batch/errors'
-import { trustedLocalDataContext } from '#services/batch/data_policy'
+import { dataContextForActor, trustedLocalDataContext } from '#services/batch/data_policy'
 import { withTransaction } from '#services/with_transaction'
 import { writeAudit } from '#services/audit'
 import env from '#start/env'
@@ -12,6 +12,11 @@ import { validateEntityRow } from '#validators/entities/index'
 import { cleanText } from '@capacitylens/shared/lib/strings'
 import { assertFrozenAccountFields } from '#services/batch/entity_policy'
 import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color'
+import { timingSafeEqual } from 'node:crypto'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { authMode } from '#services/auth/mode'
+import { assertCompanyAction, IdentityAuthorityError } from '#services/auth/authorization'
+import { assertFreshSession, resolveCurrentActor } from '#services/auth/session_authority'
 
 function objectBody(body: unknown): body is Record<string, unknown> {
   return body !== null && typeof body === 'object' && !Array.isArray(body)
@@ -71,16 +76,49 @@ async function validateCompanyFields(row: Record<string, unknown>) {
     throw new BatchRequestError('Company name is required.')
 }
 
+function matchesBootstrapToken(configured: string | undefined, submitted: string | undefined) {
+  if (!configured || !submitted) return false
+  const expected = Buffer.from(configured)
+  const actual = Buffer.from(submitted)
+  return expected.length === actual.length && timingSafeEqual(expected, actual)
+}
+
 export default class CompaniesController {
-  private context({ auth, logger }: HttpContext) {
-    return trustedLocalDataContext(
-      auth.use('trustedLocal').getUserOrFail().id,
-      env.get('CAPACITYLENS_MULTI_ACCOUNT') === true,
-      (event) => logger.info({ event: 'capacitylens.company.committed', ...event })
+  private async creationActor(ctx: HttpContext, trx: TransactionClientContract) {
+    const actor = await resolveCurrentActor(ctx, trx)
+    // The provider admission seam stays closed until a configured company provider can prove it.
+    if (authMode() === 'sso-only') throw new IdentityAuthorityError('Company provider required.')
+    const hasCompany = Boolean(await trx.from('accounts').select('id').first())
+    if (!hasCompany) return actor.userId
+    if (
+      matchesBootstrapToken(
+        env.get('CAPACITYLENS_BOOTSTRAP_TOKEN'),
+        ctx.request.header('x-capacitylens-bootstrap-token')
+      )
     )
+      return actor.userId
+    const standing = await trx
+      .from('memberships')
+      .where({ user_id: actor.userId, status: 'active' })
+      .whereIn('role', ['owner', 'admin'])
+      .first()
+    if (!standing) throw new IdentityAuthorityError('Forbidden.')
+    assertFreshSession(actor)
+    return actor.userId
   }
 
-  private async write(ctx: HttpContext, id?: string, patch = false, requireId = false) {
+  private logCommitted(ctx: HttpContext) {
+    return (event: { applied: number; changed: number }) =>
+      ctx.logger.info({ event: 'capacitylens.company.committed', ...event })
+  }
+
+  private async write(
+    ctx: HttpContext,
+    id?: string,
+    patch = false,
+    requireId = false,
+    org = false
+  ) {
     const { request, response } = ctx
     if (!objectBody(request.body()))
       return response.badRequest({ error: 'Company details must be an object.' })
@@ -94,7 +132,12 @@ export default class CompaniesController {
       return response.badRequest({ error: 'Company id must match the URL.' })
     try {
       const result = await withTransaction(async (trx) => {
-        const context = this.context(ctx)
+        const multiAccount = env.get('CAPACITYLENS_MULTI_ACCOUNT') === true
+        const authenticatedCreate = !patch && org && authMode() !== 'off'
+        const actorId = authenticatedCreate ? await this.creationActor(ctx, trx) : null
+        const context = authenticatedCreate
+          ? trustedLocalDataContext(actorId!, multiAccount, this.logCommitted(ctx))
+          : await dataContextForActor(ctx, trx, multiAccount, this.logCommitted(ctx))
         const state = await readStateWithClient(trx, accountId, true)
         const existing = state.accounts[0]
         if (patch && !existing) throw new BatchRequestError('Company not found.', 404)
@@ -130,6 +173,17 @@ export default class CompaniesController {
           null,
           context
         )
+        if (authenticatedCreate && actorId) {
+          await trx.table('memberships').insert({
+            id: newId(),
+            account_id: accountId,
+            user_id: actorId,
+            role: 'owner',
+            status: 'active',
+            created_at: now,
+            updated_at: now,
+          })
+        }
         return { applied, existed: existing !== undefined }
       })
       const currentState = await readState(accountId, true)
@@ -152,11 +206,17 @@ export default class CompaniesController {
   }
 
   store(ctx: HttpContext) {
+    if (authMode() !== 'off')
+      return ctx.response.forbidden({
+        error: 'Use /api/orgs to create a company.',
+        code: 'FORBIDDEN',
+        retryable: false,
+      })
     return this.write(ctx, undefined, false, true)
   }
 
   storeOrg(ctx: HttpContext) {
-    return this.write(ctx)
+    return this.write(ctx, undefined, false, false, true)
   }
 
   update(ctx: HttpContext) {
@@ -169,9 +229,15 @@ export default class CompaniesController {
     await withTransaction(async (trx) => {
       const account = await trx.from('accounts').select('id').where('id', accountId).first()
       if (!account) return
+      let actorId: string
+      if (authMode() === 'off') actorId = ctx.auth.use('trustedLocal').getUserOrFail().id
+      else {
+        const actor = await assertCompanyAction(ctx, accountId, 'deleteAccount', trx, true)
+        actorId = actor.actorId
+      }
       await writeAudit(trx, {
         accountId,
-        actorId: ctx.auth.use('trustedLocal').getUserOrFail().id,
+        actorId,
         action: 'delete',
         entity: 'accounts',
         entityId: accountId,

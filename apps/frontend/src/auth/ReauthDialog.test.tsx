@@ -192,7 +192,7 @@ describe("ReauthDialog password failures", () => {
 
 describe("ReauthDialog provider step-up", () => {
   it("preserves the product route and supplies a marked provider failure return", async () => {
-    signInSocial.mockResolvedValue({ data: {}, error: null });
+    signInSocial.mockResolvedValue({ data: { url: "https://accounts.example.test/start" }, error: null });
     window.history.replaceState({}, "", "/team?tab=access");
     render(
       <Harness
@@ -217,7 +217,7 @@ describe("ReauthDialog provider step-up", () => {
   });
 
   it("uses the session's Microsoft provider for a federated-only principal in mixed mode", async () => {
-    signInSocial.mockResolvedValue({ data: {}, error: null });
+    signInSocial.mockResolvedValue({ data: { url: "https://accounts.example.test/start" }, error: null });
     render(
       <Harness
         authMode="password-only"
@@ -244,7 +244,7 @@ describe("ReauthDialog provider step-up", () => {
 
 describe("ReauthDialog social-provider step-up", () => {
   it("uses the exact Google action copy and mark for social re-authentication", async () => {
-    signInSocial.mockResolvedValue({ data: {}, error: null });
+    signInSocial.mockResolvedValue({ data: { url: "https://accounts.example.test/start" }, error: null });
     window.history.replaceState({}, "", "/team?tab=access");
     render(
       <Harness
@@ -270,7 +270,7 @@ describe("ReauthDialog social-provider step-up", () => {
   });
 
   it("uses Google presentation while preserving named Google re-authentication", async () => {
-    signInSocial.mockResolvedValue({ data: {}, error: null });
+    signInSocial.mockResolvedValue({ data: { url: "https://accounts.example.test/start" }, error: null });
     render(
       <Harness
         authMode="sso-only"
@@ -287,7 +287,7 @@ describe("ReauthDialog social-provider step-up", () => {
   });
 
   it("preserves the product route and supplies a marked social-provider failure return", async () => {
-    signInSocial.mockResolvedValue({ data: {}, error: null });
+    signInSocial.mockResolvedValue({ data: { url: "https://accounts.example.test/start" }, error: null });
     window.history.replaceState({}, "", "/team?tab=access");
     render(
       <Harness
@@ -312,10 +312,8 @@ describe("ReauthDialog social-provider step-up", () => {
 });
 
 describe("ReauthDialog provider failures", () => {
-  it.each([
-    [{ message: "Provider refused the request." }, "Provider refused the request."],
-    [{}, m.reauth_failed()],
-  ])("surfaces an SSO re-auth failure and keeps the dialog retryable", async (error, expected) => {
+  it("surfaces a provider API refusal and keeps the dialog retryable", async () => {
+    const error = { message: "Provider refused the request." };
     signInSocial.mockResolvedValue({ data: null, error });
     render(
       <Harness
@@ -329,14 +327,14 @@ describe("ReauthDialog provider failures", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Sign in with Microsoft" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(expected);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Provider refused the request.");
     expect(screen.getByRole("heading", { name: "Confirm it's you" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in with Microsoft" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
   });
 
   it("announces a successful re-auth redirect instead of reporting a failure", async () => {
-    signInSocial.mockResolvedValue({ data: {}, error: null });
+    signInSocial.mockResolvedValue({ data: { url: "https://accounts.example.test/start" }, error: null });
     render(
       <Harness
         authMode="sso-only"

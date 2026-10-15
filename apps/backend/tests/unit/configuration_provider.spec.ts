@@ -1,14 +1,28 @@
 import { test } from '@japa/runner'
+import env from '#start/env'
+import { authMode } from '#services/auth/mode'
 import {
   assertM1AuthenticationMode,
   assertProductionPosture,
 } from '#providers/configuration_provider'
 
-test('M1 accepts only the trusted-local off authentication mode', ({ assert }) => {
+test('authentication mode accepts the native modes and rejects unknown values', ({ assert }) => {
   assert.doesNotThrow(() => assertM1AuthenticationMode(undefined))
-  assert.doesNotThrow(() => assertM1AuthenticationMode('off'))
-  for (const mode of ['password', 'password-only', 'sso-only'])
-    assert.throws(() => assertM1AuthenticationMode(mode), /not available in the M1 backend/)
+  assert.doesNotThrow(() => assertM1AuthenticationMode(''))
+  for (const mode of ['off', 'password-only', 'password-and-sso', 'sso-only'])
+    assert.doesNotThrow(() => assertM1AuthenticationMode(mode))
+  for (const mode of ['password', 'hosted-oidc-only', 'bogus'])
+    assert.throws(() => assertM1AuthenticationMode(mode), /Unknown CAPACITYLENS_MODE/)
+})
+
+test('a blank restored mode uses trusted-local off behavior', ({ assert }) => {
+  const previous = env.get('CAPACITYLENS_MODE')
+  try {
+    env.set('CAPACITYLENS_MODE', '')
+    assert.equal(authMode(), 'off')
+  } finally {
+    env.set('CAPACITYLENS_MODE', previous ?? '')
+  }
 })
 
 test('production refuses unsafe open, bootstrap, limiter, and audit settings', ({ assert }) => {

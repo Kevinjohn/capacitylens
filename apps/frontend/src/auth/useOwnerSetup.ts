@@ -39,7 +39,7 @@ const SETUP_TOKEN_HEADER = "x-capacitylens-setup-token";
 /**
  * Keep the setup token safe for the browser's HTTP header implementation. Operators commonly
  * paste a token with ordinary edge whitespace; trim that harmless formatting, but reject values
- * containing characters that the request headers cannot represent before Better Auth constructs
+ * containing characters that the request headers cannot represent before fetch constructs
  * the request. The comparison also catches header implementations that silently rewrite a value.
  */
 export function normalizeSetupToken(value: string): string | null {
@@ -92,7 +92,7 @@ export function useOwnerSetup({
     setBusy(true);
     setError(null);
     try {
-      // Better Auth auto-signs-in on sign-up, so success proceeds exactly like a sign-in:
+      // Product sign-up creates a session, so success proceeds exactly like a sign-in:
       // onSignedIn() reloads and the boot re-check finds the fresh session cookie.
       const { error: failure } = await authClient.signUp.email({
         email: input.cleanEmail,
@@ -102,15 +102,15 @@ export function useOwnerSetup({
       });
       if (failure) {
         // A setup-gate refusal means another owner already exists, so return to ordinary sign-in rather than treating it as invalid input.
-        if (failure.code === "EMAIL_PASSWORD_SIGN_UP_DISABLED") {
+        if (failure.code === "SIGN_UP_CLOSED") {
           setError(m.login_setup_taken());
           setSetupClosed(true);
           setBusy(false);
           return;
         }
-        // Any other reason (e.g. password too short), surface Better Auth's own message; a
+        // Any other reason (e.g. password too short), surface the product API message; a
         // generic message would hide the fix.
-        setError(failure.message ?? m.login_setup_failed());
+        setError(failure.message);
         setBusy(false);
         return;
       }

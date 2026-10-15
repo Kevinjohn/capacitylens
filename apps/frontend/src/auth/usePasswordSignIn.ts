@@ -36,7 +36,7 @@ export function usePasswordSignIn({
         password,
       });
       if (failure) {
-        setError(failure.message ?? m.login_failed());
+        setError(failure.message);
         setBusy(false);
         return;
       }

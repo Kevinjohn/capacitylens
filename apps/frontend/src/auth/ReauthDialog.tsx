@@ -67,7 +67,7 @@ async function confirmPassword(email: string, state: ReauthState) {
   try {
     const { error } = await authClient.signIn.email({ email, password: state.password });
     if (error) {
-      state.setError(error.message ?? m.reauth_failed());
+      state.setError(error.message);
       state.setBusy(false);
       return;
     }
@@ -93,7 +93,13 @@ async function reauthWithProvider(provider: AuthProviderInfo, state: ReauthState
     // becomes retryable. Same contract as LoginScreen's provider sign-in.
     if (result.error) {
       state.setPendingProvider(null);
-      state.setError(result.error.message ?? m.reauth_failed());
+      state.setError(result.error.message);
+      state.setBusy(false);
+    } else if (result.data?.url) {
+      window.location.assign(result.data.url);
+    } else {
+      state.setPendingProvider(null);
+      state.setError(m.reauth_failed());
       state.setBusy(false);
     }
   } catch (error) {

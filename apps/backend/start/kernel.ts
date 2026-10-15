@@ -24,6 +24,7 @@ server.errorHandler(() => import('#exceptions/handler'))
  */
 server.use([
   () => import('#middleware/security_headers_middleware'),
+  () => import('#middleware/api_rate_limit_middleware'),
   () => import('#middleware/strict_json_middleware'),
   () => import('@adonisjs/static/static_middleware'),
   () => import('#middleware/force_json_response_middleware'),

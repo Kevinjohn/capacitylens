@@ -20,7 +20,7 @@ afterEach(() => {
 describe("dispatchExternalProviderSignIn", () => {
   it("dispatches Microsoft through signIn.social with the marked callback URLs", async () => {
     window.history.replaceState({}, "", "/team?tab=access");
-    const outcome = { data: {}, error: null };
+    const outcome = { data: { url: "https://accounts.example.test/start" }, error: null };
     signInSocial.mockResolvedValue(outcome);
     const provider: AuthProviderInfo = { id: "microsoft", label: "Microsoft", kind: "social", experimental: false };
 
@@ -36,7 +36,7 @@ describe("dispatchExternalProviderSignIn", () => {
 
   it("dispatches a social-kind provider through signIn.social with the marked callback URLs", async () => {
     window.history.replaceState({}, "", "/invite/token?source=mail");
-    const outcome = { data: {}, error: null };
+    const outcome = { data: { url: "https://accounts.example.test/start" }, error: null };
     signInSocial.mockResolvedValue(outcome);
     const provider: AuthProviderInfo = { id: "google", label: "Google", kind: "social", experimental: true };
 

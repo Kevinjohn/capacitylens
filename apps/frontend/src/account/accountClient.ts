@@ -72,13 +72,6 @@ export const accountClient = {
     return apiFetch(`${API_BASE}/api/diagnostics`, { credentials: "include", ...(signal ? { signal } : {}) });
   },
 
-  signOut(): Promise<Response> {
-    return apiFetch(`${API_BASE}/api/account/sign-out`, {
-      method: "POST",
-      credentials: "include",
-    });
-  },
-
   readIdentityProvider,
   linkIdentityProvider,
 

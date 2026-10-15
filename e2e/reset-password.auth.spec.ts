@@ -71,7 +71,7 @@ test("admin mints a reset link in Team & access; the locked-out member sets a ne
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByRole("button", { name: `Reset Studio ${STAMP}`, exact: true })).toBeVisible();
 
-  const oldSignIn = await request.post(`${API}/api/auth/sign-in/email`, {
+  const oldSignIn = await request.post(`${API}/api/auth/sign-in`, {
     data: { email: MEMBER, password: PASSWORD },
   });
   expect(oldSignIn.status()).toBe(401);

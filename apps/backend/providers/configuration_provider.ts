@@ -2,10 +2,76 @@ import type { ApplicationService } from '@adonisjs/core/types'
 import env from '#start/env'
 import db from '@adonisjs/lucid/services/db'
 import { assertSchemaIntegrity } from '#services/schema_integrity'
+import { authMode, passwordEnabled } from '#services/auth/mode'
+import { hashPassword } from '#services/password_service'
+import { passwordLengthFailure } from '@capacitylens/shared/domain/password'
 
 export function assertM1AuthenticationMode(mode: string | undefined) {
-  if (mode !== undefined && mode !== 'off')
-    throw new Error(`Authentication mode ${mode} is not available in the M1 backend`)
+  if (!['off', 'password-only', 'password-and-sso', 'sso-only'].includes(mode || 'off'))
+    throw new Error(`Unknown CAPACITYLENS_MODE ${mode}`)
+}
+
+function assertAuthenticationConfiguration(inProduction: boolean) {
+  if (authMode() === 'off') return
+  const secret = env.get('CAPACITYLENS_SECRET')
+  if (!secret || secret.length < 32)
+    throw new Error(
+      'CAPACITYLENS_SECRET must contain at least 32 characters when authentication is enabled'
+    )
+  const publicUrl = env.get('CAPACITYLENS_PUBLIC_URL')
+  if (!publicUrl)
+    throw new Error('CAPACITYLENS_PUBLIC_URL is required when authentication is enabled')
+  let url: URL
+  try {
+    url = new URL(publicUrl)
+  } catch {
+    throw new Error('CAPACITYLENS_PUBLIC_URL must be a bare HTTP(S) origin')
+  }
+  if (
+    !['http:', 'https:'].includes(url.protocol) ||
+    url.origin !== publicUrl ||
+    url.username ||
+    url.password
+  )
+    throw new Error('CAPACITYLENS_PUBLIC_URL must be a bare HTTP(S) origin')
+  if (
+    inProduction &&
+    url.protocol !== 'https:' &&
+    !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
+  )
+    throw new Error('CAPACITYLENS_PUBLIC_URL must use HTTPS outside loopback in production')
+  const setupToken = env.get('CAPACITYLENS_SETUP_TOKEN')
+  if (setupToken && setupToken.length < 32)
+    throw new Error('CAPACITYLENS_SETUP_TOKEN must contain at least 32 characters')
+  if (authMode() === 'sso-only')
+    throw new Error('SSO-only mode is unavailable until a provider is configured and enabled')
+  if (env.get('CAPACITYLENS_CREATE_ADMIN_ADMIN') && !passwordEnabled())
+    throw new Error('CAPACITYLENS_CREATE_ADMIN_ADMIN requires password authentication')
+}
+
+interface HostedProfileOptions {
+  profile?: string
+  mode?: string
+  allowOpenSignup?: boolean
+  setupToken?: string
+  createAdmin?: boolean
+  googleClientId?: string
+  googleClientSecret?: string
+  microsoftClientId?: string
+  microsoftClientSecret?: string
+  microsoftTenantId?: string
+}
+
+export function assertHostedDeploymentProfile(options: HostedProfileOptions) {
+  if (options.profile !== 'hosted-sso-only') return
+  if (options.mode !== 'sso-only') throw new Error('hosted-sso-only requires sso-only mode')
+  if (options.allowOpenSignup) throw new Error('hosted-sso-only forbids open signup')
+  if (options.setupToken || options.createAdmin)
+    throw new Error('hosted-sso-only forbids password-account configuration')
+  const google = options.googleClientId && options.googleClientSecret
+  const microsoft =
+    options.microsoftClientId && options.microsoftClientSecret && options.microsoftTenantId
+  if (!google && !microsoft) throw new Error('hosted-sso-only requires a complete named provider')
 }
 
 interface ProductionPosture {
@@ -40,6 +106,19 @@ export default class ConfigurationProvider {
   constructor(protected app: ApplicationService) {}
   async boot() {
     assertM1AuthenticationMode(env.get('CAPACITYLENS_MODE'))
+    assertHostedDeploymentProfile({
+      profile: env.get('CAPACITYLENS_DEPLOYMENT_PROFILE'),
+      mode: env.get('CAPACITYLENS_MODE'),
+      allowOpenSignup: env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP'),
+      setupToken: env.get('CAPACITYLENS_SETUP_TOKEN'),
+      createAdmin: env.get('CAPACITYLENS_CREATE_ADMIN_ADMIN'),
+      googleClientId: env.get('CAPACITYLENS_GOOGLE_CLIENT_ID'),
+      googleClientSecret: env.get('CAPACITYLENS_GOOGLE_CLIENT_SECRET'),
+      microsoftClientId: env.get('CAPACITYLENS_MICROSOFT_CLIENT_ID'),
+      microsoftClientSecret: env.get('CAPACITYLENS_MICROSOFT_CLIENT_SECRET'),
+      microsoftTenantId: env.get('CAPACITYLENS_MICROSOFT_TENANT_ID'),
+    })
+    assertAuthenticationConfiguration(this.app.inProduction)
     if (this.app.inProduction)
       assertProductionPosture({
         mode: env.get('CAPACITYLENS_MODE'),
@@ -50,22 +129,6 @@ export default class ConfigurationProvider {
         rateLimit: env.get('CAPACITYLENS_RATE_LIMIT'),
         audit: env.get('CAPACITYLENS_AUDIT'),
       })
-    if (env.get('CAPACITYLENS_DEPLOYMENT_PROFILE') === 'hosted-sso-only') {
-      if (env.get('CAPACITYLENS_MODE') !== 'sso-only')
-        throw new Error('hosted-sso-only requires sso-only mode')
-      if (env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP'))
-        throw new Error('hosted-sso-only forbids open signup')
-      if (env.get('CAPACITYLENS_SETUP_TOKEN') || env.get('CAPACITYLENS_CREATE_ADMIN_ADMIN'))
-        throw new Error('hosted-sso-only forbids password-account configuration')
-      const google =
-        env.get('CAPACITYLENS_GOOGLE_CLIENT_ID') && env.get('CAPACITYLENS_GOOGLE_CLIENT_SECRET')
-      const microsoft =
-        env.get('CAPACITYLENS_MICROSOFT_CLIENT_ID') &&
-        env.get('CAPACITYLENS_MICROSOFT_CLIENT_SECRET') &&
-        env.get('CAPACITYLENS_MICROSOFT_TENANT_ID')
-      if (!google && !microsoft)
-        throw new Error('hosted-sso-only requires a complete named provider')
-    }
   }
 
   async ready() {
@@ -73,6 +136,38 @@ export default class ConfigurationProvider {
       .from('sqlite_master')
       .where({ type: 'table', name: 'accounts' })
       .select('name')
-    if (rows.length > 0) await assertSchemaIntegrity()
+    if (rows.length > 0) {
+      await assertSchemaIntegrity()
+      await this.bootstrapCredential()
+    }
+  }
+
+  private async bootstrapCredential() {
+    if (!env.get('CAPACITYLENS_CREATE_ADMIN_ADMIN')) return
+    const password = env.get('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD')
+    if (!password || passwordLengthFailure(password))
+      throw new Error(
+        'CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD must satisfy the password length policy'
+      )
+    if (await db.from('users').select('id').first()) return
+    const hash = await hashPassword(password)
+    const now = new Date().toISOString()
+    const trx = await db.transaction()
+    try {
+      if (!(await trx.from('users').select('id').first()))
+        await trx.table('users').insert({
+          id: crypto.randomUUID(),
+          email: 'admin@admin.admin',
+          email_verified: 0,
+          display_name: 'admin',
+          password_hash: hash,
+          created_at: now,
+          updated_at: now,
+        })
+      await trx.commit()
+    } catch (error) {
+      await trx.rollback()
+      throw error
+    }
   }
 }

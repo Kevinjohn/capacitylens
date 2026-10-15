@@ -1,4 +1,5 @@
-import { accountClient, clearStoredAccountCommands } from "@/account/accountClient";
+import { clearStoredAccountCommands } from "@/account/accountClient";
+import { authClient } from "./authClient";
 import { clearOfflineDataForCurrentUser, setOfflineReadEnabled } from "@/data/offlineCache";
 
 /** Maximum time sign-out waits for local data cleanup before continuing. */
@@ -34,7 +35,10 @@ export async function signOutAndReload(overrides: Partial<SignOutDependencies> =
     clearAccountCommands: clearStoredAccountCommands,
     clearOfflineData: clearOfflineDataForCurrentUser,
     disableOfflineRead: () => setOfflineReadEnabled(false),
-    requestSignOut: () => accountClient.signOut(),
+    requestSignOut: async () => {
+      const result = await authClient.signOut();
+      return { ok: result.error === null, status: result.error?.status ?? 200 };
+    },
     reload: () => window.location.reload(),
     cleanupTimeoutMs: SIGN_OUT_CLEANUP_TIMEOUT_MS,
     ...overrides,

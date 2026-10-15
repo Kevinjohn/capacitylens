@@ -157,7 +157,13 @@ function createProviderSignIn({
       const result = await dispatchExternalProviderSignIn(provider);
       if (result.error) {
         setPendingProvider(null);
-        setError(result.error.message ?? m.login_failed());
+        setError(result.error.message);
+        setBusy(false);
+      } else if (result.data?.url) {
+        window.location.assign(result.data.url);
+      } else {
+        setPendingProvider(null);
+        setError(m.login_failed());
         setBusy(false);
       }
     } catch (error) {

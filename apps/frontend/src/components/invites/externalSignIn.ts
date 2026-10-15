@@ -93,8 +93,8 @@ function createNavigationLifecycle(navigationTimeoutMs: number, onCachedReturn: 
 /**
  * Own the redirect lifecycle used by named-provider invite sign-in.
  *
- * The caller disables Better Auth's internal redirect, so this helper owns both the abortable
- * provider request and the single navigation requested from its returned URL. Keep the action busy
+ * The caller owns both the abortable provider request and the single navigation requested from its
+ * returned URL. Keep the action busy
  * until pagehide proves that navigation started, or until a documented bound expires. If the page
  * later returns from bfcache, the surviving pageshow listener restores a usable form.
  */
@@ -107,8 +107,8 @@ export async function runExternalSignIn({
   navigationTimeoutMs = EXTERNAL_NAVIGATION_TIMEOUT_MS,
 }: {
   /** Start the provider request and forward this signal to its transport. The timeout aborts the
-   * request before retry controls are restored, so a superseded response cannot reach Better Auth's
-   * internal redirect hook. A redirect that already started is instead owned by pagehide/pageshow. */
+   * request before retry controls are restored, so a superseded response cannot reach provider
+   * navigation. A redirect that already started is instead owned by pagehide/pageshow. */
   start: (signal: AbortSignal) => Promise<ExternalSignInResult>;
   onFailure: (message?: string) => void;
   onRequestError: (error: unknown) => void;
