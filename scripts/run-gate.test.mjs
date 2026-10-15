@@ -157,14 +157,20 @@ test("mode selection returns independent argument arrays and includes the runner
   assert.throws(() => gateCommands("unknown"), /Expected app, backend, or all/);
 });
 
-test("runtime boundary checks follow the server bundle build in server and all gates", () => {
+test("backend and combined gates build application assets once before runtime checks and backend tests", () => {
   for (const mode of ["backend", "all"]) {
     const commands = gateCommands(mode);
-    const build = commands.findIndex(
-      (args) => args[0] === "--dir" && args[1] === "apps/backend" && args[2] === "build",
+    const builds = commands.flatMap((args, index) => (args[0] === "run" && args[1] === "build" ? [index] : []));
+    assert.equal(builds.length, 1);
+    const runtime = commands.findIndex((args) => args.includes("policy:node-runtime:test"));
+    const backendTests = commands.findIndex(
+      (args) => args[0] === "--dir" && args[1] === "apps/backend" && args[2] === "test",
     );
-    assert.ok(build >= 0);
-    assert.deepEqual(commands[build + 1], ["run", "policy:node-runtime:test"]);
+    assert.ok(builds[0] < runtime && runtime < backendTests);
+    if (mode === "all") {
+      const frontendTests = commands.findIndex((args) => args.includes("vitest"));
+      assert.ok(builds[0] < frontendTests);
+    }
   }
 });
 
@@ -177,4 +183,20 @@ test("only the root production build receives production settings while tests re
     assert.equal(entry.nodeEnv, build ? "production" : "test", entry.args.join(" "));
     assert.equal(entry.allowOpen, build ? "1" : "0", entry.args.join(" "));
   }
+});
+
+test("backend CI builds actual application assets before tests without leaking production settings", async () => {
+  const { parse } = await import("yaml");
+  const workflow = parse(readFileSync(new URL("../.github/workflows/gate.yml", import.meta.url), "utf8"));
+  const backend = workflow.jobs.backend;
+  const buildIndex = backend.steps.findIndex((step) => step.run === "pnpm run build");
+  const testIndex = backend.steps.findIndex((step) => step.run === "pnpm --dir apps/backend test");
+  assert.ok(buildIndex >= 0 && buildIndex < testIndex);
+  const build = backend.steps[buildIndex];
+  assert.equal(build.env.NODE_ENV, "production");
+  assert.equal(build.env.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION, "1");
+  for (const key of ["APP_KEY", "APP_URL", "HOST", "PORT", "LOG_LEVEL", "SESSION_DRIVER"])
+    assert.ok(build.env[key], key);
+  assert.notEqual(backend.env?.NODE_ENV, "production");
+  assert.notEqual(backend.steps[testIndex].env?.NODE_ENV, "production");
 });

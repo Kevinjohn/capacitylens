@@ -93,6 +93,17 @@ jobs:
           APP_URL: http://127.0.0.1
           SESSION_DRIVER: memory
       - run: pnpm --dir apps/backend lint
+      - name: Build application before backend tests
+        run: pnpm run build
+        env:
+          NODE_ENV: production
+          CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1"
+          HOST: 127.0.0.1
+          PORT: "0"
+          LOG_LEVEL: error
+          APP_KEY: capacitylens-test-key-0123456789abcdef
+          APP_URL: http://127.0.0.1
+          SESSION_DRIVER: memory
       - run: pnpm --dir apps/backend test
 
   packaged:
