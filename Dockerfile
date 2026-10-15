@@ -64,7 +64,7 @@ USER root
 RUN apk upgrade --no-cache && apk del --no-cache curl libcurl
 USER 101
 COPY nginx-security-headers.conf /etc/nginx/capacitylens-security-headers.conf
-COPY --from=web-build /app/apps/frontend/dist /usr/share/nginx/html
+COPY --from=web-build /app/dist /usr/share/nginx/html
 # The inherited entrypoint mutates nginx config for optional templating/IPv6 behavior. CapacityLens
 # ships a complete immutable config, so run nginx directly and keep the read-only root noise-free.
 ENTRYPOINT []

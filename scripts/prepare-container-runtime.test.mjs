@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, readlink, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { prepareContainerRuntime } from "./prepare-container-runtime.mjs";
 
@@ -63,4 +64,34 @@ test("native compilation tools are installed before dependencies and stay outsid
   assert.doesNotMatch(runtime, /\b(?:python3|make|build-essential)\b|g\+\+/);
   const copies = [...runtime.matchAll(/^COPY --from=(.+)$/gm)].map((match) => match[1]);
   assert.deepEqual(copies, ["server-deploy /prod/backend ./"]);
+});
+
+test("the web image copies the Vite output consumed by the root standalone build", async () => {
+  const ts = await import("typescript");
+  const repository = fileURLToPath(new URL("../", import.meta.url));
+  const configPath = join(repository, "apps/frontend/vite.config.ts");
+  const source = ts.createSourceFile(configPath, await readFile(configPath, "utf8"), ts.ScriptTarget.Latest, true);
+  const outputDirectories = [];
+  function visit(node) {
+    if (ts.isPropertyAssignment(node) && node.name.getText(source) === "outDir" && ts.isStringLiteral(node.initializer))
+      outputDirectories.push(node.initializer.text);
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  assert.equal(outputDirectories.length, 1);
+  const output = resolve(repository, "apps/frontend", outputDirectories[0]);
+  const containerOutput = `/app/${relative(repository, output).replaceAll("\\", "/")}`;
+  const dockerfile = await readFile(join(repository, "Dockerfile"), "utf8");
+  assert.ok(dockerfile.includes(`COPY --from=web-build ${containerOutput} /usr/share/nginx/html`));
+  const manifest = JSON.parse(await readFile(join(repository, "package.json"), "utf8"));
+  const build = manifest.scripts.build;
+  assert.ok(build.indexOf("pnpm --dir apps/frontend build") < build.indexOf("node scripts/sync-adonis-public.mjs"));
+  assert.ok(build.indexOf("node scripts/sync-adonis-public.mjs") < build.indexOf("pnpm --dir apps/backend build"));
+  const sync = await readFile(join(repository, "scripts/sync-adonis-public.mjs"), "utf8");
+  const syncedSource = /await cp\(new URL\("([^"]+)"/.exec(sync)?.[1];
+  assert.ok(syncedSource);
+  assert.equal(
+    fileURLToPath(new URL(syncedSource, new URL("../scripts/sync-adonis-public.mjs", import.meta.url))),
+    `${output}/`,
+  );
 });
