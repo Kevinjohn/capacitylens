@@ -178,3 +178,19 @@ test("only the root production build receives production settings while tests re
     assert.equal(entry.allowOpen, build ? "1" : "0", entry.args.join(" "));
   }
 });
+
+test("backend CI builds actual application assets before tests without leaking production settings", async () => {
+  const { parse } = await import("yaml");
+  const workflow = parse(readFileSync(new URL("../.github/workflows/gate.yml", import.meta.url), "utf8"));
+  const backend = workflow.jobs.backend;
+  const buildIndex = backend.steps.findIndex((step) => step.run === "pnpm run build");
+  const testIndex = backend.steps.findIndex((step) => step.run === "pnpm --dir apps/backend test");
+  assert.ok(buildIndex >= 0 && buildIndex < testIndex);
+  const build = backend.steps[buildIndex];
+  assert.equal(build.env.NODE_ENV, "production");
+  assert.equal(build.env.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION, "1");
+  for (const key of ["APP_KEY", "APP_URL", "HOST", "PORT", "LOG_LEVEL", "SESSION_DRIVER"])
+    assert.ok(build.env[key], key);
+  assert.notEqual(backend.env?.NODE_ENV, "production");
+  assert.notEqual(backend.steps[testIndex].env?.NODE_ENV, "production");
+});
