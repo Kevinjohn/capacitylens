@@ -157,14 +157,20 @@ test("mode selection returns independent argument arrays and includes the runner
   assert.throws(() => gateCommands("unknown"), /Expected app, backend, or all/);
 });
 
-test("runtime boundary checks follow the server bundle build in server and all gates", () => {
+test("backend and combined gates build application assets once before runtime checks and backend tests", () => {
   for (const mode of ["backend", "all"]) {
     const commands = gateCommands(mode);
-    const build = commands.findIndex(
-      (args) => args[0] === "--dir" && args[1] === "apps/backend" && args[2] === "build",
+    const builds = commands.flatMap((args, index) => (args[0] === "run" && args[1] === "build" ? [index] : []));
+    assert.equal(builds.length, 1);
+    const runtime = commands.findIndex((args) => args.includes("policy:node-runtime:test"));
+    const backendTests = commands.findIndex(
+      (args) => args[0] === "--dir" && args[1] === "apps/backend" && args[2] === "test",
     );
-    assert.ok(build >= 0);
-    assert.deepEqual(commands[build + 1], ["run", "policy:node-runtime:test"]);
+    assert.ok(builds[0] < runtime && runtime < backendTests);
+    if (mode === "all") {
+      const frontendTests = commands.findIndex((args) => args.includes("vitest"));
+      assert.ok(builds[0] < frontendTests);
+    }
   }
 });
 

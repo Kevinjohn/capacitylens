@@ -38,7 +38,7 @@ const commands = {
     ["run", "security:crypto-inventory"],
     ...structuralChecks,
     ["--dir", "apps/backend", "typecheck"],
-    ["--dir", "apps/backend", "build"],
+    ["run", "build"],
     ["run", "policy:node-runtime:test"],
     ["--dir", "apps/backend", "test"],
     ["--dir", "apps/backend", "lint"],
