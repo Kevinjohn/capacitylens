@@ -291,7 +291,7 @@ async function main() {
       pathToFileURL(join(backend, "node_modules", "@capacitylens", "shared", "dist", "data", "seed.js")).href
     );
     const { accountId, resource } = await writeSmokeSchedule(baseUrl, cookie, seed());
-    assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, 7);
+    assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, 8);
 
     const beforeExplicit = await snapshotFiles(backupDir);
     const explicit = command(backend, environment, "db:backup");
@@ -301,7 +301,7 @@ async function main() {
     const afterExplicit = await snapshotFiles(backupDir);
     assert.ok(!beforeExplicit.includes(explicitPath.split("/").at(-1)));
     assert.ok(afterExplicit.includes(explicitPath.split("/").at(-1)));
-    assert.equal(inspectDatabase(explicitPath, RESOURCE_NAME).length, 7);
+    assert.equal(inspectDatabase(explicitPath, RESOURCE_NAME).length, 8);
     const scheduled = await waitFor(
       "a scheduled snapshot after the write",
       PERIODIC_TIMEOUT_MS,
