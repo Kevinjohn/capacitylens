@@ -82,10 +82,10 @@ test.group('company member administration', (group) => {
       created_at: now,
       updated_at: now,
     })
-    await db.table('account_recovery_tokens').insert({
-      user_id: editorId,
+    await db.table('password_reset_tokens').insert({
+      tokenable_id: editorId,
       email: 'clark.kent@wayne.example',
-      token_hash: 'a'.repeat(64),
+      hash: 'a'.repeat(64),
       expires_at: new Date(Date.now() + 3_600_000).toISOString(),
       created_at: now,
     })
@@ -99,7 +99,7 @@ test.group('company member administration', (group) => {
     const changed = await requestRole('admin')
     changed.assertStatus(200)
     assert.deepEqual(changed.body(), { userId: editorId, role: 'admin' })
-    assert.isNull(await db.from('account_recovery_tokens').where('user_id', editorId).first())
+    assert.isNull(await db.from('password_reset_tokens').where('tokenable_id', editorId).first())
     const replay = await requestRole('admin')
     replay.assertStatus(200)
     assert.deepEqual(replay.body(), changed.body())
@@ -110,10 +110,10 @@ test.group('company member administration', (group) => {
       .from('audit_entries')
       .where({ account_id: 'a-studio', action: 'member.role_changed', entity_id: editorId })
     assert.lengthOf(audits, 1)
-    await db.table('account_recovery_tokens').insert({
-      user_id: editorId,
+    await db.table('password_reset_tokens').insert({
+      tokenable_id: editorId,
       email: 'clark.kent@wayne.example',
-      token_hash: 'c'.repeat(64),
+      hash: 'c'.repeat(64),
       expires_at: new Date(Date.now() + 3_600_000).toISOString(),
       created_at: now,
     })
@@ -126,10 +126,10 @@ test.group('company member administration', (group) => {
       .send()
     unchanged.assertStatus(200)
     const unchangedToken = await db
-      .from('account_recovery_tokens')
-      .where('user_id', editorId)
+      .from('password_reset_tokens')
+      .where('tokenable_id', editorId)
       .first()
-    assert.equal(unchangedToken.token_hash, 'c'.repeat(64))
+    assert.equal(unchangedToken.hash, 'c'.repeat(64))
     const ownerId = await userId('bruce.wayne@wayne.example')
     const refused = await signed(
       client.patch(`/api/accounts/a-studio/members/${ownerId}`),
@@ -412,13 +412,13 @@ test.group('company member administration', (group) => {
         .first()
     assert.isNotNull(await observed())
     const oldToken = {
-      user_id: editorId,
+      tokenable_id: editorId,
       email: 'clark.kent@wayne.example',
-      token_hash: 'b'.repeat(64),
+      hash: 'b'.repeat(64),
       expires_at: new Date(Date.now() + 3_600_000).toISOString(),
       created_at: now,
     }
-    await db.table('account_recovery_tokens').insert(oldToken)
+    await db.table('password_reset_tokens').insert(oldToken)
     const resetPath = `/api/accounts/a-studio/members/${editorId}/reset-password`
     const headers = (suffix: string) => ({
       'x-account-command-id': `member-reset-command-${suffix}`,
@@ -434,10 +434,10 @@ test.group('company member administration', (group) => {
       assert.isAtLeast(failed.status(), 500)
       assert.isNotNull(await observed())
       const retainedToken = await db
-        .from('account_recovery_tokens')
-        .where('user_id', editorId)
+        .from('password_reset_tokens')
+        .where('tokenable_id', editorId)
         .first()
-      assert.equal(retainedToken.token_hash, oldToken.token_hash)
+      assert.equal(retainedToken.hash, oldToken.hash)
       assert.isNull(
         await db
           .from('command_results')
@@ -452,7 +452,7 @@ test.group('company member administration', (group) => {
       .send()
     issued.assertStatus(201)
     assert.isNull(await observed())
-    assert.isNotNull(await db.from('account_recovery_tokens').where('user_id', editorId).first())
+    assert.isNotNull(await db.from('password_reset_tokens').where('tokenable_id', editorId).first())
     const duplicate = await signed(client.post(resetPath), ownerCookie)
       .headers(headers('success'))
       .send()

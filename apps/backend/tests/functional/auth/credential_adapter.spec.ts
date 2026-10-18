@@ -23,6 +23,7 @@ test.group('Account-kit product user adapter', (group) => {
     })
     const unverified = await usersAdapter.findById(id)
     assert.isNull(unverified?.emailVerifiedAt)
+    assert.equal(unverified?.unverifiedEmail, `${id}@example.test`)
     const rollback = new Error('rollback')
     await assert.rejects(
       () =>
@@ -30,12 +31,20 @@ test.group('Account-kit product user adapter', (group) => {
           await usersAdapter.markEmailVerified(id, DateTime.utc(), trx)
           const verifiedInTransaction = await usersAdapter.findById(id, trx)
           assert.isNotNull(verifiedInTransaction?.emailVerifiedAt)
+          assert.isNull(verifiedInTransaction?.unverifiedEmail)
           throw rollback
         }),
       rollback.message
     )
     const afterRollback = await usersAdapter.findById(id)
     assert.isNull(afterRollback?.emailVerifiedAt)
+    assert.equal(afterRollback?.unverifiedEmail, `${id}@example.test`)
+    await db.transaction(async (trx) => {
+      await assert.rejects(
+        () => usersAdapter.setUnverifiedEmail(id, null, trx),
+        /Email changes are unavailable/
+      )
+    })
     await db.transaction(async (trx) => {
       await assert.rejects(
         () => usersAdapter.setPassword(id, 'new password', trx),

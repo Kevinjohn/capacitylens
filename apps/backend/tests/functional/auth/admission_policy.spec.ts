@@ -164,10 +164,10 @@ test.group('joining policy and current proof', (group) => {
     const recruitUser = await db.from('users').where('email', 'clark.kent@wayne.example').first()
     const recruitId = recruitUser.id
     const issuedAt = new Date().toISOString()
-    await db.table('account_recovery_tokens').insert({
-      user_id: recruitId,
+    await db.table('password_reset_tokens').insert({
+      tokenable_id: recruitId,
       email: 'clark.kent@wayne.example',
-      token_hash: 'b'.repeat(64),
+      hash: 'b'.repeat(64),
       expires_at: new Date(Date.now() + 3_600_000).toISOString(),
       created_at: issuedAt,
     })
@@ -189,7 +189,9 @@ test.group('joining policy and current proof', (group) => {
       .json({})
       .send()
     denied.assertStatus(401)
-    assert.isNotNull(await db.from('account_recovery_tokens').where('user_id', recruitId).first())
+    assert.isNotNull(
+      await db.from('password_reset_tokens').where('tokenable_id', recruitId).first()
+    )
     assert.isNull(
       await db.from('memberships').where({ account_id: 'a-studio', user_id: recruitId }).first()
     )
@@ -212,17 +214,17 @@ test.group('joining policy and current proof', (group) => {
       .send()
     joined.assertStatus(200)
     assert.equal(joined.body().role, 'viewer')
-    assert.isNull(await db.from('account_recovery_tokens').where('user_id', recruitId).first())
+    assert.isNull(await db.from('password_reset_tokens').where('tokenable_id', recruitId).first())
     assert.isNotNull(
       await db
         .from('company_settings')
         .where({ account_id: 'a-studio', key: `member-sign-in:${recruitId}` })
         .first()
     )
-    await db.table('account_recovery_tokens').insert({
-      user_id: recruitId,
+    await db.table('password_reset_tokens').insert({
+      tokenable_id: recruitId,
       email: 'clark.kent@wayne.example',
-      token_hash: 'c'.repeat(64),
+      hash: 'c'.repeat(64),
       expires_at: new Date(Date.now() + 3_600_000).toISOString(),
       created_at: new Date().toISOString(),
     })
@@ -240,7 +242,9 @@ test.group('joining policy and current proof', (group) => {
       .send()
     activeAgain.assertStatus(200)
     assert.equal(activeAgain.body().role, 'admin')
-    assert.isNotNull(await db.from('account_recovery_tokens').where('user_id', recruitId).first())
+    assert.isNotNull(
+      await db.from('password_reset_tokens').where('tokenable_id', recruitId).first()
+    )
     await db
       .from('memberships')
       .where({ account_id: 'a-studio', user_id: recruitId })
@@ -276,7 +280,9 @@ test.group('joining policy and current proof', (group) => {
         .where({ account_id: 'a-studio', user_id: recruitId })
         .first()
       assert.equal(archivedMember.status, 'archived')
-      assert.isNotNull(await db.from('account_recovery_tokens').where('user_id', recruitId).first())
+      assert.isNotNull(
+        await db.from('password_reset_tokens').where('tokenable_id', recruitId).first()
+      )
     } finally {
       await db.rawQuery('DROP TRIGGER IF EXISTS fail_join_audit')
     }
@@ -290,7 +296,7 @@ test.group('joining policy and current proof', (group) => {
       .send()
     archived.assertStatus(200)
     assert.equal(archived.body().role, 'viewer')
-    assert.isNull(await db.from('account_recovery_tokens').where('user_id', recruitId).first())
+    assert.isNull(await db.from('password_reset_tokens').where('tokenable_id', recruitId).first())
     const refused = await withSession(
       client.put('/api/accounts/a-studio/joining-policy').header('sec-fetch-site', 'same-origin'),
       recruitCookie

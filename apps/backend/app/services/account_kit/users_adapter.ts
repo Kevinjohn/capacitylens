@@ -8,6 +8,7 @@ function accountUser(row: Record<string, unknown> | undefined): AccountUser | nu
   return {
     id: String(row.id),
     email: String(row.email),
+    unverifiedEmail: row.email_verified ? null : String(row.email),
     hasPassword: typeof row.password_hash === 'string' && row.password_hash.length > 0,
     // The boolean is authoritative; the timestamp is only the package's read view.
     emailVerifiedAt: row.email_verified ? DateTime.fromISO(String(row.updated_at)) : null,
@@ -35,6 +36,9 @@ export const usersAdapter: UsersAdapter = {
       .update({ password_hash: hash, updated_at: new Date().toISOString() })
   },
   async setEmail() {
+    throw new Error('Email changes are unavailable.')
+  },
+  async setUnverifiedEmail() {
     throw new Error('Email changes are unavailable.')
   },
   async markEmailVerified(id, _at: DateTime, trx) {

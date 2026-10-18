@@ -213,20 +213,20 @@ test.group('Administrative recovery issuance fault boundaries', (group) => {
       assert.isTrue(failed)
       const { token, expiresAt } = issued.body() as { token: string; expiresAt: string }
       const stored = await db
-        .from('account_recovery_tokens')
-        .where('user_id', data.targetUserId)
+        .from('password_reset_tokens')
+        .where('tokenable_id', data.targetUserId)
         .first()
-      assert.equal(stored?.token_hash, createHash('sha256').update(token).digest('hex'))
+      assert.equal(stored?.hash, createHash('sha256').update(token).digest('hex'))
       assert.equal(stored?.expires_at, expiresAt)
       assert.lengthOf(await db.from('audit_entries').where('account_id', data.accountId), 1)
       assert.lengthOf(await db.from('command_results').where('account_id', data.accountId), 1)
       const duplicate = await data.post(commandId, idempotencyKey)
       duplicate.assertStatus(409)
       const duplicateLink = await db
-        .from('account_recovery_tokens')
-        .where('user_id', data.targetUserId)
+        .from('password_reset_tokens')
+        .where('tokenable_id', data.targetUserId)
         .first()
-      assert.equal(duplicateLink?.token_hash, stored?.token_hash)
+      assert.equal(duplicateLink?.hash, stored?.hash)
       assert.lengthOf(await db.from('audit_entries').where('account_id', data.accountId), 1)
       assert.lengthOf(await db.from('command_results').where('account_id', data.accountId), 1)
     } finally {
@@ -311,8 +311,8 @@ test.group('Administrative recovery issuance fault boundaries', (group) => {
     const first = await data.post()
     first.assertStatus(201)
     const previousLink = await db
-      .from('account_recovery_tokens')
-      .where('user_id', data.targetUserId)
+      .from('password_reset_tokens')
+      .where('tokenable_id', data.targetUserId)
       .first()
     const findByEmail = usersAdapter.findByEmail
     let changed = false
@@ -334,10 +334,10 @@ test.group('Administrative recovery issuance fault boundaries', (group) => {
       const emailRace = await data.post()
       assert.notEqual(emailRace.status(), 201)
       const currentLink = await db
-        .from('account_recovery_tokens')
-        .where('user_id', data.targetUserId)
+        .from('password_reset_tokens')
+        .where('tokenable_id', data.targetUserId)
         .first()
-      assert.equal(currentLink?.token_hash, previousLink?.token_hash)
+      assert.equal(currentLink?.hash, previousLink?.hash)
       assert.lengthOf(await db.from('audit_entries').where('account_id', data.accountId), 1)
       assert.lengthOf(await db.from('command_results').where('account_id', data.accountId), 1)
     } finally {
@@ -354,8 +354,8 @@ test.group('Administrative recovery issuance fault boundaries', (group) => {
     const first = await data.post()
     first.assertStatus(201)
     const previousLink = await db
-      .from('account_recovery_tokens')
-      .where('user_id', data.targetUserId)
+      .from('password_reset_tokens')
+      .where('tokenable_id', data.targetUserId)
       .first()
     const findByEmail = usersAdapter.findByEmail
     let changed = false
@@ -377,10 +377,10 @@ test.group('Administrative recovery issuance fault boundaries', (group) => {
       ineligible.assertStatus(403)
       assert.equal(ineligible.body().code, 'PASSWORD_UNAVAILABLE')
       const currentLink = await db
-        .from('account_recovery_tokens')
-        .where('user_id', data.targetUserId)
+        .from('password_reset_tokens')
+        .where('tokenable_id', data.targetUserId)
         .first()
-      assert.equal(currentLink?.token_hash, previousLink?.token_hash)
+      assert.equal(currentLink?.hash, previousLink?.hash)
       assert.isNotOk(await db.from('command_results').where('command_id', commandId).first())
       assert.lengthOf(await db.from('audit_entries').where('account_id', data.accountId), 1)
       assert.lengthOf(await db.from('command_results').where('account_id', data.accountId), 1)
@@ -398,8 +398,8 @@ test.group('Administrative recovery issuance fault boundaries', (group) => {
     const first = await data.post()
     first.assertStatus(201)
     const previousLink = await db
-      .from('account_recovery_tokens')
-      .where('user_id', data.targetUserId)
+      .from('password_reset_tokens')
+      .where('tokenable_id', data.targetUserId)
       .first()
     const findByEmail = usersAdapter.findByEmail
     let revokeActor = false
@@ -418,10 +418,10 @@ test.group('Administrative recovery issuance fault boundaries', (group) => {
       assert.equal(roleLoss.status(), 403)
       assert.equal(roleLoss.body().code, 'IDENTITY_AUTHORITY_DENIED')
       const afterRoleLoss = await db
-        .from('account_recovery_tokens')
-        .where('user_id', data.targetUserId)
+        .from('password_reset_tokens')
+        .where('tokenable_id', data.targetUserId)
         .first()
-      assert.equal(afterRoleLoss?.token_hash, previousLink?.token_hash)
+      assert.equal(afterRoleLoss?.hash, previousLink?.hash)
       assert.lengthOf(await db.from('audit_entries').where('account_id', data.accountId), 1)
 
       await db
@@ -440,10 +440,10 @@ test.group('Administrative recovery issuance fault boundaries', (group) => {
       assert.equal(sessionLoss.status(), 401)
       assert.equal(sessionLoss.body().code, 'SESSION_INVALID')
       const afterSessionLoss = await db
-        .from('account_recovery_tokens')
-        .where('user_id', data.targetUserId)
+        .from('password_reset_tokens')
+        .where('tokenable_id', data.targetUserId)
         .first()
-      assert.equal(afterSessionLoss?.token_hash, previousLink?.token_hash)
+      assert.equal(afterSessionLoss?.hash, previousLink?.hash)
       assert.lengthOf(await db.from('audit_entries').where('account_id', data.accountId), 1)
       assert.lengthOf(await db.from('command_results').where('account_id', data.accountId), 1)
     } finally {

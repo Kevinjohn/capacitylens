@@ -204,7 +204,7 @@ export async function acceptInvitation(
       .where('id', standing.id)
       .update({ role, status: 'active', updated_at: now })
   if (!standing || standing.status === 'archived')
-    await trx.from('account_recovery_tokens').where('user_id', userId).delete()
+    await trx.from('password_reset_tokens').where('tokenable_id', userId).delete()
   await settleInvitationProposal(trx, String(invitation.id), accountId, userId)
   await writeAudit(trx, {
     accountId,

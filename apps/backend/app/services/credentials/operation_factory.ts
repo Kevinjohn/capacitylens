@@ -148,24 +148,30 @@ export function makeKit(operation: Operation) {
   let captureReady = false
   const config = defineConfig({
     users: usersAdapter,
-    enabled: ['recovery', 'credentials'],
+    enabled: ['passwordReset', 'emailPasswordManagement', 'emailVerification'],
+    registration: { availability: 'closed' },
     usersTable: 'users',
     limiterSecret: secret(),
     limiterNamespace: 'capacitylens:account-kit:v1',
-    ttl: { recovery: '24h' },
+    expiresIn: { passwordReset: '24h' },
+    // The HTTP boundary counts Unicode code points; this is the package's transport envelope.
+    passwordPolicy: { minLength: 8, maxLength: 256 },
     throttle: { requests: 5, duration: '15m' },
     minRequestMs: 300,
     urls: {
-      recovery(token) {
+      passwordReset(token) {
         if (operation.kind === 'admin') issuedToken = token
         return recoveryLink(token)
+      },
+      emailVerification() {
+        throw new Error('Package-owned activation is unavailable.')
       },
       emailChange() {
         throw new Error('Email change is unavailable.')
       },
     },
     notify: {
-      async recovery(user, url) {
+      async passwordResetProvision(user, url) {
         if (operation.kind === 'admin') return // Administrative issuance is capture-only.
         if (operation.kind !== 'public' || !user.hasPassword) return
         // Start delivery promptly; the public response must not wait on SMTP latency.
@@ -193,7 +199,7 @@ export function makeKit(operation: Operation) {
             backgroundDeliveries--
           })
       },
-      async passwordReset(user) {
+      async passwordResetCompleted(user) {
         await sendNotice(
           user.email,
           'Your password was reset',
@@ -207,14 +213,17 @@ export function makeKit(operation: Operation) {
           'Your CapacityLens password was changed. If this was not you, contact your company administrator.'
         )
       },
-      async emailChangeConfirm() {
+      async accountActivationProvision() {
+        throw new Error('Package-owned activation is unavailable.')
+      },
+      async emailChangeProvision() {
         throw new Error('Email change is unavailable.')
       },
       async emailChanged() {
         throw new Error('Email change is unavailable.')
       },
     },
-    async onRecoveryIssuedTransaction(user, trx) {
+    async onPasswordResetIssuedTransaction(user, trx) {
       if (operation.kind === 'public' && !user.hasPassword) throw new PasswordIneligibleError()
       if (operation.kind !== 'admin') return
       invalidatedIds = []
@@ -240,8 +249,8 @@ export function makeKit(operation: Operation) {
         trx
       )
       const row = await trx
-        .from('account_recovery_tokens')
-        .where('user_id', operation.targetId)
+        .from('password_reset_tokens')
+        .where('tokenable_id', operation.targetId)
         .select('expires_at')
         .first()
       if (!row) throw new CredentialUnavailableError()
@@ -308,8 +317,11 @@ export function makeKit(operation: Operation) {
         throw new CredentialUnavailableError()
     },
   })
+  const kit = new AccountKit({ config, db, encryption: encryption.use(), limiter })
   return {
-    kit: new AccountKit({ config, db, encryption: encryption.use(), limiter }),
+    requestReset: kit.passwordReset.request,
+    resetPassword: kit.passwordReset.reset,
+    changePassword: kit.emailPasswordManagement.changePassword,
     captured() {
       if (operation.kind !== 'admin' || !issuedToken || !expiresAt || !captureReady)
         throw new CredentialUnavailableError()

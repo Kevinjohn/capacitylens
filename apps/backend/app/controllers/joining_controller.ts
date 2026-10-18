@@ -168,7 +168,7 @@ export default class JoiningController {
               created_at: now,
               updated_at: now,
             })
-          await trx.from('account_recovery_tokens').where('user_id', actor.userId).delete()
+          await trx.from('password_reset_tokens').where('tokenable_id', actor.userId).delete()
           await writeAudit(trx, {
             accountId,
             actorId: actor.userId,

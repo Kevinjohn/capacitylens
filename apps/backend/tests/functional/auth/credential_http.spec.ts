@@ -77,7 +77,7 @@ test.group('Credential HTTP contract', (group) => {
     assert.equal(provider.status(), unknown.status())
     assert.deepEqual(provider.body(), unknown.body())
     fake.messages.assertNoneSent()
-    assert.isNotOk(await db.from('account_recovery_tokens').where('user_id', id).first())
+    assert.isNotOk(await db.from('password_reset_tokens').where('tokenable_id', id).first())
   })
 
   test('public recovery acknowledges while email delivery is still pending', async ({
@@ -207,7 +207,7 @@ test.group('Credential HTTP contract', (group) => {
     assert.deepEqual(response.body(), { ok: true })
     assert.isTrue(restorationFailed)
     assert.isAtLeast(diagnosticAttempts, 1)
-    assert.isOk(await db.from('account_recovery_tokens').where('user_id', id).first())
+    assert.isOk(await db.from('password_reset_tokens').where('tokenable_id', id).first())
     assert.notInclude(JSON.stringify(response.body()), 'TEST_COMMIT_CLEANUP')
     fake.messages.assertSentCount(1)
   })
@@ -248,10 +248,25 @@ test.group('Credential HTTP contract', (group) => {
     assert.isString(secondCookie)
     assert.lengthOf(await db.from('user_session_index'), 2)
 
+    const beforeChange = await db.from('users').where('email', email).first()
+    const beforeSessions = await db.from('user_session_index').orderBy('session_id')
+    for (const length of [14, 129]) {
+      const refused = await withSession(client.post('/api/auth/change-password'), firstCookie!)
+        .json({
+          currentPassword: original,
+          newPassword: '🦇'.repeat(length),
+          revokeOtherSessions: true,
+        })
+        .send()
+      refused.assertStatus(400)
+      assert.deepEqual(await db.from('users').where('email', email).first(), beforeChange)
+      assert.deepEqual(await db.from('user_session_index').orderBy('session_id'), beforeSessions)
+    }
+
     const firstChange = await withSession(client.post('/api/auth/change-password'), firstCookie!)
       .json({
         currentPassword: original,
-        newPassword: 'middle-password-2026-credentials',
+        newPassword: '🦇'.repeat(128),
         revokeOtherSessions: false,
       })
       .send()
@@ -260,7 +275,7 @@ test.group('Credential HTTP contract', (group) => {
 
     const secondChange = await withSession(client.post('/api/auth/change-password'), firstCookie!)
       .json({
-        currentPassword: 'middle-password-2026-credentials',
+        currentPassword: '🦇'.repeat(128),
         newPassword: 'final-password-2026-credentials',
         revokeOtherSessions: true,
       })

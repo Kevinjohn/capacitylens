@@ -77,10 +77,10 @@ test.group('existing-principal invitation lifecycle', (group) => {
     const recruitUser = await db.from('users').where('email', 'clark.kent@wayne.example').first()
     const recruitId = recruitUser.id
     const now = new Date().toISOString()
-    await db.table('account_recovery_tokens').insert({
-      user_id: recruitId,
+    await db.table('password_reset_tokens').insert({
+      tokenable_id: recruitId,
       email: 'clark.kent@wayne.example',
-      token_hash: 'a'.repeat(64),
+      hash: 'a'.repeat(64),
       expires_at: new Date(Date.now() + 3_600_000).toISOString(),
       created_at: now,
     })
@@ -136,7 +136,7 @@ test.group('existing-principal invitation lifecycle', (group) => {
     const afterClaim = await db.from('users').where('id', recruitId).first()
     assert.isFalse(Boolean(afterClaim.email_verified))
     assert.isNull(await db.from('email_proofs').where('user_id', recruitId).first())
-    assert.isNull(await db.from('account_recovery_tokens').where('user_id', recruitId).first())
+    assert.isNull(await db.from('password_reset_tokens').where('tokenable_id', recruitId).first())
     assert.isNotNull(
       await db
         .from('company_settings')
@@ -237,10 +237,10 @@ test.group('existing-principal invitation lifecycle', (group) => {
     own.assertStatus(201)
     const ownerUser = await db.from('users').where('email', 'bruce.wayne@wayne.example').first()
     const ownerId = ownerUser.id
-    await db.table('account_recovery_tokens').insert({
-      user_id: ownerId,
+    await db.table('password_reset_tokens').insert({
+      tokenable_id: ownerId,
       email: 'bruce.wayne@wayne.example',
-      token_hash: 'd'.repeat(64),
+      hash: 'd'.repeat(64),
       expires_at: new Date(Date.now() + 3_600_000).toISOString(),
       created_at: new Date().toISOString(),
     })
@@ -252,7 +252,7 @@ test.group('existing-principal invitation lifecycle', (group) => {
     ).send()
     ownAccepted.assertStatus(200)
     assert.equal((ownAccepted.body() as unknown as { role: string }).role, 'owner')
-    assert.isNotNull(await db.from('account_recovery_tokens').where('user_id', ownerId).first())
+    assert.isNotNull(await db.from('password_reset_tokens').where('tokenable_id', ownerId).first())
     const listed = await withSession(
       client.get('/api/accounts/a-studio/invites').header('sec-fetch-site', 'same-origin'),
       ownerCookie

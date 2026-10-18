@@ -59,35 +59,36 @@ export async function recoverOwner(input: { email: string; confirmServerStopped:
     const config = defineConfig({
       users: usersAdapter,
       usersTable: 'users',
-      enabled: ['recovery'],
+      enabled: ['passwordReset'],
+      registration: { availability: 'closed' },
       limiterSecret: env.get('CAPACITYLENS_SECRET') || env.get('APP_KEY').release(),
       limiterNamespace: 'capacitylens:operator-recovery:v1',
-      ttl: { recovery: '24h' },
+      expiresIn: { passwordReset: '24h' },
       urls: {
-        recovery(value) {
+        passwordReset(value) {
           token = value
           return new URL(`/reset-password/${encodeURIComponent(value)}`, origin).href
         },
       },
       notify: {
-        async recovery() {
+        async passwordResetProvision() {
           /* The operator receives the captured link directly. */
         },
-        async passwordReset() {
+        async passwordResetCompleted() {
           throw new Error('Operator issuance does not redeem credentials')
         },
       },
-      async onRecoveryIssuedTransaction(current, trx) {
+      async onPasswordResetIssuedTransaction(current, trx) {
         if (String(current.id) !== String(user.id) || !current.hasPassword)
           throw new Error('Recovery requires a sole active Owner with a local password')
         accountIds = await soleOwnerAccounts(String(current.id), trx)
         const row = await trx
-          .from('account_recovery_tokens')
-          .where('user_id', String(current.id))
+          .from('password_reset_tokens')
+          .where('tokenable_id', String(current.id))
           .first()
         if (!row) throw new Error('Recovery ceremony was not recorded')
         expiresAt = String(row.expires_at)
-        ceremonyId = String(row.token_hash)
+        ceremonyId = String(row.hash)
         const now = new Date().toISOString()
         for (const accountId of accountIds)
           await trx.table('audit_entries').insert({
@@ -105,7 +106,7 @@ export async function recoverOwner(input: { email: string; confirmServerStopped:
     })
     const kit = new AccountKit({ config, db, encryption: encryption.use(), limiter })
     try {
-      await kit.recovery.request({ email, clientKey: 'stopped-server-operator' })
+      await kit.passwordReset.request({ email, clientKey: 'stopped-server-operator' })
     } catch (error) {
       // A bearer is only exposed after the package's post-commit URL callback proves issuance.
       if (!(error instanceof PostCommitError) || !token) throw error

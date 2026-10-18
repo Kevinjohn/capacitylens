@@ -93,7 +93,10 @@ export async function transferOwnership(
     if (finalOwners.length !== 1 || finalOwners[0].user_id !== toUserId)
       throw new Error('Company Owner invariant failed after transfer.')
 
-    await trx.from('account_recovery_tokens').whereIn('user_id', [actor.userId, toUserId]).delete()
+    await trx
+      .from('password_reset_tokens')
+      .whereIn('tokenable_id', [actor.userId, toUserId])
+      .delete()
     await writeAudit(trx, {
       accountId,
       actorId: actor.userId,

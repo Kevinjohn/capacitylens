@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from 'node:crypto'
 import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import db from '@adonisjs/lucid/services/db'
@@ -49,16 +50,24 @@ test.group('Account-kit recovery with product credentials', (group) => {
       )?.[0]
       assert.isString(link)
       const token = decodeURIComponent(new URL(link!).pathname.split('/').at(-1)!)
-      const before = await db.from('account_recovery_tokens').where('user_id', id).first()
+      assert.lengthOf(token, 54)
+      const before = await db.from('password_reset_tokens').where('tokenable_id', id).first()
       assert.isOk(before)
 
       await db.from('users').where('id', id).update({ password_hash: null })
       await requestPublicReset(email, `provider-client-${id}`)
       assert.deepEqual(
-        await db.from('account_recovery_tokens').where('user_id', id).first(),
+        await db.from('password_reset_tokens').where('tokenable_id', id).first(),
         before
       )
       fake.messages.assertSentCount(1)
+      const ineligible = await db.from('users').where('id', id).first()
+      await assert.rejects(() => resetPassword(token, 'fresh-provider-password-2026'))
+      assert.deepEqual(await db.from('users').where('id', id).first(), ineligible)
+      assert.deepEqual(
+        await db.from('password_reset_tokens').where('tokenable_id', id).first(),
+        before
+      )
 
       await db.from('users').where('id', id).update({ password_hash: originalHash })
       const replacement = 'correct-horse-battery-staple-2026'
@@ -66,7 +75,7 @@ test.group('Account-kit recovery with product credentials', (group) => {
       const changed = await db.from('users').where('id', id).first()
       assert.isTrue(await verifyPassword(String(changed?.password_hash), replacement))
       assert.isTrue(Boolean(changed?.email_verified))
-      assert.isNotOk(await db.from('account_recovery_tokens').where('user_id', id).first())
+      assert.isNotOk(await db.from('password_reset_tokens').where('tokenable_id', id).first())
       await assert.rejects(() => resetPassword(token, replacement))
     } finally {
       mail.restore()
@@ -121,7 +130,7 @@ test.group('Account-kit recovery with product credentials', (group) => {
       const link = text.match(/https?:\/\/\S+/)?.[0]
       assert.isString(link)
       const token = decodeURIComponent(new URL(link!).pathname.split('/').at(-1)!)
-      const before = await db.from('account_recovery_tokens').where('user_id', id).first()
+      const before = await db.from('password_reset_tokens').where('tokenable_id', id).first()
       assert.isOk(before)
 
       await db.rawQuery(
@@ -132,7 +141,7 @@ test.group('Account-kit recovery with product credentials', (group) => {
       assert.equal(unchanged?.password_hash, originalHash)
       assert.isFalse(Boolean(unchanged?.email_verified))
       assert.deepEqual(
-        await db.from('account_recovery_tokens').where('user_id', id).first(),
+        await db.from('password_reset_tokens').where('tokenable_id', id).first(),
         before
       )
       assert.isNotOk(await db.from('audit_entries').where('account_id', accountId).first())
@@ -149,5 +158,67 @@ test.group('Account-kit recovery with product credentials', (group) => {
       await db.rawQuery('DROP TRIGGER IF EXISTS credential_audit_failure')
       mail.restore()
     }
+  })
+  test('redeems canonical legacy proofs once and keeps invalid passwords from consuming proofs', async ({
+    assert,
+    client,
+    cleanup,
+  }) => {
+    mail.fake()
+    cleanup(() => mail.restore())
+    const id = crypto.randomUUID()
+    const email = `${id}@example.test`
+    const now = new Date().toISOString()
+    await db.table('users').insert({
+      id,
+      email,
+      email_verified: true,
+      password_hash: 'old-credential',
+      display_name: 'Diana Prince',
+      created_at: now,
+      updated_at: now,
+    })
+    const token = randomBytes(32).toString('base64url')
+    assert.lengthOf(token, 43)
+    await db.table('password_reset_tokens').insert({
+      tokenable_id: id,
+      email,
+      hash: createHash('sha256').update(token).digest('hex'),
+      expires_at: new Date(Date.now() + 3600000).toISOString(),
+      created_at: now,
+    })
+    const before = await db.from('password_reset_tokens').where('tokenable_id', id).first()
+    const user = await db.from('users').where('id', id).first()
+    for (const length of [14, 129]) {
+      const refused = await client
+        .post('/api/auth/reset-password')
+        .json({ token, newPassword: '🦇'.repeat(length) })
+      refused.assertStatus(400)
+      assert.deepEqual(
+        await db.from('password_reset_tokens').where('tokenable_id', id).first(),
+        before
+      )
+      assert.deepEqual(await db.from('users').where('id', id).first(), user)
+    }
+    const password = '🦇'.repeat(128)
+    const redeemed = await client
+      .post('/api/auth/reset-password')
+      .json({ token, newPassword: password })
+    redeemed.assertStatus(200)
+    const changed = await db.from('users').where('id', id).first()
+    assert.isTrue(await verifyPassword(changed!.password_hash, password))
+    assert.equal(changed!.email, email)
+    assert.isTrue(Boolean(changed!.email_verified))
+    await assert.rejects(() => resetPassword(token, password))
+    await db
+      .table('password_reset_tokens')
+      .insert({ ...before, expires_at: new Date(Date.now() - 3600000).toISOString() })
+    const expired = await db.from('password_reset_tokens').where('tokenable_id', id).first()
+    await assert.rejects(() => resetPassword(token, password))
+    assert.deepEqual(
+      await db.from('password_reset_tokens').where('tokenable_id', id).first(),
+      expired
+    )
+    assert.deepEqual(await db.from('users').where('id', id).first(), changed)
   })
 })
