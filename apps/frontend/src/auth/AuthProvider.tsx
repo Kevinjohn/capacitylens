@@ -7,7 +7,7 @@ import { useStore } from "@/store/useStore";
 import { AuthContext } from "./authContext";
 import { m } from "@/i18n";
 import { Button } from "@/components/ui/button";
-import { signOutAndReload } from "./signOut";
+import { AUTH_INVALIDATION_STORAGE_KEY, signOutAndReload } from "./signOut";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { markCompanyPickerForNextReload } from "@/lib/companyPickerEntry";
 import { buildOpenAuthResult } from "./authStatus";
@@ -100,6 +100,28 @@ function useAuthRevalidation({
       document.removeEventListener("visibilitychange", revalidateVisibleSession);
     };
   }, [serverMode, refreshAuth]);
+}
+
+function useAuthInvalidation({
+  serverMode,
+  checkAuth,
+  setStatus,
+}: {
+  serverMode: boolean;
+  checkAuth: CheckAuth;
+  setStatus: (status: AuthStatusResult) => void;
+}) {
+  useEffect(() => {
+    if (!serverMode) return;
+    const onAuthInvalidation = (event: StorageEvent) => {
+      if (event.key !== AUTH_INVALIDATION_STORAGE_KEY) return;
+      useStore.getState().setActiveAccount(null);
+      setStatus({ kind: "checking" });
+      void checkAuth("fail-open");
+    };
+    window.addEventListener("storage", onAuthInvalidation);
+    return () => window.removeEventListener("storage", onAuthInvalidation);
+  }, [serverMode, checkAuth, setStatus]);
 }
 
 function LoginBoundary({
@@ -204,6 +226,7 @@ function AuthenticatedAppProvider({
   const { status, setStatus, checkAuth, refreshAuth } = useAuthStatus({ serverMode });
   useTenantAccessReady(status, onTenantAccessReady);
   useAuthRevalidation({ serverMode, persistError, checkAuth, refreshAuth });
+  useAuthInvalidation({ serverMode, checkAuth, setStatus });
 
   useEffect(() => {
     if (status.kind === "error") {

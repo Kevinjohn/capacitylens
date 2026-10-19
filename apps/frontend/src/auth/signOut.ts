@@ -2,6 +2,9 @@ import { clearStoredAccountCommands } from "@/account/accountClient";
 import { queryClient } from "@/api/queryClient";
 import { authClient } from "./authClient";
 
+/** Non-secret storage signal that makes sibling tabs recheck the server session. */
+export const AUTH_INVALIDATION_STORAGE_KEY = "capacitylens/sessionInvalidated";
+
 interface SignOutDependencies {
   clearAccountCommands: () => void;
   requestSignOut: () => Promise<{ ok: boolean; status: number }>;
@@ -40,6 +43,11 @@ export async function signOutAndReload(overrides: Partial<SignOutDependencies> =
   } catch (error) {
     console.error("AuthProvider: sign-out failed", error);
   } finally {
+    try {
+      window.localStorage.setItem(AUTH_INVALIDATION_STORAGE_KEY, crypto.randomUUID());
+    } catch (error) {
+      console.warn("AuthProvider: sibling tabs could not be notified about sign-out", error);
+    }
     dependencies.reload();
   }
 }

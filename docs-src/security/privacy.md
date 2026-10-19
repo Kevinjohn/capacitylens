@@ -58,6 +58,10 @@ company export.
 Scheduling data and verified identities are never saved as persistent browser snapshots. A server
 failure stays visible and retryable. Nothing is queued for a later connection.
 
+When opening a version that removes the former snapshot feature, the app deletes its old browser
+database and shell caches and unregisters its worker. Close older CapacityLens tabs and reopen the
+app if another tab is holding that database open.
+
 ## Network behaviour
 
 CapacityLens includes no product analytics, advertising or crash-reporting service, and its

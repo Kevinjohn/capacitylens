@@ -3,14 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { ServerSyncAdapter, diffOps } from "./ServerSyncAdapter";
 import { diffOpsFromPossibleBases } from "./syncOps";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import {
-  TS1,
-  TS2,
-  client,
-  project,
-  withData,
-  commitReceipt,
-} from "./ServerSyncAdapter.testSupport";
+import { TS1, TS2, client, project, withData, commitReceipt } from "./ServerSyncAdapter.testSupport";
 
 describe("auth-awareness (P3.4)", () => {
   it("sends credentials on every request so a session cookie reaches an auth-enabled server", async () => {

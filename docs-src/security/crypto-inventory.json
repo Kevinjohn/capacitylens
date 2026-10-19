@@ -144,6 +144,10 @@
     {
       "path": "apps/backend/tests/functional/auth/login_link_fixtures.ts",
       "purpose": "Random non-secret fixture principal identifiers and inert seeded proof values for credential-cleanup tests; no live bearer generation or link issuance"
+    },
+    {
+      "path": "apps/frontend/src/auth/signOut.ts",
+      "purpose": "Random non-secret cross-tab session invalidation signal; contains no session or identity data"
     }
   ]
 }

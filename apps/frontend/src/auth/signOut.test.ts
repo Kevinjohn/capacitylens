@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { queryClient } from "@/api/queryClient";
-import { signOutAndReload } from "./signOut";
+import { AUTH_INVALIDATION_STORAGE_KEY, signOutAndReload } from "./signOut";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -12,8 +12,6 @@ describe("signOutAndReload", () => {
     queryClient.setQueryData(["private-account"], "sensitive data");
 
     await signOutAndReload({
-      clearOfflineData: async () => {},
-      disableOfflineRead: async () => {},
       requestSignOut: async () => ({ ok: true, status: 200 }),
       reload: () => {},
     });
@@ -25,7 +23,9 @@ describe("signOutAndReload", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const clearAccountCommands = vi.fn();
     const requestSignOut = vi.fn().mockResolvedValue({ ok: false, status: 503 });
-    const reload = vi.fn();
+    const reload = vi.fn(() => {
+      expect(localStorage.getItem(AUTH_INVALIDATION_STORAGE_KEY)).toMatch(/^[0-9a-f-]{36}$/i);
+    });
 
     const completion = signOutAndReload({
       clearAccountCommands,
@@ -38,5 +38,6 @@ describe("signOutAndReload", () => {
 
     expect(requestSignOut).toHaveBeenCalledOnce();
     expect(reload).toHaveBeenCalledOnce();
+    expect(localStorage.getItem(AUTH_INVALIDATION_STORAGE_KEY)).toMatch(/^[0-9a-f-]{36}$/i);
   });
 });

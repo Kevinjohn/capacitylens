@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { MasqueradeBootstrapStatus } from "./masqueradeApi";
+import { AUTH_INVALIDATION_STORAGE_KEY } from "./signOut";
 
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({ active: false })),
@@ -136,6 +137,44 @@ function registerServerModeTest01() {
 
     expect(await screen.findByText("app-content")).toBeInTheDocument();
     await waitFor(() => expect(onTenantAccessReady).toHaveBeenCalledWith("live"));
+  });
+}
+
+function registerServerModeTest02() {
+  it("hides tenant data immediately when a sibling tab signs out, then rechecks the session", async () => {
+    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(
+        me(200, {
+          authMode: "password-only",
+          user: { id: "u1", email: "a@b.test" },
+        }),
+      )
+      .mockResolvedValue(me(401, { authMode: "password-only", providers: [] }));
+    vi.stubGlobal("fetch", fetchSpy);
+    const { AuthProvider, useStore } = await freshProvider();
+    render(
+      <AuthProvider>
+        <div>tenant-content</div>
+      </AuthProvider>,
+    );
+    expect(await screen.findByText("tenant-content")).toBeInTheDocument();
+    useStore.setState({ activeAccountId: "a-studio" });
+
+    act(() => {
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: AUTH_INVALIDATION_STORAGE_KEY,
+          newValue: crypto.randomUUID(),
+        }),
+      );
+    });
+
+    expect(useStore.getState().activeAccountId).toBeNull();
+    expect(screen.getByRole("status")).toHaveTextContent("Checking your session…");
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 }
 
@@ -911,6 +950,7 @@ function registerServerModeTest31() {
 }
 describe("AuthProvider — server mode", () => {
   registerServerModeTest01();
+  registerServerModeTest02();
   registerServerModeTest03();
   registerServerModeTest05();
   registerServerModeTest06();
