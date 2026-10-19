@@ -152,6 +152,10 @@
     {
       "path": "apps/backend/app/services/operations/owner_recovery.ts",
       "purpose": "Unkeyed SHA-256 comparison of the operator-captured recovery bearer with its committed token hash; only the digest enters the private audit"
+    },
+    {
+      "path": "apps/backend/tests/functional/auth/login_link_fixtures.ts",
+      "purpose": "Random non-secret fixture principal identifiers and inert seeded proof values for credential-cleanup tests; no live bearer generation or link issuance"
     }
   ]
 }
