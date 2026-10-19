@@ -24,6 +24,7 @@ test.group('M1 static fallback', (group) => {
   }) => {
     for (const path of [
       '/missing.js',
+      '/offline-worker.js',
       '/assets/missing.js',
       '/nested/missing.png',
       '/assets/',
@@ -54,7 +55,7 @@ test.group('M1 static fallback', (group) => {
     const revalidated = await client.get(`/assets/${asset}`).header('if-none-match', etag!)
     assert.equal(revalidated.status(), 304)
     assert.equal(revalidated.header('cache-control'), 'public, max-age=31536000, immutable')
-    const rootFile = await client.get('/offline-worker.js')
+    const rootFile = await client.get('/theme-init.js')
     assert.equal(rootFile.status(), 200)
     assert.equal(rootFile.header('cache-control'), 'no-store')
   })
