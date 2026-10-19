@@ -55,6 +55,21 @@ test.group('M1 database contract', (group) => {
     )
   })
 
+  test('readiness refuses drifted login-link proof storage', async ({ assert }) => {
+    await db.rawQuery(
+      'ALTER TABLE login_link_tokens RENAME COLUMN client_challenge TO missing_challenge'
+    )
+    try {
+      await assert.rejects(() => assertSchemaIntegrity(), /login_link_tokens columns differ/)
+      await assert.rejects(() => checkDatabase(), /login_link_tokens columns differ/)
+    } finally {
+      await db.rawQuery(
+        'ALTER TABLE login_link_tokens RENAME COLUMN missing_challenge TO client_challenge'
+      )
+    }
+    await assertSchemaIntegrity()
+  })
+
   test('round-trips every seeded entity through the migrated database read path', async ({
     assert,
   }) => {

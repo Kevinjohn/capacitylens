@@ -491,6 +491,25 @@ export class InvitationSchema extends BaseModel {
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }
 
+export class LoginLinkTokenSchema extends BaseModel {
+  static $columns = ['clientChallenge', 'createdAt', 'email', 'expiresAt', 'hash', 'id', 'tokenableId'] as const
+  $columns = LoginLinkTokenSchema.$columns
+  @column()
+  declare clientChallenge: string
+  @column()
+  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare email: string
+  @column()
+  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare hash: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare tokenableId: string
+}
+
 export class MasqueradeSchema extends BaseModel {
   static $columns = ['accountId', 'actorUserId', 'createdAt', 'id', 'role', 'sessionId', 'startedAt', 'targetUserId', 'token', 'updatedAt'] as const
   $columns = MasqueradeSchema.$columns

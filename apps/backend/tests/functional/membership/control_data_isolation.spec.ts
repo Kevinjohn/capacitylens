@@ -83,8 +83,18 @@ test.group('membership control-data isolation', (group) => {
       updated_at: stamp,
     })
 
+    await db.table('login_link_tokens').insert({
+      tokenable_id: 'u-control-isolation',
+      email: 'clark.kent@wayne.example',
+      hash: 'secret-login-link-hash',
+      client_challenge: 'secret-login-client-challenge',
+      expires_at: stamp,
+      created_at: stamp,
+    })
+
     const exported = await client.get('/api/state?accountId=a-studio&includeInactive=1').send()
     exported.assertStatus(200)
+    assert.notProperty(exported.body(), 'loginLinkTokens')
     assert.notProperty(exported.body(), 'memberships')
     assert.notProperty(exported.body(), 'accountMemberResources')
     assert.notProperty(exported.body(), 'invitations')
@@ -94,6 +104,8 @@ test.group('membership control-data isolation', (group) => {
     for (const secret of [
       'u-control-isolation',
       'clark.kent@wayne.example',
+      'secret-login-link-hash',
+      'secret-login-client-challenge',
       'secret-control-token-hash',
       'secret-control-nonce-hash',
       'secret-control-browser-hash',
@@ -105,6 +117,7 @@ test.group('membership control-data isolation', (group) => {
       assert.notInclude(serialized, secret)
 
     const controlTables = [
+      'loginLinkTokens',
       'memberships',
       'accountMemberResources',
       'invitations',

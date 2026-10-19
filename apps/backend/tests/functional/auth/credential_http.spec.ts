@@ -4,6 +4,7 @@ import db from '@adonisjs/lucid/services/db'
 import mail from '@adonisjs/mail/services/main'
 import logger from '@adonisjs/core/services/logger'
 import env from '#start/env'
+import { seedLoginLinkProofs } from './login_link_fixtures.js'
 
 function withSession<
   T extends { setup(callback: () => void): T; withCookie(name: string, value: string): T },
@@ -249,6 +250,11 @@ test.group('Credential HTTP contract', (group) => {
     assert.lengthOf(await db.from('user_session_index'), 2)
 
     const beforeChange = await db.from('users').where('email', email).first()
+    const otherProof = await seedLoginLinkProofs(String(beforeChange!.id))
+    const loginProof = await db
+      .from('login_link_tokens')
+      .where('tokenable_id', beforeChange!.id)
+      .first()
     const beforeSessions = await db.from('user_session_index').orderBy('session_id')
     for (const length of [14, 129]) {
       const refused = await withSession(client.post('/api/auth/change-password'), firstCookie!)
@@ -259,6 +265,10 @@ test.group('Credential HTTP contract', (group) => {
         })
         .send()
       refused.assertStatus(400)
+      assert.deepEqual(
+        await db.from('login_link_tokens').where('tokenable_id', beforeChange!.id).first(),
+        loginProof
+      )
       assert.deepEqual(await db.from('users').where('email', email).first(), beforeChange)
       assert.deepEqual(await db.from('user_session_index').orderBy('session_id'), beforeSessions)
     }
@@ -271,6 +281,13 @@ test.group('Credential HTTP contract', (group) => {
       })
       .send()
     firstChange.assertStatus(200)
+    assert.isNotOk(
+      await db.from('login_link_tokens').where('tokenable_id', beforeChange!.id).first()
+    )
+    assert.deepEqual(
+      await db.from('login_link_tokens').where('tokenable_id', otherProof.tokenable_id).first(),
+      otherProof
+    )
     assert.lengthOf(await db.from('user_session_index'), 2)
 
     const secondChange = await withSession(client.post('/api/auth/change-password'), firstCookie!)

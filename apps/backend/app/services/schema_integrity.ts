@@ -89,6 +89,15 @@ async function assertProofStorage(table: string, expectedColumns: string[]) {
 }
 
 export async function assertSchemaIntegrity() {
+  await assertProofStorage('login_link_tokens', [
+    'id',
+    'tokenable_id',
+    'email',
+    'hash',
+    'client_challenge',
+    'expires_at',
+    'created_at',
+  ])
   await assertProofStorage('password_reset_tokens', [
     'id',
     'tokenable_id',

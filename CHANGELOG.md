@@ -11,6 +11,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Keep password resets and password changes compatible with the updated account-kit, preserving existing credentials and recovery links during the storage upgrade.
+
 - The native archive uses password authentication and database sessions, with open production
   access disabled in the installation example.
 

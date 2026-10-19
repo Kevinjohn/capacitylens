@@ -71,7 +71,7 @@ test('native upgrade initializes a fresh database without a snapshot', ({
     const dbPath = join(root, 'live.db')
     const result = ace(appRoot, dbPath, 'app:upgrade')
     assert.equal(result.status, 0, result.output)
-    assert.lengthOf(journal(dbPath), 8)
+    assert.lengthOf(journal(dbPath), 9)
     assert.isFalse(result.output.includes('Pre-upgrade backup written'))
     const repeated = ace(appRoot, dbPath, 'app:upgrade')
     assert.equal(repeated.status, 0, repeated.output)
@@ -95,7 +95,7 @@ test('native upgrade backs up a known partial journal and refuses a failed backu
     const rollback = command(appRoot, dbPath, [
       'ace.js',
       'migration:rollback',
-      '--step=7',
+      '--step=8',
       '--force',
       '--no-schema-generate',
     ])
@@ -111,8 +111,8 @@ test('native upgrade backs up a known partial journal and refuses a failed backu
 
     const upgrade = ace(appRoot, dbPath, 'app:upgrade')
     assert.equal(upgrade.status, 0, upgrade.output)
-    assert.lengthOf(journal(dbPath), 8)
-    const snapshot = join(root, 'live.db.backups/capacitylens-pre-migration-v1-to-v8.db')
+    assert.lengthOf(journal(dbPath), 9)
+    const snapshot = join(root, 'live.db.backups/capacitylens-pre-migration-v1-to-v9.db')
     assert.lengthOf(journal(snapshot), 1)
   } finally {
     rmSync(root, { recursive: true, force: true })
@@ -220,8 +220,8 @@ test('a failing later migration rolls back its own DDL after an earlier file com
       filter: (path) => !path.endsWith('/node_modules') && !path.endsWith('/build'),
     })
     symlinkSync(join(appRoot, 'node_modules'), join(scratch, 'node_modules'), 'dir')
-    const first = 'database/migrations/202610160001_commit_before_failure'
-    const second = 'database/migrations/202610160002_fail_after_ddl'
+    const first = 'database/migrations/202610200001_commit_before_failure'
+    const second = 'database/migrations/202610200002_fail_after_ddl'
     const committedSource = `import { BaseSchema } from '@adonisjs/lucid/schema'\nexport default class extends BaseSchema { async up() { this.schema.createTable('upgrade_committed', (table) => table.increments('id')) } async down() { this.schema.dropTable('upgrade_committed') } }\n`
     const failedSource = `import { BaseSchema } from '@adonisjs/lucid/schema'\nexport default class extends BaseSchema { async up() { this.schema.createTable('upgrade_rolled_back', (table) => table.increments('id')); await this.schema.raw('SELECT * FROM table_that_does_not_exist') } async down() { this.schema.dropTable('upgrade_rolled_back') } }\n`
     writeFileSync(join(scratch, `${first}.ts`), committedSource)
@@ -239,7 +239,7 @@ test('a failing later migration rolls back its own DDL after an earlier file com
 
     const upgrade = ace(scratch, dbPath, 'app:upgrade')
     assert.notEqual(upgrade.status, 0, upgrade.output)
-    assert.lengthOf(journal(dbPath), 9)
+    assert.lengthOf(journal(dbPath), 10)
     const database = openNativeDatabase(dbPath, { readonly: true, fileMustExist: true })
     try {
       const tables = database
@@ -256,8 +256,8 @@ test('a failing later migration rolls back its own DDL after an earlier file com
     } finally {
       database.close()
     }
-    const snapshot = join(root, 'live.db.backups/capacitylens-pre-migration-v8-to-v10.db')
-    assert.lengthOf(journal(snapshot), 8)
+    const snapshot = join(root, 'live.db.backups/capacitylens-pre-migration-v9-to-v11.db')
+    assert.lengthOf(journal(snapshot), 9)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
@@ -276,7 +276,7 @@ test('the eighth migration preserves legacy identities and proofs without promot
     const rollback = command(appRoot, dbPath, [
       'ace.js',
       'migration:rollback',
-      '--step=1',
+      '--step=2',
       '--force',
       '--no-schema-generate',
     ])
@@ -329,7 +329,7 @@ test('the eighth migration preserves legacy identities and proofs without promot
     legacy.close()
     const upgrade = ace(appRoot, dbPath, 'app:upgrade')
     assert.equal(upgrade.status, 0, upgrade.output)
-    assert.lengthOf(journal(dbPath), 8)
+    assert.lengthOf(journal(dbPath), 9)
     const current = new DatabaseSync(dbPath)
     current.exec('PRAGMA foreign_keys = ON')
     assert.deepEqual(current.prepare('SELECT * FROM users ORDER BY id').all(), users)
@@ -390,8 +390,148 @@ test('the eighth migration preserves legacy identities and proofs without promot
     const reopen = ace(appRoot, dbPath, 'app:upgrade')
     assert.equal(reopen.status, 0, reopen.output)
     assert.match(reopen.output, /Already up to date/)
-    const snapshot = join(root, 'live.db.backups/capacitylens-pre-migration-v7-to-v8.db')
+    const snapshot = join(root, 'live.db.backups/capacitylens-pre-migration-v7-to-v9.db')
     assert.lengthOf(journal(snapshot), 7)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('the ninth migration preserves identities and existing proofs while adding inert login-link storage', ({
+  assert,
+  test: testCase,
+}) => {
+  testCase.timeout(60000)
+  const root = mkdtempSync(join(tmpdir(), 'capacitylens-login-link-upgrade-'))
+  try {
+    const dbPath = join(root, 'live.db')
+    const init = ace(appRoot, dbPath, 'app:upgrade')
+    assert.equal(init.status, 0, init.output)
+    const rollback = command(appRoot, dbPath, [
+      'ace.js',
+      'migration:rollback',
+      '--step=1',
+      '--force',
+      '--no-schema-generate',
+    ])
+    assert.equal(rollback.status, 0, rollback.output)
+    assert.lengthOf(journal(dbPath), 8)
+    const legacy = new DatabaseSync(dbPath)
+    const now = new Date().toISOString()
+    const expires = new Date(Date.now() + 3600000).toISOString()
+    for (const id of ['bruce', 'clark']) {
+      legacy
+        .prepare(
+          'INSERT INTO users (id,email,password_hash,email_verified,display_name,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'
+        )
+        .run(id, `${id}@wayne.example`, 'existing-credential', 1, 'Bruce Wayne', now, now)
+      legacy
+        .prepare(
+          'INSERT INTO password_reset_tokens (tokenable_id,email,hash,expires_at,created_at) VALUES (?,?,?,?,?)'
+        )
+        .run(id, `${id}@wayne.example`, hash(id), expires, now)
+      legacy
+        .prepare(
+          'INSERT INTO email_verification_tokens (tokenable_id,email,hash,expires_at,created_at) VALUES (?,?,?,?,?)'
+        )
+        .run(id, `${id}@wayne.example`, hash(`verify-${id}`), expires, now)
+    }
+    const preserved = [
+      'users',
+      'password_reset_tokens',
+      'email_verification_tokens',
+      'account_email_changes',
+      'account_transaction_lock',
+    ]
+    const before = preserved.map((table) =>
+      legacy.prepare(`SELECT * FROM ${table} ORDER BY id`).all()
+    )
+    legacy.close()
+    const blockedDir = join(root, 'occupied')
+    writeFileSync(blockedDir, 'not a directory')
+    const blocked = ace(appRoot, dbPath, 'app:upgrade', blockedDir)
+    assert.notEqual(blocked.status, 0, blocked.output)
+    assert.lengthOf(journal(dbPath), 8)
+    const upgrade = ace(appRoot, dbPath, 'app:upgrade')
+    assert.equal(upgrade.status, 0, upgrade.output)
+    assert.lengthOf(journal(dbPath), 9)
+    const current = new DatabaseSync(dbPath)
+    try {
+      current.exec('PRAGMA foreign_keys = ON')
+      assert.deepEqual(
+        preserved.map((table) => current.prepare(`SELECT * FROM ${table} ORDER BY id`).all()),
+        before
+      )
+      const insert = current.prepare(
+        'INSERT INTO login_link_tokens (tokenable_id,email,hash,client_challenge,expires_at,created_at) VALUES (?,?,?,?,?,?)'
+      )
+      insert.run('bruce', 'bruce@wayne.example', hash('login-proof'), 'a'.repeat(43), expires, now)
+      assert.throws(
+        () =>
+          insert.run('bruce', 'bruce@wayne.example', hash('another'), 'a'.repeat(43), expires, now),
+        /UNIQUE/
+      )
+      assert.throws(
+        () =>
+          insert.run(
+            'clark',
+            'clark@wayne.example',
+            hash('login-proof'),
+            'a'.repeat(43),
+            expires,
+            now
+          ),
+        /UNIQUE/
+      )
+      assert.throws(
+        () =>
+          insert.run(
+            'missing',
+            'missing@wayne.example',
+            hash('orphan'),
+            'a'.repeat(43),
+            expires,
+            now
+          ),
+        /FOREIGN KEY/
+      )
+      assert.throws(
+        () =>
+          insert.run(
+            null,
+            'missing@wayne.example',
+            hash('null-user'),
+            'a'.repeat(43),
+            expires,
+            now
+          ),
+        /NOT NULL/
+      )
+      current.prepare("DELETE FROM users WHERE id='bruce'").run()
+      assert.equal(current.prepare('SELECT COUNT(*) AS n FROM login_link_tokens').get()!.n, 0)
+      assert.equal(
+        current
+          .prepare("SELECT COUNT(*) AS n FROM password_reset_tokens WHERE tokenable_id='clark'")
+          .get()!.n,
+        1
+      )
+    } finally {
+      current.close()
+    }
+    const reopen = ace(appRoot, dbPath, 'app:upgrade')
+    assert.equal(reopen.status, 0, reopen.output)
+    assert.match(reopen.output, /Already up to date/)
+    const snapshot = join(root, 'live.db.backups/capacitylens-pre-migration-v8-to-v9.db')
+    assert.lengthOf(journal(snapshot), 8)
+    const backup = new DatabaseSync(snapshot, { readOnly: true })
+    try {
+      assert.deepEqual(
+        preserved.map((table) => backup.prepare(`SELECT * FROM ${table} ORDER BY id`).all()),
+        before
+      )
+    } finally {
+      backup.close()
+    }
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
