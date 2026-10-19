@@ -13,7 +13,7 @@ The suites cover the frontend, backend and shared workspace packages.
 | --- | --- | --- |
 | App and shared unit tests | Vitest, Testing Library | Shared scheduling rules, the client store and React components |
 | Backend tests | Japa | API behavior, authorization, SQLite, backups and sign-in |
-| End-to-end tests | Playwright | The demo and database-backed sign-in and scheduling flows in a real browser |
+| End-to-end tests | Playwright | Volatile demo interaction checks and authenticated SQLite scheduler gestures in a real browser |
 | Accessibility checks | axe, inside the end-to-end tests | Automated accessibility rules on key screens |
 | Mutation testing | Stryker | Whether focused tests detect changes to scheduling logic; run on demand |
 
@@ -21,6 +21,11 @@ The suites cover the frontend, backend and shared workspace packages.
 
 - Backup and upgrade tests cover supported databases and recovery behavior.
 - End-to-end tests run Chromium by default. WebKit and Firefox runs are opt-in.
+- Demo scheduler tests exercise the in-memory experience. The authenticated scheduler suite signs
+  in through the real password session and verifies create, pointer move/resize, delete and
+  Undo/Redo against SQLite, including reload and acknowledgement-only refresh. Only those real
+  backend assertions establish authenticated scheduler-write coverage. The failure case injects
+  a refused response; successful writes are never mocked.
 - Axe finds common problems such as missing names and low contrast. It does not replace testing
   with assistive technology.
 - Mutation testing covers only the pure scheduling and helper code, not the server or React
