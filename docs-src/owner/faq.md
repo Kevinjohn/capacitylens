@@ -26,18 +26,21 @@ If the link is lost, revoke it under **Outstanding invites** and create a new on
 
 ## Does an Admin invitation transfer ownership?
 
-No. Ownership changes only through **Manage ownership**, after the nominee agrees and you confirm.
-There is only ever one Owner; give other managers the Admin role.
+No. An invitation gives someone the role in the invitation, but cannot transfer ownership. Only the
+current Owner can choose an active, unrestricted Admin in **Manage ownership** and confirm the
+transfer. You become Admin and the selected Admin becomes Owner immediately, without a separate
+consent step. There is only ever one Owner; give other managers the Admin role.
 [Transfer ownership](/owner/responsibilities#transfer-ownership)
 
 ## Why is there no Admin to choose as Next Owner?
 
-Only an active Admin can be nominated. Invite them as Admin first, then return once they accept.
+Only an active, unrestricted Admin can be selected. Invite them as Admin first, then return once
+they accept.
 
-## What happens if an ownership transfer ends?
+## What happens after I confirm the transfer?
 
-Nothing changes: you remain the Owner. **Manage ownership** shows whether it was declined,
-cancelled, replaced, expired after seven days, or ended because a participant's membership changed.
+The selected Admin becomes Owner and you become Admin immediately. There is no pending request for
+them to accept.
 
 <span id="can-i-change-the-week-start-timezone-or-language"></span>
 

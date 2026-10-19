@@ -1132,9 +1132,8 @@ Ordered so that blockers land first.
 - Account contract/conformance version review — `shared/src/account/conformance.ts`.
 - Operator runbooks: IdP outage, wrong-subject repair, email correction, unlink restrictions, cutover
   rollback, duplicate-subject reconciliation.
-- The [company-login](../company-login/move-to-single-sign-on.md),
-  [self-hosting](../self-hosting/configuration.md), and [development](../reference/development.md) guides
-  for the preflight CLI.
+- The [company-login](../company-login/move-to-single-sign-on.md) and
+  [self-hosting](../self-hosting/configuration.md) guides for deployment and provider configuration.
 - Configuration examples and error-message copy.
 
 ### Test surfaces to extend

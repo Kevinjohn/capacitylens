@@ -11,14 +11,22 @@ const script = fileURLToPath(new URL("./check-import-cycles.mjs", import.meta.ur
 function scan(t, sources, verbatimModuleSyntax = false) {
   const root = mkdtempSync(join(tmpdir(), "import-cycles-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  for (const directory of ["src", "server/src", "shared/src"]) {
+  for (const directory of [
+    "apps/frontend/src",
+    "apps/backend/app",
+    "apps/backend/commands",
+    "apps/backend/providers",
+    "apps/backend/start",
+    "apps/backend/config",
+    "packages/shared/src",
+  ]) {
     mkdirSync(join(root, directory), { recursive: true });
     writeFileSync(join(root, directory, "empty.ts"), "export {};");
   }
   for (const [path, include] of [
-    ["tsconfig.app.json", "src"],
-    ["server/tsconfig.json", "src"],
-    ["shared/tsconfig.json", "src"],
+    ["apps/frontend/tsconfig.app.json", "src"],
+    ["apps/backend/tsconfig.json", "app"],
+    ["packages/shared/tsconfig.json", "src"],
   ]) {
     writeFileSync(
       join(root, path),
@@ -26,7 +34,7 @@ function scan(t, sources, verbatimModuleSyntax = false) {
     );
   }
   for (const [file, content] of Object.entries(sources)) {
-    writeFileSync(join(root, "src", file), content);
+    writeFileSync(join(root, "apps/frontend/src", file), content);
   }
   return spawnSync(process.execPath, [script, root], { encoding: "utf8" });
 }
@@ -37,7 +45,7 @@ test("value import cycles fail and report their paths", (t) => {
     "b.ts": 'import { a } from "./a"; export const b = () => a;',
   });
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /src\/a.ts > src\/b.ts/);
+  assert.match(result.stderr, /apps\/frontend\/src\/a.ts > apps\/frontend\/src\/b.ts/);
   assert.match(result.stderr, /1 runtime cycles/);
 });
 

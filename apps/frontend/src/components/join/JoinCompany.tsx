@@ -32,7 +32,6 @@ function Entry({ flow, invitationToken }: { flow: Flow; invitationToken: string 
               type="button"
               label={m.joining_continue_provider({ provider: provider.label })}
               googleLabel={m.login_sign_in_with_google()}
-              microsoftLabel={m.login_sign_in_with_microsoft()}
               disabled={flow.busy}
               onClick={() => void flow.startProvider(provider)}
             />
@@ -73,11 +72,8 @@ function Entry({ flow, invitationToken }: { flow: Flow; invitationToken: string 
 function Pending({ flow }: { flow: Flow }) {
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">{m.joining_mail_pending({ email: flow.emailHint })}</p>
+      <p className="text-sm text-muted-foreground">{m.joining_waiting()}</p>
       <div className="flex flex-wrap gap-2">
-        <Button type="button" disabled={flow.busy} onClick={() => void flow.resend()}>
-          {m.joining_resend()}
-        </Button>
         <Button type="button" variant="outline" disabled={flow.busy} onClick={() => void flow.restart()}>
           {m.joining_restart()}
         </Button>

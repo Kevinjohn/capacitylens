@@ -84,7 +84,6 @@ const MANIFEST_PATHS = [
   "apps/frontend/package.json",
   "apps/backend/package.json",
   "packages/shared/package.json",
-  "server/package.json",
 ];
 
 describe("P2.7 privacy posture — no analytics/telemetry/email vendor dependency", () => {
@@ -100,14 +99,15 @@ describe("P2.7 privacy posture — no analytics/telemetry/email vendor dependenc
     }
   });
 
-  it("allows the SMTP transport only in backend manifests and retains the legacy server dependency", () => {
+  it("keeps the SMTP adapter in the backend manifest", () => {
     for (const manifest of manifests) {
-      if (manifest.deps.includes("nodemailer")) {
-        expect(["apps/backend/package.json", "server/package.json"], manifest.name).toContain(manifest.name);
+      for (const dependency of ["nodemailer", "@adonisjs/mail"]) {
+        if (manifest.deps.includes(dependency)) expect(manifest.name).toBe("apps/backend/package.json");
       }
     }
-
-    expect(manifests.find((manifest) => manifest.name === "server/package.json")?.deps).toContain("nodemailer");
+    expect(manifests.find((manifest) => manifest.name === "apps/backend/package.json")?.deps).toContain(
+      "@adonisjs/mail",
+    );
   });
 
   it.each(MANIFEST_PATHS)("%s declares no denylisted dependency", (relPath) => {
@@ -137,6 +137,7 @@ describe("P2.7 privacy posture — no analytics/telemetry/email vendor dependenc
     // Non-vacuous: we must have parsed a real tree. (A lockfile format change that stops these
     // lines matching must fail here, loudly, not silently scan nothing and vacuously pass.)
     expect(installed.size).toBeGreaterThan(100);
+    expect(installed.has("nodemailer")).toBe(true);
 
     const offenders = [...installed].filter((name) => DENYSET.has(name));
     expect(offenders, `lockfile installs denylisted package(s): ${offenders.join(", ")}`).toEqual([]);

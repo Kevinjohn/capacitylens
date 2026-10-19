@@ -22,7 +22,7 @@ Object.assign(process.env, {
   LOG_LEVEL: 'error',
   APP_KEY: 'capacitylens-test-key-0123456789abcdef',
   APP_URL: `http://127.0.0.1:${testHttpPort}`,
-  SESSION_DRIVER: 'memory',
+  SESSION_DRIVER: 'database',
   CAPACITYLENS_ALLOW_RESET: 'true',
   CAPACITYLENS_TEST_HTTP_PORT: String(testHttpPort),
   CAPACITYLENS_DB: fileURLToPath(new URL(`../tmp/japa-${testHttpPort}.db`, import.meta.url)),

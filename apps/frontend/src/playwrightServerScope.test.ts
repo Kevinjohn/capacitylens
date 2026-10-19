@@ -18,14 +18,14 @@ describe("Playwright server scope", () => {
     },
   );
 
-  it("rejects contradictory run modes instead of selecting projects and servers from different modes", () => {
-    expect(() =>
+  it("ignores retired rehearsal settings and rejects contradictory browser modes", () => {
+    expect(
       resolvePlaywrightRunMode(
         { CAPACITYLENS_WEBKIT_ONLY: "1", CAPACITYLENS_REHEARSAL_URL: "http://rehearsal.test" },
         [],
         () => false,
       ),
-    ).toThrow(/cannot be combined|mutually exclusive/);
+    ).toEqual({ projects: ["webkit"], serverProfile: "vite" });
     expect(() =>
       resolvePlaywrightRunMode({ CAPACITYLENS_WEBKIT_ONLY: "1", CAPACITYLENS_FIREFOX_ONLY: "1" }, [], () => false),
     ).toThrow(/cannot be combined|mutually exclusive/);

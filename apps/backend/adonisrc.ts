@@ -54,9 +54,13 @@ export default defineConfig({
     () => import('@adonisjs/cors/cors_provider'),
     () => import('@adonisjs/static/static_provider'),
     () => import('@adonisjs/auth/auth_provider'),
+    () => import('@adonisjs/ally/ally_provider'),
     () => import('@adonisjs/bouncer/bouncer_provider'),
+    () => import('@adonisjs/mail/mail_provider'),
+    () => import('@adonisjs/limiter/limiter_provider'),
     () => import('#providers/api_provider'),
     () => import('#providers/configuration_provider'),
+    () => import('#providers/backup_provider'),
   ],
 
   /*
@@ -108,9 +112,13 @@ export default defineConfig({
   | the production build.
   |
   */
-  metaFiles: [{ pattern: 'public/**', reloadServer: false }],
+  metaFiles: [
+    { pattern: 'public/**', reloadServer: false },
+    { pattern: 'database/released.json', reloadServer: false },
+  ],
 
   hooks: {
+    buildFinished: [() => import('./hooks/released_migrations.js')],
     init: [
       indexEntities({
         transformers: { enabled: true },

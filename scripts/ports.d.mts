@@ -17,15 +17,6 @@ export const LANE_ENVIRONMENT_KEY: string;
  */
 export const SHARE_ENVIRONMENT_KEY: string;
 /**
- * Repository path of the fixed access-lab port lock.
- */
-export const FIXED_PORTS_LOCK_FILE: string;
-/**
- * Fixed loopback ports reserved for the access lab.
- */
-export const ACCESS_LAB_FIXED_PORTS: Readonly<Record<"web" | "api", number>>;
-
-/**
  * Validates and returns a lane number.
  * @throws When the lane is outside the supported range.
  */

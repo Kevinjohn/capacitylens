@@ -71,7 +71,7 @@ function isAuthProvider(value: unknown): value is AuthProviderCandidate {
   );
 }
 
-const SOCIAL_PROVIDER_BRANDS: Record<string, AuthProviderBrand> = { google: "google", microsoft: "microsoft" };
+const SOCIAL_PROVIDER_BRANDS: Record<string, AuthProviderBrand> = { google: "google" };
 
 function parseProviderBrand(provider: AuthProviderCandidate): AuthProviderBrand {
   return SOCIAL_PROVIDER_BRANDS[provider.id] ?? "generic";

@@ -14,6 +14,19 @@ describe("per-file coverage gate", () => {
     expect(uncoveredExecutableFiles(lcov, new Set())).toEqual([]);
   });
 
+  it("accepts only the two explicitly deferred Microsoft modules without exempting adjacent auth code", () => {
+    const lcov = [
+      record("src/auth/MicrosoftVerificationScreen.tsx", 12, 0),
+      record("src/auth/microsoftConnectionClient.ts", 12, 0),
+      record("src/auth/MicrosoftVerificationScreenExtra.tsx", 12, 0),
+      record("src/auth/newProviderClient.ts", 12, 0),
+    ].join("\n");
+    expect(uncoveredExecutableFiles(lcov)).toEqual([
+      "src/auth/MicrosoftVerificationScreenExtra.tsx",
+      "src/auth/newProviderClient.ts",
+    ]);
+  });
+
   it("requires legacy exceptions to be named exactly", () => {
     const lcov = record("src/legacy.ts", 4, 0);
     expect(uncoveredExecutableFiles(lcov, new Set(["src/legacy.ts"]))).toEqual([]);

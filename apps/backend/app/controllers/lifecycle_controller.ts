@@ -3,16 +3,16 @@ import { withTransaction } from '#services/with_transaction'
 import { applyLifecycle } from '#services/lifecycle'
 import { BatchRequestError } from '#services/batch/errors'
 import { LifecycleTransitionError } from '@capacitylens/shared/domain/lifecycle'
-import { trustedLocalDataContext } from '#services/batch/data_policy'
+import { dataContextForActor } from '#services/batch/data_policy'
 import env from '#start/env'
 import { lifecycleValidator } from '#validators/lifecycle'
+import { authMode } from '#services/auth/mode'
+import { assertCompanyAction } from '#services/auth/authorization'
 
 export default class LifecycleController {
-  async mutate({ params, request, response, auth, logger }: HttpContext) {
+  async mutate(ctx: HttpContext) {
+    const { params, request, response, logger } = ctx
     try {
-      const body = await request.validateUsing(lifecycleValidator, {
-        data: request.body(),
-      })
       const action = params.action
       if (
         action !== 'archive' &&
@@ -21,28 +21,34 @@ export default class LifecycleController {
         action !== 'purge'
       )
         throw new BatchRequestError('Not found.', 404)
+      const body = await request.validateUsing(lifecycleValidator, {
+        data: request.body(),
+      })
       let auditWarning = false
-      const context = trustedLocalDataContext(
-        auth.use('trustedLocal').getUserOrFail().id,
-        env.get('CAPACITYLENS_MULTI_ACCOUNT') === true,
-        (event) => {
-          try {
-            logger.info({
-              event: 'capacitylens.lifecycle.committed',
-              action,
-              entity: params.entity,
-              entityId: params.id,
-              accountId: body.accountId,
-              ...event,
-            })
-          } catch {
-            auditWarning = true
+      const result = await withTransaction(async (trx) => {
+        if (action === 'purge' && authMode() !== 'off')
+          await assertCompanyAction(ctx, body.accountId, 'purge', trx, true)
+        const context = await dataContextForActor(
+          ctx,
+          trx,
+          env.get('CAPACITYLENS_MULTI_ACCOUNT') === true,
+          (event) => {
+            try {
+              logger.info({
+                event: 'capacitylens.lifecycle.committed',
+                action,
+                entity: params.entity,
+                entityId: params.id,
+                accountId: body.accountId,
+                ...event,
+              })
+            } catch {
+              auditWarning = true
+            }
           }
-        }
-      )
-      const result = await withTransaction((trx) =>
-        applyLifecycle(trx, params.entity, params.id, body.accountId, action, context)
-      )
+        )
+        return applyLifecycle(trx, params.entity, params.id, body.accountId, action, context)
+      })
       if (auditWarning) response.header('x-capacitylens-audit-warning', 'true')
       return action === 'purge' ? response.noContent() : response.ok(result)
     } catch (error) {

@@ -134,9 +134,7 @@ export function SecuritySection({
   onPasswordOpenChange?: (open: boolean) => void;
 }) {
   const auth = useAuth();
-  const providers = (auth.providers ?? []).filter(
-    (provider) => !provider.experimental && (provider.id === "google" || provider.id === "microsoft"),
-  );
+  const providers = (auth.providers ?? []).filter((provider) => !provider.experimental);
   const controller = useSecurityController();
   const showPassword = allowsPasswordSignIn(auth.authMode) && auth.reauthMethod !== "provider";
   const changePasswordOpen = (open: boolean) => {

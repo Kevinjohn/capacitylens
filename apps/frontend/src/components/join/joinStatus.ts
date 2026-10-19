@@ -25,8 +25,8 @@ export function readMetadata(value: unknown): Metadata | null {
   };
 }
 
-/** Decode either provider status endpoint without trusting optional fields. */
-// eslint-disable-next-line complexity -- Provider status has independent optional fields from two endpoints.
+/** Decode the scoped Google join intent without trusting optional fields. */
+// eslint-disable-next-line complexity -- Status includes optional account, purpose, and email details.
 export function readStatus(value: unknown): {
   state: "expired" | "pending" | "approved";
   accountId?: string;
@@ -63,22 +63,22 @@ type JoinStatusResult =
       deliveryUnavailable: boolean;
     };
 
-/** Purely resolve decoded statuses; a matching Microsoft proof takes precedence over local proof. */
+/** Resolves a decoded Google callback intent for the current company and join purpose. */
 export function resolveJoinStatus(input: {
   accountId: string;
-  purpose: string;
-  local: JoinStatus;
-  microsoft: JoinStatus;
+  purpose?: string;
+  status: JoinStatus;
 }): JoinStatusResult {
-  const { accountId, purpose, local, microsoft } = input;
-  const microsoftMatches =
-    microsoft.accountId === accountId && microsoft.purpose === purpose && microsoft.state !== "expired";
-  const status = microsoftMatches ? microsoft : local;
-  if (status.accountId !== accountId || status.purpose !== purpose || status.state === "expired")
+  const { accountId, purpose, status } = input;
+  if (
+    status.accountId !== accountId ||
+    (purpose !== undefined && status.purpose !== purpose) ||
+    (status.purpose !== "policy" && status.purpose !== "invitation") ||
+    status.state === "expired" ||
+    status.providerId !== "google"
+  )
     return { matched: false };
-  let stage: "entry" | "pending" | "approved" = "entry";
-  if (status.state === "approved") stage = "approved";
-  else if (status.providerId === "microsoft") stage = "pending";
+  const stage = status.state === "pending" ? "pending" : "approved";
   return {
     matched: true,
     stage,

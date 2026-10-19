@@ -1,267 +1,46 @@
 ---
 title: Upgrades
-description: How to upgrade a self-hosted CapacityLens instance safely, what happens to the database on a schema change, and how to roll back.
+description: Upgrade the native CapacityLens archive with a verified pre-migration snapshot and the Adonis migration command.
 ---
 
-# Upgrades
+# Upgrade CapacityLens
 
-Move to a newer release without losing data, and roll back if it fails. To hear about new
-releases, watch the [GitHub repository](https://github.com/Kevinjohn/capacitylens) for releases
-(**Watch** → **Custom** → **Releases**). `CHANGELOG.md` lists each release's changes.
+Keep the database and backup directory outside versioned release folders. Before changing the
+running code, read the release notes and confirm that a recent snapshot can be read. Use one
+process and stop it before replacing files or running the migration command.
 
-::: warning
-Always take a fresh backup immediately before upgrading, even though the server also takes its own
-pre-migration snapshot. See [Backups and restore](/self-hosting/backups-and-restore).
-:::
+## Install the new release
 
-<span id="upgrade-procedure"></span>
+Download the archive for the host's operating system and architecture. Verify its checksum, unpack
+it next to the current release, and move the `current` link to the new version. Do not overwrite an
+existing release folder.
 
-## Upgrade to a newer release
+## Upgrade the database
 
-1. Confirm you have a recent, successful restore test on record.
-2. Read `CHANGELOG.md` for the target release and any
-   [release-specific actions](#release-specific-actions) you cross. On an older Compose
-   installation, do the [one-time check](#one-time-check-for-older-compose-installations) first.
-3. Take a fresh, explicit snapshot outside the release tree, and keep an off-host copy; a restore
-   test isn't a current copy of live data. On a
-   [native install](/self-hosting/install-without-docker), stop the service and copy the database,
-   its sidecars and the audit log:
+From the new release's `backend/` directory, with the same environment used by the service, run:
 
-   ```bash
-   sudo systemctl stop capacitylens
-   snapshot_dir="/var/lib/capacitylens/pre-upgrade-$(date -u +%Y%m%d-%H%M%S)"
-   sudo install -d -o capacitylens -g capacitylens -m 0700 "$snapshot_dir"
-   sudo sh -c 'cp -p /var/lib/capacitylens/capacitylens* "$1"' sh "$snapshot_dir"
-   sudo ls -l "$snapshot_dir"
-   ```
+```bash
+node ace.js app:upgrade
+```
 
-   Any `-wal` or `-shm` file copied with the database belongs to it; restore them together. Leave
-   the service stopped.
+This command checks the released migration manifest. When migrations are pending on an existing
+database, it writes and verifies an online pre-upgrade snapshot before running
+`migration:run --force --no-schema-generate`. A fresh database is initialized without a pre-upgrade
+snapshot. Unknown migration history or schema drift refuses the upgrade. Do not start the new
+service after a failed upgrade; retain the source database and recovery files and investigate the
+reported refusal.
 
-4. Switch to the target release (`vX.Y.Z` / `X.Y.Z`, never `main`).
-
-   Docker Compose:
-
-   ```bash
-   git fetch --tags
-   git checkout vX.Y.Z
-   docker compose up --build --force-recreate -d
-   ```
-
-   Compose stops the old `api` before the new one starts, so expect a few seconds of refused or
-   retried requests. Never run old and new API versions against the same database at once.
-
-   Native install:
-
-   ```bash
-   curl -LO https://github.com/Kevinjohn/capacitylens/releases/download/vX.Y.Z/capacitylens-X.Y.Z.tar.gz
-   sudo tar -xzf capacitylens-X.Y.Z.tar.gz -C /opt/capacitylens && sudo ln -sfn /opt/capacitylens/capacitylens-X.Y.Z /opt/capacitylens/current
-   sudo systemctl start capacitylens
-   ```
-
-   Change `/etc/capacitylens.env` first if the release notes ask for it. If they mention a change to
-   `capacitylens.service`, copy the new one from the archive into `/etc/systemd/system/` and run
-   `sudo systemctl daemon-reload` before the start. On a managed host, run the deploy script with
-   the new version and restart the background process, as described in
-   [Deploy on a managed host](/self-hosting/managed-vps/).
-
-5. On first start, a schema upgrade first creates and verifies a
-   `capacitylens-pre-migration-vN-to-vM.db` snapshot in the backups folder. If that fails, startup
-   stops: fix the storage or permissions problem; don't bypass the snapshot.
-6. Check API health, sign in, confirm the company opens, and make one safe write.
-7. Keep the old container image or previous release folder, and the recovery snapshot, until you're
-   satisfied.
+After a successful upgrade, start the service and check `/health/ready`. Keep the snapshot until the
+new release has passed sign-in, reads, writes and backup checks.
 
 ## Roll back
 
-There are no down migrations. If the release changed the schema, switching code alone is not a
-rollback: never start the old release against a database the new one has migrated. Put back the
-`capacitylens-pre-migration-vN-to-vM.db` snapshot the new release wrote, then start the old
-release.
+Released migrations are append-only. Do not run down migrations to roll back an application
+release. If the database was upgraded, stop the service and restore the verified pre-upgrade
+snapshot to a separate database path, then point `CAPACITYLENS_DB` at that restored copy before
+starting the compatible earlier release. Preserve the upgraded database and all recovery files
+until the rollback is confirmed. If no migration was pending, retain the original database and
+restore the previous release link only when its manifest accepts that database.
 
-::: warning
-Rolling back loses everything written since the upgrade started. Stop the server before you touch
-the database, and remove any `-wal` or `-shm` file beside the restored database: they belong to
-the upgraded one.
-:::
-
-The snapshot is in the backups folder, or beside the database when scheduled backups are off. If
-the release had no schema change, there is no snapshot: stop, switch back and start. Don't remove
-new columns or edit the migration ledger by hand.
-
-### Docker Compose
-
-1. Stop the API and preserve the upgraded database: run
-   [step 1 of the Compose restore procedure](/self-hosting/backups-and-restore#preserve-compose-files).
-2. List the pre-migration snapshots. If scheduled backups are off, the snapshot is in `/data`:
-   use `/data/` in place of `/backups/` here and in step 3.
-
-   ```bash
-   docker compose run --rm --no-deps --entrypoint sh api -eu -c 'ls -l /backups/capacitylens-pre-migration-*.db'
-   ```
-
-3. Set the exact filename, then copy it over the database and remove the sidecars:
-
-   ```bash
-   export ROLLBACK_SNAPSHOT=capacitylens-pre-migration-vN-to-vM.db
-   docker compose run --rm --no-deps -e ROLLBACK_SNAPSHOT --entrypoint sh api -eu -c '
-     case "$ROLLBACK_SNAPSHOT" in
-       */*) echo "ROLLBACK_SNAPSHOT must not contain a path" >&2; exit 1 ;;
-       capacitylens-pre-migration-v[0-9]*-to-v[0-9]*.db) ;;
-       *) echo "ROLLBACK_SNAPSHOT must be a capacitylens-pre-migration-vN-to-vM.db basename" >&2; exit 1 ;;
-     esac
-     source="/backups/$ROLLBACK_SNAPSHOT"
-     target=/data/capacitylens.db
-     temporary="$target.restore"
-     test -f "$source"
-     umask 077
-     cp "$source" "$temporary"
-     chmod 600 "$temporary"
-     mv "$temporary" "$target"
-     rm -f "$target-wal" "$target-shm"
-   '
-   unset ROLLBACK_SNAPSHOT
-   ```
-
-4. Check out the previous release and rebuild it. Undo any `.env` change the new release needed
-   first:
-
-   ```bash
-   git checkout vX.Y.Z
-   docker compose up --build --force-recreate -d
-   ```
-
-5. Check `https://capacity.example.com/api/health`, sign in and confirm the company opens.
-
-### Release archive on a Linux host
-
-1. Stop the service and preserve the upgraded database:
-
-   ```bash
-   sudo systemctl stop capacitylens
-   rollback_dir="/var/lib/capacitylens/rolled-back-$(date -u +%Y%m%d-%H%M%S)"
-   sudo install -d -o capacitylens -g capacitylens -m 0700 "$rollback_dir"
-   sudo sh -c 'cp -p /var/lib/capacitylens/capacitylens* "$1"' sh "$rollback_dir"
-   ```
-
-2. List the pre-migration snapshots:
-
-   ```bash
-   sudo ls -l /var/lib/capacitylens/backups/
-   ```
-
-3. Copy the one this upgrade wrote over the database, with the service's owner and mode:
-
-   ```bash
-   sudo install -o capacitylens -g capacitylens -m 0600 /var/lib/capacitylens/backups/capacitylens-pre-migration-vN-to-vM.db /var/lib/capacitylens/capacitylens.db
-   ```
-
-4. Remove the upgraded database's sidecars:
-
-   ```bash
-   sudo rm -f /var/lib/capacitylens/capacitylens.db-wal /var/lib/capacitylens/capacitylens.db-shm
-   ```
-
-5. Point `current` back at the previous release. Undo any `/etc/capacitylens.env` or
-   `capacitylens.service` change the new release needed first:
-
-   ```bash
-   sudo ln -sfn /opt/capacitylens/capacitylens-X.Y.Z /opt/capacitylens/current
-   ```
-
-6. Start the service and check health:
-
-   ```bash
-   sudo systemctl start capacitylens
-   ```
-
-   ```bash
-   curl -fsS http://127.0.0.1:8787/api/health
-   ```
-
-To roll back to the explicit snapshot from [step 3 of the upgrade](#upgrade-to-a-newer-release)
-instead, copy all of its files back into `/var/lib/capacitylens` in place of steps 3 and 4: its
-`-wal` and `-shm` files belong to it.
-
-### Managed host
-
-Follow [Roll back](/self-hosting/managed-vps/#roll-back) on Deploy on a managed host. It also
-returns the deploy script to the previous version, so the next deploy does not reinstate the new
-release.
-
-## One-time check for older Compose installations
-
-If your installation predates the Compose project name being pinned to `capacitylens`, do this once
-before your next upgrade. Identify the database volume attached to the running API:
-
-```bash
-db_volume="$(docker inspect "$(docker compose ps -q api)" \
-  --format '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}')"
-printf 'Database volume: %s\n' "$db_volume"
-```
-
-If it isn't `capacitylens_capacitylens-db`, add the prefix before `_capacitylens-db` to your
-existing `.env`, for example `COMPOSE_PROJECT_NAME=capacity-v1`, and keep it for the life of the
-install. After pulling the new release, run `docker compose config` and confirm its three rendered
-volume names carry the same prefix before starting anything. If more than one candidate prefix
-exists, stop and identify the volume mounted by the old API rather than guessing.
-
-## Release-specific actions
-
-Full notes are in `CHANGELOG.md` and the GitHub release notes. Upgrading across these releases needs
-the following:
-
-- **0.71.0-alpha.1**: replace `CAPACITYLENS_MODE`, as described
-  [below](#upgrading-to-0-71-0-alpha-1).
-- **Better Auth 1.7.5** (0.70.1-alpha.1): register `/api/auth/callback/google` or `/api/auth/callback/microsoft` as
-  in [Set up Google or Microsoft sign-in](/company-login/set-up-company-login). Delete older generic
-  OIDC settings and the `hosted-oidc-only` profile; don't map them to a replacement. Only if the
-  installation actually ran Better Auth 1.7.0–1.7.2, follow the
-  [upstream 1.7 upgrade guide](https://better-auth.com/docs/guides/1-7-upgrade-guide) first.
-- **Better Auth 1.7.7**: a provider sign-in or account-linking flow underway during the upgrade,
-  including a Microsoft mailbox proof, won't complete. Start it again once the new server is
-  running.
-- **Schema v49** (0.71.0-alpha.1): outstanding invitations without an intended email address are removed and their
-  links stop working. Before upgrading, an Owner or Admin notes who still needs access; afterwards
-  they use **Team & access → Invite someone** for each person's exact address. Existing members keep
-  their access and role.
-- **Schema v29–v32** (0.40.0-alpha.1) **and v47, v48, v50** (0.71.0-alpha.1): no action. Roll back only with the automatic pre-migration
-  snapshot. The v48 upgrade does not infer mailbox proof from older verified flags or invitations,
-  and does not backfill proof for existing GitHub links. Joining a company now needs a proven
-  address plus a company joining link or an addressed invitation; v50 adds this journey for
-  Microsoft sign-in.
-- <span id="stored-credential-effects"></span>**OAuth token encryption at rest** (0.35.4-alpha.1): no action. Tokens
-  stored in plaintext keep working and are re-encrypted on their next refresh.
-
-### Upgrading to 0.71.0-alpha.1
-
-Update `CAPACITYLENS_MODE` on every installation before deploying; the old `password` and `sso`
-values stop startup with a migration error. Choose by the sign-in methods people actually use:
-
-| Previous value                                              | Replacement        |
-| ----------------------------------------------------------- | ------------------ |
-| `password`, with no intended provider sign-in               | `password-only`    |
-| `password`, with Google, Microsoft or GitHub sign-in in use | `password-and-sso` |
-| `sso`                                                       | `sso-only`         |
-| `off`                                                       | No change          |
-
-`password-and-sso` needs at least one configured provider. `sso-only` needs Google or a
-tenant-specific Microsoft provider; GitHub alone cannot satisfy it. `password-only` keeps stored
-provider credentials and links but disables provider sign-in. Don't map every old `password` setting
-to `password-only` without checking that installation's provider use.
-
-Deploy the application and the environment change together, then verify sign-in with each intended
-method. When rolling back to the previous version, restore its old `password` or `sso` value at the
-same time.
-
-<span id="release-directory-deployments"></span>
-
-## Upgrade a release-directory deployment
-
-If your platform builds into versioned release directories and switches a stable `current` symlink,
-build the new release while the existing process keeps serving. Stop the process immediately before
-activating the new release and cleaning up the old one, then restart from the stable path and verify
-`/api/health`.
-
-Don't purge a release directory a running service still uses as its working directory. Keep the
-database, backups, environment file and operational logs outside the release tree.
+See [Backups and restore](/self-hosting/backups-and-restore) for snapshot handling and
+[Monitoring](/self-hosting/monitoring) for readiness checks.

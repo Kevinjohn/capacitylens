@@ -2,11 +2,11 @@ import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import { request as httpRequest } from 'node:http'
 import db from '@adonisjs/lucid/services/db'
-import logger from '@adonisjs/core/services/logger'
 import { seed } from '@capacitylens/shared/data/seed'
 import { withTransaction } from '#services/with_transaction'
 import { applyLifecycle } from '#services/lifecycle'
 import { trustedLocalDataContext } from '#services/batch/data_policy'
+import { interceptChildLoggers } from '../../helpers/logger.js'
 
 interface RawResponse {
   statusCode: number | undefined
@@ -115,18 +115,13 @@ test.group('M2a review regressions', (group) => {
     await client.post('/api/test/reset').json({ seed: true }).send()
     const project = seed().projects[0]!
     const entries: Array<Record<string, unknown>> = []
-    const originalChild = logger.child
-    logger.child = ((...args: Parameters<typeof logger.child>) => {
-      const child = originalChild.apply(logger, args)
+    let restoreLogger = interceptChildLoggers((child) => {
       child.info = ((entry: unknown) => {
         if (typeof entry === 'object' && entry !== null)
           entries.push(entry as Record<string, unknown>)
       }) as unknown as typeof child.info
-      return child
-    }) as typeof logger.child
-    cleanup(() => {
-      logger.child = originalChild
     })
+    cleanup(() => restoreLogger())
 
     const archived = await client
       .post(`/api/projects/${project.id}/archive`)
@@ -142,13 +137,12 @@ test.group('M2a review regressions', (group) => {
       accountId: project.accountId,
     })
 
-    logger.child = ((...args: Parameters<typeof logger.child>) => {
-      const child = originalChild.apply(logger, args)
+    restoreLogger()
+    restoreLogger = interceptChildLoggers((child) => {
       child.info = (() => {
         throw new Error('log unavailable')
       }) as typeof child.info
-      return child
-    }) as typeof logger.child
+    })
     const unarchived = await client
       .post(`/api/projects/${project.id}/unarchive`)
       .header('sec-fetch-site', 'same-origin')
@@ -171,14 +165,13 @@ test.group('M2a review regressions', (group) => {
     )
     assert.equal(rollbackLogs, 0)
 
-    logger.child = ((...args: Parameters<typeof logger.child>) => {
-      const child = originalChild.apply(logger, args)
+    restoreLogger()
+    restoreLogger = interceptChildLoggers((child) => {
       child.info = ((entry: unknown) => {
         if (typeof entry === 'object' && entry !== null)
           entries.push(entry as Record<string, unknown>)
       }) as unknown as typeof child.info
-      return child
-    }) as typeof logger.child
+    })
     const purgeProject = seed().projects.find((row) => row.id !== project.id)!
     const old = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString()
     await db

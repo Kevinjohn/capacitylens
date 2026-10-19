@@ -2,11 +2,28 @@ import { useEffect, useRef, useState } from "react";
 import { accountClient } from "@/account/accountClient";
 import type { AuthProviderInfo } from "@/auth/authContext";
 import { m } from "@/i18n";
+import { buildExternalSignInErrorUrl } from "@/auth/externalSignInError";
+
+function isGoogleProviderDescriptor(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+  const provider = value as Record<string, unknown>;
+  return (
+    provider.id === "google" &&
+    provider.label === "Google" &&
+    provider.kind === "social" &&
+    provider.experimental === false &&
+    provider.brand === "google"
+  );
+}
 
 function readIdentityProviderStatus(body: unknown): { connected: boolean } {
   if (!body || typeof body !== "object") throw new Error("Invalid identity-provider status response.");
-  const status = body as { connected?: unknown; verified?: unknown };
-  if (typeof status.connected !== "boolean" || typeof status.verified !== "boolean") {
+  const status = body as { provider?: unknown; connected?: unknown; verified?: unknown };
+  if (
+    !isGoogleProviderDescriptor(status.provider) ||
+    typeof status.connected !== "boolean" ||
+    typeof status.verified !== "boolean"
+  ) {
     throw new Error("Invalid identity-provider status response.");
   }
   if (status.connected && !status.verified) throw new Error("Identity-provider connection is not verified.");
@@ -35,27 +52,40 @@ function readIdentityLinkFailure(
   return null;
 }
 
-async function readConnectionStatus(providerId: string): Promise<boolean> {
+async function readConnectionStatus(providerId: "google"): Promise<boolean> {
   const response = await accountClient.readIdentityProvider(providerId);
   if (!response.ok) throw new Error("Identity-provider status request failed.");
   return readIdentityProviderStatus(await response.json().catch(() => null)).connected;
 }
 
-function buildIdentityLinkCallback(providerId: string): string {
+function buildIdentityLinkCallback(providerId: "google"): string {
   const callback = new URL(window.location.href);
   callback.searchParams.set("capacitylensIdentityProvider", providerId);
   return callback.toString();
 }
 
+function buildIdentityLinkErrorCallback(callbackURL: string): string {
+  return buildExternalSignInErrorUrl(callbackURL);
+}
+
 function clearIdentityLinkParams(url: URL) {
-  if (!url.searchParams.has("capacitylensSsoLinked") && !url.searchParams.has("capacitylensSsoLinkFailed")) return;
+  if (
+    !url.searchParams.has("capacitylensIdentityProvider") &&
+    !url.searchParams.has("capacitylensSsoLinked") &&
+    !url.searchParams.has("capacitylensSsoLinkFailed")
+  )
+    return;
   url.searchParams.delete("capacitylensIdentityProvider");
   url.searchParams.delete("capacitylensSsoLinked");
   url.searchParams.delete("capacitylensSsoLinkFailed");
   window.history.replaceState(window.history.state, "", url);
 }
 
-function readIdentityCallbackStatus(url: URL, providerId: string, failedCallbackProvider: { current: string | null }) {
+function readIdentityCallbackStatus(
+  url: URL,
+  providerId: "google",
+  failedCallbackProvider: { current: string | null },
+) {
   const returnedProvider = url.searchParams.get("capacitylensIdentityProvider");
   const isProviderReturn = returnedProvider === null || returnedProvider === providerId;
   const linkFailed =
@@ -71,6 +101,7 @@ type UseProviderConnectionOptions = {
   setBusy: (busy: boolean) => void;
 };
 /** Tracks provider link status and the active connection request. */
+// eslint-disable-next-line max-lines-per-function -- This hook owns one provider connection lifecycle from callback recovery through link start.
 export function useProviderConnection({ provider, busy, setBusy }: UseProviderConnectionOptions) {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -105,7 +136,12 @@ export function useProviderConnection({ provider, busy, setBusy }: UseProviderCo
     setBusy(true);
     setError(null);
     try {
-      const response = await accountClient.linkIdentityProvider(buildIdentityLinkCallback(provider.id), provider.id);
+      const callbackURL = buildIdentityLinkCallback(provider.id);
+      const response = await accountClient.linkIdentityProvider(
+        callbackURL,
+        provider.id,
+        buildIdentityLinkErrorCallback(callbackURL),
+      );
       const result = readIdentityLinkResult(await response.json().catch(() => null));
       if (response.status === 409 && isAlreadyLinked(result)) {
         setConnected(true);

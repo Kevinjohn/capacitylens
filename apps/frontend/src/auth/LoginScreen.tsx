@@ -12,7 +12,6 @@ import { ExternalProviderButton } from "@/components/common/ExternalProviderButt
 import type { AuthProviderInfo } from "./authContext";
 import { dispatchExternalProviderSignIn } from "./externalProviderSignIn";
 import {
-  buildExternalSignInErrorUrl,
   clearExternalSignInError,
   hasExternalSignInError,
   readExternalSignInErrorCode,
@@ -21,8 +20,6 @@ import {
 import { LoginForm } from "./LoginForm";
 import { useOwnerSetup } from "./useOwnerSetup";
 import { usePasswordSignIn } from "./usePasswordSignIn";
-import { startMicrosoftConnection } from "./microsoftConnectionClient";
-import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 
 type LoginScreenProps = {
   authMode: "password-only" | "sso-only" | "password-and-sso";
@@ -104,8 +101,6 @@ export function LoginScreen({
         setBusy,
         setError,
         setPendingProvider,
-        bootstrap: needsSetup && !ownerSetup.setupClosed,
-        email: passwordSignIn.email,
       })}
     />
   );
@@ -115,41 +110,12 @@ function createProviderSignIn({
   setBusy,
   setError,
   setPendingProvider,
-  bootstrap,
-  email,
 }: {
   setBusy: Dispatch<SetStateAction<boolean>>;
   setError: Dispatch<SetStateAction<string | null>>;
   setPendingProvider: Dispatch<SetStateAction<AuthProviderInfo | null>>;
-  bootstrap: boolean;
-  email: string;
 }) {
   return async (provider: AuthProviderInfo) => {
-    if (provider.id === "microsoft" && bootstrap) {
-      const normalizedEmail = normalizeAccountEmail(email);
-      if (!isAccountEmail(normalizedEmail)) {
-        setError(m.identity_err_email());
-        return;
-      }
-      setBusy(true);
-      setError(null);
-      setPendingProvider(provider);
-      try {
-        const result = await startMicrosoftConnection({
-          purpose: "bootstrap",
-          email: normalizedEmail,
-          callbackURL: window.location.href,
-          errorCallbackURL: buildExternalSignInErrorUrl(window.location.href),
-        });
-        window.location.assign(result.data.url);
-      } catch {
-        // Release provider busy state and show the verification failure so the sign-in screen remains retryable.
-        setPendingProvider(null);
-        setError(m.microsoft_verify_action_failed());
-        setBusy(false);
-      }
-      return;
-    }
     setBusy(true);
     setError(null);
     setPendingProvider(provider);
@@ -157,7 +123,13 @@ function createProviderSignIn({
       const result = await dispatchExternalProviderSignIn(provider);
       if (result.error) {
         setPendingProvider(null);
-        setError(result.error.message ?? m.login_failed());
+        setError(result.error.message);
+        setBusy(false);
+      } else if (result.data?.url) {
+        window.location.assign(result.data.url);
+      } else {
+        setPendingProvider(null);
+        setError(m.login_failed());
         setBusy(false);
       }
     } catch (error) {
@@ -220,11 +192,6 @@ function LoginView(props: LoginViewProps) {
             <LoginForm
               authMode={props.authMode}
               setup={setup}
-              microsoftBootstrap={
-                props.authMode === "sso-only" &&
-                props.needsSetup &&
-                props.providers.some((provider) => provider.id === "microsoft")
-              }
               passwordAutoFocus={!showLoginProviders}
               busy={props.busy}
               error={props.error}
@@ -352,7 +319,6 @@ function ProviderButtons({
           provider={provider}
           label={m.login_continue_with({ provider: provider.label })}
           googleLabel={m.login_sign_in_with_google()}
-          microsoftLabel={m.login_sign_in_with_microsoft()}
           onClick={() => void signInWithProvider(provider)}
           disabled={busy}
           className="h-10 min-h-10 w-[180px] self-center p-0"

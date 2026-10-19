@@ -1,5 +1,18 @@
 import app from '@adonisjs/core/services/app'
 import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http'
+import { SessionAuthorityError } from '#services/auth/session_authority'
+import { IdentityAuthorityError } from '#services/auth/authorization'
+import { PasswordProcessingUnavailableError } from '#services/password_service'
+import {
+  PasswordPolicyError,
+  PasswordScreeningUnavailableError,
+} from '#services/password_screening'
+import {
+  classifyLogError,
+  reportPrivateFailure,
+  safeRequestMethod,
+  safeRoutePattern,
+} from '#services/logging_safety'
 
 export default class HttpExceptionHandler extends ExceptionHandler {
   /**
@@ -13,6 +26,17 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    * response to the client
    */
   async handle(error: unknown, ctx: HttpContext) {
+    if (
+      error instanceof PasswordProcessingUnavailableError ||
+      error instanceof PasswordScreeningUnavailableError
+    )
+      return ctx.response.serviceUnavailable({ error: error.message, code: error.code })
+    if (error instanceof PasswordPolicyError)
+      return ctx.response.badRequest({ error: error.message, code: error.code })
+    if (error instanceof SessionAuthorityError)
+      return ctx.response.status(error.status).send({ error: error.message, code: error.code })
+    if (error instanceof IdentityAuthorityError)
+      return ctx.response.forbidden({ error: error.message, code: error.code })
     if (typeof error === 'object' && error !== null) {
       const code = 'code' in error ? error.code : undefined
       if (code === 'E_VALIDATION_ERROR') {
@@ -51,6 +75,33 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    * @note You should not attempt to send a response from this method.
    */
   async report(error: unknown, ctx: HttpContext) {
-    return super.report(error, ctx)
+    if (
+      error instanceof SessionAuthorityError ||
+      error instanceof IdentityAuthorityError ||
+      error instanceof PasswordPolicyError
+    )
+      return
+    const dependencyFailure =
+      error instanceof PasswordProcessingUnavailableError ||
+      error instanceof PasswordScreeningUnavailableError
+    const errorType =
+      error instanceof PasswordProcessingUnavailableError
+        ? 'password_processing_unavailable'
+        : error instanceof PasswordScreeningUnavailableError
+          ? 'password_screening_unavailable'
+          : classifyLogError(error)
+    if (!dependencyFailure && errorType !== 'unexpected') return
+
+    reportPrivateFailure(
+      ctx,
+      {
+        event: 'http.request.error',
+        errorType,
+        method: safeRequestMethod(ctx.request.method()),
+        path: safeRoutePattern(ctx.route?.pattern),
+        status: dependencyFailure ? 503 : 500,
+      },
+      'HTTP request failed'
+    )
   }
 }

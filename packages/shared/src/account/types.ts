@@ -283,6 +283,12 @@ export interface OwnershipTransfer {
   nextOwner: Membership;
 }
 
+/** Non-secret result of one completed atomic ownership handover. */
+export interface OwnershipTransferReceipt {
+  fromUserId: string;
+  toUserId: string;
+}
+
 /** Identity-global administrative actions an administrator may take on another member. */
 export type IdentityAdminAction =
   "issue-password-reset" | "revoke-sessions" | "correct-email" | "remove-federated-link";

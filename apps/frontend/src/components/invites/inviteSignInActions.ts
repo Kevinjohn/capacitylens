@@ -3,7 +3,6 @@ import type { InviteAcceptState } from "./InviteAcceptView";
 import { m } from "@/i18n";
 import { MAX_PASSWORD_INPUT_CODE_UNITS } from "@capacitylens/shared/domain/password";
 import type { AuthProviderInfo } from "@/auth/authContext";
-import { startMicrosoftConnection } from "@/auth/microsoftConnectionClient";
 import { authClient } from "@/auth/authClient";
 import { reloadPage } from "@/lib/reloadPage";
 import { refreshAccountSummaries } from "@/auth/useAccountSummaries";
@@ -14,7 +13,6 @@ import { runExternalSignIn } from "./externalSignIn";
 import type { FormEvent } from "react";
 
 interface Dependencies {
-  token: string | undefined;
   email: string;
   password: string;
   refreshAuth: () => Promise<void>;
@@ -29,34 +27,21 @@ function resolveJoinedAccount(list: Awaited<ReturnType<typeof refreshAccountSumm
   return undefined;
 }
 
-function startProviderSignIn(provider: AuthProviderInfo, token: string | undefined, signal: AbortSignal) {
-  if (provider.id === "microsoft") {
-    if (!token) throw new Error("The invitation link is missing.");
-    return startMicrosoftConnection(
-      {
-        purpose: "invite",
-        inviteToken: token,
-        callbackURL: window.location.href,
-        errorCallbackURL: buildExternalSignInErrorUrl(window.location.href),
-      },
-      signal,
-    );
-  }
+function startProviderSignIn(provider: AuthProviderInfo, signal: AbortSignal) {
   const options = {
     callbackURL: window.location.href,
     errorCallbackURL: buildExternalSignInErrorUrl(window.location.href),
-    disableRedirect: true,
     fetchOptions: { signal },
   };
   return authClient.signIn.social({ ...options, provider: provider.id });
 }
 
 /** Builds sign-in actions that resume the pending invitation. */
-export function createInviteSignInActions({ token, email, password, refreshAuth, setState, setBusy }: Dependencies) {
+export function createInviteSignInActions({ email, password, refreshAuth, setState, setBusy }: Dependencies) {
   const signInAndReload = async (): Promise<void> => {
     if (password.length > MAX_PASSWORD_INPUT_CODE_UNITS) throw new Error(m.login_password_input_too_long());
     const { error } = await authClient.signIn.email({ email, password });
-    if (error) throw new Error(error.message ?? m.login_failed());
+    if (error) throw new Error(error.message);
     reloadPage();
   };
 
@@ -100,9 +85,9 @@ export function createInviteSignInActions({ token, email, password, refreshAuth,
     setBusy(true);
     setState({ kind: "auth" });
     await runExternalSignIn({
-      // Keep redirect ownership in runExternalSignIn so Better Auth and the Microsoft start
-      // endpoint share the same abort-before-retry and navigation lifecycle.
-      start: (signal) => startProviderSignIn(provider, token, signal),
+      // Keep redirect ownership in runExternalSignIn so provider start shares the same
+      // abort-before-retry and navigation lifecycle as the password invitation flow.
+      start: (signal) => startProviderSignIn(provider, signal),
       onFailure: (message) => {
         setState({ kind: "auth", message: message ?? m.login_failed() });
         setBusy(false);

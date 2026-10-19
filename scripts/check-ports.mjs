@@ -1,7 +1,7 @@
 // Guard the lane system against the change that quietly undoes it: someone types a port number back
 // into a file that should derive one. The check lists the files that bind or address a
 // lane port, not a tree-wide ban on port literals. Production defaults
-// (server/src/routes/appConfig.ts), Compose pins, fixture generators, prose and assertion URLs all
+// (apps/backend/app/services/configuration.ts), Compose pins, fixture generators, prose and assertion URLs all
 // legitimately carry numbers, and failing on those would teach people to work around this check.
 import { readFileSync, realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
@@ -13,7 +13,6 @@ export const GUARDED_FILES = Object.freeze([
   "playwright.config.ts",
   "scripts/dev-fullstack.mjs",
   "scripts/serve-dist.mjs",
-  "scripts/dev-access-lab.mjs",
   "docs-src/.vitepress/config.mts",
   "e2e/authTestSupport.ts",
   "e2e/serverTestState.ts",

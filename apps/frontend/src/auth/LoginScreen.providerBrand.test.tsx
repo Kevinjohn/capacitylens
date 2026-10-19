@@ -11,7 +11,6 @@ vi.mock("./authClient", () => ({
 
 describe("LoginScreen provider brands", () => {
   const google = { id: "google", label: "Google", kind: "social", experimental: false } as const;
-  const microsoft = { id: "microsoft", label: "Microsoft", kind: "social", experimental: false } as const;
 
   it("hides retained provider buttons in password-only mode", () => {
     render(<LoginScreen authMode="password-only" providers={[google]} onSignedIn={vi.fn()} />);
@@ -33,10 +32,9 @@ describe("LoginScreen provider brands", () => {
     expect(screen.getByText("or use your password")).toBeInTheDocument();
   });
 
-  it("renders both configured company providers once with their own branding", () => {
-    render(<LoginScreen authMode="sso-only" providers={[google, microsoft]} onSignedIn={vi.fn()} />);
+  it("renders the configured Google provider once", () => {
+    render(<LoginScreen authMode="sso-only" providers={[google]} onSignedIn={vi.fn()} />);
     expect(screen.getAllByRole("button", { name: "Sign in with Google" })).toHaveLength(1);
-    expect(screen.getAllByRole("button", { name: "Sign in with Microsoft" })).toHaveLength(1);
     expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
   });
 });

@@ -10,13 +10,21 @@ import AuditEntry from '#models/audit_entry'
 const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
   request.header('sec-fetch-site', 'same-origin')
 
-const migration = (direction: 'up' | 'down') =>
+const auditMigrationName = '202610130002_retain_company_deletion_audit'
+
+const auditRollback = async () => {
+  const journal = await db.from('adonis_schema').orderBy('id')
+  const auditIndex = journal.findIndex((entry) => String(entry.name).includes(auditMigrationName))
+  if (auditIndex < 0) throw new Error('Audit retention migration is missing from the journal')
+  const later = journal.slice(auditIndex + 1)
+  return { journal, later, step: later.length + 1 }
+}
+
+const migration = (direction: 'up' | 'down', step?: number) =>
   new MigrationRunner(
     db,
     app,
-    direction === 'up'
-      ? { direction, disableLocks: true }
-      : { direction, step: 1, disableLocks: true }
+    direction === 'up' ? { direction, disableLocks: true } : { direction, step, disableLocks: true }
   )
 
 test.group('M2b deletion audit retention', (group) => {
@@ -69,29 +77,33 @@ test.group('M2b deletion audit retention', (group) => {
     ])
     const rows = await db.from('audit_entries').orderBy('id')
     const columns = await db.rawQuery('PRAGMA table_info(audit_entries)')
-    const down = migration('down')
+    const { step } = await auditRollback()
+    const down = migration('down', step)
     await down.run()
-    assert.isNull(down.error)
-    assert.deepEqual(await db.from('audit_entries').orderBy('id'), rows)
-    assert.deepEqual(await db.rawQuery('PRAGMA table_info(audit_entries)'), columns)
-    assert.isTrue(
-      (
-        (await db.rawQuery('PRAGMA foreign_key_list(audit_entries)')) as Array<{
-          table: string
-          on_delete: string
-        }>
-      ).some((key) => key.table === 'accounts' && key.on_delete === 'CASCADE')
-    )
-    assert.isTrue(
-      ((await db.rawQuery('PRAGMA index_list(audit_entries)')) as Array<{ name: string }>).some(
-        (index) => index.name.includes('account_id')
+    try {
+      assert.isNull(down.error)
+      assert.deepEqual(await db.from('audit_entries').orderBy('id'), rows)
+      assert.deepEqual(await db.rawQuery('PRAGMA table_info(audit_entries)'), columns)
+      assert.isTrue(
+        (
+          (await db.rawQuery('PRAGMA foreign_key_list(audit_entries)')) as Array<{
+            table: string
+            on_delete: string
+          }>
+        ).some((key) => key.table === 'accounts' && key.on_delete === 'CASCADE')
       )
-    )
-    const orphan = { ...rows[0], id: 'audit-orphan', account_id: 'missing-account' }
-    await assert.rejects(() => db.table('audit_entries').insert(orphan))
-    const up = migration('up')
-    await up.run()
-    assert.isNull(up.error)
+      assert.isTrue(
+        ((await db.rawQuery('PRAGMA index_list(audit_entries)')) as Array<{ name: string }>).some(
+          (index) => index.name.includes('account_id')
+        )
+      )
+      const orphan = { ...rows[0], id: 'audit-orphan', account_id: 'missing-account' }
+      await assert.rejects(() => db.table('audit_entries').insert(orphan))
+    } finally {
+      const up = migration('up')
+      await up.run()
+      assert.isNull(up.error)
+    }
     assert.deepEqual(await db.from('audit_entries').orderBy('id'), rows)
     assert.deepEqual(await db.rawQuery('PRAGMA table_info(audit_entries)'), columns)
     assert.isFalse(
@@ -192,14 +204,30 @@ test.group('M2b deletion audit retention', (group) => {
     const repeated = await trusted(client.delete('/api/accounts/a-audit-wayne')).send()
     repeated.assertStatus(204)
     assert.lengthOf(await db.from('audit_entries').where('account_id', 'a-audit-wayne'), 2)
-    const journal = await db.from('adonis_schema').orderBy('id')
+    const { journal, later, step } = await auditRollback()
     const schema = await db.rawQuery('PRAGMA foreign_key_list(audit_entries)')
-    const refused = migration('down')
+    const refused = migration('down', step)
     await refused.run()
-    assert.match(String(refused.error), /Cannot restore audit account foreign key/)
-    assert.deepEqual(await db.from('adonis_schema').orderBy('id'), journal)
-    assert.deepEqual(await db.rawQuery('PRAGMA foreign_key_list(audit_entries)'), schema)
-    assert.lengthOf(await db.from('audit_entries').where('account_id', 'a-audit-wayne'), 2)
+    try {
+      assert.match(String(refused.error), /Cannot restore audit account foreign key/)
+      assert.lengthOf(await db.from('adonis_schema'), journal.length - later.length)
+      assert.deepEqual(await db.rawQuery('PRAGMA foreign_key_list(audit_entries)'), schema)
+      assert.lengthOf(await db.from('audit_entries').where('account_id', 'a-audit-wayne'), 2)
+    } finally {
+      const restore = migration('up')
+      await restore.run()
+      assert.isNull(restore.error)
+    }
+    const restoredJournal = await db.from('adonis_schema').orderBy('id')
+    assert.sameMembers(
+      restoredJournal.map((entry) => entry.name),
+      journal.map((entry) => entry.name)
+    )
+    const rolledBackNames = new Set(later.map((entry) => String(entry.name)))
+    assert.deepEqual(
+      restoredJournal.filter((entry) => !rolledBackNames.has(String(entry.name))),
+      journal.filter((entry) => !rolledBackNames.has(String(entry.name)))
+    )
     await db.from('audit_entries').where('account_id', 'a-audit-wayne').delete()
   })
 

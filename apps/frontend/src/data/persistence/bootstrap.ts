@@ -10,6 +10,10 @@ interface BootstrapOptions {
   debounceMs?: number;
   /** Seed an empty adapter snapshot without the unscoped read, after a live authenticated /me check. */
   initialLoad?: "empty";
+  /** Load the server-confirmed account projection during a validated active masquerade. */
+  initialAccountId?: string;
+  /** Skip the metadata existence probe when the active masquerade status already proves the account exists. */
+  skipExistingCheck?: boolean;
   /** Used only on a genuine first run (nothing ever persisted). */
   seedIfEmpty?: AppData;
   /** Called when a persistence write fails (e.g. storage quota exceeded, or the
@@ -57,6 +61,22 @@ async function saveInitialSeed(
   }
 }
 
+function reconcileMasqueradeAccountSummary(
+  store: StoreApi<StoreState>,
+  data: AppData,
+  accountId: string | undefined,
+): void {
+  if (!accountId) return;
+  const masquerade = store.getState().masquerade;
+  if (masquerade.kind === "inactive" || masquerade.state?.accountId !== accountId) return;
+
+  const account = data.accounts.find((candidate) => candidate.id === accountId);
+  store.getState().setAccountSummaries({
+    list: account ? [{ id: account.id, name: account.name, role: masquerade.state.effectiveRole }] : [],
+    complete: account !== undefined,
+  });
+}
+
 /** Loads persisted data and attaches the store to its persistence adapter. */
 export async function bootstrap(
   store: StoreApi<StoreState>,
@@ -68,7 +88,7 @@ export async function bootstrap(
     loaded =
       options.initialLoad === "empty"
         ? await adapter.loadAll(undefined, { skipRemoteRead: true })
-        : await adapter.loadAll();
+        : await adapter.loadAll(options.initialAccountId);
   } catch (error) {
     // Stored data couldn't be loaded. Render an empty dataset, but deliberately
     // attach no persistence and run no seed-save. The next mutation must not
@@ -84,12 +104,13 @@ export async function bootstrap(
   // after a successful load, don't discard the loaded data or skip attaching persistence
   // (which would brick saving and show a misleading banner), fall back to inferring
   // existence from the loaded data itself, so we still skip seeding when there's data.
-  const existed = await resolveExisting(adapter, loaded);
+  const existed = options.skipExistingCheck ? true : await resolveExisting(adapter, loaded);
   const seed = options.seedIfEmpty;
   const seedNeeded = !existed && seed !== undefined;
   const initial = seedNeeded ? seed : loaded;
 
   store.getState().replaceAll(initial);
+  reconcileMasqueradeAccountSummary(store, initial, options.initialAccountId);
   store.getState().setHydrated(true);
   // Seed-write failure must be surfaced without disabling later persistence writes.
   if (seedNeeded) await saveInitialSeed(adapter, initial, options.onError);

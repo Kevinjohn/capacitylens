@@ -34,12 +34,22 @@ describe("SPA content security policy", () => {
     }
   });
 
-  it("verifies the internal API certificate and has no plaintext proxy fallback", () => {
-    expect(nginx).toContain("proxy_ssl_verify on");
-    expect(nginx).toContain("proxy_ssl_name api");
-    expect(nginx).toContain("proxy_ssl_protocols TLSv1.2 TLSv1.3");
-    expect(nginx).toContain("proxy_pass https://api:8787");
-    expect(nginx).not.toContain("proxy_pass http://api:8787");
+  it("proxies only to the fixed private API and overwrites public-edge forwarding headers", () => {
+    const targets = [...nginx.matchAll(/proxy_pass\s+([^;]+);/g)].map((match) => match[1]);
+    expect(targets.length).toBeGreaterThan(0);
+    expect(new Set(targets)).toEqual(new Set(["http://api:8787"]));
+    expect(nginx).not.toMatch(/proxy_ssl_|capacitylens-internal-tls/);
+    for (const declaration of [
+      "location /api/ {",
+      "location ~ ^/api/invites/[^/]+/(accept|signup|preview)$ {",
+      "location ~ ^/api/auth/(callback|oauth2/callback)/ {",
+    ]) {
+      const block = locationBlock(nginx, declaration);
+      expect(block).toContain("proxy_set_header Host $http_host;");
+      expect(block).toContain("proxy_set_header X-Forwarded-For $remote_addr;");
+      expect(block).toContain("proxy_set_header X-Forwarded-Proto $capacitylens_public_proto;");
+      expect(block).not.toContain("$proxy_add_x_forwarded_for");
+    }
   });
 
   it("keeps hashed assets on the immutable cache location ahead of file-extension matching", () => {

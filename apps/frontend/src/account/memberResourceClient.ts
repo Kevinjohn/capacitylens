@@ -1,16 +1,16 @@
-import { API_BASE } from "@/data/apiConfig";
 import { apiFetch } from "@/data/requestTimeout";
+import { apiRouteUrl } from "@/api/queryClient";
 import type { BrowserAccountCommand } from "./accountCommands";
 import { buildCommandRequestInit, runCommand } from "./commandRequest";
 
 /** Build the account-owned URL for the minimum scheduled-person avatar projection. */
 export function resourceAvatarsUrl(workspaceId: string): string {
-  return `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/resource-avatars`;
+  return apiRouteUrl("api.member-resources.avatars", { params: { accountId: workspaceId } });
 }
 
 /** Build the account-owned URL for one member/person association. */
 export function memberResourceLinkUrl(workspaceId: string, principalId: string): string {
-  return `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/resource-link`;
+  return apiRouteUrl("api.member-resources.set", { params: { accountId: workspaceId, principalId } });
 }
 
 /** Identifies the workspace member and resource for a resource-link request. */
@@ -96,7 +96,7 @@ export function dismissMemberResourceLinkException(
     explicit: command,
     request: (resolved) =>
       apiFetch(
-        `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/resource-link-exception`,
+        apiRouteUrl("api.member-resources.clear-exception", { params: { accountId: workspaceId, principalId } }),
         buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
       ),
   });

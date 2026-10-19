@@ -4,11 +4,20 @@
  */
 
 export const controllers = {
+  Auth: () => import('#controllers/auth_controller'),
   Batch: () => import('#controllers/batch_controller'),
   Companies: () => import('#controllers/companies_controller'),
+  Credential: () => import('#controllers/credential_controller'),
   ExampleData: () => import('#controllers/example_data_controller'),
   Exports: () => import('#controllers/exports_controller'),
   GettingStarted: () => import('#controllers/getting_started_controller'),
+  Google: () => import('#controllers/google_controller'),
   Imports: () => import('#controllers/imports_controller'),
+  Invitations: () => import('#controllers/invitations_controller'),
+  Joining: () => import('#controllers/joining_controller'),
   Lifecycle: () => import('#controllers/lifecycle_controller'),
+  Masquerade: () => import('#controllers/masquerade_controller'),
+  MemberResources: () => import('#controllers/member_resources_controller'),
+  Members: () => import('#controllers/members_controller'),
+  Ownership: () => import('#controllers/ownership_controller'),
 }

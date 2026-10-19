@@ -1,10 +1,130 @@
-// The auth client must stay behind lazy authentication entry points so the interactive library does not enter the initial bundle.
-
-import { createAuthClient } from "better-auth/react";
 import { API_BASE } from "@/data/apiConfig";
+import { apiFetch } from "@/data/requestTimeout";
+import { apiRouteUrl } from "@/api/queryClient";
 
-// The auth client needs an absolute origin, so the same-origin configuration resolves API_BASE through window.location.origin.
-/** Better Auth browser client configured for the application API origin. */
-export const authClient = createAuthClient({
-  baseURL: `${API_BASE || window.location.origin}/api/auth`,
-});
+export interface AuthApiError {
+  message: string;
+  code?: string;
+  status: number;
+}
+
+export interface AuthApiResult<T> {
+  data: T | null;
+  error: AuthApiError | null;
+}
+
+export interface AuthUserResponse {
+  id: string;
+  name: string;
+  email: string;
+  image: null;
+}
+
+interface PasswordCredentials {
+  email: string;
+  password: string;
+}
+
+interface OwnerCredentials extends PasswordCredentials {
+  name: string;
+  fetchOptions?: { headers?: HeadersInit };
+}
+
+interface ProviderStartInput {
+  provider: "google";
+  callbackURL: string;
+  errorCallbackURL: string;
+  fetchOptions?: { signal?: AbortSignal };
+}
+
+interface AuthUserResponseBody {
+  user: AuthUserResponse;
+}
+
+interface ProviderStartResponse {
+  url: string;
+}
+
+interface PasswordChangeInput {
+  currentPassword: string;
+  newPassword: string;
+  revokeOtherSessions: boolean;
+}
+
+function readErrorMessage(value: unknown, status: number): AuthApiError {
+  if (typeof value === "object" && value !== null) {
+    const body = value as Record<string, unknown>;
+    return {
+      message: typeof body.error === "string" ? body.error : `Authentication request failed (${status}).`,
+      ...(typeof body.code === "string" ? { code: body.code } : {}),
+      status,
+    };
+  }
+  return { message: `Authentication request failed (${status}).`, status };
+}
+
+async function post<T>(
+  path: string,
+  body: unknown,
+  options: { headers?: HeadersInit; signal?: AbortSignal } = {},
+): Promise<AuthApiResult<T>> {
+  const response = await apiFetch(`${API_BASE}/api/auth/${path}`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...Object.fromEntries(new Headers(options.headers).entries()) },
+    body: JSON.stringify(body),
+    ...(options.signal ? { signal: options.signal } : {}),
+  });
+  const payload: unknown = await response.json().catch(() => null);
+  if (!response.ok) return { data: null, error: readErrorMessage(payload, response.status) };
+  if (path === "provider-start") {
+    const url = readProviderStartUrl(payload);
+    if (!url)
+      return {
+        data: null,
+        error: { message: "Authentication request returned an invalid provider URL.", status: 502 },
+      };
+    return { data: { url } as T, error: null };
+  }
+  return { data: payload as T, error: null };
+}
+
+function readProviderStartUrl(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object" || !("url" in payload) || typeof payload.url !== "string") return null;
+  try {
+    const url = new URL(payload.url);
+    if ((url.protocol !== "https:" && url.protocol !== "http:") || url.username || url.password) return null;
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+/** Typed browser client for the product's session and password-authentication endpoints. */
+export const authClient = {
+  signIn: {
+    email: (input: PasswordCredentials) => post<AuthUserResponseBody>("sign-in", input),
+    social: (input: ProviderStartInput) =>
+      post<ProviderStartResponse>(
+        apiRouteUrl("api.auth.provider-start", {}).replace(`${API_BASE}/api/auth/`, ""),
+        {
+          provider: input.provider,
+          callbackURL: input.callbackURL,
+          errorCallbackURL: input.errorCallbackURL,
+        },
+        input.fetchOptions?.signal ? { signal: input.fetchOptions.signal } : {},
+      ),
+  },
+  signUp: {
+    email: (input: OwnerCredentials) =>
+      post<AuthUserResponseBody>(
+        "sign-up",
+        { email: input.email, password: input.password, name: input.name },
+        input.fetchOptions?.headers ? { headers: input.fetchOptions.headers } : {},
+      ),
+  },
+  signOut: () => post<{ ok: true }>("sign-out", {}),
+  requestPasswordReset: (email: string) => post<{ ok: true }>("request-reset", { email }),
+  resetPassword: (input: { token: string; newPassword: string }) => post<{ ok: true }>("reset-password", input),
+  changePassword: (input: PasswordChangeInput) => post<{ ok: true }>("change-password", input),
+};

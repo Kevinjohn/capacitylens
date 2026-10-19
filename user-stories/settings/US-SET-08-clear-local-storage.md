@@ -1,6 +1,6 @@
 # US-SET-08 — Device data and offline snapshots
 
-**Area:** Device data · **Persona:** User · **Linked coverage:** `src/data/clearLocalStorage.test.ts` and offline cache cleanup tests
+**Area:** Device data · **Persona:** User · **Linked coverage:** `apps/frontend/src/data/clearLocalStorage.test.ts` and offline cache cleanup tests
 
 **Documentation:** [Settings](../../docs-src/using/settings.md)
 

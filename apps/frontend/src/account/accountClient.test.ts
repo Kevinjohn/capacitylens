@@ -61,19 +61,23 @@ describe("browser account client", () => {
   });
 
   it("selects the same named provider for status and fresh linking", async () => {
-    await accountClient.readIdentityProvider("microsoft");
-    expect(mocks.apiFetch).toHaveBeenCalledWith("https://app.example/api/identity/provider?providerId=microsoft", {
+    await accountClient.readIdentityProvider("google");
+    expect(mocks.apiFetch).toHaveBeenCalledWith("https://app.example/api/identity/provider?providerId=google", {
       credentials: "include",
     });
-    await accountClient.linkIdentityProvider("https://app.example/account", "microsoft");
+    await accountClient.linkIdentityProvider(
+      "https://app.example/account?capacitylensIdentityProvider=google",
+      "google",
+      "https://app.example/account?capacitylensIdentityProvider=google&externalSignInError=1",
+    );
     const [url, init, options] = mocks.apiFetchReauth.mock.calls[0] ?? [];
     expect(url).toBe("https://app.example/api/identity/link-provider");
     expect(options).toMatchObject({ action: "connect-provider", replayAfterFreshnessRefusal: true });
     expect(new Headers(init?.headers).has("Idempotency-Key")).toBe(false);
     expect(JSON.parse(String(init?.body))).toEqual({
-      providerId: "microsoft",
-      callbackURL: "https://app.example/account",
-      errorCallbackURL: "https://app.example/account",
+      providerId: "google",
+      callbackURL: "https://app.example/account?capacitylensIdentityProvider=google",
+      errorCallbackURL: "https://app.example/account?capacitylensIdentityProvider=google&externalSignInError=1",
     });
   });
 
@@ -83,6 +87,7 @@ describe("browser account client", () => {
   registerMutationRouteTests();
   registerMemberResourceCommandTests();
   registerMembershipRouteTests();
+  registerOwnershipTransferTests();
   registerReconciliationTests();
   registerStoredCommandTests();
   registerStorageFallbackTests();
@@ -163,16 +168,9 @@ function registerMutationRouteTests(): void {
       command: command,
     });
     await accountClient.removeMember("workspace / one", "person / one", command);
-    await accountClient.initiateOwnershipTransfer({
+    await accountClient.transferOwnership({
       workspaceId: "workspace / one",
       targetPrincipalId: "person / one",
-      command,
-    });
-    await accountClient.commandOwnershipTransfer({
-      workspaceId: "workspace / one",
-      requestId: "request / one",
-      step: "accept",
-      expectedRevision: "0",
       command,
     });
     await accountClient.issuePasswordReset("workspace / one", "person / one", command);
@@ -200,12 +198,46 @@ function registerMutationRouteTests(): void {
       expect.arrayContaining([
         "https://app.example/api/accounts/workspace%20%2F%20one/members/person%20%2F%20one",
         "https://app.example/api/accounts/workspace%20%2F%20one/ownership-transfer",
-        "https://app.example/api/accounts/workspace%20%2F%20one/ownership-transfer/request%20%2F%20one/accept",
         "https://app.example/api/accounts/workspace%20%2F%20one/members/person%20%2F%20one/reset-password",
         "https://app.example/api/accounts/workspace%20%2F%20one/members/person%20%2F%20one/revoke-sessions",
         "https://app.example/api/accounts/workspace%20%2F%20one/invites/invite%20%2F%20one",
       ]),
     );
+  });
+}
+
+function registerOwnershipTransferTests(): void {
+  it("sends one command to the typed ownership route with only the target ID", async () => {
+    await accountClient.transferOwnership({
+      workspaceId: "workspace / one",
+      targetPrincipalId: "person / one",
+      command,
+    });
+
+    const [url, init, options] = mocks.apiFetchReauth.mock.calls[0] ?? [];
+    expect(url).toBe("https://app.example/api/accounts/workspace%20%2F%20one/ownership-transfer");
+    expectCommand(init as RequestInit, "POST");
+    expect(JSON.parse(String(init?.body))).toEqual({ toUserId: "person / one" });
+    expect(options).toEqual({ action: "transfer-ownership" });
+  });
+
+  it("reuses the same command and target after an uncertain response", async () => {
+    vi.spyOn(globalThis.crypto, "randomUUID")
+      .mockReturnValueOnce("00000000-0000-4000-8000-000000000201")
+      .mockReturnValueOnce("00000000-0000-4000-8000-000000000202");
+    mocks.apiFetchReauth
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(Response.json({ fromUserId: "bruce", toUserId: "selina" }));
+    const input = { workspaceId: "wayne-enterprises", targetPrincipalId: "selina" };
+
+    await accountClient.transferOwnership(input);
+    await accountClient.transferOwnership(input);
+
+    const headers = mocks.apiFetchReauth.mock.calls.map((call) => new Headers(call[1]?.headers));
+    expect(headers[0]?.get("x-account-command-id")).toBe("00000000-0000-4000-8000-000000000201");
+    expect(headers[0]?.get("idempotency-key")).toBe("00000000-0000-4000-8000-000000000202");
+    expect(headers[1]?.get("x-account-command-id")).toBe(headers[0]?.get("x-account-command-id"));
+    expect(headers[1]?.get("idempotency-key")).toBe(headers[0]?.get("idempotency-key"));
   });
 }
 
@@ -661,26 +693,4 @@ function registerTerminalClassificationTests(): void {
       readUnknownAccountCommandOutcome(Response.json({ code: "FUTURE_CONFLICT_CODE" }, { status: 409 })),
     ).resolves.toBe(true);
   });
-
-  it.each(["expired", "invalidated", "completed"])(
-    "classifies an ownership-transfer terminal 409 in state %s as committed",
-    async (state) => {
-      await expect(
-        readUnknownAccountCommandOutcome(
-          Response.json({ code: "OWNERSHIP_TRANSFER_TERMINAL", state }, { status: 409 }),
-        ),
-      ).resolves.toBe(false);
-    },
-  );
-
-  it.each([undefined, null, "future_state", "awaiting_target", "awaiting_owner"])(
-    "keeps an ownership-transfer terminal 409 with state %s unknown",
-    async (state) => {
-      await expect(
-        readUnknownAccountCommandOutcome(
-          Response.json({ code: "OWNERSHIP_TRANSFER_TERMINAL", state }, { status: 409 }),
-        ),
-      ).resolves.toBe(true);
-    },
-  );
 }

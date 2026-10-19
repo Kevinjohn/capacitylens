@@ -12,7 +12,8 @@ import {
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe("Microsoft connection client", () => {
+// Deferred provider coverage retained for the later Microsoft milestone; M3c ships Google only.
+describe.skip("Microsoft connection client (deferred)", () => {
   it("sends the intent with cookies and returns only an HTTP(S) provider URL", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ url: "https://login.microsoftonline.com/authorize" }), {

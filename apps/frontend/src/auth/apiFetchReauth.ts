@@ -9,7 +9,7 @@ import { m } from "@/i18n";
 // Clone freshness refusals so cancellation leaves the original response body readable.
 async function isSessionNotFresh(res: Response): Promise<boolean> {
   if (res.status !== 403) return false;
-  // Best-effort per DEFENSIVE-CODING.md §5: an unreadable/non-JSON 403 body simply isn't a step-up
+  // Best effort: an unreadable/non-JSON 403 body simply isn't a step-up
   // (it's an ordinary Forbidden); fall through to the caller's existing handling, never swallow it.
   return (await readApiErrorCode(res)) === "SESSION_NOT_FRESH";
 }

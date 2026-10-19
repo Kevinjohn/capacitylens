@@ -1,137 +1,49 @@
 ---
-title: Monitoring and health checks
-description: The health endpoint to poll, what its fields mean, where the logs live, and what to check on a regular schedule.
+title: Monitoring
+description: Monitor liveness, database readiness, backup health and privacy-safe application logs.
 ---
 
-# Monitoring and health checks
+# Monitoring
 
-Watch the service so you hear about a failure before the team does. At minimum:
+Probe the application through the same trusted proxy that serves users. Use the two dedicated
+health endpoints for process supervision:
 
-1. Poll `GET /api/health` through the public proxy your users reach. It needs no sign-in and is
-   exempt from rate limiting. Never expose the API container directly.
-2. Alert on the [signals below](#what-each-field-means-and-when-to-alert), on every
-   `process_failure` security event and on restart loops.
-3. Forward the audit and security logs to a separate collector.
-4. Run the [routine maintenance](#routine-maintenance) checks.
+| Endpoint | Meaning |
+| --- | --- |
+| `GET /health/live` | The process can answer HTTP. It does not prove the database or backups are ready. |
+| `GET /health/ready` | Runs database and backup health checks; returns a failing status when readiness checks fail. |
 
-## The health endpoint
+Do not use `/api/health` as a readiness probe; it is a lightweight API response. Keep health checks
+free of credentials and do not expose diagnostic internals publicly.
 
-For Docker Compose:
+## Database and backups
 
-```bash
-docker compose ps
-docker compose logs --since=30m api
-curl -fsS https://capacity.example.com/api/health
-```
+Investigate readiness failures before restarting repeatedly. Check that the database file exists,
+its parent directory is writable by the service user, and the released migration history is
+accepted by the current release. For backup warnings, inspect free space and directory permissions,
+then check for a recent snapshot in `CAPACITYLENS_BACKUP_DIR`. The readiness report identifies
+whether scheduled backups are disabled, pending or degraded without disclosing filesystem paths or
+raw errors.
 
-For a native systemd install:
+Run `node ace.js db:backup` from `backend/` for an operator-requested snapshot. See
+[Backups and restore](/self-hosting/backups-and-restore).
 
-```bash
-sudo systemctl status capacitylens --no-pager
-```
+## Logs and operational limits
 
-```bash
-sudo journalctl -u capacitylens --since "30 min ago" --no-pager
-```
-
-On a managed host, use the platform's process status and application log view (see
-[Keep it running](/self-hosting/managed-vps/#keep-it-running)).
-
-Deep health (`CAPACITYLENS_HEALTH_DEEP=1`, on by default in production) also runs a SQLite
-readiness query and reports:
-
-```json
-{
-  "ok": true,
-  "db": true,
-  "audit": "ok",
-  "auditPending": 0,
-  "backup": { "status": "ok", "lastSuccessAt": "2026-07-27T12:00:00.000Z" },
-  "internalTls": { "status": "ok", "expiresAt": "...", "daysRemaining": 90, "fingerprintSha256": "..." }
-}
-```
-
-Without it, the response is a plain `{"ok":true}`. Startup also runs a full foreign-key integrity
-check before the API accepts traffic.
-
-## What each field means, and when to alert
-
-| Signal               | Alert when                                                                                                                                                                                                                                              |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `audit`              | `degraded`: the audit sink has failed and events are queued. `recovering` with a nonzero `auditPending` is expected briefly after a restart; alert if it doesn't drain.                                                                                 |
-| `backup.status`      | `degraded` after any failed snapshot attempt, or `pending` for longer than one configured backup interval. With scheduled backups off, the `backup` field is absent: alert on a missing field when backups are expected. |
-| `internalTls.status` | `expiring` or `expired`. `expiring` starts at the same 30-day boundary the renewal script uses; renew before it reaches zero. See [TLS and networking](/self-hosting/tls-and-networking).                                                              |
-| HTTP `5xx`           | Any occurrence. Investigate immediately.                                                                                                                                                                                                                |
-| HTTP `401`/`403`     | Repeated occurrences. Review them as access events.                                                                                                                                                                                                     |
-| HTTP `409`           | A sustained spike. Occasional write conflicts are expected.                                                                                                                                                                                             |
-| HTTP `429`           | A sustained spike of rate limiting.                                                                                                                                                                                                                     |
-
-To check the internal certificate on Docker Compose:
+Use the service manager's journal or log destination. For systemd:
 
 ```bash
-docker compose ps --all
-docker compose run --rm --entrypoint openssl internal-tls x509 \
-  -in /tls/api.crt -noout -issuer -subject -checkend 2592000
+journalctl -u capacitylens --since "30 min ago"
 ```
 
-`internal-tls` should have exited zero. A zero exit from `openssl` means the certificate is valid
-for at least 30 days; otherwise run `./scripts/renew-internal-tls.sh` (see
-[TLS and networking](/self-hosting/tls-and-networking)).
+Routine request-completion logs are off unless `CAPACITYLENS_LOG=1`. Unexpected failures remain
+visible, with private messages and request/response payloads redacted. Do not enable verbose
+request-body logging in a proxy or collect invitation, sign-in or password-reset links.
 
-## Logs
+Authentication and request-work safeguards are process-wide, not per-company reservations.
+Authentication is identity-global before company selection. Use edge/global quotas or separate
+CapacityLens instances when installations require resource isolation; one shared instance does not
+provide per-company resource reservations.
 
-Process logs: `docker compose logs api` (and `web`), `sudo journalctl -u capacitylens`, or the
-managed host's application log view. `CAPACITYLENS_LOG=1` (on by default in production) makes
-them structured per-request JSON. Logs may contain identifiers; keep them according to your own
-retention policy.
-
-- **Security events**: typed `capacitylens.security` JSON events on stdout for sign-in
-  outcomes, CSRF and authorization rejections, rate limiting, session revocation and server
-  errors. Alert on bursts and suspicious cross-account patterns, and on repeated
-  `password_security_queue_saturated` events, which mean password work was shed under sustained
-  CPU or dependency pressure, not bad credentials. A missing event does not prove proxy or
-  identity-provider traffic was benign.
-- **Audit log**: every product-data change, as JSONL next to the database, and also on stdout as
-  one-line `{"type":"capacitylens.audit",...}` envelopes when `CAPACITYLENS_AUDIT_STDOUT=1` (on by
-  default in production). Forward both streams to a separate collector for real retention.
-  CapacityLens will not start in production with the audit log turned off.
-
-## Fixed service limits
-
-- The API accepts at most 512 simultaneous sockets per process; the proxy returns an
-  upstream error for the client to retry rather than queuing without bound.
-- Each request has a 30-second server timeout.
-- Exactly one API process should run against a given SQLite file.
-- On shutdown, in-flight requests and background snapshots get ten seconds to drain before
-  force-exit. Let your process supervisor wait more than ten seconds before sending `SIGKILL`.
-- An uncaught exception emits a `process_failure` security event and exits non-zero; Compose
-  restarts it automatically. A restart is not remediation; investigate the underlying defect.
-- Breached-password (HIBP) range lookups run at most eight at a time with thirty-two queued, each
-  with a five-second timeout. Password hashing that overflows its queue aborts without producing
-  a wrong-password verdict.
-  These limits are process-wide safeguards, not per-company reservations. Password sign-in is
-  identity-global and happens before company selection, so every company on an instance shares
-  them. Use global quotas or separate CapacityLens instances, each with its own database, when one
-  company must not affect another. Do not weaken the memory bounds.
-
-## Routine maintenance
-
-- **Weekly**: check health, disk space, backup freshness and security advisories.
-- **Monthly**: apply operating-system updates (and container updates on Docker), and
-  [rehearse a restore](/self-hosting/backups-and-restore#schedule-a-restore-drill).
-- **Every release**: follow [Upgrades](/self-hosting/upgrades): read the changelog, back up,
-  deploy, smoke test, and keep the previous release until you're satisfied.
-
-### Larger deployments
-
-Optional, for installations with a staging environment or a formal change process:
-
-- Run the monthly sign-in and restore tests in staging.
-- For every release, review the security workflow, SBOM and image scan results, and keep a
-  rollback image. For a release with a schema change, keep the
-  [migration rehearsal](/reference/development#rehearse-migrations) result.
-- After any sign-in or cryptography change, in a test environment, exercise session
-  revocation, password-reset invalidation and the breached-password-service outage path. For
-  Google or Microsoft, verify the registered callback, admission, linking and returning sign-in.
-
-When an alert fires, see [When something goes wrong](/self-hosting/incidents).
+For incidents, use [Incident response](/self-hosting/incidents). For public proxy requirements, see
+[TLS and networking](/self-hosting/tls-and-networking).

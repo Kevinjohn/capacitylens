@@ -7,6 +7,7 @@ import { AuthContext } from "@/auth/authContext";
 import type { AuthContextValue } from "@/auth/authContext";
 import { TeamAccessView } from "./TeamAccessView";
 import { setOfflineReadState } from "@/data/offlineCache";
+import { useStore } from "@/store/useStore";
 
 const buildMode = vi.hoisted(() => ({ demo: false }));
 vi.mock("@/data/apiConfig", () => ({
@@ -17,6 +18,9 @@ vi.mock("@/data/apiConfig", () => ({
 
 vi.mock("./MembersSection", () => ({
   MembersSection: () => <div data-testid="member-management">Member controls</div>,
+}));
+vi.mock("./OwnershipTransferCard", () => ({
+  OwnershipTransferCard: () => <div data-testid="ownership-transfer-card">Ownership controls</div>,
 }));
 
 const auth = (authMode: AuthContextValue["authMode"]): AuthContextValue => ({
@@ -51,6 +55,7 @@ function showCapabilities(): void {
 beforeEach(() => {
   buildMode.demo = false;
   setOfflineReadState({ owner: "cleanup", readOnly: false });
+  useStore.setState({ masquerade: { kind: "inactive" } });
 });
 
 afterEach(() => {
@@ -109,6 +114,21 @@ describe("TeamAccessView member management", () => {
     renderView("owner", "password-only");
     expect(screen.getByTestId("current-access")).toHaveTextContent("single Owner");
     expect(screen.getByTestId("member-management")).toBeInTheDocument();
+    expect(screen.getByTestId("ownership-transfer-card")).toBeInTheDocument();
+  });
+
+  it("keeps ownership transfer available only to the real online Owner", () => {
+    const admin = renderView("admin", "password-only");
+    expect(screen.queryByTestId("ownership-transfer-card")).toBeNull();
+    admin.unmount();
+
+    const owner = renderView("owner", "password-only");
+    expect(screen.getByTestId("ownership-transfer-card")).toBeInTheDocument();
+    owner.unmount();
+
+    setOfflineReadState({ owner: "tenant", readOnly: true });
+    renderView("owner", "password-only");
+    expect(screen.queryByTestId("ownership-transfer-card")).toBeNull();
   });
 
   it.each([

@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { readMetadata, readStatus, resolveJoinStatus } from "./joinStatus";
 
-const local = {
+const approved = {
   state: "approved" as const,
   accountId: "a-studio",
   purpose: "policy",
@@ -9,78 +9,49 @@ const local = {
   email: "bruce@wayne.example",
   emailHint: "b***@wayne.example",
 };
-const expired = { state: "expired" as const };
-const input = { accountId: "a-studio", purpose: "policy", local, microsoft: expired };
+const input = { accountId: "a-studio", purpose: "policy", status: approved };
 
-it("prefers a matching Microsoft status over local approval", () => {
-  expect(resolveJoinStatus({ ...input, microsoft: { ...local, state: "pending", providerId: "microsoft" } })).toEqual({
-    matched: true,
-    stage: "pending",
-    providerId: "microsoft",
-    email: local.email,
-    emailHint: local.emailHint,
-    deliveryUnavailable: false,
-  });
-});
-
-it("rejects an account mismatch", () => {
-  expect(resolveJoinStatus({ ...input, accountId: "a-loft" })).toEqual({ matched: false });
-});
-
-it("rejects a purpose mismatch", () => {
-  expect(resolveJoinStatus({ ...input, purpose: "invitation" })).toEqual({ matched: false });
-});
-
-it("rejects an expired status even when account and purpose match", () => {
-  expect(resolveJoinStatus({ ...input, local: { ...local, state: "expired" } })).toEqual({ matched: false });
-});
-
-it("resolves local approval when Microsoft has expired", () => {
+it("resolves a successful Google proof to explicit completion", () => {
   expect(resolveJoinStatus(input)).toEqual({
     matched: true,
     stage: "approved",
     providerId: "google",
-    email: local.email,
-    emailHint: local.emailHint,
+    email: approved.email,
+    emailHint: approved.emailHint,
     deliveryUnavailable: false,
   });
 });
 
-it("keeps Microsoft pending without an email or hint", () => {
+it("keeps a scoped Google intent pending until its callback completes", () => {
   expect(
     resolveJoinStatus({
       ...input,
-      local: expired,
-      microsoft: {
+      status: {
         state: "pending",
-        accountId: "a-studio",
-        purpose: "policy",
-        providerId: "microsoft",
+        accountId: approved.accountId,
+        purpose: approved.purpose,
+        providerId: approved.providerId,
       },
     }),
-  ).toEqual({ matched: true, stage: "pending", providerId: "microsoft", emailHint: "", deliveryUnavailable: false });
+  ).toEqual({ matched: true, stage: "pending", providerId: "google", emailHint: "", deliveryUnavailable: false });
 });
 
-it("carries non-Microsoft pending details into entry", () => {
-  expect(resolveJoinStatus({ ...input, local: { ...local, state: "pending" } })).toEqual({
-    matched: true,
-    stage: "entry",
-    providerId: "google",
-    email: local.email,
-    emailHint: local.emailHint,
-    deliveryUnavailable: false,
-  });
+it("accepts the server-bound invitation callback without a bearer token in the return URL", () => {
+  expect(
+    resolveJoinStatus({
+      accountId: "a-studio",
+      status: { ...approved, purpose: "invitation" },
+    }),
+  ).toMatchObject({ matched: true, stage: "approved", providerId: "google" });
 });
 
-it("surfaces unavailable delivery for a matching status", () => {
-  expect(resolveJoinStatus({ ...input, local: { ...local, deliveryUnavailable: true } })).toEqual({
-    matched: true,
-    stage: "approved",
-    providerId: "google",
-    email: local.email,
-    emailHint: local.emailHint,
-    deliveryUnavailable: true,
-  });
+it.each([
+  { ...input, accountId: "a-loft" },
+  { ...input, purpose: "invitation" },
+  { ...input, status: { ...approved, state: "expired" as const } },
+  { ...input, status: { ...approved, providerId: "microsoft" } },
+])("returns to entry when status is not an active matching Google intent", (statusInput) => {
+  expect(resolveJoinStatus(statusInput)).toEqual({ matched: false });
 });
 
 it("rejects metadata without a company name", () => {
@@ -88,5 +59,6 @@ it("rejects metadata without a company name", () => {
 });
 
 it("rejects an unknown status state", () => {
+  expect(readStatus({ state: "idle" })).toBeNull();
   expect(readStatus({ state: "joined" })).toBeNull();
 });

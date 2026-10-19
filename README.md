@@ -72,22 +72,17 @@ open Jira.
 There is no importer from spreadsheets or other tools: you enter your people, clients and projects
 in the app, and the JSON import only moves data between CapacityLens installations.
 
-## Install it in five steps
+## Install it
 
-Every release from 0.73.0-alpha.1 carries a server archive. You need Node 24.19.0 or newer within
-24.x and a hostname with HTTPS. Node 26.9.0 or newer within 26.x is
-[experimental](https://kevinjohn.github.io/capacitylens/reference/development.html#check-node-26-compatibility).
-
-1. **Download** `capacitylens-X.Y.Z.tar.gz` from the [latest release](https://github.com/Kevinjohn/capacitylens/releases/latest) and unpack it.
-2. **Pick a folder** for the database; its file is created there on first start.
-3. **Configure:** in the unpacked folder, run `node server/dist/index.mjs init --public-url <address> --db <file in step 2's folder>`. It prints the environment file with both secrets generated: paste it into your host's environment editor, or add `--out /etc/capacitylens.env` to write the file.
-4. **Start it** with `node --env-file=<your env file> server/dist/index.mjs`, or as a service.
-5. **Open the address** and check the first-Owner screen loads. If you are also the Owner, [set up your company](https://kevinjohn.github.io/capacitylens/owner/index.html) with the setup token from step 3; otherwise send the address, and the setup token separately and privately, to the Owner.
-
-[Install CapacityLens](https://kevinjohn.github.io/capacitylens/self-hosting/install.html) has the commands for a managed host or a
-Linux host; [Docker](https://kevinjohn.github.io/capacitylens/self-hosting/install-with-docker.html) is another route. Sign-in is by
-password, with Google Workspace and Microsoft Entra ID as
-[company login](https://kevinjohn.github.io/capacitylens/company-login/index.html) options.
+CapacityLens is currently supplied as a native Node.js release archive. Follow the
+[installation guide](https://kevinjohn.github.io/capacitylens/self-hosting/install.html), then
+configure HTTPS at an external reverse proxy. The operator guides cover
+[configuration](https://kevinjohn.github.io/capacitylens/self-hosting/configuration.html),
+[backups](https://kevinjohn.github.io/capacitylens/self-hosting/backups-and-restore.html),
+[upgrades](https://kevinjohn.github.io/capacitylens/self-hosting/upgrades.html) and
+[monitoring](https://kevinjohn.github.io/capacitylens/self-hosting/monitoring.html). Docker
+deployment uses separate web and API images with a checked upgrade step before startup. Google company sign-in is supported; Microsoft is deferred
+and GitHub sign-in is retired. See [company login](https://kevinjohn.github.io/capacitylens/company-login/index.html).
 
 ## Documentation
 
@@ -109,9 +104,8 @@ covers status, getting your data out and support. See
 
 ## Contributing
 
-React, TypeScript and Vite in the browser; Fastify and Better Auth over Node's built-in SQLite on
-the server; a shared TypeScript domain in `shared/` for the scheduling rules. Start with
-[CONTRIBUTING.md](CONTRIBUTING.md), then the [development guide](docs-src/reference/development.md#checks)
+React, TypeScript and Vite in the browser; AdonisJS and Lucid over SQLite on the server; a shared
+TypeScript domain package for the scheduling rules. Start with [CONTRIBUTING.md](CONTRIBUTING.md)
 and the [standing decisions](DECISIONS.md).
 
 [Governance](GOVERNANCE.md) · [Support](SUPPORT.md) · [Security policy](SECURITY.md) ·

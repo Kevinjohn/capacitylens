@@ -1,12 +1,10 @@
-# Root owns the web app; shared supplies the pure domain core to app and server; server supplies the SQLite API.
+# The frontend, Adonis backend and pure shared domain package own the active workspace.
 packages:
   - apps/*
   - packages/*
-  - server
 
-# Keep workspace packages as injected copies so `pnpm deploy --prod` can create a
-# dedicated, minimal production lockfile instead of the legacy deploy copying the
-# root application's dependency graph into the API image.
+# Inject workspace build outputs so deployed dependencies remain self-contained.
+# Production packaging uses the reviewed legacy adapter for the pinned local archive.
 injectWorkspacePackages: true
 syncInjectedDepsAfterScripts:
   - build
@@ -24,9 +22,11 @@ patchedDependencies:
   sonner@2.0.8: patches/sonner@2.0.8.patch
 
 # Keep vulnerable transitive packages on compatible patched releases where their parents have not
-# raised their own minimums. Every override remains inside the range accepted by its consumer except
+# raised their own minimums. Every override remains inside the range accepted by its consumer except the reviewed SMTP-only Nodemailer major transition and
 # VitePress's separately documented Vite transition below.
 overrides:
+  # Mail exposes only SMTP here; reviewed Nodemailer 10 fixes the mail advisories.
+  "@adonisjs/mail>nodemailer": 10.1.1
   # VitePress 1.x still declares Vite 5 even though its Vue plugin supports Vite 6. Keep the docs
   # build on the first supported line containing the fixes for the Vite 5 advisories.
   vitepress>vite: 6.4.3
@@ -53,6 +53,8 @@ allowBuilds:
   tree-sitter-bash: false
 
 minimumReleaseAgeExclude:
+  # The reviewed local archive is pinned by source revision and integrity, with no registry release date.
+  - adonisjs-account-kit@0.0.0
   - browserslist@4.28.7
   - fast-uri@4.1.4
   - fast-uri@3.1.7

@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import { createHash } from 'node:crypto'
-import { mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, readdir, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve, sep } from 'node:path'
 import {
@@ -50,6 +50,7 @@ interface Ledger {
         path: string
         path_expansion?: { variant: string; source: string; meaning: string }
         source: string
+        current_source?: string
         source_kind: string
         request_body_contract: {
           kind: string
@@ -200,18 +201,6 @@ function validateM2aEvidence(entries: Ledger['m2a_port_evidence']['entries']) {
   }
 }
 
-async function collectTestFiles(root: string, directory: string): Promise<string[]> {
-  const entries = await readdir(join(root, directory), { withFileTypes: true })
-  const files = await Promise.all(
-    entries.map(async (entry) => {
-      const relative = join(directory, entry.name)
-      if (entry.isDirectory()) return collectTestFiles(root, relative)
-      return entry.isFile() && entry.name.endsWith('.test.ts') ? [relative] : []
-    })
-  )
-  return files.flat()
-}
-
 async function collectTypeScriptFiles(root: string, directory: string): Promise<string[]> {
   const entries = await readdir(join(root, directory), { withFileTypes: true })
   const files = await Promise.all(
@@ -240,21 +229,14 @@ async function discoverFrontendCallerModules(projectRoot: string): Promise<strin
   return modules.map((path) => path.split(sep).join('/')).sort()
 }
 
-async function discoverLegacyTests(projectRoot: string): Promise<string[]> {
-  const sourceRoot = join(projectRoot, 'server', 'src')
-  const scriptTest = join(projectRoot, 'server', 'scripts', 'check-node.test.mjs')
-  const sourceRootStats = await stat(sourceRoot)
-  const scriptTestStats = await stat(scriptTest)
-  if (!sourceRootStats.isDirectory())
-    throw new Error('Legacy server/src is missing before the explicit M7a source transition.')
-  if (!scriptTestStats.isFile())
-    throw new Error(
-      'Legacy server/scripts/check-node.test.mjs is missing before the explicit M7a source transition.'
-    )
-
-  const sourceFiles = await collectTestFiles(projectRoot, join('server', 'src'))
-  const paths = [...sourceFiles, join('server', 'scripts', 'check-node.test.mjs')]
-  return paths.map((path) => path.split(sep).join('/')).sort()
+async function assertLegacyRetired(projectRoot: string): Promise<void> {
+  try {
+    await stat(join(projectRoot, 'server'))
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+    throw error
+  }
+  throw new Error('Legacy server source must remain retired.')
 }
 
 function manifestDigest(paths: string[]): string {
@@ -274,9 +256,8 @@ test('pins every legacy server test to exactly one explicit migration dispositio
   assert.equal(ledger.test_census.total_plan_census, 186)
   assert.equal(ledger.test_census.difference, 0)
   assert.deepEqual(ledger.test_census.unmapped, [])
-  const discovered = await discoverLegacyTests(resolve(process.cwd(), '..', '..'))
-  assert.deepEqual(discovered, ledger.test_census.paths)
-  validateDispositions(discovered, ledger.test_dispositions)
+  await assertLegacyRetired(resolve(process.cwd(), '..', '..'))
+  validateDispositions(ledger.test_census.paths, ledger.test_dispositions)
   assert.isNotEmpty(ledger.route_inventory.main_route_contracts)
   assert.isNotEmpty(ledger.route_inventory.static_fallback_contract.tested_distinctions)
   assert.isNotEmpty(ledger.route_inventory.caller_inventory.calls)
@@ -328,7 +309,9 @@ test('pins every legacy server test to exactly one explicit migration dispositio
     ledger.route_inventory.caller_inventory.calls
       .filter((call) => call.source_kind === 'SPA caller')
       .flatMap((call) =>
-        [...call.source.matchAll(/(?:^|;\s*)src\/([^:;\s]+)/g)].map((match) => match[1])
+        [...(call.current_source ?? call.source).matchAll(/(?:^|;\s*)src\/([^:;\s]+)/g)].map(
+          (match) => match[1]
+        )
       )
   )
   const discoveredModules = await discoverFrontendCallerModules(resolve(process.cwd(), '..', '..'))
@@ -341,7 +324,9 @@ test('pins every legacy server test to exactly one explicit migration dispositio
   const citedLinesByModule = new Map<string, Set<number>>()
   for (const call of ledger.route_inventory.caller_inventory.calls) {
     if (call.source_kind !== 'SPA caller') continue
-    for (const citationText of [call.source, call.request_body_contract.source]) {
+    for (const citationText of call.current_source
+      ? [call.current_source]
+      : [call.source, call.request_body_contract.source]) {
       for (const [, modulePath, ranges] of citationText.matchAll(/src\/([^:;\s]+):([\d,-]+)/g)) {
         const citedLines = citedLinesByModule.get(modulePath) ?? new Set<number>()
         for (const range of ranges.split(',')) {
@@ -382,23 +367,25 @@ test('the census validator rejects a missing disposition', ({ assert }) => {
   )
 })
 
-test('source discovery catches an extra legacy test with no disposition', async ({ assert }) => {
+test('every retained source disposition points to current coverage', async () => {
+  const root = resolve(process.cwd(), '..', '..')
+  for (const row of ledger.test_dispositions) {
+    for (const target of [row, ...(row.subdispositions ?? [])]) {
+      if (!target.proposed_package || !target.proposed_test_path) continue
+      const path = target.proposed_test_path.startsWith(`${target.proposed_package}/`)
+        ? join(root, target.proposed_test_path)
+        : join(root, target.proposed_package, target.proposed_test_path)
+      await stat(path)
+    }
+  }
+})
+
+test('the retirement boundary rejects reintroduced legacy source', async ({ assert }) => {
   const scratch = await mkdtemp(join(tmpdir(), 'capacitylens-census-'))
   try {
-    await mkdir(join(scratch, 'server', 'src'), { recursive: true })
-    await mkdir(join(scratch, 'server', 'scripts'), { recursive: true })
-    await writeFile(join(scratch, 'server', 'src', 'known.test.ts'), '')
-    await writeFile(join(scratch, 'server', 'src', 'undispositioned.test.ts'), '')
-    await writeFile(join(scratch, 'server', 'scripts', 'check-node.test.mjs'), '')
-    const discovered = await discoverLegacyTests(scratch)
-    const dispositions = [
-      { source_path: 'server/src/known.test.ts' },
-      { source_path: 'server/scripts/check-node.test.mjs' },
-    ] as Disposition[]
-    assert.throws(
-      () => validateDispositions(discovered, dispositions),
-      /server\/src\/undispositioned\.test\.ts/
-    )
+    await assertLegacyRetired(scratch)
+    await mkdir(join(scratch, 'server'), { recursive: true })
+    await assert.rejects(() => assertLegacyRetired(scratch), /must remain retired/)
   } finally {
     await rm(scratch, { recursive: true, force: true })
   }

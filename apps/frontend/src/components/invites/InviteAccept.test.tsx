@@ -404,7 +404,7 @@ registerInviteAcceptTest(() =>
         ...signedInAuth,
         authMode: "sso-only",
         user: null,
-        providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
+        providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
       },
       strict: false,
       path: "/invite/secret-token?externalSignInError=1&error=provider-secret",
@@ -524,12 +524,11 @@ registerInviteAcceptTest(() =>
     window.dispatchEvent(new Event("pagehide"));
     const socialCall = readProviderSignInCall(authClientMock.signInSocial.mock.calls[0]?.[0] as unknown);
     if (!socialCall) throw new Error("Expected Google sign-in call");
-    expect(authClientMock.signInSocial).toHaveBeenCalledWith({
+    expect(authClientMock.signInSocial).toHaveBeenCalledOnce();
+    expect(authClientMock.signInSocial.mock.calls[0]?.[0]).toMatchObject({
       provider: "google",
       callbackURL: window.location.href,
       errorCallbackURL: "http://localhost:3000/?externalSignInError=1",
-      disableRedirect: true,
-      fetchOptions: { signal: expect.any(AbortSignal) as unknown as AbortSignal },
     });
     expect(socialCall.fetchOptions?.signal).toBeInstanceOf(AbortSignal);
     expect(authClientMock.signInEmail).not.toHaveBeenCalled();
@@ -558,12 +557,11 @@ registerInviteAcceptTest(() =>
     });
     const socialCall = readProviderSignInCall(authClientMock.signInSocial.mock.calls[0]?.[0] as unknown);
     if (!socialCall) throw new Error("Expected social sign-in call");
-    expect(authClientMock.signInSocial).toHaveBeenCalledWith({
+    expect(authClientMock.signInSocial).toHaveBeenCalledOnce();
+    expect(authClientMock.signInSocial.mock.calls[0]?.[0]).toMatchObject({
       provider: "google",
       callbackURL: window.location.href,
       errorCallbackURL: "http://localhost:3000/?externalSignInError=1",
-      disableRedirect: true,
-      fetchOptions: { signal: expect.any(AbortSignal) as unknown as AbortSignal },
     });
     const socialSignal = socialCall.fetchOptions?.signal;
     expect(socialSignal).toBeInstanceOf(AbortSignal);
@@ -1056,8 +1054,8 @@ registerInviteAcceptTest(() =>
 );
 
 registerInviteAcceptTest(() =>
-  it("uses the login fallback when post-signup sign-in fails without a message", async () => {
-    authClientMock.signInEmail.mockResolvedValueOnce({ error: {} });
+  it("surfaces the product API message when post-signup sign-in fails", async () => {
+    authClientMock.signInEmail.mockResolvedValueOnce({ error: { message: "Invalid email or password." } });
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.endsWith("/preview")) return previewResponse();
@@ -1074,7 +1072,7 @@ registerInviteAcceptTest(() =>
     await fillInviteCredentials(user);
     await user.click(screen.getByRole("button", { name: m.invite_create_account() }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_failed());
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid email or password.");
   }),
 );
 

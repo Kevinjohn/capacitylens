@@ -9,6 +9,8 @@ import { completeReauth, isReauthPending } from "@/auth/reauthCoordinator";
 
 const changePassword = vi.fn();
 const readIdentityProvider = vi.fn();
+const googleProvider = { id: "google", label: "Google", kind: "social", experimental: false, brand: "google" };
+const providerStatus = (connected: boolean) => ({ provider: googleProvider, connected, verified: connected });
 vi.mock("@/auth/authClient", () => ({
   authClient: { changePassword: (...args: unknown[]) => changePassword(...args) },
 }));
@@ -27,9 +29,7 @@ beforeEach(() => {
   changePassword.mockReset();
   readIdentityProvider
     .mockReset()
-    .mockImplementation(() =>
-      Promise.resolve(new Response(JSON.stringify({ connected: true, verified: true }), { status: 200 })),
-    );
+    .mockImplementation(() => Promise.resolve(new Response(JSON.stringify(providerStatus(true)), { status: 200 })));
 });
 
 const passwordAuth: AuthContextValue = {
@@ -210,52 +210,36 @@ it("does not mount a password dialog for a federated identity in password mode",
   expect(screen.queryByRole("dialog", { name: m.settings_security_change_password() })).not.toBeInTheDocument();
 });
 
-it("preserves Microsoft identity-link status without password controls", async () => {
+it("preserves Google identity-link status without password controls", async () => {
   renderSecurity({
     overrides: {
       authMode: "sso-only",
-      providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
-    },
-  });
-  expect(await screen.findByText(m.settings_sso_connected({ provider: "Microsoft" }))).toBeInTheDocument();
-  expect(screen.queryByLabelText(m.settings_security_current_password())).not.toBeInTheDocument();
-});
-
-it("shows Google and Microsoft connection status independently", async () => {
-  readIdentityProvider.mockImplementation((providerId: string) =>
-    Promise.resolve(
-      new Response(JSON.stringify({ connected: providerId === "google", verified: providerId === "google" })),
-    ),
-  );
-  renderSecurity({
-    overrides: {
-      providers: [
-        { id: "google", label: "Google", kind: "social", experimental: false },
-        { id: "microsoft", label: "Microsoft", kind: "social", experimental: false },
-        { id: "github", label: "GitHub", kind: "social", experimental: true },
-      ],
+      providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
     },
   });
   expect(await screen.findByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
-  expect(
-    await screen.findByRole("button", { name: m.settings_sso_connect_button({ provider: "Microsoft" }) }),
-  ).toBeInTheDocument();
-  expect(screen.queryByText(m.settings_sso_connected({ provider: "Microsoft" }))).not.toBeInTheDocument();
-  expect(readIdentityProvider).not.toHaveBeenCalledWith("github");
+  expect(screen.queryByLabelText(m.settings_security_current_password())).not.toBeInTheDocument();
 });
 
-it("keeps a Microsoft callback error on its own connection", async () => {
+it("shows only the supported Google connection and ignores retired provider metadata", async () => {
+  readIdentityProvider.mockResolvedValue(Response.json(providerStatus(true)));
+  renderSecurity({
+    overrides: {
+      providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+    },
+  });
+  expect(await screen.findByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
+});
+
+it("keeps a Google callback error on its connection", async () => {
   window.history.replaceState(
     null,
     "",
-    "/account?capacitylensIdentityProvider=microsoft&capacitylensSsoLinkFailed=attempt",
+    "/account?capacitylensIdentityProvider=google&capacitylensSsoLinkFailed=attempt",
   );
   renderSecurity({
     overrides: {
-      providers: [
-        { id: "google", label: "Google", kind: "social", experimental: false },
-        { id: "microsoft", label: "Microsoft", kind: "social", experimental: false },
-      ],
+      providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
     },
   });
   expect(await screen.findAllByText(m.settings_sso_connect_error())).toHaveLength(1);
@@ -320,7 +304,7 @@ it("does not restore a callback error after an already-linked retry and provider
   vi.stubGlobal("fetch", fetchMock);
   const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
   let finishPendingStatus: ((response: Response) => void) | undefined;
-  readIdentityProvider.mockResolvedValueOnce(Response.json({ connected: false, verified: false }));
+  readIdentityProvider.mockResolvedValueOnce(Response.json(providerStatus(false)));
   readIdentityProvider.mockImplementationOnce(
     () =>
       new Promise((resolve) => {
@@ -353,11 +337,11 @@ it("does not restore a callback error after an already-linked retry and provider
 
     const finishStatus = finishPendingStatus;
     if (!finishStatus) throw new Error("Provider status refresh was not started");
-    await act(async () => finishStatus(Response.json({ connected: false, verified: false })));
+    await act(async () => finishStatus(Response.json(providerStatus(false))));
     expect(screen.getByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
     expect(screen.queryByText(m.settings_sso_connect_error())).not.toBeInTheDocument();
 
-    readIdentityProvider.mockResolvedValue(Response.json({ connected: true, verified: true }));
+    readIdentityProvider.mockResolvedValue(Response.json(providerStatus(true)));
     view.rerender(
       <AuthContext.Provider
         value={{
@@ -381,29 +365,27 @@ it("does not restore a callback error after an already-linked retry and provider
   }
 });
 
-it("dispatches Microsoft connection through the shared identity route and retains its return marker", async () => {
+it("dispatches Google connection through the shared identity route and supplies a safe failure callback", async () => {
   const fetchMock = vi.fn().mockResolvedValue(Response.json({ code: "PROVIDER_UNAVAILABLE" }, { status: 502 }));
   vi.stubGlobal("fetch", fetchMock);
   const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
   window.history.replaceState(null, "", "/account");
-  readIdentityProvider.mockResolvedValue(Response.json({ connected: false, verified: false }));
+  readIdentityProvider.mockResolvedValue(Response.json(providerStatus(false)));
   try {
     renderSecurity({
       overrides: {
-        providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
+        providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
       },
     });
-    fireEvent.click(
-      await screen.findByRole("button", { name: m.settings_sso_connect_button({ provider: "Microsoft" }) }),
-    );
+    fireEvent.click(await screen.findByRole("button", { name: m.settings_sso_connect_button({ provider: "Google" }) }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toContain("/api/identity/link-provider");
     expect(init.credentials).toBe("include");
     const body = JSON.parse(String(init.body)) as { providerId: string; callbackURL: string; errorCallbackURL: string };
-    expect(body.providerId).toBe("microsoft");
-    expect(new URL(body.callbackURL).searchParams.get("capacitylensIdentityProvider")).toBe("microsoft");
-    expect(body.errorCallbackURL).toBe(body.callbackURL);
+    expect(body.providerId).toBe("google");
+    expect(new URL(body.callbackURL).searchParams.get("capacitylensIdentityProvider")).toBe("google");
+    expect(new URL(body.errorCallbackURL).searchParams.get("externalSignInError")).toBe("1");
     expect(await screen.findByText(m.settings_sso_connect_error())).toBeInTheDocument();
   } finally {
     errorLog.mockRestore();
@@ -417,7 +399,7 @@ it.each([
 ])("shows the supported recovery for %s", async (code, message) => {
   const fetchMock = vi.fn().mockResolvedValue(Response.json({ code }, { status: 403 }));
   vi.stubGlobal("fetch", fetchMock);
-  readIdentityProvider.mockResolvedValue(Response.json({ connected: false, verified: false }));
+  readIdentityProvider.mockResolvedValue(Response.json(providerStatus(false)));
   try {
     renderSecurity({
       overrides: { providers: [{ id: "google", label: "Google", kind: "social", experimental: false }] },
@@ -439,7 +421,7 @@ it.each([
 it("shows sign-in recovery when step-up succeeds but the provider link is still refused as stale", async () => {
   const fetchMock = vi.fn().mockResolvedValue(Response.json({ code: "SESSION_NOT_FRESH" }, { status: 403 }));
   vi.stubGlobal("fetch", fetchMock);
-  readIdentityProvider.mockResolvedValue(Response.json({ connected: false, verified: false }));
+  readIdentityProvider.mockResolvedValue(Response.json(providerStatus(false)));
   try {
     renderSecurity({
       overrides: { providers: [{ id: "google", label: "Google", kind: "social", experimental: false }] },

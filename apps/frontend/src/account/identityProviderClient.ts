@@ -1,23 +1,28 @@
 import { apiFetchReauth } from "@/auth/apiFetchReauth";
-import { API_BASE } from "@/data/apiConfig";
 import { apiFetch } from "@/data/requestTimeout";
+import { buildExternalSignInErrorUrl } from "@/auth/externalSignInError";
+import { apiRouteUrl } from "@/api/queryClient";
 import type { ReauthAction } from "@/auth/reauthCoordinator";
 
 /** Reads the current identity-provider link state. */
-export function readIdentityProvider(providerId?: string): Promise<Response> {
-  const query = providerId ? `?providerId=${encodeURIComponent(providerId)}` : "";
-  return apiFetch(`${API_BASE}/api/identity/provider${query}`, { credentials: "include" });
+export function readIdentityProvider(providerId: "google"): Promise<Response> {
+  const query = `?providerId=${providerId}`;
+  return apiFetch(`${apiRouteUrl("api.google.identity", {})}${query}`, { credentials: "include" });
 }
 
 /** Starts a re-authenticated identity-provider link flow. */
-export function linkIdentityProvider(callbackURL: string, providerId?: string): Promise<Response> {
+export function linkIdentityProvider(
+  callbackURL: string,
+  providerId: "google",
+  errorCallbackURL = buildExternalSignInErrorUrl(callbackURL),
+): Promise<Response> {
   return apiFetchReauth(
-    `${API_BASE}/api/identity/link-provider`,
+    apiRouteUrl("api.google.link", {}),
     {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ callbackURL, errorCallbackURL: callbackURL, ...(providerId ? { providerId } : {}) }),
+      body: JSON.stringify({ providerId, callbackURL, errorCallbackURL }),
     },
     // The server rejects stale sessions before starting either provider flow or setting cookies.
     { action: "connect-provider" satisfies ReauthAction, replayAfterFreshnessRefusal: true },

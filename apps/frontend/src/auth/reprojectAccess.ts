@@ -3,12 +3,14 @@ import { useStore } from "@/store/useStore";
 import { refreshAccountSummaries } from "./useAccountSummaries";
 
 /** Reload every actor-dependent read model while server writes remain suspended. */
-export async function reprojectAccess(accountId: string): Promise<boolean> {
+export async function reprojectAccess(accountId: string, includeAccountSummaries = true): Promise<boolean> {
   useStore.getState().invalidateMemberships();
-  const summaries = await refreshAccountSummaries({
-    allowCachedFallback: false,
-    preserveActiveAccountIfMissing: true,
-  });
-  if (summaries === null) return false;
+  if (includeAccountSummaries) {
+    const summaries = await refreshAccountSummaries({
+      allowCachedFallback: false,
+      preserveActiveAccountIfMissing: true,
+    });
+    if (summaries === null) return false;
+  }
   return (await refreshActiveAccountSlice(accountId)).kind === "reloaded";
 }

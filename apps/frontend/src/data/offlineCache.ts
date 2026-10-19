@@ -4,6 +4,7 @@ import { setOfflineScope, resolveSliceRewrite } from "./offline/state";
 import { readOriginKey } from "./offline/idb";
 import { buildAuthKey, buildScopedKey } from "./offline/keys";
 import { createCachedRecord, parseAuthSnapshot, parseAccountSummaries } from "./offline/records";
+import { isMasqueradeOfflineIsolated, mayWriteOfflineSnapshot } from "./offline/masqueradeIsolation";
 import type {
   CachedRecord,
   OfflineAuthSnapshot,
@@ -38,6 +39,7 @@ const accountSliceCache = createCachedRecord<AppData, [accountId: string]>(
 
 /** Persist the last verified identity and make it the cache scope for this page. */
 export async function cacheAuthSnapshot(snapshot: OfflineAuthSnapshot): Promise<OfflineCacheWriteResult> {
+  if (!mayWriteOfflineSnapshot()) return { kind: "skipped", reason: "masquerade" };
   setOfflineScope({ origin: readOriginKey(), userId: snapshot.user.id });
   return authSnapshotCache.write(snapshot);
 }
@@ -46,6 +48,7 @@ export async function cacheAuthSnapshot(snapshot: OfflineAuthSnapshot): Promise<
 export async function readCachedAuthSnapshot(
   options: { acceptEffects?: () => boolean } = {},
 ): Promise<CachedRecord<OfflineAuthSnapshot> | null> {
+  if (isMasqueradeOfflineIsolated()) return null;
   const record = await authSnapshotCache.read();
   if (record && (options.acceptEffects?.() ?? true)) {
     // A cache miss is evidence only about durable cache state. It must not revoke a scope that a
@@ -58,22 +61,32 @@ export async function readCachedAuthSnapshot(
 
 /** Stores the validated account summaries in the encrypted offline cache. */
 export async function cacheAccountSummaries(summaries: OfflineAccountSummary[]): Promise<OfflineCacheWriteResult> {
+  if (!mayWriteOfflineSnapshot()) return { kind: "skipped", reason: "masquerade" };
   return accountSummariesCache.write(summaries);
 }
 
 /** Reads the cached account summaries for the current identity. */
 export async function readCachedAccountSummaries(): Promise<CachedRecord<OfflineAccountSummary[]> | null> {
+  if (isMasqueradeOfflineIsolated()) return null;
   return accountSummariesCache.read();
 }
 
 /** Stores an account data slice in the encrypted offline cache. */
 export async function cacheAccountSlice(accountId: string, data: AppData): Promise<OfflineCacheWriteResult> {
+  if (!mayWriteOfflineSnapshot()) return { kind: "skipped", reason: "masquerade" };
   return accountSliceCache.write(data, accountId);
 }
 
 /** Reads the cached data slice for an account. */
 export async function readCachedAccountSlice(accountId: string): Promise<CachedRecord<AppData> | null> {
+  if (isMasqueradeOfflineIsolated()) return null;
   return accountSliceCache.read(accountId);
 }
 
 export { clearOfflineDataForCurrentUser, clearAllOfflineData } from "./offline/cleanup";
+export {
+  beginMasqueradeRestorationWrites,
+  finishMasqueradeRestorationWrites,
+  isMasqueradeOfflineIsolated,
+  markMasqueradeOfflineIsolation,
+} from "./offline/masqueradeIsolation";

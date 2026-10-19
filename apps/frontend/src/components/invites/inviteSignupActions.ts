@@ -156,7 +156,7 @@ export function createInviteSignupActions({
         email: credentials.email,
         password: credentials.password,
       });
-      if (error) throw new Error(error.message ?? m.login_failed());
+      if (error) throw new Error(error.message);
       // Signup already claimed the invite atomically. Verify the exact company, then start a fresh
       // authenticated boot with persistence attached and a one-use activation handoff.
       await enterJoinedCompany(accountId);

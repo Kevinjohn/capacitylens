@@ -35,6 +35,8 @@ interface PermissionValueInput {
   enabled: boolean;
   activeAccountId: string | null;
   fetched: FetchedPermission | null;
+  masqueradeActive: boolean;
+  masqueradeRole: Role | null;
 }
 
 interface PermissionValue {
@@ -98,6 +100,11 @@ async function refreshPermission(refresh: PermissionRefresh) {
 
 function resolvePermissionValue(input: PermissionValueInput): PermissionValue {
   if (input.offlineReadOnly) return { role: "viewer", status: "unavailable" };
+  if (input.masqueradeActive) {
+    return input.masqueradeRole
+      ? { role: input.masqueradeRole, status: "resolved" }
+      : { role: "viewer", status: "pending" };
+  }
   if (!input.enabled || !input.activeAccountId) return { role: null, status: "not-applicable" };
   if (input.fetched?.status === "resolved" && input.fetched.role) {
     return { role: input.fetched.role, status: "resolved" };
@@ -111,6 +118,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   const activeAccountId = useStore((state) => state.activeAccountId);
   const setActiveRole = useStore((state) => state.setActiveRole);
   const membershipRevision = useStore((state) => state.membershipRevision);
+  const masquerade = useStore((state) => state.masquerade);
   const offline = useOfflineState();
   const offlineEpisode = readOfflineStateEpisode();
   // Tag resolved roles with accountId and membership revision so switching company immediately discards the previous role and projects Viewer until the new lookup succeeds.
@@ -121,6 +129,16 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (offline.readOnly) {
       setActiveRole("viewer", "unavailable");
+      return;
+    }
+
+    if (masquerade.kind !== "inactive") {
+      const state = masquerade.state;
+      if (state && state.accountId === activeAccountId) {
+        setActiveRole(state.effectiveRole, "resolved");
+      } else {
+        setActiveRole("viewer", "pending");
+      }
       return;
     }
 
@@ -140,7 +158,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [enabled, activeAccountId, membershipRevision, offline.readOnly, offlineEpisode, setActiveRole]);
+  }, [enabled, activeAccountId, membershipRevision, masquerade, offline.readOnly, offlineEpisode, setActiveRole]);
 
   const currentFetched =
     fetched?.accountId === activeAccountId &&
@@ -155,6 +173,11 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
     enabled,
     activeAccountId,
     fetched: currentFetched,
+    masqueradeActive: masquerade.kind !== "inactive",
+    masqueradeRole:
+      masquerade.kind !== "inactive" && masquerade.state?.accountId === activeAccountId
+        ? masquerade.state.effectiveRole
+        : null,
   });
 
   const value = useMemo(() => ({ role, status }), [role, status]);

@@ -37,7 +37,7 @@ Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Fo
 
 | Section                 | Evidence summary                                                                                        | Pass                   | Partial | Gap | N/A            |
 | ----------------------- | ------------------------------------------------------------------------------------------------------- | ---------------------- | ------- | --- | -------------- |
-| V2.1 Documentation      | `AGENTS.md`, `DEFENSIVE-CODING.md`, domain invariants and control inventory define shape/context/limits | V2.1.1, V2.1.2, V2.1.3 | —       | —   | —              |
+| V2.1 Documentation      | `AGENTS.md`, `DECISIONS.md`, domain invariants and control inventory define shape/context/limits | V2.1.1, V2.1.2, V2.1.3 | —       | —   | —              |
 | V2.2 Enforcement        | Server/domain validation is authoritative; related entity/account/date/activity rules checked           | V2.2.1, V2.2.2, V2.2.3 | —       | —   | —              |
 | V2.3 Flows/transactions | Setup/invite/link/cutover order, SQLite transactions, sync provenance, stale-import checks and atomic replacement | V2.3.1, V2.3.2, V2.3.3 | —       | —   | V2.3.4, V2.3.5 |
 | V2.4 Anti-automation    | API/health throttling and request/import/batch bounds                                                   | V2.4.1                 | —       | —   | V2.4.2         |

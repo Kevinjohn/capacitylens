@@ -6,6 +6,7 @@ import { TABLE_NAMES } from '#services/batch/entity_policy'
 import { withTransaction } from '#services/with_transaction'
 import { writeAudit } from '#services/audit'
 import { BatchRequestError } from '#services/batch/errors'
+import { assertCompanyAction } from '#services/auth/authorization'
 
 const INSERT_ORDER = [
   'clients',
@@ -19,10 +20,12 @@ const INSERT_ORDER = [
 ] as const
 
 export default class ExampleDataController {
-  async store({ params, response, auth, logger }: HttpContext) {
+  async store(ctx: HttpContext) {
+    const { params, response, logger } = ctx
     const accountId = params.accountId
     try {
       const added = await withTransaction(async (trx) => {
+        const actor = await assertCompanyAction(ctx, accountId, 'write', trx)
         const state = await readStateWithClient(trx, accountId, true)
         const account = state.accounts[0]
         if (!account) throw new BatchRequestError('Company not found.', 404)
@@ -56,7 +59,7 @@ export default class ExampleDataController {
         }
         await writeAudit(trx, {
           accountId,
-          actorId: auth.use('trustedLocal').getUserOrFail().id,
+          actorId: actor.actorId,
           action: 'exampleData',
           entity: 'account',
           entityId: accountId,

@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MasqueradeState, MasqueradeStatus } from "@capacitylens/shared/domain/masquerade";
-import { resetStoreWithAccount } from "@/test/fixtures";
+import { makeAccount, makeAppData, resetStoreWithAccount } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
 import type { FlushPendingWritesResult } from "@/data/persist";
+import { finishMasqueradeRestorationWrites, isMasqueradeOfflineIsolated } from "@/data/offlineCache";
 import { MasqueradeController } from "./masqueradeController";
 import type { MasqueradeControllerDependencies } from "./masqueradeController";
 
@@ -43,12 +44,53 @@ function harness(overrides: Partial<MasqueradeControllerDependencies> = {}) {
 }
 
 beforeEach(() => {
+  finishMasqueradeRestorationWrites(true);
   resetStoreWithAccount();
   useStore.getState().setMasquerade({ kind: "inactive" });
   useStore.getState().setNotice(null);
 });
 
 describe("MasqueradeController", () => {
+  it("keeps offline snapshots isolated unless the live company directory and account both restore", async () => {
+    resetStoreWithAccount("a-studio");
+    const refreshIdentity = vi.fn(async () => true);
+    const { controller, dependencies } = harness({
+      switchAccount: vi.fn(async (accountId: string | null) => {
+        useStore.getState().setActiveAccount(accountId);
+        return { kind: "reloaded" as const };
+      }),
+      refreshSummaries: vi.fn(async () => false),
+      refreshIdentity,
+    });
+    localStorage.setItem("capacitylens/masqueradeOfflineIsolation", "on");
+
+    await expect(controller.transitionAccount("a-studio")).resolves.toBe(true);
+
+    expect(dependencies.refreshSummaries).toHaveBeenCalledOnce();
+    expect(refreshIdentity).toHaveBeenCalledOnce();
+    expect(isMasqueradeOfflineIsolated()).toBe(true);
+  });
+
+  it("clears stale isolation only after live summaries, slice, and real identity restore", async () => {
+    resetStoreWithAccount("a-studio");
+    const refreshIdentity = vi.fn(async () => true);
+    const { controller, dependencies } = harness({
+      switchAccount: vi.fn(async (accountId: string | null) => {
+        useStore.getState().setActiveAccount(accountId);
+        return { kind: "reloaded" as const };
+      }),
+      refreshSummaries: vi.fn(async () => true),
+      refreshIdentity,
+    });
+    localStorage.setItem("capacitylens/masqueradeOfflineIsolation", "on");
+
+    await expect(controller.transitionAccount("a-studio")).resolves.toBe(true);
+
+    expect(dependencies.refreshSummaries).toHaveBeenCalledOnce();
+    expect(refreshIdentity).toHaveBeenCalledOnce();
+    expect(isMasqueradeOfflineIsolated()).toBe(false);
+  });
+
   it("succeeds while inactive without navigating or touching masquerade dependencies", async () => {
     const { controller, dependencies, resume } = harness();
     const navigate = vi.fn();
@@ -69,6 +111,7 @@ describe("MasqueradeController", () => {
 
     await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(true);
     expect(useStore.getState().masquerade.kind).toBe("active");
+    expect(isMasqueradeOfflineIsolated()).toBe(true);
     expect(dependencies.suspend).toHaveBeenCalledTimes(1);
 
     await expect(controller.end("explicit", navigate)).resolves.toBe(true);
@@ -76,7 +119,33 @@ describe("MasqueradeController", () => {
     expect(resume).toHaveBeenCalledOnce();
     expect(resume).toHaveBeenCalledWith({ dropParkedEdits: true });
     expect(useStore.getState().masquerade).toEqual({ kind: "inactive" });
+    expect(isMasqueradeOfflineIsolated()).toBe(false);
     expect(navigate).toHaveBeenCalledWith("/");
+  });
+
+  it("publishes the company name from the loaded account projection, not the member name", async () => {
+    useStore
+      .getState()
+      .replaceAll(makeAppData({ accounts: [makeAccount({ id: "a-studio", name: "Wayne Enterprises" })] }));
+    const { controller } = harness();
+
+    await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(true);
+
+    expect(useStore.getState().accountSummaries).toEqual([
+      { id: "a-studio", name: "Wayne Enterprises", role: "viewer" },
+    ]);
+  });
+
+  it("does not publish a cached company or target name before the projection is loaded", async () => {
+    useStore.getState().setAccountSummaries({
+      list: [{ id: "old-company", name: "Stark Industries", role: "owner" }],
+    });
+    const { controller } = harness();
+
+    await controller.adoptStatus({ active: true, ...state });
+
+    expect(useStore.getState().accountSummaries).toEqual([]);
+    expect(useStore.getState().accountSummariesComplete).toBe(false);
   });
 
   it("aborts before suspension when pending writes cannot be flushed", async () => {
@@ -156,7 +225,7 @@ describe("MasqueradeController transitions", () => {
 
     const starting = controller.start(state.accountId, state.targetUserId);
     await vi.waitFor(() => expect(useStore.getState().masquerade).toMatchObject({ kind: "starting", state }));
-    controller.adoptStatus({ active: false });
+    await controller.adoptStatus({ active: false });
     await vi.waitFor(() => expect(useStore.getState().masquerade).toEqual({ kind: "inactive" }));
     useStore.getState().setNotice("newer transition", "info");
 
@@ -194,8 +263,8 @@ describe("MasqueradeController generation fencing", () => {
       .mockImplementationOnce(() => restoration.promise)
       .mockResolvedValueOnce(true);
     const { controller, resume } = harness({ reproject });
-    controller.adoptStatus({ active: true, ...state });
-    controller.adoptStatus({ active: false });
+    await controller.adoptStatus({ active: true, ...state });
+    await controller.adoptStatus({ active: false });
     await vi.waitFor(() => expect(reproject).toHaveBeenCalledOnce());
 
     await expect(controller.end()).resolves.toBe(true);
@@ -262,7 +331,7 @@ describe("MasqueradeController cross-tab reconciliation", () => {
       },
     });
     const navigate = vi.fn();
-    controller.adoptStatus({ active: true, ...state });
+    await controller.adoptStatus({ active: true, ...state });
     await expect(controller.end("explicit", navigate)).resolves.toBe(true);
     expect(useStore.getState().masquerade).toMatchObject({ kind: "active", state: newer });
     expect(navigate).not.toHaveBeenCalled();
@@ -278,7 +347,7 @@ describe("MasqueradeController cross-tab reconciliation", () => {
         end: vi.fn(async () => {}),
       },
     });
-    controller.adoptStatus({ active: true, ...state });
+    await controller.adoptStatus({ active: true, ...state });
 
     await expect(controller.transitionAccount("a-loft")).resolves.toBe(false);
     expect(useStore.getState().notice).toMatchObject({
@@ -300,7 +369,7 @@ describe("MasqueradeController cross-tab reconciliation", () => {
         }),
       },
     });
-    controller.adoptStatus({ active: true, ...state });
+    await controller.adoptStatus({ active: true, ...state });
     await expect(controller.transitionAccount("a-loft")).resolves.toBe(false);
     expect(dependencies.switchAccount).not.toHaveBeenCalled();
     expect(useStore.getState().masquerade.kind).toBe("ending");
@@ -311,12 +380,24 @@ describe("MasqueradeController cross-tab reconciliation", () => {
 describe("MasqueradeController shared-session reconciliation", () => {
   it("restores the real projection when another tab has ended the shared session masquerade", async () => {
     const { controller, dependencies, resume } = harness();
-    controller.adoptStatus({ active: true, ...state });
+    await controller.adoptStatus({ active: true, ...state });
 
-    controller.adoptStatus({ active: false });
+    await controller.adoptStatus({ active: false });
     await vi.waitFor(() => expect(useStore.getState().masquerade.kind).toBe("inactive"));
 
     expect(dependencies.reproject).toHaveBeenCalledWith(state.accountId);
     expect(resume).toHaveBeenCalledWith({ dropParkedEdits: true });
+    expect(isMasqueradeOfflineIsolated()).toBe(false);
+  });
+
+  it("keeps offline snapshots isolated until the live real projection succeeds", async () => {
+    const { controller } = harness({ reproject: vi.fn(async () => false) });
+    await controller.adoptStatus({ active: true, ...state });
+    expect(isMasqueradeOfflineIsolated()).toBe(true);
+
+    controller.restoreServerEndedProjection();
+    await vi.waitFor(() => expect(useStore.getState().notice?.message).toContain("could not be restored"));
+
+    expect(isMasqueradeOfflineIsolated()).toBe(true);
   });
 });

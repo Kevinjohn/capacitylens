@@ -9,6 +9,9 @@
 |
 */
 
+const { assertSupportedNodeVersion } = await import('#start/node_version')
+assertSupportedNodeVersion()
+
 await import('reflect-metadata')
 const { Ignitor, prettyPrintError } = await import('@adonisjs/core/ignitor')
 const { createServer } = await import('node:http')
@@ -32,9 +35,11 @@ const IMPORTER = (filePath: string) => {
 }
 
 let logConnectionDrop: (entry: Record<string, unknown>) => void = () => {}
+let terminateApplication: (() => Promise<void>) | undefined
 
 new Ignitor(APP_ROOT, { importer: IMPORTER })
   .tap((app) => {
+    terminateApplication = () => app.terminate()
     app.booting(async () => {
       await import('#start/env')
     })
@@ -47,7 +52,8 @@ new Ignitor(APP_ROOT, { importer: IMPORTER })
   })
   .httpServer()
   .start((handler) => configureNodeServer(createServer(handler), logConnectionDrop))
-  .catch((error) => {
+  .catch(async (error) => {
     process.exitCode = 1
     prettyPrintError(error)
+    await terminateApplication?.()
   })
