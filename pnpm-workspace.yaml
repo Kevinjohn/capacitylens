@@ -16,9 +16,10 @@ autoInstallPeers: false
 resolvePeersFromWorkspaceRoot: false
 dedupePeerDependents: false
 
-# Sonner injects its published CSS through a runtime <style> element. Keep the same upstream CSS
-# as a normal build asset instead so production can forbid inline style elements in CSP.
+# Sonner and the dialog scroll-lock dependency inject runtime CSS. Keep their rules in self-hosted
+# application stylesheets instead so production can forbid runtime style elements in CSP.
 patchedDependencies:
+  react-remove-scroll-bar@2.3.8: patches/react-remove-scroll-bar@2.3.8.patch
   sonner@2.0.8: patches/sonner@2.0.8.patch
 
 # Keep vulnerable transitive packages on compatible patched releases where their parents have not

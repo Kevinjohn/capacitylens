@@ -123,9 +123,10 @@ review, but the operator must document retention, access groups, time synchroniz
 - pnpm's lifecycle-script policy is fail closed; `allowBuilds` permits only esbuild's reviewed
   platform-binary linker, so a newly introduced dependency install script requires an explicit
   repository change before it can execute in a clean install.
-- Workspace peers are explicit and production deployment uses a dedicated lock/graph. A
-  lockfile-recorded Sonner patch disables only its runtime CSS injector; the identical published
-  stylesheet is built as a self-hosted hashed asset so CSP can continue to forbid style elements.
+- Workspace peers are explicit and production deployment uses a dedicated lock/graph. Lockfile-
+  recorded patches disable Sonner's runtime CSS injector and move dialog scroll-lock rules into
+  the self-hosted application stylesheet; measured scrollbar compensation uses permitted style
+  attributes so CSP can continue to forbid runtime style elements.
 - Runtime images remove package managers and unused network clients. The Docker build rejects
   frontend/test packages in the API graph, and all three shipped images are scanned for
   high/critical CVEs.

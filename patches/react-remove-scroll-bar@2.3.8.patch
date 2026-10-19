@@ -1,0 +1,313 @@
+diff --git a/dist/es2015/component.js b/dist/es2015/component.js
+index 4a7ee5b055a3c1e26445977eea909e369aee857b..bed22bf6a253be3bf4343322be161fdca58938ef 100644
+--- a/dist/es2015/component.js
++++ b/dist/es2015/component.js
+@@ -1,53 +1,56 @@
+ import * as React from 'react';
+-import { styleSingleton } from 'react-style-singleton';
+-import { fullWidthClassName, zeroRightClassName, noScrollbarsClassName, removedBarSizeVariable } from './constants';
+ import { getGapWidth } from './utils';
+-var Style = styleSingleton();
+ export var lockAttribute = 'data-scroll-locked';
+-// important tip - once we measure scrollBar width and remove them
+-// we could not repeat this operation
+-// thus we are using style-singleton - only the first "yet correct" style will be applied.
+-var getStyles = function (_a, allowRelative, gapMode, important) {
+-    var left = _a.left, top = _a.top, right = _a.right, gap = _a.gap;
+-    if (gapMode === void 0) { gapMode = 'margin'; }
+-    return "\n  .".concat(noScrollbarsClassName, " {\n   overflow: hidden ").concat(important, ";\n   padding-right: ").concat(gap, "px ").concat(important, ";\n  }\n  body[").concat(lockAttribute, "] {\n    overflow: hidden ").concat(important, ";\n    overscroll-behavior: contain;\n    ").concat([
+-        allowRelative && "position: relative ".concat(important, ";"),
+-        gapMode === 'margin' &&
+-            "\n    padding-left: ".concat(left, "px;\n    padding-top: ").concat(top, "px;\n    padding-right: ").concat(right, "px;\n    margin-left:0;\n    margin-top:0;\n    margin-right: ").concat(gap, "px ").concat(important, ";\n    "),
+-        gapMode === 'padding' && "padding-right: ".concat(gap, "px ").concat(important, ";"),
+-    ]
+-        .filter(Boolean)
+-        .join(''), "\n  }\n  \n  .").concat(zeroRightClassName, " {\n    right: ").concat(gap, "px ").concat(important, ";\n  }\n  \n  .").concat(fullWidthClassName, " {\n    margin-right: ").concat(gap, "px ").concat(important, ";\n  }\n  \n  .").concat(zeroRightClassName, " .").concat(zeroRightClassName, " {\n    right: 0 ").concat(important, ";\n  }\n  \n  .").concat(fullWidthClassName, " .").concat(fullWidthClassName, " {\n    margin-right: 0 ").concat(important, ";\n  }\n  \n  body[").concat(lockAttribute, "] {\n    ").concat(removedBarSizeVariable, ": ").concat(gap, "px;\n  }\n");
+-};
++var lockStyleProperties = ['--removed-body-scroll-bar-size', '--scroll-lock-body-left', '--scroll-lock-body-top', '--scroll-lock-body-right'];
++var previousLockStyles = null;
+ var getCurrentUseCounter = function () {
+     var counter = parseInt(document.body.getAttribute(lockAttribute) || '0', 10);
+     return isFinite(counter) ? counter : 0;
+ };
+-export var useLockAttribute = function () {
++export var useLockAttribute = function (gap, allowRelative, gapMode) {
+     React.useEffect(function () {
+-        document.body.setAttribute(lockAttribute, (getCurrentUseCounter() + 1).toString());
++        var body = document.body;
++        if (gap && previousLockStyles === null) {
++            previousLockStyles = lockStyleProperties.map(function (property) { return body.style.getPropertyValue(property); });
++        }
++        if (gap) {
++            body.style.setProperty(lockStyleProperties[0], "".concat(gap.gap, "px"));
++            body.style.setProperty(lockStyleProperties[1], "".concat(gap.left, "px"));
++            body.style.setProperty(lockStyleProperties[2], "".concat(gap.top, "px"));
++            body.style.setProperty(lockStyleProperties[3], "".concat(gap.right, "px"));
++            if (allowRelative) body.removeAttribute('data-scroll-lock-no-relative');
++            else body.setAttribute('data-scroll-lock-no-relative', '');
++            if (gapMode === 'padding') body.setAttribute('data-scroll-lock-gap-mode', 'padding');
++            else body.removeAttribute('data-scroll-lock-gap-mode');
++        }
++        body.setAttribute(lockAttribute, (getCurrentUseCounter() + 1).toString());
+         return function () {
+             var newCounter = getCurrentUseCounter() - 1;
+             if (newCounter <= 0) {
+-                document.body.removeAttribute(lockAttribute);
++                body.removeAttribute(lockAttribute);
++                if (previousLockStyles) {
++                    body.removeAttribute('data-scroll-lock-no-relative');
++                    body.removeAttribute('data-scroll-lock-gap-mode');
++                    lockStyleProperties.forEach(function (property, index) {
++                        var previousValue = previousLockStyles[index];
++                        if (previousValue) body.style.setProperty(property, previousValue);
++                        else body.style.removeProperty(property);
++                    });
++                    previousLockStyles = null;
++                }
+             }
+             else {
+-                document.body.setAttribute(lockAttribute, newCounter.toString());
++                body.setAttribute(lockAttribute, newCounter.toString());
+             }
+         };
+-    }, []);
++    }, [allowRelative, gap, gapMode]);
+ };
+ /**
+  * Removes page scrollbar and blocks page scroll when mounted
+  */
+ export var RemoveScrollBar = function (_a) {
+-    var noRelative = _a.noRelative, noImportant = _a.noImportant, _b = _a.gapMode, gapMode = _b === void 0 ? 'margin' : _b;
+-    useLockAttribute();
+-    /*
+-     gap will be measured on every component mount
+-     however it will be used only by the "first" invocation
+-     due to singleton nature of <Style
+-     */
++    var noRelative = _a.noRelative, _b = _a.gapMode, gapMode = _b === void 0 ? 'margin' : _b;
+     var gap = React.useMemo(function () { return getGapWidth(gapMode); }, [gapMode]);
+-    return React.createElement(Style, { styles: getStyles(gap, !noRelative, gapMode, !noImportant ? '!important' : '') });
++    useLockAttribute(gap, !noRelative, gapMode);
++    return null;
+ };
+diff --git a/dist/es2019/component.js b/dist/es2019/component.js
+index 96f6bbb506e7c26e46def0dc1876a34d349ea221..c6672d8ac48b1af71e4ad3c6f5209fce7ae42f52 100644
+--- a/dist/es2019/component.js
++++ b/dist/es2019/component.js
+@@ -1,85 +1,55 @@
+ import * as React from 'react';
+-import { styleSingleton } from 'react-style-singleton';
+-import { fullWidthClassName, zeroRightClassName, noScrollbarsClassName, removedBarSizeVariable } from './constants';
+ import { getGapWidth } from './utils';
+-const Style = styleSingleton();
+ export const lockAttribute = 'data-scroll-locked';
+-// important tip - once we measure scrollBar width and remove them
+-// we could not repeat this operation
+-// thus we are using style-singleton - only the first "yet correct" style will be applied.
+-const getStyles = ({ left, top, right, gap }, allowRelative, gapMode = 'margin', important) => `
+-  .${noScrollbarsClassName} {
+-   overflow: hidden ${important};
+-   padding-right: ${gap}px ${important};
+-  }
+-  body[${lockAttribute}] {
+-    overflow: hidden ${important};
+-    overscroll-behavior: contain;
+-    ${[
+-    allowRelative && `position: relative ${important};`,
+-    gapMode === 'margin' &&
+-        `
+-    padding-left: ${left}px;
+-    padding-top: ${top}px;
+-    padding-right: ${right}px;
+-    margin-left:0;
+-    margin-top:0;
+-    margin-right: ${gap}px ${important};
+-    `,
+-    gapMode === 'padding' && `padding-right: ${gap}px ${important};`,
+-]
+-    .filter(Boolean)
+-    .join('')}
+-  }
+-  
+-  .${zeroRightClassName} {
+-    right: ${gap}px ${important};
+-  }
+-  
+-  .${fullWidthClassName} {
+-    margin-right: ${gap}px ${important};
+-  }
+-  
+-  .${zeroRightClassName} .${zeroRightClassName} {
+-    right: 0 ${important};
+-  }
+-  
+-  .${fullWidthClassName} .${fullWidthClassName} {
+-    margin-right: 0 ${important};
+-  }
+-  
+-  body[${lockAttribute}] {
+-    ${removedBarSizeVariable}: ${gap}px;
+-  }
+-`;
++const lockStyleProperties = ['--removed-body-scroll-bar-size', '--scroll-lock-body-left', '--scroll-lock-body-top', '--scroll-lock-body-right'];
++let previousLockStyles = null;
+ const getCurrentUseCounter = () => {
+     const counter = parseInt(document.body.getAttribute(lockAttribute) || '0', 10);
+     return isFinite(counter) ? counter : 0;
+ };
+-export const useLockAttribute = () => {
++export const useLockAttribute = (gap, allowRelative, gapMode) => {
+     React.useEffect(() => {
+-        document.body.setAttribute(lockAttribute, (getCurrentUseCounter() + 1).toString());
++        const body = document.body;
++        if (gap && previousLockStyles === null) {
++            previousLockStyles = lockStyleProperties.map((property) => body.style.getPropertyValue(property));
++        }
++        if (gap) {
++            body.style.setProperty(lockStyleProperties[0], `${gap.gap}px`);
++            body.style.setProperty(lockStyleProperties[1], `${gap.left}px`);
++            body.style.setProperty(lockStyleProperties[2], `${gap.top}px`);
++            body.style.setProperty(lockStyleProperties[3], `${gap.right}px`);
++            if (allowRelative) body.removeAttribute('data-scroll-lock-no-relative');
++            else body.setAttribute('data-scroll-lock-no-relative', '');
++            if (gapMode === 'padding') body.setAttribute('data-scroll-lock-gap-mode', 'padding');
++            else body.removeAttribute('data-scroll-lock-gap-mode');
++        }
++        body.setAttribute(lockAttribute, (getCurrentUseCounter() + 1).toString());
+         return () => {
+             const newCounter = getCurrentUseCounter() - 1;
+             if (newCounter <= 0) {
+-                document.body.removeAttribute(lockAttribute);
++                body.removeAttribute(lockAttribute);
++                if (previousLockStyles) {
++                    body.removeAttribute('data-scroll-lock-no-relative');
++                    body.removeAttribute('data-scroll-lock-gap-mode');
++                    lockStyleProperties.forEach((property, index) => {
++                        const previousValue = previousLockStyles[index];
++                        if (previousValue) body.style.setProperty(property, previousValue);
++                        else body.style.removeProperty(property);
++                    });
++                    previousLockStyles = null;
++                }
+             }
+             else {
+-                document.body.setAttribute(lockAttribute, newCounter.toString());
++                body.setAttribute(lockAttribute, newCounter.toString());
+             }
+         };
+-    }, []);
++    }, [allowRelative, gap, gapMode]);
+ };
+ /**
+  * Removes page scrollbar and blocks page scroll when mounted
+  */
+-export const RemoveScrollBar = ({ noRelative, noImportant, gapMode = 'margin' }) => {
+-    useLockAttribute();
+-    /*
+-     gap will be measured on every component mount
+-     however it will be used only by the "first" invocation
+-     due to singleton nature of <Style
+-     */
++export const RemoveScrollBar = ({ noRelative, gapMode = 'margin' }) => {
+     const gap = React.useMemo(() => getGapWidth(gapMode), [gapMode]);
+-    return React.createElement(Style, { styles: getStyles(gap, !noRelative, gapMode, !noImportant ? '!important' : '') });
++    useLockAttribute(gap, !noRelative, gapMode);
++    return null;
+ };
+diff --git a/dist/es5/component.js b/dist/es5/component.js
+index c29d6d8fe783a81bf1468511070f47db5c2fbacc..e2972f414b71362e2d76d7b7b8d14f17c5d6f219 100644
+--- a/dist/es5/component.js
++++ b/dist/es5/component.js
+@@ -3,57 +3,61 @@ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.RemoveScrollBar = exports.useLockAttribute = exports.lockAttribute = void 0;
+ var tslib_1 = require("tslib");
+ var React = tslib_1.__importStar(require("react"));
+-var react_style_singleton_1 = require("react-style-singleton");
+-var constants_1 = require("./constants");
+ var utils_1 = require("./utils");
+-var Style = (0, react_style_singleton_1.styleSingleton)();
+ exports.lockAttribute = 'data-scroll-locked';
+-// important tip - once we measure scrollBar width and remove them
+-// we could not repeat this operation
+-// thus we are using style-singleton - only the first "yet correct" style will be applied.
+-var getStyles = function (_a, allowRelative, gapMode, important) {
+-    var left = _a.left, top = _a.top, right = _a.right, gap = _a.gap;
+-    if (gapMode === void 0) { gapMode = 'margin'; }
+-    return "\n  .".concat(constants_1.noScrollbarsClassName, " {\n   overflow: hidden ").concat(important, ";\n   padding-right: ").concat(gap, "px ").concat(important, ";\n  }\n  body[").concat(exports.lockAttribute, "] {\n    overflow: hidden ").concat(important, ";\n    overscroll-behavior: contain;\n    ").concat([
+-        allowRelative && "position: relative ".concat(important, ";"),
+-        gapMode === 'margin' &&
+-            "\n    padding-left: ".concat(left, "px;\n    padding-top: ").concat(top, "px;\n    padding-right: ").concat(right, "px;\n    margin-left:0;\n    margin-top:0;\n    margin-right: ").concat(gap, "px ").concat(important, ";\n    "),
+-        gapMode === 'padding' && "padding-right: ".concat(gap, "px ").concat(important, ";"),
+-    ]
+-        .filter(Boolean)
+-        .join(''), "\n  }\n  \n  .").concat(constants_1.zeroRightClassName, " {\n    right: ").concat(gap, "px ").concat(important, ";\n  }\n  \n  .").concat(constants_1.fullWidthClassName, " {\n    margin-right: ").concat(gap, "px ").concat(important, ";\n  }\n  \n  .").concat(constants_1.zeroRightClassName, " .").concat(constants_1.zeroRightClassName, " {\n    right: 0 ").concat(important, ";\n  }\n  \n  .").concat(constants_1.fullWidthClassName, " .").concat(constants_1.fullWidthClassName, " {\n    margin-right: 0 ").concat(important, ";\n  }\n  \n  body[").concat(exports.lockAttribute, "] {\n    ").concat(constants_1.removedBarSizeVariable, ": ").concat(gap, "px;\n  }\n");
+-};
++var lockStyleProperties = ['--removed-body-scroll-bar-size', '--scroll-lock-body-left', '--scroll-lock-body-top', '--scroll-lock-body-right'];
++var previousLockStyles = null;
+ var getCurrentUseCounter = function () {
+     var counter = parseInt(document.body.getAttribute(exports.lockAttribute) || '0', 10);
+     return isFinite(counter) ? counter : 0;
+ };
+-var useLockAttribute = function () {
++var useLockAttribute = function (gap, allowRelative, gapMode) {
+     React.useEffect(function () {
+-        document.body.setAttribute(exports.lockAttribute, (getCurrentUseCounter() + 1).toString());
++        var body = document.body;
++        if (gap && previousLockStyles === null) {
++            previousLockStyles = lockStyleProperties.map(function (property) { return body.style.getPropertyValue(property); });
++        }
++        if (gap) {
++            body.style.setProperty(lockStyleProperties[0], "".concat(gap.gap, "px"));
++            body.style.setProperty(lockStyleProperties[1], "".concat(gap.left, "px"));
++            body.style.setProperty(lockStyleProperties[2], "".concat(gap.top, "px"));
++            body.style.setProperty(lockStyleProperties[3], "".concat(gap.right, "px"));
++            if (allowRelative) body.removeAttribute('data-scroll-lock-no-relative');
++            else body.setAttribute('data-scroll-lock-no-relative', '');
++            if (gapMode === 'padding') body.setAttribute('data-scroll-lock-gap-mode', 'padding');
++            else body.removeAttribute('data-scroll-lock-gap-mode');
++        }
++        body.setAttribute(exports.lockAttribute, (getCurrentUseCounter() + 1).toString());
+         return function () {
+             var newCounter = getCurrentUseCounter() - 1;
+             if (newCounter <= 0) {
+-                document.body.removeAttribute(exports.lockAttribute);
++                body.removeAttribute(exports.lockAttribute);
++                if (previousLockStyles) {
++                    body.removeAttribute('data-scroll-lock-no-relative');
++                    body.removeAttribute('data-scroll-lock-gap-mode');
++                    lockStyleProperties.forEach(function (property, index) {
++                        var previousValue = previousLockStyles[index];
++                        if (previousValue) body.style.setProperty(property, previousValue);
++                        else body.style.removeProperty(property);
++                    });
++                    previousLockStyles = null;
++                }
+             }
+             else {
+-                document.body.setAttribute(exports.lockAttribute, newCounter.toString());
++                body.setAttribute(exports.lockAttribute, newCounter.toString());
+             }
+         };
+-    }, []);
++    }, [allowRelative, gap, gapMode]);
+ };
+ exports.useLockAttribute = useLockAttribute;
+ /**
+  * Removes page scrollbar and blocks page scroll when mounted
+  */
+ var RemoveScrollBar = function (_a) {
+-    var noRelative = _a.noRelative, noImportant = _a.noImportant, _b = _a.gapMode, gapMode = _b === void 0 ? 'margin' : _b;
+-    (0, exports.useLockAttribute)();
+-    /*
+-     gap will be measured on every component mount
+-     however it will be used only by the "first" invocation
+-     due to singleton nature of <Style
+-     */
++    var noRelative = _a.noRelative, gapMode = _a.gapMode;
++    if (gapMode === void 0) { gapMode = 'margin'; }
+     var gap = React.useMemo(function () { return (0, utils_1.getGapWidth)(gapMode); }, [gapMode]);
+-    return React.createElement(Style, { styles: getStyles(gap, !noRelative, gapMode, !noImportant ? '!important' : '') });
++    (0, exports.useLockAttribute)(gap, !noRelative, gapMode);
++    return null;
+ };
+ exports.RemoveScrollBar = RemoveScrollBar;

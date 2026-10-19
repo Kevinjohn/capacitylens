@@ -15,6 +15,8 @@ new features and **patch** versions carry fixes.
 
 - The native archive uses password authentication and database sessions, with open production
   access disabled in the installation example.
+- Dialogs keep body scroll locked under the strict production CSP using static application CSS and
+  measured inline style attributes, with the previous scrollbar compensation restored on close.
 
 - Invalid account-access, checklist and masquerade responses now show the existing error feedback instead of accepting malformed fields (#1449).
 
