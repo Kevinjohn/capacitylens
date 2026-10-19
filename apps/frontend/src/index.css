@@ -389,6 +389,15 @@ input[type="radio"] {
 }
 
 /* Keep Radix dialog scroll locking in the CSP-approved stylesheet; the measured gaps stay on body. */
+/* Radix Select also injects these viewport rules at runtime, so self-host them for the CSP. */
+[data-radix-select-viewport] {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+}
+[data-radix-select-viewport]::-webkit-scrollbar {
+  display: none;
+}
 .with-scroll-bars-hidden {
   overflow: hidden;
   padding-right: var(--removed-body-scroll-bar-size, 0px);

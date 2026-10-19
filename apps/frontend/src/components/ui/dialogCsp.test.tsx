@@ -1,7 +1,15 @@
+import userEvent from "@testing-library/user-event";
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import "@/index.css";
 
 let restoreViewport: (() => void) | undefined;
@@ -12,7 +20,8 @@ afterEach(() => {
 });
 
 describe("dialog scroll locking under the application CSP", () => {
-  it("locks body scrolling without injecting a style element and cleans up its measured gap", () => {
+  it("locks body scrolling and opens a nested select without injecting a style element", async () => {
+    const user = userEvent.setup();
     const existingLockStyles = [
       ["--removed-body-scroll-bar-size", "7px", "important"],
       ["--scroll-lock-body-left", "2px", "important"],
@@ -60,6 +69,15 @@ describe("dialog scroll locking under the application CSP", () => {
       <Dialog open>
         <DialogContent>
           <DialogTitle>Schedule work</DialogTitle>
+          <Select defaultValue="bruce">
+            <SelectTrigger aria-label="Assignee">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="bruce">Bruce Wayne</SelectItem>
+              <SelectItem value="diana">Diana Prince</SelectItem>
+            </SelectContent>
+          </Select>
         </DialogContent>
       </Dialog>,
     );
@@ -84,6 +102,21 @@ describe("dialog scroll locking under the application CSP", () => {
     expect(
       document.body.style.getPropertyValue("--removed-body-scroll-bar-size"),
     ).toBe("24px");
+
+    await user.click(screen.getByRole("combobox", { name: "Assignee" }));
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Diana Prince" }),
+    ).toBeInTheDocument();
+    expect(document.querySelectorAll("style")).toHaveLength(styleCount);
+    expect(document.body).toHaveAttribute("data-scroll-locked", "2");
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(
+      screen.getByRole("combobox", { name: "Assignee" }),
+    );
+    expect(document.body).toHaveAttribute("data-scroll-locked", "1");
+    expect(document.querySelectorAll("style")).toHaveLength(styleCount);
 
     Object.defineProperty(window, "innerWidth", {
       configurable: true,

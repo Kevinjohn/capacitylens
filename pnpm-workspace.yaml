@@ -16,9 +16,10 @@ autoInstallPeers: false
 resolvePeersFromWorkspaceRoot: false
 dedupePeerDependents: false
 
-# Sonner and the dialog scroll-lock dependency inject runtime CSS. Keep their rules in self-hosted
-# application stylesheets instead so production can forbid runtime style elements in CSP.
+# Sonner, Radix Select, and the dialog scroll-lock dependency inject runtime CSS. Keep their rules
+# in self-hosted application stylesheets instead so production can forbid runtime style elements in CSP.
 patchedDependencies:
+  "@radix-ui/react-select@2.3.7": patches/@radix-ui__react-select@2.3.7.patch
   react-remove-scroll-bar@2.3.8: patches/react-remove-scroll-bar@2.3.8.patch
   sonner@2.0.8: patches/sonner@2.0.8.patch
 
