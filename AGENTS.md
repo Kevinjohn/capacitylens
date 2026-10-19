@@ -12,7 +12,7 @@ Read this file with [DECISIONS.md](DECISIONS.md) and the official AdonisJS docum
 - Every scoped row carries its company id. The server independently authorizes every tenant read and write; client scoping is not authorization.
 - Over-capacity means allocated is greater than available. Normal allocations use working days unless the explicit override applies. Visible utilisation follows the visible window; `overSoon` stays fixed at 14 days.
 - Activity kind is required; only project activities carry project or phase ids. Colours use preset swatches, and a person's colour derives from discipline.
-- Ordinary writes reject invalid supplied input; imports sanitize and repair atomically. Demo mode is temporary and in-memory. Offline snapshots are opt-in, expire after seven days, and are read-only.
+- Ordinary writes reject invalid supplied input; imports sanitize and repair atomically. Demo mode is temporary and in-memory. Scheduling data is never persisted in the browser; failed requests remain visible and retryable.
 
 ## Identity, security and data
 

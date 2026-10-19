@@ -5,7 +5,6 @@ import { usePermissionStatus, useRole } from "@/auth/permissionContext";
 import { useAuth } from "@/auth/authContext";
 import { resolveAccessLabel, resolveAccessSummary } from "@/lib/accessCopy";
 import { resolveAccessExperience } from "@/lib/resolveAccessExperience";
-import { useOfflineState } from "@/data/useOfflineState";
 import { MembersSection } from "./MembersSection";
 import { JoiningPolicyPanel } from "./JoiningPolicyPanel";
 import { useStore } from "@/store/useStore";
@@ -31,12 +30,10 @@ interface CurrentAccessCardProps {
 interface AccessManagementProps {
   authenticated: boolean;
   mayManage: boolean;
-  offlineReadOnly: boolean;
   permissionStatus: ReturnType<typeof usePermissionStatus>;
 }
 
 interface ResolveAccessWarningInput {
-  offlineReadOnly: boolean;
   accessExperience: ReturnType<typeof resolveAccessExperience>;
 }
 
@@ -51,8 +48,7 @@ function listCapabilities(role: Role): Capability[] {
   ];
 }
 
-function resolveAccessWarning({ offlineReadOnly, accessExperience }: ResolveAccessWarningInput) {
-  if (offlineReadOnly) return null;
+function resolveAccessWarning({ accessExperience }: ResolveAccessWarningInput) {
   if (accessExperience === "demo") return m.access_demo_warning();
   if (accessExperience === "open") return m.access_open_warning();
   return null;
@@ -119,7 +115,7 @@ function CurrentAccessCard({ accessLabel, accessSummary, accessWarning, effectiv
   );
 }
 
-function AccessManagement({ authenticated, mayManage, offlineReadOnly, permissionStatus }: AccessManagementProps) {
+function AccessManagement({ authenticated, mayManage, permissionStatus }: AccessManagementProps) {
   if (!authenticated) {
     return (
       <Alert>
@@ -128,7 +124,7 @@ function AccessManagement({ authenticated, mayManage, offlineReadOnly, permissio
     );
   }
   if (mayManage) return <MembersSection />;
-  if (offlineReadOnly || permissionStatus !== "resolved") return null;
+  if (permissionStatus !== "resolved") return null;
 
   return (
     <Card>
@@ -161,18 +157,13 @@ export function TeamAccessView() {
   const role = useRole();
   const permissionStatus = usePermissionStatus();
   const { authMode } = useAuth();
-  const offline = useOfflineState();
   const masqueradeActive = useStore((state) => state.masquerade.kind !== "inactive");
   const accessExperience = resolveAccessExperience(authMode);
   const authenticated = accessExperience === "authenticated";
   const resolvedRole = authenticated && permissionStatus === "resolved" ? role : null;
-  // A cached slice is always the Viewer projection, regardless of the last online role or whether
-  // this is an auth-off installation. Never advertise live Owner/Open/Demo powers while writes are
-  // deliberately disabled and the server cannot confirm membership.
-  const effectiveRole: Role | null = offline.readOnly ? "viewer" : resolvedRole;
-  const mayManage = !offline.readOnly && resolvedRole !== null && can(resolvedRole, "manageMembers");
+  const effectiveRole: Role | null = resolvedRole;
+  const mayManage = resolvedRole !== null && can(resolvedRole, "manageMembers");
   const accessCopyInput = {
-    offlineReadOnly: offline.readOnly,
     experience: accessExperience,
     permissionStatus,
     role: resolvedRole,
@@ -180,7 +171,6 @@ export function TeamAccessView() {
   const accessLabel = resolveAccessLabel(accessCopyInput);
   const accessSummary = resolveAccessSummary(accessCopyInput);
   const accessWarning = resolveAccessWarning({
-    offlineReadOnly: offline.readOnly,
     accessExperience,
   });
 
@@ -199,17 +189,12 @@ export function TeamAccessView() {
 
       {/* Resolve permission before mounting: lower roles must not issue privileged directory reads
           merely by visiting this page. */}
-      <AccessManagement
-        authenticated={authenticated}
-        mayManage={mayManage}
-        offlineReadOnly={offline.readOnly}
-        permissionStatus={permissionStatus}
-      />
+      <AccessManagement authenticated={authenticated} mayManage={mayManage} permissionStatus={permissionStatus} />
 
       <PolicyManagement accountId={activeAccountId} role={resolvedRole} enabled={authenticated && mayManage} />
 
       {/* Ownership changes remain an online action of the real Owner, never the masqueraded target. */}
-      {authenticated && !offline.readOnly && !masqueradeActive && resolvedRole === "owner" && <OwnershipTransferCard />}
+      {authenticated && !masqueradeActive && resolvedRole === "owner" && <OwnershipTransferCard />}
     </div>
   );
 }

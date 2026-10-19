@@ -2,7 +2,6 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePermissionStatus, useRole } from "@/auth/permissionContext";
 import { isDemoMode } from "@/data/apiConfig";
-import { useOfflineState } from "@/data/useOfflineState";
 import { m } from "@/i18n";
 import { startTour } from "@/lib/tour";
 
@@ -11,10 +10,9 @@ export function useTourAction(setNotice: (message: string, tone: "error") => voi
   const navigate = useNavigate();
   const role = useRole();
   const permissionStatus = usePermissionStatus();
-  const offline = useOfflineState();
   const tourInFlight = useRef(false);
   const [tourBusy, setTourBusy] = useState(false);
-  const canShowTour = (permissionStatus === "resolved" || permissionStatus === "not-applicable") && !offline.readOnly;
+  const canShowTour = permissionStatus === "resolved" || permissionStatus === "not-applicable";
 
   const showTour = async (): Promise<void> => {
     if (!canShowTour || tourInFlight.current) return;

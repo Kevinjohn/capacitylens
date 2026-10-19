@@ -1,5 +1,4 @@
-// Canonicalise the build-time API origin once so live requests and offline namespaces
-// share the same backend identity. Demo builds retain scheduling data only in memory.
+// Canonicalise the API origin for live requests. Demo data stays in memory.
 
 function readOptionalEnvironmentString(value: unknown, variableName: string): string | undefined {
   if (value === undefined || value === null) return undefined;

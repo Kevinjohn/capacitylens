@@ -1,7 +1,6 @@
 import { m } from "@/i18n";
 import { teamAccessClient } from "@/account/teamAccessClient";
 import { refreshAccountSummaries } from "@/auth/useAccountSummaries";
-import { readOfflineStateSnapshot } from "@/data/offlineCache";
 import { refreshActiveAccountSlice } from "@/data/persist";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import type { MemberActionDependencies } from "./MemberActionDependencies";
@@ -36,14 +35,6 @@ function hasAuthoritativeAccountSummary({ summaries, accountId, knownRemoved }: 
   return summaries !== null && !knownRemoved && summaries.some((account) => account.id === accountId);
 }
 
-type IsCallerAccessUnverifiedOptions = {
-  summaries: Awaited<ReturnType<typeof refreshAccountSummaries>>;
-  offlineReadOnly: boolean;
-};
-function isCallerAccessUnverified({ summaries, offlineReadOnly }: IsCallerAccessUnverifiedOptions) {
-  return summaries === null || offlineReadOnly;
-}
-
 function createRefreshCallerAccess({
   activeAccountId,
   invalidateMemberships,
@@ -61,9 +52,9 @@ function createRefreshCallerAccess({
     invalidateMemberships();
     await refreshAuth();
     if (!isActiveAccount(accountId)) return { kind: "left" };
-    const summaries = await refreshAccountSummaries({ allowCachedFallback: false });
+    const summaries = await refreshAccountSummaries();
     if (!isActiveAccount(accountId)) return { kind: "left" };
-    if (isCallerAccessUnverified({ summaries: summaries, offlineReadOnly: readOfflineStateSnapshot().readOnly })) {
+    if (summaries === null) {
       closeActiveAccount();
       setNotice(m.settings_members_access_refresh_failed(), "error");
       return { kind: "failed" };
@@ -74,7 +65,7 @@ function createRefreshCallerAccess({
     }
     const outcome = await refreshActiveAccountSlice(accountId);
     if (!isActiveAccount(accountId)) return { kind: "left" };
-    if (outcome.kind === "reloaded" && !readOfflineStateSnapshot().readOnly) return { kind: "active" };
+    if (outcome.kind === "reloaded") return { kind: "active" };
     closeActiveAccount();
     setNotice(m.settings_members_access_refresh_failed(), "error");
     return { kind: "failed" };

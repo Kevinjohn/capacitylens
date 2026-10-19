@@ -35,7 +35,7 @@ async function readAcceptedMembership(response: Response): Promise<AcceptedMembe
 }
 
 async function refreshInvalidResult(setState: InviteStateSetter): Promise<void> {
-  const list = await refreshAccountSummaries({ allowCachedFallback: false });
+  const list = await refreshAccountSummaries();
   const message = list !== null ? m.invite_invalid_result_refreshed() : m.invite_invalid_result_refresh_failed();
   setState({ kind: "error", message });
 }
@@ -52,7 +52,7 @@ async function resolveRejectedMessage({
 }: ResolveRejectedMessageOptions): Promise<string> {
   let reconciliation = "";
   if (outcomeUnknown) {
-    const list = await refreshAccountSummaries({ allowCachedFallback: false });
+    const list = await refreshAccountSummaries();
     reconciliation = list !== null ? m.invite_unknown_refreshed() : m.invite_unknown_refresh_failed();
   }
   if (failure.code === "INVITATION_EMAIL_MISMATCH") return m.invite_err_identity_mismatch();
@@ -95,7 +95,6 @@ async function activateJoinedAccount(
   try {
     const list = await refreshAccountSummaries({
       signal: AbortSignal.timeout(5000),
-      allowCachedFallback: false,
       preserveActiveAccountIfMissing: true,
     });
     // The directory refresh remains useful after navigation, but this route no longer owns the
@@ -123,7 +122,7 @@ async function reportUnknownAcceptance(setState: InviteStateSetter, error: unkno
   // The POST may have reached the server before the transport failed, so do not invite a blind
   // retry. Refresh authoritative membership state and explain how to verify the outcome.
   console.error("InviteAccept: accept request failed", error);
-  const list = await refreshAccountSummaries({ allowCachedFallback: false });
+  const list = await refreshAccountSummaries();
   const message = list !== null ? m.invite_unknown_outcome_refreshed() : m.invite_unknown_outcome_refresh_failed();
   setState({ kind: "error", message, retryAccept: true });
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/auth/authContext";
 import { isServerConfigured } from "@/data/apiConfig";
 import { formatDiagnostics, readBrowserDiagnostics, readDiagnostics } from "@/data/buildInfo";
-import { usePersistenceDiagnostics } from "@/data/useOfflineState";
+import { usePersistenceDiagnostics } from "@/data/usePersistenceDiagnostics";
 import { accountClient } from "@/account/accountClient";
 
 type ServerObservation = { response: unknown; observedAt: string | undefined };

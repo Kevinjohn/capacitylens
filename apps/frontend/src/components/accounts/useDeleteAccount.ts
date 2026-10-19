@@ -27,7 +27,7 @@ export function useDeleteAccount({ refreshAuth }: { refreshAuth: ReturnType<type
       const res = await accountClient.eraseWorkspace(id);
       if (!res.ok) {
         if (hasUnknownAccountCommandOutcome(res)) {
-          const fresh = await refreshAccountSummaries({ allowCachedFallback: false });
+          const fresh = await refreshAccountSummaries();
           await refreshAuth();
           setNotice(fresh !== null ? m.picker_delete_unknown_refreshed() : m.picker_delete_unknown_stale(), "warning");
           return;
@@ -47,7 +47,7 @@ export function useDeleteAccount({ refreshAuth }: { refreshAuth: ReturnType<type
       // now-deleted company in the picker (re-clicking it 403s) until a manual reload. Reconcile
       // instead: re-read the authoritative /api/accounts list and adopt it (the company drops out
       // if the erase committed; a failed re-read leaves the list untouched, same as before).
-      const fresh = await refreshAccountSummaries({ allowCachedFallback: false });
+      const fresh = await refreshAccountSummaries();
       await refreshAuth();
       setNotice(
         fresh !== null

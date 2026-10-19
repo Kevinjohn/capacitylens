@@ -60,7 +60,7 @@ sign-in on **Choose an account**, then pick a company on **Choose a company**.
 - **Time off in the same picture:** holidays, closures and each person's start and end dates sit
   beside the work.
 - **How full everyone is:** utilisation per person and across the weeks on screen.
-- **Offline, read-only:** an optional snapshot of the schedule on your device, kept for seven days.
+- **Server-owned scheduling:** a connection is required; failed requests show an error and retry controls.
 - **Your own server:** your data in one SQLite file you control, under AGPL-3.0.
 
 ## What it deliberately isn't

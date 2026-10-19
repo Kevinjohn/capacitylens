@@ -128,12 +128,7 @@ export default defineConfig([
   },
   {
     files: ["apps/frontend/public/**/*.{js,jsx,mjs,cjs}"],
-    ignores: ["apps/frontend/public/offline-worker.js"],
     languageOptions: { globals: globals.browser },
-  },
-  {
-    files: ["apps/frontend/public/offline-worker.js"],
-    languageOptions: { globals: globals.serviceworker },
   },
 
   {

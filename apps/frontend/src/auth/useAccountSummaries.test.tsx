@@ -4,22 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { fetchAccountSummaries, refreshAccountSummaries, useAccountSummaries } from "./useAccountSummaries";
 import { useStore } from "@/store/useStore";
-import {
-  cacheAccountSummaries,
-  readOfflineStateSnapshot,
-  readCachedAccountSummaries,
-  setOfflineReadState,
-} from "@/data/offlineCache";
 import { m } from "@/i18n";
-
-vi.mock("@/data/offlineCache", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/data/offlineCache")>();
-  return {
-    ...actual,
-    cacheAccountSummaries: vi.fn(actual.cacheAccountSummaries),
-    readCachedAccountSummaries: vi.fn(actual.readCachedAccountSummaries),
-  };
-});
 
 // Only a genuine empty array may clear the picker. Malformed responses or an array with no valid rows preserve the existing list; mixed responses keep valid rows and log discarded entries.
 
@@ -27,7 +12,6 @@ afterEach(() => {
   useStore.setState({ activeAccountId: null, masquerade: { kind: "inactive" } });
   useStore.getState().setAccountSummaries({ list: [] });
   useStore.getState().setNotice(null);
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -88,81 +72,10 @@ function createBasicResponseClassificationTests() {
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("duplicate account identities"));
     expect(useStore.getState().notice).toEqual({ message: m.picker_accounts_incomplete(), tone: "warning" });
   });
-
-  it("does not mark a cached active slice online merely because the company directory responds", async () => {
-    useStore.setState({ activeAccountId: "a1" });
-    setOfflineReadState({ owner: "accounts", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => json(200, [{ id: "a1", name: "Studio A", role: "owner" }])),
-    );
-
-    await expect(fetchAccountSummaries()).resolves.toHaveLength(1);
-
-    expect(readOfflineStateSnapshot().readOnly).toBe(true);
-  });
-
-  it("does clear an identity/list-only offline marker at the company picker", async () => {
-    useStore.setState({ activeAccountId: null });
-    setOfflineReadState({ owner: "accounts", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => json(200, [{ id: "a1", name: "Studio A", role: "owner" }])),
-    );
-
-    await expect(fetchAccountSummaries()).resolves.toHaveLength(1);
-
-    expect(readOfflineStateSnapshot().readOnly).toBe(false);
-  });
 }
 
-function createCachedResponseClassificationTests() {
-  it("does not mark a live active slice read-only when only the company directory falls back to cache", async () => {
-    const savedAt = Date.parse("2026-07-17T10:00:00.000Z");
-    useStore.setState({ activeAccountId: "a1" });
-    vi.mocked(readCachedAccountSummaries).mockResolvedValueOnce({
-      key: "cached-accounts",
-      savedAt,
-      value: [{ id: "a1", name: "Studio A", role: "owner" }],
-    });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => json(503, { error: "down" })),
-    );
-
-    await expect(fetchAccountSummaries()).resolves.toEqual([{ id: "a1", name: "Studio A", role: "owner" }]);
-
-    expect(readOfflineStateSnapshot()).toEqual({
-      readOnly: false,
-      lastUpdated: null,
-      cacheWriteFailed: false,
-    });
-  });
-
-  it("does mark the picker read-only when its company directory falls back to cache", async () => {
-    const savedAt = Date.parse("2026-07-17T10:00:00.000Z");
-    useStore.setState({ activeAccountId: null });
-    vi.mocked(readCachedAccountSummaries).mockResolvedValueOnce({
-      key: "cached-accounts",
-      savedAt,
-      value: [{ id: "a1", name: "Studio A", role: "owner" }],
-    });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => json(503, { error: "down" })),
-    );
-
-    await expect(fetchAccountSummaries()).resolves.toHaveLength(1);
-
-    expect(readOfflineStateSnapshot()).toEqual({
-      readOnly: true,
-      lastUpdated: savedAt,
-      cacheWriteFailed: false,
-    });
-  });
-
+function createUnknownRoleResponseTest() {
   it("keeps a valid account selectable but marks an unrecognized role unavailable", async () => {
-    vi.mocked(cacheAccountSummaries).mockClear();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const row = { id: "a1", name: "Studio A", role: "future-role" };
     vi.stubGlobal(
@@ -174,7 +87,6 @@ function createCachedResponseClassificationTests() {
       { id: "a1", name: "Studio A", role: "viewer", roleStatus: "unavailable" },
     ]);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("unrecognized role"));
-    expect(cacheAccountSummaries).not.toHaveBeenCalled();
   });
 }
 
@@ -219,38 +131,10 @@ function createMalformedResponseClassificationTests() {
   });
 }
 
-function createFallbackResponseClassificationTests() {
-  it("refuses a cached directory when a caller requires authoritative reconciliation", async () => {
-    vi.mocked(readCachedAccountSummaries).mockClear();
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => json(503, { error: "down" })),
-    );
-
-    await expect(fetchAccountSummaries({ allowCachedFallback: false })).resolves.toBeNull();
-    expect(readCachedAccountSummaries).not.toHaveBeenCalled();
-  });
-
-  it("a 5xx plus an unreadable offline directory still resolves null instead of rejecting", async () => {
-    const cacheError = new Error("IndexedDB unavailable");
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    vi.mocked(readCachedAccountSummaries).mockRejectedValueOnce(cacheError);
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => json(503, { error: "down" })),
-    );
-
-    await expect(fetchAccountSummaries()).resolves.toBeNull();
-
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("offline account list could not be read"), cacheError);
-  });
-}
-
 describe("fetchAccountSummaries — response classification", () => {
   createBasicResponseClassificationTests();
-  createCachedResponseClassificationTests();
+  createUnknownRoleResponseTest();
   createMalformedResponseClassificationTests();
-  createFallbackResponseClassificationTests();
 });
 
 function createOrderedRefreshTests() {

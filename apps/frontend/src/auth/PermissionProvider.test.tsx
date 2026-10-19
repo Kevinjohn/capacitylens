@@ -7,7 +7,6 @@ import type { AuthContextValue } from "./authContext";
 import { useCanEdit, usePermissionStatus, useRole } from "./permissionContext";
 import { makeAccount, makeAppData, resetStoreWithAccount } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
-import { setOfflineReadState } from "@/data/offlineCache";
 import { useAccountSummaries } from "./useAccountSummaries";
 import * as accountTransition from "./accountTransition";
 
@@ -95,13 +94,11 @@ beforeEach(() => {
   permissionMocks.masqueradeStatus.mockReset().mockResolvedValue({ active: false });
   resetStoreWithAccount();
   useStore.setState({ masquerade: { kind: "inactive" } });
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.stubEnv("VITE_CAPACITYLENS_DEMO", "");
 });
 
 afterEach(() => {
   useStore.setState({ masquerade: { kind: "inactive" } });
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
@@ -154,66 +151,9 @@ describe("PermissionProvider authenticated lookup posture", () => {
     expect(useStore.getState().activeRole).toBe("viewer");
     expect(useStore.getState().activeRoleStatus).toBe("unavailable");
   });
-
-  it("reports membership as unavailable for the offline Viewer projection without fetching", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") });
-    const view = renderProvider();
-
-    expect(screen.getByText("unavailable:viewer:read")).toBeInTheDocument();
-    await waitFor(() => expect(useStore.getState().activeRole).toBe("viewer"));
-    expect(useStore.getState().activeRoleStatus).toBe("unavailable");
-    expect(fetchMock).not.toHaveBeenCalled();
-    // Reset the global offline marker only after the provider stops observing it.
-    view.unmount();
-  });
 });
 
 describe("PermissionProvider refresh behavior", () => {
-  it("keeps role and store pending/viewer after offline clears until a fresh lookup resolves", async () => {
-    let resolveRefresh!: (response: Response) => void;
-    const refresh = new Promise<Response>((resolve) => {
-      resolveRefresh = resolve;
-    });
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify([{ id: useStore.getState().activeAccountId, name: "Wayne Enterprises", role: "owner" }]),
-          { status: 200 },
-        ),
-      )
-      .mockImplementationOnce(() => refresh);
-    vi.stubGlobal("fetch", fetchMock);
-    renderProvider();
-
-    expect(await screen.findByText("resolved:owner:edit")).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe("owner");
-
-    act(() =>
-      setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") }),
-    );
-    expect(screen.getByText("unavailable:viewer:read")).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe("viewer");
-
-    act(() => setOfflineReadState({ owner: "cleanup", readOnly: false }));
-    expect(screen.getByText("pending:viewer:read")).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe("viewer");
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-
-    resolveRefresh(
-      new Response(
-        JSON.stringify([{ id: useStore.getState().activeAccountId, name: "Wayne Enterprises", role: "admin" }]),
-        {
-          status: 200,
-        },
-      ),
-    );
-    expect(await screen.findByText("resolved:admin:edit")).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe("admin");
-  });
-
   it("enables editing only after a concrete write-tier role resolves", async () => {
     vi.stubGlobal(
       "fetch",

@@ -2,13 +2,6 @@ import { KNOWN_KEYS, migrateWithRepairBase } from "@capacitylens/shared/data/mig
 import type { MigrationWithRepairBase } from "@capacitylens/shared/data/migrate";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import {
-  cacheAccountSlice,
-  isOfflineReadEnabled,
-  readCachedAccountSlice,
-  readCachedAuthSnapshot,
-  setOfflineReadState,
-} from "@/data/offlineCache";
 import { LoadError } from "@/data/PersistenceAdapter";
 import { API_BULK_TIMEOUT_MS } from "@/data/requestTimeout";
 import { diffOps } from "@/data/syncOps";
@@ -18,27 +11,15 @@ import { seedSnapshot } from "./snapshot";
 import type { SyncState } from "./SyncState";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
-interface LoadedState extends MigrationWithRepairBase {
-  readonly missingKeys: readonly string[];
-}
-
 interface LiveLoadEffects {
   readonly state: SyncState;
   readonly saveAll: (next: AppData) => Promise<void>;
-  readonly loaded: LoadedState;
+  readonly loaded: MigrationWithRepairBase;
   readonly myGen: number;
   readonly accountId: string | undefined;
 }
 
-interface CachedLoadEffects {
-  readonly state: SyncState;
-  readonly data: AppData;
-  readonly savedAt: number;
-  readonly myGen: number;
-  readonly accountId?: string;
-}
-
-function parseLoadedState(json: unknown, accountId: string | undefined): LoadedState {
+function parseLoadedState(json: unknown, accountId: string | undefined): MigrationWithRepairBase {
   if (!isRecord(json)) throw new Error("The server returned an invalid state payload.");
   const record = json;
   if (KNOWN_KEYS.some((key) => key in record && !Array.isArray(record[key]))) {
@@ -65,31 +46,16 @@ function parseLoadedState(json: unknown, accountId: string | undefined): LoadedS
   const migrated =
     accountId === undefined ? migrateWithRepairBase(json) : parseAccountSliceWithRepairBase(scopedInput, accountId);
   if (!migrated) throw new Error("The server returned a cross-tenant or incomplete state payload.");
-  return { ...migrated, missingKeys };
+  return migrated;
 }
 
 async function applyLiveLoadEffects({ state, saveAll, loaded, myGen, accountId }: LiveLoadEffects): Promise<void> {
-  // Keep the generation guard first, then seed the repairBase snapshot and await its durable repair
-  // before exposing the load as online. Cache only a complete scoped payload after that sequence;
-  // otherwise a superseded or desynchronised load could publish cross-account state.
+  // A superseded response must not replace the current account baseline.
   if (myGen !== state.loadGen) return;
   seedSnapshot(state, loaded.repairBase, accountId);
   if (diffOps(loaded.repairBase, loaded.data).length > 0) {
     await saveAll(loaded.data);
-    // A newer load may have installed a cached, read-only slice while the repair was in flight.
-    if (myGen !== state.loadGen) return;
   }
-  setOfflineReadState({ owner: "tenant", readOnly: false });
-  if (accountId !== undefined && loaded.missingKeys.length === 0) {
-    void cacheAccountSlice(accountId, loaded.data).catch((error) =>
-      console.warn("ServerSyncAdapter: the offline account snapshot could not be updated", error),
-    );
-  }
-}
-
-function applyCachedLoadEffects({ state, data, savedAt, myGen, accountId }: CachedLoadEffects): void {
-  if (myGen === state.loadGen) seedSnapshot(state, data, accountId);
-  if (myGen === state.loadGen) setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: savedAt });
 }
 
 interface LoadRequest {
@@ -115,7 +81,6 @@ export async function loadAll(
     const empty = emptyAppData();
     if (myGen === state.loadGen) {
       seedSnapshot(state, empty, options.accountId);
-      setOfflineReadState({ owner: "tenant", readOnly: false });
     }
     return empty;
   }
@@ -148,7 +113,6 @@ async function loadRemoteSlice(
       const empty = emptyAppData();
       if (myGen === state.loadGen) {
         seedSnapshot(state, empty);
-        setOfflineReadState({ owner: "tenant", readOnly: false });
       }
       return empty;
     }
@@ -165,15 +129,6 @@ async function loadRemoteSlice(
     await applyLiveLoadEffects({ state, saveAll, loaded, myGen, accountId });
     return loaded.data;
   } catch (e) {
-    // Only an actual fetch/network rejection proves the service is unreachable enough to use a
-    // stale read-only snapshot. A reachable 5xx and our own Abort/Timeout deadline are server
-    // failures: route them to the retry screen instead of presenting old data as ordinary offline
-    // mode. Browser fetch reports network/DNS/TLS failures as TypeError.
-    const offlineEligible = e instanceof TypeError;
-    if (offlineEligible) {
-      const cached = await hydrateFromOfflineCache(state, accountId, myGen);
-      if (cached !== null) return cached;
-    }
     // A rejected fetch (server down / network error), a non-OK status, or an
     // unreadable server payload are all remote conditions: the user recovers by
     // retrying, never by clearing local storage (the corrupt-data reset path,
@@ -183,50 +138,6 @@ async function loadRemoteSlice(
       cause: e,
     });
   }
-}
-
-/**
- * loadAll's offline tail, reached only after the request proved the service unreachable (a fetch
- * TypeError). Returns the snapshot to hydrate from, or `null` when nothing usable is cached and
- * the caller must surface the LoadError.
- *
- * Both arms are generation-guarded on `myGen`: a superseded load may still read the cache, but
- * must not seed the adapter snapshot or flip the app into offline-read mode behind a newer load.
- * A cache read that throws is a degraded local store, never a reason to hide the real remote
- * failure. It is warned about and falls through to the caller's LoadError.
- */
-export async function hydrateFromOfflineCache(
-  state: SyncState,
-  accountId: string | undefined,
-  myGen: number,
-): Promise<AppData | null> {
-  if (accountId === undefined) {
-    try {
-      const cachedIdentity = await readCachedAuthSnapshot({
-        acceptEffects: () => myGen === state.loadGen && isOfflineReadEnabled(),
-      });
-      if (!isOfflineReadEnabled()) return null;
-      if (cachedIdentity) {
-        const empty = emptyAppData();
-        applyCachedLoadEffects({ state, data: empty, savedAt: cachedIdentity.savedAt, myGen });
-        return empty;
-      }
-    } catch (cacheError) {
-      console.warn("ServerSyncAdapter: the offline identity snapshot could not be read", cacheError);
-    }
-    return null;
-  }
-  try {
-    const cached = await readCachedAccountSlice(accountId);
-    if (!isOfflineReadEnabled()) return null;
-    if (cached) {
-      applyCachedLoadEffects({ state, data: cached.value, savedAt: cached.savedAt, myGen, accountId });
-      return cached.value;
-    }
-  } catch (cacheError) {
-    console.warn("ServerSyncAdapter: the offline account snapshot could not be read", cacheError);
-  }
-  return null;
 }
 
 /** Reads the server’s validated hasData metadata.

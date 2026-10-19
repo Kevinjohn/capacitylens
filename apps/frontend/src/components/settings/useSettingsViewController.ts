@@ -1,9 +1,7 @@
 import { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { useId } from "react";
-import { useAuth } from "@/auth/authContext";
 import { useCanEdit, useRole } from "@/auth/permissionContext";
 import { isServerConfigured } from "@/data/apiConfig";
-import { useOfflineReadEnabled, useOfflineState } from "@/data/useOfflineState";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import {
   canCreateInlineActivity,
@@ -58,28 +56,14 @@ export function useSettingsViewController() {
   const canEdit = useCanEdit();
   const role = useRole();
   const data = useStore((state) => state.data);
-  const accountSummaries = useStore((state) => state.accountSummaries);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const activeAccount = data.accounts.find((account) => account.id === activeAccountId) ?? null;
   const updateAccount = useStore((state) => state.updateAccount);
   const setNotice = useStore((state) => state.setNotice);
   const display = useDisplayPreferences();
-  const auth = useAuth();
-  const offlineEnabled = useOfflineReadEnabled();
-  const offlineState = useOfflineState();
   const serverMode = isServerConfigured();
   const scheduling = readSchedulingSettings(data, activeAccountId);
-  const localData = useLocalDataActions({
-    offlineEnabled,
-    authMode: auth.authMode,
-    user: auth.user,
-    canCreateAccount: auth.canCreateAccount,
-    multiAccount: auth.multiAccount,
-    accountSummaries,
-    activeAccountId,
-    data,
-    setNotice,
-  });
+  const localData = useLocalDataActions(setNotice);
   const updateSetting = (patch: Parameters<typeof updateAccount>[1]) => {
     if (!activeAccount) return;
     try {
@@ -92,7 +76,6 @@ export function useSettingsViewController() {
 
   return {
     activeAccount,
-    auth,
     display,
     scheduling,
     workingDaysMinimumId,
@@ -100,8 +83,6 @@ export function useSettingsViewController() {
     canManageCapacityOverviewAccess: role === null || role === "owner" || role === "admin",
     updateSetting,
     serverMode,
-    offlineEnabled,
-    offlineState,
     localData,
   };
 }

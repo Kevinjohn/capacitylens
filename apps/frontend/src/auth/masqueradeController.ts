@@ -9,9 +9,6 @@ import { setMasqueradeEndedHandler } from "@/data/requestTimeout";
 import { useStore } from "@/store/useStore";
 import { masqueradeApi } from "./masqueradeApi";
 import { reprojectAccess } from "./reprojectAccess";
-import { refreshOfflineIdentityAfterMasquerade } from "./authResponse";
-import { refreshAccountSummaries } from "./useAccountSummaries";
-import { MasqueradeOfflineRecovery } from "./masqueradeOfflineRecovery";
 import { publishMasqueradeAccount, restoreMasqueradeProjection } from "./masqueradeProjectionRecovery";
 import type { FinishProjectionResult } from "./masqueradeProjectionRecovery";
 
@@ -47,8 +44,6 @@ export interface MasqueradeControllerDependencies {
   suspend: () => ResumeWrites;
   reproject: (accountId: string, includeAccountSummaries?: boolean) => Promise<boolean>;
   switchAccount: (accountId: string | null) => Promise<RefreshOutcome>;
-  refreshIdentity?: () => Promise<boolean>;
-  refreshSummaries?: () => Promise<boolean>;
   api: typeof masqueradeApi;
 }
 
@@ -58,14 +53,9 @@ export class MasqueradeController {
   private resumeWrites: ResumeWrites | null = null;
   private generation = 0;
   private startPendingGeneration: number | null = null;
-  private readonly offlineRecovery: MasqueradeOfflineRecovery;
 
   constructor(dependencies: MasqueradeControllerDependencies) {
     this.dependencies = dependencies;
-    this.offlineRecovery = new MasqueradeOfflineRecovery({
-      refreshIdentity: () => dependencies.refreshIdentity?.() ?? Promise.resolve(true),
-      refreshSummaries: () => dependencies.refreshSummaries?.() ?? Promise.resolve(true),
-    });
   }
 
   private acquireSuspension(): void {
@@ -94,7 +84,6 @@ export class MasqueradeController {
     if (this.generation !== generation) return false;
     if (useStore.getState().masquerade.kind !== "inactive") return false;
     if (flush.kind !== "clean") return this.fail("Save pending changes before starting a masquerade.");
-    this.offlineRecovery.mark();
     this.acquireSuspension();
     useStore.getState().setMasquerade({ kind: "starting", pending: { accountId, targetUserId }, generation });
     return true;
@@ -150,11 +139,6 @@ export class MasqueradeController {
       return this.fail(error instanceof Error ? error.message : "Pending changes could not be saved.");
     }
     if (!this.beginStartAfterFlush({ generation, accountId, targetUserId, flush })) return false;
-    try {
-      await this.offlineRecovery.prepare();
-    } catch (error) {
-      return this.failOwnedStart(generation, error);
-    }
     if (!this.ownsRuntime(generation, "starting")) return false;
     let state: MasqueradeState;
     try {
@@ -219,22 +203,7 @@ export class MasqueradeController {
         ++this.generation;
         this.startPendingGeneration = null;
       }
-      if (!this.offlineRecovery.isIsolated()) {
-        return isSwitchSuccessful(await this.dependencies.switchAccount(accountId), accountId);
-      }
-      try {
-        const generation = this.generation;
-        return await this.offlineRecovery.transitionAccount({
-          readStatus: () => this.dependencies.api.status(),
-          adoptActiveStatus: (status) => this.adoptStatus(status),
-          switchAccount: () => this.dependencies.switchAccount(accountId),
-          isSuccessful: (outcome) => isSwitchSuccessful(outcome, accountId),
-          isGenerationCurrent: () => generation === this.generation,
-          isAccountSelected: () => useStore.getState().activeAccountId === accountId,
-        });
-      } catch (error) {
-        return this.fail(error instanceof Error ? error.message : "Masquerade status could not be confirmed.");
-      }
+      return isSwitchSuccessful(await this.dependencies.switchAccount(accountId), accountId);
     }
     const ended = await this.endProjection({
       reason: "account_switch",
@@ -242,9 +211,6 @@ export class MasqueradeController {
         const outcome = await this.dependencies.switchAccount(accountId);
         if (!isSwitchSuccessful(outcome, accountId)) {
           return { kind: "failed", message: "The selected company could not be loaded." };
-        }
-        if (this.offlineRecovery.isIsolated() && !(await this.offlineRecovery.refreshSummaries())) {
-          return { kind: "failed", message: "The real company directory could not be restored." };
         }
         return { kind: "finished" };
       },
@@ -281,10 +247,7 @@ export class MasqueradeController {
         readStatus: () => this.dependencies.api.status(),
         isCurrent: () => this.ownsRuntime(generation, "ending"),
         publishActive: (status) => useStore.getState().setMasquerade({ kind: "active", state: status, generation }),
-        offlineRecovery: this.offlineRecovery,
         restoreProjection: finish,
-        onIdentityFailure: () =>
-          this.fail("The real account identity could not be restored. Retry ending the masquerade."),
         onProjectionFailure: (message) => this.fail(message),
       });
       if (projection.kind === "active" || projection.kind === "superseded") return { kind: "superseded" };
@@ -308,10 +271,10 @@ export class MasqueradeController {
       if (current.kind === "active" || current.kind === "starting") this.restoreServerEndedProjection();
       return;
     }
-    await this.adoptActiveStatus(status);
+    this.adoptActiveStatus(status);
   }
 
-  private async adoptActiveStatus(status: Extract<MasqueradeStatus, { active: true }>): Promise<void> {
+  private adoptActiveStatus(status: Extract<MasqueradeStatus, { active: true }>): void {
     const current = useStore.getState().masquerade;
     // The controller already owns these transitions. A membership invalidation triggered by its
     // own reproject must not publish `active` before that authoritative reload has completed.
@@ -325,13 +288,6 @@ export class MasqueradeController {
     ) {
       return;
     }
-    const generation = this.generation;
-    try {
-      await this.offlineRecovery.prepare();
-    } catch (error) {
-      console.warn("Masquerade offline snapshots could not be cleared", error);
-    }
-    if (generation !== this.generation) return;
     this.acquireSuspension();
     publishMasqueradeAccount(status, true);
     useStore.getState().setMasquerade({ kind: "active", state: status, generation: ++this.generation });
@@ -356,7 +312,6 @@ export class MasqueradeController {
         readStatus: () => this.dependencies.api.status(),
         isCurrent: () => this.ownsRuntime(generation, "ending"),
         publishActive: (status) => useStore.getState().setMasquerade({ kind: "active", state: status, generation }),
-        offlineRecovery: this.offlineRecovery,
         restoreProjection: async (current) =>
           (await this.dependencies.reproject(current.accountId))
             ? { kind: "finished" }
@@ -364,14 +319,11 @@ export class MasqueradeController {
                 kind: "failed",
                 message: "The masquerade ended, but the real account view could not be restored. Retry.",
               },
-        onIdentityFailure: () =>
-          this.fail("The real account identity could not be restored. Retry ending the masquerade."),
         onProjectionFailure: (message) => this.fail(message),
       });
       if (projection.kind !== "restored") return;
     } catch (error) {
       // A completed remote end still needs visible recovery if reloading the real account fails.
-      this.offlineRecovery.finish(false);
       if (!this.ownsRuntime(generation, "ending")) return;
       console.error("The real account projection could not be restored", error);
       this.fail("The masquerade ended, but the real account view could not be restored. Retry.");
@@ -390,8 +342,6 @@ export const masqueradeController = new MasqueradeController({
   suspend: suspendServerWrites,
   reproject: reprojectAccess,
   switchAccount: switchAndAwaitHydration,
-  refreshIdentity: refreshOfflineIdentityAfterMasquerade,
-  refreshSummaries: async () => (await refreshAccountSummaries({ allowCachedFallback: false })) !== null,
   api: masqueradeApi,
 });
 

@@ -7,7 +7,6 @@ import { AuthContext } from "@/auth/authContext";
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
 import { refreshActiveAccountSlice } from "@/data/persist";
-import { setOfflineReadState } from "@/data/offlineCache";
 import { MembersSection } from "./MembersSection";
 import { useTeamDirectory } from "./useTeamDirectory";
 import { authValue, mockApi, rawMember, renderSection } from "./MembersSection.testSupport";
@@ -38,12 +37,10 @@ vi.mock("@/data/persist", () => ({
 beforeEach(() => {
   accountTransitionMocks.startMasquerade.mockClear();
   resetStoreWithAccount();
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });
 });
 afterEach(() => {
   useStore.setState({ masquerade: { kind: "inactive" } });
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -51,24 +48,6 @@ afterEach(() => {
 
 describe("MembersSection — self-gate", () => {
   registerAccountTransitionTest();
-
-  it("defers privileged directory reads while offline and refreshes them on recovery", async () => {
-    const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }]);
-    vi.stubGlobal("fetch", fetchMock);
-    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") });
-    renderSection();
-
-    await act(async () => {});
-    expect(fetchMock).not.toHaveBeenCalled();
-
-    act(() => setOfflineReadState({ owner: "cleanup", readOnly: false }));
-    await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith(
-        `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members`,
-        expect.objectContaining({ credentials: "include" }),
-      ),
-    );
-  });
 
   it("renders NOTHING when the members read returns 403 (viewer/editor)", async () => {
     vi.stubGlobal("fetch", mockApi({ status: 403 }));
@@ -107,7 +86,6 @@ describe("MembersSection — directory error retention", () => {
         useTeamDirectory({
           enabled: true,
           activeAccountId: DEFAULT_ACCOUNT_ID,
-          offlineReadOnly: false,
           fail,
         }),
       {
@@ -153,7 +131,6 @@ describe("MembersSection — directory error retention", () => {
         useTeamDirectory({
           enabled: true,
           activeAccountId: DEFAULT_ACCOUNT_ID,
-          offlineReadOnly: false,
           fail,
         }),
       { wrapper },
@@ -187,7 +164,6 @@ describe("MembersSection — directory error retention", () => {
         useTeamDirectory({
           enabled: true,
           activeAccountId: DEFAULT_ACCOUNT_ID,
-          offlineReadOnly: false,
           fail,
         }),
       { wrapper: ({ children }) => <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider> },
@@ -227,7 +203,6 @@ describe("MembersSection — transient directory state", () => {
         useTeamDirectory({
           enabled: true,
           activeAccountId: DEFAULT_ACCOUNT_ID,
-          offlineReadOnly: false,
           fail,
         }),
       { wrapper: ({ children }) => <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider> },

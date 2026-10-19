@@ -2,7 +2,6 @@ import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, it, expect, vi } from "vitest";
 import { ServerSyncAdapter } from "./ServerSyncAdapter";
 import type { AppData, Client } from "@capacitylens/shared/types/entities";
-import { cacheAccountSlice, readCachedAccountSlice } from "./offlineCache";
 import { makeResource } from "@/test/fixtures";
 import {
   TS1,
@@ -13,7 +12,6 @@ import {
   omitKeys,
   commitReceipt,
   batchOps,
-  withOfflineCache,
 } from "./ServerSyncAdapter.testSupport";
 
 function registerScopedLoadTests(): void {
@@ -141,22 +139,6 @@ function registerRollingLoadTests(): void {
     const loaded = await a.loadAll("a1");
     expect(loaded.disciplines).toEqual([]);
     expect(loaded.clients.map((r) => r.id).sort()).toEqual(["c1", "internal:a1"]);
-  });
-
-  it("does not replace a complete offline snapshot with a rolling-version partial slice", async () => {
-    await withOfflineCache(async () => {
-      await cacheAccountSlice("a1", scopedData("a1", { clients: [client("cached")] }));
-      const partial = omitKeys(scopedData("a1", { clients: [client("live")] }), "disciplines");
-      const adapter = new ServerSyncAdapter(
-        "http://x",
-        vi.fn(async () => new Response(JSON.stringify(partial), { status: 200 })) as unknown as typeof fetch,
-      );
-
-      await adapter.loadAll("a1");
-
-      expect((await readCachedAccountSlice("a1"))?.value.clients.map((row) => row.id)).toContain("cached");
-      expect((await readCachedAccountSlice("a1"))?.value.clients.map((row) => row.id)).not.toContain("live");
-    });
   });
 
   it("classifies a transport failure after batch dispatch as an uncertain commit", async () => {

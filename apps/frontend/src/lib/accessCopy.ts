@@ -34,19 +34,16 @@ export function resolveRoleSummary(role: Role): string {
 }
 
 interface AccessCopyInput {
-  offlineReadOnly: boolean;
   experience: AccessExperience;
   permissionStatus: AccessPermissionStatus;
   role: Role | null;
 }
 
-type AccessState = "offline" | "demo" | "open" | "checking" | "not-applicable" | "unavailable";
+type AccessState = "demo" | "open" | "checking" | "not-applicable" | "unavailable";
 type AccessCopyResult = { kind: AccessState } | { kind: "role"; role: Role };
 
 // Resolve precedence once so access labels and explanations cannot disagree.
-// Offline state outranks posture and pending role checks; a missing resolved role is unavailable.
 function resolveAccessState(input: AccessCopyInput): AccessCopyResult {
-  if (input.offlineReadOnly) return { kind: "offline" };
   if (input.experience === "demo") return { kind: "demo" };
   if (input.experience === "open") return { kind: "open" };
   if (input.permissionStatus === "pending") return { kind: "checking" };
@@ -58,7 +55,6 @@ function resolveAccessState(input: AccessCopyInput): AccessCopyResult {
 // Uncalled message references, called at lookup: Paraglide resolves the active locale at call
 // time, so a resolved string captured at module load would freeze to the import-time language.
 const STATE_LABELS: Record<AccessState, () => string> = {
-  offline: m.access_offline_label,
   demo: m.access_demo_label,
   open: m.access_open_label,
   checking: m.access_checking_label,
@@ -67,7 +63,6 @@ const STATE_LABELS: Record<AccessState, () => string> = {
 };
 
 const STATE_SUMMARIES: Record<AccessState, () => string> = {
-  offline: m.access_offline_summary,
   demo: m.access_demo_summary,
   open: m.access_open_summary,
   checking: m.access_checking_summary,
@@ -75,7 +70,7 @@ const STATE_SUMMARIES: Record<AccessState, () => string> = {
   unavailable: m.access_unavailable_summary,
 };
 
-/** Single product-facing label for demo, open, authenticated and cached-offline access. */
+/** Single product-facing label for demo, open and authenticated access. */
 export function resolveAccessLabel(input: AccessCopyInput): string {
   const state = resolveAccessState(input);
   return state.kind === "role" ? resolveRoleLabel(state.role) : STATE_LABELS[state.kind]();

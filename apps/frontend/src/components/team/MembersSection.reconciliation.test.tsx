@@ -5,7 +5,6 @@ import userEvent from "@testing-library/user-event";
 import { resetStoreWithAccount, jsonResponse } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
 import { refreshActiveAccountSlice } from "@/data/persist";
-import { setOfflineReadState } from "@/data/offlineCache";
 import { m } from "@/i18n";
 import {
   confirmMemberAction,
@@ -66,11 +65,9 @@ vi.mock("@/data/persist", () => ({
 beforeEach(() => {
   accountTransitionMocks.startMasquerade.mockClear();
   resetStoreWithAccount();
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });
 });
 afterEach(() => {
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();

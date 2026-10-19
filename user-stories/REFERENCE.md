@@ -129,7 +129,7 @@ accept responses never include it.
    principal's last company also removes that principal and invalidates its session, so the receipt
    cannot be replayed without a surviving authenticated session. A post-delete `403` from an
    older/mixed server is treated as an unknown outcome, so the browser retains the command and
-   refreshes the company list without an offline-cache fallback instead of converting uncertainty
+   refreshes the company list from the server instead of converting uncertainty
    into a new destructive ceremony. The picker consumes that same erasure outcome classification
    rather than independently reclassifying the response status.
    After a confirmed deletion completes, the picker announces that the named company was
@@ -159,8 +159,7 @@ accept responses never include it.
    include the Admin example-data stop, while the in-memory demo omits it. Starting on another page
    returns to Schedule first.
    Next/Back/Done buttons, Escape bails, and the highlighted controls remain inert during the tour.
-   The button is disabled while permissions are unresolved or unavailable, while an offline snapshot
-   is read-only, and while the tour is running. If that code cannot load or start, the
+   The button is disabled while permissions are unresolved or unavailable and while the tour is running. If that code cannot load or start, the
    card remains usable and a persistent error says **The tour could not start. Check your connection
    and try again.** An Owner or Admin can permanently **Dismiss** Getting started for everyone in
    the current company. Before 5/5, confirmation asks **Do you really want to hide this forever?**
@@ -690,9 +689,7 @@ Weekday forms (`Mon 8th Jun` / `Mon Jun 8th`) always keep the ordinal.
 
 Server instants use the viewer's browser locale and local time zone instead. This includes session
 creation and expiry, password-reset expiry, and invitation expiry in the Team & access member panel
-and on the invitee's Accept invite page. The
-offline read-only banner's last-updated timestamp also uses the viewer's browser locale and local
-time zone. The exception also covers instants displayed as a compact date without a time: the
+and on the invitee's Accept invite page. The exception also covers instants displayed as a compact date without a time: the
 browser time zone selects the local day, while the browser locale selects its date order. Existing
 date-and-time and date-only shapes stay intact, and local conversion never slices an ISO timestamp.
 Machine dates in inputs, exports and URLs are unchanged.
@@ -886,14 +883,6 @@ leaves no trace.
 
 **Clear device data.** The destructive clear action and its underlying device-data behavior remain
 implemented, but Settings no longer exposes a control for it.
-
-**Offline cache health (Settings → Offline access).** When offline access remains opted in but a
-snapshot write fails, Settings keeps the switch on and shows that recent snapshots could not be
-saved on this device. The warning clears after a successful snapshot write or after offline access
-is disabled; it does not claim that already cached data was deleted. Offline shell installation is
-available in production builds. Vite development/demo servers reject enablement with a clear
-message because their on-demand module graph cannot provide a complete, immutable shell for safe
-offline promotion.
 
 **Build stamp + feedback link (Diagnostics, flag-gated).** When the build sets
 `VITE_CAPACITYLENS_BUILD_SHA`, **Diagnostics → Build details** includes a muted one-line stamp containing the
@@ -1343,14 +1332,7 @@ to **viewer**, the whole app goes **read-only**:
   desync local state. Account-setting writes additionally require their target to be the active
   company; a stale missing target is a no-op, while an existing foreign target is rejected. **Online
   default-editable invariant:** in auth off (the default everywhere) or local mode the live role is
-  `null` → fully editable. An opted-in cached offline snapshot is the deliberate exception: it is
-  labelled **Offline · View only**, projects Viewer capabilities, and never enables mutations
-  regardless of the live authentication posture. It is eligible when a request is unreachable,
-  including when a stalled connection reaches its client deadline, provided the verified snapshot is
-  still within its seven-day lifetime and was saved for both this web deployment and its configured
-  API origin. Repointing the same frontend origin at another backend invalidates the prior backend's
-  identity, company directory and snapshots. CapacityLens never enables cached writes or queues
-  changes for later.
+  `null` → fully editable. CapacityLens requires a server connection and never queues changes for later.
   The provider is `src/auth/PermissionProvider.tsx` (the hooks `useRole`/`useCanEdit` in
   `src/auth/permissionContext.ts`, off the pure `can`); story `user-stories/settings/US-SET-11-viewer-readonly.md`;
   spec `e2e/viewer.auth.spec.ts`.
@@ -1777,8 +1759,8 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   empty company as though loading had completed. Lazy public-auth and storage-recovery screens also
   retain a visible `Loading…` status while their code loads.
 - Unreadable browser data opens a dedicated recovery screen rather than the server connection retry.
-  It can request a raw-copy download before a confirmed reset; reset attempts clear both local
-  CapacityLens keys and offline snapshots, report partial failures precisely, and only reload once
+  It can request a raw-copy download before a confirmed reset; reset attempts clear local
+  CapacityLens preference keys, surface failures, and only reload once
   the unreadable local data is gone.
 - Failed SSO hand-off, reauthentication and invitation acceptance remain visible
   and actionable. A successful invitation keeps the newly selected company active while its account

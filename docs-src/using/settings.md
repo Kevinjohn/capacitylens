@@ -1,6 +1,6 @@
 ---
 title: Settings
-description: Adjust your own display preferences, then find the company-wide switches, offline access and data controls on the same page.
+description: Adjust your own display preferences, then find the company-wide switches and data controls on the same page.
 prev: false
 next: false
 ---
@@ -20,7 +20,7 @@ row's question-mark button, **About &lt;section&gt;**, opens a fuller explanatio
 | My display          | Only you, in this browser. Everyone can change it.                                                                     |
 | Company setup       | Everyone. Editors and above change units, working days and date format; only Owners and Admins change Overview access. |
 | Scheduling features | Everyone. Editors and above change the **Company features** switches. A Viewer sees them disabled.                     |
-| Data and support    | Example data, import and export, offline access and company details. Actions depend on your role.                      |
+| Data and support    | Example data, import and export and company details. Actions depend on your role.                      |
 
 ![Settings with the Company setup group, full-width choices and compact rows](../screenshots/flows/settings_overview.png)
 
@@ -85,8 +85,8 @@ without a reload. You can undo it.
 - The date format is not in the JSON from **Import and export**, and an import keeps the
   destination company's format.
 
-Times tied to an event, such as session and invitation expiry, ownership-transfer deadlines and
-the offline banner's last-updated time, use your browser's language and time zone instead.
+Times tied to an event, such as session and invitation expiry and ownership-transfer deadlines,
+use your browser's language and time zone instead.
 
 ### Overview access
 
@@ -137,31 +137,11 @@ tasks without deleting them.
 What you can do here depends on your role. Archived items are restored from their own
 Resources, Clients, Projects or Activities page, not from Settings.
 
-### Offline access
+### Connection errors
 
-Offline access lets you read the schedule on a train or a flaky connection. It is off by default
-and turned on per device.
-
-1. Sign in on the device you want to use offline.
-2. Open **Settings** and turn on **Make this device available offline** under **Offline access**.
-
-CapacityLens then keeps a copy of the last company you opened, on that device only. If a request
-can't reach the server at all, it shows that [snapshot](/reference/glossary#snapshot-offline) with a banner saying
-the data is cached.
-
-- The snapshot is read-only. While it is shown, nobody can create, edit, delete, import or change
-  membership, whatever their role. Nothing is queued to apply later.
-- It lasts seven days. After that it is gone and you need a connection. A company you haven't
-  opened within that time isn't available offline.
-- It refreshes when you load the schedule online. If the server answers with an error or is too
-  slow, you get a retry screen rather than old data.
-
-Turning the setting off, or signing out, clears the snapshot from that device.
-
-::: warning
-Don't turn on offline access on a shared or borrowed device. The snapshot is encrypted on disk,
-but anyone using the browser while you're signed in can see it in the app.
-:::
+CapacityLens needs a server connection to read and save the company schedule. If a request fails,
+use the retry or recovery control offered after reconnecting. A visible edit is not proof that it
+was saved. The app never replaces a failed read with a browser snapshot or queues changes for later.
 
 ### Example data
 

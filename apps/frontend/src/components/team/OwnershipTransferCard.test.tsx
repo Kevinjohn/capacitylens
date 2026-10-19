@@ -7,7 +7,6 @@ import type { AuthContextValue } from "@/auth/authContext";
 import { PermissionContext } from "@/auth/permissionContext";
 import type { TeamMember } from "@/account/teamAccessClient";
 import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "@/test/fixtures";
-import { setOfflineReadState } from "@/data/offlineCache";
 import { useStore } from "@/store/useStore";
 import { OwnershipTransferCard } from "./OwnershipTransferCard";
 
@@ -111,7 +110,6 @@ beforeEach(() => {
   });
   reproject.mockResolvedValue(true);
   resetStoreWithAccount(DEFAULT_ACCOUNT_ID);
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
 });
 
 describe("OwnershipTransferCard", () => {
@@ -190,17 +188,11 @@ describe("OwnershipTransferCard", () => {
     expect(useStore.getState().notice?.message).toBe(m.settings_members_access_refresh_failed());
   });
 
-  it("does not render transfer controls for a non-Owner, offline user, or masqueraded view", () => {
+  it("does not render transfer controls for a non-Owner or masqueraded view", () => {
     const nonOwner = renderAs({ role: "admin" });
     expect(screen.queryByTestId("ownership-transfer-card")).toBeNull();
     expect(client.listMembers).not.toHaveBeenCalled();
     nonOwner.unmount();
-
-    setOfflineReadState({ owner: "tenant", readOnly: true });
-    renderAs();
-    expect(screen.queryByTestId("ownership-transfer-card")).toBeNull();
-    expect(client.listMembers).not.toHaveBeenCalled();
-    setOfflineReadState({ owner: "cleanup", readOnly: false });
 
     useStore.setState({
       masquerade: {

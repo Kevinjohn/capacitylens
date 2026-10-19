@@ -8,8 +8,8 @@ export type AuthStatusResult =
   | { kind: "error"; message: string }
   | {
       kind: "pass";
-      /** Identifies whether tenant access was confirmed by a live session, cached offline, or opened without auth. */
-      identitySource?: "live" | "offline" | "open";
+      /** Identifies whether tenant access was confirmed by a live session or opened without auth. */
+      identitySource?: "live" | "open";
       authMode: AccountMode;
       user: AuthUser | null;
       canCreateAccount: boolean;

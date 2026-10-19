@@ -4,7 +4,6 @@ import type { Role } from "@capacitylens/shared/domain/access";
 import type { TeamInvitation, TeamMember as Member } from "@/account/teamAccessClient";
 import { useAuth } from "@/auth/authContext";
 import { isServerConfigured } from "@/data/apiConfig";
-import { useOfflineState } from "@/data/useOfflineState";
 import { useDeadlineClock } from "@/hooks/useDeadlineClock";
 import { useFieldError } from "@/hooks/useFieldError";
 import { useStore } from "@/store/useStore";
@@ -121,7 +120,6 @@ function createConfirmationActions(
 interface MemberDirectoryStateInput {
   activeAccountId: string | null;
   enabled: boolean;
-  offlineReadOnly: boolean;
   fail: ReturnType<typeof useFieldError>["fail"];
   setNotice: StoreState["setNotice"];
   setActiveAccount: StoreState["setActiveAccount"];
@@ -133,7 +131,6 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
   const directoryState = useTeamDirectory({
     enabled: input.enabled,
     activeAccountId: input.activeAccountId,
-    offlineReadOnly: input.offlineReadOnly,
     fail: input.fail,
     onInvitesLoaded: input.reconcileMintedInvite,
   });
@@ -259,7 +256,6 @@ function useMemberStoreActions() {
 // eslint-disable-next-line max-lines-per-function
 export function useMembersOrchestration(activeAccountId: string | null) {
   const { authMode, refreshAuth } = useAuth();
-  const offline = useOfflineState();
   const { setNotice, setActiveAccount, invalidateMemberships } = useMemberStoreActions();
   const { error, errorField, errorId, fail, clear } = useFieldError();
   const viewState = useMemberViewState();
@@ -269,7 +265,6 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   const directoryState = useMemberDirectoryState({
     activeAccountId,
     enabled,
-    offlineReadOnly: offline.readOnly,
     fail,
     setNotice,
     setActiveAccount,
@@ -280,8 +275,8 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     const unauthorized =
       directoryState.directory.kind === "hidden" ||
       (directoryState.directory.kind === "error" && directoryState.directory.content.kind === "unavailable");
-    if (offline.readOnly || unauthorized) resetInviteDraft();
-  }, [directoryState.directory, offline.readOnly, resetInviteDraft]);
+    if (unauthorized) resetInviteDraft();
+  }, [directoryState.directory, resetInviteDraft]);
   // Candidate eligibility comes from the server; local Resources state affects only presentation order. Never intersect the candidate set with a potentially stale local roster.
   const resourceListModel = useResourceListModel();
   const resourceOrder = new Map(resourceListModel.people.map((resource, index) => [resource.id, index]));

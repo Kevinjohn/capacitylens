@@ -7,7 +7,6 @@ import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
 import { stubMatchMedia } from "@/test/stubMatchMedia";
 import { attachPersistence } from "@/data/persist";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { setOfflineReadState } from "@/data/offlineCache";
 import { markCompanyPickerForNextReload } from "@/lib/companyPickerEntry";
 import { m } from "@/i18n";
 import * as accountTransition from "@/auth/accountTransition";
@@ -44,7 +43,6 @@ beforeEach(() => {
   useStore.getState().setMasquerade({ kind: "inactive" });
   // Most shell tests exercise the post-hydration UI; the dedicated handoff test overrides this.
   useStore.getState().setHydrated(true);
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
 });
 
 type RenderAppShellOptions = { initialEntries?: string[]; includeLocationProbe?: boolean };
@@ -408,20 +406,6 @@ function registerLoadingAccountLocaleTest(): void {
 
     act(() => useStore.setState({ data: makeAppData({ accounts: [destinationAccount] }) }));
     await waitFor(() => expect(i18nMocks.syncLocaleFromAccount).toHaveBeenCalledWith(undefined));
-  });
-}
-
-function registerOfflineSnapshotLabelTest(): void {
-  it("labels a cached snapshot as Offline and view only instead of Demo access", () => {
-    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") });
-    renderAppShell({});
-
-    expect(screen.getByTestId("active-role")).toHaveTextContent("Offline · View only");
-    expect(screen.getByTestId("active-role")).not.toHaveTextContent("Demo access");
-    expect(screen.getByTestId("view-only")).toHaveTextContent("Offline · View only");
-    // The offline projection is a Viewer, so the Owner/Admin-only destination leaves the sidebar.
-    expect(screen.getByRole("link", { name: "Settings" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Diagnostics" })).not.toBeInTheDocument();
   });
 }
 
@@ -1056,7 +1040,6 @@ describe("AppShell navigation links", () => {
   registerTrailingSlashTitleTest();
   registerLocaleChangeNavigationTest();
   registerLoadingAccountLocaleTest();
-  registerOfflineSnapshotLabelTest();
   registerExpectedNavigationLinksTest();
   registerAccountNavigationStateTest();
   registerAccountSwitchRouteTest();

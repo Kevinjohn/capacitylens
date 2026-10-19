@@ -6,11 +6,6 @@ import { useStore } from "@/store/useStore";
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
 import { PermissionContext } from "@/auth/permissionContext";
 
-vi.mock("@/data/offlineCache", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/data/offlineCache")>()),
-  isOfflineReadEnabled: () => false,
-}));
-
 beforeEach(() => {
   resetStoreWithAccount();
   useStore.getState().setTheme("light");

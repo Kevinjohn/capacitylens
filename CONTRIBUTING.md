@@ -94,7 +94,7 @@ In brief:
 - Add tests that fail without the change.
 - Never commit secrets, production data, generated output or personal deployment notes.
 
-Authentication and offline-cache changes need explicit threat-oriented tests. Google is the
+Authentication changes need explicit threat-oriented tests. Google is the
 supported company provider; Microsoft is deferred and GitHub is retired. Provider changes must
 remain secure when configuration is missing, partial or malicious.
 

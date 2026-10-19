@@ -2,7 +2,6 @@ import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthContext } from "@/auth/authContext";
-import { setOfflineReadState } from "@/data/offlineCache";
 import { resetStoreWithAccount } from "@/test/fixtures";
 import { MembersSection } from "./MembersSection";
 import { authValue, mockApi } from "./MembersSection.testSupport";
@@ -15,11 +14,9 @@ const partner = { id: "google", label: "Google", kind: "social", experimental: f
 
 beforeEach(() => {
   resetStoreWithAccount();
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
 });
 
 afterEach(() => {
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });

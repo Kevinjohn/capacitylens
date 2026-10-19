@@ -9,7 +9,7 @@ describe("clearCapacitylensLocalStorage", () => {
   beforeEach(() => localStorage.clear());
 
   it("removes every app key and leaves unrelated origin keys alone", () => {
-    localStorage.setItem("capacitylens/offlineRead", "on");
+    localStorage.setItem("capacitylens/minimiseWeekends", "on");
     localStorage.setItem("capacitylens/theme", "dark");
     localStorage.setItem("capacitylens/sidebar", "true");
     localStorage.setItem("some-other-tool", "keep");
@@ -18,7 +18,7 @@ describe("clearCapacitylensLocalStorage", () => {
     const removed = clearCapacitylensLocalStorage();
 
     expect(removed).toBe(3);
-    expect(localStorage.getItem("capacitylens/offlineRead")).toBeNull();
+    expect(localStorage.getItem("capacitylens/minimiseWeekends")).toBeNull();
     expect(localStorage.getItem("capacitylens/theme")).toBeNull();
     expect(localStorage.getItem("capacitylens/sidebar")).toBeNull();
     expect(localStorage.getItem("some-other-tool")).toBe("keep");

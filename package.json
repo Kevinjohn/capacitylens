@@ -2,7 +2,7 @@
   "name": "capacitylens",
   "private": true,
   "version": "0.73.0-alpha.1",
-  "description": "Agency resource & capacity scheduler \u2014 a helicopter view of who's busy, free, or overworked, week by week. Self-hosted, deliberately small.",
+  "description": "Agency resource & capacity scheduler — a helicopter view of who's busy, free, or overworked, week by week. Self-hosted, deliberately small.",
   "license": "AGPL-3.0-only",
   "author": "Kevinjohn Gallagher",
   "repository": {
@@ -36,7 +36,7 @@
     "package:managed-release": "node scripts/package-managed-release.mjs",
     "package:managed-release:test": "node --test scripts/package-managed-release.test.mjs scripts/deploy-managed-runtime.test.mjs scripts/prepare-container-runtime.test.mjs",
     "package:release-archive": "node scripts/package-managed-release.mjs --archive",
-    "bundle:check": "node scripts/check-bundle-budget.mjs && node scripts/check-offline-shell.mjs && node scripts/check-spa-route-documents.mjs",
+    "bundle:check": "node scripts/check-bundle-budget.mjs && node scripts/check-spa-route-documents.mjs",
     "security:crypto-inventory": "node --test scripts/check-crypto-inventory.test.mjs && node scripts/check-crypto-inventory.mjs",
     "security:gitleaks-config": "node scripts/check-gitleaks-config.mjs",
     "security:screenshot-publication": "node scripts/check-screenshot-publication.mjs",
@@ -115,7 +115,6 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "turbo": "^2.11.3",
     "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^10.0.1",
     "@inlang/paraglide-js": "^2.25.4",
@@ -138,7 +137,6 @@
     "eslint": "^10.8.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
-    "fake-indexeddb": "6.2.5",
     "globals": "^17.11.0",
     "jsdom": "^29.1.1",
     "lint-staged": "^17.5.1",
@@ -146,6 +144,7 @@
     "prettier": "^3.9.9",
     "simple-git-hooks": "^2.14.0",
     "tailwindcss": "^4.3.3",
+    "turbo": "^2.11.3",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.67.0",
     "vite": "^8.3.1",

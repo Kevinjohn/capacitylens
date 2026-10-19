@@ -170,8 +170,7 @@ This is the short, present-tense record of decisions that constrain future work.
   calendar dates and ranges. Server instants — session creation and expiry, password-reset expiry,
   invitation expiry in the Team & access member panel and on the invitee's Accept invite page —
   instead use the viewer's browser locale and local time zone, including when an instant is displayed
-  as a date only. The offline read-only
-  banner's last-updated timestamp also uses the viewer's browser locale and local time zone. Existing
+  as a date only. Existing
   date-and-time and compact date-only shapes remain distinct; never recover a local date by slicing
   the stored UTC timestamp.
 - Client/project privacy is opt-in and owner-managed. Real names and raw code names remain stored;
@@ -184,12 +183,11 @@ This is the short, present-tense record of decisions that constrain future work.
   open the page and see the aggregated view; it does not narrow the data every member already
   receives via the scoped state.
 
-## Offline
+## Browser data
 
-- Offline reading is explicit per-device opt-in, expires after seven days and stores snapshots in
-  IndexedDB encrypted with a non-extractable per-browser AES-GCM key.
-- Offline state is always viewer/read-only. The app never queues offline mutations.
-- Sign-out and the device-data control erase cached identity/account snapshots.
+- Scheduling records and identity snapshots are never persisted in the browser. Server failures
+  remain visible and retryable; there is no persistent fallback or queued write journal.
+- Ordinary device preferences remain in localStorage. The demo stays volatile and in-memory.
 
 ## Authentication and security
 

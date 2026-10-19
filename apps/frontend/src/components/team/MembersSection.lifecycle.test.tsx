@@ -6,7 +6,6 @@ import userEvent from "@testing-library/user-event";
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse, makeResourceDraft } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
 import { refreshActiveAccountSlice } from "@/data/persist";
-import { setOfflineReadState } from "@/data/offlineCache";
 import { m } from "@/i18n";
 import { teamAccessClient } from "@/account/teamAccessClient";
 import * as resourceAvatars from "@/account/useResourceAvatars";
@@ -51,11 +50,9 @@ vi.mock("@/data/persist", () => ({
 beforeEach(() => {
   accountTransitionMocks.startMasquerade.mockClear();
   resetStoreWithAccount();
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });
 });
 afterEach(() => {
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();

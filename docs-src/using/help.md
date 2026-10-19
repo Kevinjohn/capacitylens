@@ -22,7 +22,7 @@ and scheduling stops; Viewers see two stops about reading the schedule.
 role's tour.
 
 **Show tour** is disabled while your access is being checked, if it can't be confirmed, or while a
-read-only offline snapshot is open. If the tour fails to start, an error appears so you can try
+permission check is unresolved. If the tour fails to start, an error appears so you can try
 again.
 
 ## Open the guides

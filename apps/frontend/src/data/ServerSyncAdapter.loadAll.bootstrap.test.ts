@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { ServerSyncAdapter } from "./ServerSyncAdapter";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { readOfflineStateSnapshot, setOfflineReadState } from "./offlineCache";
 import { batchOps, client, project, withData, account, commitReceipt } from "./ServerSyncAdapter.testSupport";
 
 function registerBootstrapLoadTests(): void {
@@ -25,14 +24,8 @@ function registerBootstrapLoadTests(): void {
     const fetchImpl = vi.fn(async () => new Response("not json", { status: 400 })) as unknown as typeof fetch;
     const adapter = new ServerSyncAdapter("http://x", fetchImpl);
 
-    setOfflineReadState({ owner: "tenant", readOnly: true });
-    try {
-      await expect(adapter.loadAll()).resolves.toEqual(emptyAppData());
-      expect(fetchImpl).toHaveBeenCalledTimes(1);
-      expect(readOfflineStateSnapshot()).toMatchObject({ readOnly: false });
-    } finally {
-      setOfflineReadState({ owner: "cleanup", readOnly: false });
-    }
+    await expect(adapter.loadAll()).resolves.toEqual(emptyAppData());
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 }
 

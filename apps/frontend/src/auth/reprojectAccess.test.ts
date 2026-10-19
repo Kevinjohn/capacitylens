@@ -25,7 +25,6 @@ describe("reprojectAccess", () => {
     await expect(reprojectAccess("a-studio")).resolves.toBe(true);
     expect(invalidateMemberships).toHaveBeenCalledOnce();
     expect(refreshAccountSummaries).toHaveBeenCalledWith({
-      allowCachedFallback: false,
       preserveActiveAccountIfMissing: true,
     });
     expect(refreshActiveAccountSlice).toHaveBeenCalledWith("a-studio");

@@ -3,7 +3,6 @@ import { parseResourceAvatarUrl } from "@capacitylens/shared/domain/resourceAvat
 import { accountClient } from "./accountClient";
 import { isServerConfigured } from "@/data/apiConfig";
 import { useStore } from "@/store/useStore";
-import { useOfflineState } from "@/data/useOfflineState";
 import { useAuth } from "@/auth/authContext";
 
 const EMPTY_AVATARS = new Map<string, string>();
@@ -30,13 +29,12 @@ function parseProjection(body: unknown): ReadonlyMap<string, string> {
   return next;
 }
 
-/** Load the narrow identity projection and discard it immediately across account/session/offline boundaries. */
+/** Load the narrow identity projection and discard it immediately across account/session boundaries. */
 export function useResourceAvatars(accountId: string | null): ReadonlyMap<string, string> {
   const membershipRevision = useStore((state) => state.membershipRevision);
   const accountData = useStore((state) => state.data);
-  const offline = useOfflineState();
   const { user } = useAuth();
-  const boundary = `${accountId ?? ""}\u0000${membershipRevision}\u0000${user?.id ?? ""}\u0000${user?.image ?? ""}\u0000${offline.readOnly}`;
+  const boundary = `${accountId ?? ""}\u0000${membershipRevision}\u0000${user?.id ?? ""}\u0000${user?.image ?? ""}`;
   const [renderedBoundary, setRenderedBoundary] = useState(boundary);
   const [projection, setProjection] = useState<{ accountId: string; avatars: ReadonlyMap<string, string> } | null>(
     null,
@@ -49,7 +47,7 @@ export function useResourceAvatars(accountId: string | null): ReadonlyMap<string
   const refresh = useCallback(() => {
     const epoch = ++requestEpoch.current;
     setProjection(null);
-    if (!accountId || !isServerConfigured() || offline.readOnly || !navigator.onLine) return;
+    if (!accountId || !isServerConfigured() || !navigator.onLine) return;
     void accountClient
       .listResourceAvatars(accountId)
       .then(async (response) => {
@@ -60,7 +58,7 @@ export function useResourceAvatars(accountId: string | null): ReadonlyMap<string
       .catch((error: unknown) => {
         if (requestEpoch.current === epoch) console.error("Could not load scheduled-person avatars", error);
       });
-  }, [accountId, offline.readOnly]);
+  }, [accountId]);
 
   useEffect(() => {
     void Promise.resolve().then(refresh);

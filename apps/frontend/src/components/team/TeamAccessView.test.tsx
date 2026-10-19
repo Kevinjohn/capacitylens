@@ -6,7 +6,6 @@ import { PermissionContext } from "@/auth/permissionContext";
 import { AuthContext } from "@/auth/authContext";
 import type { AuthContextValue } from "@/auth/authContext";
 import { TeamAccessView } from "./TeamAccessView";
-import { setOfflineReadState } from "@/data/offlineCache";
 import { useStore } from "@/store/useStore";
 
 const buildMode = vi.hoisted(() => ({ demo: false }));
@@ -54,13 +53,10 @@ function showCapabilities(): void {
 
 beforeEach(() => {
   buildMode.demo = false;
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
   useStore.setState({ masquerade: { kind: "inactive" } });
 });
 
-afterEach(() => {
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
-});
+afterEach(() => {});
 
 describe("TeamAccessView access presentation", () => {
   it("labels the demo honestly and says why there is no membership directory", () => {
@@ -125,10 +121,6 @@ describe("TeamAccessView member management", () => {
     const owner = renderView("owner", "password-only");
     expect(screen.getByTestId("ownership-transfer-card")).toBeInTheDocument();
     owner.unmount();
-
-    setOfflineReadState({ owner: "tenant", readOnly: true });
-    renderView("owner", "password-only");
-    expect(screen.queryByTestId("ownership-transfer-card")).toBeNull();
   });
 
   it.each([
@@ -158,23 +150,6 @@ describe("TeamAccessView member management", () => {
     );
 
     expect(controls).not.toBeInTheDocument();
-    expect(screen.queryByTestId("member-management")).not.toBeInTheDocument();
-  });
-
-  it.each([
-    ["authenticated Owner", "owner", "password-only"],
-    ["auth-off installation", null, "off"],
-  ] as const)("projects cached data as Viewer-only for an %s", (_label, role, authMode) => {
-    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") });
-    renderView(role, authMode);
-
-    const current = screen.getByTestId("current-access");
-    expect(current).toHaveTextContent("Offline · View only");
-    expect(current).toHaveTextContent(/cached snapshot/i);
-    showCapabilities();
-    expect(screen.getByText("View the schedule").closest("li")).toHaveTextContent("Allowed:");
-    expect(screen.getByText("Edit scheduling data").closest("li")).toHaveTextContent("Not allowed:");
-    expect(screen.getByText("Transfer ownership")).toHaveClass("text-muted-foreground");
     expect(screen.queryByTestId("member-management")).not.toBeInTheDocument();
   });
 });

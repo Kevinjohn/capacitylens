@@ -53,5 +53,3 @@ activity and allocation under the project. The account also has an admin, editor
   compound label; making one private never implicitly changes the other.
 - ✅ **PRI-DISPLAY-06 — Public/scope invariants.** Public clients/projects and every non-client/project entity are unchanged. The built-in
   **Internal** client always remains public and continues to display as **Internal**.
-- ✅ **PRI-DISPLAY-07 — Offline parity.** A non-owner offline snapshot contains the same projected labels returned by the server; it does
-  not recreate or cache the removed real names/raw code names. An owner's snapshot may contain them.

@@ -50,7 +50,6 @@ export function createInviteSignInActions({ email, password, refreshAuth, setSta
     await refreshAuth();
     const list = await refreshAccountSummaries({
       signal: AbortSignal.timeout(5000),
-      allowCachedFallback: false,
     });
     const target = resolveJoinedAccount(list, accountId);
     if (target) {

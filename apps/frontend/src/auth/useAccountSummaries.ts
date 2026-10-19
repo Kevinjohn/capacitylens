@@ -5,8 +5,6 @@ import { useStore } from "@/store/useStore";
 import type { AccountSummary } from "@/store/useStore";
 import { isAccountRole } from "@capacitylens/shared/account/types";
 import { accountClient } from "@/account/accountClient";
-import { cacheAccountSummaries, readCachedAccountSummaries, setOfflineReadState } from "@/data/offlineCache";
-import { isTransportFailure } from "@/data/requestTimeout";
 import { hasDuplicateIdentity } from "@/lib/hasDuplicateIdentity";
 import { m } from "@/i18n";
 import { useAuth } from "./authContext";
@@ -26,23 +24,6 @@ function parseAccountSummary(entry: unknown): AccountSummary | null {
     return { id: summaryRecord.id, name: summaryRecord.name, role: "viewer", roleStatus: "unavailable" };
   }
   return { id: summaryRecord.id, name: summaryRecord.name, role: summaryRecord.role };
-}
-
-async function readCachedAccountSummaryFallback(acceptEffects: () => boolean): Promise<AccountSummary[] | null> {
-  try {
-    const cached = await readCachedAccountSummaries();
-    if (!cached) return null;
-    if (acceptEffects() && useStore.getState().activeAccountId === null) {
-      // This snapshot proves only that the company directory is cached. While a company is open,
-      // its slice may still be live, so the directory must not replace the slice loader's status.
-      setOfflineReadState({ owner: "accounts", readOnly: true, lastUpdated: cached.savedAt });
-    }
-    return cached.value;
-  } catch (error) {
-    // A server outage and unavailable IndexedDB can happen together. Keep the total contract.
-    console.warn("fetchAccountSummaries: the offline account list could not be read", error);
-    return null;
-  }
 }
 
 type AccountSummaryParseOutcome =
@@ -75,22 +56,12 @@ function parseAccountSummaryList(body: unknown): AccountSummaryParseOutcome {
 }
 
 type ApplyLiveAccountSummaryEffectsOptions = {
-  valid: AccountSummary[];
   complete: boolean;
-  acceptEffects: () => boolean;
   onCompleteness: ((complete: boolean) => void) | undefined;
 };
 
 function applyLiveAccountSummaryEffects(options: ApplyLiveAccountSummaryEffectsOptions): void {
-  const { valid, complete, acceptEffects, onCompleteness } = options;
-  if (acceptEffects()) {
-    if (useStore.getState().activeAccountId === null) setOfflineReadState({ owner: "accounts", readOnly: false });
-    if (complete) {
-      void cacheAccountSummaries(valid).catch((error) =>
-        console.warn("fetchAccountSummaries: the offline account list could not be updated", error),
-      );
-    }
-  }
+  const { complete, onCompleteness } = options;
   onCompleteness?.(complete);
 }
 
@@ -100,60 +71,39 @@ function applyAccountSummaryParseEffects(outcome: AccountSummaryParseOutcome, ac
   }
 }
 
-type ReadAccountSummaryFailureFallbackOptions = {
-  error: unknown;
-  allowCachedFallback: boolean;
-  acceptEffects: () => boolean;
-};
-async function readAccountSummaryFailureFallback({
-  error,
-  allowCachedFallback,
-  acceptEffects,
-}: ReadAccountSummaryFailureFallbackOptions): Promise<AccountSummary[] | null> {
+function reportAccountSummaryFailure(error: unknown): null {
   console.warn(
     "fetchAccountSummaries: /api/accounts read failed; reporting null (callers keep their existing list)",
     error,
   );
-  if (!isTransportFailure(error) || !allowCachedFallback) return null;
-  return readCachedAccountSummaryFallback(acceptEffects);
+  return null;
 }
 
-/** Reads the validated company directory, using the encrypted cached directory only when permitted. Null means the read failed; only a genuine empty array means no companies. Mixed responses retain valid rows and log rejected entries. Callers requiring mutation reconciliation must disable cached fallback. */
+/** Reads the validated company directory. Null means the read failed; only a genuine empty array means no companies. Mixed responses retain valid rows and log rejected entries. */
 export async function fetchAccountSummaries(requestOptions?: {
   signal?: AbortSignal;
   acceptEffects?: () => boolean;
-  /** Mutation reconciliation and access transitions need a live server answer, not an offline
-   * snapshot that cannot prove whether the operation committed. Ordinary picker reads may fall
-   * back to the encrypted, user-bound read-only cache. */
-  allowCachedFallback?: boolean;
   /** Reports whether the returned live list is complete enough to prove membership absence. */
   onCompleteness?: (complete: boolean) => void;
 }): Promise<AccountSummary[] | null> {
   const acceptEffects = requestOptions?.acceptEffects ?? (() => true);
-  const allowCachedFallback = requestOptions?.allowCachedFallback ?? true;
   try {
     const res = await accountClient.listWorkspaces(requestOptions?.signal);
     if (!res.ok) {
-      return res.status >= 500 && allowCachedFallback ? readCachedAccountSummaryFallback(acceptEffects) : null;
+      return null;
     }
     const body: unknown = await res.json();
     const parsed = parseAccountSummaryList(body);
     applyAccountSummaryParseEffects(parsed, acceptEffects);
     if (parsed.kind === "rejected") return null;
     applyLiveAccountSummaryEffects({
-      valid: parsed.valid,
       complete: parsed.complete,
-      acceptEffects,
       onCompleteness: requestOptions?.onCompleteness,
     });
     return parsed.valid;
   } catch (e) {
     // A failed directory read preserves existing data; warn for diagnosis and return null rather than presenting a false empty directory.
-    return readAccountSummaryFailureFallback({
-      error: e,
-      allowCachedFallback: allowCachedFallback,
-      acceptEffects: acceptEffects,
-    });
+    return reportAccountSummaryFailure(e);
   }
 }
 
@@ -166,7 +116,6 @@ export async function fetchAccountSummaries(requestOptions?: {
 export async function refreshAccountSummaries(requestOptions?: {
   signal?: AbortSignal;
   acceptEffects?: () => boolean;
-  allowCachedFallback?: boolean;
   preserveActiveAccountIfMissing?: boolean;
 }): Promise<AccountSummary[] | null> {
   const callerAcceptsEffects = requestOptions?.acceptEffects ?? (() => true);
@@ -229,7 +178,7 @@ export function useAccountSummaries({
     ]),
     enabled: serverMode && !masqueradeActive && (activeAccountId === null || refreshActiveAccount),
     // Keep refresh triggers aligned with the existing effect dependencies; focus alone must not
-    // silently change the picker or its offline-read marker.
+    // silently change the picker list.
     refetchOnMount: "always",
     refetchOnWindowFocus: false,
     queryFn: ({ signal }) =>

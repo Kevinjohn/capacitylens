@@ -3,7 +3,6 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { resetStoreWithAccount, jsonResponse } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
-import { setOfflineReadState } from "@/data/offlineCache";
 import { m } from "@/i18n";
 import { mockApi, renderSection } from "./MembersSection.testSupport";
 
@@ -11,10 +10,8 @@ vi.mock("@/data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfig
 
 beforeEach(() => {
   resetStoreWithAccount();
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
 });
 afterEach(() => {
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });

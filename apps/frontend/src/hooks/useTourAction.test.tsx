@@ -18,10 +18,8 @@ const tourMock = vi.hoisted(() => ({
     >(),
 }));
 const apiMode = vi.hoisted(() => ({ demo: false }));
-const offlineMode = vi.hoisted(() => ({ readOnly: false }));
 vi.mock("@/lib/tour", () => ({ startTour: tourMock.startTour }));
 vi.mock("@/data/apiConfig", () => ({ isDemoMode: () => apiMode.demo }));
-vi.mock("@/data/useOfflineState", () => ({ useOfflineState: () => offlineMode }));
 
 const setNotice = vi.fn();
 const actionRef = createRef<() => Promise<void>>();
@@ -59,7 +57,6 @@ function renderHarness({
 beforeEach(() => {
   tourMock.startTour.mockReset().mockResolvedValue(undefined);
   apiMode.demo = false;
-  offlineMode.readOnly = false;
   setNotice.mockReset();
   actionRef.current = null;
 });
@@ -68,14 +65,6 @@ afterEach(() => vi.restoreAllMocks());
 describe("useTourAction", () => {
   it.each(["pending", "unavailable"] as const)("disables the launcher while permissions are %s", async (status) => {
     renderHarness({ role: "viewer", status });
-    expect(screen.getByRole("button", { name: "Tour" })).toBeDisabled();
-    await act(async () => actionRef.current?.());
-    expect(tourMock.startTour).not.toHaveBeenCalled();
-  });
-
-  it("disables the launcher for a read-only offline snapshot", async () => {
-    offlineMode.readOnly = true;
-    renderHarness({ role: "owner", status: "resolved" });
     expect(screen.getByRole("button", { name: "Tour" })).toBeDisabled();
     await act(async () => actionRef.current?.());
     expect(tourMock.startTour).not.toHaveBeenCalled();
