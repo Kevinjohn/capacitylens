@@ -388,6 +388,83 @@ input[type="radio"] {
   border-radius: 9999px;
 }
 
+/* Keep Radix dialog scroll locking in the CSP-approved stylesheet; the measured gaps stay on body. */
+/* Radix Select also injects these viewport rules at runtime, so self-host them for the CSP. */
+[data-radix-select-viewport] {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+}
+[data-radix-select-viewport]::-webkit-scrollbar {
+  display: none;
+}
+.with-scroll-bars-hidden {
+  overflow: hidden;
+  padding-right: var(--removed-body-scroll-bar-size, 0px);
+}
+body[data-scroll-locked]:not([data-scroll-lock-no-relative]) {
+  position: relative;
+}
+body[data-scroll-locked] {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+body[data-scroll-locked]:not([data-scroll-lock-gap-mode="padding"]) {
+  padding-left: var(--scroll-lock-body-left, 0px);
+  padding-top: var(--scroll-lock-body-top, 0px);
+  padding-right: var(--scroll-lock-body-right, 0px);
+  margin-left: 0;
+  margin-top: 0;
+  margin-right: var(--removed-body-scroll-bar-size, 0px);
+}
+body[data-scroll-locked][data-scroll-lock-gap-mode="padding"] {
+  padding-right: var(--removed-body-scroll-bar-size, 0px);
+}
+.right-scroll-bar-position {
+  right: var(--removed-body-scroll-bar-size, 0px);
+}
+.width-before-scroll-bar {
+  margin-right: var(--removed-body-scroll-bar-size, 0px);
+}
+.right-scroll-bar-position .right-scroll-bar-position {
+  right: 0;
+}
+.width-before-scroll-bar .width-before-scroll-bar {
+  margin-right: 0;
+}
+body[data-scroll-locked]:not([data-scroll-lock-no-important]) {
+  overflow: hidden !important;
+}
+body[data-scroll-locked]:not([data-scroll-lock-no-important]):not([data-scroll-lock-no-relative]) {
+  position: relative !important;
+}
+body[data-scroll-locked]:not([data-scroll-lock-no-important]):not([data-scroll-lock-gap-mode="padding"]) {
+  margin-right: var(--removed-body-scroll-bar-size, 0px) !important;
+}
+body[data-scroll-locked]:not([data-scroll-lock-no-important])[data-scroll-lock-gap-mode="padding"] {
+  padding-right: var(--removed-body-scroll-bar-size, 0px) !important;
+}
+body[data-scroll-locked]:not([data-scroll-lock-no-important]) .with-scroll-bars-hidden {
+  overflow: hidden !important;
+  padding-right: var(--removed-body-scroll-bar-size, 0px) !important;
+}
+body[data-scroll-locked]:not([data-scroll-lock-no-important]) .right-scroll-bar-position,
+body[data-scroll-locked]:not([data-scroll-lock-no-important]).right-scroll-bar-position {
+  right: var(--removed-body-scroll-bar-size, 0px) !important;
+}
+body[data-scroll-locked]:not([data-scroll-lock-no-important]) .width-before-scroll-bar,
+body[data-scroll-locked]:not([data-scroll-lock-no-important]).width-before-scroll-bar {
+  margin-right: var(--removed-body-scroll-bar-size, 0px) !important;
+}
+body[data-scroll-locked]:not([data-scroll-lock-no-important]) .right-scroll-bar-position .right-scroll-bar-position,
+body[data-scroll-locked]:not([data-scroll-lock-no-important]).right-scroll-bar-position .right-scroll-bar-position {
+  right: 0 !important;
+}
+body[data-scroll-locked]:not([data-scroll-lock-no-important]) .width-before-scroll-bar .width-before-scroll-bar,
+body[data-scroll-locked]:not([data-scroll-lock-no-important]).width-before-scroll-bar .width-before-scroll-bar {
+  margin-right: 0 !important;
+}
+
 [data-droptarget] {
   background: color-mix(in oklab, var(--color-brand) 9%, transparent);
   box-shadow: inset 0 0 0 2px var(--color-brand);
