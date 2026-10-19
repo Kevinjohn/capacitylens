@@ -158,8 +158,8 @@ export default defineConfig({
             devWebServer,
             {
               command: "pnpm run start:e2e",
-              cwd: "./server",
-              url: `http://localhost:${API_PORT}/api/health`,
+              cwd: "./apps/backend",
+              url: `http://127.0.0.1:${API_PORT}/health/ready`,
               reuseExistingServer: false,
               timeout: 120_000,
             },
@@ -167,7 +167,7 @@ export default defineConfig({
               command: "pnpm run dev:api",
               // Warm and verify the browser's real Vite → API path before the first page mounts.
               // Waiting on the Vite root alone can race its first proxied fetch on a cold start.
-              url: `http://localhost:${DB_WEB_PORT}/api/health`,
+              url: `http://127.0.0.1:${DB_WEB_PORT}/health/ready`,
               reuseExistingServer: false,
               timeout: 120_000,
               // Match the packaged nginx topology: the browser stays same-origin and Vite proxies
@@ -179,14 +179,14 @@ export default defineConfig({
               // Start a fresh auth API for each run because its database wipe and admin bootstrap
               // execute only during startup.
               command: "pnpm run start:auth-e2e",
-              cwd: "./server",
-              url: `http://localhost:${AUTH_API_PORT}/api/health`,
+              cwd: "./apps/backend",
+              url: `http://127.0.0.1:${AUTH_API_PORT}/health/ready`,
               reuseExistingServer: false,
               timeout: 120_000,
             },
             {
               command: "pnpm run dev:auth",
-              url: `http://localhost:${AUTH_WEB_PORT}/api/health`,
+              url: `http://127.0.0.1:${AUTH_WEB_PORT}/health/ready`,
               reuseExistingServer: false,
               timeout: 120_000,
               env: { CAPACITYLENS_DEV_API_PORT: String(AUTH_API_PORT), VITE_CAPACITYLENS_API: "" },

@@ -1,0 +1,589 @@
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { SettingsView } from "./SettingsView";
+import { AuthContext } from "@/auth/authContext";
+import { useStore } from "@/store/useStore";
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
+import { PermissionContext } from "@/auth/permissionContext";
+import { resolveDateStyle } from "@/store/selectors";
+
+const fetchMock = vi.hoisted(() => ({ fetch: vi.fn() }));
+
+const offlineMocks = vi.hoisted(() => ({
+  enabled: false,
+  setEnabled: vi.fn<(enabled: boolean) => Promise<void>>(),
+  cacheAuth: vi.fn(async () => ({ kind: "written" as const })),
+  cacheSummaries: vi.fn(async () => ({ kind: "written" as const })),
+  cacheSlice: vi.fn(async () => ({ kind: "written" as const })),
+  clearAll: vi.fn<() => Promise<void>>(),
+  preferenceListeners: new Set<() => void>(),
+}));
+
+vi.mock("@/data/offlineCache", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/data/offlineCache")>()),
+  isOfflineReadEnabled: () => offlineMocks.enabled,
+  subscribeOfflinePreference: (listener: () => void) => {
+    offlineMocks.preferenceListeners.add(listener);
+    return () => offlineMocks.preferenceListeners.delete(listener);
+  },
+  setOfflineReadEnabled: offlineMocks.setEnabled,
+  cacheAuthSnapshot: offlineMocks.cacheAuth,
+  cacheAccountSummaries: offlineMocks.cacheSummaries,
+  cacheAccountSlice: offlineMocks.cacheSlice,
+  clearAllOfflineData: offlineMocks.clearAll,
+}));
+
+beforeEach(() => {
+  offlineMocks.enabled = false;
+  offlineMocks.preferenceListeners.clear();
+  offlineMocks.setEnabled.mockReset();
+  offlineMocks.setEnabled.mockImplementation(async (enabled) => {
+    offlineMocks.enabled = enabled;
+    for (const listener of offlineMocks.preferenceListeners) listener();
+  });
+  offlineMocks.cacheAuth.mockClear();
+  offlineMocks.cacheSummaries.mockClear();
+  offlineMocks.cacheSlice.mockClear();
+  offlineMocks.clearAll.mockReset();
+  offlineMocks.clearAll.mockResolvedValue(undefined);
+  resetStoreWithAccount();
+  useStore.getState().setTheme("light");
+  vi.stubGlobal("fetch", fetchMock.fetch);
+  fetchMock.fetch.mockReset();
+  fetchMock.fetch.mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      server: {
+        connectivity: "ok",
+        database: { status: "ok", schemaVersion: 38 },
+        persistence: "unknown",
+        backup: { status: "unavailable", lastSuccessAt: null },
+      },
+    }),
+  });
+});
+
+describe("SettingsView — scheduling mode", () => {
+  it("defaults to Hours and switches the company to Days through the store", async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    const hours = screen.getByRole("radio", { name: "Hours" });
+    const days = screen.getByRole("radio", { name: "Days" });
+
+    expect(hours).toHaveAttribute("aria-checked", "true");
+    expect(days).toHaveAttribute("aria-checked", "false");
+
+    await user.click(days);
+
+    const account = useStore.getState().data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID);
+    expect(account?.schedulingMode).toBe("days");
+    expect(days).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("offers a Blocks option and switches the company to it", async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    const blocks = screen.getByRole("radio", { name: "Blocks" });
+    expect(blocks).toHaveAttribute("aria-checked", "false");
+
+    await user.click(blocks);
+
+    const account = useStore.getState().data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID);
+    expect(account?.schedulingMode).toBe("blocks");
+    expect(blocks).toHaveAttribute("aria-checked", "true");
+  });
+});
+
+describe("SettingsView — Overview access", () => {
+  it("defaults to Owner and Admin and lets an administrator widen access", async () => {
+    const user = userEvent.setup();
+    render(
+      <PermissionContext.Provider value={{ role: "admin", status: "resolved" }}>
+        <SettingsView />
+      </PermissionContext.Provider>,
+    );
+
+    const restricted = screen.getByRole("radio", { name: "Admins" });
+    const everyone = screen.getByRole("radio", { name: "Everyone" });
+    expect(restricted).toHaveAttribute("aria-checked", "true");
+
+    await user.click(everyone);
+
+    expect(useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)).toHaveProperty(
+      "capacityOverviewAccess",
+      "everyone",
+    );
+  });
+
+  it("shows the policy read-only to editors", () => {
+    render(
+      <PermissionContext.Provider value={{ role: "editor", status: "resolved" }}>
+        <SettingsView />
+      </PermissionContext.Provider>,
+    );
+
+    expect(screen.getByRole("radio", { name: "Admins" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Admins & Editors" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Everyone" })).toBeDisabled();
+  });
+});
+
+describe("SettingsView — section help", () => {
+  it("gives every default settings section its labelled question-mark action", () => {
+    render(<SettingsView />);
+
+    for (const section of [
+      "Allocation units",
+      "Overview access",
+      "Company-wide working days",
+      "Company features",
+      "Schedule on this device",
+      "Allocation labels on this device",
+      "Utilisation figures on this device",
+      "Appearance on this device",
+      "Import and export",
+      "Company details",
+    ]) {
+      expect(screen.getByRole("button", { name: `About ${section}` })).toHaveAttribute("title", `About ${section}`);
+    }
+  });
+
+  it("keeps help and the account summary available while company controls remain read-only for viewers", () => {
+    render(
+      <PermissionContext.Provider value={{ role: "viewer", status: "resolved" }}>
+        <SettingsView />
+      </PermissionContext.Provider>,
+    );
+
+    expect(screen.getByRole("button", { name: "About Company features" })).toBeEnabled();
+    expect(screen.getByRole("switch", { name: "Use disciplines" })).toBeDisabled();
+    expect(screen.getByRole("switch", { name: "Show task field in schedule" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Days" })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: "Monday" })).toBeDisabled();
+    expect(screen.getByRole("cell", { name: "Test Co" })).toBeInTheDocument();
+  });
+});
+
+it("renders seven ordered weekday labels with full checkbox names", () => {
+  render(<SettingsView />);
+
+  const group = screen.getByRole("group", { name: "Company working days" });
+  expect(
+    within(group)
+      .getAllByText(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/)
+      .map((label) => label.textContent),
+  ).toEqual(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
+  expect(within(group).getAllByRole("checkbox")).toHaveLength(7);
+  for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
+    expect(within(group).getByRole("checkbox", { name: day })).toBeInTheDocument();
+  }
+});
+
+it("defaults to the first five days and persists checkbox changes", async () => {
+  const user = userEvent.setup();
+  render(<SettingsView />);
+
+  for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]) {
+    expect(screen.getByRole("checkbox", { name: day })).toBeChecked();
+  }
+  expect(screen.getByRole("checkbox", { name: "Saturday" })).not.toBeChecked();
+  expect(screen.getByRole("checkbox", { name: "Sunday" })).not.toBeChecked();
+
+  await user.click(screen.getByRole("checkbox", { name: "Friday" }));
+  await user.click(screen.getByRole("checkbox", { name: "Saturday" }));
+
+  expect(useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.workingDays).toEqual([
+    1, 2, 3, 4, 6,
+  ]);
+});
+
+it("toggles a company working day when its visible weekday label is clicked", async () => {
+  const user = userEvent.setup();
+  render(<SettingsView />);
+
+  const saturday = screen.getByText("Sat", { exact: true });
+  expect(saturday).toBeVisible();
+  expect(saturday).not.toHaveClass("sr-only");
+  await user.click(saturday);
+
+  expect(screen.getByRole("checkbox", { name: "Saturday" })).toBeChecked();
+  expect(useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.workingDays).toEqual([
+    1, 2, 3, 4, 5, 6,
+  ]);
+});
+
+it("warns that calendar changes reinterpret existing allocations without moving their dates", async () => {
+  const user = userEvent.setup();
+  render(<SettingsView />);
+
+  await user.click(screen.getByRole("button", { name: "About Company-wide working days" }));
+
+  expect(
+    screen.getByText(
+      "New allocations must begin on a company and personal working day. Ignore working days makes the saved allocation use calendar days and allows an existing allocation to move onto recurring non-working days. Time off remains separate.",
+      { exact: false },
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      "Changing company-wide working days recalculates capacity, utilisation, and conflicts for existing allocations. Allocation dates will not move, but work on newly non-working days no longer counts unless Ignore working days is enabled.",
+    ),
+  ).toBeInTheDocument();
+});
+
+it("reorders from Sunday without changing an explicit saved selection", () => {
+  useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: [1, 3, 5], weekStartsOn: 0 });
+  render(<SettingsView />);
+
+  expect(screen.getAllByRole("checkbox").map((checkbox) => checkbox.id)).toEqual([
+    "account-working-day-0",
+    "account-working-day-1",
+    "account-working-day-2",
+    "account-working-day-3",
+    "account-working-day-4",
+    "account-working-day-5",
+    "account-working-day-6",
+  ]);
+  const companyDays = screen.getByRole("group", { name: "Company working days" });
+  expect(
+    within(companyDays)
+      .getAllByText(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)$/)
+      .map((label) => label.textContent),
+  ).toEqual(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
+  expect(screen.getByRole("checkbox", { name: "Monday" })).toBeChecked();
+  expect(screen.getByRole("checkbox", { name: "Wednesday" })).toBeChecked();
+  expect(screen.getByRole("checkbox", { name: "Friday" })).toBeChecked();
+  expect(useStore.getState().data.accounts[0]?.workingDays).toEqual([1, 3, 5]);
+});
+
+describe("SettingsView — minimum company working week", () => {
+  it("disables and explains the final checked day without attempting an empty save", async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday"]) {
+      await user.click(screen.getByRole("checkbox", { name: day }));
+    }
+
+    const friday = screen.getByRole("checkbox", { name: "Friday" });
+    const explanation = screen.getByText("At least one company working day is required.");
+    expect(friday).toBeChecked();
+    expect(friday).toBeDisabled();
+    expect(explanation).toBeVisible();
+    expect(friday).toHaveAttribute("aria-describedby", explanation.id);
+    const fridayLabel = screen.getByText("Fri", { exact: true }).closest("label");
+    expect(fridayLabel).toHaveAttribute("data-disabled", "true");
+
+    await user.click(screen.getByText("Fri", { exact: true }));
+
+    expect(useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.workingDays).toEqual(
+      [5],
+    );
+  });
+});
+
+describe("SettingsView — removed options", () => {
+  it("offers no internal-work, engagement, density, snap or language controls", () => {
+    render(<SettingsView />);
+    for (const name of [
+      "Group resources by engagement",
+      "Show internal projects",
+      "Show internal activities",
+      "Compact view",
+      "Snap to week start",
+    ]) {
+      expect(screen.queryByRole("switch", { name })).not.toBeInTheDocument();
+    }
+    expect(screen.queryByRole("radiogroup", { name: "Internal work colours" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("row", { name: /^Language/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("SettingsView — theme", () => {
+  it("reflects the current preference and switches it on click", async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    const light = screen.getByRole("radio", { name: "Light" });
+    const dark = screen.getByRole("radio", { name: "Dark" });
+    expect(light).toHaveAttribute("aria-checked", "true");
+    expect(dark).toHaveAttribute("aria-checked", "false");
+
+    await user.click(dark);
+
+    expect(useStore.getState().theme).toBe("dark");
+    expect(dark).toHaveAttribute("aria-checked", "true");
+
+    expect(document.documentElement.dataset.theme).toBe("dark");
+  });
+});
+
+describe("SettingsView — date style", () => {
+  it("reflects the current preference and switches it on click", async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    const dayMonth = screen.getByRole("radio", { name: "9 Sep" });
+    const monthDay = screen.getByRole("radio", { name: "Sep 9" });
+    expect(dayMonth).toHaveAttribute("aria-checked", "true");
+    expect(monthDay).toHaveAttribute("aria-checked", "false");
+
+    await user.click(monthDay);
+
+    expect(resolveDateStyle(useStore.getState().data, DEFAULT_ACCOUNT_ID)).toBe("month-day");
+    expect(monthDay).toHaveAttribute("aria-checked", "true");
+    expect(dayMonth).toHaveAttribute("aria-checked", "false");
+  });
+});
+
+describe("SettingsView — Import and export disclosure (issue #169)", () => {
+  it("keeps import/export closed by default above company details", async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    expect(screen.getByRole("heading", { name: "Import and export" })).toBeInTheDocument();
+    const disclosure = screen.getByRole("button", { name: "Import and export" });
+    expect(disclosure).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByTestId("export-data")).not.toBeInTheDocument();
+
+    await user.click(disclosure);
+    expect(screen.getByTestId("export-data")).toHaveTextContent("Export JSON");
+    expect(screen.getByTestId("import-data")).toHaveTextContent("Import JSON");
+    expect(screen.getByTestId("import-input")).toHaveAttribute("type", "file");
+
+    const headings = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+    expect(headings.slice(-1)).toEqual(["Company details"]);
+    expect(screen.queryByTestId("copy-diagnostics")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("settings-build-details")).not.toBeInTheDocument();
+  });
+});
+
+it("keeps personal Account and sign-out controls out of company Settings", () => {
+  render(<SettingsView />);
+  expect(screen.queryByRole("heading", { name: "Account" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
+});
+
+it("does not duplicate personal identity or Sign out when the server reports an auth mode", () => {
+  const signOut = vi.fn().mockResolvedValue(undefined);
+  render(
+    <AuthContext.Provider
+      value={{
+        authMode: "password-only",
+        user: { id: "u1", email: "tester@capacitylens.dev" },
+        canCreateAccount: true,
+        multiAccount: true,
+        refreshAuth: async () => {},
+        signOut,
+      }}
+    >
+      <SettingsView />
+    </AuthContext.Provider>,
+  );
+  expect(screen.queryByRole("heading", { name: "Account" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "About Offline access" })).toHaveAttribute("title", "About Offline access");
+  expect(screen.queryByText(/Signed in as tester@capacitylens\.dev/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
+  expect(signOut).not.toHaveBeenCalled();
+});
+
+it("runs only one offline activation when the switch is triggered twice", async () => {
+  let finishActivation!: () => void;
+  offlineMocks.setEnabled.mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        finishActivation = () => {
+          offlineMocks.enabled = true;
+          resolve();
+        };
+      }),
+  );
+  render(
+    <AuthContext.Provider
+      value={{
+        authMode: "password-only",
+        user: { id: "u1", email: "tester@capacitylens.dev" },
+        canCreateAccount: true,
+        multiAccount: true,
+        refreshAuth: async () => {},
+        signOut: async () => {},
+      }}
+    >
+      <SettingsView />
+    </AuthContext.Provider>,
+  );
+
+  const toggle = screen.getByRole("switch", { name: "Make this device available offline" });
+  fireEvent.click(toggle);
+  fireEvent.click(toggle);
+
+  expect(offlineMocks.setEnabled).toHaveBeenCalledTimes(1);
+  expect(toggle).toBeDisabled();
+  finishActivation();
+  await waitFor(() => expect(toggle).toBeEnabled());
+});
+
+describe("SettingsView — Schedule (minimise weekends)", () => {
+  it("reflects the default-on preference and toggles it through the store", async () => {
+    const user = userEvent.setup();
+    useStore.getState().setMinimiseWeekends(true);
+    render(<SettingsView />);
+
+    const sw = screen.getByRole("switch", { name: "Minimise weekends" });
+    expect(sw).toHaveAttribute("aria-checked", "true");
+
+    await user.click(sw);
+    expect(useStore.getState().minimiseWeekends).toBe(false);
+    expect(sw).toHaveAttribute("aria-checked", "false");
+
+    await user.click(sw);
+    expect(useStore.getState().minimiseWeekends).toBe(true);
+    expect(sw).toHaveAttribute("aria-checked", "true");
+  });
+});
+
+describe("SettingsView — account toggle wiring", () => {
+  // Pin each absent-field default independently as a literal so changing the selector cannot silently change the expected behaviour too.
+  it.each([
+    ["Use disciplines", "disciplinesEnabled", true],
+    ["Show placeholders", "placeholdersEnabled", false],
+    ["Show external resources", "externalEnabled", false],
+    ["Inline activity creation", "inlineActivityCreateEnabled", false],
+    ["Show task field in schedule", "showTaskFieldInSchedule", false],
+  ] as const)("wires %s to account.%s (empty reads as %s)", async (label, key, whenAbsent) => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+    const before = useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.[key];
+
+    await user.click(screen.getByRole("switch", { name: label }));
+
+    const after = useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.[key];
+    expect(after).toBe(!(before ?? whenAbsent));
+  });
+
+  it("keeps every company toggle independently configurable in one section", async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    const section = screen.getByRole("heading", { name: "Company features" }).closest('[data-slot="settings-row"]');
+    expect(section).not.toBeNull();
+    expect(within(section as HTMLElement).getByRole("switch", { name: "Show placeholders" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+    expect(within(section as HTMLElement).getByRole("switch", { name: "Show external resources" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+
+    await user.click(within(section as HTMLElement).getByRole("switch", { name: "Show placeholders" }));
+    expect(useStore.getState().data.accounts[0]?.placeholdersEnabled).toBe(true);
+    expect(useStore.getState().data.accounts[0]?.externalEnabled).toBeNull();
+
+    for (const name of ["Use disciplines", "Inline activity creation", "Show task field in schedule"]) {
+      expect(within(section as HTMLElement).getByRole("switch", { name })).toBeInTheDocument();
+    }
+
+    await user.click(screen.getByRole("button", { name: "About Company features" }));
+    const dialog = screen.getByRole("dialog", { name: "Company features" });
+    expect(within(dialog).getAllByText(/unfilled roles or tentative people/i)).not.toHaveLength(0);
+    expect(within(dialog).getAllByText(/partner agencies, freelancers, suppliers or subcontractors/i)).not.toHaveLength(
+      0,
+    );
+  });
+});
+
+describe("SettingsView — device preference toggle wiring", () => {
+  it.each([
+    ["Show client name", "showClient"],
+    ["Show project name", "showProject"],
+  ] as const)("wires %s to barLabelPrefs.%s", async (label, key) => {
+    const user = userEvent.setup();
+    const before = useStore.getState().barLabelPrefs[key];
+    render(<SettingsView />);
+    await user.click(screen.getByRole("switch", { name: label }));
+    expect(useStore.getState().barLabelPrefs[key]).toBe(!before);
+  });
+
+  it.each([
+    ["Show Total Utilisation", "showTotal"],
+    ["Show Discipline Utilisation", "showDiscipline"],
+    ["Show Personal Utilisation", "showPersonal"],
+  ] as const)("wires %s to utilizationPrefs.%s", async (label, key) => {
+    const user = userEvent.setup();
+    const before = useStore.getState().utilizationPrefs[key];
+    render(<SettingsView />);
+    await user.click(screen.getByRole("switch", { name: label }));
+    expect(useStore.getState().utilizationPrefs[key]).toBe(!before);
+  });
+});
+
+describe("SettingsView — switch target size (WCAG 2.5.8 AA, ≥24px)", () => {
+  it('renders the role="switch" control at the h-6 (24px) target-size floor', () => {
+    render(<SettingsView />);
+    const sw = screen.getByRole("switch", { name: "Minimise weekends" });
+    expect(sw).toHaveAttribute("data-size", "default");
+    expect(sw.className).toContain("data-[size=default]:h-6");
+    expect(sw.className).toContain("data-[size=default]:w-10");
+  });
+});
+
+it("keeps Device data and Deleted items unavailable in Settings", () => {
+  render(<SettingsView />);
+  expect(screen.queryByRole("heading", { name: "Device data" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Deleted items" })).not.toBeInTheDocument();
+  expect(screen.queryByTestId("clear-local-storage")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("archived-section")).not.toBeInTheDocument();
+});
+
+describe("SettingsView — account options selected at creation", () => {
+  it("shows the three frozen values in a compact read-only table at the bottom", () => {
+    render(<SettingsView />);
+
+    const heading = screen.getByRole("heading", { name: "Company details" });
+    const card = heading.closest('[data-slot="settings-row"]');
+    expect(card).not.toBeNull();
+    const table = within(card as HTMLElement).getByRole("table");
+    expect(within(table).getAllByRole("row")).toHaveLength(3);
+    expect(within(table).getByRole("cell", { name: "Test Co" })).toBeInTheDocument();
+    expect(within(table).getByRole("cell", { name: "Monday" })).toBeInTheDocument();
+    expect(within(table).getByRole("cell", { name: "GMT (UTC+00:00)" })).toBeInTheDocument();
+    for (const cell of [...within(table).getAllByRole("rowheader"), ...within(table).getAllByRole("cell")]) {
+      expect(cell).toHaveClass("py-1");
+      expect(cell).not.toHaveClass("py-2");
+    }
+    expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup", { name: "Week starts on" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Time zone" })).not.toBeInTheDocument();
+  });
+
+  it("moves the frozen explanation into the section help modal", async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    expect(screen.queryByText(/cannot be changed here/i)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "About Company details" }));
+    const dialog = screen.getByRole("dialog", { name: "Company details" });
+    expect(within(dialog).getByText(/cannot be changed here/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/set which day starts the week/i)).toBeInTheDocument();
+  });
+});
+
+it("opens and focuses the Import section reached from onboarding", () => {
+  const previousUrl = window.location.href;
+  const scroll = vi.spyOn(HTMLElement.prototype, "scrollIntoView");
+  try {
+    window.history.replaceState(null, "", "/settings#getting-started-import");
+    render(<SettingsView />);
+    const section = document.getElementById("getting-started-import");
+    expect(section).toHaveFocus();
+    expect(section).toHaveTextContent("Import JSON");
+    expect(scroll).toHaveBeenCalledWith({ block: "start" });
+  } finally {
+    window.history.replaceState(null, "", previousUrl);
+    scroll.mockRestore();
+  }
+});

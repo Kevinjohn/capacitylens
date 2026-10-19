@@ -23,7 +23,7 @@ test.describe("database-backed onboarding lock (P1.14)", () => {
       ["timezone", "UTC", "Europe/London"],
     ] as const;
     for (const [field, initial, target] of changes) {
-      // The demo seed deliberately models legacy accounts with these optional fields absent.
+      // The demo seed deliberately models legacy accounts with these nullable settings unset.
       // Missing frozen fields may be initialized once; only a subsequent change is forbidden.
       const initialized = await request.patch(`${API}/api/accounts/${account.id}`, {
         data: { [field]: initial },
@@ -46,7 +46,7 @@ test.describe("database-backed onboarding lock (P1.14)", () => {
     const after = await serverState(request);
     const updatedAccount = requireStateRows(after, "accounts")[0];
     if (updatedAccount === undefined) throw new Error("Server state must retain the seeded account");
-    expect(updatedAccount.language).toBeUndefined();
+    expect(updatedAccount.language).toBeNull();
     expect(updatedAccount).toMatchObject({
       weekStartsOn: 1,
       timezone: "UTC",

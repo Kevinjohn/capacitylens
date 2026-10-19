@@ -1,6 +1,6 @@
 import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
-import { WEEK_SNAP_IDLE_MS } from "../src/lib/schedulerConfig";
+import { WEEK_SNAP_IDLE_MS } from "../apps/frontend/src/lib/schedulerConfig";
 
 // Freeze browser Date inside the June seed window so scheduler tests remain independent of the wall clock.
 // Keep timers native because Firefox clock emulation can run pending scroll frames during Strict Mode layout replay.

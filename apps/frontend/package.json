@@ -1,0 +1,20 @@
+{
+  "name": "@capacitylens/frontend",
+  "version": "0.73.0-alpha.1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@capacitylens/shared": "workspace:*",
+    "@capacitylens/backend": "workspace:*",
+    "@tuyau/core": "1.2.2"
+  },
+  "scripts": {
+    "paraglide:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide",
+    "dev": "pnpm run paraglide:compile && vite",
+    "build": "pnpm run paraglide:compile && tsc -b tsconfig.build.json && vite build",
+    "test": "pnpm run paraglide:compile && vitest run",
+    "lint": "pnpm run paraglide:compile && eslint src vite.config.ts --max-warnings 0",
+    "typecheck": "pnpm run paraglide:compile && tsc -b tsconfig.app.json tsconfig.node.json",
+    "format": "prettier --write ."
+  }
+}

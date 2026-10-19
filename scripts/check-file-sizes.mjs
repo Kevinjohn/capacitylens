@@ -68,10 +68,11 @@ export function evaluateFileSizes(files, config) {
  * Lists tracked application, server, and shared source files with their contents.
  */
 export function collectSourceFiles(root) {
-  const result = spawnSync("git", ["ls-files", "-z", "--", "src", "server/src", "shared/src"], {
-    cwd: root,
-    encoding: "utf8",
-  });
+  const result = spawnSync(
+    "git",
+    ["ls-files", "-z", "--", "apps/frontend/src", "apps/backend", "server/src", "packages/shared/src"],
+    { cwd: root, encoding: "utf8" },
+  );
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`git ls-files failed: ${result.stderr.trim()}`);
   return result.stdout
@@ -80,7 +81,9 @@ export function collectSourceFiles(root) {
       (path) =>
         /\.tsx?$/.test(path) &&
         !path.endsWith(".d.ts") &&
-        !path.startsWith("src/paraglide/") &&
+        !path.startsWith("apps/frontend/src/paraglide/") &&
+        !path.startsWith("apps/backend/.adonisjs/") &&
+        path !== "apps/backend/database/schema.ts" &&
         !/(?:^|\/)(?:node_modules|e2e)\//.test(path),
     )
     .map((path) => ({ path, content: readFileSync(join(root, path), "utf8") }))

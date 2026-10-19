@@ -90,32 +90,50 @@ async function seedPrivateNames(
   const now = new Date().toISOString();
   const clientId = `privacy-client-${STAMP}`;
   const projectId = `privacy-project-${STAMP}`;
-  const clientWrite = await request.put(`${AUTH_API}/api/clients/${clientId}`, {
+  const clientWrite = await request.post(`${AUTH_API}/api/batch`, {
     headers: { cookie: ownerCookie, "content-type": "application/json" },
     data: {
-      id: clientId,
-      accountId,
-      name: REAL_CLIENT,
-      color: "#76a5e7",
-      isPrivate: true,
-      codeName: "Nightwing",
-      createdAt: now,
-      updatedAt: now,
+      ops: [
+        {
+          method: "PUT",
+          table: "clients",
+          id: clientId,
+          row: {
+            id: clientId,
+            accountId,
+            name: REAL_CLIENT,
+            color: "#76a5e7",
+            isPrivate: true,
+            codeName: "Nightwing",
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      ],
     },
   });
   expect(clientWrite.status()).toBe(200);
-  const projectWrite = await request.put(`${AUTH_API}/api/projects/${projectId}`, {
+  const projectWrite = await request.post(`${AUTH_API}/api/batch`, {
     headers: { cookie: ownerCookie, "content-type": "application/json" },
     data: {
-      id: projectId,
-      accountId,
-      clientId,
-      name: REAL_PROJECT,
-      color: "#e776b8",
-      isPrivate: true,
-      codeName: "Aurora",
-      createdAt: now,
-      updatedAt: now,
+      ops: [
+        {
+          method: "PUT",
+          table: "projects",
+          id: projectId,
+          row: {
+            id: projectId,
+            accountId,
+            clientId,
+            name: REAL_PROJECT,
+            color: "#e776b8",
+            isPrivate: true,
+            codeName: "Aurora",
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+      ],
     },
   });
   expect(projectWrite.status()).toBe(200);
