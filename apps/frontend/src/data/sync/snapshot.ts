@@ -80,6 +80,12 @@ export function rememberRevisions({ state, ops, revisions, committedSnapshot }: 
       });
     }
   }
+  const acknowledged = ops.flatMap((op) => {
+    if (op.method !== "PUT" || !op.row) return [];
+    const revision = revisionsByRowKey.get(buildRowKey(op.table, op.id));
+    return revision ? [{ ...revision, flushedUpdatedAt: op.row.updatedAt }] : [];
+  });
+  if (acknowledged.length > 0) state.committedRevisionHandler?.(acknowledged);
   const rowsByTable = new Map<Op["table"], Map<string, Entity>>();
   for (const revision of revisions) {
     const key = buildRowKey(revision.table, revision.id);

@@ -147,6 +147,8 @@ accept responses never include it.
    **Schedule the first piece of work**. Completion comes from active, coherent company data,
    including imports. Internal work remains available but does not skip the client or project steps.
    The completed 5/5 bar remains visible until permanently dismissed.
+   View-as member hides Getting started and does not request its company dismissal state until the
+   projection has fully ended; ordinary Editor guidance then returns.
    **Show me around** (`data-testid="getting-started-tour"`) runs a role-based driver.js
    spotlight tour from the current Owner, Admin or Editor section through the lower roles. Owners
    see eight server-backed stops, Admins seven and Editors five; the Editor tour ends with two
@@ -640,6 +642,9 @@ Switching modes is announced in the scheduler's polite live region. In Time-off 
 omit work-allocation counts, and each eligible non-external resource row exposes a keyboard
 **Add time off for <name>** button that opens the same prefilled time-off form as drawing the lane.
 External rows expose no time-off creation action.
+Saved local edits remain undoable after a background refresh that contains only their own
+acknowledged revisions. A genuine remote row change, addition or deletion clears history so
+Undo cannot overwrite or resurrect another writer’s work.
 Undo/redo run
 from BOTH the toolbar **Undo**/**Redo** buttons (above) AND the global Cmd/Ctrl undo/redo shortcuts.
 The expanded filter row starts with `Search people…`, which matches accent-insensitively across the
@@ -1302,7 +1307,8 @@ authority on redeem (`POST /api/auth/reset-password`). Success shows _"Password 
 with your new password."_ (`data-testid="reset-success"`) with a **Go to sign in** link (a full page
 load onto the login wall); the member's previous sessions are revoked. An invalid / already-used /
 expired token shows _"This reset link is invalid, already used, or expired. Ask your admin for a
-new one."_ — the token is single-use. If the server does not mount password reset, the page says
+new one."_ — the token is single-use. The native endpoint returns **400** with
+`code: "INVALID_TOKEN"` for invalid, consumed and expired proofs. If the server does not mount password reset, the page says
 that reset is unavailable on this instance and directs the visitor to their administrator instead
 of suggesting another attempt. In local/demo mode the page shows a short "server mode only"
 note and makes no request. The page is `src/auth/ResetPassword.tsx`; spec

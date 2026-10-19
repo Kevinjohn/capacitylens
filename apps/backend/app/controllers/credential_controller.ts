@@ -59,9 +59,10 @@ function renderError(ctx: HttpContext, error: unknown) {
     return ctx.response.tooManyRequests({ error: 'Too many requests.' })
   if (error instanceof IdentityNotConfirmedError)
     return ctx.response.unauthorized({ error: 'Current password is incorrect.' })
+  if (error instanceof InvalidTokenError)
+    return ctx.response.badRequest({ error: 'Invalid credential request.', code: 'INVALID_TOKEN' })
   if (
     error instanceof InvalidInputError ||
-    error instanceof InvalidTokenError ||
     error instanceof NoPasswordError ||
     error instanceof PasswordIneligibleError
   )

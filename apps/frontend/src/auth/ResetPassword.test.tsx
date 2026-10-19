@@ -117,6 +117,28 @@ describe("ResetPassword — one-shot request outcomes", () => {
 });
 
 describe("ResetPassword — terminal request outcomes", () => {
+  it("directs a consumed proof to a new link using the native API code without rendering raw details", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: "private reset proof detail",
+            code: "INVALID_TOKEN",
+          }),
+          { status: 400 },
+        ),
+      ),
+    );
+    renderForm();
+
+    submitPasswords("valid-new-password-123");
+
+    expect(await screen.findByText(m.reset_err_invalid())).toBeInTheDocument();
+    expect(screen.queryByText(m.reset_err_generic())).not.toBeInTheDocument();
+    expect(screen.queryByText("private reset proof detail")).not.toBeInTheDocument();
+  });
+
   it("renders the terminal success state after a successful reset", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 200 })));
     renderForm();
