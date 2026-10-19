@@ -50,10 +50,11 @@ test('app reset archives all account, joining and credential state and initializ
       'company_join_intents',
       'password_reset_tokens',
       'email_verification_tokens',
+      'login_link_tokens',
       'user_session_index',
     ])
       assert.equal(tableCount(fresh, table), 0, table)
-    assert.equal(tableCount(fresh, 'adonis_schema'), 8)
+    assert.equal(tableCount(fresh, 'adonis_schema'), 9)
     fresh.close()
   } finally {
     f.cleanup()

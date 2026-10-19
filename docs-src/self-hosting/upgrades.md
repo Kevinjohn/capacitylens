@@ -33,6 +33,8 @@ reported refusal.
 The credential-storage upgrade preserves outstanding password-reset links, including links issued
 by the earlier release. Stop the earlier service before upgrading: it cannot use the renamed reset
 storage. Historical email-change records are retained without enabling an email-change journey.
+The credential-cleanup migration adds an internal proof table. It preserves existing passwords and
+reset links; passwordless email-link sign-in remains unavailable.
 
 After a successful upgrade, start the service and check `/health/ready`. Keep the snapshot until the
 new release has passed sign-in, reads, writes and backup checks.

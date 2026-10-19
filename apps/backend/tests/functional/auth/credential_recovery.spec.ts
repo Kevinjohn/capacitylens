@@ -6,6 +6,7 @@ import mail from '@adonisjs/mail/services/main'
 import env from '#start/env'
 import { requestPublicReset, resetPassword } from '#services/credentials/operations'
 import { verifyPassword } from '#services/password_service'
+import { seedLoginLinkProofs } from './login_link_fixtures.js'
 
 test.group('Account-kit recovery with product credentials', (group) => {
   group.setup(() => testUtils.db().migrate())
@@ -70,12 +71,18 @@ test.group('Account-kit recovery with product credentials', (group) => {
       )
 
       await db.from('users').where('id', id).update({ password_hash: originalHash })
+      const otherProof = await seedLoginLinkProofs(id)
       const replacement = 'correct-horse-battery-staple-2026'
       await resetPassword(token, replacement)
       const changed = await db.from('users').where('id', id).first()
       assert.isTrue(await verifyPassword(String(changed?.password_hash), replacement))
       assert.isTrue(Boolean(changed?.email_verified))
       assert.isNotOk(await db.from('password_reset_tokens').where('tokenable_id', id).first())
+      assert.isNotOk(await db.from('login_link_tokens').where('tokenable_id', id).first())
+      assert.deepEqual(
+        await db.from('login_link_tokens').where('tokenable_id', otherProof.tokenable_id).first(),
+        otherProof
+      )
       await assert.rejects(() => resetPassword(token, replacement))
     } finally {
       mail.restore()
@@ -133,6 +140,8 @@ test.group('Account-kit recovery with product credentials', (group) => {
       const before = await db.from('password_reset_tokens').where('tokenable_id', id).first()
       assert.isOk(before)
 
+      const otherProof = await seedLoginLinkProofs(id)
+      const loginProof = await db.from('login_link_tokens').where('tokenable_id', id).first()
       await db.rawQuery(
         "CREATE TRIGGER credential_audit_failure BEFORE INSERT ON audit_entries BEGIN SELECT RAISE(ABORT, 'audit failure'); END"
       )
@@ -144,6 +153,14 @@ test.group('Account-kit recovery with product credentials', (group) => {
         await db.from('password_reset_tokens').where('tokenable_id', id).first(),
         before
       )
+      assert.deepEqual(
+        await db.from('login_link_tokens').where('tokenable_id', id).first(),
+        loginProof
+      )
+      assert.deepEqual(
+        await db.from('login_link_tokens').where('tokenable_id', otherProof.tokenable_id).first(),
+        otherProof
+      )
       assert.isNotOk(await db.from('audit_entries').where('account_id', accountId).first())
       assert.isOk(await db.from('user_session_index').where('session_id', sessionId).first())
       await db.rawQuery('DROP TRIGGER credential_audit_failure')
@@ -151,6 +168,11 @@ test.group('Account-kit recovery with product credentials', (group) => {
       const changed = await db.from('users').where('id', id).first()
       assert.isTrue(
         await verifyPassword(String(changed?.password_hash), 'fresh-recovery-password-2026')
+      )
+      assert.isNotOk(await db.from('login_link_tokens').where('tokenable_id', id).first())
+      assert.deepEqual(
+        await db.from('login_link_tokens').where('tokenable_id', otherProof.tokenable_id).first(),
+        otherProof
       )
       assert.isOk(await db.from('audit_entries').where('account_id', accountId).first())
       assert.isNotOk(await db.from('user_session_index').where('session_id', sessionId).first())
