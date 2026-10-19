@@ -1,6 +1,6 @@
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import type { AllocationRewriteRevision } from "@/data/PersistenceAdapter";
+import type { CommittedRowRevision, AllocationRewriteRevision } from "@/data/PersistenceAdapter";
 import { API_REQUEST_TIMEOUT_MS, createRequestSignal } from "@/data/requestTimeout";
 import type { AcknowledgedRevision } from "./revisions";
 
@@ -28,6 +28,7 @@ export class SyncState {
   // Pair a queued target with the generation of its diff baseline.
   queuedSeedGen = 0;
   acknowledgedRevisions = new Map<string, AcknowledgedRevision>();
+  committedRevisionHandler: ((revisions: readonly CommittedRowRevision[]) => void) | null = null;
   allocationRewriteHandler: ((revisions: readonly AllocationRewriteRevision[]) => void) | null = null;
   /** Lifecycle rows this adapter successfully archived after a local disappearance. If the same id
    * returns through undo/redo, it must be unarchived before ordinary descendant writes can land. */

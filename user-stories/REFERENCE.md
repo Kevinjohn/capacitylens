@@ -640,6 +640,9 @@ Switching modes is announced in the scheduler's polite live region. In Time-off 
 omit work-allocation counts, and each eligible non-external resource row exposes a keyboard
 **Add time off for <name>** button that opens the same prefilled time-off form as drawing the lane.
 External rows expose no time-off creation action.
+Saved local edits remain undoable after a background refresh that contains only their own
+acknowledged revisions. A genuine remote row change, addition or deletion clears history so
+Undo cannot overwrite or resurrect another writer’s work.
 Undo/redo run
 from BOTH the toolbar **Undo**/**Redo** buttons (above) AND the global Cmd/Ctrl undo/redo shortcuts.
 The expanded filter row starts with `Search people…`, which matches accent-insensitively across the

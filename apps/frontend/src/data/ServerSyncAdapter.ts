@@ -1,6 +1,6 @@
 import type { AppData, Entity } from "@capacitylens/shared/types/entities";
 import { SCOPED_KEYS } from "@capacitylens/shared/types/entities";
-import type { AllocationRewriteRevision, PersistenceAdapter } from "./PersistenceAdapter";
+import type { CommittedRowRevision, AllocationRewriteRevision, PersistenceAdapter } from "./PersistenceAdapter";
 import {
   KEEPALIVE_BODY_BUDGET,
   KEEPALIVE_REQUEST_OVERHEAD_BUDGET,
@@ -176,6 +176,10 @@ export class ServerSyncAdapter implements PersistenceAdapter {
 
   hasExisting(): Promise<boolean> {
     return readHasExistingData(this.state);
+  }
+
+  setCommittedRevisionHandler(handler: ((revisions: readonly CommittedRowRevision[]) => void) | null): void {
+    this.state.committedRevisionHandler = handler;
   }
 
   setAllocationRewriteHandler(handler: ((revisions: readonly AllocationRewriteRevision[]) => void) | null): void {
