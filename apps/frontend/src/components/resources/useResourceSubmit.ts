@@ -98,7 +98,7 @@ type ResourcePatch = Pick<
 };
 
 // Resource kind and edit/create state intentionally converge at this one persistence boundary.
-// eslint-disable-next-line complexity
+
 function buildResourcePatch(input: {
   resource: Resource | undefined;
   kind: ResourceKind;

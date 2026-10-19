@@ -155,7 +155,7 @@ function assertActivityRefs(context: ScopedRefsContext): void {
 }
 
 // Resource reference policy intentionally combines kind-dependent project and avatar invariants.
-// eslint-disable-next-line complexity
+
 function assertResourceRefs(context: ScopedRefsContext): void {
   const { record, previous, supplied, need } = context;
   const mergedKind = supplied("kind") ? record.kind : previous?.kind;

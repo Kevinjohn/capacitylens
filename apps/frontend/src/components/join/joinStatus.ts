@@ -26,7 +26,7 @@ export function readMetadata(value: unknown): Metadata | null {
 }
 
 /** Decode the scoped Google join intent without trusting optional fields. */
-// eslint-disable-next-line complexity -- Status includes optional account, purpose, and email details.
+
 export function readStatus(value: unknown): {
   state: "expired" | "pending" | "approved";
   accountId?: string;

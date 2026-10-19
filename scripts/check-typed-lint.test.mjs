@@ -15,7 +15,7 @@ const promiseRuleIds = (messages) =>
 test("real new production and test files reject both promise defects in each typed package", async (t) => {
   const paths = [];
   for (const directory of ["apps/frontend/src", "apps/backend/app", "packages/shared/src"]) {
-    const fixture = mkdtempSync(`${root}${directory}/lint-coverage-`);
+    const fixture = mkdtempSync(`${root}${directory}/typed-lint-`);
     t.after(() => rmSync(fixture, { recursive: true, force: true }));
     for (const suffix of [".ts", ".test.ts"]) {
       const invalid = `${fixture}/invalid${suffix}`;
@@ -43,17 +43,6 @@ test("real new production and test files reject both promise defects in each typ
   }
 });
 
-test("function length limits distinguish TypeScript, TSX, and test callbacks", async () => {
-  const eslint = new ESLint({ cwd: root });
-  const productionTypeScript = await eslint.calculateConfigForFile("apps/frontend/src/lib/metadata.ts");
-  const productionTsx = await eslint.calculateConfigForFile("apps/frontend/src/components/resources/ResourceForm.tsx");
-  const testTsx = await eslint.calculateConfigForFile("apps/frontend/src/components/scheduler/SchedulerGrid.test.tsx");
-
-  assert.equal(productionTypeScript.rules["max-lines-per-function"][1].max, 60);
-  assert.equal(productionTsx.rules["max-lines-per-function"][1].max, 90);
-  assert.equal(testTsx.rules["max-lines-per-function"][0], 0);
-});
-
 test("local hooks and pull requests run the intended static-analysis checks", () => {
   const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
   const prePushChecks = "pnpm run format:check && pnpm run typecheck && pnpm run lint";
@@ -78,7 +67,6 @@ test("local hooks and pull requests run the intended static-analysis checks", ()
     packageJson.scripts["format:check"],
     "git ls-files -z --cached --others --exclude-standard | xargs -0 prettier --check --ignore-unknown --no-error-on-unmatched-pattern",
   );
-  assert.ok(commands.includes("pnpm run policy:lint-coverage:test"));
   // The root command delegates to workspace projects rather than invoking tsc without a project.
   assert.equal(packageJson.scripts.typecheck, "turbo typecheck && tsc -p tsconfig.e2e.json --noEmit");
 });

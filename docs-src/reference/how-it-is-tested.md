@@ -1,29 +1,25 @@
 ---
 title: How CapacityLens is tested
-description: The automated test suites that run on CapacityLens, what each one covers, and approximately how large they are.
+description: The automated checks used to validate CapacityLens and what each one covers.
 ---
 
 # How CapacityLens is tested
 
-See what the automated checks cover before you rely on CapacityLens. It is alpha software with a
-single maintainer, so those checks carry most of the safety net. Contributor check commands are
-listed in [`CONTRIBUTING.md`](https://github.com/Kevinjohn/capacitylens/blob/main/CONTRIBUTING.md).
+Contributor check commands are listed in [`CONTRIBUTING.md`](https://github.com/Kevinjohn/capacitylens/blob/main/CONTRIBUTING.md).
 
-The suites follow the current frontend, backend and shared workspace packages. Counts change as coverage grows.
+The suites cover the frontend, backend and shared workspace packages.
 
-| Suite | Tool | Covers | Size (approximate) |
-| --- | --- | --- | --- |
-| App and shared unit tests | Vitest, Testing Library | The shared scheduling rules, the client store, and React components | About 310 test files |
-| Backend tests | Japa | The API, authorisation, SQLite, immutable migration checks, backups and sign-in | Unit and functional suites |
-| End-to-end tests | Playwright | The demo, database-backed and password sign-in flows in a real browser | About 70 spec files |
-| Accessibility checks | axe, inside the end-to-end tests | Automated accessibility rules on key screens | 7 spec files |
-| Mutation testing | Stryker | Whether the unit tests fail when the scheduling logic is changed | Run on demand, not on every change |
+| Suite | Tool | Covers |
+| --- | --- | --- |
+| App and shared unit tests | Vitest, Testing Library | Shared scheduling rules, the client store and React components |
+| Backend tests | Vitest | API behavior, authorization, SQLite, backups and sign-in |
+| End-to-end tests | Playwright | The demo and database-backed sign-in and scheduling flows in a real browser |
+| Accessibility checks | axe, inside the end-to-end tests | Automated accessibility rules on key screens |
+| Mutation testing | Stryker | Whether focused tests detect changes to scheduling logic; run on demand |
 
 ## Limits of each suite
 
-- Current migrations retain immutable checksums. Backup, upgrade and reset tests cover recognised
-  journals, refusal of unknown history and recovery artifacts. Historical legacy database fixtures
-  and the old migration rehearsal are retired.
+- Backup and upgrade tests cover supported databases and recovery behavior.
 - End-to-end tests run Chromium by default. WebKit and Firefox runs are opt-in.
 - Axe finds common problems such as missing names and low contrast. It does not replace testing
   with assistive technology.

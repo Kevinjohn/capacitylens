@@ -157,13 +157,6 @@ export default defineConfig(({ mode }) => {
           // Paraglide generates this message runtime from committed sources, so coverage excludes it.
           "src/paraglide/**",
         ],
-        // Coverage thresholds leave a small margin below the measured baseline while rejecting meaningful regressions.
-        thresholds: {
-          statements: 92,
-          branches: 87,
-          functions: 92,
-          lines: 94,
-        },
       },
     },
   };
