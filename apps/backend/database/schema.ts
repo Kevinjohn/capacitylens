@@ -91,23 +91,6 @@ export class AccountMemberResourceSchema extends BaseModel {
   declare userId: string
 }
 
-export class AccountRecoveryTokenSchema extends BaseModel {
-  static $columns = ['createdAt', 'email', 'expiresAt', 'id', 'tokenHash', 'userId'] as const
-  $columns = AccountRecoveryTokenSchema.$columns
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column()
-  declare email: string
-  @column()
-  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column({ isPrimary: true })
-  declare id: number
-  @column()
-  declare tokenHash: string
-  @column()
-  declare userId: string
-}
-
 export class AccountTransactionLockSchema extends BaseModel {
   static $columns = ['id', 'version'] as const
   $columns = AccountTransactionLockSchema.$columns
@@ -449,6 +432,27 @@ export class EmailProofSchema extends BaseModel {
   declare verifiedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }
 
+export class EmailVerificationTokenSchema extends BaseModel {
+  static $columns = ['createdAt', 'currentEmail', 'email', 'expiresAt', 'hash', 'id', 'purpose', 'tokenableId'] as const
+  $columns = EmailVerificationTokenSchema.$columns
+  @column()
+  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare currentEmail: string
+  @column()
+  declare email: string
+  @column()
+  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare hash: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare purpose: string
+  @column()
+  declare tokenableId: string
+}
+
 export class InvitationProposalSchema extends BaseModel {
   static $columns = ['createdAt', 'id', 'invitationId', 'resourceId', 'updatedAt'] as const
   $columns = InvitationProposalSchema.$columns
@@ -569,6 +573,23 @@ export class OwnershipTransferSchema extends BaseModel {
   declare toUserId: string
   @column()
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+}
+
+export class PasswordResetTokenSchema extends BaseModel {
+  static $columns = ['createdAt', 'email', 'expiresAt', 'hash', 'id', 'tokenableId'] as const
+  $columns = PasswordResetTokenSchema.$columns
+  @column()
+  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare email: string
+  @column()
+  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare hash: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare tokenableId: string
 }
 
 export class PhaseSchema extends BaseModel {

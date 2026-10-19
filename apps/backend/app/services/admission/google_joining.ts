@@ -320,7 +320,7 @@ export async function completeGoogleJoin(
         .where('id', member.id)
         .update({ status: 'active', role, updated_at: now })
     if (!member || member.status === 'archived') {
-      await trx.from('account_recovery_tokens').where('user_id', actor.userId).delete()
+      await trx.from('password_reset_tokens').where('tokenable_id', actor.userId).delete()
       await writeAudit(trx, {
         accountId,
         actorId: actor.userId,

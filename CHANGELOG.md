@@ -18,6 +18,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Updated the account credential integration while preserving existing password-reset links, password policies, and stopped-server Owner recovery.
+
 - Native operator commands provide verified online backups, backup-before-upgrade, audited
   sole-Owner recovery links and a guarded snapshot/archive reset into a new database path.
   Readiness includes scheduled-backup status and refuses unknown migration histories.

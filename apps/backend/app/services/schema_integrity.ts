@@ -51,7 +51,62 @@ async function assertTrigger(name: string, expectedSql: string) {
     throw new Error(`Database schema drift: trigger ${name} differs from the baseline`)
 }
 
+async function assertProofStorage(table: string, expectedColumns: string[]) {
+  const columns = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>
+  if (JSON.stringify(columns.map(({ name }) => name)) !== JSON.stringify(expectedColumns))
+    throw new Error(`Database schema drift: ${table} columns differ from the baseline`)
+  const references = (await db.rawQuery(`PRAGMA foreign_key_list(${table})`)) as Array<{
+    table: string
+    from: string
+    to: string
+    on_delete: string
+  }>
+  if (
+    !references.some(
+      (reference) =>
+        reference.table === 'users' &&
+        reference.from === 'tokenable_id' &&
+        reference.to === 'id' &&
+        reference.on_delete === 'CASCADE'
+    )
+  )
+    throw new Error(`Database schema drift: ${table} user cascade is missing`)
+  const indexes = (await db.rawQuery(`PRAGMA index_list(${table})`)) as Array<{
+    name: string
+    unique: number
+    partial: number
+  }>
+  const uniqueColumns = new Set<string>()
+  for (const index of indexes) {
+    if (index.unique !== 1 || index.partial !== 0) continue
+    const indexed = (await db.rawQuery(`PRAGMA index_info(${index.name})`)) as Array<{
+      name: string
+    }>
+    if (indexed.length === 1) uniqueColumns.add(indexed[0]!.name)
+  }
+  if (!uniqueColumns.has('tokenable_id') || !uniqueColumns.has('hash'))
+    throw new Error(`Database schema drift: ${table} proof uniqueness is missing`)
+}
+
 export async function assertSchemaIntegrity() {
+  await assertProofStorage('password_reset_tokens', [
+    'id',
+    'tokenable_id',
+    'email',
+    'hash',
+    'expires_at',
+    'created_at',
+  ])
+  await assertProofStorage('email_verification_tokens', [
+    'id',
+    'tokenable_id',
+    'email',
+    'current_email',
+    'purpose',
+    'hash',
+    'expires_at',
+    'created_at',
+  ])
   for (const table of tenantIndexedTables) await assertIndex(table, 'account_id')
   const auditColumns = (await db.rawQuery('PRAGMA table_info(audit_entries)')) as Array<{
     name: string

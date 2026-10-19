@@ -78,12 +78,12 @@ test.group('new company recovery authority', (group) => {
       created_at: now,
       updated_at: now,
     })
-    const token = 'a'.repeat(43)
+    const token = Buffer.alloc(32, 1).toString('base64url')
     const insertToken = async (value: string) =>
-      db.table('account_recovery_tokens').insert({
-        user_id: userId,
+      db.table('password_reset_tokens').insert({
+        tokenable_id: userId,
         email: 'clark.kent@wayne.example',
-        token_hash: createHash('sha256').update(value).digest('hex'),
+        hash: createHash('sha256').update(value).digest('hex'),
         expires_at: new Date(Date.now() + 3_600_000).toISOString(),
         created_at: now,
       })
@@ -102,18 +102,18 @@ test.group('new company recovery authority', (group) => {
     const key = randomUUID()
     const created = await create('a-loft', commandId, key).send()
     created.assertStatus(201)
-    assert.isNull(await db.from('account_recovery_tokens').where('user_id', userId).first())
+    assert.isNull(await db.from('password_reset_tokens').where('tokenable_id', userId).first())
     await assert.rejects(() => resetPassword(token, 'replacement-password-2026'))
     const newStanding = await db
       .from('memberships')
       .where({ account_id: 'a-loft', user_id: userId })
       .first()
     assert.equal(newStanding?.role, 'owner')
-    const freshToken = 'b'.repeat(43)
+    const freshToken = Buffer.alloc(32, 2).toString('base64url')
     await insertToken(freshToken)
     const replay = await create('a-loft', commandId, key).send()
     replay.assertStatus(201)
-    assert.isNotNull(await db.from('account_recovery_tokens').where('user_id', userId).first())
+    assert.isNotNull(await db.from('password_reset_tokens').where('tokenable_id', userId).first())
     await db.rawQuery(
       "CREATE TRIGGER fail_new_owner BEFORE INSERT ON memberships WHEN NEW.account_id = 'a-failed' BEGIN SELECT RAISE(ABORT, 'test owner failure'); END"
     )
@@ -123,7 +123,7 @@ test.group('new company recovery authority', (group) => {
       assert.isNull(await db.from('accounts').where('id', 'a-failed').first())
       assert.isNull(await db.from('memberships').where('account_id', 'a-failed').first())
       assert.isNull(await db.from('audit_entries').where('account_id', 'a-failed').first())
-      assert.isNotNull(await db.from('account_recovery_tokens').where('user_id', userId).first())
+      assert.isNotNull(await db.from('password_reset_tokens').where('tokenable_id', userId).first())
     } finally {
       await db.rawQuery('DROP TRIGGER fail_new_owner')
     }

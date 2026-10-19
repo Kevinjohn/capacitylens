@@ -234,7 +234,7 @@ export default class CompaniesController {
             created_at: now,
             updated_at: now,
           })
-          await trx.from('account_recovery_tokens').where('user_id', actorId).delete()
+          await trx.from('password_reset_tokens').where('tokenable_id', actorId).delete()
           await trx
             .from('command_results')
             .where('command_id', command!.commandId)

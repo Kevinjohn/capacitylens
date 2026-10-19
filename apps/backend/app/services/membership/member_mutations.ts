@@ -34,7 +34,7 @@ async function targetMember(trx: TransactionClientContract, accountId: string, u
 }
 
 async function burnRecovery(trx: TransactionClientContract, userId: string) {
-  await trx.from('account_recovery_tokens').where('user_id', userId).delete()
+  await trx.from('password_reset_tokens').where('tokenable_id', userId).delete()
 }
 
 /** Changes an active non-Owner role and its recovery authority in one transaction. */

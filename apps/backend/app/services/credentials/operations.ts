@@ -34,9 +34,9 @@ export {
 
 /** Public reset request always acknowledges eligible and unknown addresses identically. */
 export async function requestPublicReset(email: string, clientKey: string) {
-  const { kit } = makeKit({ kind: 'public' })
+  const { requestReset } = makeKit({ kind: 'public' })
   try {
-    await kit.recovery.request({ email, clientKey })
+    await requestReset({ email, clientKey })
   } catch (error) {
     if (error instanceof PasswordIneligibleError) return
     if (error instanceof PostCommitError) {
@@ -53,8 +53,8 @@ export async function requestPublicReset(email: string, clientKey: string) {
 /** Redeems one recovery token after screening, then invalidates all indexed sessions. */
 export async function resetPassword(token: string, newPassword: string) {
   await assertPasswordAllowed(newPassword)
-  const { kit } = makeKit({ kind: 'reset' })
-  await kit.recovery.reset({ token, password: newPassword })
+  const { resetPassword: completeReset } = makeKit({ kind: 'reset' })
+  await completeReset({ token, password: newPassword })
 }
 
 /** Changes the actor's own password, optionally retaining their initiating session. */
@@ -66,8 +66,13 @@ export async function changePassword(
 ) {
   const actor = await resolveCurrentActor(ctx)
   await assertPasswordAllowed(newPassword)
-  const { kit } = makeKit({ kind: 'change', ctx, actorId: actor.userId, revokeOtherSessions })
-  await kit.credentials.changePassword({ actorId: actor.userId, currentPassword, newPassword })
+  const { changePassword: completeChange } = makeKit({
+    kind: 'change',
+    ctx,
+    actorId: actor.userId,
+    revokeOtherSessions,
+  })
+  await completeChange({ actorId: actor.userId, currentPassword, newPassword })
 }
 
 interface AdminResetInput {
@@ -192,7 +197,7 @@ async function issueAdministrativeReset(
     payloadHash,
   })
   try {
-    await instance.kit.recovery.request({ email: target.email, clientKey: actor.userId })
+    await instance.requestReset({ email: target.email, clientKey: actor.userId })
   } catch (error) {
     if (!(error instanceof PostCommitError)) throw error
     // The command row is proof that issuance committed; return the captured bearer only to this call.

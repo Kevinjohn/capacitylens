@@ -434,17 +434,17 @@ test.group('company member access and tracking', (group) => {
     assert.equal((disabled.body() as { status: string }).status, 'active')
     assert.equal(await membershipStatus(), 'active')
     assert.isNotNull(await restriction())
-    await db.table('account_recovery_tokens').insert({
-      user_id: editorId,
+    await db.table('password_reset_tokens').insert({
+      tokenable_id: editorId,
       email: 'clark.kent@wayne.example',
-      token_hash: 'd'.repeat(64),
+      hash: 'd'.repeat(64),
       expires_at: new Date(Date.now() + 3_600_000).toISOString(),
       created_at: now,
     })
     const repeatedDisable = await status('disabled')
     repeatedDisable.assertStatus(200)
     assert.equal((repeatedDisable.body() as { status: string }).status, 'active')
-    assert.isNotNull(await db.from('account_recovery_tokens').where('user_id', editorId).first())
+    assert.isNotNull(await db.from('password_reset_tokens').where('tokenable_id', editorId).first())
     const disableAudits = await db
       .from('audit_entries')
       .where({ action: 'member.access_disabled', entity_id: editorId })

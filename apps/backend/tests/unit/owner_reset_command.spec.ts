@@ -24,12 +24,13 @@ test('owner command issues a private audited ceremony and replaces earlier token
     const firstResult = JSON.parse(first.output.trim()) as { link: string; accountIds: string[] }
     assert.deepEqual(firstResult.accountIds, ['a-studio'])
     assert.match(firstResult.link, /^http:\/\/localhost:8787\/reset-password\//)
+    assert.lengthOf(firstResult.link.split('/').at(-1)!, 54)
     const second = f.command(args)
     assert.equal(second.status, 0, second.output)
     const secondResult = JSON.parse(second.output.trim()) as { link: string }
     assert.notEqual(firstResult.link, secondResult.link)
     const inspect = f.inspect()
-    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM account_recovery_tokens').get()!.n, 1)
+    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 1)
     const audits = inspect.prepare('SELECT * FROM audit_entries').all()
     assert.lengthOf(audits, 2)
     assert.equal(audits[0]!.actor_id, null)
@@ -67,7 +68,7 @@ test('owner command refuses missing stop intent, non-owner targets and concurren
     assert.notEqual(denied.status, 0, denied.output)
     assert.notInclude(denied.output, 'bruce@wayne.example')
     const inspect = f.inspect()
-    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM account_recovery_tokens').get()!.n, 0)
+    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 0)
     inspect.close()
   } finally {
     f.cleanup()
@@ -88,8 +89,7 @@ test('audit failure rolls back token replacement and never prints the issued sec
     const first = f.command(args)
     assert.equal(first.status, 0, first.output)
     const inspect = f.inspect()
-    const before = inspect.prepare('SELECT token_hash FROM account_recovery_tokens').get()!
-      .token_hash
+    const before = inspect.prepare('SELECT hash FROM password_reset_tokens').get()!.hash
     inspect.exec(
       "CREATE TRIGGER fail_operator_audit BEFORE INSERT ON audit_entries BEGIN SELECT RAISE(ABORT, 'operator audit failed'); END"
     )
@@ -98,10 +98,7 @@ test('audit failure rolls back token replacement and never prints the issued sec
     const after = f.inspect()
     assert.notEqual(failed.status, 0)
     assert.notInclude(failed.output, '/reset-password/')
-    assert.equal(
-      after.prepare('SELECT token_hash FROM account_recovery_tokens').get()!.token_hash,
-      before
-    )
+    assert.equal(after.prepare('SELECT hash FROM password_reset_tokens').get()!.hash, before)
     assert.equal(after.prepare('SELECT COUNT(*) AS n FROM audit_entries').get()!.n, 1)
     after.close()
   } finally {
@@ -176,7 +173,7 @@ test('a failure writing the second company audit rolls back every audit and the 
     assert.notEqual(result.status, 0)
     const inspect = f.inspect()
     assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM audit_entries').get()!.n, 0)
-    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM account_recovery_tokens').get()!.n, 0)
+    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 0)
     inspect.close()
   } finally {
     f.cleanup()
@@ -224,7 +221,7 @@ test('the issued owner link redeems once through the normal HTTP flow and revoke
       assert.equal(signin.status, 200)
     })
     const inspect = f.inspect()
-    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM account_recovery_tokens').get()!.n, 0)
+    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 0)
     assert.equal(
       inspect
         .prepare("SELECT COUNT(*) AS n FROM user_session_index WHERE session_id='prior-session'")
@@ -268,7 +265,7 @@ test('owner recovery refuses invalid configuration, addresses and non-disk paths
       0
     )
     const inspect = f.inspect()
-    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM account_recovery_tokens').get()!.n, 0)
+    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 0)
     inspect.close()
   } finally {
     f.cleanup()
@@ -297,7 +294,7 @@ test('normalized duplicate identities are refused without exposing the target or
     assert.include(result.output, 'unambiguous')
     assert.notInclude(result.output, 'bruce@wayne.example')
     const inspect = f.inspect()
-    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM account_recovery_tokens').get()!.n, 0)
+    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 0)
     inspect.close()
   } finally {
     f.cleanup()

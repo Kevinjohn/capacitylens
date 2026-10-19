@@ -219,16 +219,16 @@ async function main() {
   try {
     const initial = command(backend, environment, "app:upgrade");
     assert.equal(initial.status, 0, initial.output);
-    assert.equal(inspectDatabase(databasePath).length, 7);
+    assert.equal(inspectDatabase(databasePath).length, 8);
 
-    const rollback = command(backend, environment, "migration:rollback", "--step=6", "--force", "--no-schema-generate");
+    const rollback = command(backend, environment, "migration:rollback", "--step=7", "--force", "--no-schema-generate");
     assert.equal(rollback.status, 0, rollback.output);
     assert.equal(inspectDatabase(databasePath).length, 1);
     const upgrade = command(backend, environment, "app:upgrade");
     assert.equal(upgrade.status, 0, upgrade.output);
     assert.match(upgrade.output, /Pre-upgrade backup written/);
-    assert.equal(inspectDatabase(databasePath).length, 7);
-    assert.equal(inspectDatabase(join(backupDir, "capacitylens-pre-migration-v1-to-v7.db")).length, 1);
+    assert.equal(inspectDatabase(databasePath).length, 8);
+    assert.equal(inspectDatabase(join(backupDir, "capacitylens-pre-migration-v1-to-v8.db")).length, 1);
 
     const unknown = new DatabaseSync(databasePath);
     const lastName = unknown.prepare("SELECT name FROM adonis_schema ORDER BY id DESC LIMIT 1").get().name;
@@ -291,7 +291,7 @@ async function main() {
       pathToFileURL(join(backend, "node_modules", "@capacitylens", "shared", "dist", "data", "seed.js")).href
     );
     const { accountId, resource } = await writeSmokeSchedule(baseUrl, cookie, seed());
-    assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, 7);
+    assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, 8);
 
     const beforeExplicit = await snapshotFiles(backupDir);
     const explicit = command(backend, environment, "db:backup");
@@ -301,13 +301,13 @@ async function main() {
     const afterExplicit = await snapshotFiles(backupDir);
     assert.ok(!beforeExplicit.includes(explicitPath.split("/").at(-1)));
     assert.ok(afterExplicit.includes(explicitPath.split("/").at(-1)));
-    assert.equal(inspectDatabase(explicitPath, RESOURCE_NAME).length, 7);
+    assert.equal(inspectDatabase(explicitPath, RESOURCE_NAME).length, 8);
     const scheduled = await waitFor(
       "a scheduled snapshot after the write",
       PERIODIC_TIMEOUT_MS,
       async () => {
         const files = await snapshotFiles(backupDir);
-        const matching = files.filter((name) => name !== "capacitylens-pre-migration-v1-to-v7.db");
+        const matching = files.filter((name) => name !== "capacitylens-pre-migration-v1-to-v8.db");
         if (matching.length <= afterExplicit.length - 1) return null;
         const latest = matching.at(-1);
         inspectDatabase(join(backupDir, latest), RESOURCE_NAME);
@@ -332,7 +332,7 @@ async function main() {
       JSON.stringify({
         node: process.version,
         nativeArtifact: "passed",
-        migrations: 7,
+        migrations: 8,
         passwordAuthentication: "verified",
         databaseSession: "survived restart",
         scheduleWrite: "persisted",

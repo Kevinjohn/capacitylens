@@ -138,11 +138,12 @@ test.group('Administrative recovery issuance', (group) => {
       const issued = await post()
       issued.assertStatus(201)
       const { token, expiresAt } = issued.body() as { token: string; expiresAt: string }
+      assert.lengthOf(token, 54)
       const stored = await db
-        .from('account_recovery_tokens')
-        .where('user_id', data.targetUserId)
+        .from('password_reset_tokens')
+        .where('tokenable_id', data.targetUserId)
         .first()
-      assert.equal(stored?.token_hash, createHash('sha256').update(token).digest('hex'))
+      assert.equal(stored?.hash, createHash('sha256').update(token).digest('hex'))
       assert.equal(expiresAt, String(stored?.expires_at))
       assert.isAtLeast(new Date(expiresAt).getTime() - Date.now(), 23 * 60 * 60 * 1000)
       fake.messages.assertNoneSent()
@@ -161,10 +162,10 @@ test.group('Administrative recovery issuance', (group) => {
       assert.lengthOf(audits, 1)
       assert.lengthOf(commands, 1)
       const unchanged = await db
-        .from('account_recovery_tokens')
-        .where('user_id', data.targetUserId)
+        .from('password_reset_tokens')
+        .where('tokenable_id', data.targetUserId)
         .first()
-      assert.equal(unchanged?.token_hash, stored?.token_hash)
+      assert.equal(unchanged?.hash, stored?.hash)
     } finally {
       fake.messages.assertNoneSent()
       mail.restore()
@@ -193,13 +194,13 @@ test.group('Administrative recovery issuance', (group) => {
       const self = await post(data.actorId)
       self.assertStatus(201)
       assert.isNotNull(
-        await db.from('account_recovery_tokens').where('user_id', data.actorId).first()
+        await db.from('password_reset_tokens').where('tokenable_id', data.actorId).first()
       )
       const other = await post(data.targetUserId)
       other.assertStatus(403)
       assert.equal(other.body().code, 'SESSION_NOT_FRESH')
       assert.isNull(
-        await db.from('account_recovery_tokens').where('user_id', data.targetUserId).first()
+        await db.from('password_reset_tokens').where('tokenable_id', data.targetUserId).first()
       )
       fake.messages.assertNoneSent()
     } finally {
@@ -233,7 +234,7 @@ test.group('Administrative recovery issuance', (group) => {
       denied.assertStatus(403)
       assert.equal(denied.body().code, 'SESSION_NOT_FRESH')
       assert.isNull(
-        await db.from('account_recovery_tokens').where('user_id', data.targetUserId).first()
+        await db.from('password_reset_tokens').where('tokenable_id', data.targetUserId).first()
       )
     } finally {
       usersAdapter.findById = findById
@@ -309,7 +310,7 @@ test.group('Administrative recovery issuance', (group) => {
       denied.assertStatus(403)
       assert.equal(denied.body().code, 'IDENTITY_AUTHORITY_DENIED')
       assert.isNotOk(
-        await db.from('account_recovery_tokens').where('user_id', data.targetUserId).first()
+        await db.from('password_reset_tokens').where('tokenable_id', data.targetUserId).first()
       )
       assert.isNotOk(await db.from('command_results').where('command_id', commandId).first())
       await db
@@ -366,11 +367,8 @@ test.group('Administrative recovery issuance', (group) => {
         [first, data.targetUserId],
         [second, otherUserId],
       ] as const) {
-        const stored = await db.from('account_recovery_tokens').where('user_id', userId).first()
-        assert.equal(
-          stored?.token_hash,
-          createHash('sha256').update(response.body().token).digest('hex')
-        )
+        const stored = await db.from('password_reset_tokens').where('tokenable_id', userId).first()
+        assert.equal(stored?.hash, createHash('sha256').update(response.body().token).digest('hex'))
       }
     } finally {
       data.restore()
@@ -396,8 +394,8 @@ test.group('Administrative recovery issuance', (group) => {
       const first = await post(randomUUID(), randomUUID())
       first.assertStatus(201)
       const before = await db
-        .from('account_recovery_tokens')
-        .where('user_id', data.targetUserId)
+        .from('password_reset_tokens')
+        .where('tokenable_id', data.targetUserId)
         .first()
       const commandId = randomUUID()
       const idempotencyKey = randomUUID()
@@ -407,7 +405,7 @@ test.group('Administrative recovery issuance', (group) => {
       const failed = await post(commandId, idempotencyKey)
       assert.isAtLeast(failed.status(), 400)
       assert.deepEqual(
-        await db.from('account_recovery_tokens').where('user_id', data.targetUserId).first(),
+        await db.from('password_reset_tokens').where('tokenable_id', data.targetUserId).first(),
         before
       )
       assert.isNotOk(await db.from('command_results').where('command_id', commandId).first())

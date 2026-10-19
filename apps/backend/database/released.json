@@ -28,6 +28,10 @@
     {
       "name": "database/migrations/202610150002_add_masquerade_projection_storage",
       "sha256": "e6c065bdb8acead0391bd535c399e0123173f6150455acd431e15834a2aef928"
+    },
+    {
+      "name": "database/migrations/202610160001_align_account_kit_tokens",
+      "sha256": "b1a8691ce800ef46539b0b0d81ff5895d6cb9bdb1eaabb0ea865d6de9d685bc6"
     }
   ]
 }

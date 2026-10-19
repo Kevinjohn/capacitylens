@@ -122,10 +122,10 @@ test.group('atomic ownership transfer', (group) => {
       [ownerId, 'bruce.wayne@wayne.example'],
       [adminId, 'clark.kent@wayne.example'],
     ])
-      await db.table('account_recovery_tokens').insert({
-        user_id: id,
+      await db.table('password_reset_tokens').insert({
+        tokenable_id: id,
         email,
-        token_hash: (id === ownerId ? 'a' : 'b').repeat(64),
+        hash: (id === ownerId ? 'a' : 'b').repeat(64),
         expires_at: new Date(Date.now() + 3_600_000).toISOString(),
         created_at: now,
       })
@@ -149,7 +149,7 @@ test.group('atomic ownership transfer', (group) => {
     assert.equal(roles.find((row) => row.user_id === adminId)?.role, 'owner')
     assert.equal(roles.filter((row) => row.role === 'owner').length, 1)
     assert.lengthOf(
-      await db.from('account_recovery_tokens').whereIn('user_id', [ownerId, adminId]),
+      await db.from('password_reset_tokens').whereIn('tokenable_id', [ownerId, adminId]),
       0
     )
     const replay = await transfer(adminId)
@@ -301,10 +301,10 @@ test.group('atomic ownership transfer', (group) => {
       [ownerId, 'bruce.wayne@wayne.example'],
       [adminId, 'clark.kent@wayne.example'],
     ])
-      await db.table('account_recovery_tokens').insert({
-        user_id: id,
+      await db.table('password_reset_tokens').insert({
+        tokenable_id: id,
         email,
-        token_hash: (id === ownerId ? 'a' : 'b').repeat(64),
+        hash: (id === ownerId ? 'a' : 'b').repeat(64),
         expires_at: new Date(Date.now() + 3_600_000).toISOString(),
         created_at: now,
       })
@@ -328,7 +328,7 @@ test.group('atomic ownership transfer', (group) => {
       assert.equal(owner.role, 'owner')
       assert.equal(admin.role, 'admin')
       assert.lengthOf(
-        await db.from('account_recovery_tokens').whereIn('user_id', [ownerId, adminId]),
+        await db.from('password_reset_tokens').whereIn('tokenable_id', [ownerId, adminId]),
         2
       )
       assert.isNull(

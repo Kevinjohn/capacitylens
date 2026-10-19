@@ -184,7 +184,7 @@ test.group('authenticated company erasure', (group) => {
     assert.isNull(await db.from('users').where('id', principal.id).first())
     assert.lengthOf(await db.from('user_session_index').where('user_id', principal.id), 0)
     assert.lengthOf(await db.from('adonis_sessions').where('user_id', principal.id), 0)
-    assert.lengthOf(await db.from('account_recovery_tokens').where('user_id', principal.id), 0)
+    assert.lengthOf(await db.from('password_reset_tokens').where('tokenable_id', principal.id), 0)
     assert.isNotNull(
       await db.from('audit_entries').where({ account_id: 'a-studio', action: 'delete' }).first()
     )

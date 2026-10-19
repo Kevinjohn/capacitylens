@@ -30,6 +30,10 @@ snapshot. Unknown migration history or schema drift refuses the upgrade. Do not 
 service after a failed upgrade; retain the source database and recovery files and investigate the
 reported refusal.
 
+The credential-storage upgrade preserves outstanding password-reset links, including links issued
+by the earlier release. Stop the earlier service before upgrading: it cannot use the renamed reset
+storage. Historical email-change records are retained without enabling an email-change journey.
+
 After a successful upgrade, start the service and check `/health/ready`. Keep the snapshot until the
 new release has passed sign-in, reads, writes and backup checks.
 
