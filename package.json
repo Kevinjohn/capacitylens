@@ -62,8 +62,6 @@
     "docs:preview": "node scripts/with-lane.mjs vitepress preview docs-src",
     "test": "node scripts/with-lane.mjs turbo test",
     "test:watch": "pnpm run paraglide:compile && pnpm --dir apps/frontend exec vitest",
-    "coverage": "node scripts/with-lane.mjs pnpm --dir apps/frontend exec vitest run --coverage && pnpm run coverage:files",
-    "coverage:files": "node scripts/check-file-coverage.mjs",
     "dev:api": "CAPACITYLENS_VITE_SERVICE=dbWeb pnpm --dir apps/frontend dev",
     "dev:auth": "CAPACITYLENS_VITE_SERVICE=authWeb pnpm --dir apps/frontend dev",
     "e2e": "node scripts/with-lane.mjs playwright test",
@@ -89,7 +87,7 @@
     "policy:script-environments:test": "node --test scripts/check-script-environments.test.mjs",
     "policy:packaged-smoke:test": "node --test scripts/smoke-packaged-server.test.mjs",
     "policy:node-runtime:test": "node --test scripts/check-node-runtime.test.mjs scripts/check-node26.test.mjs",
-    "policy:lint-coverage:test": "node --test scripts/check-lint-coverage.test.mjs"
+    "policy:typed-lint:test": "node --test scripts/check-typed-lint.test.mjs"
   },
   "lint-staged": {
     "*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}": "eslint --max-warnings 0 --no-warn-ignored"

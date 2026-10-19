@@ -61,7 +61,6 @@ function resolveInviteMutationError(message: string, error: unknown) {
   return m.settings_members_error_detail({ message, error: resolveErrorMessage(error) });
 }
 
-// eslint-disable-next-line max-lines-per-function
 function createSubmitInvite({
   authMode,
   clear,
@@ -201,7 +200,6 @@ function createCopyLink({
 }
 
 /** Establish link reconciliation before directory reads, then bind actions to directory outputs. */
-// eslint-disable-next-line max-lines-per-function
 export function useMemberInvites() {
   const [inviteRole, setInviteRole] = useState<InvitationRole>("editor");
   const [invitationPreauthorizedEmail, setInvitationPreauthorizedEmail] = useState("");

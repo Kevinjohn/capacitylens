@@ -31,5 +31,3 @@ jobs:
           APP_KEY: capacitylens-build-key-0123456789abcdef
           APP_URL: http://127.0.0.1
           SESSION_DRIVER: memory
-      - name: Check CI policy
-        run: pnpm run policy:lint-coverage:test

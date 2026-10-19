@@ -1,4 +1,3 @@
-/* eslint-disable complexity, max-depth -- this bounded lexical scan keeps JSON.parse responsible for syntax. */
 /** Bounds and ambiguity checks for untrusted JSON before the platform parser handles syntax. */
 export const MAX_JSON_DEPTH = 64;
 const WHITESPACE = /[\t\n\r ]/;

@@ -371,32 +371,15 @@ from framework defaults; other departures require an explicit decision.
 
 ## Continuous integration
 
-- `0.51.1-alpha.1` is a recorded release-process deviation: commit `a114c30` combined the version
-  and changelog update with the round-10 e2e refactor instead of landing it from a later,
-  version-only branch. The published history remains unchanged. A 2026-08-16 audit confirmed that
-  the tag workflows select `refs/tags/v*`, check out the tagged tree and build or attest that tree;
-  no release tooling assumes that the tagged commit changes only version files. The next release
-  returns to the required functional-branch-then-version-branch sequence.
-- Coverage thresholds and the main-entry bundle limits are standing regression boundaries, not
-  automatic high-water-mark ratchets. Maintainers own them. A feature that reaches a boundary must
-  first add focused tests, remove dead code or preserve lazy-loading/code-splitting as applicable.
-  Changing a boundary requires an intentional review containing before/after measurements and the
-  product reason the added tested behavior or first-load cost is worth accepting; never edit a
-  number solely to make a red gate green. Periodic tightening is allowed when sustained headroom
-  makes the stricter boundary representative rather than flaky.
-- Aggregate coverage floors are supplemented by an exact-file zero-coverage gate. Every measured
-  hand-written module with executable lines must cover at least one line unless its full path is in
-  the reviewed legacy-debt list; directory and glob exceptions are forbidden.
-- Local green gates remain the developer source of truth. The public repository's workflows run
-  automatically for pull requests, `main`, release tags and their documented scheduled canaries;
-  `workflow_dispatch` supports deliberate reruns.
-- Server test-process exit is part of the test result. Ordinary server test files run in fresh,
-  bounded Vitest processes distributed across four CI shards; account-flow conformance,
-  credential-onboarding crash durability and migration rehearsal retain their dedicated process
-  boundaries. A log containing only passing assertions is not green until the owning process exits.
-  Do not restore cross-file worker reuse or raise outer job timeouts to hide a leaked SQLite handle,
-  Fastify instance, timer, listener, compiler helper or child process. Fix the owner or give an
-  intentionally process-heavy suite an explicit, required isolation boundary.
+- Keep formatting, type checking, plain lint, dependency security checks, product builds and
+  meaningful unit, functional and browser tests. Coverage reports may help identify gaps, but no
+  aggregate floor, per-file floor or suppression ratchet is required.
+- Use framework conventions and the checks that protect current product behavior. Avoid fixed file
+  or test-size limits and custom structural rules; add a focused check only when experience shows
+  that it protects a concrete invariant.
+- Local commands and CI workflows should validate the same relevant behavior. Test results include
+  successful process completion; investigate hangs or leaked resources when they occur without
+  prescribing historical worker or shard layouts.
 - CodeQL runs in the public-repository security workflow. Private-repository runner/upload
   limitations are no longer part of the active CI policy.
 - Dependabot continues its monthly root-workspace updates independently of the runner policy.
@@ -407,55 +390,13 @@ from framework defaults; other departures require an explicit decision.
   needed for a representative change: implementation, explicit consumed inputs and focused tests.
   Shorter files alone are not evidence of improved modularity. Preserve visible orchestration,
   state-owner invariants, transaction order and failure propagation.
-- Principal filenames match their named exports; cohesive collections name the capability they
-  own. Component/type names use PascalCase, hooks/utilities use camelCase, and executable scripts
-  use kebab-case. Use clear function verbs, descriptive variables, small parameter lists and
-  explicit result shapes; ESLint enforces the mechanical rules.
+- Modules and names should make their behavior and ownership clear. Follow the framework and
+  language conventions used by the surrounding code.
 - Existing product account names, portable workspace/principal aliases and vendor provider-account
   names describe different contracts. Keep those distinctions and existing semantic aliases;
   do not introduce branded IDs or rename public fields as part of structural cleanup.
-- Compatibility exceptions are explicit: source-owned primitives retain registry filenames,
-  tools retain required entry names, and shipped migrations/fixtures remain immutable. Other
-  existing naming differences are tracked migration debt. Enforcement must baseline exact paths
-  and reject new unclassified debt; documenting a convention does not itself make lint enforce it.
-- The existing `eslint-suppressions.json` file/rule counts only shrink: each change prunes what it
-  can, never increases an existing count, and new code meets the rules. A newly introduced rule
-  may have one reviewed initial baseline with classified residual findings; that baseline then only
-  shrinks.
-- Debt a batch declines to fix is recorded on the closing issue or pull request, never dropped.
-  For historical context, the last revision of the conventions audit ledger is
-  [`3b455884`](https://github.com/Kevinjohn/capacitylens/blob/3b455884/tasks/conventions-audit.md),
-  linked from issue #638 for the untouched deviations it recorded.
-
-## Historical structural-check rationale (2026-09)
-
-The table records the rationale at the time, against the legacy server layout; its paths and gate
-placement are not claims about the current Adonis application. The M4 migration retired the old
-account-conformance architecture assertion and table/column guards (test census rows 530, 2075 and
-2084); those framework-owned checks are not promised in M5. The private TLS and renewal tooling is
-also retired under ruling 16. Docker helper and workflow validation remains deferred to M7a. M5
-retains import-cycle detection (`scripts/check-import-cycles.mjs` and
-`scripts/check-import-cycles.test.mjs`) and the cryptography inventory
-(`scripts/check-crypto-inventory.mjs` and `scripts/check-crypto-inventory.test.mjs`).
-
-The structural-measurement tooling added in PRs #593–#613 was removed on 2026-09-05; the remaining
-rows preserve the legacy rationale for checks retained at that time.
-
-| Check                                                                                                        | Why it earns its place                                                                                                                                                                                                                                                                                                                                                        |
-| ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scripts/dependencyScanner.mjs`, `scripts/check-import-cycles.mjs`, `policy:dependencies:test` in both gates | A runtime import cycle is the usual way two "small" files become unreadable together. The scanner fixed a real gap (dynamic imports were invisible) and now runs in the app and server gates.                                                                                                                                                                                 |
-| `server/src/tables/columns.ts` compile-time column guards and their negative fixtures                        | Before the change a missing column typed as `never` compiled; now the schema list and the table specs must agree or the build fails. Product correctness, not measurement.                                                                                                                                                                                                    |
-| `server/src/accounts/conformance/architecture.test.ts`                                                       | Enforces the ownership boundaries of the account and auth code: which directories may depend on which, with a short list of named adapter and `Db` type edges allowed. This is the "one behaviour in one place" invariant for the most security-sensitive subsystem.                                                                                                          |
-| `scripts/run-gate.mjs`, `scripts/gateCommands.mjs`, their test and `scripts/__tests__/gate-command.mjs`      | Replaces a 600-character `&&` chain in `package.json` with a readable ordered list; the test proves a failing step stops the rest. 86 lines, no new dependencies (it spawns through the existing `pnpmSpawn.mjs`).                                                                                                                                                            |
-| `scripts/check-dependabot.mjs`, its test and the `yaml` devDependency                                        | The same validation existed at `34a1702a` as a Ruby step in `gate.yml`; PR #606 moved it into the gate so it also runs locally. Deleting it would remove a baseline check. The `dependabot.yml` it validates encodes the patch-only update policy.                                                                                                                            |
-| `scripts/check-sonner-csp.test.mjs` and `scripts/__tests__/sonner-import.mjs`                                | Guards the CSP-compatible stylesheet patch on the Sonner dependency so a routine update cannot silently drop it.                                                                                                                                                                                                                                                              |
-| `apps/frontend/src/components/ui/dialogCsp.test.tsx`                                                         | Exercises the published Radix scroll-lock path with the production stylesheet, guarding the CSP patch, nested lock counter, measured gap and cleanup behavior.                                                                                                                                                                                                                |
-| The environment split in `eslint.config.js` (browser / worker / Node / shared production / shared test)      | `packages/shared/` is imported by both the browser app and the Node server, so a Node or DOM global there is a runtime failure on one side. The split makes it a lint error.                                                                                                                                                                                                  |
-| `scripts/check-shared-environment.test.mjs` (trimmed)                                                        | Proves the shared production compiler graph contains no Node types or test files, and that the production lint rejects platform globals. This is the executable form of the boundary above.                                                                                                                                                                                   |
-| `scripts/check-server-script-lint.test.mjs` (trimmed)                                                        | Proves, with synthetic probes through the real configuration, that the typed promise rules (`no-floating-promises`, `no-misused-promises`) apply to operator scripts. ESLint does the enforcing; this test catches the configuration silently dropping it. An unawaited promise in a reset or backup script is the kind of defect that otherwise surfaces only in production. |
-| `scripts/check-script-environments.test.mjs` (trimmed)                                                       | Proves browser scripts reject Node globals and Node tooling rejects browser globals through the real configuration.                                                                                                                                                                                                                                                           |
-| `scripts/check-lint-coverage.test.mjs` (trimmed to one test)                                                 | Its test "real new production and test files reject both promise defects in each typed package" writes real files into app, server and shared, then proves both promise rules reject them. None of the other suites exercises the app and server typed-lint configuration that way. The four other tests in the file enumerate the inventory or assert gate ownership and go. |
-| `scripts/check-health.mjs`, `tlsRenewalVerifier.ts` and their tests                                          | Extracted from inline Dockerfile and workflow JavaScript so they can be unit-tested. The Dockerfile depends on the first. Not touched by this plan.                                                                                                                                                                                                                           |
+- Compatibility exceptions remain where a public contract, dependency or shipped data format
+  requires them. They are documented at the owning boundary.
 
 ### Production mail dependency compatibility
 

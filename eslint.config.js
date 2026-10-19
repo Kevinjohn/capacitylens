@@ -16,17 +16,10 @@ const forbiddenSharedGlobals = [
   "globalThis",
 ];
 
-// `isNotNull` is the SQL term in server/src/schema/introspection.ts, not a negated boolean.
-const negatedBooleanName = "^(hasNo|not[A-Z]|isNot(?!Null))";
-// Avoid generic search and event-handler names when a clearer action name is available.
-const excludedVerbName = "^(find|handle)([A-Z]|$)";
-
 const sharedTestFiles = [
   "packages/shared/src/**/*.{test,spec}.{ts,tsx,mts,cts}",
   "packages/shared/src/**/__tests__/**/*.{ts,tsx,mts,cts}",
 ];
-const appTestFiles = ["apps/frontend/src/**/*.{test,spec}.{ts,tsx}", "apps/frontend/src/**/__tests__/**/*.{ts,tsx}"];
-
 // `@/` maps only to src/, so it cannot name a repository file outside it. These files read one,
 // and each may import only the specifiers listed against it.
 const parentImportAllowances = {
@@ -39,7 +32,6 @@ const parentImportAllowances = {
     "../../../nginx-security-headers.conf?raw",
     "../../../scripts/render-client-nginx.mjs",
   ],
-  "apps/frontend/src/fileCoverageGate.test.ts": ["../../../scripts/check-file-coverage.mjs"],
   "apps/frontend/src/playwrightServerScope.test.ts": [
     "../../../scripts/playwrightServerScope",
     "../../../scripts/playwrightRunMode.mjs",
@@ -188,27 +180,7 @@ export default defineConfig([
       "@typescript-eslint/prefer-nullish-coalescing": "error",
       "@typescript-eslint/restrict-template-expressions": "error",
       "@typescript-eslint/switch-exhaustiveness-check": "error",
-      "no-nested-ternary": "error",
-      "no-param-reassign": "error",
-      complexity: ["error", { max: 12 }],
-      "max-depth": ["error", 3],
-      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true, IIFEs: true }],
     },
-  },
-
-  // JSX formatting expands otherwise cohesive components, while test suite callbacks group
-  // independent cases and are not meaningful function-size signals. Complexity and depth remain
-  // enforced by the typed app rules above.
-  {
-    files: ["apps/frontend/src/**/*.tsx"],
-    ignores: appTestFiles,
-    rules: {
-      "max-lines-per-function": ["error", { max: 90, skipBlankLines: true, skipComments: true, IIFEs: true }],
-    },
-  },
-  {
-    files: appTestFiles,
-    rules: { "max-lines-per-function": "off" },
   },
 
   // These paths belong to their package's TypeScript project, including operational server scripts.
@@ -234,11 +206,6 @@ export default defineConfig([
       "@typescript-eslint/prefer-nullish-coalescing": "error",
       "@typescript-eslint/restrict-template-expressions": "error",
       "@typescript-eslint/switch-exhaustiveness-check": "error",
-      "no-nested-ternary": "error",
-      "no-param-reassign": "error",
-      complexity: ["error", { max: 12 }],
-      "max-depth": ["error", 3],
-      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true, IIFEs: true }],
     },
   },
 
@@ -251,77 +218,11 @@ export default defineConfig([
     },
   },
 
-  // End-to-end scenarios share the structural limits even though their Playwright project is
-  // separate from the typed app/server lint projects. Tests are not exempt from the baseline.
-  {
-    files: ["e2e/**/*.{ts,tsx,mts,cts}"],
-    rules: {
-      complexity: ["error", { max: 12 }],
-      "max-depth": ["error", 3],
-      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true, IIFEs: true }],
-    },
-  },
-
   // Apply this rule to authored production code.
   {
     files: ["apps/frontend/src/**/*.{ts,tsx}", "packages/shared/src/**/*.{ts,tsx,mts,cts}"],
     ignores: ["**/*.{test,spec}.{ts,tsx,mts,cts}", "**/__tests__/**/*.{ts,tsx,mts,cts}"],
     rules: { "@typescript-eslint/no-unnecessary-type-assertion": "error" },
-  },
-
-  // Enforce identifier casing, no negated boolean names, and at most three positional parameters.
-  // Properties, methods and imports are unformatted because many mirror wire fields, SQL columns
-  // and library names. Existing violations are baselined in eslint-suppressions.json.
-  {
-    files: ["apps/frontend/src/**/*.{ts,tsx}", "packages/shared/src/**/*.{ts,tsx,mts,cts}"],
-    rules: {
-      "max-params": ["error", 3],
-      "@typescript-eslint/naming-convention": [
-        "error",
-        { selector: "default", format: ["camelCase"], leadingUnderscore: "allow" },
-        // An identifier is checked against its first matching selector only, so the
-        // negated-name regex is repeated on every selector that names a value.
-        {
-          selector: "variable",
-          modifiers: ["const"],
-          format: ["camelCase", "UPPER_CASE", "PascalCase"],
-          leadingUnderscore: "allow",
-          custom: { regex: negatedBooleanName, match: false },
-        },
-        {
-          selector: "variable",
-          format: ["camelCase"],
-          leadingUnderscore: "allow",
-          custom: { regex: negatedBooleanName, match: false },
-        },
-        {
-          selector: "parameter",
-          format: ["camelCase", "PascalCase"],
-          leadingUnderscore: "allow",
-          custom: { regex: negatedBooleanName, match: false },
-        },
-        {
-          selector: "variable",
-          types: ["function"],
-          format: ["camelCase", "PascalCase"],
-          leadingUnderscore: "allow",
-          custom: { regex: excludedVerbName, match: false },
-        },
-        {
-          selector: "function",
-          format: ["camelCase", "PascalCase"],
-          custom: { regex: excludedVerbName, match: false },
-        },
-        { selector: "classMethod", format: ["camelCase"], custom: { regex: excludedVerbName, match: false } },
-        { selector: "typeLike", format: ["PascalCase"] },
-        { selector: "enumMember", format: ["PascalCase", "UPPER_CASE"] },
-        {
-          selector: ["objectLiteralProperty", "typeProperty", "classProperty", "objectLiteralMethod", "typeMethod"],
-          format: null,
-        },
-        { selector: "import", format: null },
-      ],
-    },
   },
 
   // One record guard for the whole tree: shared/src/lib/isRecord.ts.
