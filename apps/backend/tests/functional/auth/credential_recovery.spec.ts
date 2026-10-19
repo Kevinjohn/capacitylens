@@ -231,12 +231,25 @@ test.group('Account-kit recovery with product credentials', (group) => {
     assert.isTrue(await verifyPassword(changed!.password_hash, password))
     assert.equal(changed!.email, email)
     assert.isTrue(Boolean(changed!.email_verified))
-    await assert.rejects(() => resetPassword(token, password))
+    const replay = await client
+      .post('/api/auth/reset-password')
+      .json({ token, newPassword: password })
+    replay.assertStatus(400)
+    assert.deepEqual(replay.body(), { error: 'Invalid credential request.', code: 'INVALID_TOKEN' })
+    const unknown = await client
+      .post('/api/auth/reset-password')
+      .json({ token: randomBytes(32).toString('base64url'), newPassword: password })
+    unknown.assertStatus(400)
+    assert.deepEqual(unknown.body(), replay.body())
     await db
       .table('password_reset_tokens')
       .insert({ ...before, expires_at: new Date(Date.now() - 3600000).toISOString() })
     const expired = await db.from('password_reset_tokens').where('tokenable_id', id).first()
-    await assert.rejects(() => resetPassword(token, password))
+    const expiredResponse = await client
+      .post('/api/auth/reset-password')
+      .json({ token, newPassword: password })
+    expiredResponse.assertStatus(400)
+    assert.deepEqual(expiredResponse.body(), replay.body())
     assert.deepEqual(
       await db.from('password_reset_tokens').where('tokenable_id', id).first(),
       expired

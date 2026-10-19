@@ -1302,7 +1302,8 @@ authority on redeem (`POST /api/auth/reset-password`). Success shows _"Password 
 with your new password."_ (`data-testid="reset-success"`) with a **Go to sign in** link (a full page
 load onto the login wall); the member's previous sessions are revoked. An invalid / already-used /
 expired token shows _"This reset link is invalid, already used, or expired. Ask your admin for a
-new one."_ — the token is single-use. If the server does not mount password reset, the page says
+new one."_ — the token is single-use. The native endpoint returns **400** with
+`code: "INVALID_TOKEN"` for invalid, consumed and expired proofs. If the server does not mount password reset, the page says
 that reset is unavailable on this instance and directs the visitor to their administrator instead
 of suggesting another attempt. In local/demo mode the page shows a short "server mode only"
 note and makes no request. The page is `src/auth/ResetPassword.tsx`; spec

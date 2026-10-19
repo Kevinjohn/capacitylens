@@ -11,6 +11,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Explain when a password-reset link is invalid, used or expired instead of suggesting another attempt (#1505).
+
 - Keep password resets and password changes compatible with the updated account-kit, preserving existing credentials and recovery links during the storage upgrade.
 
 - The native archive uses password authentication and database sessions, with open production
