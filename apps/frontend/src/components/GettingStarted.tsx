@@ -51,7 +51,9 @@ const demoDismissedAccounts = new Set<string>();
 /** Shows account setup guidance based on the active account state. */
 export function GettingStarted() {
   const accountId = useStore((state) => state.activeAccountId);
-  if (!accountId) return null;
+  const masqueradeKind = useStore((state) => state.masquerade.kind);
+  // Company onboarding is outside the read-only member projection, including its transitions.
+  if (!accountId || masqueradeKind !== "inactive") return null;
   return <GettingStartedForAccount key={accountId} accountId={accountId} />;
 }
 

@@ -147,6 +147,8 @@ accept responses never include it.
    **Schedule the first piece of work**. Completion comes from active, coherent company data,
    including imports. Internal work remains available but does not skip the client or project steps.
    The completed 5/5 bar remains visible until permanently dismissed.
+   View-as member hides Getting started and does not request its company dismissal state until the
+   projection has fully ended; ordinary Editor guidance then returns.
    **Show me around** (`data-testid="getting-started-tour"`) runs a role-based driver.js
    spotlight tour from the current Owner, Admin or Editor section through the lower roles. Owners
    see eight server-backed stops, Admins seven and Editors five; the Editor tour ends with two
