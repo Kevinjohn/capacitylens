@@ -13,6 +13,7 @@ new features and **patch** versions carry fixes.
 
 - Preserve Undo and Redo after background refreshes acknowledge this browser’s saved schedule edits (#1502).
 - Hide company onboarding during view-as member so read-only navigation does not show a forbidden-request error (#1503).
+- Explain when a password-reset link is invalid, used or expired instead of suggesting another attempt (#1505).
 
 - Keep password resets and password changes compatible with the updated account-kit, preserving existing credentials and recovery links during the storage upgrade.
 
