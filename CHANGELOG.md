@@ -11,6 +11,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Hide company onboarding during view-as member so read-only navigation does not show a forbidden-request error (#1503).
+
 - Keep password resets and password changes compatible with the updated account-kit, preserving existing credentials and recovery links during the storage upgrade.
 
 - The native archive uses password authentication and database sessions, with open production

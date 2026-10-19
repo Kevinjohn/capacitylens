@@ -17,6 +17,7 @@ vi.mock("@/data/apiConfig", () => ({ API_BASE: "", isDemoMode: () => apiMode.dem
 
 beforeEach(() => {
   resetStoreWithAccount();
+  useStore.getState().setMasquerade({ kind: "inactive" });
   apiMode.demo = true;
   tourMock.startTour.mockReset().mockResolvedValue(undefined);
 });
@@ -107,6 +108,69 @@ describe("Getting started", () => {
     await user.click(screen.getByTestId("getting-started-dismiss"));
     expect(screen.queryByText("Do you really want to hide this forever?")).not.toBeInTheDocument();
     expect(screen.queryByTestId("getting-started-progress")).not.toBeInTheDocument();
+  });
+
+  it.each(["starting", "active", "ending"] as const)(
+    "omits privileged onboarding requests while masquerade is %s",
+    (kind) => {
+      apiMode.demo = false;
+      const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ dismissed: false })));
+      vi.stubGlobal("fetch", fetchMock);
+      const state = {
+        accountId: "a-studio",
+        targetUserId: "u-editor",
+        targetName: "Clark Kent",
+        effectiveRole: "editor" as const,
+        startedAt: "2026-10-19T10:00:00.000Z",
+        token: "test-projection",
+      };
+      useStore
+        .getState()
+        .setMasquerade(
+          kind === "starting"
+            ? { kind, pending: { accountId: state.accountId, targetUserId: state.targetUserId }, generation: 1 }
+            : { kind, state, generation: 1 },
+        );
+
+      renderChecklist("editor", "/resources");
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(screen.queryByTestId("getting-started-progress")).not.toBeInTheDocument();
+      expect(useStore.getState().notice).toBeNull();
+    },
+  );
+
+  it("aborts pre-projection guidance and reloads normal Editor onboarding after view-as ends", async () => {
+    apiMode.demo = false;
+    let rejectRead!: (error: Error) => void;
+    const pending = new Promise<Response>((_resolve, reject) => {
+      rejectRead = reject;
+    });
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockReturnValueOnce(pending)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ dismissed: false })));
+    vi.stubGlobal("fetch", fetchMock);
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    renderChecklist("editor", "/resources");
+    expect(fetchMock).toHaveBeenCalledOnce();
+
+    act(() =>
+      useStore.getState().setMasquerade({
+        kind: "starting",
+        pending: { accountId: "a-studio", targetUserId: "u-editor" },
+        generation: 1,
+      }),
+    );
+    await act(async () => rejectRead(new Error("projection forbids the earlier read")));
+    expect(screen.queryByTestId("getting-started-progress")).not.toBeInTheDocument();
+    expect(errorLog).not.toHaveBeenCalled();
+    expect(useStore.getState().notice).toBeNull();
+
+    act(() => useStore.getState().setMasquerade({ kind: "inactive" }));
+    expect(await screen.findByTestId("getting-started-progress")).toBeVisible();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(screen.queryByTestId("getting-started-dismiss")).not.toBeInTheDocument();
   });
 
   it("excludes viewers", () => {
