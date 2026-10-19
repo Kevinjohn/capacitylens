@@ -39,6 +39,9 @@ an Owner or Admin retire the guidance once it is no longer useful.
 
 ## Acceptance criteria
 
+- During view-as member, the bar and card are hidden and make no company-onboarding requests,
+  including while the projection starts or ends. Normal role-based guidance resumes only after
+  restoration finishes.
 - Only active, coherent company records count. The built-in client does not complete the client
   milestone; a project must belong to an active non-built-in client. Project Activity ancestry and
   allocation references remain validated. A zero-hour allocation counts.
