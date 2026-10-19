@@ -142,7 +142,40 @@ function attachCoordinator(parts: PersistenceParts, accountSwitch: ReturnType<ty
   });
 }
 
-function attachAllocationRewriteHandler({ store, adapter }: Pick<PersistenceParts, "store" | "adapter">): void {
+function attachCommittedRevisionHandler({
+  store,
+  adapter,
+  owner,
+}: Pick<PersistenceParts, "store" | "adapter" | "owner">): void {
+  adapter.setCommittedRevisionHandler?.((revisions) => {
+    if (owner.current.disposed) return;
+    // A receipt changes metadata, not user intent. Suppress the persistence echo while keeping
+    // pending snapshot identities intact so the original write can still be acknowledged.
+    const loadingSlice = owner.current.loadingSlice;
+    owner.update({ loadingSlice: true });
+    try {
+      store.setState((state) => {
+        let data = state.data;
+        for (const revision of revisions) {
+          const rows = data[revision.table];
+          const next = rows.map((row) =>
+            row.id === revision.id && row.updatedAt === revision.flushedUpdatedAt
+              ? { ...row, createdAt: revision.createdAt, updatedAt: revision.updatedAt }
+              : row,
+          );
+          if (next.some((row, index) => row !== rows[index])) data = { ...data, [revision.table]: next };
+        }
+        return data === state.data ? state : { data };
+      });
+    } finally {
+      owner.update({ loadingSlice });
+    }
+  });
+}
+
+function attachReceiptHandlers(parts: Pick<PersistenceParts, "store" | "adapter" | "owner">): () => void {
+  const { store, adapter } = parts;
+  attachCommittedRevisionHandler(parts);
   adapter.setAllocationRewriteHandler?.((revisions) => {
     const revisionsById = new Map(revisions.map((revision) => [revision.id, revision]));
     store.setState((state) => {
@@ -156,6 +189,10 @@ function attachAllocationRewriteHandler({ store, adapter }: Pick<PersistencePart
       return changed ? { ...state, data: { ...state.data, allocations } } : state;
     });
   });
+  return () => {
+    adapter.setCommittedRevisionHandler?.(null);
+    adapter.setAllocationRewriteHandler?.(null);
+  };
 }
 
 /** Attaches one persistence owner and returns a hard-detach function. Detach cancels
@@ -210,7 +247,7 @@ export function attachPersistence({
     throw error;
   }
   resetPersistenceDiagnostics();
-  attachAllocationRewriteHandler(parts);
+  const detachReceiptHandlers = attachReceiptHandlers(parts);
   const detachDomListeners = attachDomListeners(parts);
   return () => {
     if (owner.current.disposed) return;
@@ -218,7 +255,7 @@ export function attachPersistence({
     unsubscribe();
     accountSwitch.unsubscribeSwitch?.();
     unregisterCoordinator();
-    adapter.setAllocationRewriteHandler?.(null);
+    detachReceiptHandlers();
     detachDomListeners();
     owner.cancelDebounce();
     owner.cancelRetry();

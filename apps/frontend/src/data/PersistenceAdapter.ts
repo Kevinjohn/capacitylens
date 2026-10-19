@@ -9,6 +9,15 @@ export interface AllocationRewriteRevision {
   flushedUpdatedAt: ISOTimestamp;
 }
 
+/** A committed row revision paired with the client stamp it acknowledges. */
+export interface CommittedRowRevision {
+  table: keyof AppData;
+  id: string;
+  createdAt: ISOTimestamp;
+  updatedAt: ISOTimestamp;
+  flushedUpdatedAt: ISOTimestamp;
+}
+
 /** Load and save contract implemented by local and server-backed persistence. */
 export interface PersistenceAdapter {
   /** Load persisted data. `accountId` (server adapter only) loads only that account's scoped slice
@@ -21,6 +30,8 @@ export interface PersistenceAdapter {
    * Ordinary saves await confirmation.
    */
   saveAll(data: AppData, options?: { unload?: boolean }): Promise<void>;
+  /** Publishes acknowledged timestamp-only changes without overwriting newer local edits. */
+  setCommittedRevisionHandler?(handler: ((revisions: readonly CommittedRowRevision[]) => void) | null): void;
   /** Optional server-rewrite bridge. Receipts identify the client revision they committed so the
    * persistence coordinator can decline to rewrite a row edited while the batch was in flight. */
   setAllocationRewriteHandler?(handler: ((revisions: readonly AllocationRewriteRevision[]) => void) | null): void;
