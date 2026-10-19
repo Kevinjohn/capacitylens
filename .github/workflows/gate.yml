@@ -1,8 +1,9 @@
 name: gate
 
-# Pull requests receive static analysis and CodeQL. Run expensive gates on main or manual dispatch to avoid redundant full-suite runs.
+# Main pull requests receive static analysis and CodeQL; the protected Adonis fork also calls this gate.
 on:
   workflow_dispatch:
+  workflow_call:
   push:
     branches: [main]
     tags: ["v*"]
@@ -13,7 +14,7 @@ on:
     - cron: "17 6 3 * *"
 
 concurrency:
-  group: gate-${{ github.ref }}
+  group: gate-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
