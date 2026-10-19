@@ -13,11 +13,23 @@ afterEach(() => {
 
 describe("dialog scroll locking under the application CSP", () => {
   it("locks body scrolling without injecting a style element and cleans up its measured gap", () => {
-    const existingInlineGap = "7px";
-    document.body.style.setProperty(
-      "--removed-body-scroll-bar-size",
-      existingInlineGap,
-    );
+    const existingLockStyles = [
+      ["--removed-body-scroll-bar-size", "7px", "important"],
+      ["--scroll-lock-body-left", "2px", "important"],
+      ["--scroll-lock-body-top", "3px", ""],
+      ["--scroll-lock-body-right", "5px", "important"],
+    ] as const;
+    for (const [property, value, priority] of existingLockStyles) {
+      document.body.style.setProperty(property, value, priority);
+    }
+    const existingLockAttributes = [
+      ["data-scroll-lock-no-relative", "preserved-relative"],
+      ["data-scroll-lock-gap-mode", "preserved-gap-mode"],
+      ["data-scroll-lock-no-important", "preserved-priority"],
+    ] as const;
+    for (const [name, value] of existingLockAttributes) {
+      document.body.setAttribute(name, value);
+    }
     const styleCount = document.querySelectorAll("style").length;
     const clientWidth = Object.getOwnPropertyDescriptor(
       document.documentElement,
@@ -56,6 +68,9 @@ describe("dialog scroll locking under the application CSP", () => {
       screen.getByRole("dialog", { name: "Schedule work" }),
     ).toBeInTheDocument();
     expect(document.body).toHaveAttribute("data-scroll-locked", "1");
+    expect(document.body).not.toHaveAttribute("data-scroll-lock-no-relative");
+    expect(document.body).not.toHaveAttribute("data-scroll-lock-gap-mode");
+    expect(document.body).not.toHaveAttribute("data-scroll-lock-no-important");
     expect(getComputedStyle(document.body).overflow).toBe("hidden");
     expect(getComputedStyle(document.body).overscrollBehavior).toBe("contain");
     const backgroundScroll = new WheelEvent("wheel", {
@@ -70,6 +85,10 @@ describe("dialog scroll locking under the application CSP", () => {
       document.body.style.getPropertyValue("--removed-body-scroll-bar-size"),
     ).toBe("24px");
 
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1030,
+    });
     const nestedDialog = render(
       <Dialog open>
         <DialogContent>
@@ -79,19 +98,35 @@ describe("dialog scroll locking under the application CSP", () => {
     );
     expect(document.body).toHaveAttribute("data-scroll-locked", "2");
     expect(document.querySelectorAll("style")).toHaveLength(styleCount);
+    expect(
+      document.body.style.getPropertyValue("--removed-body-scroll-bar-size"),
+    ).toBe("24px");
+    expect(
+      document.body.style.getPropertyValue("--scroll-lock-body-right"),
+    ).toBe("0px");
+    expect(document.body.style.getPropertyValue("padding-right")).toBe("");
 
-    dialog.unmount();
+    nestedDialog.unmount();
     expect(document.body).toHaveAttribute("data-scroll-locked", "1");
     expect(
       document.body.style.getPropertyValue("--removed-body-scroll-bar-size"),
     ).toBe("24px");
+    expect(
+      document.body.style.getPropertyValue("--scroll-lock-body-right"),
+    ).toBe("0px");
+    expect(document.body.style.getPropertyValue("padding-right")).toBe("");
+    expect(document.querySelectorAll("style")).toHaveLength(styleCount);
 
-    nestedDialog.unmount();
+    dialog.unmount();
 
     expect(document.body).not.toHaveAttribute("data-scroll-locked");
     expect(getComputedStyle(document.body).overflow).not.toBe("hidden");
-    expect(
-      document.body.style.getPropertyValue("--removed-body-scroll-bar-size"),
-    ).toBe(existingInlineGap);
+    for (const [property, value, priority] of existingLockStyles) {
+      expect(document.body.style.getPropertyValue(property)).toBe(value);
+      expect(document.body.style.getPropertyPriority(property)).toBe(priority);
+    }
+    for (const [name, value] of existingLockAttributes) {
+      expect(document.body).toHaveAttribute(name, value);
+    }
   });
 });
