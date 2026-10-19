@@ -13,7 +13,6 @@ const UTF8_ENCODER = new TextEncoder();
 const DNS_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 
 /** Parse one exact DNS domain for company admission, without trimming or repairing input. */
-
 export function parseApprovedDomain(value: unknown): string | null {
   if (
     typeof value !== "string" ||

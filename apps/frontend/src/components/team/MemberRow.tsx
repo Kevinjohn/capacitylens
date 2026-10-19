@@ -264,7 +264,6 @@ function MemberSettingsMenuItems({
 }
 
 /** Shows one member's role, sign-in state, and permitted management actions. */
-
 export function MemberRow({
   member: member,
   myRole,

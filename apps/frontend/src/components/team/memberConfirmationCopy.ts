@@ -19,7 +19,6 @@ export function resolveMemberLabel(member: TeamMember): string {
 }
 
 /** Builds action-specific confirmation wording for the target member. */
-
 export function buildMemberConfirmationCopy({ kind, member }: MemberConfirmation): {
   title: string;
   confirmLabel: string;

@@ -101,7 +101,6 @@ type UseProviderConnectionOptions = {
   setBusy: (busy: boolean) => void;
 };
 /** Tracks provider link status and the active connection request. */
-
 export function useProviderConnection({ provider, busy, setBusy }: UseProviderConnectionOptions) {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);

@@ -266,7 +266,6 @@ function buildMonthlyLastWeekdayStartDates(
  * @throws RepeatingDateError when dates, cutoff, pattern, last-weekday anchor or generated count are invalid; no starts are returned.
  * @throws Error when an internal ordering invariant is violated.
  */
-
 export function generateRepeatingStartDates(
   startDate: ISODate,
   repeatUntil: ISODate,

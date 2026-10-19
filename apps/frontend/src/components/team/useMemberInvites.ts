@@ -200,7 +200,6 @@ function createCopyLink({
 }
 
 /** Establish link reconciliation before directory reads, then bind actions to directory outputs. */
-
 export function useMemberInvites() {
   const [inviteRole, setInviteRole] = useState<InvitationRole>("editor");
   const [invitationPreauthorizedEmail, setInvitationPreauthorizedEmail] = useState("");

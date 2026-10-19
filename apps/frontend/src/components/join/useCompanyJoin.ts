@@ -29,7 +29,6 @@ async function readJoinResponses([metadataResponse, statusResponse]: [Response, 
 }
 
 /** Coordinates the account joining journey across sign-in methods and completion. */
-
 export function useCompanyJoin(accountId: string | undefined, invitationToken: string | null) {
   const { user, refreshAuth, providers = [], authMode } = useAuth();
   const [stage, setStage] = useState<Stage>(isServerConfigured() ? "loading" : "local");

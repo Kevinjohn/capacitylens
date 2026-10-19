@@ -12,7 +12,7 @@ The suites cover the frontend, backend and shared workspace packages.
 | Suite | Tool | Covers |
 | --- | --- | --- |
 | App and shared unit tests | Vitest, Testing Library | Shared scheduling rules, the client store and React components |
-| Backend tests | Vitest | API behavior, authorization, SQLite, backups and sign-in |
+| Backend tests | Japa | API behavior, authorization, SQLite, backups and sign-in |
 | End-to-end tests | Playwright | The demo and database-backed sign-in and scheduling flows in a real browser |
 | Accessibility checks | axe, inside the end-to-end tests | Automated accessibility rules on key screens |
 | Mutation testing | Stryker | Whether focused tests detect changes to scheduling logic; run on demand |
