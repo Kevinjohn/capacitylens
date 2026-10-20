@@ -234,6 +234,10 @@ test.group('M2a batch projection attribution', (group) => {
     const data = seed()
     const activity = data.activities.find((row) => row.id === 't-admin')!
     const allocation = data.allocations.find((row) => row.id === 'a-alex-design')!
+    const beforeRevision = await db
+      .from('company_planning_revisions')
+      .where('account_id', activity.accountId)
+      .first()
     await db
       .from('allocations')
       .where('id', allocation.id)
@@ -253,6 +257,11 @@ test.group('M2a batch projection attribution', (group) => {
       updatedAt: repaired.updatedAt,
       rewrite: true,
     })
+    const afterRevision = await db
+      .from('company_planning_revisions')
+      .where('account_id', activity.accountId)
+      .first()
+    assert.equal(Number(afterRevision?.revision), Number(beforeRevision?.revision ?? 0) + 1)
   })
 
   test('reconciles attribution when an activity edit follows corrupt existing attribution', async ({

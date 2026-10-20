@@ -148,6 +148,14 @@
     {
       "path": "apps/frontend/src/auth/signOut.ts",
       "purpose": "Random non-secret cross-tab session invalidation signal; contains no session or identity data"
+    },
+    {
+      "path": "apps/backend/app/services/planning_operations/execute.ts",
+      "purpose": "Random non-secret series identifiers for atomic allocation repeats; no authentication or bearer material"
+    },
+    {
+      "path": "apps/backend/tests/functional/planning/helpers.ts",
+      "purpose": "Random non-secret fixture principal, membership, entity and mutation identifiers for real-session planning tests; no live bearer generation"
     }
   ]
 }
