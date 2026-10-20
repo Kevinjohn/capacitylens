@@ -339,7 +339,8 @@ from framework defaults; other departures require an explicit decision.
 
 1. `packages/shared` is imported by the backend and SPA. It contains pure domain rules and wire
    types, never backend code.
-2. Adonis BodyParser owns request parsing and its supported defaults. Compiled Vine validators
+2. Adonis BodyParser owns request parsing and its supported defaults, except a 5 MB JSON limit so
+   a whole company export can be imported. Compiled Vine validators
    validate supplied values and strip unknown object properties by default. Empty strings are not
    silently converted to null. Ordinary validation errors use the flat `{ error, code? }` contract
    with status 400.
