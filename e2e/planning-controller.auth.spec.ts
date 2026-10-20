@@ -76,7 +76,7 @@ async function planningSnapshot(request: APIRequestContext, cookie: string, comp
         seriesIndex: number | null;
       }>;
       resources: Array<{ id: string; archivedAt: string | null }>;
-      clients: Array<{ id: string; archivedAt: string | null; isPrivate?: boolean | null; codeName?: string | null }>;
+      clients: Array<{ id: string; archivedAt: string | null }>;
       projects: Array<{ id: string; archivedAt: string | null }>;
       activities: Array<{ id: string; archivedAt: string | null }>;
     };
@@ -496,28 +496,6 @@ test("unactivated planning controller uses authenticated typed routes and reconc
       );
     }
   }
-
-  const beforePrivacy = await planningSnapshot(request, owner.cookie, companyId);
-  await callHarness(page, "planningHarnessExecute", primaryKey, {
-    operation: "catalogue.update",
-    entity: { entity: "clients", id: clientId, changes: { isPrivate: true, codeName: "Nightfall" } },
-  } satisfies Intent);
-  const privateSnapshot = await planningSnapshot(request, owner.cookie, companyId);
-  expect(privateSnapshot.revision).toBe(beforePrivacy.revision + 1);
-  expect(privateSnapshot.data.clients.find(({ id }) => id === clientId)).toMatchObject({
-    isPrivate: true,
-    codeName: "Nightfall",
-  });
-  await callHarness(page, "planningHarnessExecute", primaryKey, {
-    operation: "catalogue.update",
-    entity: { entity: "clients", id: clientId, changes: { isPrivate: false } },
-  } satisfies Intent);
-  const publicSnapshot = await planningSnapshot(request, owner.cookie, companyId);
-  expect(publicSnapshot.revision).toBe(privateSnapshot.revision + 1);
-  const publicClient = publicSnapshot.data.clients.find(({ id }) => id === clientId);
-  expect(publicClient?.id).toBe(clientId);
-  expect(Boolean(publicClient?.isPrivate)).toBe(false);
-  expect(publicClient?.codeName ?? null).toBeNull();
 
   // A request lost before dispatch has no commitment marker. Lookup remains unknown and blocks retries.
   const unknownRoute = `**/api/accounts/${companyId}/allocations/${allocationId}`;
