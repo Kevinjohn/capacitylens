@@ -569,7 +569,7 @@ const resourceIntent = vine.union([
                 field
               )
             }
-            if (fields.kind === 'placeholder' && fields.engagement !== defaultValues.engagement) {
+            if (fields.kind === 'placeholder' && fields.engagement !== 'studio') {
               field.report('Placeholder engagement must match defaults.', 'engagement', field)
             }
           }
@@ -685,7 +685,7 @@ export const timeOffMutationValidator = vine.compile(
 )
 
 const closureFields = {
-  name: userText(),
+  name: nameText(),
   startDate: calendarDate(),
   endDate: calendarDate(),
 }

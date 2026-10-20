@@ -1,5 +1,8 @@
 import { test } from '@japa/runner'
-import { externalCapacityDefaults } from '@capacitylens/shared/types/entities'
+import {
+  externalCapacityDefaults,
+  placeholderCapacityDefaults,
+} from '@capacitylens/shared/types/entities'
 import {
   planningMutationValidator,
   allocationMutationValidator,
@@ -400,6 +403,17 @@ test.group('planning operation contracts', () => {
     if (timeOff.intent.operation === 'timeOff.repeat')
       assert.equal(timeOff.intent.entries.length, 2)
     assert.equal(closure.intent.operation, 'closure.create')
+    await assert.rejects(() =>
+      planningMutationValidator.validate({
+        mutationId: otherUuid,
+        baseRevision: 8,
+        intent: {
+          operation: 'closure.create',
+          id: otherUuid,
+          fields: { name: '   ', startDate: '2026-12-25', endDate: '2026-12-25' },
+        },
+      })
+    )
     if (settings.intent.operation === 'settings.update') {
       assert.deepEqual(settings.intent.changes, {
         dateStyle: 'day-month',
@@ -575,6 +589,66 @@ test.group('planning operation contracts', () => {
         })
       )
     }
+  })
+
+  test('accepts placeholder defaults and rejects invalid person and partial weekday sets', async ({
+    assert,
+  }) => {
+    const placeholder = {
+      kind: 'placeholder',
+      name: 'Wayne Enterprises capacity',
+      role: 'Design support',
+      avatarUrl: null,
+      disciplineId: otherUuid,
+      employmentType: 'contractor',
+      engagement: 'studio',
+      workingHoursPerDay: 6,
+      ...placeholderCapacityDefaults(),
+      projectId: otherUuid,
+      color: '#3ace6b',
+      isFavourite: false,
+      firstAvailableDate: null,
+      lastAvailableDate: null,
+    }
+    const validPlaceholder = await resourceMutationValidator.validate({
+      mutationId: uuid,
+      baseRevision: 1,
+      intent: { operation: 'resource.create', id: otherUuid, fields: placeholder },
+    })
+    assert.equal(validPlaceholder.intent.operation, 'resource.create')
+
+    const person = {
+      ...placeholder,
+      kind: 'person',
+      name: 'Diana Prince',
+      disciplineId: otherUuid,
+      employmentType: 'permanent',
+      workingDays: [1, 2],
+      halfDays: [2],
+      projectId: null,
+    }
+    await assert.rejects(() =>
+      resourceMutationValidator.validate({
+        mutationId: uuid,
+        baseRevision: 1,
+        intent: {
+          operation: 'resource.create',
+          id: otherUuid,
+          fields: { ...person, workingDays: [] },
+        },
+      })
+    )
+    await assert.rejects(() =>
+      resourceMutationValidator.validate({
+        mutationId: uuid,
+        baseRevision: 1,
+        intent: {
+          operation: 'resource.update',
+          id: otherUuid,
+          changes: { workingDays: [1], halfDays: [2] },
+        },
+      })
+    )
   })
 
   test('returns a typed stale-revision conflict without implying transactional enforcement', ({
