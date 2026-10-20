@@ -276,6 +276,32 @@ it("opens the completed sole server company after an incomplete read, ignoring s
   expect(transition).toHaveBeenCalledWith("only-valid-row");
 });
 
+it("re-enters the sole server company after it is closed without a reload", async () => {
+  runtimeFlags.serverMode = true;
+  mockNavigationType("navigate");
+  const summary = { id: DEFAULT_ACCOUNT_ID, name: "Wayne Enterprises", role: "owner" as const };
+  useStore.setState({
+    activeAccountId: null,
+    previousAccountId: null,
+    accountSummaries: [summary],
+    accountSummariesComplete: true,
+  });
+  const transition = vi.spyOn(accountTransition, "transitionAccount").mockImplementation(async (accountId) => {
+    useStore.getState().setActiveAccount(accountId);
+    return true;
+  });
+
+  renderAppShell({});
+  await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
+
+  act(() => {
+    useStore.getState().setActiveAccount(null);
+  });
+
+  await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
+  expect(transition).toHaveBeenCalledTimes(2);
+});
+
 it("keeps the picker when the browser cannot classify the navigation", async () => {
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.spyOn(performance, "getEntriesByType").mockImplementation(() => {

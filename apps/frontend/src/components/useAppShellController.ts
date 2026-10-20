@@ -123,6 +123,9 @@ function useSingleAccountReload(input: SingleAccountReloadInput) {
   const serverMode = isServerConfigured();
 
   useEffect(() => {
+    // Production has no picker to fall back on, so a later close of the sole company (for example a
+    // failed access refresh) must be able to enter it again instead of leaving a bare loading screen.
+    if (serverMode && activeAccountId !== null) singleAccountReloadHandled.current = false;
     if ((!serverMode && !reloadNavigation) || !hydrated || singleAccountReloadHandled.current) return;
     if (accountSummaries.length === 0) return;
 
