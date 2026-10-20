@@ -154,7 +154,7 @@ test.group('M2a review regressions', (group) => {
     assert.isNull(storedProject.archived_at)
 
     let rollbackLogs = 0
-    const context = trustedLocalDataContext('rollback-actor', true, () => {
+    const context = trustedLocalDataContext('rollback-actor', () => {
       rollbackLogs++
     })
     await assert.rejects(() =>

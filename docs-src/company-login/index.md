@@ -10,8 +10,8 @@ installation with `CAPACITYLENS_MODE=off`, have no sign-in.
 
 With Google sign-in, CapacityLens sends you to Google and never sees your Google password. A Google
 account alone does not grant access: the first person on an empty installation needs the installer's
-approval, and later new Google identities need an addressed invitation. Existing company members
-can still join another company when its joining policy allows them.
+approval, and later new Google identities need an addressed invitation. A member still needs an
+invitation or enabled joining policy to enter the installation company.
 
 ## Passwords and company sign-in
 

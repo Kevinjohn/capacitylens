@@ -53,8 +53,6 @@ export interface AuthContextValue {
   providers?: readonly AuthProviderInfo[];
   /** Whether company creation is available under current server policy. Unavailable capability metadata keeps the affordance visible; the server independently authorizes the request. */
   canCreateAccount: boolean;
-  /** The server multi-account setting is informational; canCreateAccount is the affordance decision and includes first-run creation. */
-  multiAccount: boolean;
   /** Current identity's method for fresh authentication. */
   reauthMethod?: "password" | "provider";
   /** Rechecks server-owned authentication and company-creation capability. Unresolved refreshes preserve the previous snapshot and log a warning; the promise does not reject, so event callers may discard it. */
@@ -69,7 +67,6 @@ export const AuthContext = createContext<AuthContextValue>({
   user: null,
   providers: [],
   canCreateAccount: true,
-  multiAccount: true,
   refreshAuth: async () => {},
   signOut: async () => {},
 });

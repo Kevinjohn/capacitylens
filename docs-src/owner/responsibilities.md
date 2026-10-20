@@ -64,17 +64,8 @@ destination and file before you confirm. It needs a recent sign-in.
 Deleting the company permanently removes it and all its data for everyone. There is no undo.
 :::
 
-![Delete company confirmation offering Export first and exact-name confirmation](../screenshots/flows/owner_delete_company_confirmation.jpg)
-
-1. Open the company chooser with **Switch company** and select the delete icon on the company's
-   row.
-2. Select **Export first** if you need a copy.
-3. Type the exact company name to enable **Delete**, then select it. Cancel the dialog if you are
-   unsure or need to verify the export.
-
-Deleting needs a recent sign-in. **Switch company** appears only when you can access two or more
-companies. A standard installation holds one company, so there is no **Delete** in the app: export
-a copy, then ask the installer to retire the installation and its data.
+The app does not provide a company chooser or deletion action. Export a copy, then ask the
+installer to retire the installation and its data.
 
 To take away one person's access instead, use [Stop access](/admin/invite-teammates#stop-access).
 

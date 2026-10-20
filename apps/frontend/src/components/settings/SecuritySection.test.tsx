@@ -37,7 +37,6 @@ const passwordAuth: AuthContextValue = {
   user: { id: "u1", email: "diana@example.test" },
   providers: [],
   canCreateAccount: false,
-  multiAccount: false,
   refreshAuth: async () => {},
   signOut: async () => {},
 };

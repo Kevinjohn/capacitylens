@@ -128,7 +128,6 @@ export const authValue = (over: Partial<AuthContextValue> = {}): AuthContextValu
   authMode: "password-only",
   user: { id: "me", email: "me@x.io" },
   canCreateAccount: true,
-  multiAccount: true,
   refreshAuth: async () => {},
   signOut: async () => {},
   ...over,

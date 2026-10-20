@@ -27,20 +27,14 @@ test.group('company member administration', (group) => {
       mode: env.get('CAPACITYLENS_MODE'),
       setup: env.get('CAPACITYLENS_SETUP_TOKEN'),
       signup: env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP'),
-      multi: env.get('CAPACITYLENS_MULTI_ACCOUNT'),
-      multiProcess: process.env.CAPACITYLENS_MULTI_ACCOUNT,
     }
     env.set('CAPACITYLENS_MODE', 'password-only')
     env.set('CAPACITYLENS_SETUP_TOKEN', setupToken)
     env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', true)
-    env.set('CAPACITYLENS_MULTI_ACCOUNT', true)
     return () => {
       env.set('CAPACITYLENS_MODE', original.mode)
       env.set('CAPACITYLENS_SETUP_TOKEN', original.setup)
       env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', original.signup)
-      env.set('CAPACITYLENS_MULTI_ACCOUNT', original.multi)
-      if (original.multiProcess === undefined) delete process.env.CAPACITYLENS_MULTI_ACCOUNT
-      else process.env.CAPACITYLENS_MULTI_ACCOUNT = original.multiProcess
     }
   })
   group.setup(() => testUtils.db().migrate())
@@ -220,7 +214,10 @@ test.group('company member administration', (group) => {
     assert.lengthOf(await db.from('audit_entries').where({ action: 'member.role_changed' }), 0)
   })
 
-  test('a stale but valid Admin session may create a company', async ({ client, assert }) => {
+  test('a stale but valid Admin session cannot create another company', async ({
+    client,
+    assert,
+  }) => {
     const owner = await client
       .post('/api/auth/sign-up')
       .header('x-capacitylens-setup-token', setupToken)
@@ -250,16 +247,15 @@ test.group('company member administration', (group) => {
     const realNow = Date.now
     try {
       Date.now = () => realNow() + 16 * 60 * 1000
-      const second = await signed(client.post('/api/orgs'), admin.cookie('adonis-session')!.value)
+      const cookie = admin.cookie('adonis-session')!.value
+      const current = await signed(client.get('/api/auth/me'), cookie).send()
+      current.assertStatus(200)
+      assert.isFalse(current.body().canCreateAccount)
+      const second = await signed(client.post('/api/orgs'), cookie)
         .json({ id: 'a-loft', name: 'Stark Industries' })
         .send()
-      second.assertStatus(201)
-      assert.isNotNull(
-        await db
-          .from('memberships')
-          .where({ account_id: 'a-loft', user_id: adminId, role: 'owner' })
-          .first()
-      )
+      second.assertStatus(403)
+      assert.isNull(await db.from('accounts').where('id', 'a-loft').first())
     } finally {
       Date.now = realNow
     }

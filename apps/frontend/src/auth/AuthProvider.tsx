@@ -9,7 +9,6 @@ import { m } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { AUTH_INVALIDATION_STORAGE_KEY, signOutAndReload } from "./signOut";
 import { APP_NAME } from "@capacitylens/shared/brand";
-import { markCompanyPickerForNextReload } from "@/lib/companyPickerEntry";
 import { buildOpenAuthResult } from "./authStatus";
 import type { AuthStatusResult } from "./authStatus";
 import { fetchAuthStatus } from "./fetchAuthStatus";
@@ -148,7 +147,6 @@ function LoginBoundary({
         degraded={status.degraded}
         hadUnsavedChanges={status.hadUnsavedChanges}
         onSignedIn={() => {
-          markCompanyPickerForNextReload();
           window.location.reload();
         }}
       />

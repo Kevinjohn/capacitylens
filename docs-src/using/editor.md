@@ -20,8 +20,8 @@ join, imports data, transfers ownership or deletes the company.
 ![Team & access identifying the Editor role and its restrictions](../screenshots/flows/editor_access_current.jpg)
 
 Open **Team & access** near the bottom of the menu and check your role. If it says Viewer, ask an
-Owner or Admin for Editor access. If you belong to several companies, use **Switch company** to
-choose the plan you mean to change; your role can differ in each.
+Owner or Admin for Editor access. If the installation reports more than one stored company, ask
+the installer to resolve it before continuing.
 
 Signing in alone doesn't make you a member: follow [Join your team](/using/join-your-team) with
 the address you were invited on. Being on the schedule doesn't give someone a sign-in, either.

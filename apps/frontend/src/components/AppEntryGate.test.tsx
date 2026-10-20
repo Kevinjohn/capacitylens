@@ -85,7 +85,7 @@ describe("AppEntryGate connection failures", () => {
     expect(screen.queryByRole("heading", { name: "Choose a company" })).not.toBeInTheDocument();
   });
 
-  it("shows account recovery instead of children, including on the Account route", async () => {
+  it("shows production account recovery without a company chooser, including on the Account route", async () => {
     const user = userEvent.setup();
     const retry = vi.fn().mockResolvedValue(true);
     const chooseAnother = vi.fn();
@@ -101,10 +101,25 @@ describe("AppEntryGate connection failures", () => {
 
     expect(screen.getByRole("heading", { name: "Wayne Enterprises could not be opened" })).toBeInTheDocument();
     expect(screen.queryByText("application shell")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Choose another company" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Retry" }));
-    await user.click(screen.getByRole("button", { name: "Choose another company" }));
     expect(retry).toHaveBeenCalledTimes(1);
-    expect(chooseAnother).toHaveBeenCalledTimes(1);
+    expect(chooseAnother).not.toHaveBeenCalled();
+  });
+
+  it("keeps the company chooser available in the volatile demo recovery flow", () => {
+    const chooseAnother = vi.fn();
+    render(
+      <AppEntryGate
+        {...baseProps}
+        demoAuthActive
+        allowWithoutActiveAccount
+        activeAccountLoadFailed="a-studio"
+        onChooseAnotherAccount={chooseAnother}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Choose another company" })).toBeInTheDocument();
   });
 
   it("shows an inline notice when a retry from account recovery fails", async () => {

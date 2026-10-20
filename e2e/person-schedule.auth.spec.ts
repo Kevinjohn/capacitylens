@@ -110,7 +110,7 @@ async function signIn(page: Page, email: string) {
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(AUTH_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.getByRole("button", { name: ACCOUNT, exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
   await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
   await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
 }

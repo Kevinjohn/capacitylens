@@ -279,7 +279,7 @@ test.group('M2b data routes', (group) => {
     }
   })
 
-  test('off-mode company create and delete respect single-company cap', async ({
+  test('off-mode creation is limited to the first company but deletion permits later setup', async ({
     client,
     assert,
   }) => {

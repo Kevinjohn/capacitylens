@@ -185,4 +185,4 @@ at the bottom of the left menu, not in Settings.
 ## If a company won't load
 
 If a selected company can't be loaded, a recovery screen hides the previous company's data.
-Select **Retry** to load it again, or choose another company.
+Select **Retry** to load it again. The temporary demo also offers a return to its company picker.

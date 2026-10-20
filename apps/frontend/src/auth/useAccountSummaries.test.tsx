@@ -39,6 +39,21 @@ function createBasicResponseClassificationTests() {
     await expect(fetchAccountSummaries()).resolves.toEqual([]);
   });
 
+  it("clears stale company choices and shows the server's ambiguous-installation error", async () => {
+    useStore.getState().setAccountSummaries({
+      list: [{ id: "old-company", name: "Old company", role: "owner" }],
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(409, { error: "This installation has more than one company." })),
+    );
+    await expect(fetchAccountSummaries()).resolves.toBeNull();
+    expect(useStore.getState().accountSummaries).toEqual([]);
+    expect(useStore.getState().accountSummariesComplete).toBe(false);
+    expect(useStore.getState().accountSummariesAmbiguous).toBe(true);
+    expect(useStore.getState().notice?.message).toBe(m.picker_multiple_companies_error());
+  });
+
   it("a valid array -> validated summaries (off-spec rows dropped, not the whole list) + a warn per drop", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const body = [{ id: "a1", name: "Studio A", role: "editor" }, { bogus: true }];

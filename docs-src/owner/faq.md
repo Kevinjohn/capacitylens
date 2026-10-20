@@ -57,9 +57,8 @@ Viewer; send an addressed invitation for any other role.
 
 ## Why can't I find Delete company?
 
-**Delete** is in the company chooser. **Switch company** opens it, and appears only when you can
-access two or more companies. A standard installation holds one company: export a copy, then ask
-the installer to retire the installation and its data.
+The app does not provide a company chooser or deletion action. A standard installation holds one
+company: export a copy, then ask the installer to retire the installation and its data.
 [Delete the company](/owner/responsibilities#delete-the-company)
 
 ## Why am I asked to confirm my sign-in?
