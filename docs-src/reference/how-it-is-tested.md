@@ -26,6 +26,11 @@ The suites cover the frontend, backend and shared workspace packages.
   Undo/Redo against SQLite, including reload and acknowledgement-only refresh. Only those real
   backend assertions establish authenticated scheduler-write coverage. The failure case injects
   a refused response; successful writes are never mocked.
+- Planning-controller transition tests use controlled responses to check revision ordering,
+  pending and uncertain outcomes, context invalidation and page-local typed history. The controller
+  is not yet connected to the schedule. These tests do not establish production cutover or
+  session-bound delete restoration; the existing authenticated scheduler tests still exercise the
+  current persistence path.
 - Axe finds common problems such as missing names and low contrast. It does not replace testing
   with assistive technology.
 - Mutation testing covers only the pure scheduling and helper code, not the server or React

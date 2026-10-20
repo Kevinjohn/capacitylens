@@ -31,6 +31,10 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Prepared a nonpersisted planning cache controller with revision, acknowledgement, uncertainty
+  and typed-history checks. The schedule retains its current persistence path until typed delete
+  restoration and session cleanup are verified.
+
 - Use Adonis BodyParser and compiled Vine validation for requests, with flat 400 errors and no CSP report endpoint.
 
 - Updated the account credential integration while preserving existing password-reset links, password policies, and stopped-server Owner recovery.
