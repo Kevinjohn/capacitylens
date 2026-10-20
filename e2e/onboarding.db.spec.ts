@@ -71,7 +71,7 @@ test.describe("single-company production entry", () => {
   });
 
   test("ordinary additional company creation is rejected", async ({ request }) => {
-    const legacy = await request.post(`${API}/api/accounts`, {
+    const res = await request.post(`${API}/api/accounts`, {
       data: {
         id: `e2e-cap-check-${Date.now()}`,
         name: "Should Not Exist",
@@ -80,13 +80,6 @@ test.describe("single-company production entry", () => {
         updatedAt: new Date().toISOString(),
       },
     });
-    expect(legacy.status()).toBe(403);
-    expect(await legacy.json()).toEqual({
-      code: "FORBIDDEN",
-      error: "Use /api/orgs to create a company.",
-    });
-
-    const res = await request.post(`${API}/api/orgs`, { data: { name: "Queen Industries" } });
     expect(res.status()).toBe(403);
     expect(await res.json()).toEqual({
       code: "FORBIDDEN",

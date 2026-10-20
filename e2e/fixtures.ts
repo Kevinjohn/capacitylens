@@ -1,12 +1,10 @@
 import { expect, test as base } from "@playwright/test";
 import type { APIRequestContext, BrowserContext, BrowserContextOptions, Locator, Page } from "@playwright/test";
-import { dbBrowserSessionCookies, signInDbBootstrap } from "./dbAuthenticationSupport";
 
 export { expect, type APIRequestContext, type Locator, type Page };
 
 type PageErrorObserver = { observePage: (page: Page) => void };
 type CapacityLensFixtures = {
-  dbSessionReady: boolean;
   newObservedContext: (options?: BrowserContextOptions) => Promise<BrowserContext>;
   pageErrorObserver: PageErrorObserver;
 };
@@ -34,19 +32,7 @@ export const test = base.extend<CapacityLensFixtures>({
     },
     { auto: true },
   ],
-  dbSessionReady: [
-    async ({ request }, use, testInfo) => {
-      const isDbBacked = testInfo.project.name === "db-backed";
-      if (isDbBacked) await signInDbBootstrap(request);
-      await use(isDbBacked);
-    },
-    { auto: true },
-  ],
-  context: async ({ context, pageErrorObserver, request, dbSessionReady }, use, testInfo) => {
-    if (dbSessionReady) {
-      const cookies = await dbBrowserSessionCookies(request, testInfo.project.use.baseURL);
-      await context.addCookies(cookies);
-    }
+  context: async ({ context, pageErrorObserver }, use) => {
     const observePage = pageErrorObserver.observePage;
     context.pages().forEach(observePage);
     context.on("page", observePage);
@@ -56,16 +42,11 @@ export const test = base.extend<CapacityLensFixtures>({
       context.off("page", observePage);
     }
   },
-  newObservedContext: async ({ browser, pageErrorObserver, request, dbSessionReady }, use, testInfo) => {
+  newObservedContext: async ({ browser, pageErrorObserver }, use) => {
     const contexts = new Set<BrowserContext>();
     const listeners = new Map<BrowserContext, (page: Page) => void>();
     await use(async (options) => {
       const context = await browser.newContext(options);
-      if (dbSessionReady && options?.storageState === undefined) {
-        const appOrigin = options?.baseURL ?? testInfo.project.use.baseURL;
-        const cookies = await dbBrowserSessionCookies(request, appOrigin);
-        await context.addCookies(cookies);
-      }
       const observePage = pageErrorObserver.observePage;
       context.pages().forEach(observePage);
       context.on("page", observePage);

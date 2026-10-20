@@ -21,7 +21,10 @@ The suites cover the frontend, backend and shared workspace packages.
 
 - Backup and upgrade tests cover supported databases and recovery behavior.
 - End-to-end tests run Chromium by default. WebKit and Firefox runs are opt-in.
-- Demo scheduler tests exercise the in-memory experience. The authenticated scheduler suite signs
+- Demo scheduler tests exercise the in-memory experience.
+- Database-project scenarios exercise the retained legacy transport against SQLite in the fixture
+  server's auth-off mode.
+- The dedicated authenticated scheduler suite signs
   in through the real password session and verifies create, pointer move/resize, delete and
   Undo/Redo against SQLite, including reload and acknowledgement-only refresh. Only those real
   backend assertions establish authenticated scheduler-write coverage. The failure case injects
