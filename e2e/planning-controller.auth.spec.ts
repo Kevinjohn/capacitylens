@@ -1,3 +1,4 @@
+import type { AppData } from "@capacitylens/shared/types/entities";
 import { expect, test } from "./fixtures";
 import type { APIRequestContext, Page } from "./fixtures";
 import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from "./authTestSupport";
@@ -62,25 +63,7 @@ async function signIn(page: Page, email: string): Promise<void> {
 async function planningSnapshot(request: APIRequestContext, cookie: string, companyId: string) {
   const response = await request.get(`${AUTH_API}/api/accounts/${companyId}/planning`, { headers: { cookie } });
   expect(response.status(), "the authenticated planning read should succeed").toBe(200);
-  return (await response.json()) as {
-    revision: number;
-    data: {
-      allocations: Array<{
-        id: string;
-        startDate: string;
-        endDate: string;
-        resourceId: string;
-        activityId: string;
-        projectId: string | null;
-        seriesId: string | null;
-        seriesIndex: number | null;
-      }>;
-      resources: Array<{ id: string; archivedAt: string | null }>;
-      clients: Array<{ id: string; archivedAt: string | null }>;
-      projects: Array<{ id: string; archivedAt: string | null }>;
-      activities: Array<{ id: string; archivedAt: string | null }>;
-    };
-  };
+  return (await response.json()) as { revision: number; data: AppData };
 }
 
 function uuid(): string {
@@ -469,8 +452,8 @@ test("unactivated planning controller uses authenticated typed routes and reconc
   const grouped = groupIds.map((id) => groupedSnapshot.data.allocations.find((row) => row.id === id));
   expect(typeof grouped[0]?.seriesId).toBe("string");
   expect(grouped).toMatchObject([
-    { id: groupIds[0], seriesId: expect.any(String), seriesIndex: 0 },
-    { id: groupIds[1], seriesId: grouped[0]?.seriesId, seriesIndex: 1 },
+    { id: groupIds[0], seriesId: expect.any(String), startDate: "2026-11-23", endDate: "2026-11-25" },
+    { id: groupIds[1], seriesId: grouped[0]?.seriesId, startDate: "2026-11-30", endDate: "2026-12-02" },
   ]);
   for (const target of [
     { entity: "clients", id: clientId },
