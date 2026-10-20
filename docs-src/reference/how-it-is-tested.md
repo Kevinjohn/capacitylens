@@ -27,10 +27,13 @@ The suites cover the frontend, backend and shared workspace packages.
   backend assertions establish authenticated scheduler-write coverage. The failure case injects
   a refused response; successful writes are never mocked.
 - Planning-controller transition tests use controlled responses to check revision ordering,
-  pending and uncertain outcomes, context invalidation and page-local typed history. The controller
-  is not yet connected to the schedule. These tests do not establish production cutover or
-  session-bound delete restoration; the existing authenticated scheduler tests still exercise the
-  current persistence path.
+  pending and uncertain outcomes, context invalidation and page-local typed history. A separate
+  authenticated browser harness exercises the controller through real typed routes and SQLite:
+  create, move, resize, reassign, duplicate, repeat, update Undo/Redo, stale-edit refusal, lost-response
+  commitment lookup and sign-out cache clearing. The controller is not yet connected to the
+  schedule. This coverage does not establish typed scheduler gestures or session-bound delete
+  restoration; the existing authenticated scheduler tests still exercise the current persistence
+  path.
 - Axe finds common problems such as missing names and low contrast. It does not replace testing
   with assistive technology.
 - Mutation testing covers only the pure scheduling and helper code, not the server or React

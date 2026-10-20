@@ -37,8 +37,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
-- Prepared a nonpersisted planning cache controller with revision, acknowledgement, uncertainty
-  and typed-history checks. The schedule retains its current persistence path until typed delete
+- Prepared a nonpersisted planning cache controller with generated typed requests and real-server
+  checks for revision ordering, acknowledgement, uncertainty and typed history. The schedule retains
+  its current persistence path until typed delete
   restoration and session cleanup are verified.
 
 - Use Adonis BodyParser and compiled Vine validation for requests, with flat 400 errors and no CSP report endpoint.
