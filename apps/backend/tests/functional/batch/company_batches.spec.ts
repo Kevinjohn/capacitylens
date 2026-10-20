@@ -30,6 +30,35 @@ test.group('M2a company batches', (group) => {
     })
   })
 
+  test('serializes concurrent first-company setup and creates one Internal client', async ({
+    client,
+    assert,
+  }) => {
+    await client.post('/api/test/reset').json({ seed: false }).send()
+    const attempts = [
+      { id: 'a-concurrent-one', name: 'Wayne Aerospace' },
+      { id: 'a-concurrent-two', name: 'Queen Consolidated' },
+    ]
+    const responses = await Promise.all(
+      attempts.map(({ id, name }) =>
+        trusted(client.post('/api/accounts')).json({ id, name }).send()
+      )
+    )
+
+    assert.deepEqual(responses.map((response) => response.status()).sort(), [201, 403])
+    const accounts = await db.from('accounts').select('id')
+    assert.lengthOf(accounts, 1)
+    const clients = await db.from('clients').select('id', 'account_id', 'name', 'builtin')
+    assert.deepEqual(clients, [
+      {
+        id: `internal:${accounts[0]!.id}`,
+        account_id: accounts[0]!.id,
+        name: 'Internal',
+        builtin: 'true',
+      },
+    ])
+  })
+
   test('atomically adopts a legacy Internal id without losing its projects', async ({
     client,
     assert,

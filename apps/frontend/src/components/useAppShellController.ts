@@ -77,6 +77,7 @@ interface SingleAccountReloadInput {
   accountSummaries: StoreState["accountSummaries"];
   accountSummariesComplete: boolean;
   activeAccountId: StoreState["activeAccountId"];
+  previousAccountId: StoreState["previousAccountId"];
   demoAuthActive: boolean;
   fakeSignedIn: boolean;
   hydrated: boolean;
@@ -86,6 +87,8 @@ interface ResolveSingleAccountForReloadInput {
   accountSummaries: StoreState["accountSummaries"];
   accountSummariesComplete: boolean;
   activeAccountId: StoreState["activeAccountId"];
+  previousAccountId: StoreState["previousAccountId"];
+  serverMode: boolean;
   demoAuthActive: boolean;
   fakeSignedIn: boolean;
 }
@@ -94,6 +97,7 @@ function resolveSingleAccountForReload(input: ResolveSingleAccountForReloadInput
   const account = input.accountSummaries[0];
   if (
     input.activeAccountId !== null ||
+    (!input.serverMode && input.previousAccountId !== null) ||
     (input.demoAuthActive && !input.fakeSignedIn) ||
     !input.accountSummariesComplete ||
     input.accountSummaries.length !== 1 ||
@@ -105,7 +109,15 @@ function resolveSingleAccountForReload(input: ResolveSingleAccountForReloadInput
 }
 
 function useSingleAccountReload(input: SingleAccountReloadInput) {
-  const { accountSummaries, accountSummariesComplete, activeAccountId, demoAuthActive, fakeSignedIn, hydrated } = input;
+  const {
+    accountSummaries,
+    accountSummariesComplete,
+    activeAccountId,
+    previousAccountId,
+    demoAuthActive,
+    fakeSignedIn,
+    hydrated,
+  } = input;
   const [reloadNavigation] = useState(readReloadNavigationState);
   const singleAccountReloadHandled = useRef(false);
   const serverMode = isServerConfigured();
@@ -114,26 +126,29 @@ function useSingleAccountReload(input: SingleAccountReloadInput) {
     if ((!serverMode && !reloadNavigation) || !hydrated || singleAccountReloadHandled.current) return;
     if (accountSummaries.length === 0) return;
 
-    singleAccountReloadHandled.current = true;
     const account = resolveSingleAccountForReload({
       accountSummaries,
       accountSummariesComplete,
       activeAccountId,
+      previousAccountId,
+      serverMode,
       demoAuthActive,
       fakeSignedIn,
     });
     if (!account) return;
 
+    singleAccountReloadHandled.current = true;
     void transitionAccount(account.id);
   }, [
     accountSummaries,
     accountSummariesComplete,
     activeAccountId,
+    previousAccountId,
+    serverMode,
     demoAuthActive,
     fakeSignedIn,
     hydrated,
     reloadNavigation,
-    serverMode,
   ]);
 }
 
@@ -276,6 +291,7 @@ export function useAppShellController() {
   const accountSummariesComplete = useStore((state) => state.accountSummariesComplete);
   const hydrated = useStore((state) => state.hydrated);
   const activeAccountId = useStore((state) => state.activeAccountId);
+  const previousAccountId = useStore((state) => state.previousAccountId);
   const fakeSignedIn = useStore((state) => state.fakeSignedIn);
   const { pathname, search, hash } = useLocation();
   const navigate = useNavigate();
@@ -293,6 +309,7 @@ export function useAppShellController() {
     accountSummaries,
     accountSummariesComplete,
     activeAccountId,
+    previousAccountId,
     demoAuthActive,
     fakeSignedIn,
     hydrated,

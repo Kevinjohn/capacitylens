@@ -12,6 +12,7 @@ import * as accountTransition from "@/auth/accountTransition";
 import { renderWithQueryClient as render } from "@/test/renderWithQueryClient";
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
+const runtimeFlags = vi.hoisted(() => ({ serverMode: false }));
 vi.mock("@/i18n", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/i18n")>()),
   syncLocaleFromAccount: i18nMocks.syncLocaleFromAccount,
@@ -19,8 +20,8 @@ vi.mock("@/i18n", async (importOriginal) => ({
 
 vi.mock("@/data/apiConfig", () => ({
   API_BASE: "",
-  isDemoMode: () => true,
-  isServerConfigured: () => false,
+  isDemoMode: () => !runtimeFlags.serverMode,
+  isServerConfigured: () => runtimeFlags.serverMode,
 }));
 
 afterEach(() => {
@@ -30,6 +31,7 @@ afterEach(() => {
 
 beforeEach(() => {
   i18nMocks.syncLocaleFromAccount.mockReset();
+  runtimeFlags.serverMode = false;
   // Sign through the cosmetic demo gate and seed an active account so these tests exercise the shell.
   useStore.getState().setFakeSignedIn(true);
   localStorage.setItem("capacitylens/productOrientation/v1/demo/acct-test", "dismissed");
@@ -232,6 +234,46 @@ it("keeps the picker when one valid company came from an incomplete directory", 
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
   expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
+
+  act(() => {
+    void useStore.getState().setAccountSummaries({
+      list: [{ id: "only-valid-row", name: "Only Visible Co", role: "owner" }],
+      complete: true,
+    });
+  });
+  await waitFor(() => expect(useStore.getState().activeAccountId).toBe("only-valid-row"));
+});
+
+it("opens the completed sole server company after an incomplete read, ignoring stale picker history", async () => {
+  runtimeFlags.serverMode = true;
+  mockNavigationType("navigate");
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response("{}", { status: 503 })),
+  );
+  useStore.setState({
+    activeAccountId: null,
+    previousAccountId: "stale-company-id",
+    accountSummaries: [{ id: "only-valid-row", name: "Only Visible Co", role: "owner" }],
+    accountSummariesComplete: false,
+  });
+  const transition = vi.spyOn(accountTransition, "transitionAccount").mockImplementation(async (accountId) => {
+    useStore.getState().setActiveAccount(accountId);
+    return true;
+  });
+
+  renderAppShell({});
+  expect(useStore.getState().activeAccountId).toBeNull();
+  expect(screen.getByRole("status")).toHaveTextContent("Loading");
+
+  act(() => {
+    void useStore.getState().setAccountSummaries({
+      list: [{ id: "only-valid-row", name: "Only Visible Co", role: "owner" }],
+      complete: true,
+    });
+  });
+  await waitFor(() => expect(useStore.getState().activeAccountId).toBe("only-valid-row"));
+  expect(transition).toHaveBeenCalledWith("only-valid-row");
 });
 
 it("keeps the picker when the browser cannot classify the navigation", async () => {

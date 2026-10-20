@@ -81,6 +81,7 @@ type SetAccountSummariesOptions = {
   list: AccountSummary[];
   requestId?: number | undefined;
   complete?: boolean | undefined;
+  ambiguous?: boolean | undefined;
 };
 type SetDirtyFormSourceOptions = { source: symbol; dirty: boolean };
 type SetUtilizationPrefOptions = { key: keyof UtilizationPreferences; value: boolean };
@@ -107,6 +108,8 @@ export interface StoreState extends StoreEntityActions {
   /** Whether the published directory was wholly valid. A partial response may populate the picker,
    * but cannot prove that exactly one company exists. Transient and never persisted. */
   accountSummariesComplete: boolean;
+  /** A server directory read found multiple installation companies. Kept until an authoritative refresh/reset. */
+  accountSummariesAmbiguous: boolean;
   /** Latest issued server-directory read. Direct list mutations advance this too, so an older
    * response cannot overwrite a create/delete/join result. Transient and never persisted. */
   accountSummariesRequestId: number;

@@ -50,6 +50,7 @@ function createBasicResponseClassificationTests() {
     await expect(fetchAccountSummaries()).resolves.toBeNull();
     expect(useStore.getState().accountSummaries).toEqual([]);
     expect(useStore.getState().accountSummariesComplete).toBe(false);
+    expect(useStore.getState().accountSummariesAmbiguous).toBe(true);
     expect(useStore.getState().notice?.message).toBe(m.picker_multiple_companies_error());
   });
 

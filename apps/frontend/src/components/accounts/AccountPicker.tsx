@@ -335,21 +335,20 @@ function activateAccount(id: string): void {
 export function AccountPicker() {
   const accounts = useStore((state) => state.accountSummaries);
   const accountSummariesComplete = useStore((state) => state.accountSummariesComplete);
+  const accountSummariesAmbiguous = useStore((state) => state.accountSummariesAmbiguous);
   const previousAccountId = useStore((state) => state.previousAccountId);
   const signOutDemo = useStore((state) => state.signOutDemo);
   const demoAuthActive = useDemoAuthActive();
   const previous = demoAuthActive ? (accounts.find((account) => account.id === previousAccountId) ?? null) : null;
   const { authMode, canCreateAccount, refreshAuth } = useAuth();
   const roleDescriptionPrefix = useId();
-  const notice = useStore((state) => state.notice);
   const { form, submit, reset } = useCreateAccountForm({ refreshAuth });
   const accountDeletion = useDeleteAccount({ refreshAuth });
   const beginCreating = () => form.setCreating(true);
   const companySetupEligible = accounts.length === 0 && accountSummariesComplete && canCreateAccount;
   const productionMode = isServerConfigured();
   const conflictingProductionCompanies = productionMode && accounts.length > 1;
-  const ambiguousInstallation =
-    productionMode && (conflictingProductionCompanies || notice?.message === m.picker_multiple_companies_error());
+  const ambiguousInstallation = productionMode && (conflictingProductionCompanies || accountSummariesAmbiguous);
 
   if (ambiguousInstallation) {
     return (

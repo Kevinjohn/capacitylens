@@ -64,8 +64,6 @@ destination and file before you confirm. It needs a recent sign-in.
 Deleting the company permanently removes it and all its data for everyone. There is no undo.
 :::
 
-![Delete company confirmation offering Export first and exact-name confirmation](../screenshots/flows/owner_delete_company_confirmation.jpg)
-
 The app does not provide a company chooser or deletion action. Export a copy, then ask the
 installer to retire the installation and its data.
 
