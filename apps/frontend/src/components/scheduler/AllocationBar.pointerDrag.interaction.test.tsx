@@ -1,5 +1,5 @@
 import { requireCreated } from "@/test/requireCreated";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { AllocationBar } from "./AllocationBar";
 import { PermissionContext } from "@/auth/permissionContext";
@@ -18,6 +18,7 @@ import {
 } from "./__tests__/allocationBarInteractionTestKit";
 
 beforeEach(() => resetStoreWithAccount());
+afterEach(() => vi.restoreAllMocks());
 
 function registerBasicPointerTests() {
   it("keeps a pointer move provisional until the canonical write is acknowledged", async () => {

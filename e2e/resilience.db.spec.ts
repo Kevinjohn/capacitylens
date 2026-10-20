@@ -121,7 +121,9 @@ function registerStaleConcurrentEditRejectedExplainedTests() {
 
     const staleDialog = secondPage.getByRole("dialog");
     await staleDialog.getByRole("button", { name: "Save" }).click();
-    const refusal = staleDialog.getByText(/changed while this draft was open|stale|conflict/i);
+    const refusal = staleDialog.getByText(
+      /changed while.*editing|revision changed before|changed while this draft was open/i,
+    );
     await expect(refusal).toBeVisible();
     if (staleSubmissions === 0) {
       await expect(

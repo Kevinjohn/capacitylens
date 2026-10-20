@@ -5,7 +5,6 @@ import { carriesHourlyLoad } from "@capacitylens/shared/types/entities";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCanEdit } from "@/auth/permissionContext";
 import { capturePlanningDraft } from "@/data/planning/planningActions";
-import { isPlanningHistoryReady } from "@/data/planning/planningCacheController";
 import type { PlanningControllerMetadata, PlanningDraft } from "@/data/planning/planningCacheController";
 import { usePlanningActions, usePlanningDraft } from "@/data/planning/usePlanningActions";
 import { useFieldError, useFieldErrorFocus } from "@/hooks/useFieldError";
@@ -33,8 +32,10 @@ import { useAllocationTargetState } from "./useAllocationTargetState";
 export function isInlineActivityAcknowledgement(draft: PlanningDraft, planning: PlanningControllerMetadata): boolean {
   return (
     planning.context === draft.context &&
+    planning.canWrite &&
     planning.revision === draft.baseRevision + 1 &&
-    isPlanningHistoryReady(planning) &&
+    planning.pending === null &&
+    planning.status === "ready" &&
     planning.outcome?.kind === "acknowledged" &&
     planning.outcome.revision === planning.revision
   );
