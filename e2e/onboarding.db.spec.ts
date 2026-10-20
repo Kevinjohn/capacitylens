@@ -81,10 +81,9 @@ test.describe("single-company production entry", () => {
       },
     });
     expect(res.status()).toBe(403);
-    expect(await res.json()).toMatchObject({
+    expect(await res.json()).toEqual({
       code: "FORBIDDEN",
       error: "This installation already has a company.",
-      retryable: false,
     });
 
     const after = await serverState(request);
