@@ -29,6 +29,34 @@ type CorruptDocument = (document: BetaExportDocument) => void;
 
 const failures: [string, CorruptDocument][] = [
   [
+    "zero-capacity placeholders",
+    (doc) => {
+      requireValue(doc.data.resources.find((row) => row.kind === "placeholder")).workingHoursPerDay = 0;
+    },
+  ],
+  [
+    "supplementary placeholders",
+    (doc) => {
+      requireValue(doc.data.resources.find((row) => row.kind === "placeholder")).engagement = "supplementary";
+    },
+  ],
+  [
+    "external discipline links",
+    (doc) => {
+      requireValue(doc.data.resources.find((row) => row.kind === "external")).disciplineId = requireValue(
+        doc.data.disciplines[0],
+      ).id;
+    },
+  ],
+  ...(["placeholder", "external"] as const).flatMap((kind) =>
+    (["firstAvailableDate", "lastAvailableDate"] as const).map((field): [string, CorruptDocument] => [
+      `${kind} ${field}`,
+      (doc) => {
+        requireValue(doc.data.resources.find((row) => row.kind === kind))[field] = "2026-10-20";
+      },
+    ]),
+  ),
+  [
     "numeric strings",
     (doc) => {
       Object.assign(requireValue(doc.data.allocations[0]), { hoursPerDay: "8" });
@@ -150,6 +178,40 @@ const failures: [string, CorruptDocument][] = [
 ];
 
 describe("Beta transfer failure boundaries", () => {
+  it.each(["clients", "projects"] as const)("retains the full-export name limit for %s", (key) => {
+    const document = freshDocument();
+    const row = requireValue(
+      document.data[key].find((item) => key !== "clients" || !("builtin" in item && item.builtin)),
+    );
+    row.name = "N".repeat(101);
+    expect(() => prepareBetaImport(document, context)).toThrow(/name/);
+  });
+
+  it("does not expand the public-name limit for redacted documents", () => {
+    const document = { ...freshDocument(), completeness: "redacted" as const };
+    const row = requireValue(document.data.clients.find((item) => !item.builtin));
+    row.name = "N".repeat(101);
+    row.isPrivate = false;
+    expect(() => parseBetaExport(JSON.stringify(document))).toThrow(/name/);
+  });
+
+  it.each(["closure:one", "_closure", "götham", "x".repeat(129)])(
+    "refuses identifiers outside the typed planning route contract: %s",
+    (id) => {
+      const document = freshDocument();
+      requireValue(document.data.closures[0]).id = id;
+      expect(() => prepareBetaImport(document, context)).toThrow(/id/);
+    },
+  );
+
+  it("preserves the longest stable identifier accepted by typed planning routes", () => {
+    const document = freshDocument();
+    const id = `G${"a._~-9".repeat(21)}0`;
+    expect(id).toHaveLength(128);
+    requireValue(document.data.closures[0]).id = id;
+    expect(prepareBetaImport(document, context).data.closures[0]?.id).toBe(id);
+  });
+
   it.each(failures)("refuses %s without changing the supplied replacement", (_name, corrupt) => {
     const document = freshDocument();
     corrupt(document);

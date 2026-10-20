@@ -1,7 +1,7 @@
 import { APP_DATA_KEYS, MAX_HOURS_PER_DAY } from "../types/entityKeys.js";
 import type { AppData, AppDataKey, Weekday } from "../types/entities.js";
 import { INTERNAL_CLIENT_COLOR } from "./internalClient.js";
-import { NEUTRAL_COLOR, PRESET_COLORS } from "../lib/color.js";
+import { NEUTRAL_COLOR, isPresetColor } from "../lib/color.js";
 import { isValidISODate, parseISOTimestamp, validateDateRange } from "../lib/integrity.js";
 import {
   MAX_NAME_LENGTH,
@@ -135,8 +135,6 @@ const isString = (value: unknown) => typeof value === "string";
 const isBoolean = (value: unknown) => typeof value === "boolean";
 const isFiniteNumber = (value: unknown) => typeof value === "number" && Number.isFinite(value);
 const isTimestamp = (value: unknown) => parseISOTimestamp(value) !== null;
-const isCanonicalColor = (value: unknown): value is string =>
-  typeof value === "string" && PRESET_COLORS.includes(value as (typeof PRESET_COLORS)[number]);
 const isDayList = (value: unknown): value is Weekday[] =>
   Array.isArray(value) &&
   value.every((day: unknown) => typeof day === "number" && weekdays.includes(day)) &&
@@ -146,13 +144,13 @@ function assertText(
   value: Row,
   field: string,
   path: string,
-  options: { allowEmpty?: boolean; multiline?: boolean } = {},
+  options: { allowEmpty?: boolean; multiline?: boolean; maxLength?: number } = {},
 ): void {
   const text = value[field];
   assert(typeof text === "string", `${path}.${field}`, "must be a string");
   assert(options.allowEmpty === true || text.trim().length > 0, `${path}.${field}`, "must be a non-empty string");
   assert(
-    unicodeCharacterCount(text) <= (options.multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH),
+    unicodeCharacterCount(text) <= (options.maxLength ?? (options.multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH)),
     `${path}.${field}`,
     "is too long",
   );
@@ -180,14 +178,19 @@ function assertNullableTimestamp(value: Row, field: string, path: string): void 
 
 function assertColor(value: Row, field: string, path: string, systemColor?: string): void {
   assert(
-    (systemColor !== undefined && value[field] === systemColor) || isCanonicalColor(value[field]),
+    (systemColor !== undefined && value[field] === systemColor) || isPresetColor(value[field]),
     `${path}.${field}`,
-    "must be a canonical preset colour",
+    "must be a preset colour",
   );
 }
 
 /** Validate every supplied scalar field without coercing or mutating the row. */
-export function validateRow(key: AppDataKey, input: unknown, path: string): asserts input is Row {
+export function validateRow(
+  key: AppDataKey,
+  input: unknown,
+  path: string,
+  options: { redacted: boolean },
+): asserts input is Row {
   assert(isRecord(input), path, "must be an object");
   const row = input;
   for (const field of FIELDS[key] as readonly string[]) {
@@ -198,6 +201,8 @@ export function validateRow(key: AppDataKey, input: unknown, path: string): asse
   assert(isTimestamp(row.updatedAt), `${path}.updatedAt`, "must be an ISO timestamp");
   if (key !== "accounts")
     assert(isId(row.accountId), `${path}.accountId`, "must be a bounded non-empty id without whitespace");
+  // Private-name projections add two quotation marks to the stored code name.
+  const nameMaximum = options.redacted && row.isPrivate === true ? MAX_NAME_LENGTH + 2 : MAX_NAME_LENGTH;
   switch (key) {
     case "accounts":
       assertText(row, "name", path);
@@ -253,7 +258,7 @@ export function validateRow(key: AppDataKey, input: unknown, path: string): asse
       break;
     case "disciplines":
       assertText(row, "name", path);
-      assert(nullable(row.color, isCanonicalColor), `${path}.color`, "must be a preset colour or null");
+      assert(nullable(row.color, isPresetColor), `${path}.color`, "must be a preset colour or null");
       assert(Number.isSafeInteger(row.sortOrder), `${path}.sortOrder`, "must be a safe integer");
       break;
     case "resources": {
@@ -270,10 +275,10 @@ export function validateRow(key: AppDataKey, input: unknown, path: string): asse
       assert(oneOf(row.engagement, ["studio", "supplementary"]), `${path}.engagement`, "is invalid");
       assert(
         isFiniteNumber(row.workingHoursPerDay) &&
-          (row.workingHoursPerDay as number) >= 0 &&
+          (row.workingHoursPerDay as number) > 0 &&
           (row.workingHoursPerDay as number) <= 24,
         `${path}.workingHoursPerDay`,
-        "must be between 0 and 24",
+        "must be greater than 0 and at most 24",
       );
       assert(
         isDayList(row.workingDays) && isDayList(row.halfDays),
@@ -301,8 +306,11 @@ export function validateRow(key: AppDataKey, input: unknown, path: string): asse
         );
       if (row.kind !== "placeholder")
         assert(row.projectId === null, `${path}.projectId`, "only a placeholder may be bound to a project");
-      if (row.kind !== "person")
+      if (row.kind !== "person") {
         assert(row.avatarUrl === null, `${path}.avatarUrl`, "only a person may have an avatar URL");
+        for (const field of ["firstAvailableDate", "lastAvailableDate"])
+          assert(row[field] === null, `${path}.${field}`, "only a person may have availability dates");
+      }
       if (row.kind === "person" && row.avatarUrl !== null)
         assert(
           parseResourceAvatarUrl(row.avatarUrl) === row.avatarUrl,
@@ -310,6 +318,7 @@ export function validateRow(key: AppDataKey, input: unknown, path: string): asse
           "must be a canonical credential-free HTTPS URL",
         );
       if (row.kind === "placeholder") {
+        assert(row.engagement === "studio", `${path}.engagement`, "must be studio for a placeholder");
         const defaults = placeholderCapacityDefaults();
         assert(
           JSON.stringify(row.workingDays) === JSON.stringify(defaults.workingDays) &&
@@ -319,6 +328,7 @@ export function validateRow(key: AppDataKey, input: unknown, path: string): asse
         );
       }
       if (row.kind === "external") {
+        assert(row.disciplineId === null, `${path}.disciplineId`, "is not used by external resources");
         const defaults = externalCapacityDefaults();
         assert(
           row.color === NEUTRAL_COLOR &&
@@ -334,7 +344,7 @@ export function validateRow(key: AppDataKey, input: unknown, path: string): asse
       break;
     }
     case "clients":
-      assertText(row, "name", path);
+      assertText(row, "name", path, { maxLength: nameMaximum });
       assertColor(row, "color", path, row.builtin === true ? INTERNAL_CLIENT_COLOR : undefined);
       assert(nullable(row.isPrivate, isBoolean), `${path}.isPrivate`, "must be boolean or null");
       if (own(row, "codeName")) assertNullableText(row, "codeName", path);
@@ -349,7 +359,7 @@ export function validateRow(key: AppDataKey, input: unknown, path: string): asse
         );
       break;
     case "projects":
-      assertText(row, "name", path);
+      assertText(row, "name", path, { maxLength: nameMaximum });
       assert(isId(row.clientId), `${path}.clientId`, "must be a bounded id");
       assertColor(row, "color", path);
       assert(nullable(row.isPrivate, isBoolean), `${path}.isPrivate`, "must be boolean or null");

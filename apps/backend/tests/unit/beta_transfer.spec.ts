@@ -6,6 +6,7 @@ import {
   prepareBetaImport,
   serializeBetaExport,
 } from '@capacitylens/shared/data/betaTransfer'
+import { validateEntityRow } from '#validators/entities/index'
 import { transformState } from '#transformers/state_transformer'
 
 function confidentialSource() {
@@ -57,6 +58,68 @@ test.group('Beta transfer confidentiality boundary', () => {
         () => prepareBetaImport(parsed, { accountId: 'a-studio', memberResourceLinks: [] }),
         /full/i
       )
+    }
+  })
+})
+
+test.group('Beta transfer backend contract regressions', () => {
+  test('redacted private names preserve supported code-name boundaries', ({ assert }) => {
+    for (const length of [98, 99, 100]) {
+      const { source, client, project } = confidentialSource()
+      client.codeName = 'N'.repeat(length)
+      project.codeName = 'O'.repeat(length)
+      for (const role of ['owner', 'admin', 'editor', 'viewer'] as const) {
+        const projection = transformState(source, 'a-studio', role)
+        const document = buildBetaExport(projection, {
+          accountId: 'a-studio',
+          completeness: role === 'owner' ? 'full' : 'redacted',
+        })
+        const parsed = parseBetaExport(serializeBetaExport(document))
+        assert.deepEqual(parsed.data, projection)
+        if (role !== 'owner') {
+          assert.lengthOf(parsed.data.clients.find((row) => row.id === client.id)!.name, length + 2)
+          assert.lengthOf(
+            parsed.data.projects.find((row) => row.id === project.id)!.name,
+            length + 2
+          )
+          assert.notInclude(serializeBetaExport(document), client.name)
+          assert.notInclude(serializeBetaExport(document), project.name)
+          assert.throws(
+            () => prepareBetaImport(parsed, { accountId: 'a-studio', memberResourceLinks: [] }),
+            /full/i
+          )
+        }
+      }
+    }
+  })
+
+  test('colours accepted by ordinary backend writes round-trip without changing their representation', async ({
+    assert,
+  }) => {
+    for (const color of ['#5C34D4', ' #5c34d4 ']) {
+      const source = transformState(seed(), 'a-studio', 'owner')
+      const rows = [
+        source.accounts[0]!,
+        source.clients.find((row) => !row.builtin)!,
+        source.projects[0]!,
+        source.resources.find((row) => row.kind === 'person')!,
+        source.disciplines[0]!,
+      ]
+      const keys = ['accounts', 'clients', 'projects', 'resources', 'disciplines'] as const
+      for (const [index, row] of rows.entries()) {
+        row.color = color
+        const validated = await validateEntityRow(
+          keys[index]!,
+          row as unknown as Record<string, unknown>
+        )
+        assert.equal(validated.color, color)
+      }
+      const document = buildBetaExport(source, { accountId: 'a-studio', completeness: 'full' })
+      const prepared = prepareBetaImport(parseBetaExport(serializeBetaExport(document)), {
+        accountId: 'a-studio',
+        memberResourceLinks: [],
+      })
+      assert.deepEqual(prepared.data, source)
     }
   })
 })

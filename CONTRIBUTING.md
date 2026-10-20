@@ -32,6 +32,34 @@ pnpm run dev
 `pnpm run dev:demo` starts the temporary in-memory demo without SQLite or authentication. The
 workspace contains the web app, the pure `@capacitylens/shared` domain package, and the server.
 
+## Beta transfer contract
+
+The beta-native document has `format: "capacitylens-beta"`, `schemaVersion: 1` and
+`completeness: "full" | "redacted"`. Its version is independent of database and legacy export
+versions. `data` contains exactly one account and all scoped tables, preserving IDs, timestamps
+and supported company settings. It excludes identity, sessions, memberships, roles, admission
+records and device preferences. Only a full-completeness document can be prepared for import.
+
+Shared preparation strictly validates fields and references, including account scope and current
+member-to-person links. It rejects invalid data instead of repairing or remapping it. Redacted
+exports preserve the server-projected confidential values and cannot be restored as a full
+replacement.
+
+The public entry point is `@capacitylens/shared/data/betaTransfer`: `buildBetaExport`,
+`serializeBetaExport`, `parseBetaExport` and `prepareBetaImport`. Preparation receives explicit
+server-owned `{ accountId, memberResourceLinks }` context and returns `{ data, imported }`, where
+`imported` includes the account row. Export callers must supply an authorized, confidentially
+projected dataset; the completeness marker grants no authority.
+
+This is a preparation-only contract. The beta preview validates data and passes the prepared result
+to its caller; it does not write to the server. Settings still uses the legacy importer and
+exporter. Before activation, the writer must recheck authority and privileged proof, the expected
+company revision and current member links inside its transaction. It must reject IDs already owned
+by another company, preserve member/resource associations and durable planning mutation identities,
+and replace planning rows and supported settings atomically. A changed replacement advances the
+company revision and audit once; an unchanged replacement does neither. Do not pass prepared beta
+data to the legacy remapping writer.
+
 ## Before opening a pull request
 
 Use the Node version in `.nvmrc`:

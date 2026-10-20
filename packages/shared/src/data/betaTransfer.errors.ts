@@ -18,9 +18,9 @@ export function assert(condition: unknown, path: string, message: string): asser
   if (!condition) fail(path, message);
 }
 
-/** Return whether a value is a bounded identifier without whitespace or controls. */
+/** Return whether an entity identifier can be addressed by the typed planning routes. */
 export const isId = (value: unknown): value is string =>
-  typeof value === "string" && value.length > 0 && value.length <= 256 && !/[\s\p{C}]/u.test(value);
+  typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._~-]{0,127}$/.test(value);
 
 /** Return whether a value exactly matches one of the supplied choices. */
 export const isOneOf = (value: unknown, choices: readonly unknown[]) => choices.includes(value);

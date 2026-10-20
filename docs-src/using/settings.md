@@ -164,26 +164,11 @@ refused before anything is replaced. Recognised older record values may be repai
 the skipped count is shown afterwards. The company's settings, including date format, and your
 browser preferences are not part of the file.
 
-### Beta transfer contract {#beta-transfer-contract}
+### Beta JSON preview {#beta-transfer-contract}
 
-The beta-native transfer contract is available for integration separately: `format` is `capacitylens-beta`,
-`schemaVersion` is `1`, and `completeness` is `full` or `redacted`. Its data carries one account and
-all scoped tables while excluding identity, sessions, membership, roles, admission records and
-device preferences. Strict preparation rejects invalid values and references instead of repairing
-or remapping them, and redacted data cannot be restored as a full replacement. In this slice the
-shared format validator and frontend preview do not replace the legacy format used by these Settings
-controls; backend writer replacement and privileged authorization checks remain required.
-
-A full beta document preserves company name, colour, scheduling mode, calendar, language, feature
-visibility, task display, Overview access and date style, alongside planning records and their IDs
-and timestamps. Restore is for the same company ID; a different company is rejected. A current
-member link must still point to the same imported person resource. The file cannot choose its
-destination or grant authority.
-
-The **Continue** action in the integration preview passes validated data to its caller; it does not
-write to the server. Before replacement, the backend must recheck permission, privileged proof,
-company revision, current member links and IDs already owned by other companies, then replace the
-planning data and supported settings atomically. A valid format alone does not prove those checks.
+The beta preview checks a file without changing your data. It is not connected to Settings yet.
+The **Export JSON** and **Import JSON** controls continue to use the existing format described
+above.
 
 ### Company details {#calendar}
 
