@@ -215,6 +215,8 @@ export async function resolveCurrentActor(
     times.lastActivityAt = activity.lastActivityAt
   }
   const saveSessionTimes = () => {
+    // A fresh sign-in may have rotated the native session before this transaction commits.
+    if (ctx.session.sessionId !== sessionId) return
     ctx.session.put('authenticatedAt', times.authenticatedAt)
     ctx.session.put('lastActivityAt', times.lastActivityAt)
   }

@@ -195,14 +195,22 @@ export async function applyBatch(
           ? { generatedBuiltinReplacementId: generatedReplacementId }
           : {}),
       })
-      if (
+      const isSemanticNoop = Boolean(
         existing &&
         Object.keys(clean).every(
           (field) =>
             field === 'updatedAt' ||
             JSON.stringify(clean[field]) === JSON.stringify(existing[field])
         )
-      ) {
+      )
+      const allocationSupersedesPendingRepair =
+        op.table === 'allocations' && projection.hasPendingAllocationAttributionRewrite(op.id)
+      if (existing && isSemanticNoop && !allocationSupersedesPendingRepair) {
+        if (op.table === 'activities')
+          projection.reconcileAllocationAttributionForActivity({
+            activityId: op.id,
+            attributionAllowed: allocationAttributionAllowed(clean.kind),
+          })
         revisions.push({
           table: op.table,
           id: op.id,
@@ -343,6 +351,7 @@ export async function applyBatch(
       .where('id', revision.id)
       .update({ ...encodeRow(TABLE_NAMES.allocations, allocation), project_id: null })
     revisions.push({ ...revision, table: 'allocations', rewrite: true })
+    changedAccountIds.add(String(allocation.accountId))
   }
   if (syncOrder) await recordSync(trx, syncOrder, ops)
   for (const accountId of changedAccountIds) await advancePlanningRevision(trx, accountId)

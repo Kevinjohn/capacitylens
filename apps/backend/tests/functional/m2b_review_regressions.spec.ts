@@ -158,14 +158,33 @@ test.group('M2b review regressions', (group) => {
   }) => {
     await client.post('/api/test/reset').json({ seed: true }).send()
     const route = '/api/accounts/a-studio'
+    const beforeState = await readState('a-studio', true)
+    const before = beforeState.accounts[0]!
+    const auditsBefore = await db
+      .from('audit_entries')
+      .where({ account_id: 'a-studio', entity: 'accounts' })
+    const revisionBefore = await db
+      .from('company_planning_revisions')
+      .where('account_id', 'a-studio')
+      .first()
     const clear = await trusted(client.patch(route))
       .json({ schedulingMode: null, inlineActivityCreateEnabled: null })
       .send()
     clear.assertStatus(200)
+    assert.equal((clear.body() as { updatedAt: string }).updatedAt, before.updatedAt)
     assert.isNull((clear.body() as { schedulingMode: unknown }).schedulingMode)
     assert.isNull(
       (clear.body() as { inlineActivityCreateEnabled: unknown }).inlineActivityCreateEnabled
     )
+    assert.deepEqual(
+      await db.from('audit_entries').where({ account_id: 'a-studio', entity: 'accounts' }),
+      auditsBefore
+    )
+    const revisionAfter = await db
+      .from('company_planning_revisions')
+      .where('account_id', 'a-studio')
+      .first()
+    assert.equal(Number(revisionAfter?.revision ?? 0), Number(revisionBefore?.revision ?? 0))
     const patchName = await trusted(client.patch(route)).json({ name: 'Wayne Studio' }).send()
     patchName.assertStatus(200)
     const state = await readState('a-studio', true)
@@ -211,7 +230,12 @@ test.group('M2b review regressions', (group) => {
     const rejected = await trusted(client.post('/api/batch'))
       .json({
         ops: [
-          { method: 'PUT', table: 'resources', id: person.id, row: { ...person, avatarUrl: null } },
+          {
+            method: 'PUT',
+            table: 'resources',
+            id: person.id,
+            row: { ...person, name: 'Wally West', avatarUrl: null },
+          },
           { method: 'PUT', table: 'resources', id: person.id, row: { ...person } },
         ],
       })

@@ -699,10 +699,9 @@ test.group('Google browser entry', (group) => {
       fresh.assertStatus(302)
       assert.equal(fresh.header('location'), '/team')
       session = fresh.cookie('adonis-session')!.value
-      assert.equal(
-        (await browserRequest(client.get('/api/auth/me'), { session }).send()).body().user.id,
-        principalId
-      )
+      const current = await browserRequest(client.get('/api/auth/me'), { session }).send()
+      current.assertStatus(200)
+      assert.equal(current.body().user.id, principalId)
 
       const revokedStart = await start(session)
       await db.from('user_session_index').delete()
