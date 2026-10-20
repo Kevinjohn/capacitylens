@@ -60,6 +60,14 @@ and replace planning rows and supported settings atomically. A changed replaceme
 company revision and audit once; an unchanged replacement does neither. Do not pass prepared beta
 data to the legacy remapping writer.
 
+Before activation, import replacement, anonymisation and privacy scrubbing must invalidate affected
+server-side restoration groups in the same transaction as the data change. Retained before-images
+must not restore replaced or scrubbed information after commit. Real SQLite acceptance must prove
+that committed invalidation refuses restoration and that a failed transaction rolls back both the
+data change and invalidation. Invalidation must preserve durable planning mutation commitment
+identities. Coordinate this integration with the existing backend transaction and import/export
+owners; do not add a competing writer.
+
 ## Before opening a pull request
 
 Use the Node version in `.nvmrc`:
