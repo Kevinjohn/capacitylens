@@ -174,7 +174,7 @@ function insertSeedData(db: DatabaseSync, ownerId: string): void {
   db.prepare(
     `INSERT INTO memberships (id, account_id, user_id, role, status, created_at, updated_at)
      VALUES (?, ?, ?, 'owner', 'active', ?, ?)`,
-  ).run(crypto.randomUUID(), accountId, ownerId, now, now);
+  ).run("db-e2e-owner-membership", accountId, ownerId, now, now);
 }
 
 function insertProductRow(db: DatabaseSync, table: string, row: Record<string, unknown>): void {
