@@ -234,7 +234,7 @@ test.group('native authorization and role projections', (group) => {
       me.assertStatus(200)
       assert.equal(
         (me.body() as { canCreateAccount: boolean }).canCreateAccount,
-        role === 'owner' || role === 'admin',
+        false,
         `${role} account-creation projection`
       )
 

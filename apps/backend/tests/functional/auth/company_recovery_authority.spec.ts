@@ -56,22 +56,6 @@ test.group('new company recovery authority', (group) => {
     const cookie = signed.cookie('adonis-session')!.value
     const userId = String(signed.body().user.id)
     const now = new Date().toISOString()
-    await db.table('accounts').insert({
-      id: 'a-studio',
-      name: 'Wayne Enterprises',
-      color: '#6366f1',
-      created_at: now,
-      updated_at: now,
-    })
-    await db.table('memberships').insert({
-      id: randomUUID(),
-      account_id: 'a-studio',
-      user_id: userId,
-      role: 'admin',
-      status: 'active',
-      created_at: now,
-      updated_at: now,
-    })
     const token = Buffer.alloc(32, 1).toString('base64url')
     const insertToken = async (value: string) =>
       db.table('password_reset_tokens').insert({
@@ -92,22 +76,6 @@ test.group('new company recovery authority', (group) => {
           .json({ id, name: 'Stark Industries' }),
         cookie
       )
-    const commandId = randomUUID()
-    const key = randomUUID()
-    const created = await create('a-loft', commandId, key).send()
-    created.assertStatus(201)
-    assert.isNull(await db.from('password_reset_tokens').where('tokenable_id', userId).first())
-    await assert.rejects(() => resetPassword(token, 'replacement-password-2026'))
-    const newStanding = await db
-      .from('memberships')
-      .where({ account_id: 'a-loft', user_id: userId })
-      .first()
-    assert.equal(newStanding?.role, 'owner')
-    const freshToken = Buffer.alloc(32, 2).toString('base64url')
-    await insertToken(freshToken)
-    const replay = await create('a-loft', commandId, key).send()
-    replay.assertStatus(201)
-    assert.isNotNull(await db.from('password_reset_tokens').where('tokenable_id', userId).first())
     await db.rawQuery(
       "CREATE TRIGGER fail_new_owner BEFORE INSERT ON memberships WHEN NEW.account_id = 'a-failed' BEGIN SELECT RAISE(ABORT, 'test owner failure'); END"
     )
@@ -121,5 +89,21 @@ test.group('new company recovery authority', (group) => {
     } finally {
       await db.rawQuery('DROP TRIGGER fail_new_owner')
     }
+    const commandId = randomUUID()
+    const key = randomUUID()
+    const created = await create('a-studio', commandId, key).send()
+    created.assertStatus(201)
+    assert.isNull(await db.from('password_reset_tokens').where('tokenable_id', userId).first())
+    await assert.rejects(() => resetPassword(token, 'replacement-password-2026'))
+    const newStanding = await db
+      .from('memberships')
+      .where({ account_id: 'a-studio', user_id: userId })
+      .first()
+    assert.equal(newStanding?.role, 'owner')
+    const freshToken = Buffer.alloc(32, 2).toString('base64url')
+    await insertToken(freshToken)
+    const replay = await create('a-studio', commandId, key).send()
+    replay.assertStatus(201)
+    assert.isNotNull(await db.from('password_reset_tokens').where('tokenable_id', userId).first())
   })
 })

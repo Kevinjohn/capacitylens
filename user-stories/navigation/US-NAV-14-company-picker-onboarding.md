@@ -8,6 +8,10 @@
 
 Set up the installation's first company, then go straight to its schedule without choosing a company each time.
 
+## Why
+
+Small agencies need a direct path from installation setup to planning. Keeping the production company decision on the server avoids confusing company-switching controls while preserving company-scoped authorization for every request. The in-memory demo remains a separate, temporary way to explore multiple fictional companies.
+
 ## How (end-to-end)
 
 1. On an empty server installation, complete the supported first-Owner setup and open **Set up your company**.

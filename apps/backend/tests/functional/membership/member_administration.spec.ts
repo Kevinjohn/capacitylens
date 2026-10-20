@@ -214,7 +214,10 @@ test.group('company member administration', (group) => {
     assert.lengthOf(await db.from('audit_entries').where({ action: 'member.role_changed' }), 0)
   })
 
-  test('a stale but valid Admin session may create a company', async ({ client, assert }) => {
+  test('a stale but valid Admin session cannot create another company', async ({
+    client,
+    assert,
+  }) => {
     const owner = await client
       .post('/api/auth/sign-up')
       .header('x-capacitylens-setup-token', setupToken)
@@ -244,16 +247,15 @@ test.group('company member administration', (group) => {
     const realNow = Date.now
     try {
       Date.now = () => realNow() + 16 * 60 * 1000
-      const second = await signed(client.post('/api/orgs'), admin.cookie('adonis-session')!.value)
+      const cookie = admin.cookie('adonis-session')!.value
+      const current = await signed(client.get('/api/auth/me'), cookie).send()
+      current.assertStatus(200)
+      assert.isFalse(current.body().canCreateAccount)
+      const second = await signed(client.post('/api/orgs'), cookie)
         .json({ id: 'a-loft', name: 'Stark Industries' })
         .send()
-      second.assertStatus(201)
-      assert.isNotNull(
-        await db
-          .from('memberships')
-          .where({ account_id: 'a-loft', user_id: adminId, role: 'owner' })
-          .first()
-      )
+      second.assertStatus(403)
+      assert.isNull(await db.from('accounts').where('id', 'a-loft').first())
     } finally {
       Date.now = realNow
     }

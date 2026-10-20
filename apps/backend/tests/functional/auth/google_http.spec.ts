@@ -575,7 +575,8 @@ test.group('Google browser entry', (group) => {
             .json({ id: 'a-loft', name: 'Stark Industries' }),
           { session }
         ).send()
-        second.assertStatus(201)
+        second.assertStatus(403)
+        assert.isNull(await db.from('accounts').where('id', 'a-loft').first())
         await db.from('memberships').where('user_id', owner.user_id).update({ role: 'editor' })
         const editorDenied = await browserRequest(
           client
@@ -593,17 +594,16 @@ test.group('Google browser entry', (group) => {
             .json({ id: 'a-admin', name: 'Justice League' }),
           { session }
         ).send()
-        eligible.assertStatus(201)
+        eligible.assertStatus(403)
         const now = new Date().toISOString()
-        for (const accountId of ['a-studio', 'a-loft', 'a-admin'])
-          await db.table('account_access_restrictions').insert({
-            id: `restriction-${accountId}`,
-            account_id: accountId,
-            principal_id: String(owner.user_id),
-            verified_email: 'bruce.wayne@wayne.example',
-            role: 'admin',
-            created_at: now,
-          })
+        await db.table('account_access_restrictions').insert({
+          id: 'restriction-a-studio',
+          account_id: 'a-studio',
+          principal_id: String(owner.user_id),
+          verified_email: 'bruce.wayne@wayne.example',
+          role: 'admin',
+          created_at: now,
+        })
         const restricted = await browserRequest(
           client
             .post('/api/orgs')
@@ -612,6 +612,7 @@ test.group('Google browser entry', (group) => {
           { session }
         ).send()
         restricted.assertStatus(403)
+        assert.lengthOf(await db.from('accounts'), 1)
       }
     )
   })

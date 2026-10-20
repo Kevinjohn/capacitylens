@@ -24,7 +24,7 @@
     {
       "method": "GET",
       "path": "/api/accounts",
-      "status": 200,
+      "status": 409,
       "headers": {
         "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'",
         "cross-origin-opener-policy": "same-origin",
@@ -37,18 +37,9 @@
         "cache-control": "no-store",
         "content-length": "118"
       },
-      "body": [
-        {
-          "id": "a-loft",
-          "name": "Stark Industries",
-          "role": "owner"
-        },
-        {
-          "id": "a-studio",
-          "name": "Wayne Enterprises",
-          "role": "owner"
-        }
-      ]
+      "body": {
+        "error": "This installation has more than one company. Contact the administrator to resolve it."
+      }
     },
     {
       "method": "GET",
