@@ -21,7 +21,9 @@ test("ordinary server tests reset only their claimed lane despite an inherited A
       },
     });
     assert.equal(API, "http://localhost:8790");
-    assert.deepEqual(requests, [{ url: "http://localhost:8790/api/test/reset", options: { data: { seed: true } } }]);
+    assert.deepEqual(requests, [
+      { url: "http://localhost:8790/api/test/reset", options: { data: { seed: "single" } } },
+    ]);
   } finally {
     if (previousLane === undefined) delete process.env.CAPACITYLENS_PORT_LANE;
     else process.env.CAPACITYLENS_PORT_LANE = previousLane;
