@@ -301,7 +301,10 @@ test.group('M2b company route compatibility', (group) => {
         .json({ ...existing, name: 'Rejected replacement' })
         .send()
       rejected.assertStatus(403)
-      assert.deepEqual(rejected.body(), { error: 'This installation already has a company.' })
+      assert.deepEqual(rejected.body(), {
+        error: 'This installation already has a company.',
+        code: 'FORBIDDEN',
+      })
       const unchanged = await readState('a-studio', true)
       assert.deepEqual(unchanged.accounts[0], existing)
       assert.lengthOf(await db.from('audit_entries').where('account_id', 'a-studio'), 0)
@@ -354,7 +357,10 @@ test.group('M2b company route compatibility', (group) => {
         .json({ ...existing, name: 'Rejected replacement' })
         .send()
       rejected.assertStatus(403)
-      assert.deepEqual(rejected.body(), { error: 'This installation already has a company.' })
+      assert.deepEqual(rejected.body(), {
+        error: 'This installation already has a company.',
+        code: 'FORBIDDEN',
+      })
       const unchanged = await readState('a-studio', true)
       assert.deepEqual(unchanged.accounts[0], existing)
     }

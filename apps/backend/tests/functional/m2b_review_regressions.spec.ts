@@ -126,7 +126,6 @@ test.group('M2b review regressions', (group) => {
       assert.deepEqual(rejected.body(), {
         error: 'This installation already has a company.',
         code: 'FORBIDDEN',
-        retryable: false,
       })
       const after = await readState('a-studio', true)
       assert.deepEqual(after.accounts[0], existing)

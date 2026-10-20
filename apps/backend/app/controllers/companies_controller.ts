@@ -220,7 +220,12 @@ export default class CompaniesController {
         }
         if (!patch) {
           if (await trx.from('accounts').select('id').first())
-            throw new BatchRequestError('This installation already has a company.', 403)
+            throw new BatchRequestError(
+              'This installation already has a company.',
+              403,
+              undefined,
+              'FORBIDDEN'
+            )
           if (existing) throw new BatchRequestError('Company already exists.', 409)
         }
         const applied = await applyBatch(
