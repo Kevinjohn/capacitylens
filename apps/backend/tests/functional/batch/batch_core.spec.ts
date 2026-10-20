@@ -290,24 +290,6 @@ test.group('M2a atomic batch', (group) => {
     assert.isNull(stored.last_available_date)
   })
 
-  test('enforces the 5 MiB ordinary request cap', async ({ client, assert }) => {
-    const response = await trusted(client.post('/api/batch'))
-      .json({
-        ops: [
-          {
-            method: 'PUT',
-            table: 'disciplines',
-            id: 'oversized',
-            row: { padding: 'x'.repeat(5 * 1024 * 1024) },
-          },
-        ],
-      })
-      .send()
-    response.assertStatus(413)
-    const body = response.body() as unknown as { error: string }
-    assert.equal(body.error, 'Request body is too large.')
-  })
-
   test('rechecks provider-independent write capability for every affected company', async ({
     client,
     assert,
@@ -318,7 +300,7 @@ test.group('M2a atomic batch', (group) => {
         index === rows.findIndex((candidate) => candidate.accountId === row.accountId)
     )
     if (!allowed || !denied) throw new Error('Expected fixture disciplines for both companies')
-    const base = trustedLocalDataContext('policy-actor', true)
+    const base = trustedLocalDataContext('policy-actor')
     const context = {
       ...base,
       capabilitiesFor: (accountId: string) => ({
@@ -359,7 +341,7 @@ test.group('M2a atomic batch', (group) => {
     assert,
   }) => {
     await client.post('/api/test/reset').json({ seed: true }).send()
-    const base = trustedLocalDataContext('editor-actor', true)
+    const base = trustedLocalDataContext('editor-actor')
     const editorCapabilities = {
       ...base.capabilitiesFor('a-studio'),
       role: 'editor' as const,
@@ -391,7 +373,7 @@ test.group('M2a atomic batch', (group) => {
   }) => {
     await client.post('/api/test/reset').json({ seed: true }).send()
     const current = seed().disciplines[0]
-    const context = trustedLocalDataContext('log-failure-actor', true, () => {
+    const context = trustedLocalDataContext('log-failure-actor', () => {
       throw new Error('log unavailable')
     })
     const result = await withTransaction((trx) =>
@@ -417,7 +399,7 @@ test.group('M2a atomic batch', (group) => {
   test('redacts a hidden time-off note from an optimistic conflict', async ({ client, assert }) => {
     await client.post('/api/test/reset').json({ seed: true }).send()
     const current = seed().timeOff.find((row) => typeof row.note === 'string')!
-    const base = trustedLocalDataContext('note-blind', true)
+    const base = trustedLocalDataContext('note-blind')
     const capabilities = {
       ...base.capabilitiesFor(current.accountId),
       canSeeTimeOffNote: false,
@@ -652,6 +634,6 @@ test.group('M2a atomic batch', (group) => {
   test('preserves a flat 404 for a native unknown API route', async ({ client, assert }) => {
     const response = await trusted(client.post('/api/unknown-command')).json({}).send()
     response.assertStatus(404)
-    assert.deepEqual(response.body(), { error: 'Not found.' })
+    assert.deepEqual(response.body(), { error: 'Not found.', code: 'NOT_FOUND' })
   })
 })

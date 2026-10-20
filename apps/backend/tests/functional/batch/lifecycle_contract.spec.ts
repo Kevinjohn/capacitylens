@@ -160,7 +160,10 @@ test.group('M2a lifecycle contract', (group) => {
 
     const missingAccount = await trusted(client.post('/api/clients/c-acme/archive')).json({}).send()
     missingAccount.assertStatus(400)
-    assert.deepEqual(missingAccount.body(), { error: 'accountId is required.' })
+    assert.deepEqual(missingAccount.body(), {
+      error: 'The accountId field must be defined',
+      code: 'VALIDATION_ERROR',
+    })
 
     const missingRow = await lifecycle(client, 'clients', 'does-not-exist', 'archive')
     missingRow.assertStatus(404)
@@ -209,7 +212,7 @@ test.group('M2a lifecycle contract', (group) => {
       .from('clients')
       .where('id', current.id)
       .update({ name: realName, code_name: codeName, is_private: JSON.stringify(true) })
-    const base = trustedLocalDataContext('editor-private-name', true)
+    const base = trustedLocalDataContext('editor-private-name')
     const capabilities = {
       ...base.capabilitiesFor(current.accountId),
       role: 'editor' as const,

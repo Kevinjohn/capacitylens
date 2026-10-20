@@ -12,12 +12,11 @@ test.describe("server-backed role tour", () => {
   test("returns from Settings to Schedule and shows all eight Owner stops", async ({ page, request }) => {
     const created = await request.post(`${API}/api/orgs`, { data: { name: "Wayne Enterprises" } });
     expect(created.status()).toBe(201);
-    const company = (await created.json()) as { id: string; name: string };
 
     await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "Choose a company" })).toBeVisible();
-    await page.getByRole("button", { name: company.name, exact: true }).click();
     await waitForAppLanding(page, page.locator("#main"));
+    await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Switch company/i })).toHaveCount(0);
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page).toHaveURL(/\/settings$/);
     await page.getByRole("button", { name: "Show checklist" }).click();

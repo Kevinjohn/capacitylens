@@ -58,7 +58,6 @@ describe("fetchAuthStatus when masquerade status is unreachable", () => {
         JSON.stringify({
           authMode: "password-only",
           canCreateAccount: false,
-          multiAccount: false,
           providers: [],
           user: { id: "real-user", email: "real@example.test", name: "Real User" },
         }),

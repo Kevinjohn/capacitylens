@@ -38,7 +38,6 @@ async function readActiveMasqueradeAuthStatus(
       authMode: masquerade.authMode,
       user,
       canCreateAccount: false,
-      multiAccount: false,
       providers: [],
       reauthMethod: "password",
       reauthProviderId: null,

@@ -20,13 +20,9 @@ export default class TrustedLocalMiddleware {
     else if (
       ctx.request.url().startsWith('/api/') &&
       !publicAdmission &&
-      ![
-        '/api/auth/',
-        '/api/health',
-        '/api/meta',
-        '/api/diagnostics',
-        '/api/security/csp-report',
-      ].some((path) => ctx.request.url().startsWith(path))
+      !['/api/auth/', '/api/health', '/api/meta', '/api/diagnostics'].some((path) =>
+        ctx.request.url().startsWith(path)
+      )
     ) {
       try {
         await resolveCurrentActor(ctx)

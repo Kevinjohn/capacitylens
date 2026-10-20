@@ -4,8 +4,6 @@ import { checkDatabase, readState, resetState } from '#services/state_repository
 import { fileURLToPath } from 'node:url'
 import { healthChecks } from '#start/health'
 import { backupDiagnostics } from '#services/backup_check'
-import { reportCspViolation } from '#services/csp_report'
-import { middleware } from '#start/kernel'
 import { registerAuthRoutes } from '#start/auth_routes'
 import { registerMembershipRoutes } from '#start/membership_routes'
 import { registerAdmissionRoutes } from '#start/admission_routes'
@@ -21,11 +19,8 @@ const ExampleDataController = () => import('#controllers/example_data_controller
 const GettingStartedController = () => import('#controllers/getting_started_controller')
 const CompaniesController = () => import('#controllers/companies_controller')
 
-router.post('/api/batch', [BatchController, 'store']).use(middleware.bodyLimits()).as('api.batch')
-router
-  .post('/api/import', [ImportsController, 'store'])
-  .use(middleware.bodyLimits())
-  .as('api.import')
+router.post('/api/batch', [BatchController, 'store']).as('api.batch')
+router.post('/api/import', [ImportsController, 'store']).as('api.import')
 router.get('/api/state', [ExportsController, 'show']).as('api.state')
 router.post('/api/orgs', [CompaniesController, 'storeOrg']).as('api.orgs.store')
 router.post('/api/accounts', [CompaniesController, 'store']).as('api.accounts.store')
@@ -87,11 +82,6 @@ router.get('/api/diagnostics', async ({ response }) => {
   }
 })
 router.get('/api/accounts', [CompaniesController, 'index']).as('api.accounts.index')
-router.post('/api/security/csp-report', ({ request, response, logger }) => {
-  const event = reportCspViolation(request.body())
-  if (event) logger.info(event, 'CSP violation reported')
-  return response.noContent()
-})
 router.post('/api/test/reset', async ({ request, response }) => {
   if (!env.get('CAPACITYLENS_ALLOW_RESET'))
     return response.forbidden({ error: 'Reset is disabled.' })
@@ -102,10 +92,14 @@ router.post('/api/test/reset', async ({ request, response }) => {
       typeof body !== 'object' ||
       Array.isArray(body) ||
       Object.keys(body).some((key) => key !== 'seed') ||
-      ('seed' in body && typeof body.seed !== 'boolean'))
+      ('seed' in body && body.seed !== true && body.seed !== false && body.seed !== 'single'))
   )
     return response.badRequest({ error: 'Invalid reset request.' })
-  await resetState(body !== undefined && 'seed' in body ? body.seed === true : false)
+  const requestedSeed =
+    body !== undefined && typeof body === 'object' && 'seed' in body
+      ? (body.seed as boolean | 'single')
+      : false
+  await resetState(requestedSeed)
   return { ok: true }
 })
 router.get('*', async ({ request, response }) => {

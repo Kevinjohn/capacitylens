@@ -45,7 +45,7 @@ async function openTeamAccess(context: BrowserContext, email: string): Promise<P
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.getByRole("button", { name: COMPANY, exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
   await waitForAppLanding(page, page.locator("#main"));
   await page.getByRole("link", { name: "Team & access" }).click();
   return page;

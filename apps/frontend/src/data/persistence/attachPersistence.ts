@@ -41,7 +41,7 @@ function attachStoreSubscription(
     owner.update({ lastData: state.data });
     // Hydration must not echo a server slice back as a user write.
     if (owner.current.loadingSlice) return;
-    owner.update({ unacknowledged: state.data, terminalBatchSnapshot: null, lastError: null });
+    owner.update({ unacknowledged: state.data, lastError: null });
     // Suspended (a slice replacement is in flight): park the edit, record it in `pending` with no
     // timer so nothing sends it. It is rebased by a successful reload, or re-scheduled on resume
     // when the suspending operation failed before any reload.

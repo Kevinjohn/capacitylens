@@ -1,6 +1,12 @@
 import { defineConfig } from '@adonisjs/shield'
 import env from '#start/env'
 
+const publicUrl = new URL(env.get('CAPACITYLENS_PUBLIC_URL') || env.get('APP_URL'))
+
+export function hstsEnabledFor(httpsEnabled: boolean, publicOrigin: URL) {
+  return httpsEnabled && publicOrigin.protocol === 'https:'
+}
+
 const shieldConfig = defineConfig({
   /**
    * Configure CSP policies for your app. Refer documentation
@@ -73,12 +79,13 @@ const shieldConfig = defineConfig({
     /**
      * Enable the Strict-Transport-Security header.
      */
-    enabled: env.get('CAPACITYLENS_HTTPS') === true,
+    enabled: hstsEnabledFor(env.get('CAPACITYLENS_HTTPS') === true, publicUrl),
 
     /**
      * HSTS policy duration remembered by browsers.
      */
-    maxAge: '180 days',
+    maxAge: '1 year',
+    includeSubDomains: true,
   },
 
   /**

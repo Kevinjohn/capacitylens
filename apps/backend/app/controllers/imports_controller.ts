@@ -1,6 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import vine from '@vinejs/vine'
-import { rejectUnknownFields } from '#validators/rules/unknown_fields'
 import { parseData } from '@capacitylens/shared/data/transfer'
 import { commitAccountImport, prepareAccountImport } from '#services/import_account'
 import { withTransaction } from '#services/with_transaction'
@@ -10,9 +9,7 @@ import { resolveCurrentActor, assertFreshSession } from '#services/auth/session_
 import { activeCompanyRole } from '#services/auth/authorization'
 
 const requestValidator = vine.compile(
-  vine
-    .object({ accountId: vine.string().trim().minLength(1), data: vine.any() })
-    .use(rejectUnknownFields(['accountId', 'data']))
+  vine.object({ accountId: vine.string().trim().minLength(1), data: vine.any() })
 )
 
 export default class ImportsController {

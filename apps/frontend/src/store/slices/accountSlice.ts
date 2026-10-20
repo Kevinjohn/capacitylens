@@ -19,6 +19,7 @@ type AccountSlice = Pick<
   | "previousAccountId"
   | "accountSummaries"
   | "accountSummariesComplete"
+  | "accountSummariesAmbiguous"
   | "accountSummariesRequestId"
   | "addAccount"
   | "updateAccount"
@@ -178,15 +179,16 @@ function createSetActiveAccountAction({ set, get }: AccountActionContext): Store
 }
 
 function createSetAccountSummariesAction({ set, get }: AccountActionContext): StoreState["setAccountSummaries"] {
-  return ({ list, requestId, complete = true }) => {
+  return ({ list, requestId, complete = true, ambiguous = false }) => {
     if (requestId !== undefined) {
       if (requestId !== get().accountSummariesRequestId) return false;
-      set({ accountSummaries: list, accountSummariesComplete: complete });
+      set({ accountSummaries: list, accountSummariesComplete: complete, accountSummariesAmbiguous: ambiguous });
       return true;
     }
     set((state) => ({
       accountSummaries: list,
       accountSummariesComplete: complete,
+      accountSummariesAmbiguous: ambiguous,
       accountSummariesRequestId: state.accountSummariesRequestId + 1,
     }));
     return true;
@@ -203,6 +205,7 @@ export function createAccountSlice(internals: AccountSliceInternals): StateCreat
       previousAccountId: null,
       accountSummaries: [],
       accountSummariesComplete: false,
+      accountSummariesAmbiguous: false,
       accountSummariesRequestId: 0,
       addAccount: createAddAccountAction(context),
       updateAccount: createUpdateAccountAction(context),

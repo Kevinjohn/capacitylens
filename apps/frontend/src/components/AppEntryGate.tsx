@@ -96,7 +96,7 @@ export function AppEntryGate({
         <AccountLoadRecovery
           accountName={activeAccountName}
           onRetry={onRetryActiveAccountLoad}
-          onChooseAnother={onChooseAnotherAccount}
+          {...(demoAuthActive ? { onChooseAnother: onChooseAnotherAccount } : {})}
         />
       </FocusableStage>
     );

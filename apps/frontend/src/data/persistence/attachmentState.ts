@@ -27,7 +27,6 @@ interface AttachmentValues {
   retryAttempts: number;
   failedSinceSuccess: boolean;
   lastError: unknown | null;
-  terminalBatchSnapshot: AppData | null;
   resolvingAuthoritativeReload: boolean;
   authoritativeReloadRequiredFor: string | null;
   failedAccountLoadRecovery: { accountId: string; base: AppData } | null;
@@ -55,7 +54,6 @@ function createAttachmentValues(store: StoreApi<StoreState>): AttachmentValues {
     retryAttempts: 0,
     failedSinceSuccess: false,
     lastError: null,
-    terminalBatchSnapshot: null,
     resolvingAuthoritativeReload: false,
     authoritativeReloadRequiredFor: null,
     failedAccountLoadRecovery: null,
@@ -133,7 +131,6 @@ class AttachmentOwner {
       retryAttempts: 0,
       failedSinceSuccess: false,
       lastError: null,
-      terminalBatchSnapshot: null,
     });
     if (hadUnsavedEdit) {
       this.discardEdit(
@@ -168,7 +165,7 @@ class AttachmentOwner {
     if (this.values.unacknowledged === data) this.values.unacknowledged = null;
     if (this.values.pending === data) this.values.pending = null;
     if (!acknowledgesLatest) return;
-    this.update({ retryAttempts: 0, failedSinceSuccess: false, terminalBatchSnapshot: null, lastError: null });
+    this.update({ retryAttempts: 0, failedSinceSuccess: false, lastError: null });
     this.cancelRetry();
     this.onSuccess?.();
   }

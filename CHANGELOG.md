@@ -9,6 +9,7 @@ new features and **patch** versions carry fixes.
 
 ### Removed
 
+- Production company selection, switching, multi-company configuration and ordinary additional-company creation. Server-backed installations now select their sole company; the in-memory demo retains its temporary company picker.
 - Optional offline scheduling snapshots, browser snapshot encryption and the offline application shell. The company schedule requires a server connection; display preferences and the temporary demo remain available.
 
 - Retired the legacy server workspace and switched validation, native packaging and Docker deployment to the current application.
@@ -29,6 +30,8 @@ new features and **patch** versions carry fixes.
 - Invalid account-access, checklist and masquerade responses now show the existing error feedback instead of accepting malformed fields (#1449).
 
 ### Changed
+
+- Use Adonis BodyParser and compiled Vine validation for requests, with flat 400 errors and no CSP report endpoint.
 
 - Updated the account credential integration while preserving existing password-reset links, password policies, and stopped-server Owner recovery.
 

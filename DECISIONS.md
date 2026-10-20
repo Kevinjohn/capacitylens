@@ -320,8 +320,10 @@ This is the short, present-tense record of decisions that constrain future work.
   deployment hardening that operators provide; CapacityLens has no setting or warning for them.
 - TLS terminates at the packaged edge or the operator's trusted external proxy. Internal TLS
   generation and renewal are retired; bare-metal HTTP is limited to a same-host loopback proxy hop.
-- CSP violations enter the bounded, data-minimised security stream. Socket, scrypt and HIBP work
-  limits are finite and fail closed under overload.
+- Adonis Shield owns HSTS, `nosniff` and frame protection. HSTS is enabled only when HTTPS is
+  explicitly enabled and the configured public URL uses HTTPS. The application CSP has one
+  middleware owner; the Origin / Sec-Fetch-Site guard remains active, without a CSP report route.
+- Socket, scrypt and HIBP work limits are finite and fail closed under overload.
 - CapacityLens ships no product analytics. Optional mail delivers addressed invitations and
   password resets.
 - Errors on data paths are surfaced, not swallowed.
@@ -333,17 +335,17 @@ from framework defaults; other departures require an explicit decision.
 
 1. `packages/shared` is imported by the backend and SPA. It contains pure domain rules and wire
    types, never backend code.
-2. Request objects reject unknown fields; scalars are strict, and empty strings are not silently
-   converted to null. Product JSON bodies are screened for duplicate keys, excessive depth, unsafe
-   numbers and malformed UTF-8 before validation.
+2. Adonis BodyParser owns request parsing and its supported defaults. Compiled Vine validators
+   validate supplied values and strip unknown object properties by default. Empty strings are not
+   silently converted to null. Ordinary validation errors use the flat `{ error, code? }` contract
+   with status 400.
 3. Product models fail closed without an explicit tenant scope. Bulk updates and deletes use a
    scoped helper because model hooks do not cover them.
 4. Product sessions record authentication and last-activity times. Middleware enforces absolute and
    inactive expiry independently of the session store's sliding age; freshness uses authentication
    time.
-5. Validation and domain errors use the flat `{ error, code? }` status-400 envelope. Account-command
-   errors use the shared status table and `{ error, code, retryable, commandId?, retryAfterSeconds? }`,
-   including `Retry-After`.
+5. Validation and domain errors use the flat `{ error, code? }` contract. Structured admission
+   decisions may accompany that object when the future Account Kit integration provides one.
 6. Product timestamps are ISO strings on the wire and in columns; revisions are strings. Columns
    use snake_case, explicit transformers own camelCase wire fields, and empty optional values are
    null.

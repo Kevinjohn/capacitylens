@@ -1,12 +1,9 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import vine from '@vinejs/vine'
-import { rejectUnknownFields } from '#validators/rules/unknown_fields'
 import { withTransaction } from '#services/with_transaction'
 import { assertCompanyAction } from '#services/auth/authorization'
 
-const dismissal = vine.compile(
-  vine.object({ dismissed: vine.literal(true) }).use(rejectUnknownFields(['dismissed']))
-)
+const dismissal = vine.compile(vine.object({ dismissed: vine.literal(true) }))
 
 export default class GettingStartedController {
   async show(ctx: HttpContext) {

@@ -32,11 +32,6 @@ const bodyParserConfig: BodyParserConfig = defineConfig({
      * Normalize empty string values to null.
      */
     convertEmptyStringsToNull: false,
-
-    /**
-     * Content types handled by the JSON parser.
-     */
-    types: [],
   },
 
   /**

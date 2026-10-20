@@ -77,11 +77,9 @@ function start(label, args, env) {
   return child;
 }
 
-// Demo seeding creates two companies, so local development also enables multi-account creation.
 start("api", ["--filter", "@capacitylens/backend", "run", "dev"], {
   PORT: String(API_PORT),
   CAPACITYLENS_SEED_DEMO: "1",
-  CAPACITYLENS_MULTI_ACCOUNT: "1",
 });
 start("web", ["run", "dev:web"], { CAPACITYLENS_DEV_API_PORT: String(API_PORT) });
 

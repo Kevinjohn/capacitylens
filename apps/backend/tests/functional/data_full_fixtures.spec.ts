@@ -45,9 +45,19 @@ function dependencies(): FixtureWrite[] {
 }
 
 async function write(client: ApiClient, fixtures: FixtureWrite[]) {
+  const account = fixtures.find(({ table }) => table === 'accounts')
+  if (account) {
+    const payload = { ...account.row } as Record<string, unknown>
+    delete payload.createdAt
+    delete payload.updatedAt
+    const created = await trusted(client.post('/api/accounts')).json(payload).send()
+    created.assertStatus(201)
+  }
+  const writes = fixtures.filter(({ table }) => table !== 'accounts')
+  if (writes.length === 0) return
   const response = await trusted(client.post('/api/batch'))
     .json({
-      ops: fixtures.map(({ table, row: fixture }) => ({
+      ops: writes.map(({ table, row: fixture }) => ({
         method: 'PUT',
         table,
         id: fixture.id,

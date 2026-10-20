@@ -209,32 +209,6 @@ test.group('general HTTP logging privacy', (group) => {
     assert.notInclude(output, token)
   })
 
-  test('keeps correlation server-owned when an incoming request id contains a secret', async ({
-    client,
-    assert,
-  }) => {
-    const requestId = 'SENTINEL_UNTRUSTED_REQUEST_ID'
-    const { output, result } = await captureLogs(() =>
-      client
-        .post('/api/security/csp-report')
-        .header('x-request-id', requestId)
-        .json({
-          type: 'csp-violation',
-          body: {
-            documentURL: `https://example.test/private/${requestId}?code=${requestId}`,
-            blockedURL: 'https://blocked.example.test/path?secret=SENTINEL_CSP_REPORT_VALUE',
-            effectiveDirective: 'script-src',
-          },
-        })
-    )
-
-    assert.equal(result.status(), 204)
-    assert.notInclude(output, requestId)
-    assert.include(output, 'csp_violation')
-    assert.include(output, 'script-src')
-    assert.notInclude(output, 'SENTINEL_CSP_REPORT_VALUE')
-  })
-
   test('replaces oversized incoming request ids in logs with a bounded server correlation id', async ({
     client,
     assert,
@@ -272,7 +246,7 @@ test.group('general HTTP logging privacy', (group) => {
 
     assert.equal(result.status(), 400)
     assert.include(output, 'POST')
-    assert.include(output, '"path":"[unmatched]"')
+    assert.include(output, '"path":"/api/batch"')
     assert.include(output, '400')
     assert.notInclude(output, secret)
   })

@@ -1,12 +1,10 @@
 import { test } from '@japa/runner'
 import SecurityHeadersMiddleware from '#middleware/security_headers_middleware'
 import { isTrustedUnsafeOrigin } from '#services/cors_policy'
+import { hstsEnabledFor } from '../../config/shield.js'
 
 const strictPolicy =
-  "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'; report-uri /api/security/csp-report; report-to csp-endpoint"
-const apiPolicy =
-  "default-src 'self';connect-src 'self';img-src 'self' data: https:;frame-ancestors 'none';base-uri 'self';object-src 'none';report-uri /api/security/csp-report;report-to csp-endpoint"
-
+  "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'"
 async function policyFor(url: string, body: unknown) {
   const headers = new Map<string, string>()
   const ctx = {
@@ -37,11 +35,17 @@ async function policyFor(url: string, body: unknown) {
   return headers.get('content-security-policy')
 }
 
-test('uses the captured API policy only for established JSON responses', async ({ assert }) => {
-  assert.equal(await policyFor('/api/health', { ok: true }), apiPolicy)
+test('uses one CSP policy for API and application responses', async ({ assert }) => {
+  assert.equal(await policyFor('/api/health', { ok: true }), strictPolicy)
   assert.equal(await policyFor('/api/failure', '<html>failure</html>'), strictPolicy)
   assert.equal(await policyFor('/api/failure', Buffer.from('failure')), strictPolicy)
   assert.equal(await policyFor('/schedule', '<html>app</html>'), strictPolicy)
+})
+
+test('enables HSTS only for an HTTPS public origin when HTTPS is enabled', ({ assert }) => {
+  assert.isTrue(hstsEnabledFor(true, new URL('https://capacity.example.test')))
+  assert.isFalse(hstsEnabledFor(false, new URL('https://capacity.example.test')))
+  assert.isFalse(hstsEnabledFor(true, new URL('http://localhost:8787')))
 })
 
 test('trusts explicit CORS and same-origin proxy writes while rejecting sibling origins', ({

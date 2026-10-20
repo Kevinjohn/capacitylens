@@ -2,7 +2,6 @@ import type { StoreApi } from "zustand";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import type { StoreState } from "@/store/useStore";
 import type { PersistenceAdapter } from "@/data/PersistenceAdapter";
-import { BatchTooLargeError } from "@/data/ServerSyncAdapter";
 import { incrementPersistenceDiagnostic } from "@/data/persistenceDiagnostics";
 import type { AttachmentState } from "./attachmentState";
 
@@ -33,7 +32,7 @@ class WriteQueueOwner {
       () => {
         if (!owner.current.disposed) owner.acknowledge(data);
       },
-      (error: unknown) => this.recordSaveFailure(data, error),
+      (error: unknown) => this.recordSaveFailure(error),
     );
     owner.update({ inFlightSave: round });
     void round.finally(() => {
@@ -52,18 +51,13 @@ class WriteQueueOwner {
     return true;
   }
 
-  private recordSaveFailure(data: AppData, error: unknown): void {
-    const { owner, serverMode, onError } = this.input;
+  private recordSaveFailure(error: unknown): void {
+    const { owner, onError } = this.input;
     if (owner.current.disposed) return;
     owner.update({ failedSinceSuccess: true, lastError: error });
     incrementPersistenceDiagnostic("savesFailed");
     onError?.(error);
     if (this.beginAuthoritativeReloadFor(error)) return;
-    if (serverMode && error instanceof BatchTooLargeError) {
-      owner.update({ terminalBatchSnapshot: data });
-      owner.cancelRetry();
-      return;
-    }
     this.scheduleRetry();
   }
 
@@ -76,7 +70,6 @@ class WriteQueueOwner {
     const { owner, store } = this.input;
     if (owner.current.disposed || !owner.current.failedSinceSuccess || owner.current.suspendDepth > 0) return;
     const retryData = owner.current.unacknowledged ?? store.getState().data;
-    if (owner.current.terminalBatchSnapshot === retryData) return;
     owner.cancelRetry();
     owner.update({ retryAttempts: 0 });
     this.save(retryData);

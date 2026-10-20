@@ -13,7 +13,6 @@ export type AuthStatusResult =
       authMode: AccountMode;
       user: AuthUser | null;
       canCreateAccount: boolean;
-      multiAccount: boolean;
       providers: AuthProviderInfo[];
       reauthMethod: "password" | "provider";
       reauthProviderId: string | null;
@@ -44,7 +43,6 @@ export function buildOpenAuthResult(authMode: AccountMode, user: AuthUser | null
     authMode,
     user,
     canCreateAccount: true,
-    multiAccount: true,
     providers: [],
     reauthMethod: "password",
     reauthProviderId: null,

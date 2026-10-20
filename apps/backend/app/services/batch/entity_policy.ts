@@ -306,12 +306,30 @@ export async function prepareEntityWrite(
       continue
     reject(field, 'cannot be undefined')
   }
-  const candidate = { ...row }
+  let candidate = { ...row }
   pinHiddenFields(table, candidate, existing, context)
   assertRequired(table, candidate)
   if (table === 'resources' && existing) assertResourceKind(candidate, existing)
   try {
-    await validateEntityRow(table, validationView(table, candidate, existing, context))
+    const visible = validationView(table, candidate, existing, context)
+    const validated = await validateEntityRow(table, visible)
+    const preserved: Record<string, unknown> = {}
+    if (table === 'timeOff' && !context.canSeeTimeOffNote && Object.hasOwn(candidate, 'note'))
+      preserved.note = candidate.note
+    if ((table === 'clients' || table === 'projects') && !context.canSeePrivateNames) {
+      for (const field of ['isPrivate', 'codeName'] as const)
+        if (Object.hasOwn(candidate, field)) preserved[field] = candidate[field]
+      if (existing?.isPrivate === true && Object.hasOwn(candidate, 'name'))
+        preserved.name = candidate.name
+    }
+    if (
+      table === 'accounts' &&
+      context.role !== 'owner' &&
+      context.role !== 'admin' &&
+      Object.hasOwn(candidate, 'capacityOverviewAccess')
+    )
+      preserved.capacityOverviewAccess = candidate.capacityOverviewAccess
+    candidate = { ...validated, ...preserved }
   } catch (error) {
     if (
       typeof error === 'object' &&

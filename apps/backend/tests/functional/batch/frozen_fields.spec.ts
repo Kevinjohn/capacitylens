@@ -76,7 +76,7 @@ test.group('M2a batch frozen account fields', (group) => {
     }
   })
 
-  test('rejects malformed frozen values and unknown retired preferences without changing the account', async ({
+  test('rejects malformed frozen values and strips unknown retired preferences', async ({
     client,
     assert,
   }) => {
@@ -88,7 +88,6 @@ test.group('M2a batch frozen account fields', (group) => {
       { ...before, language: 'en-gb' },
       { ...before, timezone: 'Mars/Olympus' },
       { ...before, weekStartsOn: 7 },
-      { ...before, groupResourcesByEngagement: false },
     ]
 
     for (const row of malformed) {
@@ -100,6 +99,18 @@ test.group('M2a batch frozen account fields', (group) => {
         'invalid frozen input is rejected before persistence'
       )
     }
+
+    const retiredPreference = await batchPutAccount(client, {
+      ...before,
+      groupResourcesByEngagement: false,
+    })
+    assert.equal(retiredPreference.status(), 200)
+    const after = await account(client)
+    assert.deepEqual(
+      after,
+      { ...before, updatedAt: after.updatedAt },
+      'an unknown retired preference is stripped without changing the account'
+    )
   })
 
   test('allows mutable preferences and distinguishes validation errors from frozen-field conflicts', async ({

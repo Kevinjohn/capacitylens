@@ -17,9 +17,6 @@ import { Button } from "./ui/button";
 import { reloadPage } from "@/lib/reloadPage";
 import { useServerImport } from "./import-export/useServerImport";
 
-// Refuse files past this size before reading them into memory (self-DoS guard).
-const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
-
 // Store message getters so import-summary labels follow the active locale at render time.
 const SUMMARY: [keyof AppData, () => string][] = [
   ["resources", () => m.data_summary_resources()],
@@ -167,12 +164,8 @@ function usePendingImport(
 
   const readFile = async (file: File) => {
     const selection = ++selectionRef.current;
-    if (file.size > MAX_IMPORT_BYTES) {
-      setNotice(m.data_err_too_large({ max: MAX_IMPORT_BYTES / (1024 * 1024) }), "error");
-      return;
-    }
     try {
-      const content = new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer());
+      const content = await file.text();
       const parsed = parseData(content);
       if (selection !== selectionRef.current || useStore.getState().activeAccountId !== activeAccountId) return;
       setPending({ accountId: activeAccountId, data: parsed, name: file.name });

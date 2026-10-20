@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   BatchCommitUncertainError,
   BatchConflictError,
-  BatchTooLargeError,
   BatchValidationError,
   KeepaliveNotDispatchedError,
 } from "./ServerSyncAdapter";
@@ -12,12 +11,6 @@ describe("persistenceErrorNotice", () => {
   it("explains that an over-budget teardown save needs the page to remain open", () => {
     expect(resolvePersistenceErrorNotice(new KeepaliveNotDispatchedError("over budget"))).toMatch(
       /too large to save while this page was closing.*keep this page open/i,
-    );
-  });
-
-  it("retains the ordinary oversized-diff guidance as a distinct surface", () => {
-    expect(resolvePersistenceErrorNotice(new BatchTooLargeError("too many operations"))).toMatch(
-      /change is too large.*fewer items/i,
     );
   });
 

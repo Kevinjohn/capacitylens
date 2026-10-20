@@ -24,12 +24,13 @@ server.errorHandler(() => import('#exceptions/handler'))
  */
 server.use([
   () => import('#middleware/request_logging_middleware'),
+  // Security headers must exist even when logging, throttling or origin checks short-circuit.
+  () => import('@adonisjs/session/session_middleware'),
+  () => import('@adonisjs/shield/shield_middleware'),
   () => import('#middleware/security_headers_middleware'),
   () => import('#middleware/api_rate_limit_middleware'),
-  () => import('@adonisjs/session/session_middleware'),
   () => import('@adonisjs/auth/initialize_auth_middleware'),
   () => import('#middleware/masquerade_read_only_middleware'),
-  () => import('#middleware/strict_json_middleware'),
   () => import('@adonisjs/static/static_middleware'),
   () => import('#middleware/force_json_response_middleware'),
   () => import('#middleware/container_bindings_middleware'),
@@ -42,14 +43,5 @@ server.use([
  */
 router.use([
   () => import('@adonisjs/core/bodyparser_middleware'),
-  () => import('@adonisjs/shield/shield_middleware'),
   () => import('#middleware/trusted_local_middleware'),
 ])
-
-/**
- * Named middleware collection must be explicitly assigned to
- * the routes or the routes group.
- */
-export const middleware = router.named({
-  bodyLimits: () => import('#middleware/body_limits_middleware'),
-})

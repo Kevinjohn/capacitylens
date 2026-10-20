@@ -131,17 +131,6 @@ test.group('M2a batch entity validation', (group) => {
       {
         table: 'closures',
         row: {
-          id: 'closure-with-resource',
-          accountId: 'a-studio',
-          name: 'Closed',
-          startDate: '2026-06-15',
-          endDate: '2026-06-15',
-          resourceId: 'r-tyler',
-        },
-      },
-      {
-        table: 'closures',
-        row: {
           id: 'closure-with-blank-name',
           accountId: 'a-studio',
           name: '   ',
@@ -160,6 +149,27 @@ test.group('M2a batch entity validation', (group) => {
         `${String(table)} failure leaves all seeded state unchanged`
       )
     }
+  })
+
+  test('strips an unknown field instead of treating it as a domain relationship', async ({
+    client,
+    assert,
+  }) => {
+    await reset(client)
+    const response = await put(client, 'closures', {
+      id: 'closure-with-unknown-resource',
+      accountId: 'a-studio',
+      name: 'Wayne offices closed',
+      startDate: '2026-06-15',
+      endDate: '2026-06-15',
+      resourceId: 'r-tyler',
+    })
+    response.assertStatus(200)
+
+    const current = await state(client)
+    const saved = current.closures.find((row) => row.id === 'closure-with-unknown-resource')
+    assert.exists(saved)
+    assert.notProperty(saved as object, 'resourceId')
   })
 
   test('rejects malformed and reversed entity dates and the first span beyond the supported limit', async ({

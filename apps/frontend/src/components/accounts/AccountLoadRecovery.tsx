@@ -11,7 +11,7 @@ export function AccountLoadRecovery({
 }: {
   accountName: string;
   onRetry: () => Promise<boolean>;
-  onChooseAnother: () => void;
+  onChooseAnother?: () => void;
 }) {
   const [retrying, setRetrying] = useState(false);
   // Local-only: this recovery stage renders instead of the app shell's own children, so the
@@ -45,9 +45,11 @@ export function AccountLoadRecovery({
             </p>
           )}
           <div className="flex justify-end gap-2">
-            <Button size="sm" variant="outline" onClick={onChooseAnother}>
-              {m.account_load_choose_another()}
-            </Button>
+            {onChooseAnother && (
+              <Button size="sm" variant="outline" onClick={onChooseAnother}>
+                {m.account_load_choose_another()}
+              </Button>
+            )}
             <Button size="sm" onClick={retry} disabled={retrying}>
               {m.account_load_retry()}
             </Button>

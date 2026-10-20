@@ -7,13 +7,13 @@ import { dataContextForActor, trustedLocalDataContext } from '#services/batch/da
 import { withTransaction } from '#services/with_transaction'
 import { writeAudit } from '#services/audit'
 import env from '#start/env'
-import { SINGLE_COMPANY_CAP_MESSAGE } from '@capacitylens/shared/account/policy'
 import { validateEntityRow } from '#validators/entities/index'
 import { cleanText } from '@capacitylens/shared/lib/strings'
 import { assertFrozenAccountFields } from '#services/batch/entity_policy'
 import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color'
 import { timingSafeEqual } from 'node:crypto'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import db from '@adonisjs/lucid/services/db'
 import { authMode } from '#services/auth/mode'
 import {
   assertCompanyAction,
@@ -96,6 +96,12 @@ function matchesBootstrapToken(configured: string | undefined, submitted: string
 
 export default class CompaniesController {
   async index(ctx: HttpContext) {
+    const installationAccounts = await db.from('accounts').count('* as count').first()
+    if (Number(installationAccounts?.count ?? 0) > 1)
+      return ctx.response.conflict({
+        error:
+          'This installation has more than one company. Contact the administrator to resolve it.',
+      })
     if (authMode() === 'off') {
       const state = await readState()
       return ctx.response.ok(
@@ -167,7 +173,6 @@ export default class CompaniesController {
     try {
       const command = !patch && org && authMode() !== 'off' ? readAccountCommand(ctx) : null
       const result = await withTransaction(async (trx) => {
-        const multiAccount = env.get('CAPACITYLENS_MULTI_ACCOUNT') === true
         const authenticatedCreate = !patch && org && authMode() !== 'off'
         const actorId = authenticatedCreate ? await this.creationActor(ctx, trx) : null
         if (command && actorId) {
@@ -187,8 +192,8 @@ export default class CompaniesController {
           }
         }
         const context = authenticatedCreate
-          ? trustedLocalDataContext(actorId!, multiAccount, this.logCommitted(ctx))
-          : await dataContextForActor(ctx, trx, multiAccount, this.logCommitted(ctx))
+          ? trustedLocalDataContext(actorId!, this.logCommitted(ctx))
+          : await dataContextForActor(ctx, trx, this.logCommitted(ctx))
         const state = await readStateWithClient(trx, accountId, true)
         const existing = state.accounts[0]
         if (patch && !existing) throw new BatchRequestError('Company not found.', 404)
@@ -214,15 +219,21 @@ export default class CompaniesController {
           assertCurrentPatchRevision(requested, existing)
         }
         if (!patch) {
-          if (!context.multiAccount && (await trx.from('accounts').select('id').first()))
-            throw new BatchRequestError(SINGLE_COMPANY_CAP_MESSAGE, 403)
+          if (await trx.from('accounts').select('id').first())
+            throw new BatchRequestError(
+              'This installation already has a company.',
+              403,
+              undefined,
+              'FORBIDDEN'
+            )
           if (existing) throw new BatchRequestError('Company already exists.', 409)
         }
         const applied = await applyBatch(
           trx,
           [{ method: 'PUT', table: 'accounts', id: accountId, row }],
           null,
-          context
+          context,
+          { allowInitialCompanyCreation: !patch }
         )
         if (authenticatedCreate && actorId) {
           await trx.table('memberships').insert({
@@ -253,8 +264,6 @@ export default class CompaniesController {
       if (error instanceof AccountCommandError)
         return response.status(error.status).send({ error: error.message, code: error.code })
       if (error instanceof BatchRequestError) {
-        if (error.message === SINGLE_COMPANY_CAP_MESSAGE)
-          return response.forbidden({ error: error.message, code: 'FORBIDDEN', retryable: false })
         return response.status(error.status).send({
           error: error.message,
           ...(error.code ? { code: error.code } : {}),
@@ -270,7 +279,6 @@ export default class CompaniesController {
       return ctx.response.forbidden({
         error: 'Use /api/orgs to create a company.',
         code: 'FORBIDDEN',
-        retryable: false,
       })
     return this.write(ctx, undefined, false, true)
   }

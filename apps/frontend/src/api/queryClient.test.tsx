@@ -58,7 +58,6 @@ describe("QueryCacheLifecycle", () => {
       user: id ? { id } : null,
       providers: [],
       canCreateAccount: true,
-      multiAccount: true,
       refreshAuth: async () => {},
       signOut: async () => {},
     });

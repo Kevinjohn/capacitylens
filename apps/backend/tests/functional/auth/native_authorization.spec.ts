@@ -39,8 +39,6 @@ function configureAuth(cleanup: (callback: () => void) => void) {
     breachCheck: env.get('CAPACITYLENS_PASSWORD_BREACH_CHECK'),
     allowReset: env.get('CAPACITYLENS_ALLOW_RESET'),
     rateLimit: env.get('CAPACITYLENS_RATE_LIMIT'),
-    multiAccount: env.get('CAPACITYLENS_MULTI_ACCOUNT'),
-    multiAccountProcess: process.env.CAPACITYLENS_MULTI_ACCOUNT,
   }
   env.set('CAPACITYLENS_MODE', 'password-only')
   env.set('CAPACITYLENS_SECRET', 'native-authorization-secret-2026-0123456789')
@@ -50,7 +48,6 @@ function configureAuth(cleanup: (callback: () => void) => void) {
   env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', false)
   env.set('CAPACITYLENS_ALLOW_RESET', true)
   env.set('CAPACITYLENS_RATE_LIMIT', '0')
-  env.set('CAPACITYLENS_MULTI_ACCOUNT', true)
   cleanup(() => {
     env.set('CAPACITYLENS_MODE', prior.mode ?? 'off')
     env.set('CAPACITYLENS_SECRET', prior.secret ?? '')
@@ -60,9 +57,6 @@ function configureAuth(cleanup: (callback: () => void) => void) {
     env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', prior.breachCheck)
     env.set('CAPACITYLENS_ALLOW_RESET', prior.allowReset)
     env.set('CAPACITYLENS_RATE_LIMIT', prior.rateLimit ?? '')
-    env.set('CAPACITYLENS_MULTI_ACCOUNT', prior.multiAccount)
-    if (prior.multiAccountProcess === undefined) delete process.env.CAPACITYLENS_MULTI_ACCOUNT
-    else process.env.CAPACITYLENS_MULTI_ACCOUNT = prior.multiAccountProcess
   })
 }
 
@@ -240,7 +234,7 @@ test.group('native authorization and role projections', (group) => {
       me.assertStatus(200)
       assert.equal(
         (me.body() as { canCreateAccount: boolean }).canCreateAccount,
-        role === 'owner' || role === 'admin',
+        false,
         `${role} account-creation projection`
       )
 

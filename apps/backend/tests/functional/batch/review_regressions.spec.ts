@@ -49,41 +49,13 @@ function postRaw(
 test.group('M2a review regressions', (group) => {
   group.setup(() => testUtils.db().migrate())
 
-  test('rejects CSP-only media types on the ordinary batch route before mutation', async ({
-    client,
-    assert,
-  }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
-    const discipline = seed().disciplines[0]!
-    const valid = JSON.stringify({
-      ops: [
-        {
-          method: 'PUT',
-          table: 'disciplines',
-          id: discipline.id,
-          row: { ...discipline, name: 'Must not persist' },
-        },
-      ],
-    })
-    for (const contentType of ['application/csp-report', 'application/reports+json']) {
-      for (const body of [valid, '{"ops":[],"ops":[]}']) {
-        const response = await postRaw('/api/batch', Buffer.from(body), contentType)
-        assert.equal(response.statusCode, 415)
-        assert.deepEqual(JSON.parse(response.body), { error: 'Unsupported media type.' })
-      }
-    }
-    const stored = await db.from('disciplines').where('id', discipline.id).first()
-    assert.equal(stored.name, discipline.name)
-  })
-
-  test('applies the 64 KiB CSP route limit to an application/json report', async ({ assert }) => {
-    const response = await postRaw(
-      '/api/security/csp-report',
-      Buffer.from(JSON.stringify({ report: 'x'.repeat(65 * 1024) })),
-      'application/json'
-    )
-    assert.equal(response.statusCode, 413)
-    assert.deepEqual(JSON.parse(response.body), { error: 'Request body is too large.' })
+  test('removes the CSP report endpoint', async ({ client, assert }) => {
+    const response = await client
+      .post('/api/security/csp-report')
+      .json({ report: 'ignored' })
+      .send()
+    assert.equal(response.status(), 404)
+    assert.deepEqual(response.body(), { error: 'Not found.', code: 'NOT_FOUND' })
   })
 
   test('maps actual oversized form and unsupported encoding parser failures safely', async ({
@@ -95,7 +67,10 @@ test.group('M2a review regressions', (group) => {
       'application/x-www-form-urlencoded'
     )
     assert.equal(oversized.statusCode, 413)
-    assert.deepEqual(JSON.parse(oversized.body), { error: 'Request body is too large.' })
+    assert.deepEqual(JSON.parse(oversized.body), {
+      error: 'Request body is too large.',
+      code: 'PAYLOAD_TOO_LARGE',
+    })
 
     const unsupported = await postRaw(
       '/api/batch',
@@ -104,7 +79,10 @@ test.group('M2a review regressions', (group) => {
       { 'content-encoding': 'compress' }
     )
     assert.equal(unsupported.statusCode, 415)
-    assert.deepEqual(JSON.parse(unsupported.body), { error: 'Unsupported media type.' })
+    assert.deepEqual(JSON.parse(unsupported.body), {
+      error: 'Unsupported media type.',
+      code: 'UNSUPPORTED_MEDIA_TYPE',
+    })
   })
 
   test('logs lifecycle writes only after commit and keeps logger failure best-effort', async ({
@@ -154,7 +132,7 @@ test.group('M2a review regressions', (group) => {
     assert.isNull(storedProject.archived_at)
 
     let rollbackLogs = 0
-    const context = trustedLocalDataContext('rollback-actor', true, () => {
+    const context = trustedLocalDataContext('rollback-actor', () => {
       rollbackLogs++
     })
     await assert.rejects(() =>

@@ -12,7 +12,6 @@ import {
 import { isSameSessionSuccessor, isSuperseded, recordSync } from '#services/batch/sync_ordering'
 import type { BatchOp, BatchRevision, SyncOrder } from '#services/batch/types'
 import type { BatchDataContext } from '#services/batch/data_policy'
-import { SINGLE_COMPANY_CAP_MESSAGE } from '@capacitylens/shared/account/policy'
 import { createServerRevision } from '#services/batch/revision'
 import { BatchStateProjection } from '#services/batch/projection'
 import { allocationAttributionAllowed } from '@capacitylens/shared/lib/integrity'
@@ -95,7 +94,8 @@ export async function applyBatch(
   trx: TransactionClientContract,
   ops: BatchOp[],
   syncOrder: SyncOrder | null,
-  context: BatchDataContext
+  context: BatchDataContext,
+  options: { allowInitialCompanyCreation?: boolean } = {}
 ): Promise<BatchResult> {
   if (ops.some((op) => op.method === 'DELETE' && op.table === 'accounts'))
     throw new BatchRequestError('Use the dedicated company deletion endpoint.')
@@ -118,17 +118,15 @@ export async function applyBatch(
       (op) => op.method === 'PUT' && op.table === 'accounts' && !projection.row('accounts', op.id)
     )
     .map((op) => op.id)
-  let persistedAccountIds: string[] = []
-  if (createdAccountIds.length > 0 && !context.multiAccount) {
+  if (createdAccountIds.length > 0) {
     const persistedAccounts = await trx.from(TABLE_NAMES.accounts).select('id')
-    persistedAccountIds = persistedAccounts.map((account) => String(account.id))
+    if (
+      options.allowInitialCompanyCreation !== true ||
+      persistedAccounts.length > 0 ||
+      createdAccountIds.length !== 1
+    )
+      throw new BatchRequestError('Company creation is only available through company setup.', 403)
   }
-  if (
-    createdAccountIds.length > 0 &&
-    !context.multiAccount &&
-    new Set([...persistedAccountIds, ...createdAccountIds]).size > 1
-  )
-    throw new BatchRequestError(SINGLE_COMPANY_CAP_MESSAGE, 403)
   const revisions: BatchRevision[] = []
   const archives: Array<{ table: string; id: string; archived: boolean }> = []
   const mintedInternalIds = new Set<string>()

@@ -2,7 +2,9 @@ import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
-import { resetState } from '#services/state_repository'
+import { seed } from '@capacitylens/shared/data/seed'
+import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
+import { encodeRow, resetState } from '#services/state_repository'
 
 const setupToken = 'erasure-setup-token-0123456789abcdef'
 const password = 'batman-secret-2026'
@@ -20,18 +22,12 @@ test.group('authenticated company erasure', (group) => {
     const previous = {
       mode: env.get('CAPACITYLENS_MODE'),
       setup: env.get('CAPACITYLENS_SETUP_TOKEN'),
-      multi: env.get('CAPACITYLENS_MULTI_ACCOUNT'),
-      multiProcess: process.env.CAPACITYLENS_MULTI_ACCOUNT,
     }
     env.set('CAPACITYLENS_MODE', 'password-only')
     env.set('CAPACITYLENS_SETUP_TOKEN', setupToken)
-    env.set('CAPACITYLENS_MULTI_ACCOUNT', true)
     return () => {
       env.set('CAPACITYLENS_MODE', previous.mode)
       env.set('CAPACITYLENS_SETUP_TOKEN', previous.setup)
-      env.set('CAPACITYLENS_MULTI_ACCOUNT', previous.multi)
-      if (previous.multiProcess === undefined) delete process.env.CAPACITYLENS_MULTI_ACCOUNT
-      else process.env.CAPACITYLENS_MULTI_ACCOUNT = previous.multiProcess
     }
   })
   group.setup(() => testUtils.db().migrate())
@@ -61,26 +57,23 @@ test.group('authenticated company erasure', (group) => {
       .json({ id: 'a-studio', name: 'Wayne Enterprises' })
       .send()
     first.assertStatus(201)
-    const createCommand = {
-      'x-account-command-id': 'company-create-command-0001',
-      'idempotency-key': 'company-create-idempotency-0001',
-    }
-    const second = await signed(client.post('/api/orgs'), cookie)
-      .headers(createCommand)
-      .json({ id: 'a-loft', name: 'Stark Industries' })
-      .send()
-    second.assertStatus(201)
-    const creationReplay = await signed(client.post('/api/orgs'), cookie)
-      .headers(createCommand)
-      .json({ id: 'a-loft', name: 'Stark Industries' })
-      .send()
-    creationReplay.assertStatus(201)
-    assert.deepEqual(creationReplay.body(), second.body())
-    const creationMismatch = await signed(client.post('/api/orgs'), cookie)
-      .headers(createCommand)
-      .json({ id: 'a-loft', name: 'Changed Name' })
-      .send()
-    creationMismatch.assertStatus(409)
+    const now = new Date().toISOString()
+    const otherCompany = { ...seed().accounts[0]!, id: 'a-loft', name: 'Stark Industries' }
+    await db.table('accounts').insert(encodeRow('accounts', otherCompany))
+    await db
+      .table('clients')
+      .insert(encodeRow('clients', { ...buildInternalClient('a-loft', now) }))
+    const owner = await db.from('memberships').where({ account_id: 'a-studio' }).first()
+    assert.isNotNull(owner)
+    await db.table('memberships').insert({
+      id: 'owner-loft',
+      account_id: 'a-loft',
+      user_id: owner.user_id,
+      role: 'owner',
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+    })
     const command = {
       'x-account-command-id': 'company-erase-command-0001',
       'idempotency-key': 'company-erase-idempotency-0001',

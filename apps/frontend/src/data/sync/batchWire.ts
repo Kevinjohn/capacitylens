@@ -10,11 +10,9 @@ import {
   BatchCommitUncertainError,
   BatchConflictError,
   BatchMasqueradeReadOnlyError,
-  BatchTooLargeError,
   BatchValidationError,
   KEEPALIVE_BODY_BUDGET,
   KeepaliveNotDispatchedError,
-  MAX_BATCH_OPS,
 } from "./batchErrors";
 import { buildRowKey, createSafeResponseError, warnCompatibilityOnce } from "./revisions";
 import type { BatchCommitReceipt, CommittedRevision } from "./revisions";
@@ -24,10 +22,8 @@ import { createTuyau, TuyauNetworkError } from "@tuyau/core/client";
 import { registry } from "@capacitylens/backend/registry";
 import { normalizeNativeBatchRequest } from "./nativeBatchFetch";
 
-// Apply the complete ordered diff as one request and therefore one SQLite transaction. An
-// over-limit diff is never split into separately committed prefixes.
+// Apply the complete ordered diff as one request and therefore one SQLite transaction.
 /** Validates and dispatches one ordered atomic batch.
- * @throws BatchTooLargeError before dispatch when the operation limit is exceeded.
  * @throws KeepaliveNotDispatchedError before dispatch when a teardown body is too large.
  */
 export function commitBatch(
@@ -49,9 +45,6 @@ export function prepareBatchBody(
   ops: Op[],
   options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
 ): string {
-  if (ops.length > MAX_BATCH_OPS) {
-    throw new BatchTooLargeError(`Atomic sync exceeds the ${MAX_BATCH_OPS}-operation server limit.`);
-  }
   // Rebase PUT preconditions, then serialize once, the same body feeds both the keepalive
   // byte-budget check and the request, so a large batch isn't JSON.stringified twice per save.
   const wireOps = rebaseForWire(state, ops).map((op) =>

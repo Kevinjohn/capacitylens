@@ -72,29 +72,25 @@ async function createScenario(request: APIRequestContext) {
     kind: "project",
     projectId,
   });
-  return { owner, accountId, company, ownerEmail, projectId, activityId };
+  return { owner, accountId, ownerEmail, projectId, activityId };
 }
 
-async function signIn(page: Page, ownerEmail: string, company: string) {
+async function signIn(page: Page, ownerEmail: string) {
   await page.clock.setFixedTime(new Date("2026-06-03T12:00:00"));
   await page.goto("/");
   await page.getByRole("heading", { name: "Sign in" }).waitFor();
   await page.getByLabel("Email").fill(ownerEmail);
   await page.getByLabel("Password").fill(AUTH_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.getByRole("button", { name: company, exact: true }).click();
   await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
   await setZoom(page, 4);
   await goToSeedWeek(page);
   await resetSchedulerScroll(page);
 }
 
-async function reloadScheduler(page: Page, company: string) {
+async function reloadScheduler(page: Page) {
   await page.reload();
-  const companyButton = page.getByRole("button", { name: company, exact: true });
   const scheduleHeading = page.getByRole("heading", { name: "Schedule" });
-  await companyButton.or(scheduleHeading).first().waitFor();
-  if (await companyButton.isVisible().catch(() => false)) await companyButton.click();
   await waitForAppLanding(page, scheduleHeading);
   await setZoom(page, 4);
   await goToSeedWeek(page);
@@ -137,8 +133,8 @@ async function createAllocation(page: Page, projectId: string, activityId: strin
 }
 
 test("authenticated scheduler create, move, resize and delete persist in SQLite", async ({ page, request }) => {
-  const { owner, accountId, ownerEmail, company, projectId, activityId } = await createScenario(request);
-  await signIn(page, ownerEmail, company);
+  const { owner, accountId, ownerEmail, projectId, activityId } = await createScenario(request);
+  await signIn(page, ownerEmail);
 
   const bar = await createAllocation(page, projectId, activityId);
   await expect(bar).toHaveCount(1);
@@ -149,7 +145,7 @@ test("authenticated scheduler create, move, resize and delete persist in SQLite"
       (await persistedAllocations(request, owner.cookie, accountId)).find(({ id }) => id === allocationId),
     )
     .toMatchObject({ startDate: "2026-06-01", endDate: "2026-06-01" });
-  await reloadScheduler(page, company);
+  await reloadScheduler(page);
   await expect(bar).toBeVisible();
 
   await dragByOneDay(page, bar, await dayWidth(page));
@@ -158,7 +154,7 @@ test("authenticated scheduler create, move, resize and delete persist in SQLite"
       (await persistedAllocations(request, owner.cookie, accountId)).find(({ id }) => id === allocationId),
     )
     .toMatchObject({ startDate: "2026-06-02", endDate: "2026-06-02" });
-  await reloadScheduler(page, company);
+  await reloadScheduler(page);
   await expect(bar).toHaveAttribute("aria-label", /2 Jun to 2 Jun/);
 
   await dragByOneDay(page, bar.getByTestId("resize-end"), await dayWidth(page));
@@ -167,7 +163,7 @@ test("authenticated scheduler create, move, resize and delete persist in SQLite"
       (await persistedAllocations(request, owner.cookie, accountId)).find(({ id }) => id === allocationId),
     )
     .toMatchObject({ startDate: "2026-06-02", endDate: "2026-06-03" });
-  await reloadScheduler(page, company);
+  await reloadScheduler(page);
   await expect(bar).toHaveAttribute("aria-label", /2 Jun to 3 Jun/);
 
   await bar.click();
@@ -179,13 +175,13 @@ test("authenticated scheduler create, move, resize and delete persist in SQLite"
       (await persistedAllocations(request, owner.cookie, accountId)).some(({ id }) => id === allocationId),
     )
     .toBe(false);
-  await reloadScheduler(page, company);
+  await reloadScheduler(page);
   await expect(page.getByTestId("allocation-bar").filter({ hasText: "City planning" })).toHaveCount(0);
 });
 
 test("same-revision authenticated refresh preserves Undo and Redo in SQLite", async ({ page, request }) => {
-  const { owner, accountId, ownerEmail, company, projectId, activityId } = await createScenario(request);
-  await signIn(page, ownerEmail, company);
+  const { owner, accountId, ownerEmail, projectId, activityId } = await createScenario(request);
+  await signIn(page, ownerEmail);
   const bar = await createAllocation(page, projectId, activityId);
   const allocationId = await bar.getAttribute("data-alloc-id");
   expect(allocationId).toBeTruthy();
@@ -221,13 +217,13 @@ test("same-revision authenticated refresh preserves Undo and Redo in SQLite", as
       (await persistedAllocations(request, owner.cookie, accountId)).some(({ id }) => id === allocationId),
     )
     .toBe(true);
-  await reloadScheduler(page, company);
+  await reloadScheduler(page);
   await expect(page.getByTestId("allocation-bar").filter({ hasText: "City planning" })).toBeVisible();
 });
 
 test("a refused scheduler save is visible and does not persist", async ({ page, request }) => {
-  const { owner, accountId, ownerEmail, company, projectId, activityId } = await createScenario(request);
-  await signIn(page, ownerEmail, company);
+  const { owner, accountId, ownerEmail, projectId, activityId } = await createScenario(request);
+  await signIn(page, ownerEmail);
   await page.route("**/api/batch", (route) =>
     route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ error: "Write refused" }) }),
   );

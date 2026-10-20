@@ -6,7 +6,6 @@ import { BatchRequestError } from '#services/batch/errors'
 import { isTable } from '#services/batch/entity_policy'
 import type { BatchOp, SyncOrder } from '#services/batch/types'
 import { withTransaction } from '#services/with_transaction'
-import env from '#start/env'
 import { dataContextForActor } from '#services/batch/data_policy'
 
 function parseSyncOrder(request: HttpContext['request']): SyncOrder | null {
@@ -41,11 +40,8 @@ export default class BatchController {
           )
       }
       const result = await withTransaction(async (trx) => {
-        const context = await dataContextForActor(
-          ctx,
-          trx,
-          env.get('CAPACITYLENS_MULTI_ACCOUNT') === true,
-          (event) => logger.info({ event: 'capacitylens.batch.committed', ...event })
+        const context = await dataContextForActor(ctx, trx, (event) =>
+          logger.info({ event: 'capacitylens.batch.committed', ...event })
         )
         return applyBatch(trx, ops, syncOrder, context)
       })

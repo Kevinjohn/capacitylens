@@ -159,10 +159,10 @@ if the company already holds any of these, including archived or deleted ones.
 **Export JSON** downloads the current company's scheduling records. **Import JSON** replaces those
 records after you confirm; in signed-in server deployments, only an Owner can import.
 
-Files must be valid UTF-8 JSON of at most 5 MiB. Invalid or ambiguous JSON is refused before
-anything is replaced. Recognised older record values may be repaired or skipped, and the skipped
-count is shown afterwards. The company's settings, including date format, and your browser
-preferences are not part of the file.
+Files must contain valid JSON accepted by the server's standard request parser. Malformed JSON is
+refused before anything is replaced. Recognised older record values may be repaired or skipped, and
+the skipped count is shown afterwards. The company's settings, including date format, and your
+browser preferences are not part of the file.
 
 ### Company details {#calendar}
 
@@ -185,4 +185,4 @@ at the bottom of the left menu, not in Settings.
 ## If a company won't load
 
 If a selected company can't be loaded, a recovery screen hides the previous company's data.
-Select **Retry** to load it again, or choose another company.
+Select **Retry** to load it again. The temporary demo also offers a return to its company picker.

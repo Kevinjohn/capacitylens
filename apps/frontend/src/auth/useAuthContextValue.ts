@@ -23,7 +23,6 @@ export function useAuthContextValue(
   const contextUser = status.kind === "pass" ? status.user : null;
   const contextProviders = status.kind === "pass" || status.kind === "login" ? status.providers : EMPTY_PROVIDERS;
   const contextCanCreateAccount = status.kind === "pass" ? status.canCreateAccount : false;
-  const contextMultiAccount = status.kind === "pass" ? status.multiAccount : false;
   const contextReauthMethod = status.kind === "pass" ? status.reauthMethod : "password";
   const authContextValue = useMemo(
     () => ({
@@ -31,7 +30,6 @@ export function useAuthContextValue(
       user: contextUser,
       providers: contextProviders,
       canCreateAccount: contextCanCreateAccount,
-      multiAccount: contextMultiAccount,
       reauthMethod: contextReauthMethod,
       refreshAuth,
       signOut,
@@ -41,7 +39,6 @@ export function useAuthContextValue(
       contextUser,
       contextProviders,
       contextCanCreateAccount,
-      contextMultiAccount,
       contextReauthMethod,
       refreshAuth,
       signOut,

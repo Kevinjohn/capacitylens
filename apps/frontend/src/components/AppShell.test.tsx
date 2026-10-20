@@ -7,12 +7,12 @@ import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
 import { stubMatchMedia } from "@/test/stubMatchMedia";
 import { attachPersistence } from "@/data/persist";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { markCompanyPickerForNextReload } from "@/lib/companyPickerEntry";
 import { m } from "@/i18n";
 import * as accountTransition from "@/auth/accountTransition";
 import { renderWithQueryClient as render } from "@/test/renderWithQueryClient";
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
+const runtimeFlags = vi.hoisted(() => ({ serverMode: false }));
 vi.mock("@/i18n", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/i18n")>()),
   syncLocaleFromAccount: i18nMocks.syncLocaleFromAccount,
@@ -20,8 +20,8 @@ vi.mock("@/i18n", async (importOriginal) => ({
 
 vi.mock("@/data/apiConfig", () => ({
   API_BASE: "",
-  isDemoMode: () => true,
-  isServerConfigured: () => false,
+  isDemoMode: () => !runtimeFlags.serverMode,
+  isServerConfigured: () => runtimeFlags.serverMode,
 }));
 
 afterEach(() => {
@@ -31,6 +31,7 @@ afterEach(() => {
 
 beforeEach(() => {
   i18nMocks.syncLocaleFromAccount.mockReset();
+  runtimeFlags.serverMode = false;
   // Sign through the cosmetic demo gate and seed an active account so these tests exercise the shell.
   useStore.getState().setFakeSignedIn(true);
   localStorage.setItem("capacitylens/productOrientation/v1/demo/acct-test", "dismissed");
@@ -192,18 +193,6 @@ it("keeps the company picker on first entry even when exactly one company is ava
   expect(screen.getByTestId("location-probe")).toHaveTextContent("/clients");
 });
 
-it("keeps the company picker after a successful sign-in reload", async () => {
-  mockNavigationType("reload");
-  markCompanyPickerForNextReload();
-  useStore.setState({ activeAccountId: null, previousAccountId: null });
-
-  renderAppShell({ initialEntries: ["/clients"] });
-
-  expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
-  expect(useStore.getState().activeAccountId).toBeNull();
-  expect(window.history.state).toEqual({});
-});
-
 it("reopens the sole valid company on reload without changing the requested route", async () => {
   mockNavigationType("reload");
   useStore.setState({ activeAccountId: null, previousAccountId: null });
@@ -245,6 +234,72 @@ it("keeps the picker when one valid company came from an incomplete directory", 
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
   expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
+
+  act(() => {
+    void useStore.getState().setAccountSummaries({
+      list: [{ id: "only-valid-row", name: "Only Visible Co", role: "owner" }],
+      complete: true,
+    });
+  });
+  await waitFor(() => expect(useStore.getState().activeAccountId).toBe("only-valid-row"));
+});
+
+it("opens the completed sole server company after an incomplete read, ignoring stale picker history", async () => {
+  runtimeFlags.serverMode = true;
+  mockNavigationType("navigate");
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response("{}", { status: 503 })),
+  );
+  useStore.setState({
+    activeAccountId: null,
+    previousAccountId: "stale-company-id",
+    accountSummaries: [{ id: "only-valid-row", name: "Only Visible Co", role: "owner" }],
+    accountSummariesComplete: false,
+  });
+  const transition = vi.spyOn(accountTransition, "transitionAccount").mockImplementation(async (accountId) => {
+    useStore.getState().setActiveAccount(accountId);
+    return true;
+  });
+
+  renderAppShell({});
+  expect(useStore.getState().activeAccountId).toBeNull();
+  expect(screen.getByRole("status")).toHaveTextContent("Loading");
+
+  act(() => {
+    void useStore.getState().setAccountSummaries({
+      list: [{ id: "only-valid-row", name: "Only Visible Co", role: "owner" }],
+      complete: true,
+    });
+  });
+  await waitFor(() => expect(useStore.getState().activeAccountId).toBe("only-valid-row"));
+  expect(transition).toHaveBeenCalledWith("only-valid-row");
+});
+
+it("re-enters the sole server company after it is closed without a reload", async () => {
+  runtimeFlags.serverMode = true;
+  mockNavigationType("navigate");
+  const summary = { id: DEFAULT_ACCOUNT_ID, name: "Wayne Enterprises", role: "owner" as const };
+  useStore.setState({
+    activeAccountId: null,
+    previousAccountId: null,
+    accountSummaries: [summary],
+    accountSummariesComplete: true,
+  });
+  const transition = vi.spyOn(accountTransition, "transitionAccount").mockImplementation(async (accountId) => {
+    useStore.getState().setActiveAccount(accountId);
+    return true;
+  });
+
+  renderAppShell({});
+  await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
+
+  act(() => {
+    useStore.getState().setActiveAccount(null);
+  });
+
+  await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
+  expect(transition).toHaveBeenCalledTimes(2);
 });
 
 it("keeps the picker when the browser cannot classify the navigation", async () => {
@@ -293,14 +348,14 @@ it("does not mistake an unavailable sole membership for a valid reload destinati
   expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
 });
 
-it("lets an invite handoff keep ownership of a reload instead of auto-opening another sole company", async () => {
+it("opens the sole server-selected company after a reload even when an invite handoff is present", async () => {
   mockNavigationType("reload");
   useStore.setState({ activeAccountId: null, previousAccountId: null });
 
   renderAppShell({ initialEntries: ["/clients?joinedAccount=not-yet-authorized"] });
 
-  expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
-  expect(useStore.getState().activeAccountId).toBeNull();
+  await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
+  expect(screen.getByRole("link", { name: "Schedule" })).toBeInTheDocument();
 });
 
 it("does not reactivate a sole company after its loaded slice proves missing", async () => {

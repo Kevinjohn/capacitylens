@@ -15,15 +15,21 @@ import {
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 import { seed } from '@capacitylens/shared/data/seed'
 import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities'
-import { applyBatch } from '#services/batch/service'
-import { trustedLocalDataContext } from '#services/batch/data_policy'
-import { withTransaction } from '#services/with_transaction'
+import { encodeRow } from '#services/state_repository'
 import { stripLifecycle } from './state/database_contract_cases.js'
 import { trusted } from './batch/ordering_helpers.js'
 
 async function resetEmpty(client: ApiClient) {
   const response = await client.post('/api/test/reset').json({ seed: false }).send()
   response.assertStatus(200)
+}
+
+async function createFirstAccount(client: ApiClient) {
+  const response = await trusted(client.post('/api/accounts'))
+    .json({ id: FIXTURE_ACCOUNT.id, name: FIXTURE_ACCOUNT.name })
+    .send()
+  response.assertStatus(201)
+  return response.body() as typeof FIXTURE_ACCOUNT
 }
 
 function put<T extends { id: string }>(table: AppDataKey, row: T) {
@@ -59,8 +65,8 @@ test.group('M2b protected Internal client batch contract', (group) => {
       ...stripLifecycle(FIXTURE_PROJECT),
       clientId: `internal:${FIXTURE_ACCOUNT.id}`,
     }
+    await createFirstAccount(client)
     const dependencies = [
-      put('accounts', FIXTURE_ACCOUNT),
       put('disciplines', FIXTURE_DISCIPLINE),
       put('projects', project),
       put('phases', FIXTURE_PHASE),
@@ -94,8 +100,7 @@ test.group('M2b protected Internal client batch contract', (group) => {
     assert,
   }) => {
     await resetEmpty(client)
-    const createdAccount = await batch(client, [put('accounts', FIXTURE_ACCOUNT)])
-    createdAccount.assertStatus(200)
+    await createFirstAccount(client)
     const before = await state(client, FIXTURE_ACCOUNT.id)
     const first = await batch(client, [
       put('clients', {
@@ -121,8 +126,7 @@ test.group('M2b protected Internal client batch contract', (group) => {
   test('rejects generic updates to the generated builtin client', async ({ client, assert }) => {
     await resetEmpty(client)
     const generatedId = `internal:${FIXTURE_ACCOUNT.id}`
-    const createdAccount = await batch(client, [put('accounts', FIXTURE_ACCOUNT)])
-    createdAccount.assertStatus(200)
+    await createFirstAccount(client)
     const before = await state(client, FIXTURE_ACCOUNT.id)
     const generated = before.clients.find((candidate) => candidate.id === generatedId)!
     const response = await batch(client, [
@@ -137,46 +141,40 @@ test.group('M2b protected Internal client batch contract', (group) => {
     assert.deepEqual(await state(client, FIXTURE_ACCOUNT.id), before)
   })
 
-  test('rejects a counterfeit same-batch Internal echo and rolls back company creation', async ({
+  test('rejects a counterfeit Internal client without changing the company setup', async ({
     client,
     assert,
   }) => {
     await resetEmpty(client)
+    const account = await createFirstAccount(client)
+    const before = await state(client, FIXTURE_ACCOUNT.id)
     const counterfeit = {
-      ...buildInternalClient(FIXTURE_ACCOUNT.id, FIXTURE_ACCOUNT.createdAt),
+      ...buildInternalClient(FIXTURE_ACCOUNT.id, account.createdAt),
       name: 'Counterfeit built-in',
       color: '#ffffff',
       builtin: false,
     }
-    const response = await batch(client, [
-      put('accounts', FIXTURE_ACCOUNT),
-      put('clients', counterfeit),
-    ])
+    const response = await batch(client, [put('clients', counterfeit)])
 
     assert.equal(response.status(), 400)
-    assert.match(String(bodyError(response)), /generated|built-in|Internal/i)
-    const stored = await state(client)
-    assert.deepEqual(stored.accounts, [])
-    assert.deepEqual(stored.clients, [])
+    assert.deepEqual(await state(client, FIXTURE_ACCOUNT.id), before)
   })
 
-  test('accepts the canonical same-batch echo of the generated Internal client', async ({
+  test('company setup creates the canonical generated Internal client', async ({
     client,
     assert,
   }) => {
     await resetEmpty(client)
-    const canonical = buildInternalClient(FIXTURE_ACCOUNT.id, FIXTURE_ACCOUNT.createdAt)
-    const response = await batch(client, [
-      put('accounts', FIXTURE_ACCOUNT),
-      put('clients', canonical),
-    ])
-    response.assertStatus(200)
-    assert.deepInclude(response.body(), { ok: true, applied: 2, changed: 1 })
+    const account = await createFirstAccount(client)
     const accountCreates = await db
       .from('audit_entries')
       .where({ entity: 'accounts', entity_id: FIXTURE_ACCOUNT.id, action: 'create' })
     assert.lengthOf(accountCreates, 1)
     const stored = await state(client, FIXTURE_ACCOUNT.id)
+    assert.deepEqual(
+      stored.accounts.map(({ id, name }) => ({ id, name })),
+      [{ id: FIXTURE_ACCOUNT.id, name: FIXTURE_ACCOUNT.name }]
+    )
     assert.deepEqual(
       stored.clients.map(({ id, accountId, name, builtin }) => ({ id, accountId, name, builtin })),
       [
@@ -188,23 +186,30 @@ test.group('M2b protected Internal client batch contract', (group) => {
         },
       ]
     )
+    assert.equal(account.id, FIXTURE_ACCOUNT.id)
   })
 
   test('protects one builtin client per company', async ({ client, assert }) => {
     await resetEmpty(client)
     const firstAccount = seed().accounts[0]!
     const secondAccount = seed().accounts[1]!
-    await withTransaction((trx) =>
-      applyBatch(
-        trx,
-        [
-          { method: 'PUT', table: 'accounts', id: firstAccount.id, row: { ...firstAccount } },
-          { method: 'PUT', table: 'accounts', id: secondAccount.id, row: { ...secondAccount } },
-        ],
-        null,
-        trustedLocalDataContext('m2b-builtin-singleton-test', true)
+    await db
+      .table('accounts')
+      .insert(
+        [firstAccount, secondAccount].map((account) =>
+          encodeRow('accounts', account as unknown as Record<string, unknown>)
+        )
       )
-    )
+    await db
+      .table('clients')
+      .insert(
+        [firstAccount, secondAccount].map((account) =>
+          encodeRow(
+            'clients',
+            buildInternalClient(account.id, account.createdAt) as unknown as Record<string, unknown>
+          )
+        )
+      )
 
     const firstOrdinary = {
       ...stripLifecycle(FIXTURE_CLIENT),

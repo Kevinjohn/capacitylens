@@ -4,7 +4,6 @@ import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
 import { serializeData } from '@capacitylens/shared/data/transfer'
 import { readState } from '#services/state_repository'
-import { SINGLE_COMPANY_CAP_MESSAGE } from '@capacitylens/shared/account/policy'
 import { interceptChildLoggers } from '../helpers/logger.js'
 
 const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
@@ -125,9 +124,8 @@ test.group('M2b review regressions', (group) => {
         .send()
       rejected.assertStatus(403)
       assert.deepEqual(rejected.body(), {
-        error: SINGLE_COMPANY_CAP_MESSAGE,
+        error: 'This installation already has a company.',
         code: 'FORBIDDEN',
-        retryable: false,
       })
       const after = await readState('a-studio', true)
       assert.deepEqual(after.accounts[0], existing)

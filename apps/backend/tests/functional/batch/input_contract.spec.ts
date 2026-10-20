@@ -48,7 +48,7 @@ test.group('M2a batch input contract', (group) => {
     }
   })
 
-  test('rejects unknown fields, missing required fields, malformed operation roots and malformed nested rows', async ({
+  test('rejects missing required fields, malformed operation roots and malformed nested rows', async ({
     client,
     assert,
   }) => {
@@ -72,26 +72,6 @@ test.group('M2a batch input contract', (group) => {
             table: 'clients',
             id: 'c-acme',
             row: { ...seed().clients[2], id: 'elsewhere' },
-          },
-        ],
-      },
-      {
-        ops: [
-          {
-            method: 'PUT',
-            table: 'clients',
-            id: 'c-acme',
-            row: { ...seed().clients[2], surprise: true },
-          },
-        ],
-      },
-      {
-        ops: [
-          {
-            method: 'PUT',
-            table: 'resources',
-            id: person.id,
-            row: { ...person, unexpected: 'value' },
           },
         ],
       },
@@ -126,29 +106,66 @@ test.group('M2a batch input contract', (group) => {
       assert.equal(
         response.status(),
         400,
-        `invalid request should be 400: ${JSON.stringify(payload)}`
+        `invalid request should be 400: ${JSON.stringify(payload)} response=${JSON.stringify(response.body())}`
       )
       assert.deepEqual(await state(client), before, 'invalid input must not change stored state')
     }
   })
 
-  test('rejects ambiguous and malformed JSON before a batch write', async ({ client, assert }) => {
+  test('maps malformed JSON through the framework parser to a flat 400 response', async ({
+    client,
+    assert,
+  }) => {
     await reset(client)
     const before = await state(client)
-    const requests: Array<string | Buffer> = [
-      '{"ops":[],"ops":[]}',
-      `${'['.repeat(65)}0${']'.repeat(65)}`,
-      '{"ops":[],"number":9007199254740992}',
-      Buffer.from([0x7b, 0x22, 0xff, 0x22, 0x3a, 0x31, 0x7d]),
-    ]
+    const request = client.post('/api/batch').header('content-type', 'application/json')
+    request.request.send('{')
+    const response = await request.send()
+    const body = response.body() as { error?: unknown; code?: unknown }
+    assert.equal(response.status(), 400)
+    assert.isString(body.error)
+    assert.isString(body.code)
+    assert.deepEqual(Object.keys(body).sort(), ['code', 'error'])
+    assert.deepEqual(await state(client), before)
 
-    for (const payload of requests) {
-      const request = client.post('/api/batch').header('content-type', 'application/json')
-      request.request.send(payload)
-      const response = await request.send()
-      assert.equal(response.status(), 400)
-      assert.deepEqual(await state(client), before)
-    }
+    const scalar = client.post('/api/batch').header('content-type', 'application/json')
+    scalar.request.send('5')
+    const scalarResponse = await scalar.send()
+    assert.equal(scalarResponse.status(), 400)
+    assert.deepEqual(scalarResponse.body(), {
+      error: 'Request JSON must be an object or array.',
+      code: 'INVALID_JSON_SHAPE',
+    })
+    assert.deepEqual(await state(client), before)
+  })
+
+  test('strips unknown envelope and entity fields while applying valid supplied values', async ({
+    client,
+    assert,
+  }) => {
+    await reset(client)
+    const clientRow = seed().clients.find((row) => row.id === 'c-acme')!
+    const response = await client
+      .post('/api/batch')
+      .json({
+        ignoredRoot: 'discarded',
+        ops: [
+          {
+            method: 'PUT',
+            table: 'clients',
+            id: clientRow.id,
+            ignoredOperation: true,
+            row: { ...clientRow, name: 'Wayne Applied Sciences', ignoredEntityField: 'discarded' },
+          },
+        ],
+      } as never)
+      .send()
+
+    assert.equal(response.status(), 200)
+    const updatedState = await state(client)
+    const updated = updatedState.clients.find((row) => row.id === clientRow.id)!
+    assert.equal(updated.name, 'Wayne Applied Sciences')
+    assert.notProperty(updated, 'ignoredEntityField')
   })
 
   test('accepts a valid full-row fixture for every entity with a real calendar date', async ({

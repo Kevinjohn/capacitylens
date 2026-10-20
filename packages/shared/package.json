@@ -98,11 +98,6 @@
       "types": "./src/data/migrate.ts",
       "default": "./dist/data/migrate.js"
     },
-    "./data/strictJson": {
-      "development": "./src/data/strictJson.ts",
-      "types": "./src/data/strictJson.ts",
-      "default": "./dist/data/strictJson.js"
-    },
     "./data/seed": {
       "development": "./src/data/seed.ts",
       "types": "./src/data/seed.ts",

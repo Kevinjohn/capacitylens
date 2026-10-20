@@ -3,7 +3,6 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import type { AppData } from '@capacitylens/shared/types/entities'
 import { APP_DATA_KEYS, SCOPED_KEYS } from '@capacitylens/shared/types/entities'
 import { remapAndValidateImport } from '@capacitylens/shared/domain/importFold'
-import { MAX_IMPORT_RECORDS } from '@capacitylens/shared/data/transfer'
 import { encodeRow, readState, readStateWithClient } from '#services/state_repository'
 import { TABLE_NAMES } from '#services/batch/entity_policy'
 import { validateEntityRow } from '#validators/entities/index'
@@ -61,7 +60,7 @@ export async function prepareAccountImport(accountId: string, incoming: AppData)
     throw new BatchRequestError(
       'The import contained no usable records, so the company data was left unchanged.',
       400,
-      { imported: 0, skipped: prepared.skipped, maxRecords: MAX_IMPORT_RECORDS }
+      { imported: 0, skipped: prepared.skipped }
     )
   await validatePrepared(prepared.data, accountId)
   return { accountId, expectedFingerprint, prepared }
@@ -107,6 +106,5 @@ export async function commitAccountImport(
   return {
     imported: prepared.imported,
     skipped: prepared.skipped,
-    maxRecords: MAX_IMPORT_RECORDS,
   }
 }

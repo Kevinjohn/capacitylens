@@ -90,11 +90,19 @@ test('E2E database flavour permits reset while auth flavour refuses installation
         })
         assert.equal(seeded.status, 200)
         const accounts = await fetch(`http://127.0.0.1:${port}/api/accounts`)
-        const accountList = (await accounts.json()) as { id: string }[]
-        assert.deepEqual(accountList.map((account: { id: string }) => account.id).sort(), [
-          'a-loft',
-          'a-studio',
-        ])
+        assert.equal(
+          accounts.status,
+          409,
+          'the seeded demo remains intentionally ambiguous to production selection'
+        )
+        assert.deepEqual(await accounts.json(), {
+          error:
+            'This installation has more than one company. Contact the administrator to resolve it.',
+        })
+        const stateResponse = await fetch(`http://127.0.0.1:${port}/api/state`)
+        assert.equal(stateResponse.status, 200)
+        const state = (await stateResponse.json()) as { accounts: { id: string }[] }
+        assert.deepEqual(state.accounts.map((account) => account.id).sort(), ['a-loft', 'a-studio'])
       } else {
         const anonymousReset = await fetch(resetUrl, { method: 'POST' })
         assert.equal(anonymousReset.status, 401, 'auth-on reset rejects unauthenticated callers')
