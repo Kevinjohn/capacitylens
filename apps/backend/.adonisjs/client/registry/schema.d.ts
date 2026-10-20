@@ -55,6 +55,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationUpdate']>>>
     }
   }
+  'api.planning.allocation.createGroup': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/allocations/create-group'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      paramsTuple: [ParamValue]
+      params: { accountId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationCreateGroup']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationCreateGroup']>>>
+    }
+  }
   'api.planning.resource.create': {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/resources'
@@ -151,6 +163,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientUpdate']>>>
     }
   }
+  'api.planning.client.archive': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/clients/:id/archive'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientArchive']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientArchive']>>>
+    }
+  }
+  'api.planning.client.unarchive': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/clients/:id/unarchive'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientUnarchive']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientUnarchive']>>>
+    }
+  }
   'api.planning.project.create': {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/projects'
@@ -175,6 +211,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectUpdate']>>>
     }
   }
+  'api.planning.project.archive': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/projects/:id/archive'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectArchive']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectArchive']>>>
+    }
+  }
+  'api.planning.project.unarchive': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/projects/:id/unarchive'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectUnarchive']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectUnarchive']>>>
+    }
+  }
   'api.planning.activity.create': {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/activities'
@@ -197,6 +257,30 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityUpdate']>>>
+    }
+  }
+  'api.planning.activity.archive': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/activities/:id/archive'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityArchive']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityArchive']>>>
+    }
+  }
+  'api.planning.activity.unarchive': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/activities/:id/unarchive'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityUnarchive']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityUnarchive']>>>
     }
   }
   'api.planning.phase.create': {
@@ -245,6 +329,30 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineUpdate']>>>
+    }
+  }
+  'api.planning.resource.archive': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/resources/:id/archive'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').resourceMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').resourceMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceArchive']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceArchive']>>>
+    }
+  }
+  'api.planning.resource.unarchive': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/resources/:id/unarchive'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').resourceMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').resourceMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceUnarchive']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceUnarchive']>>>
     }
   }
   'api.planning.allocation.duplicate': {

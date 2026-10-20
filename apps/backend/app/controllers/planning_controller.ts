@@ -6,6 +6,7 @@ import {
   lookupPlanningMutation,
   validatePlanningMutationId,
 } from '#services/planning'
+import { BatchRequestError } from '#services/batch/errors'
 import { PlanningOperationError } from '#services/planning_operations/execute'
 import { SessionAuthorityError } from '#services/auth/session_authority'
 import { IdentityAuthorityError } from '#services/auth/authorization'
@@ -33,8 +34,17 @@ function refusal(error: unknown): { status: number; body: PlanningMutationFailur
         : error.status === 403
           ? 'authorization_denied'
           : undefined)
-    return { status: error.status, body: { error: error.message, ...(code ? { code } : {}) } }
+    const status = code === 'validation_error' ? 400 : error.status
+    return { status, body: { error: error.message, ...(code ? { code } : {}) } }
   }
+  if (error instanceof BatchRequestError)
+    return {
+      status: error.status === 403 ? 403 : 400,
+      body: {
+        error: error.message,
+        code: error.status === 403 ? 'authorization_denied' : 'validation_error',
+      },
+    }
   if (error instanceof StalePlanningRevisionError)
     return { status: 409, body: { error: error.message, code: 'stale_revision' } }
   if (error instanceof vineErrors.E_VALIDATION_ERROR)
@@ -162,6 +172,16 @@ export default class PlanningController {
     }
   }
 
+  async allocationCreateGroup(ctx: HttpContext) {
+    try {
+      const input = await ctx.request.validateUsing(allocationMutationValidator)
+      return await this.execute(ctx, input, 'allocation.createGroup')
+    } catch (error) {
+      const failure = refusal(error)
+      return ctx.response.status(failure.status).send(failure.body)
+    }
+  }
+
   async resourceCreate(ctx: HttpContext) {
     try {
       const input = await ctx.request.validateUsing(resourceMutationValidator)
@@ -262,6 +282,26 @@ export default class PlanningController {
     }
   }
 
+  async clientArchive(ctx: HttpContext) {
+    try {
+      const input = await ctx.request.validateUsing(catalogueMutationValidator)
+      return await this.execute(ctx, input, 'catalogue.archive', 'clients')
+    } catch (error) {
+      const failure = refusal(error)
+      return ctx.response.status(failure.status).send(failure.body)
+    }
+  }
+
+  async clientUnarchive(ctx: HttpContext) {
+    try {
+      const input = await ctx.request.validateUsing(catalogueMutationValidator)
+      return await this.execute(ctx, input, 'catalogue.unarchive', 'clients')
+    } catch (error) {
+      const failure = refusal(error)
+      return ctx.response.status(failure.status).send(failure.body)
+    }
+  }
+
   async projectCreate(ctx: HttpContext) {
     try {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
@@ -282,6 +322,26 @@ export default class PlanningController {
     }
   }
 
+  async projectArchive(ctx: HttpContext) {
+    try {
+      const input = await ctx.request.validateUsing(catalogueMutationValidator)
+      return await this.execute(ctx, input, 'catalogue.archive', 'projects')
+    } catch (error) {
+      const failure = refusal(error)
+      return ctx.response.status(failure.status).send(failure.body)
+    }
+  }
+
+  async projectUnarchive(ctx: HttpContext) {
+    try {
+      const input = await ctx.request.validateUsing(catalogueMutationValidator)
+      return await this.execute(ctx, input, 'catalogue.unarchive', 'projects')
+    } catch (error) {
+      const failure = refusal(error)
+      return ctx.response.status(failure.status).send(failure.body)
+    }
+  }
+
   async activityCreate(ctx: HttpContext) {
     try {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
@@ -296,6 +356,26 @@ export default class PlanningController {
     try {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.update', 'activities')
+    } catch (error) {
+      const failure = refusal(error)
+      return ctx.response.status(failure.status).send(failure.body)
+    }
+  }
+
+  async activityArchive(ctx: HttpContext) {
+    try {
+      const input = await ctx.request.validateUsing(catalogueMutationValidator)
+      return await this.execute(ctx, input, 'catalogue.archive', 'activities')
+    } catch (error) {
+      const failure = refusal(error)
+      return ctx.response.status(failure.status).send(failure.body)
+    }
+  }
+
+  async activityUnarchive(ctx: HttpContext) {
+    try {
+      const input = await ctx.request.validateUsing(catalogueMutationValidator)
+      return await this.execute(ctx, input, 'catalogue.unarchive', 'activities')
     } catch (error) {
       const failure = refusal(error)
       return ctx.response.status(failure.status).send(failure.body)
@@ -336,6 +416,26 @@ export default class PlanningController {
     try {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.update', 'disciplines')
+    } catch (error) {
+      const failure = refusal(error)
+      return ctx.response.status(failure.status).send(failure.body)
+    }
+  }
+
+  async resourceArchive(ctx: HttpContext) {
+    try {
+      const input = await ctx.request.validateUsing(resourceMutationValidator)
+      return await this.execute(ctx, input, 'resource.archive')
+    } catch (error) {
+      const failure = refusal(error)
+      return ctx.response.status(failure.status).send(failure.body)
+    }
+  }
+
+  async resourceUnarchive(ctx: HttpContext) {
+    try {
+      const input = await ctx.request.validateUsing(resourceMutationValidator)
+      return await this.execute(ctx, input, 'resource.unarchive')
     } catch (error) {
       const failure = refusal(error)
       return ctx.response.status(failure.status).send(failure.body)

@@ -19,14 +19,14 @@ const env = {
   LOG_LEVEL: 'error',
   APP_KEY: 'capacitylens-e2e-key-0123456789abcdef',
   APP_URL: `http://127.0.0.1:${port}`,
-  SESSION_DRIVER: flavour === 'auth' ? 'database' : 'memory',
+  SESSION_DRIVER: 'database',
   CAPACITYLENS_DB: database,
-  CAPACITYLENS_MODE: flavour === 'db' ? 'off' : 'password-only',
+  CAPACITYLENS_MODE: 'password-only',
   CAPACITYLENS_ALLOW_RESET: '1',
   PORT: String(port),
 }
 
-if (flavour === 'auth') {
+{
   Object.assign(env, {
     CAPACITYLENS_MODE: 'password-only',
     CAPACITYLENS_CREATE_ADMIN_ADMIN: '1',
@@ -37,7 +37,7 @@ if (flavour === 'auth') {
     CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
     CAPACITYLENS_SECRET: 'capacitylens-auth-e2e-secret-0123456789abcdef',
     CAPACITYLENS_PUBLIC_URL: `http://localhost:${port}`,
-    CAPACITYLENS_CORS_ORIGIN: `http://localhost:${lane.authWeb},http://127.0.0.1:${lane.authWeb}`,
+    CAPACITYLENS_CORS_ORIGIN: `http://localhost:${flavour === 'db' ? lane.dbWeb : lane.authWeb},http://127.0.0.1:${flavour === 'db' ? lane.dbWeb : lane.authWeb}`,
   })
 }
 
