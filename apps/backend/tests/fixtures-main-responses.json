@@ -6,7 +6,7 @@
       "path": "/api/test/reset",
       "status": 200,
       "headers": {
-        "content-security-policy": "default-src 'self';connect-src 'self';img-src 'self' data: https:;frame-ancestors 'none';base-uri 'self';object-src 'none';report-uri /api/security/csp-report;report-to csp-endpoint",
+        "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'",
         "cross-origin-opener-policy": "same-origin",
         "cross-origin-resource-policy": "same-origin",
         "referrer-policy": "no-referrer",
@@ -26,7 +26,7 @@
       "path": "/api/accounts",
       "status": 200,
       "headers": {
-        "content-security-policy": "default-src 'self';connect-src 'self';img-src 'self' data: https:;frame-ancestors 'none';base-uri 'self';object-src 'none';report-uri /api/security/csp-report;report-to csp-endpoint",
+        "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'",
         "cross-origin-opener-policy": "same-origin",
         "cross-origin-resource-policy": "same-origin",
         "referrer-policy": "no-referrer",
@@ -55,7 +55,7 @@
       "path": "/api/state",
       "status": 200,
       "headers": {
-        "content-security-policy": "default-src 'self';connect-src 'self';img-src 'self' data: https:;frame-ancestors 'none';base-uri 'self';object-src 'none';report-uri /api/security/csp-report;report-to csp-endpoint",
+        "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'",
         "cross-origin-opener-policy": "same-origin",
         "cross-origin-resource-policy": "same-origin",
         "referrer-policy": "no-referrer",
@@ -532,7 +532,7 @@
       "path": "/api/state?accountId=a-studio",
       "status": 200,
       "headers": {
-        "content-security-policy": "default-src 'self';connect-src 'self';img-src 'self' data: https:;frame-ancestors 'none';base-uri 'self';object-src 'none';report-uri /api/security/csp-report;report-to csp-endpoint",
+        "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'",
         "cross-origin-opener-policy": "same-origin",
         "cross-origin-resource-policy": "same-origin",
         "referrer-policy": "no-referrer",
@@ -929,7 +929,7 @@
       "path": "/api/state?accountId=a-loft",
       "status": 200,
       "headers": {
-        "content-security-policy": "default-src 'self';connect-src 'self';img-src 'self' data: https:;frame-ancestors 'none';base-uri 'self';object-src 'none';report-uri /api/security/csp-report;report-to csp-endpoint",
+        "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'",
         "cross-origin-opener-policy": "same-origin",
         "cross-origin-resource-policy": "same-origin",
         "referrer-policy": "no-referrer",
@@ -1045,7 +1045,7 @@
       "path": "/api/meta",
       "status": 200,
       "headers": {
-        "content-security-policy": "default-src 'self';connect-src 'self';img-src 'self' data: https:;frame-ancestors 'none';base-uri 'self';object-src 'none';report-uri /api/security/csp-report;report-to csp-endpoint",
+        "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'",
         "cross-origin-opener-policy": "same-origin",
         "cross-origin-resource-policy": "same-origin",
         "referrer-policy": "no-referrer",
@@ -1065,7 +1065,7 @@
       "path": "/api/diagnostics",
       "status": 200,
       "headers": {
-        "content-security-policy": "default-src 'self';connect-src 'self';img-src 'self' data: https:;frame-ancestors 'none';base-uri 'self';object-src 'none';report-uri /api/security/csp-report;report-to csp-endpoint",
+        "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'",
         "cross-origin-opener-policy": "same-origin",
         "cross-origin-resource-policy": "same-origin",
         "referrer-policy": "no-referrer",
@@ -1096,7 +1096,7 @@
       "path": "/api/health",
       "status": 200,
       "headers": {
-        "content-security-policy": "default-src 'self';connect-src 'self';img-src 'self' data: https:;frame-ancestors 'none';base-uri 'self';object-src 'none';report-uri /api/security/csp-report;report-to csp-endpoint",
+        "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'",
         "cross-origin-opener-policy": "same-origin",
         "cross-origin-resource-policy": "same-origin",
         "referrer-policy": "no-referrer",
@@ -1116,7 +1116,7 @@
       "path": "/api/auth/me",
       "status": 200,
       "headers": {
-        "content-security-policy": "default-src 'self';connect-src 'self';img-src 'self' data: https:;frame-ancestors 'none';base-uri 'self';object-src 'none';report-uri /api/security/csp-report;report-to csp-endpoint",
+        "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'",
         "referrer-policy": "no-referrer",
         "x-content-type-options": "nosniff",
         "x-frame-options": "DENY",

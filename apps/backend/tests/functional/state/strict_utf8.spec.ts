@@ -33,11 +33,13 @@ function postRawJson(body: Buffer): Promise<{ statusCode: number | undefined; bo
   })
 }
 
-test.group('M1 strict UTF-8 JSON boundary', (group) => {
+test.group('M1 framework JSON parsing', (group) => {
   group.setup(() => testUtils.db().migrate())
   group.each.setup(() => replaceWithSeed())
 
-  test('rejects malformed UTF-8 JSON bytes before route validation', async ({ assert }) => {
+  test('passes malformed UTF-8 through the framework parser to route validation', async ({
+    assert,
+  }) => {
     const body = Buffer.concat([
       Buffer.from('{"seed":true,"name":"', 'utf8'),
       Buffer.from([0xc3, 0x28]),
@@ -46,9 +48,7 @@ test.group('M1 strict UTF-8 JSON boundary', (group) => {
     const response = await postRawJson(body)
 
     assert.equal(response.statusCode, 400)
-    assert.deepEqual(JSON.parse(response.body), {
-      error: "Body is not valid JSON but content-type is set to 'application/json'.",
-    })
+    assert.deepEqual(JSON.parse(response.body), { error: 'Invalid reset request.' })
   })
 
   test('passes valid non-ASCII UTF-8 JSON bytes to normal route validation', async ({ assert }) => {

@@ -34,11 +34,9 @@ export {
   BatchConflictError,
   BatchMasqueradeReadOnlyError,
   BatchReconciliationError,
-  BatchTooLargeError,
   BatchValidationError,
   KeepaliveNotDispatchedError,
   LifecycleRestoreError,
-  MAX_BATCH_OPS,
 } from "./sync/batchErrors";
 
 interface DrainTarget {

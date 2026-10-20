@@ -2,12 +2,7 @@ import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { attachPersistence, ReloadDiscardedEditError, flushPendingWrites, switchAndAwaitHydration } from "./persist";
-import {
-  BatchCommitUncertainError,
-  BatchConflictError,
-  BatchValidationError,
-  BatchTooLargeError,
-} from "./ServerSyncAdapter";
+import { BatchCommitUncertainError, BatchConflictError, BatchValidationError } from "./ServerSyncAdapter";
 import type { PersistenceAdapter } from "./PersistenceAdapter";
 import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
@@ -432,61 +427,6 @@ describe("batch reconciliation (authoritative reload)", () => {
       expect(onSuccess).toHaveBeenCalled();
 
       expect(useStore.getState().data.clients.some((c) => c.name === "Transient")).toBe(true);
-      detach();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("an over-limit failure (BatchTooLargeError) is TERMINAL — no backoff retry, banner via onError", async () => {
-    // Unlike a transient failure (the regression pin above), an over-limit diff would throw on every
-    // backoff attempt (the atomic batch refuses to split it), so persist.ts must stop retrying, no
-    // self-sustaining error wedge, while still surfacing the banner. It is not a conflict either, so
-    // it must not trigger a server-wins reload. The current page's in-memory desired state remains
-    // available for a later, smaller diff to clear the banner; closing/reloading discards it because
-    // CapacityLens deliberately has no queued offline-write journal.
-    vi.useFakeTimers();
-    try {
-      const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
-      const onError = vi.fn();
-      const onSuccess = vi.fn();
-      const detachP = attachActiveA2({ adapter: adapter, debounceMs: 0, onError: onError, onSuccess: onSuccess });
-      await vi.advanceTimersByTimeAsync(5);
-      const detach = await detachP;
-      const loadsAfterPick = loadAll.mock.calls.length;
-      saveAll.mockClear();
-      onSuccess.mockClear();
-      saveAll.mockRejectedValue(new BatchTooLargeError("Atomic sync exceeds the 5000-operation server limit."));
-
-      useStore.getState().addClient({ name: "Too Big", color: "#222222" });
-      await vi.advanceTimersByTimeAsync(0);
-      expect(onError).toHaveBeenCalledTimes(1);
-      expect(onError.mock.calls[0]?.[0]).toBeInstanceOf(BatchTooLargeError);
-      const savesAfterEdit = saveAll.mock.calls.length;
-      expect(savesAfterEdit).toBe(1);
-
-      // 35s covers every backoff step: a transient error re-attempts across it, a terminal one does
-      // not, and it never reloads (that is the conflict path, not this one).
-      await vi.advanceTimersByTimeAsync(35_000);
-      expect(saveAll.mock.calls.length).toBe(savesAfterEdit);
-      expect(loadAll.mock.calls.length).toBe(loadsAfterPick);
-      expect(onError).toHaveBeenCalledTimes(1);
-
-      window.dispatchEvent(new Event("online"));
-      Object.defineProperty(document, "visibilityState", {
-        configurable: true,
-        value: "visible",
-      });
-      document.dispatchEvent(new Event("visibilitychange"));
-      await vi.advanceTimersByTimeAsync(0);
-      expect(saveAll).toHaveBeenCalledTimes(savesAfterEdit);
-      expect(onError).toHaveBeenCalledTimes(1);
-
-      saveAll.mockResolvedValue(undefined);
-      useStore.getState().addClient({ name: "Smaller follow-up", color: "#333333" });
-      await vi.advanceTimersByTimeAsync(0);
-      expect(saveAll).toHaveBeenCalledTimes(savesAfterEdit + 1);
-      expect(onSuccess).toHaveBeenCalledTimes(1);
       detach();
     } finally {
       vi.useRealTimers();

@@ -4,7 +4,7 @@ import testUtils from '@adonisjs/core/services/test_utils'
 import { readdir } from 'node:fs/promises'
 
 const strictPolicy =
-  "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'; report-uri /api/security/csp-report; report-to csp-endpoint"
+  "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'"
 
 test.group('M1 static fallback', (group) => {
   group.setup(() => testUtils.db().migrate())
@@ -15,6 +15,8 @@ test.group('M1 static fallback', (group) => {
       assert.include(response.header('content-type'), 'text/html')
       assert.equal(response.header('cache-control'), 'no-store')
       assert.equal(response.header('content-security-policy'), strictPolicy)
+      assert.equal(response.header('x-content-type-options'), 'nosniff')
+      assert.equal(response.header('x-frame-options'), 'DENY')
     }
   })
 
@@ -50,6 +52,8 @@ test.group('M1 static fallback', (group) => {
     assert.equal(response.status(), 200)
     assert.equal(response.header('cache-control'), 'public, max-age=31536000, immutable')
     assert.equal(response.header('content-security-policy'), strictPolicy)
+    assert.equal(response.header('x-content-type-options'), 'nosniff')
+    assert.equal(response.header('x-frame-options'), 'DENY')
     const etag = response.header('etag')
     assert.isString(etag)
     const revalidated = await client.get(`/assets/${asset}`).header('if-none-match', etag!)

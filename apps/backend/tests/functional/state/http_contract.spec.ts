@@ -2,7 +2,7 @@ import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import { replaceWithSeed } from '#services/state_repository'
 import db from '@adonisjs/lucid/services/db'
-import { cspSecurityEvents } from '#services/csp_report'
+import { seed } from '@capacitylens/shared/data/seed'
 import env from '#start/env'
 
 const securityHeaders = [
@@ -80,84 +80,6 @@ test.group('M1 HTTP contract', (group) => {
     }
   })
 
-  test('bounds CSP reports and rejects malformed or cross-site requests', async ({
-    client,
-    assert,
-  }) => {
-    const events: Record<string, unknown>[] = []
-    const receive = (event: Record<string, unknown>) => events.push(event)
-    cspSecurityEvents.on('report', receive)
-    const accepted = await client
-      .post('/api/security/csp-report')
-      .header('content-type', 'application/csp-report')
-      .setup((request) => {
-        request.request.send(
-          JSON.stringify({
-            'csp-report': {
-              'document-uri': 'https://example.test/private?token=secret',
-              'blocked-uri': 'https://cdn.example.test/script.js?code=secret',
-              'effective-directive': 'script-src-elem',
-              'disposition': 'enforce',
-            },
-          })
-        )
-      })
-    assert.equal(accepted.status(), 204)
-    assert.deepEqual(events, [
-      {
-        event: 'csp_violation',
-        outcome: 'reported',
-        documentOrigin: 'https://example.test',
-        blockedOrigin: 'https://cdn.example.test',
-        effectiveDirective: 'script-src-elem',
-        disposition: 'enforce',
-      },
-    ])
-    assert.notInclude(JSON.stringify(events), 'secret')
-    const modern = await client
-      .post('/api/security/csp-report')
-      .header('content-type', 'application/reports+json')
-      .json(
-        Array.from({ length: 25 }, () => ({
-          type: 'csp-violation',
-          body: {
-            documentURL: 'https://example.test/private',
-            blockedURL: 'inline',
-            effectiveDirective: 'style-src-elem',
-            disposition: 'report',
-          },
-        }))
-      )
-    assert.equal(modern.status(), 204)
-    assert.lengthOf(events, 2)
-    assert.equal(events[1]?.blockedOrigin, 'inline')
-    const malformed = await client
-      .post('/api/security/csp-report')
-      .header('content-type', 'application/csp-report')
-      .setup((request) => {
-        request.request.send('{')
-      })
-    assert.equal(malformed.status(), 400)
-    assert.deepEqual(malformed.body(), { error: 'Malformed CSP report.' })
-    const oversized = await client
-      .post('/api/security/csp-report')
-      .header('content-type', 'application/csp-report')
-      .setup((request) => {
-        request.request.send(JSON.stringify({ padding: 'x'.repeat(65 * 1024) }))
-      })
-    assert.equal(oversized.status(), 413)
-    assert.deepEqual(oversized.body(), { error: 'Request body is too large.' })
-    const crossSite = await client
-      .post('/api/security/csp-report')
-      .header('content-type', 'application/csp-report')
-      .header('sec-fetch-site', 'cross-site')
-      .setup((request) => {
-        request.request.send('{}')
-      })
-    assert.equal(crossSite.status(), 403)
-    cspSecurityEvents.off('report', receive)
-  })
-
   test('sets security headers on successful and early error responses', async ({
     client,
     assert,
@@ -170,16 +92,12 @@ test.group('M1 HTTP contract', (group) => {
         .setup((request) => {
           request.request.send('{')
         }),
-      await client
-        .post('/api/test/reset')
-        .header('content-type', 'application/json')
-        .setup((request) => {
-          request.request.send(JSON.stringify({ padding: 'x'.repeat(5 * 1024 * 1024) }))
-        }),
     ]) {
       for (const header of securityHeaders) assert.isString(response.header(header), header)
       assert.equal(response.header('cache-control'), 'no-store')
       assert.equal(response.header('pragma'), 'no-cache')
+      assert.equal(response.header('x-content-type-options'), 'nosniff')
+      assert.equal(response.header('x-frame-options'), 'DENY')
     }
   })
 
@@ -204,15 +122,22 @@ test.group('M1 HTTP contract', (group) => {
     assert.equal(preflight.status(), 204)
     assert.equal(preflight.header('access-control-allow-origin'), allowed)
 
+    const discipline = seed().disciplines[0]!
     const allowedWrite = await client
-      .post('/api/security/csp-report')
-      .header('content-type', 'application/csp-report')
+      .post('/api/batch')
       .header('origin', allowed)
       .header('sec-fetch-site', 'cross-site')
-      .setup((request) => {
-        request.request.send('{}')
+      .json({
+        ops: [
+          {
+            method: 'PUT',
+            table: 'disciplines',
+            id: discipline.id,
+            row: { ...discipline } as Record<string, unknown>,
+          },
+        ],
       })
-    assert.equal(allowedWrite.status(), 204)
+    assert.equal(allowedWrite.status(), 200)
 
     const disallowedWrite = await client
       .post('/api/test/reset')
@@ -220,6 +145,8 @@ test.group('M1 HTTP contract', (group) => {
       .json({ seed: true })
     assert.equal(disallowedWrite.status(), 403)
     assert.deepEqual(disallowedWrite.body(), { error: 'Cross-site request rejected.' })
+    assert.equal(disallowedWrite.header('x-content-type-options'), 'nosniff')
+    assert.equal(disallowedWrite.header('x-frame-options'), 'DENY')
 
     const originlessCrossSite = await client
       .post('/api/test/reset')

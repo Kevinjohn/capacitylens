@@ -53,22 +53,6 @@ export class LifecycleRestoreError extends BatchReconciliationError {
   }
 }
 
-/**
- * Thrown when a single logical diff exceeds {@link MAX_BATCH_OPS}. The atomic design refuses to
- * split it into separately-committed prefixes (that would reintroduce the reparent-before-delete
- * FK-order race the single transaction exists to prevent), so this is a terminal, non-retryable
- * condition, re-sending the identical over-limit diff throws forever, unlike a transient network
- * failure. A typed error (not the generic batch failure) so persist.ts can special-case it: surface
- * the banner plus a clear sticky notice and stop the exponential-backoff retry loop. The desired
- * state stays in memory until a later, smaller diff lands or the page is closed.
- */
-export class BatchTooLargeError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "BatchTooLargeError";
-  }
-}
-
 /** A teardown save refused before dispatch because its payload exceeded the keepalive budget. */
 export class KeepaliveNotDispatchedError extends Error {
   constructor(message: string) {
@@ -77,8 +61,6 @@ export class KeepaliveNotDispatchedError extends Error {
   }
 }
 
-// The shared client/server limit; see shared/src/data/transfer.ts. An over-limit diff fails whole.
-export { MAX_BATCH_OPS } from "@capacitylens/shared/data/transfer";
 /** Maximum serialized teardown body accepted before dispatch, leaving room below the browser quota. */
 export const KEEPALIVE_BODY_BUDGET = 60 * 1024;
 // Fetch keepalive quotas are shared by every in-flight request in the page. Reserve a conservative

@@ -253,8 +253,6 @@ export default class CompaniesController {
       if (error instanceof AccountCommandError)
         return response.status(error.status).send({ error: error.message, code: error.code })
       if (error instanceof BatchRequestError) {
-        if (error.message === SINGLE_COMPANY_CAP_MESSAGE)
-          return response.forbidden({ error: error.message, code: 'FORBIDDEN', retryable: false })
         return response.status(error.status).send({
           error: error.message,
           ...(error.code ? { code: error.code } : {}),
@@ -270,7 +268,6 @@ export default class CompaniesController {
       return ctx.response.forbidden({
         error: 'Use /api/orgs to create a company.',
         code: 'FORBIDDEN',
-        retryable: false,
       })
     return this.write(ctx, undefined, false, true)
   }
