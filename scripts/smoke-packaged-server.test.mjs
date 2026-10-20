@@ -14,6 +14,7 @@ test("packaged smoke strips deployment settings before applying its loopback fix
     NODE_OPTIONS: "--import=/workspace/loader.mjs",
     CAPACITYLENS_HOST: "0.0.0.0",
     CAPACITYLENS_INTERNAL_TLS_KEY: "/private/key",
+    CAPACITYLENS_BACKUP_INTERVAL_MIN: "1",
     SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://identity.example.test",
     CAPACITYLENS_OIDC_DISCOVERY_URL: "https://identity.example.test",
     BETTER_AUTH_SECRET: "inherited",
@@ -34,6 +35,7 @@ test("packaged smoke strips deployment settings before applying its loopback fix
   assert.equal(environment.SESSION_DRIVER, "database");
   assert.equal(environment.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION, undefined);
   assert.equal(environment.CAPACITYLENS_INTERNAL_TLS_KEY, undefined);
+  assert.equal(environment.CAPACITYLENS_BACKUP_INTERVAL_MIN, undefined);
   assert.equal(environment.SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL, undefined);
   assert.equal(environment.CAPACITYLENS_OIDC_DISCOVERY_URL, undefined);
   assert.equal(environment.BETTER_AUTH_SECRET, undefined);

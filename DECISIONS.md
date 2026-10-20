@@ -84,6 +84,10 @@ This is the short, present-tense record of decisions that constrain future work.
 - Every schema-bearing release is rehearsed on released fixtures and an anonymised online snapshot
   of a representative long-lived installation. The rehearsal covers success, rollback-snapshot
   restoration, injected disk exhaustion, forced process termination and idempotent reopen.
+- Native SQLite backups run online at web-service startup and every 24 hours. Count-based retention
+  keeps the configured N completed managed snapshots; pre-upgrade snapshots remain separate.
+  Backup failures are logged or returned by the operator command, without a process-lifetime
+  health latch. Database readiness is independent of recovery verification.
 - The demo adapter is in-memory and resets on refresh.
 - Every scoped entity carries `accountId`; the active account is transient and never persisted.
 - Server session + membership is the security boundary. Client scoping is defense in depth and UI

@@ -3,7 +3,6 @@ import router from '@adonisjs/core/services/router'
 import { checkDatabase, readState, resetState } from '#services/state_repository'
 import { fileURLToPath } from 'node:url'
 import { healthChecks } from '#start/health'
-import { backupDiagnostics } from '#services/backup_check'
 import { registerAuthRoutes } from '#start/auth_routes'
 import { registerMembershipRoutes } from '#start/membership_routes'
 import { registerAdmissionRoutes } from '#start/admission_routes'
@@ -67,7 +66,7 @@ router.get('/api/diagnostics', async ({ response }) => {
         connectivity: 'ok',
         database: { status: 'ok', schemaVersion: 4 },
         persistence: 'unknown',
-        backup: backupDiagnostics(),
+        backup: { status: 'unavailable', lastSuccessAt: null },
       },
     }
   } catch {
