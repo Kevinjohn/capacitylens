@@ -1,22 +1,26 @@
 import { describe, it, expect, vi } from "vitest";
 import { ServerSyncAdapter, BatchValidationError, LifecycleRestoreError } from "./ServerSyncAdapter";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { cacheAccountSlice, readOfflineStateSnapshot, setOfflineReadState } from "./offlineCache";
-import * as offlineCacheModule from "./offlineCache";
 import {
   TS1,
   TS2,
   client,
   withData,
-  scopedData,
   requiredRecord,
   commitReceipt,
   required,
   saveAgainstReceipt,
-  withOfflineCache,
 } from "./ServerSyncAdapter.testSupport";
 
 function registerStateFaultTests(): void {
+  it("rejects a non-OK metadata response", async () => {
+    const adapter = new ServerSyncAdapter(
+      "http://api.test",
+      vi.fn(async () => new Response(null, { status: 503 })),
+    );
+    await expect(adapter.hasExisting()).rejects.toThrow("Failed to read meta (503)");
+  });
+
   it.each([[[]], ["not-an-object"]])("rejects a valid JSON %j state body that is not a record", async (body) => {
     const adapter = new ServerSyncAdapter(
       "http://api.test",
@@ -25,7 +29,7 @@ function registerStateFaultTests(): void {
     await expect(adapter.loadAll()).rejects.toThrow("invalid state payload");
   });
 
-  it("does not let a superseded unscoped 400 seed or clear offline state", async () => {
+  it("does not let a superseded unscoped 400 seed the current state", async () => {
     let resolveFirst: ((response: Response) => void) | undefined;
     const first = new Promise<Response>((resolve) => {
       resolveFirst = resolve;
@@ -38,91 +42,11 @@ function registerStateFaultTests(): void {
     const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
     const staleLoad = adapter.loadAll();
     await expect(adapter.loadAll()).resolves.toMatchObject({ clients: [{ id: "fresh" }] });
-    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: 123 });
     required(resolveFirst)(new Response(null, { status: 400 }));
     await expect(staleLoad).resolves.toEqual(emptyAppData());
-    expect(readOfflineStateSnapshot()).toMatchObject({ readOnly: true, lastUpdated: 123 });
 
     await adapter.saveAll(fresh);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
-    setOfflineReadState({ owner: "cleanup", readOnly: false });
-  });
-
-  it("warns when background offline-cache refresh fails without failing hydration", async () => {
-    const cause = new Error("cache write failed");
-    vi.spyOn(offlineCacheModule, "cacheAccountSlice").mockRejectedValueOnce(cause);
-    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const slice = scopedData("a1", {});
-    const adapter = new ServerSyncAdapter(
-      "http://api.test",
-      vi.fn(async () => new Response(JSON.stringify(slice), { status: 200 })) as unknown as typeof fetch,
-    );
-
-    const loaded = await adapter.loadAll("a1");
-    expect(loaded.accounts).toMatchObject([{ id: "a1" }]);
-    expect(loaded.clients.some((row) => row.id === "internal:a1")).toBe(true);
-    await vi.waitFor(() =>
-      expect(warning).toHaveBeenCalledWith(
-        "ServerSyncAdapter: the offline account snapshot could not be updated",
-        cause,
-      ),
-    );
-  });
-}
-
-function registerOfflineFaultTests(): void {
-  it("hydrates a scoped cached slice on a fetch TypeError and publishes its saved time", async () => {
-    await withOfflineCache(async () => {
-      const cached = scopedData("a1", {});
-      await cacheAccountSlice("a1", cached);
-      const adapter = new ServerSyncAdapter(
-        "http://api.test",
-        vi.fn().mockRejectedValue(new TypeError("offline")) as unknown as typeof fetch,
-      );
-      const loaded = await adapter.loadAll("a1");
-      expect(loaded.accounts).toMatchObject([{ id: "a1" }]);
-      expect(loaded.clients.some((row) => row.id === "internal:a1")).toBe(true);
-      expect(readOfflineStateSnapshot().readOnly).toBe(true);
-      expect(readOfflineStateSnapshot().lastUpdated).toEqual(expect.any(Number));
-    });
-  });
-
-  it("warns on scoped and identity cache read failures while surfacing the real LoadError", async () => {
-    const cause = new Error("cache corrupt");
-    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    vi.spyOn(offlineCacheModule, "readCachedAccountSlice").mockRejectedValueOnce(cause);
-    const scoped = new ServerSyncAdapter(
-      "http://api.test",
-      vi.fn().mockRejectedValue(new TypeError("network down")) as unknown as typeof fetch,
-    );
-    await expect(scoped.loadAll("a1")).rejects.toMatchObject({ kind: "unavailable" });
-    expect(warning).toHaveBeenCalledWith("ServerSyncAdapter: the offline account snapshot could not be read", cause);
-
-    vi.spyOn(offlineCacheModule, "readCachedAuthSnapshot").mockRejectedValueOnce(cause);
-    const identity = new ServerSyncAdapter(
-      "http://api.test",
-      vi.fn().mockRejectedValue(new TypeError("network down")) as unknown as typeof fetch,
-    );
-    await expect(identity.loadAll()).rejects.toMatchObject({ kind: "unavailable" });
-    expect(warning).toHaveBeenCalledWith("ServerSyncAdapter: the offline identity snapshot could not be read", cause);
-  });
-
-  it("returns null from both offline hydration arms when no cache exists", async () => {
-    localStorage.removeItem("capacitylens/offlineRead");
-    const adapter = new ServerSyncAdapter(
-      "http://api.test",
-      vi.fn().mockRejectedValue(new TypeError("network down")) as unknown as typeof fetch,
-    );
-    await expect(adapter.loadAll()).rejects.toMatchObject({ kind: "unavailable" });
-    await expect(adapter.loadAll("a1")).rejects.toMatchObject({ kind: "unavailable" });
-  });
-
-  it("rejects a non-OK metadata response", async () => {
-    const adapter = new ServerSyncAdapter(
-      "http://api.test",
-      vi.fn(async () => new Response(null, { status: 503 })) as unknown as typeof fetch,
-    );
-    await expect(adapter.hasExisting()).rejects.toThrow("Failed to read meta (503)");
   });
 }
 
@@ -287,7 +211,6 @@ function registerRestoreReceiptFaultTests(): void {
 
 describe("ServerSyncAdapter fault-injection branches", () => {
   registerStateFaultTests();
-  registerOfflineFaultTests();
   registerCommitReceiptFaultTests();
   registerArchiveReceiptFaultTests();
   registerArchiveOutcomeFaultTests();

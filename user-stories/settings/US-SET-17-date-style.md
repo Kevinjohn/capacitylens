@@ -58,8 +58,7 @@ seed window — see _Seed data_ in REFERENCE.md).
 - Server instants use the viewer's browser locale and local time zone instead. This includes session
   creation and expiry, password-reset expiry, invitation expiry in the Team & access member panel
   and on the invitee's Accept invite page, ownership-transfer deadlines and ownership outcome dates.
-  The offline read-only banner's last-updated timestamp also uses the viewer's browser locale and
-  local time zone. The exception still applies when an instant is shown as a date without a time:
+  The exception still applies when an instant is shown as a date without a time:
   the browser's time zone decides which local calendar day it falls on, and its locale decides the
   date order.
 - Existing date-and-time displays keep their time, while existing compact date-only displays stay

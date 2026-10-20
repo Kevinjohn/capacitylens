@@ -22,38 +22,25 @@ const localizedRoleCopy = (role: Role) => ({
 
 const accessPrecedenceCases = () =>
   [
+    [{ experience: "demo", permissionStatus: "pending", role: null }, m.access_demo_label(), m.access_demo_summary()],
+    [{ experience: "open", permissionStatus: "pending", role: null }, m.access_open_label(), m.access_open_summary()],
     [
-      { offlineReadOnly: true, experience: "demo", permissionStatus: "pending", role: "owner" },
-      m.access_offline_label(),
-      m.access_offline_summary(),
-    ],
-    [
-      { offlineReadOnly: false, experience: "demo", permissionStatus: "pending", role: null },
-      m.access_demo_label(),
-      m.access_demo_summary(),
-    ],
-    [
-      { offlineReadOnly: false, experience: "open", permissionStatus: "pending", role: null },
-      m.access_open_label(),
-      m.access_open_summary(),
-    ],
-    [
-      { offlineReadOnly: false, experience: "authenticated", permissionStatus: "pending", role: null },
+      { experience: "authenticated", permissionStatus: "pending", role: null },
       m.access_checking_label(),
       m.access_checking_summary(),
     ],
     [
-      { offlineReadOnly: false, experience: "authenticated", permissionStatus: "not-applicable", role: null },
+      { experience: "authenticated", permissionStatus: "not-applicable", role: null },
       m.access_not_applicable_label(),
       m.access_not_applicable_summary(),
     ],
     [
-      { offlineReadOnly: false, experience: "authenticated", permissionStatus: "unavailable", role: "owner" },
+      { experience: "authenticated", permissionStatus: "unavailable", role: "owner" },
       m.access_unavailable_label(),
       m.access_unavailable_summary(),
     ],
     [
-      { offlineReadOnly: false, experience: "authenticated", permissionStatus: "resolved", role: "viewer" },
+      { experience: "authenticated", permissionStatus: "resolved", role: "viewer" },
       m.settings_role_viewer(),
       m.access_role_viewer_summary(),
     ],
@@ -66,7 +53,7 @@ describe("access copy", () => {
     expect(resolveRoleSummary(role)).toBe(copy.summary);
   });
 
-  it("applies offline, demo, open, pending, unavailable and role precedence consistently", () => {
+  it("applies demo, open, pending, unavailable and role precedence consistently", () => {
     for (const [input, label, summary] of accessPrecedenceCases()) {
       expect(resolveAccessLabel(input)).toBe(label);
       expect(resolveAccessSummary(input)).toBe(summary);

@@ -5,8 +5,6 @@ import { useStore } from "@/store/useStore";
 import { useAuth } from "./authContext";
 import { PermissionContext } from "./permissionContext";
 import type { Role } from "@capacitylens/shared/domain/access";
-import { useOfflineState } from "@/data/useOfflineState";
-import { readOfflineStateEpisode } from "@/data/offlineCache";
 import { refreshAccountSummaries } from "./useAccountSummaries";
 import { masqueradeApi } from "./masqueradeApi";
 import { adoptMasqueradeStatus } from "./accountTransition";
@@ -16,7 +14,6 @@ type PermissionStatus = "not-applicable" | "pending" | "resolved" | "unavailable
 interface FetchedPermission {
   accountId: string;
   membershipRevision: number;
-  offlineEpisode: number;
   status: "resolved" | "unavailable";
   role?: Role;
 }
@@ -24,14 +21,12 @@ interface FetchedPermission {
 interface PermissionRefresh {
   accountId: string;
   membershipRevision: number;
-  offlineEpisode: number;
   isCurrent: () => boolean;
   setFetched: Dispatch<SetStateAction<FetchedPermission | null>>;
   setActiveRole: (role: Role | null, status?: PermissionStatus) => void;
 }
 
 interface PermissionValueInput {
-  offlineReadOnly: boolean;
   enabled: boolean;
   activeAccountId: string | null;
   fetched: FetchedPermission | null;
@@ -50,7 +45,6 @@ function publishUnavailable(refresh: PermissionRefresh) {
   refresh.setFetched({
     accountId: refresh.accountId,
     membershipRevision: refresh.membershipRevision,
-    offlineEpisode: refresh.offlineEpisode,
     status: "unavailable",
   });
 }
@@ -69,7 +63,6 @@ async function refreshPermission(refresh: PermissionRefresh) {
     // distinct failure postures.
     const summaries = await refreshAccountSummaries({
       acceptEffects: refresh.isCurrent,
-      allowCachedFallback: false,
     });
     if (summaries === null) {
       publishUnavailable(refresh);
@@ -86,7 +79,6 @@ async function refreshPermission(refresh: PermissionRefresh) {
     refresh.setFetched({
       accountId: refresh.accountId,
       membershipRevision: refresh.membershipRevision,
-      offlineEpisode: refresh.offlineEpisode,
       status: "resolved",
       role: entry.role,
     });
@@ -99,7 +91,6 @@ async function refreshPermission(refresh: PermissionRefresh) {
 }
 
 function resolvePermissionValue(input: PermissionValueInput): PermissionValue {
-  if (input.offlineReadOnly) return { role: "viewer", status: "unavailable" };
   if (input.masqueradeActive) {
     return input.masqueradeRole
       ? { role: input.masqueradeRole, status: "resolved" }
@@ -119,19 +110,12 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   const setActiveRole = useStore((state) => state.setActiveRole);
   const membershipRevision = useStore((state) => state.membershipRevision);
   const masquerade = useStore((state) => state.masquerade);
-  const offline = useOfflineState();
-  const offlineEpisode = readOfflineStateEpisode();
   // Tag resolved roles with accountId and membership revision so switching company immediately discards the previous role and projects Viewer until the new lookup succeeds.
   const [fetched, setFetched] = useState<FetchedPermission | null>(null);
 
   const enabled = authMode !== "off" && isServerConfigured();
 
   useEffect(() => {
-    if (offline.readOnly) {
-      setActiveRole("viewer", "unavailable");
-      return;
-    }
-
     if (masquerade.kind !== "inactive") {
       const state = masquerade.state;
       if (state && state.accountId === activeAccountId) {
@@ -150,7 +134,6 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
     void refreshPermission({
       accountId: activeAccountId,
       membershipRevision,
-      offlineEpisode,
       isCurrent: () => !cancelled,
       setFetched,
       setActiveRole,
@@ -158,18 +141,11 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [enabled, activeAccountId, membershipRevision, masquerade, offline.readOnly, offlineEpisode, setActiveRole]);
+  }, [enabled, activeAccountId, membershipRevision, masquerade, setActiveRole]);
 
   const currentFetched =
-    fetched?.accountId === activeAccountId &&
-    fetched.membershipRevision === membershipRevision &&
-    fetched.offlineEpisode === offlineEpisode
-      ? fetched
-      : null;
-  // Offline read-only is a safe capability projection, not a resolved membership fact. Keep the
-  // status unavailable so explanatory consumers cannot present Viewer as the authoritative role.
+    fetched?.accountId === activeAccountId && fetched.membershipRevision === membershipRevision ? fetched : null;
   const { role, status } = resolvePermissionValue({
-    offlineReadOnly: offline.readOnly,
     enabled,
     activeAccountId,
     fetched: currentFetched,

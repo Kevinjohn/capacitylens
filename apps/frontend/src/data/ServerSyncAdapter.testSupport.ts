@@ -1,11 +1,8 @@
 import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { vi } from "vitest";
-import { IDBFactory } from "fake-indexeddb";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Account, Allocation, AppData, Client, Project, TimeOff } from "@capacitylens/shared/types/entities";
 import { ServerSyncAdapter } from "./ServerSyncAdapter";
-import { cacheAuthSnapshot, clearAllOfflineData, setOfflineReadState } from "./offlineCache";
-import type { OfflineAuthSnapshot } from "./offlineCache";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 /** First timestamp shared by server-sync adapter fixtures. */
@@ -186,32 +183,6 @@ export const required = <T>(value: T | null | undefined, message = "expected tes
   if (value === undefined || value === null) throw new Error(message);
   return value;
 };
-
-const OFFLINE_IDENTITY: OfflineAuthSnapshot = {
-  authMode: "password-only",
-  user: {
-    id: "offline-user",
-    email: "offline@example.test",
-    name: "Offline user",
-  },
-  canCreateAccount: false,
-  multiAccount: false,
-};
-
-/** Runs a test with an isolated IndexedDB offline cache. */
-export async function withOfflineCache(run: () => Promise<void>): Promise<void> {
-  vi.stubGlobal("indexedDB", new IDBFactory());
-  localStorage.setItem("capacitylens/offlineRead", "on");
-  try {
-    await cacheAuthSnapshot(OFFLINE_IDENTITY);
-    await run();
-  } finally {
-    await clearAllOfflineData();
-    setOfflineReadState({ owner: "cleanup", readOnly: false });
-    localStorage.clear();
-    vi.unstubAllGlobals();
-  }
-}
 
 /** Extracts parsed operations from a recorded batch fetch call. */
 export const batchOps = (call: unknown[] | undefined): ReceiptOp[] => {

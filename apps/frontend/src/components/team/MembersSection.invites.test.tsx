@@ -5,7 +5,6 @@ import userEvent from "@testing-library/user-event";
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
 import { refreshActiveAccountSlice } from "@/data/persist";
-import { setOfflineReadState } from "@/data/offlineCache";
 import { m } from "@/i18n";
 import {
   chooseMemberAction,
@@ -59,11 +58,9 @@ vi.mock("@/data/persist", () => ({
 beforeEach(() => {
   accountTransitionMocks.startMasquerade.mockClear();
   resetStoreWithAccount();
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });
 });
 afterEach(() => {
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -263,7 +260,7 @@ function registerInviteMintTests(): void {
 }
 
 function registerInviteResetTests(): void {
-  it("discards the link of a create that resolves after the page went read-only", async () => {
+  it("discards the link of a create when its dialog closes before the request resolves", async () => {
     const pending: { respond?: (response: Response) => void } = {};
 
     let invites: Record<string, unknown>[] = [];
@@ -287,11 +284,8 @@ function registerInviteResetTests(): void {
     fillAddressedInvite();
     fireEvent.click(screen.getByTestId("invite-submit"));
     await waitFor(() => expect(pending.respond).toBeDefined());
-    act(() =>
-      setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") }),
-    );
+    closeInviteDialog();
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Invite someone" })).not.toBeInTheDocument());
-    act(() => setOfflineReadState({ owner: "cleanup", readOnly: false }));
     const readsBeforeResponse = invitesReads;
     invites = [LATE_INVITE];
     await act(async () => {

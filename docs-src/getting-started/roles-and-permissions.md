@@ -75,8 +75,7 @@ for lower roles:
 | Viewer | Two, read-only                                                |
 
 On an installed server, the Admin tour includes a stop about example data; the demo leaves it out.
-The tour is unavailable while permissions are being checked or can't be confirmed, and while you
-are viewing a read-only [offline snapshot](/reference/glossary#snapshot-offline).
+The tour is unavailable while permissions are being checked or can't be confirmed.
 
 ## View the company as a member
 
@@ -94,7 +93,7 @@ company as the Owner sees what the Owner sees, including real names.
 Select **End now** to return to your own view. Signing out also ends it. Switching company ends the
 view before changing company. The server records when a view starts and ends.
 
-## Check what exports and offline snapshots contain
+## Check what exports contain
 
 An export hides the same things as the screen. Only an Owner's export holds real names:
 
@@ -102,11 +101,6 @@ An export hides the same things as the screen. Only an Owner's export holds real
 | ---------------------------- | --------------- | ---------- | ---------- |
 | Archived and deleted rows    | Left out        | Included   | Included   |
 | Private client/project names | Code names      | Code names | Real names |
-
-[Offline access](/using/settings#offline-access) always behaves like Viewer access: while a cached
-snapshot is open, nobody can create, edit, delete, import or change membership. A snapshot holds
-what that person could see when last online, so an Owner's snapshot may contain real private names.
-Protect the Owner's device accordingly.
 
 <span id="what-s-next"></span>
 

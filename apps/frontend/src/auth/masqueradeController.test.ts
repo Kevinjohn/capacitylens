@@ -3,7 +3,6 @@ import type { MasqueradeState, MasqueradeStatus } from "@capacitylens/shared/dom
 import { makeAccount, makeAppData, resetStoreWithAccount } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
 import type { FlushPendingWritesResult } from "@/data/persist";
-import { finishMasqueradeRestorationWrites, isMasqueradeOfflineIsolated } from "@/data/offlineCache";
 import { MasqueradeController } from "./masqueradeController";
 import type { MasqueradeControllerDependencies } from "./masqueradeController";
 
@@ -44,53 +43,12 @@ function harness(overrides: Partial<MasqueradeControllerDependencies> = {}) {
 }
 
 beforeEach(() => {
-  finishMasqueradeRestorationWrites(true);
   resetStoreWithAccount();
   useStore.getState().setMasquerade({ kind: "inactive" });
   useStore.getState().setNotice(null);
 });
 
 describe("MasqueradeController", () => {
-  it("keeps offline snapshots isolated unless the live company directory and account both restore", async () => {
-    resetStoreWithAccount("a-studio");
-    const refreshIdentity = vi.fn(async () => true);
-    const { controller, dependencies } = harness({
-      switchAccount: vi.fn(async (accountId: string | null) => {
-        useStore.getState().setActiveAccount(accountId);
-        return { kind: "reloaded" as const };
-      }),
-      refreshSummaries: vi.fn(async () => false),
-      refreshIdentity,
-    });
-    localStorage.setItem("capacitylens/masqueradeOfflineIsolation", "on");
-
-    await expect(controller.transitionAccount("a-studio")).resolves.toBe(true);
-
-    expect(dependencies.refreshSummaries).toHaveBeenCalledOnce();
-    expect(refreshIdentity).toHaveBeenCalledOnce();
-    expect(isMasqueradeOfflineIsolated()).toBe(true);
-  });
-
-  it("clears stale isolation only after live summaries, slice, and real identity restore", async () => {
-    resetStoreWithAccount("a-studio");
-    const refreshIdentity = vi.fn(async () => true);
-    const { controller, dependencies } = harness({
-      switchAccount: vi.fn(async (accountId: string | null) => {
-        useStore.getState().setActiveAccount(accountId);
-        return { kind: "reloaded" as const };
-      }),
-      refreshSummaries: vi.fn(async () => true),
-      refreshIdentity,
-    });
-    localStorage.setItem("capacitylens/masqueradeOfflineIsolation", "on");
-
-    await expect(controller.transitionAccount("a-studio")).resolves.toBe(true);
-
-    expect(dependencies.refreshSummaries).toHaveBeenCalledOnce();
-    expect(refreshIdentity).toHaveBeenCalledOnce();
-    expect(isMasqueradeOfflineIsolated()).toBe(false);
-  });
-
   it("succeeds while inactive without navigating or touching masquerade dependencies", async () => {
     const { controller, dependencies, resume } = harness();
     const navigate = vi.fn();
@@ -111,7 +69,6 @@ describe("MasqueradeController", () => {
 
     await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(true);
     expect(useStore.getState().masquerade.kind).toBe("active");
-    expect(isMasqueradeOfflineIsolated()).toBe(true);
     expect(dependencies.suspend).toHaveBeenCalledTimes(1);
 
     await expect(controller.end("explicit", navigate)).resolves.toBe(true);
@@ -119,7 +76,6 @@ describe("MasqueradeController", () => {
     expect(resume).toHaveBeenCalledOnce();
     expect(resume).toHaveBeenCalledWith({ dropParkedEdits: true });
     expect(useStore.getState().masquerade).toEqual({ kind: "inactive" });
-    expect(isMasqueradeOfflineIsolated()).toBe(false);
     expect(navigate).toHaveBeenCalledWith("/");
   });
 
@@ -387,17 +343,16 @@ describe("MasqueradeController shared-session reconciliation", () => {
 
     expect(dependencies.reproject).toHaveBeenCalledWith(state.accountId);
     expect(resume).toHaveBeenCalledWith({ dropParkedEdits: true });
-    expect(isMasqueradeOfflineIsolated()).toBe(false);
   });
 
-  it("keeps offline snapshots isolated until the live real projection succeeds", async () => {
-    const { controller } = harness({ reproject: vi.fn(async () => false) });
+  it("keeps the real projection suspended until its reload succeeds", async () => {
+    const { controller, resume } = harness({ reproject: vi.fn(async () => false) });
     await controller.adoptStatus({ active: true, ...state });
-    expect(isMasqueradeOfflineIsolated()).toBe(true);
 
     controller.restoreServerEndedProjection();
     await vi.waitFor(() => expect(useStore.getState().notice?.message).toContain("could not be restored"));
 
-    expect(isMasqueradeOfflineIsolated()).toBe(true);
+    expect(useStore.getState().masquerade.kind).toBe("ending");
+    expect(resume).not.toHaveBeenCalled();
   });
 });

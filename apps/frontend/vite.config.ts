@@ -25,24 +25,6 @@ if (!Object.hasOwn(lanePorts, viteService)) {
   throw new Error(`CAPACITYLENS_VITE_SERVICE must name a lane port; received ${JSON.stringify(viteService)}.`);
 }
 const servicePort = lanePorts[viteService as keyof typeof lanePorts];
-function offlineShellManifest(): Plugin {
-  return {
-    name: "capacitylens-offline-shell-manifest",
-    apply: "build",
-    generateBundle(_options, bundle) {
-      const assets = Object.keys(bundle)
-        .filter((fileName) => fileName !== "offline-shell.json" && !fileName.endsWith(".html"))
-        .map((fileName) => `/${fileName}`)
-        .sort();
-      this.emitFile({
-        type: "asset",
-        fileName: "offline-shell.json",
-        source: JSON.stringify(assets),
-      });
-    },
-  };
-}
-
 /**
  * Emit real directory index documents for fixed client routes. The packaged nginx image still
  * provides the normal SPA fallback, while these aliases also survive a static outer proxy that
@@ -91,7 +73,6 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       tailwindcss(),
-      offlineShellManifest(),
       staticSpaRouteDocuments(),
       // Paraglide generates messages from committed sources during dev and builds. Package scripts
       // precompile them so direct type-check and Vitest commands can resolve the output. The

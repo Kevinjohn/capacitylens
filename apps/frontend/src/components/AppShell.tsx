@@ -15,7 +15,6 @@ import { Spinner } from "./ui/spinner";
 import { Alert, AlertDescription } from "./ui/alert";
 import { m } from "@/i18n";
 import { ACCOUNT_LINK, ADMIN_LINKS, LINKS } from "@/lib/navLinks";
-import { useOfflineState } from "@/data/useOfflineState";
 import { AppEntryGate } from "./AppEntryGate";
 import { useAppShellController } from "./useAppShellController";
 import { AppSidebar } from "./AppSidebar";
@@ -29,7 +28,6 @@ import { chooseAnotherAccountAfterLoadFailure } from "./accountLoadRecoveryActio
 import { useAuth } from "@/auth/authContext";
 import { ProductOrientation } from "./ProductOrientation";
 import { useProductOrientation } from "./useProductOrientation";
-import { formatInstant } from "@/lib/dateDisplay";
 
 const masqueradeButtonClassName = "border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white";
 
@@ -116,7 +114,6 @@ type GatedAppProps = {
   dirtyForm: boolean;
   paletteOpen: boolean;
   closePalette: () => void;
-  offline: ReturnType<typeof useOfflineState>;
   persistError: ReturnType<typeof useStore.getState>["persistError"];
   masqueradeBanner: ReturnType<typeof buildMasqueradeBannerContent>;
   navigate: ReturnType<typeof useNavigate>;
@@ -140,7 +137,6 @@ function GatedApp({
   dirtyForm,
   paletteOpen,
   closePalette,
-  offline,
   persistError,
   masqueradeBanner,
   navigate,
@@ -188,7 +184,7 @@ function GatedApp({
             sidebarOpen={sidebarOpen}
           />
           {/* prettier-ignore */}
-          <GatedMain hydrated={hydrated} offline={offline} persistError={persistError} masqueradeBanner={masqueradeBanner} navigate={navigate} orientation={orientation} />
+          <GatedMain hydrated={hydrated} persistError={persistError} masqueradeBanner={masqueradeBanner} navigate={navigate} orientation={orientation} />
           {paletteOpen && !dirtyForm && <CommandPalette onClose={closePalette} />}
           <RotateHint />
         </SidebarProvider>
@@ -243,12 +239,11 @@ function GatedSidebar({
 
 function GatedMain({
   hydrated,
-  offline,
   persistError,
   masqueradeBanner,
   navigate,
   orientation,
-}: Pick<GatedAppProps, "hydrated" | "offline" | "persistError" | "masqueradeBanner" | "navigate"> & {
+}: Pick<GatedAppProps, "hydrated" | "persistError" | "masqueradeBanner" | "navigate"> & {
   orientation: ReturnType<typeof useProductOrientation>;
 }) {
   const loader = <AppShellLoader />;
@@ -258,15 +253,6 @@ function GatedMain({
         <MobileSidebarTrigger />
       </div>
       {masqueradeBanner && <MasqueradeBanner banner={masqueradeBanner} navigate={navigate} />}
-      {offline.readOnly && (
-        <Alert role="status" data-testid="offline-read-only" className="rounded-none border-x-0 border-t-0">
-          <AlertDescription>
-            {m.app_offline_read_only({
-              updated: offline.lastUpdated ? formatInstant(offline.lastUpdated) : m.app_offline_unknown_time(),
-            })}
-          </AlertDescription>
-        </Alert>
-      )}
       {persistError && (
         <Alert variant="destructive" className="rounded-none border-x-0 border-t-0">
           <AlertDescription>{m.app_persist_error()}</AlertDescription>
@@ -343,7 +329,6 @@ export function AppShell() {
   const connectionError = useStore((state) => state.connectionError);
   const masquerade = useStore((state) => state.masquerade);
   const masqueradeBanner = buildMasqueradeBannerContent(masquerade);
-  const offline = useOfflineState();
   // Delegate the system preference to Sonner so it follows live OS changes without a shell rerender;
   // explicit light and dark preferences pass through as concrete schemes.
   const themePreference = useStore((state) => state.theme);
@@ -387,7 +372,6 @@ export function AppShell() {
         dirtyForm={dirtyForm}
         paletteOpen={paletteOpen}
         closePalette={closePalette}
-        offline={offline}
         persistError={persistError}
         masqueradeBanner={masqueradeBanner}
         navigate={navigate}

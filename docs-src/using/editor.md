@@ -117,10 +117,3 @@ was saved. [Day-to-day FAQ](/using/faq) covers connection messages.
 ### Why do I see a code name instead of a client's name?
 
 Only the Owner sees confidential real names, whatever your role. Use the code name.
-
-<span id="i-am-using-an-offline-snapshot"></span>
-
-### Can I make changes from an offline snapshot?
-
-The snapshot is read-only, even for an Editor. Edits are never queued for later. Reconnect before
-changing work. [Offline access](/using/settings#offline-access) explains the seven-day limit.

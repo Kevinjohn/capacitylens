@@ -14,7 +14,6 @@ import { useStore } from "@/store/useStore";
 interface TeamDirectoryOptions {
   enabled: boolean;
   activeAccountId: string | null;
-  offlineReadOnly: boolean;
   fail: FieldError["fail"];
   onInvitesLoaded?: (invites: TeamInvitation[]) => void;
 }
@@ -79,19 +78,19 @@ function useScopedDirectoryQueries({
   inviteReloadKey: number;
   scope: ApiQueryScope;
 }) {
-  const { enabled, activeAccountId, offlineReadOnly } = options;
+  const { enabled, activeAccountId } = options;
   const scopeId = JSON.stringify([scope.principalId, scope.accountId, scope.masqueradeGeneration]);
   const memberRouteKey = api.api.members.index.queryKey({ params: { accountId: activeAccountId ?? "" } });
   const membersQuery = useQuery<TeamAccessResult<TeamDirectory>>({
     queryKey: scopeQueryKey(scope, ["team-members", reloadKey, ...memberRouteKey]),
-    enabled: enabled && !!activeAccountId && !offlineReadOnly,
+    enabled: enabled && !!activeAccountId,
     refetchOnWindowFocus: false,
     queryFn: ({ signal }) => teamAccessClient.listMembers(activeAccountId ?? "", signal),
   });
   const inviteRouteKey = api.api.invites.index.queryKey({ params: { accountId: activeAccountId ?? "" } });
   const invitationsQuery = useQuery<TeamAccessResult<TeamInvitation[]>>({
     queryKey: scopeQueryKey(scope, ["team-invitations", inviteReloadKey, ...inviteRouteKey]),
-    enabled: enabled && !!activeAccountId && !offlineReadOnly && membersQuery.data?.kind === "ok",
+    enabled: enabled && !!activeAccountId && membersQuery.data?.kind === "ok",
     refetchOnWindowFocus: false,
     queryFn: ({ signal }) => teamAccessClient.listInvitations(activeAccountId ?? "", signal),
   });

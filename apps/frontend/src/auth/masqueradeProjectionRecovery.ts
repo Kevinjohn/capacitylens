@@ -1,16 +1,9 @@
 import type { MasqueradeState, MasqueradeStatus } from "@capacitylens/shared/domain/masquerade";
 import { useStore } from "@/store/useStore";
-import type { MasqueradeOfflineRecovery } from "./masqueradeOfflineRecovery";
 
 export type FinishProjectionResult = { kind: "finished" } | { kind: "failed"; message: string };
 export type RealProjectionResult =
   { kind: "restored" } | { kind: "active" } | { kind: "superseded" } | { kind: "failed" };
-
-function identityFailureResult(isCurrent: () => boolean, onIdentityFailure: () => void): RealProjectionResult {
-  if (!isCurrent()) return { kind: "superseded" };
-  onIdentityFailure();
-  return { kind: "failed" };
-}
 
 export function publishMasqueradeAccount(state: MasqueradeState, selectAccount = false): void {
   const account = useStore.getState().data.accounts.find((candidate) => candidate.id === state.accountId);
@@ -29,9 +22,7 @@ interface RestoreMasqueradeProjectionInput {
   readStatus: () => Promise<MasqueradeStatus>;
   isCurrent: () => boolean;
   publishActive: (status: Extract<MasqueradeStatus, { active: true }>) => void;
-  offlineRecovery: MasqueradeOfflineRecovery;
   restoreProjection: (state: MasqueradeState) => Promise<FinishProjectionResult>;
-  onIdentityFailure: () => void;
   onProjectionFailure: (message: string) => void;
 }
 
@@ -41,9 +32,7 @@ export async function restoreMasqueradeProjection({
   readStatus,
   isCurrent,
   publishActive,
-  offlineRecovery,
   restoreProjection,
-  onIdentityFailure,
   onProjectionFailure,
 }: RestoreMasqueradeProjectionInput): Promise<RealProjectionResult> {
   const status = await readStatus();
@@ -52,24 +41,11 @@ export async function restoreMasqueradeProjection({
     publishActive(status);
     return { kind: "active" };
   }
-  const isolated = offlineRecovery.isIsolated();
-  if (isolated) offlineRecovery.beginRestorationWrites();
-  let restored = !isolated;
-  try {
-    if (isolated) {
-      const identityReady = await offlineRecovery.establishRealIdentity(isCurrent);
-      if (!identityReady) return identityFailureResult(isCurrent, onIdentityFailure);
-    }
-    const finishResult = await restoreProjection(state);
-    if (!isCurrent()) return { kind: "superseded" };
-    if (finishResult.kind === "failed") {
-      onProjectionFailure(finishResult.message);
-      return { kind: "failed" };
-    }
-    if (isolated) offlineRecovery.finish(true);
-    restored = true;
-    return { kind: "restored" };
-  } finally {
-    if (isolated && !restored) offlineRecovery.finish(false);
+  const finishResult = await restoreProjection(state);
+  if (!isCurrent()) return { kind: "superseded" };
+  if (finishResult.kind === "failed") {
+    onProjectionFailure(finishResult.message);
+    return { kind: "failed" };
   }
+  return { kind: "restored" };
 }

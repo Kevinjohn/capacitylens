@@ -7,8 +7,7 @@ import { useStore } from "@/store/useStore";
 import { AuthContext } from "./authContext";
 import { m } from "@/i18n";
 import { Button } from "@/components/ui/button";
-import { OFFLINE_WRITE_BOUNDARY_STORAGE_KEY, revalidateOfflineShell } from "@/data/offlineCache";
-import { signOutAndReload } from "./signOut";
+import { AUTH_INVALIDATION_STORAGE_KEY, signOutAndReload } from "./signOut";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { markCompanyPickerForNextReload } from "@/lib/companyPickerEntry";
 import { buildOpenAuthResult } from "./authStatus";
@@ -29,7 +28,7 @@ type CheckAuth = (onNull: "fail-open" | "keep-previous") => Promise<AuthStatusRe
 
 function useTenantAccessReady(
   status: AuthStatusResult,
-  onTenantAccessReady?: (identitySource: "live" | "offline" | "open") => void,
+  onTenantAccessReady?: (identitySource: "live" | "open") => void,
 ) {
   const tenantAccessSignalled = useRef(false);
   const ready = status.kind === "pass";
@@ -84,7 +83,7 @@ function useAuthRevalidation({
 }) {
   useEffect(() => {
     if (!serverMode) return;
-    void revalidateOfflineShell().finally(() => checkAuth("fail-open"));
+    void checkAuth("fail-open");
   }, [serverMode, checkAuth]);
   useEffect(() => {
     if (serverMode && persistError) void refreshAuth();
@@ -103,16 +102,19 @@ function useAuthRevalidation({
   }, [serverMode, refreshAuth]);
 }
 
-type UseAuthInvalidationOptions = {
+function useAuthInvalidation({
+  serverMode,
+  checkAuth,
+  setStatus,
+}: {
   serverMode: boolean;
   checkAuth: CheckAuth;
   setStatus: (status: AuthStatusResult) => void;
-};
-function useAuthInvalidation({ serverMode, checkAuth, setStatus }: UseAuthInvalidationOptions) {
+}) {
   useEffect(() => {
     if (!serverMode) return;
     const onAuthInvalidation = (event: StorageEvent) => {
-      if (event.key !== OFFLINE_WRITE_BOUNDARY_STORAGE_KEY) return;
+      if (event.key !== AUTH_INVALIDATION_STORAGE_KEY) return;
       useStore.getState().setActiveAccount(null);
       setStatus({ kind: "checking" });
       void checkAuth("fail-open");
@@ -202,9 +204,8 @@ export function AuthProvider({
   onTenantAccessReady,
 }: {
   children: ReactNode;
-  /** Starts tenant-data hydration after /me admits access. Receives whether identity is live,
-   * cached offline, or open; the callback must be idempotent under StrictMode effect replay. */
-  onTenantAccessReady?: (identitySource: "live" | "offline" | "open") => void;
+  /** Starts tenant-data hydration after /me admits access; the callback must be idempotent under StrictMode effect replay. */
+  onTenantAccessReady?: (identitySource: "live" | "open") => void;
 }) {
   return (
     <AuthenticatedAppProvider {...(onTenantAccessReady ? { onTenantAccessReady } : {})}>
@@ -218,7 +219,7 @@ function AuthenticatedAppProvider({
   onTenantAccessReady,
 }: {
   children: ReactNode;
-  onTenantAccessReady?: (identitySource: "live" | "offline" | "open") => void;
+  onTenantAccessReady?: (identitySource: "live" | "open") => void;
 }) {
   const serverMode = isServerConfigured();
   const persistError = useStore((state) => state.persistError);

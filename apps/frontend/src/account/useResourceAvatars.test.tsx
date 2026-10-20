@@ -1,8 +1,7 @@
 import { act, render, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { accountClient } from "./accountClient";
 import { invalidateResourceAvatars, useResourceAvatars } from "./useResourceAvatars";
-import { setOfflineReadState } from "@/data/offlineCache";
 import { AuthContext } from "@/auth/authContext";
 import { useStore } from "@/store/useStore";
 
@@ -20,7 +19,6 @@ describe("useResourceAvatars", () => {
       .mockImplementation(async () => response([]));
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
   });
-  afterEach(() => setOfflineReadState({ owner: "cleanup", readOnly: false }));
 
   it("clears immediately, refreshes on invalidation, and validates normalized URLs", async () => {
     vi.mocked(accountClient.listResourceAvatars)
@@ -63,15 +61,6 @@ describe("useResourceAvatars", () => {
       window.dispatchEvent(new Event("online"));
     });
     await waitFor(() => expect(result.current.get("r1")).toBe("https://images.example/b.png"));
-  });
-
-  it("does not fetch in app read-only mode even while the browser reports online", async () => {
-    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: Date.now() });
-    renderHook(() => useResourceAvatars("a1"));
-    await act(async () => Promise.resolve());
-    expect(accountClient.listResourceAvatars).not.toHaveBeenCalled();
-    act(() => setOfflineReadState({ owner: "tenant", readOnly: false }));
-    await waitFor(() => expect(accountClient.listResourceAvatars).toHaveBeenCalledOnce());
   });
 
   it("refreshes after session and ordinary account-data refresh signals", async () => {

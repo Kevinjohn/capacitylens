@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { IDBFactory } from "fake-indexeddb";
 import type { MasqueradeBootstrapStatus } from "./masqueradeApi";
+import { AUTH_INVALIDATION_STORAGE_KEY } from "./signOut";
 
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({ active: false })),
@@ -30,7 +30,6 @@ async function freshProvider() {
   const { useStore } = await import("@/store/useStore");
   const { attachPersistence } = await import("@/data/persist");
   const { resetStoreWithAccount } = await import("@/test/fixtures");
-  const { cacheAuthSnapshot, readOfflineStateSnapshot, setOfflineReadState } = await import("@/data/offlineCache");
   // authContext must come from the same fresh module graph as AuthProvider (which imports it
   // internally): a statically-imported useAuth from before vi.resetModules() would read the
   // context object's default value, not whatever this AuthProvider instance provides.
@@ -42,9 +41,6 @@ async function freshProvider() {
     useAuth,
     attachPersistence,
     resetStoreWithAccount,
-    cacheAuthSnapshot,
-    readOfflineStateSnapshot,
-    setOfflineReadState,
     requestReauth,
     isReauthPending,
   };
@@ -145,7 +141,7 @@ function registerServerModeTest01() {
 }
 
 function registerServerModeTest02() {
-  it("hides an active tenant immediately when a sibling tab signs out, then rechecks the session", async () => {
+  it("hides tenant data immediately when a sibling tab signs out, then rechecks the session", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     const fetchSpy = vi
       .fn()
@@ -169,8 +165,8 @@ function registerServerModeTest02() {
     act(() => {
       window.dispatchEvent(
         new StorageEvent("storage", {
-          key: "capacitylens/offlineWriteBoundary",
-          newValue: "1234:sibling-sign-out",
+          key: AUTH_INVALIDATION_STORAGE_KEY,
+          newValue: crypto.randomUUID(),
         }),
       );
     });
@@ -332,28 +328,6 @@ function registerServerModeTest07() {
     } finally {
       window.history.replaceState({}, "", "/");
     }
-  });
-}
-
-function registerServerModeTest08() {
-  it("does not mark a cached active tenant online merely because the identity check succeeds", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => me(200, { authMode: "off", user: null })),
-    );
-    const { AuthProvider, useStore, readOfflineStateSnapshot, setOfflineReadState } = await freshProvider();
-    useStore.setState({ activeAccountId: "a1" });
-    setOfflineReadState({ owner: "identity", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") });
-
-    render(
-      <AuthProvider>
-        <div>cached-app-content</div>
-      </AuthProvider>,
-    );
-
-    expect(await screen.findByText("cached-app-content")).toBeInTheDocument();
-    expect(readOfflineStateSnapshot().readOnly).toBe(true);
   });
 }
 
@@ -720,86 +694,18 @@ function registerServerModeTest22() {
   });
 }
 
-function registerServerModeTest23() {
-  it("uses the opted-in cached identity when the auth check times out", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-    vi.stubGlobal("indexedDB", new IDBFactory());
-    localStorage.setItem("capacitylens/offlineRead", "on");
-    vi.stubGlobal("navigator", {
-      serviceWorker: {
-        getRegistrations: vi.fn().mockResolvedValue([
-          {
-            active: { scriptURL: "https://capacitylens.test/offline-worker.js" },
-            waiting: null,
-            installing: null,
-          },
-        ]),
-      },
-    });
-    vi.stubGlobal("caches", {
-      open: vi.fn(async (name: string) => ({
-        match: vi
-          .fn()
-          .mockResolvedValue(
-            name === "capacitylens-offline-shell-metadata-v1"
-              ? new Response("capacitylens-shell-release-a")
-              : new Response("<html>shell</html>"),
-          ),
-      })),
-      has: vi.fn().mockResolvedValue(true),
-    });
-    const fetchFailure = vi.fn().mockRejectedValue(new DOMException("signal timed out", "TimeoutError"));
-    vi.stubGlobal("fetch", fetchFailure);
-    authBootstrapMocks.masqueradeStatus.mockImplementation(async () => {
-      const { accountClient } = await import("@/account/accountClient");
-      await accountClient.masqueradeStatus();
-      return { active: false };
-    });
-    vi.spyOn(console, "warn").mockImplementation(() => {});
-    const { AuthProvider, useAuth, cacheAuthSnapshot, readOfflineStateSnapshot } = await freshProvider();
-    const onTenantAccessReady = vi.fn();
-    const savedAt = Date.parse("2026-07-20T12:00:00.000Z");
-    vi.spyOn(Date, "now").mockReturnValue(savedAt);
-    await cacheAuthSnapshot({
-      authMode: "password-only",
-      user: {
-        id: "offline-user",
-        email: "offline@example.test",
-        name: "Offline user",
-      },
-      canCreateAccount: false,
-      multiAccount: false,
-    });
-
-    render(
-      <AuthProvider onTenantAccessReady={onTenantAccessReady}>
-        <SessionProbe useAuth={useAuth} />
-      </AuthProvider>,
-    );
-
-    expect(await screen.findByText("authMode:password-only user:offline-user")).toBeInTheDocument();
-    expect(fetchFailure).toHaveBeenCalledTimes(2);
-    expect(String(fetchFailure.mock.calls[0]?.[0])).toContain("/api/masquerade");
-    expect(String(fetchFailure.mock.calls[1]?.[0])).toContain("/api/auth/me");
-    // The readiness signal comes from an effect that can commit after the text renders.
-    await waitFor(() => expect(onTenantAccessReady).toHaveBeenCalledWith("offline"));
-    expect(readOfflineStateSnapshot()).toEqual({
-      readOnly: true,
-      lastUpdated: savedAt,
-      cacheWriteFailed: false,
-    });
-  });
-}
-
 function registerServerModeTest24() {
-  it("describes an auth timeout as an unreachable service when no cached identity exists", async () => {
+  it("keeps an auth timeout behind the error boundary even when browser storage has identity data", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    localStorage.setItem("capacitylens/offlineRead", "on");
+    localStorage.setItem("capacitylens/authSnapshot", JSON.stringify({ user: { id: "stored-user" } }));
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("signal timed out", "TimeoutError")));
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const { AuthProvider } = await freshProvider();
+    const onTenantAccessReady = vi.fn();
 
     render(
-      <AuthProvider>
+      <AuthProvider onTenantAccessReady={onTenantAccessReady}>
         <div>app-content</div>
       </AuthProvider>,
     );
@@ -812,6 +718,8 @@ function registerServerModeTest24() {
     expect(document.title).toBe("Unable to verify your session · CapacityLens");
     expect(screen.getByRole("alert")).toHaveTextContent("The authentication service could not be reached.");
     expect(screen.getByText("The authentication service could not be reached.")).toBeInTheDocument();
+    expect(screen.queryByText(/stored-user/)).not.toBeInTheDocument();
+    expect(onTenantAccessReady).not.toHaveBeenCalled();
   });
 }
 
@@ -1047,7 +955,6 @@ describe("AuthProvider — server mode", () => {
   registerServerModeTest05();
   registerServerModeTest06();
   registerServerModeTest07();
-  registerServerModeTest08();
   registerServerModeTest09();
   registerServerModeTest10();
   registerServerModeTest11();
@@ -1062,7 +969,6 @@ describe("AuthProvider — server mode", () => {
   registerServerModeTest20();
   registerServerModeTest21();
   registerServerModeTest22();
-  registerServerModeTest23();
   registerServerModeTest24();
   registerServerModeTest25();
   registerServerModeTest26();

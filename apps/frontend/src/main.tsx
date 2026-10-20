@@ -11,6 +11,7 @@ import { queryClient } from "./api/queryClient";
 import { AuthProvider } from "./auth/AuthProvider";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { useStore } from "./store/useStore";
+import { retireBrowserSnapshots } from "./data/retireBrowserSnapshots";
 import { persistenceAdapter } from "./data/storageAdapter";
 import { isDemoMode, isServerConfigured } from "./data/apiConfig";
 import { bootstrap, ReloadDiscardedEditError } from "./data/persist";
@@ -24,6 +25,9 @@ import { m } from "@/i18n";
 const rootEl = document.getElementById("root");
 if (!rootEl) throw new Error(`${APP_NAME} mount node #root not found in index.html`);
 
+// Remove old workers as well as records so a later navigation cannot revive the retired app shell.
+void retireBrowserSnapshots().catch((error: unknown) => console.error("Browser snapshot retirement failed", error));
+
 applyThemeToDom(useStore.getState().theme);
 const detachTheme = watchSystemTheme(() => useStore.getState().theme);
 
@@ -33,7 +37,7 @@ const detachTheme = watchSystemTheme(() => useStore.getState().theme);
 let persistenceStarted = false;
 let detachPersistence: (() => void) | null = null;
 let moduleDisposed = false;
-function startPersistence(identitySource: "live" | "offline" | "open"): void {
+function startPersistence(identitySource: "live" | "open"): void {
   if (persistenceStarted) return;
   persistenceStarted = true;
   const masquerade = useStore.getState().masquerade;

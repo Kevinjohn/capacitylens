@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SettingsView } from "./SettingsView";
 import { AuthContext } from "@/auth/authContext";
@@ -10,43 +10,7 @@ import { resolveDateStyle } from "@/store/selectors";
 
 const fetchMock = vi.hoisted(() => ({ fetch: vi.fn() }));
 
-const offlineMocks = vi.hoisted(() => ({
-  enabled: false,
-  setEnabled: vi.fn<(enabled: boolean) => Promise<void>>(),
-  cacheAuth: vi.fn(async () => ({ kind: "written" as const })),
-  cacheSummaries: vi.fn(async () => ({ kind: "written" as const })),
-  cacheSlice: vi.fn(async () => ({ kind: "written" as const })),
-  clearAll: vi.fn<() => Promise<void>>(),
-  preferenceListeners: new Set<() => void>(),
-}));
-
-vi.mock("@/data/offlineCache", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/data/offlineCache")>()),
-  isOfflineReadEnabled: () => offlineMocks.enabled,
-  subscribeOfflinePreference: (listener: () => void) => {
-    offlineMocks.preferenceListeners.add(listener);
-    return () => offlineMocks.preferenceListeners.delete(listener);
-  },
-  setOfflineReadEnabled: offlineMocks.setEnabled,
-  cacheAuthSnapshot: offlineMocks.cacheAuth,
-  cacheAccountSummaries: offlineMocks.cacheSummaries,
-  cacheAccountSlice: offlineMocks.cacheSlice,
-  clearAllOfflineData: offlineMocks.clearAll,
-}));
-
 beforeEach(() => {
-  offlineMocks.enabled = false;
-  offlineMocks.preferenceListeners.clear();
-  offlineMocks.setEnabled.mockReset();
-  offlineMocks.setEnabled.mockImplementation(async (enabled) => {
-    offlineMocks.enabled = enabled;
-    for (const listener of offlineMocks.preferenceListeners) listener();
-  });
-  offlineMocks.cacheAuth.mockClear();
-  offlineMocks.cacheSummaries.mockClear();
-  offlineMocks.cacheSlice.mockClear();
-  offlineMocks.clearAll.mockReset();
-  offlineMocks.clearAll.mockResolvedValue(undefined);
   resetStoreWithAccount();
   useStore.getState().setTheme("light");
   vi.stubGlobal("fetch", fetchMock.fetch);
@@ -384,46 +348,9 @@ it("does not duplicate personal identity or Sign out when the server reports an 
     </AuthContext.Provider>,
   );
   expect(screen.queryByRole("heading", { name: "Account" })).not.toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "About Offline access" })).toHaveAttribute("title", "About Offline access");
   expect(screen.queryByText(/Signed in as tester@capacitylens\.dev/)).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
   expect(signOut).not.toHaveBeenCalled();
-});
-
-it("runs only one offline activation when the switch is triggered twice", async () => {
-  let finishActivation!: () => void;
-  offlineMocks.setEnabled.mockImplementationOnce(
-    () =>
-      new Promise<void>((resolve) => {
-        finishActivation = () => {
-          offlineMocks.enabled = true;
-          resolve();
-        };
-      }),
-  );
-  render(
-    <AuthContext.Provider
-      value={{
-        authMode: "password-only",
-        user: { id: "u1", email: "tester@capacitylens.dev" },
-        canCreateAccount: true,
-        multiAccount: true,
-        refreshAuth: async () => {},
-        signOut: async () => {},
-      }}
-    >
-      <SettingsView />
-    </AuthContext.Provider>,
-  );
-
-  const toggle = screen.getByRole("switch", { name: "Make this device available offline" });
-  fireEvent.click(toggle);
-  fireEvent.click(toggle);
-
-  expect(offlineMocks.setEnabled).toHaveBeenCalledTimes(1);
-  expect(toggle).toBeDisabled();
-  finishActivation();
-  await waitFor(() => expect(toggle).toBeEnabled());
 });
 
 describe("SettingsView — Schedule (minimise weekends)", () => {

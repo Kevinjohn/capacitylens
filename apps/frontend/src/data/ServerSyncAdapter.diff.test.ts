@@ -3,18 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { ServerSyncAdapter, diffOps } from "./ServerSyncAdapter";
 import { diffOpsFromPossibleBases } from "./syncOps";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { cacheAccountSlice, readOfflineStateSnapshot } from "./offlineCache";
-import {
-  TS1,
-  TS2,
-  client,
-  project,
-  withData,
-  scopedData,
-  commitReceipt,
-  required,
-  withOfflineCache,
-} from "./ServerSyncAdapter.testSupport";
+import { TS1, TS2, client, project, withData, commitReceipt } from "./ServerSyncAdapter.testSupport";
 
 describe("auth-awareness (P3.4)", () => {
   it("sends credentials on every request so a session cookie reaches an auth-enabled server", async () => {
@@ -45,47 +34,6 @@ describe("auth-awareness (P3.4)", () => {
     const adapter = new ServerSyncAdapter("http://api.test", fetchImpl);
 
     await expect(adapter.hasExisting()).rejects.toThrow("invalid meta payload");
-  });
-});
-
-describe("offline transport fallback", () => {
-  it("uses a verified cached identity for an unscoped transport failure", async () => {
-    await withOfflineCache(async () => {
-      const fetchImpl = vi.fn().mockRejectedValue(new TypeError("network unavailable"));
-      const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
-
-      await expect(adapter.loadAll()).resolves.toEqual(emptyAppData());
-      expect(readOfflineStateSnapshot()).toMatchObject({ readOnly: true });
-    });
-  });
-
-  it.each([
-    ["reaches its deadline", () => Promise.reject(new DOMException("signal timed out", "TimeoutError"))],
-    ["returns a server failure", () => Promise.resolve(new Response(null, { status: 503 }))],
-  ])("does not use a cached account slice when the state request %s", async (_condition, request) => {
-    await withOfflineCache(async () => {
-      const cached = scopedData("a1", {});
-      // Use a preset colour so migration does not repair the fixture before the diff is exercised.
-      required(cached.clients[0]).color = "#2d75da";
-      await cacheAccountSlice("a1", cached);
-      const fetchImpl = vi.fn(request);
-      const adapter = new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch);
-
-      await expect(adapter.loadAll("a1")).rejects.toThrow(/Failed to load state|signal timed out/);
-      expect(readOfflineStateSnapshot()).toMatchObject({ readOnly: false });
-    });
-  });
-
-  it("does not use the scoped cache for a client rejection", async () => {
-    await withOfflineCache(async () => {
-      await cacheAccountSlice("a1", scopedData("a1", {}));
-      const clientRejection = new ServerSyncAdapter(
-        "http://api.test",
-        vi.fn(async () => new Response(null, { status: 403 })) as unknown as typeof fetch,
-      );
-      await expect(clientRejection.loadAll("a1")).rejects.toThrow("Failed to load state (403)");
-      expect(readOfflineStateSnapshot()).toMatchObject({ readOnly: false });
-    });
   });
 });
 

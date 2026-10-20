@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Removed
+
+- Optional offline scheduling snapshots, browser snapshot encryption and the offline application shell. The company schedule requires a server connection; display preferences and the temporary demo remain available.
+
 - Retired the legacy server workspace and switched validation, native packaging and Docker deployment to the current application.
 
 ### Fixed

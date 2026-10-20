@@ -44,7 +44,7 @@ interface CreateServerAccountInput {
 async function reconcileUnknownCreate(
   input: Pick<CreateServerAccountInput, "refreshAuth" | "setCreateUnresolved">,
 ): Promise<boolean> {
-  const list = await refreshAccountSummaries({ allowCachedFallback: false });
+  const list = await refreshAccountSummaries();
   input.setCreateUnresolved(list === null);
   await input.refreshAuth();
   return list !== null;

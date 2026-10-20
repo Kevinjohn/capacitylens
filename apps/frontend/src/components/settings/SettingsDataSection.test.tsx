@@ -28,16 +28,10 @@ type Props = ComponentProps<typeof SettingsDataSection>;
 function renderSection({ role = "owner", serverMode = true }: { role?: Role | null; serverMode?: boolean } = {}) {
   const props = {
     serverMode,
-    authMode: "off",
-    user: null,
-    offlineEnabled: false,
-    offlineBusy: false,
-    offlineState: {},
     confirmingClear: false,
     setConfirmingClear: vi.fn(),
     clearBusy: false,
     clearLocalStorage: vi.fn(),
-    toggleOffline: vi.fn(),
   } as unknown as Props;
   return render(
     <PermissionContext.Provider value={{ role }}>

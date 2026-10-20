@@ -7,7 +7,6 @@ export async function reprojectAccess(accountId: string, includeAccountSummaries
   useStore.getState().invalidateMemberships();
   if (includeAccountSummaries) {
     const summaries = await refreshAccountSummaries({
-      allowCachedFallback: false,
       preserveActiveAccountIfMissing: true,
     });
     if (summaries === null) return false;

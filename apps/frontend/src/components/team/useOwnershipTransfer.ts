@@ -10,7 +10,6 @@ import type { ApiQueryScope } from "@/api/queryClient";
 import { useAuth } from "@/auth/authContext";
 import { usePermissionStatus, useRole } from "@/auth/permissionContext";
 import { reprojectAccess } from "@/auth/reprojectAccess";
-import { useOfflineState } from "@/data/useOfflineState";
 import { useStore } from "@/store/useStore";
 
 interface OwnershipTransferState {
@@ -168,7 +167,6 @@ export function useOwnershipTransfer(
   const { authMode, user } = useAuth();
   const role = useRole();
   const permissionStatus = usePermissionStatus();
-  const offline = useOfflineState();
   const masquerade = useStore((state) => state.masquerade);
   const scope: ApiQueryScope = {
     principalId: user?.id ?? null,
@@ -180,7 +178,6 @@ export function useOwnershipTransfer(
     user !== null &&
     role === "owner" &&
     permissionStatus === "resolved" &&
-    !offline.readOnly &&
     masquerade.kind === "inactive";
   const directory = useOwnerDirectory({ accountId, available, scope, principalId: user?.id ?? null });
   const command = useTransferCommand({ accountId, available, refreshAuth });

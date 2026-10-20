@@ -4,7 +4,6 @@ import { useId } from "react";
 import type { ReactNode } from "react";
 import { transitionAccount } from "@/auth/accountTransition";
 import { useAuth } from "@/auth/authContext";
-import { useOfflineState } from "@/data/useOfflineState";
 import { resolveAccessLabel } from "@/lib/accessCopy";
 import { resolveAccessExperience } from "@/lib/resolveAccessExperience";
 import type { AccessExperience } from "@/lib/resolveAccessExperience";
@@ -30,7 +29,6 @@ import { useDeleteAccount } from "./useDeleteAccount";
 interface AccountItemsProps {
   accounts: AccountSummary[];
   accessExperience: AccessExperience;
-  offlineReadOnly: boolean;
   roleDescriptionPrefix: string;
   onActivate: (id: string) => void;
   onConfirmDelete: (account: AccountSummary) => void;
@@ -42,7 +40,6 @@ function AccountItems(input: AccountItemsProps) {
       {input.accounts.map((account, index) => {
         const roleDescriptionId = `${input.roleDescriptionPrefix}-company-role-${index}`;
         const accessLabel = resolveAccessLabel({
-          offlineReadOnly: input.offlineReadOnly,
           experience: input.accessExperience,
           permissionStatus: account.roleStatus ?? "resolved",
           role: account.role,
@@ -342,7 +339,6 @@ export function AccountPicker() {
   const previous = accounts.find((account) => account.id === previousAccountId) ?? null;
   const demoAuthActive = useDemoAuthActive();
   const { authMode, canCreateAccount, refreshAuth } = useAuth();
-  const offline = useOfflineState();
   const roleDescriptionPrefix = useId();
   const { form, submit, reset } = useCreateAccountForm({ refreshAuth });
   const accountDeletion = useDeleteAccount({ refreshAuth });
@@ -371,7 +367,6 @@ export function AccountPicker() {
         <AccountItems
           accounts={accounts}
           accessExperience={resolveAccessExperience(authMode)}
-          offlineReadOnly={offline.readOnly}
           roleDescriptionPrefix={roleDescriptionPrefix}
           onActivate={activateAccount}
           onConfirmDelete={accountDeletion.setConfirming}

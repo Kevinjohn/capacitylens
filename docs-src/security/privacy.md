@@ -55,16 +55,12 @@ The local demo keeps scheduling data in memory only; it resets on refresh and is
 anywhere. Device preferences such as theme use the browser's localStorage and are not part of a
 company export.
 
-[Offline access](/using/settings#offline-access) is optional. When on, it stores your last verified
-identity, your list of companies and a snapshot of each company's data in the browser's IndexedDB
-for up to seven days. Snapshots are read-only and never queue changes. Signing out clears your own
-cached snapshots; Settings has no control to clear all CapacityLens preferences and snapshots from
-the browser profile.
+Scheduling data and verified identities are never saved as persistent browser snapshots. A server
+failure stays visible and retryable. Nothing is queued for a later connection.
 
-Snapshots are encrypted with a key that lives only in that browser and cannot be extracted, but
-anyone using the unlocked browser profile signed in as you can still trigger it. A snapshot holds
-whatever the server shows that person, so an Owner's may contain real private names behind code
-names. Protect the device like a signed-in session.
+When opening a version that removes the former snapshot feature, the app deletes its old browser
+database and shell caches and unregisters its worker. Close older CapacityLens tabs and reopen the
+app if another tab is holding that database open.
 
 ## Network behaviour
 

@@ -2,7 +2,6 @@ import { EyeIcon, MoonIcon, SunIcon } from "lucide-react";
 import { matchPath, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/authContext";
 import { usePermissionStatus, useRole } from "@/auth/permissionContext";
-import { useOfflineState } from "@/data/useOfflineState";
 import { resolveAccessLabel } from "@/lib/accessCopy";
 import { resolveAccessExperience } from "@/lib/resolveAccessExperience";
 import { FAKE_USER } from "@/lib/fakeAuth";
@@ -320,20 +319,16 @@ function ActiveRoleBadge() {
   const role = useRole();
   const permissionStatus = usePermissionStatus();
   const { authMode } = useAuth();
-  const offline = useOfflineState();
   const accessExperience = resolveAccessExperience(authMode);
   const resolvedRole = accessExperience === "authenticated" && permissionStatus === "resolved" ? role : null;
   const label = resolveAccessLabel({
-    offlineReadOnly: offline.readOnly,
     experience: accessExperience,
     permissionStatus,
     role: resolvedRole,
   });
-  const viewOnly = offline.readOnly || resolvedRole === "viewer";
+  const viewOnly = resolvedRole === "viewer";
   let roleContent: React.ReactNode = label;
-  if (offline.readOnly) {
-    roleContent = <span data-testid="view-only">{label}</span>;
-  } else if (resolvedRole === "viewer") {
+  if (resolvedRole === "viewer") {
     roleContent = (
       <>
         {label} · <span data-testid="view-only">{m.nav_view_only()}</span>

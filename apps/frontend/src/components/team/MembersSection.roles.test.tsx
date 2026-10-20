@@ -6,7 +6,6 @@ import userEvent from "@testing-library/user-event";
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse, makeResourceDraft } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
 import { refreshActiveAccountSlice } from "@/data/persist";
-import { setOfflineReadState } from "@/data/offlineCache";
 import { m } from "@/i18n";
 import {
   accessibleMemberNames,
@@ -48,11 +47,9 @@ vi.mock("@/data/persist", () => ({
 beforeEach(() => {
   accountTransitionMocks.startMasquerade.mockClear();
   resetStoreWithAccount();
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });
 });
 afterEach(() => {
-  setOfflineReadState({ owner: "cleanup", readOnly: false });
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -401,22 +398,6 @@ function registerAdminProjectionTests(members: RawMember[]): void {
     await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
     expect(refreshAuth).toHaveBeenCalledTimes(1);
     expect(refreshActiveAccountSlice).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
-  });
-
-  it("closes the company when a self-role refresh restores only a cached offline slice", async () => {
-    const user = userEvent.setup();
-    vi.stubGlobal("fetch", mockApi(members));
-    vi.mocked(refreshActiveAccountSlice).mockImplementationOnce(async () => {
-      setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") });
-      return { kind: "reloaded" };
-    });
-    renderSection();
-
-    const selfRow = await waitForMemberRow(/me@x\.io/);
-    await saveRoleVia(user, selfRow, "Editor");
-
-    await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-    expect(useStore.getState().notice?.message).toMatch(/could not be safely refreshed/i);
   });
 }
 

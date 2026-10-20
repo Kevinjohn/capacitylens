@@ -204,7 +204,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-SET-05](settings/US-SET-05-minimise-weekends.md)      | Minimise weekends on the schedule               | `e2e/minimise-weekends.spec.ts`                        |
 | [US-SET-06](settings/US-SET-06-show-placeholders.md)      | Show placeholders on the schedule               | `e2e/placeholders.spec.ts`                             |
 | [US-SET-07](settings/US-SET-07-show-external.md)          | Show external / 3rd parties                     | `e2e/external.spec.ts`                                 |
-| [US-SET-08](settings/US-SET-08-clear-local-storage.md)    | Device data and offline snapshots               | storage and offline cache tests                        |
+| [US-SET-08](settings/US-SET-08-clear-local-storage.md)    | Device preferences                              | device preference and network failure tests            |
 | [US-SET-09](settings/US-SET-09-snap-to-week-start.md)     | Snap the schedule's left edge to the week start | `e2e/snap-week.spec.ts`                                |
 | [US-SET-10](settings/US-SET-10-member-management.md)      | Member management (invite / role / revoke)      | `e2e/members.auth.spec.ts` + `e2e/invite.auth.spec.ts` |
 | [US-SET-11](settings/US-SET-11-viewer-readonly.md)        | Viewer read-only mode                           | `e2e/viewer.auth.spec.ts`                              |

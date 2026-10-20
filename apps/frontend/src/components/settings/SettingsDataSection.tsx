@@ -1,52 +1,14 @@
 import { m } from "@/i18n";
 import { useState } from "react";
 import { accountClient } from "@/account/accountClient";
-import type { useAuth } from "@/auth/authContext";
 import { useCan } from "@/auth/permissionContext";
 import { refreshActiveAccountSlice } from "@/data/persist";
-import type { useOfflineState } from "@/data/useOfflineState";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import { readApiError } from "@/lib/readApiError";
 import { useScopedData } from "@/store/useScopedData";
 import { useStore } from "@/store/useStore";
-import { SwitchField } from "@/components/common/ui";
 import { Button } from "@/components/ui/button";
 import { SettingsSection } from "./SettingsSection";
-
-import type { useLocalDataActions } from "./useLocalDataActions";
-
-function OfflineDataSection({
-  offlineEnabled,
-  offlineBusy,
-  cacheWriteFailed,
-  toggleOffline,
-}: {
-  offlineEnabled: boolean;
-  offlineBusy: boolean;
-  cacheWriteFailed: boolean;
-  toggleOffline: ReturnType<typeof useLocalDataActions>["toggleOffline"];
-}) {
-  return (
-    <SettingsSection
-      title={m.settings_offline_heading()}
-      help={m.settings_offline_description()}
-      description={m.settings_device_scope()}
-    >
-      <SwitchField
-        label={m.settings_offline_toggle()}
-        checked={offlineEnabled}
-
-        onChange={() => toggleOffline()}
-        disabled={offlineBusy}
-      />
-      {offlineEnabled && cacheWriteFailed && (
-        <p role="status" className="text-sm text-danger">
-          {m.settings_offline_write_failed()}
-        </p>
-      )}
-    </SettingsSection>
-  );
-}
 
 // Ignore the infrastructure Internal client when deciding whether the company has user-created content.
 function useCompanyIsEmpty(): boolean {
@@ -107,37 +69,8 @@ function ExampleDataSection() {
 }
 
 /** Exposes export, import, and local data controls allowed by the current mode. */
-export function SettingsDataSection({
-  serverMode,
-  authMode,
-  user,
-  offlineEnabled,
-  offlineBusy,
-  offlineState,
-  toggleOffline,
-}: {
-  serverMode: boolean;
-  authMode: ReturnType<typeof useAuth>["authMode"];
-  user: ReturnType<typeof useAuth>["user"];
-  offlineEnabled: boolean;
-  offlineBusy: boolean;
-  offlineState: ReturnType<typeof useOfflineState>;
-  toggleOffline: ReturnType<typeof useLocalDataActions>["toggleOffline"];
-}) {
+export function SettingsDataSection({ serverMode }: { serverMode: boolean }) {
   const canAddExampleData = useCan("manageMembers");
   const companyIsEmpty = useCompanyIsEmpty();
-  return (
-    <>
-      {serverMode && canAddExampleData && companyIsEmpty && <ExampleDataSection />}
-
-      {serverMode && authMode !== "off" && user && (
-        <OfflineDataSection
-          offlineEnabled={offlineEnabled}
-          offlineBusy={offlineBusy}
-          cacheWriteFailed={offlineState.cacheWriteFailed}
-          toggleOffline={toggleOffline}
-        />
-      )}
-    </>
-  );
+  return <>{serverMode && canAddExampleData && companyIsEmpty && <ExampleDataSection />}</>;
 }

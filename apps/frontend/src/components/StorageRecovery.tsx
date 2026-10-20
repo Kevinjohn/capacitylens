@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { clearCapacitylensLocalStorage, readCapacitylensLocalStorage } from "@/data/clearLocalStorage";
-import { clearAllOfflineData } from "@/data/offlineCache";
 import { downloadTextFile } from "@/lib/download";
 import { m } from "@/i18n";
 import {
@@ -24,18 +23,11 @@ interface StorageRecoveryProps {
 }
 
 interface StorageResetDependencies {
-  clearOfflineData?: () => Promise<void>;
   clearLocalStorage?: () => void;
-  notify?: (message: string) => void;
   reload?: () => void;
 }
 
-interface StorageResetErrorInput {
-  offlineDataCleared: boolean;
-  cause?: unknown;
-}
-
-type StorageRecoveryError = "download" | "reset" | "reset-local" | "reset-all";
+type StorageRecoveryError = "download" | "reset";
 
 interface StorageRecoveryActionsProps {
   resetting: boolean;
@@ -48,13 +40,9 @@ interface StorageRecoveryActionsProps {
 /** Identifies a local storage reset failure for the recovery screen. */
 // eslint-disable-next-line react-refresh/only-export-components
 export class StorageResetError extends Error {
-  readonly offlineDataCleared: boolean;
-
-  constructor(input: StorageResetErrorInput) {
-    const options = Object.hasOwn(input, "cause") ? { cause: input.cause } : undefined;
-    super("Browser storage could not be fully reset.", options);
+  constructor(cause?: unknown) {
+    super("Browser storage could not be reset.", { cause });
     this.name = "StorageResetError";
-    this.offlineDataCleared = input.offlineDataCleared;
   }
 }
 
@@ -80,48 +68,19 @@ function captureAttempt<T>(operation: () => T | Promise<T>): Promise<T> {
 /** Clears local application data before recovery proceeds; a failure leaves recovery incomplete. */
 // eslint-disable-next-line react-refresh/only-export-components -- see the test-boundary note above
 export async function resetLocalStorage({
-  clearOfflineData = clearAllOfflineData,
   clearLocalStorage = clearCapacitylensLocalStorage,
-  notify = (message) => window.alert(message),
   reload = () => window.location.reload(),
 }: StorageResetDependencies = {}): Promise<void> {
-  // Start this attempt first: clearAllOfflineData advances its in-memory write generation before
-  // touching IndexedDB, so stale writes cannot repopulate storage while local bytes are cleared.
-  const offlineAttempt = captureAttempt(clearOfflineData);
-  const localStorageAttempt = captureAttempt(clearLocalStorage);
-  const [offlineResult, localStorageResult] = await Promise.allSettled([offlineAttempt, localStorageAttempt]);
-
-  if (localStorageResult.status === "fulfilled") {
-    if (offlineResult.status === "rejected") {
-      try {
-        notify(m.storage_reset_partial_offline_warning());
-      } finally {
-        reload();
-      }
-      return;
-    }
-    reload();
-    return;
+  try {
+    await captureAttempt(clearLocalStorage);
+  } catch (cause) {
+    throw new StorageResetError(cause);
   }
-
-  const causes = [localStorageResult.reason];
-  if (offlineResult.status === "rejected") causes.push(offlineResult.reason);
-  throw new StorageResetError({
-    offlineDataCleared: offlineResult.status === "fulfilled",
-    cause: new AggregateError(causes, "One or more browser storage backends could not be cleared."),
-  });
-}
-
-function resolveResetError(caught: unknown): StorageRecoveryError {
-  if (!(caught instanceof StorageResetError)) return "reset";
-  if (caught.offlineDataCleared) return "reset-local";
-  return "reset-all";
+  reload();
 }
 
 function resolveErrorMessage(error: StorageRecoveryError): string {
   if (error === "download") return m.storage_download_error();
-  if (error === "reset-local") return m.storage_reset_partial_local_error();
-  if (error === "reset-all") return m.storage_reset_full_error();
   return m.storage_reset_error();
 }
 
@@ -178,9 +137,9 @@ export function StorageRecovery({
       await onReset();
       setError(null);
       setResetting(false);
-    } catch (caught) {
-      // Surface which reset stage failed and release busy state so recovery remains usable.
-      setError(resolveResetError(caught));
+    } catch {
+      // Surface a failed reset and release busy state so recovery remains usable.
+      setError("reset");
       setResetting(false);
     }
   };

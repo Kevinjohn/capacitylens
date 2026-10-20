@@ -1,7 +1,5 @@
 import { accountClient } from "@/account/accountClient";
-import { readCachedAuthSnapshot, setOfflineReadState } from "@/data/offlineCache";
 import { isTransportFailure } from "@/data/requestTimeout";
-import { useStore } from "@/store/useStore";
 import { m } from "@/i18n";
 import { isAuthMode } from "./authStatus";
 import type { AuthStatusResult } from "./authStatus";
@@ -10,45 +8,16 @@ import { adoptMasqueradeStatus } from "./accountTransition";
 import { masqueradeApi } from "./masqueradeApi";
 import { invalidResponse, readAuthResponse } from "./authResponse";
 
-async function readOfflineIdentity(error: unknown, acceptEffects: () => boolean): Promise<AuthStatusResult | null> {
-  if (!isTransportFailure(error)) return null;
-  try {
-    const cached = await readCachedAuthSnapshot({ acceptEffects });
-    if (!cached) return null;
-    if (acceptEffects()) setOfflineReadState({ owner: "identity", readOnly: true, lastUpdated: cached.savedAt });
-    return {
-      kind: "pass",
-      identitySource: "offline",
-      authMode: cached.value.authMode,
-      user: cached.value.user,
-      canCreateAccount: false,
-      multiAccount: cached.value.multiAccount,
-      providers: [],
-      reauthMethod: "password",
-      reauthProviderId: null,
-    };
-  } catch (cacheError) {
-    // An unreadable optional identity cache must not hide the original live-auth failure; warn and let normal recovery continue.
-    console.warn("AuthProvider: the offline identity snapshot could not be read", cacheError);
-    return null;
-  }
-}
-
-async function resolveIdentityWhileMasqueradeStatusIsUnknown(
-  statusError: unknown,
-  acceptEffects: () => boolean,
-): Promise<AuthStatusResult> {
+async function resolveIdentityWhileMasqueradeStatusIsUnknown(statusError: unknown): Promise<AuthStatusResult> {
   if (!isTransportFailure(statusError)) return authServiceError(statusError);
   try {
     const response = await accountClient.me();
-    if (response.status === 401) return readAuthResponse(response, acceptEffects);
-    if (!response.ok) return readAuthResponse(response, acceptEffects);
+    if (response.status === 401) return readAuthResponse(response);
+    if (!response.ok) return readAuthResponse(response);
     // /me does not prove that masquerade is inactive. Keep the auth boundary closed even if
     // the endpoint succeeds while the status endpoint is unreachable.
     return authServiceError(statusError);
   } catch (error) {
-    const cached = await readOfflineIdentity(error, acceptEffects);
-    if (cached) return cached;
     console.warn("AuthProvider: /api/auth/me also failed while masquerade status was unknown", error);
     return authServiceError(error);
   }
@@ -74,8 +43,6 @@ async function readActiveMasqueradeAuthStatus(
       reauthMethod: "password",
       reauthProviderId: null,
     };
-    if (acceptEffects() && useStore.getState().activeAccountId === null)
-      setOfflineReadState({ owner: "identity", readOnly: false });
     return next;
   } catch (error) {
     console.warn("AuthProvider: active masquerade could not be adopted", error);
@@ -98,21 +65,15 @@ export async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Aut
   try {
     masquerade = await masqueradeApi.status();
   } catch (error) {
-    // A network outage may still allow a validated offline identity when no uncertain projection
-    // is marked. /me can resolve only a 401 here; a successful response does not prove inactivity.
+    // /me can resolve only a 401 here; a successful response does not prove inactivity.
     console.warn("AuthProvider: masquerade status could not be checked", error);
-    return resolveIdentityWhileMasqueradeStatusIsUnknown(error, acceptEffects);
+    return resolveIdentityWhileMasqueradeStatusIsUnknown(error);
   }
   if (masquerade.active) return readActiveMasqueradeAuthStatus(masquerade, acceptEffects);
   try {
-    return await readAuthResponse(await accountClient.me(), acceptEffects);
+    return await readAuthResponse(await accountClient.me());
   } catch (error) {
-    // A definite inactive status permits the existing offline identity fallback after /me fails.
-    const cached = await readOfflineIdentity(error, acceptEffects);
-    if (cached) return cached;
     console.warn("AuthProvider: /api/auth/me check failed", error);
     return authServiceError(error);
   }
 }
-
-export { refreshOfflineIdentityAfterMasquerade } from "./authResponse";
