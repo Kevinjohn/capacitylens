@@ -1,4 +1,5 @@
 import { emptyAppData, SCOPED_KEYS } from "@capacitylens/shared/types/entities";
+import { HISTORY_LIMIT } from "@/store/history";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 import type { AppData, AppDataKey } from "@capacitylens/shared/types/entities";
 import type {
@@ -12,6 +13,7 @@ import type {
 /** A canonical read normalized by the typed transport; its wire shape remains transport-owned. */
 export interface PlanningSnapshot {
   revision: number;
+  canWrite: boolean;
   data: AppData;
   /** Stable key produced by the typed transport from its verified authority projection. */
   accessKey?: string;
@@ -61,12 +63,25 @@ export interface PlanningPendingMutation {
 export interface PlanningControllerMetadata {
   context: PlanningClientContext | null;
   accessKey: string | null;
+  canWrite: boolean;
   revision: number | null;
   status: PlanningStatus;
   history: PlanningHistory;
   pending: PlanningPendingMutation | null;
   outcome: PlanningMutationOutcome | null;
   error: unknown | null;
+}
+
+/** History controls use only the current acknowledged revision, with no unresolved write. */
+export function isPlanningHistoryReady(planning: PlanningControllerMetadata): boolean {
+  return (
+    planning.context !== null &&
+    planning.canWrite &&
+    planning.revision !== null &&
+    planning.history.tipRevision === planning.revision &&
+    planning.pending === null &&
+    (planning.status === "ready" || planning.status === "refused")
+  );
 }
 
 /** The controller owns metadata; planning rows remain in the one Zustand `data` value. */
@@ -114,6 +129,7 @@ const emptyHistory = (): PlanningHistory => ({ past: [], future: [], tipRevision
 const initialMetadata = (context: PlanningClientContext | null = null): PlanningControllerMetadata => ({
   context,
   accessKey: null,
+  canWrite: false,
   revision: null,
   status: context ? "loading" : "idle",
   history: emptyHistory(),
@@ -172,7 +188,8 @@ function isValidSnapshot(snapshot: unknown): snapshot is PlanningSnapshot {
     data.accounts.every(isRecord) &&
     SCOPED_KEYS.every((key) => Array.isArray(data[key])) &&
     SCOPED_KEYS.every((key) => (data[key] as unknown[]).every(isRecord)) &&
-    (snapshot.accessKey === undefined || typeof snapshot.accessKey === "string")
+    (snapshot.accessKey === undefined || typeof snapshot.accessKey === "string") &&
+    typeof snapshot.canWrite === "boolean"
   );
 }
 
@@ -280,7 +297,7 @@ function movedHistory(
     const inverse = replaceRestoreHandle(nextInverse, replacementHandle);
     if (inverse.operation === "planning.restoreGroup" && inverse.restorationGroupId === "") return emptyHistory();
     return {
-      past: [...history.past, { forward: cloneImmutable(entry.forward), inverse }],
+      past: [...history.past, { forward: cloneImmutable(entry.forward), inverse }].slice(-HISTORY_LIMIT),
       future: [],
       tipRevision: revision,
     };
@@ -298,7 +315,7 @@ function movedHistory(
     } else {
       redo = { forward: cloneImmutable(entry.forward), inverse: cloneImmutable(action) };
     }
-    return { past: remaining, future: [...history.future, redo], tipRevision: revision };
+    return { past: remaining, future: [...history.future, redo].slice(-HISTORY_LIMIT), tipRevision: revision };
   }
   const remaining = history.future.slice(0, -1);
   let past: PlanningHistoryEntry;
@@ -309,7 +326,7 @@ function movedHistory(
     if (inverse.operation === "planning.restoreGroup" && inverse.restorationGroupId === "") return emptyHistory();
     past = { forward: cloneImmutable(action), inverse };
   }
-  return { past: [...history.past, past], future: remaining, tipRevision: revision };
+  return { past: [...history.past, past].slice(-HISTORY_LIMIT), future: remaining, tipRevision: revision };
 }
 
 /** Owns one client's planning request ordering and page-local typed history. */
@@ -364,7 +381,8 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     if (!context || !isValidSnapshot(snapshot) || !isSnapshotForCompany(snapshot, context.companyId))
       throw new PlanningControllerError("The canonical planning read was invalid.");
     const accessChanged =
-      snapshot.accessKey !== undefined && accessKeyEstablished && snapshot.accessKey !== current.planning.accessKey;
+      (snapshot.accessKey !== undefined && accessKeyEstablished && snapshot.accessKey !== current.planning.accessKey) ||
+      (current.planning.revision !== null && snapshot.canWrite !== current.planning.canWrite);
     const older = current.planning.revision !== null && snapshot.revision < current.planning.revision;
     if (accessChanged) {
       generation += 1;
@@ -378,6 +396,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         planning: {
           ...initialMetadata(context),
           accessKey: snapshot.accessKey ?? null,
+          canWrite: !older && snapshot.canWrite,
           revision: older ? null : snapshot.revision,
           status: older ? "error" : "ready",
           error: older ? new PlanningControllerError("The access projection changed but its read was stale.") : null,
@@ -423,6 +442,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       planning: {
         ...state.planning,
         accessKey: snapshot.accessKey ?? state.planning.accessKey,
+        canWrite: snapshot.canWrite,
         revision: snapshot.revision,
         status: finalized || !state.planning.pending ? "ready" : commitment ? "pending" : state.planning.status,
         pending: finalized ? null : state.planning.pending,
@@ -466,6 +486,8 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     const state = store.getState();
     const context = state.planning.context;
     const baseRevision = state.planning.revision;
+    if (!state.planning.canWrite)
+      throw new PlanningControllerError("This planning view is read-only.", "authorization_denied", 403);
     if (
       !context ||
       baseRevision === null ||
@@ -565,6 +587,8 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     const state = store.getState();
     if (!isCurrent(draft.generation, draft.context) || state.planning.revision === null)
       throw new PlanningControllerError("Planning context changed before the change could be sent.");
+    if (!state.planning.canWrite)
+      throw new PlanningControllerError("This planning view is read-only.", "authorization_denied", 403);
     if (state.planning.pending) throw new PlanningControllerError("A planning change is already pending or uncertain.");
     if (state.planning.status !== "ready" && state.planning.status !== "refused")
       throw new PlanningControllerError("Planning is not ready for a new change.");
@@ -731,6 +755,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       !entry ||
       !targetIntent ||
       !state.planning.context ||
+      !state.planning.canWrite ||
       state.planning.revision === null ||
       history.tipRevision !== state.planning.revision ||
       state.planning.pending ||
