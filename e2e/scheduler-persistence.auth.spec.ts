@@ -32,8 +32,6 @@ async function seedEntity(
 }
 
 async function createScenario(request: APIRequestContext) {
-  const reset = await request.post(`${AUTH_API}/api/test/reset`, { data: { seed: false } });
-  expect(reset.ok(), "reset the isolated auth-backed setup").toBeTruthy();
   const suffix = `${STAMP}-${++scenarioNumber}`;
   const company = `Wayne Scheduler Studio ${suffix}`;
   const ownerEmail = `bruce-wayne-scheduler-${suffix}@capacitylens.dev`;

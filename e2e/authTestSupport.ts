@@ -1,6 +1,8 @@
 import { expect, request as playwrightRequest } from "@playwright/test";
 import type { APIRequestContext } from "@playwright/test";
 import { DatabaseSync } from "node:sqlite";
+import { existsSync, realpathSync } from "node:fs";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ports } from "../scripts/ports.mjs";
 
@@ -20,6 +22,89 @@ export const AUTH_PASSWORD = "demo-password-123456";
  * Keep these literals aligned with start:auth-e2e; importing auth.ts would load the auth runtime into Playwright.
  */
 export const BOOTSTRAP_ADMIN = { email: "admin@admin.admin", password: "auth-e2e-password-2026" };
+
+const AUTH_E2E_DATABASE = fileURLToPath(new URL("../apps/backend/.auth-e2e.db", import.meta.url));
+// Keep the table order aligned with Object.values(tables).reverse() in state_repository.resetState.
+const COMPANY_DATA_RESET_ORDER = [
+  "closures",
+  "time_off",
+  "allocations",
+  "activities",
+  "resources",
+  "phases",
+  "projects",
+  "disciplines",
+  "clients",
+  "accounts",
+] as const;
+
+/** Opens only the native auth E2E database after verifying its path and schema markers. */
+function openAuthE2EDatabase(): DatabaseSync {
+  if (!existsSync(AUTH_E2E_DATABASE))
+    throw new Error("The disposable auth E2E database is unavailable; start the auth E2E server first.");
+
+  const db = new DatabaseSync(AUTH_E2E_DATABASE);
+  try {
+    const main = db
+      .prepare("PRAGMA database_list")
+      .all()
+      .find((database) => database.name === "main") as { file: string } | undefined;
+    if (
+      !main ||
+      resolve(main.file) !== resolve(AUTH_E2E_DATABASE) ||
+      realpathSync(AUTH_E2E_DATABASE) !== resolve(AUTH_E2E_DATABASE)
+    )
+      throw new Error("Auth E2E fixtures may only access apps/backend/.auth-e2e.db.");
+
+    const tableNames = new Set(
+      (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{ name: string }>).map(
+        ({ name }) => name,
+      ),
+    );
+    if (
+      [
+        "users",
+        "memberships",
+        "adonis_sessions",
+        "audit_entries",
+        "account_member_resources",
+        ...COMPANY_DATA_RESET_ORDER,
+      ].some((table) => !tableNames.has(table))
+    )
+      throw new Error("The database does not match the native auth E2E schema.");
+
+    db.exec("PRAGMA busy_timeout = 5000");
+    return db;
+  } catch (error) {
+    db.close();
+    throw error;
+  }
+}
+
+/** Clears company data while preserving the auth E2E users and sessions. */
+export function resetAuthE2ECompanyData(): void {
+  const db = openAuthE2EDatabase();
+  try {
+    db.exec("PRAGMA foreign_keys = ON");
+    const foreignKeysEnabled = db.prepare("PRAGMA foreign_keys").get() as { foreign_keys: number };
+    if (foreignKeysEnabled.foreign_keys !== 1)
+      throw new Error("Auth E2E fixture cleanup requires SQLite foreign keys.");
+
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec("DELETE FROM audit_entries");
+      for (const table of COMPANY_DATA_RESET_ORDER) db.exec(`DELETE FROM ${table}`);
+      // This table deliberately has no foreign keys, so remove its company-scoped links explicitly.
+      db.exec("DELETE FROM account_member_resources");
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+  } finally {
+    db.close();
+  }
+}
 
 function cookiesOf(setCookie: string): string {
   return setCookie
@@ -43,10 +128,8 @@ async function postSignUp(ctx: APIRequestContext, email: string, name = email.sp
  * @throws When the principal is absent or database writes fail.
  */
 export function seedFixtureMember(accountId: string, email: string, role: "admin" | "editor" | "viewer"): void {
-  const path = fileURLToPath(new URL("../apps/backend/.auth-e2e.db", import.meta.url));
-  const db = new DatabaseSync(path);
+  const db = openAuthE2EDatabase();
   try {
-    db.exec("PRAGMA busy_timeout = 5000");
     const principal = db.prepare("SELECT id FROM users WHERE lower(email) = ?").get(email.toLowerCase()) as
       { id: string } | undefined;
     if (!principal) throw new Error(`Missing E2E fixture identity for ${email}`);
@@ -83,8 +166,7 @@ export async function signUpUser(email: string, name?: string): Promise<{ email:
 
 /** Resets disposable company data, then creates the first company through its ordinary route. */
 export async function bootstrapOrg(request: APIRequestContext, cookie: string, name: string): Promise<string> {
-  const reset = await request.post(`${AUTH_API}/api/test/reset`, { data: { seed: false } });
-  expect(reset.ok(), "reset the isolated auth-backed company fixture").toBeTruthy();
+  resetAuthE2ECompanyData();
   const res = await request.post(`${AUTH_API}/api/orgs`, {
     headers: { cookie },
     data: { name },
@@ -116,10 +198,8 @@ export async function signUpUserWithId(
 /** Seed the durable address proof produced by Google in the disposable native auth database.
  * The browser test still performs real password sign-in and membership admission. */
 export function seedFixtureGoogleEmailProof(email: string): void {
-  const path = fileURLToPath(new URL("../apps/backend/.auth-e2e.db", import.meta.url));
-  const db = new DatabaseSync(path);
+  const db = openAuthE2EDatabase();
   try {
-    db.exec("PRAGMA busy_timeout = 5000");
     const normalized = email.toLowerCase();
     const principal = db.prepare("SELECT id FROM users WHERE lower(email) = ?").get(normalized) as
       { id: string } | undefined;
@@ -144,10 +224,8 @@ export function seedFixtureGoogleEmailProof(email: string): void {
 /** Mark only the legacy email flag in the disposable native auth database. A joining test uses this
  * to prove that the flag alone is not the durable address evidence required for policy admission. */
 export function seedFixtureLegacyEmailFlag(email: string): void {
-  const path = fileURLToPath(new URL("../apps/backend/.auth-e2e.db", import.meta.url));
-  const db = new DatabaseSync(path);
+  const db = openAuthE2EDatabase();
   try {
-    db.exec("PRAGMA busy_timeout = 5000");
     const updated = db
       .prepare("UPDATE users SET email_verified = 1, updated_at = ? WHERE lower(email) = ?")
       .run(new Date().toISOString(), email.toLowerCase());
