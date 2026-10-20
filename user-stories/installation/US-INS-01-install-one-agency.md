@@ -35,8 +35,11 @@ start while a required value is missing is one a generalist can finish and trust
 - ✅ Nothing is built and no Docker is needed: the archive holds the web app, the server and
   everything it needs.
 - ✅ With any of the three values empty, the server refuses to start and names the missing one.
-- ✅ Once started, `/api/health` reports `"ok":true`, `"db":true`, `"audit":"ok"` and a backup status
-  of `"ok"` (`"pending"` for a moment after the first start).
+- ✅ Once started, `/health/live` reports `"ok":true` and `/health/ready` checks the database and
+  accepted migrations. Backup success is checked independently in logs and completed snapshots.
+- ✅ When configured, online snapshots run at startup and every 24 hours. Retention keeps the
+  configured number of completed managed snapshots, excluding upgrade snapshots and unrelated files.
+  A snapshot taken during normal use restores the expected data on an isolated database path.
 - ✅ The address serves the web app and the API from one origin, so a single proxy line in front of
   it is enough.
 - ✅ Sign-in defaults to email and password under production settings without being configured.

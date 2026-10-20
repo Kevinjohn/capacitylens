@@ -3,7 +3,13 @@ import type { CommandOptions } from '@adonisjs/core/types/ace'
 import { openNativeDatabase } from '#services/backup/native'
 import { resolveBackupDatabasePath, type BackupConfig } from '#config/backup'
 import { buildSnapshotName } from '#services/backup/names'
-import { ensurePrivateBackupDirectory, writeOneShotSnapshot } from '#services/backup/snapshot'
+import {
+  durableSnapshotPublisher,
+  ensurePrivateBackupDirectory,
+  writeOneShotSnapshot,
+} from '#services/backup/snapshot'
+import { listSnapshots, pruneSnapshots, readMainDatabaseIdentity } from '#services/backup/retention'
+import { parseSnapshotTimestamp } from '#services/backup/names'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -27,12 +33,30 @@ export default class DbBackup extends BaseCommand {
         fileMustExist: true,
         readonly: true,
       })
-      let stamp = Date.now()
+      ensurePrivateBackupDirectory(config.dir)
+      const identity = readMainDatabaseIdentity(database)
+      let stamp = Math.max(
+        Date.now(),
+        ...listSnapshots(config.dir, identity).map(parseSnapshotTimestamp)
+      )
       let file = join(config.dir, buildSnapshotName(new Date(stamp)))
       while (existsSync(file)) file = join(config.dir, buildSnapshotName(new Date(++stamp)))
-      ensurePrivateBackupDirectory(config.dir)
       await writeOneShotSnapshot({ database, dir: config.dir, file, overwrite: false })
-      this.logger.success(`Backup written ${file}`)
+      const pruned = pruneSnapshots({
+        dir: config.dir,
+        keep: config.keep,
+        database: identity,
+        currentFile: file,
+        log: (message) => this.logger.warning(message),
+      })
+      if (pruned > 0) {
+        try {
+          durableSnapshotPublisher.syncDirectory(config.dir)
+        } catch (error) {
+          this.logger.warning(`backup retention directory sync failed: ${String(error)}`)
+        }
+      }
+      this.logger.success(`Backup written ${file}${pruned ? ` (pruned ${pruned})` : ''}`)
     } catch (error) {
       this.logger.error(`Backup failed: ${String(error)}`)
       this.exitCode = 1

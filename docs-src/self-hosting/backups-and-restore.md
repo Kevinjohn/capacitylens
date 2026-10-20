@@ -11,10 +11,13 @@ alone is not a recovery plan: retain multiple snapshots away from the host and r
 
 ## Scheduled and manual snapshots
 
-Set `CAPACITYLENS_BACKUP_DIR` to enable startup and periodic snapshots. The default interval is 60
-minutes and the default retention is 48 snapshots. The first snapshot starts with the web service;
-`/health/ready` reports pending or degraded backup health. See
-[Configuration](/self-hosting/configuration) for the interval and retention settings.
+Set `CAPACITYLENS_BACKUP_DIR` to enable an online snapshot at web-service startup and every 24
+hours while it runs. `CAPACITYLENS_BACKUP_KEEP` controls how many completed managed snapshots to
+retain; the default is 48. A running backup prevents another scheduled job from overlapping it.
+See [Configuration](/self-hosting/configuration) for retention settings.
+
+Check the service logs for backup failures and confirm that recent completed snapshots exist.
+Readiness checks the database; it does not track backup success.
 
 To write a verified snapshot on demand, stop neither the application nor its users; the backup
 command uses SQLite's online backup API. Run it from the archive's `backend/` directory with the
@@ -25,7 +28,10 @@ node ace.js db:backup
 ```
 
 This command requires `CAPACITYLENS_BACKUP_DIR`. The resulting database snapshot is written to the
-configured directory. Copy snapshots off the host and protect them like production data.
+configured directory. Scheduled and manual snapshots share count-based retention: after a
+successful snapshot, excess older managed snapshots are removed. Pre-upgrade snapshots, temporary
+files and unrelated files are excluded. A failed copy is not published as a completed snapshot and
+does not trigger retention. Copy snapshots off the host and protect them like production data.
 
 ## Restore a snapshot
 

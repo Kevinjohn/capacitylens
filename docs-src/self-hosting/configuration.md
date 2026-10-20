@@ -49,14 +49,16 @@ configured; invitation and recovery flows that require delivery cannot complete.
 
 ## Backups
 
-`CAPACITYLENS_BACKUP_DIR` enables scheduled SQLite snapshots. The default interval is 60 minutes
-and retention is 48 snapshots. Override with `CAPACITYLENS_BACKUP_INTERVAL_MIN` and
-`CAPACITYLENS_BACKUP_KEEP`. The directory must be private and writable by the service user. Leave
-the directory unset only when you have an explicitly managed backup process; readiness will report
-scheduled backups as unavailable. Invalid interval values use the 60-minute default with a startup
-warning, and values above 35,000 clamp to 35,000 with a startup warning. Positive fractional
-retention values are floored to whole snapshots; invalid or nonpositive values use the 48-snapshot
-default with a startup warning, and values above 10,000 clamp to 10,000 with a startup warning.
+`CAPACITYLENS_BACKUP_DIR` enables an online SQLite snapshot at web-service startup and every 24
+hours while it runs. The directory must be private and writable by the service user. Leave it
+unset only when you have an explicitly managed backup process. The old
+`CAPACITYLENS_BACKUP_INTERVAL_MIN` setting is no longer used.
+
+`CAPACITYLENS_BACKUP_KEEP` retains the newest completed managed snapshots, defaulting to 48.
+Positive fractional values are floored to whole snapshots; invalid or nonpositive values use 48
+with a startup warning, and values above 10,000 clamp to 10,000 with a warning. Pre-upgrade
+snapshots and unrelated files are excluded from scheduled/manual retention. Check backup logs and
+completed files separately from database readiness; see [Backups and restore](/self-hosting/backups-and-restore).
 
 ## Network and logging
 
