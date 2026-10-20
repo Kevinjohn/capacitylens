@@ -21,11 +21,6 @@ export const AUTH_PASSWORD = "demo-password-123456";
  */
 export const BOOTSTRAP_ADMIN = { email: "admin@admin.admin", password: "auth-e2e-password-2026" };
 
-/** The operator bootstrap token (set in server's start:auth-e2e script). A fresh sign-up is not a
- * first-run bootstrap and holds no membership; this is the documented operator path to provision
- * an org (`POST /api/orgs`) on an already-populated instance. */
-export const BOOTSTRAP_TOKEN = "auth-e2e-bootstrap-token-0123456789abcdef";
-
 function cookiesOf(setCookie: string): string {
   return setCookie
     .split("\n")
@@ -86,10 +81,12 @@ export async function signUpUser(email: string, name?: string): Promise<{ email:
   }
 }
 
-/** Provisions a disposable company through operator bootstrap, makes the principal identified by cookie its Owner, and returns its account ID. */
+/** Resets disposable company data, then creates the first company through its ordinary route. */
 export async function bootstrapOrg(request: APIRequestContext, cookie: string, name: string): Promise<string> {
+  const reset = await request.post(`${AUTH_API}/api/test/reset`, { data: { seed: false } });
+  expect(reset.ok(), "reset the isolated auth-backed company fixture").toBeTruthy();
   const res = await request.post(`${AUTH_API}/api/orgs`, {
-    headers: { cookie, "x-capacitylens-bootstrap-token": BOOTSTRAP_TOKEN },
+    headers: { cookie },
     data: { name },
   });
   expect(res.status()).toBe(201);
