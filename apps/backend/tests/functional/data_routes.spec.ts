@@ -181,15 +181,22 @@ test.group('M2b data routes', (group) => {
     assert.deepEqual(stillDismissed.body(), { dismissed: true })
   })
 
-  test('getting-started rejects extra fields and missing companies', async ({ client, assert }) => {
+  test('getting-started strips extra fields and reports missing companies', async ({
+    client,
+    assert,
+  }) => {
     await client.post('/api/test/reset').json({ seed: true }).send()
     const route = '/api/accounts/a-studio/getting-started'
     const malformed = await trusted(client.put(route))
       .json({ dismissed: true, extra: 'value' })
       .send()
-    malformed.assertStatus(400)
-    const unchanged = await client.get(route).send()
-    assert.deepEqual(unchanged.body(), { dismissed: false })
+    malformed.assertStatus(200)
+    const saved = await client.get(route).send()
+    assert.deepEqual(saved.body(), { dismissed: true })
+    const invalid = await trusted(client.put(route)).json({ dismissed: null }).send()
+    invalid.assertStatus(400)
+    const stillDismissed = await client.get(route).send()
+    assert.deepEqual(stillDismissed.body(), { dismissed: true })
     const missing = await client.get('/api/accounts/unknown/getting-started').send()
     missing.assertStatus(404)
   })

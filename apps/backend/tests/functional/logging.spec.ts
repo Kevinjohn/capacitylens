@@ -246,7 +246,7 @@ test.group('general HTTP logging privacy', (group) => {
 
     assert.equal(result.status(), 400)
     assert.include(output, 'POST')
-    assert.include(output, '"path":"[unmatched]"')
+    assert.include(output, '"path":"/api/batch"')
     assert.include(output, '400')
     assert.notInclude(output, secret)
   })

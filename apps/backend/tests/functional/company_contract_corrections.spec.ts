@@ -244,7 +244,7 @@ test.group('M2b company route compatibility', (group) => {
       .json({ name: 'Wayne First' })
       .send()
     first.assertStatus(200)
-    for (const bad of [{ name: null }, { unknownSetting: true }, { schedulingMode: 'nonsense' }]) {
+    for (const bad of [{ name: null }, { schedulingMode: 'nonsense' }]) {
       const rejected = await trusted(client.patch('/api/accounts/a-studio'))
         .json({ ...bad, updatedAt: original.updatedAt })
         .send()
@@ -252,6 +252,15 @@ test.group('M2b company route compatibility', (group) => {
     }
     const latestState = await readState('a-studio', true)
     assert.equal(latestState.accounts[0]?.name, 'Wayne First')
+    const unknown = await trusted(client.patch('/api/accounts/a-studio'))
+      .json({ unknownSetting: true, updatedAt: latestState.accounts[0]!.updatedAt })
+      .send()
+    unknown.assertStatus(200)
+    const afterUnknown = await readState('a-studio', true)
+    assert.deepEqual(afterUnknown, {
+      ...latestState,
+      accounts: [{ ...latestState.accounts[0]!, updatedAt: afterUnknown.accounts[0]!.updatedAt }],
+    })
   })
 
   test('missing company PATCH remains not found before metadata validation', async ({
@@ -318,13 +327,22 @@ test.group('M2b company route compatibility', (group) => {
     await client.post('/api/test/reset').json({ seed: true }).send()
     const before = await readState('a-studio', true)
     for (const path of ['/api/accounts', '/api/orgs']) {
-      for (const bad of [{ name: null }, { unknownSetting: true }]) {
-        const rejected = await trusted(client.post(path))
-          .json({ id: 'a-second-company', name: 'Stark Industries', color: '#2d75da', ...bad })
-          .send()
-        rejected.assertStatus(400)
-        assert.deepEqual(await readState('a-studio', true), before)
-      }
+      const malformed = await trusted(client.post(path))
+        .json({ id: 'a-second-company', name: null, color: '#2d75da' })
+        .send()
+      malformed.assertStatus(400)
+      assert.deepEqual(await readState('a-studio', true), before)
+
+      const unknown = await trusted(client.post(path))
+        .json({
+          id: 'a-second-company',
+          name: 'Stark Industries',
+          color: '#2d75da',
+          unknownSetting: true,
+        })
+        .send()
+      unknown.assertStatus(403)
+      assert.deepEqual(await readState('a-studio', true), before)
     }
   })
 
