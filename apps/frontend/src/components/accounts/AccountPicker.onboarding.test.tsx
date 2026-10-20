@@ -115,29 +115,17 @@ describe("AccountPicker example data", () => {
     );
   }
 
-  it("is ticked by default for a first company and unticked once a company exists", async () => {
+  it("defaults example data on for first-company setup and hides company creation once a company exists", () => {
     serverFlag.on = true;
     const { unmount } = render(<AccountPicker />);
     expect(screen.getByRole("checkbox", { name: "Start with example data" })).toBeChecked();
     unmount();
 
     useStore.getState().setAccountSummaries({ list: [{ id: "a1", name: "Wayne", role: "owner" }] });
-    render(
-      <AuthContext.Provider
-        value={{
-          authMode: "off",
-          user: null,
-          canCreateAccount: true,
-          refreshAuth: async () => {},
-          signOut: async () => {},
-        }}
-      >
-        <AccountPicker />
-      </AuthContext.Provider>,
-    );
-    const user = userEvent.setup();
-    await user.click(screen.getByTestId("new-company-button"));
-    expect(screen.getByRole("checkbox", { name: "Start with example data" })).not.toBeChecked();
+    render(<AccountPicker />);
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "Start with example data" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument();
   });
 
   it("adds example data after creating the company when the box is ticked", async () => {

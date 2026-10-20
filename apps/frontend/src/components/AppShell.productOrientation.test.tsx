@@ -200,6 +200,14 @@ describe("AppShell product orientation", () => {
             }),
           );
         }
+        if (url.endsWith(`/api/accounts/${DEFAULT_ACCOUNT_ID}/getting-started`)) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ dismissed: false }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }
         return Promise.resolve(
           new Response(JSON.stringify({ active: false }), {
             status: 200,
@@ -213,7 +221,7 @@ describe("AppShell product orientation", () => {
     renderShell("/", authenticatedAuth("viewer-user"));
 
     await waitFor(() => expect(screen.getByRole("region", { name: "How CapacityLens works" })).toBeInTheDocument());
-    await waitFor(() => expect(screen.queryByTestId("active-role")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("active-role")).toHaveTextContent("Viewer"));
     expect(screen.queryByRole("button", { name: "How CapacityLens works" })).not.toBeInTheDocument();
   });
 
