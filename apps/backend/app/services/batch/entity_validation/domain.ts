@@ -80,6 +80,23 @@ export function assertEntityDomain(
   if (table === 'accounts' || table === 'disciplines') return
   if (table !== 'allocations' && table !== 'timeOff' && table !== 'closures')
     assertScopedRefs(state, accountId, table, row, existing, lookup, { fullRow: true })
+  if (
+    table === 'phases' &&
+    existing &&
+    existing.projectId !== row.projectId &&
+    state.activities.some(
+      (activity) =>
+        activity.accountId === accountId &&
+        activity.phaseId === id &&
+        activity.projectId !== row.projectId
+    )
+  )
+    throw new BatchRequestError(
+      'A phase with activities cannot move to a different project.',
+      400,
+      undefined,
+      'activity_phase_project_mismatch'
+    )
   if (table === 'resources') {
     const resource = row as unknown as Resource
     const previous = existing as unknown as Resource | undefined

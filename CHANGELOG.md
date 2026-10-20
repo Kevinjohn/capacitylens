@@ -22,6 +22,12 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Preserve planning drafts through admission-only configuration and pending invitation changes,
+  and identify invalidated view-as authority as planning context loss.
+- Reject phase moves that would invalidate linked activities, and audit dependent attribution
+  repairs atomically with their company revision.
+- Clear typed planning history for activity-kind edits whose dependent attribution cannot be
+  recovered by an ordinary inverse.
 - Preserve Undo and Redo after background refreshes acknowledge this browser’s saved schedule edits (#1502).
 - Hide company onboarding during view-as member so read-only navigation does not show a forbidden-request error (#1503).
 - Explain when a password-reset link is invalid, used or expired instead of suggesting another attempt (#1505).

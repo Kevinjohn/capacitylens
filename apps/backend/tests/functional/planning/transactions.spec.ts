@@ -259,4 +259,40 @@ test.group('planning snapshot and commit boundaries', (group) => {
       knex.off('query', crossBoundary)
     }
   })
+  for (const invalidation of [
+    'actor membership',
+    'target membership',
+    'actor permission',
+  ] as const) {
+    test(`reports ${invalidation} loss during view-as as planning context loss`, async ({
+      client,
+      assert,
+      cleanup,
+    }) => {
+      configureAuth(cleanup)
+      const owner = await signIn(client)
+      const target = await signIn(client, 'editor')
+      const started = await session(
+        client.post(`/api/accounts/${accountId}/masquerade`),
+        owner.cookie
+      )
+        .json({ targetUserId: target.userId })
+        .send()
+      started.assertStatus(200)
+      const before = await session(client.get(planningUrl), owner.cookie).send()
+      before.assertStatus(200)
+      await db
+        .from('memberships')
+        .where({
+          account_id: accountId,
+          user_id: invalidation === 'target membership' ? target.userId : owner.userId,
+        })
+        .update(invalidation === 'actor permission' ? { role: 'editor' } : { status: 'archived' })
+      const lost = await session(client.get(planningUrl), owner.cookie).send()
+      lost.assertStatus(403)
+      assert.equal(lost.body().code, 'account_membership_lost')
+      assert.isUndefined(lost.body().data)
+      assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0)
+    })
+  }
 })

@@ -5,7 +5,6 @@ import {
 } from '@capacitylens/shared/account/approvedDomains'
 import { isJoiningPolicy, type JoiningPolicySettings } from '@capacitylens/shared/account/types'
 import { forbiddenAdmission, invalidAdmission } from './errors.js'
-import { advancePlanningRevision } from '#services/planning_revision'
 
 const DEFAULT_POLICY: JoiningPolicySettings = { policy: 'invitation_only', approvedDomains: [] }
 
@@ -65,7 +64,6 @@ export async function writeJoiningPolicy(
     })
     .onConflict('account_id')
     .merge(['policy', 'approved_domains', 'updated_at'])
-  await advancePlanningRevision(trx, accountId)
   return true
 }
 

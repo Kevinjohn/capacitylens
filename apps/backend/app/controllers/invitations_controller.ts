@@ -13,7 +13,6 @@ import {
   readCompletedAccountCommand,
 } from '#services/account_commands'
 import { withTransaction } from '#services/with_transaction'
-import { advancePlanningRevision } from '#services/planning_revision'
 import { passwordEnabled } from '#services/auth/mode'
 import {
   assertPasswordAllowed,
@@ -183,7 +182,6 @@ export default class InvitationsController {
         if (claim.replayed) return
         const deleted = await trx.from('invitations').where({ id, account_id: accountId }).delete()
         if (!deleted) missingAdmission()
-        await advancePlanningRevision(trx, accountId)
         await writeAudit(trx, {
           accountId,
           actorId,

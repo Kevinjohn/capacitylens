@@ -101,7 +101,13 @@ This is the short, present-tense record of decisions that constrain future work.
   confidentially projected company slice inside one Lucid transaction. Typed mutations compare the
   captured `baseRevision` inside their write transaction; a mismatch returns 409 without replay.
   Every changed planning or product-authority transaction advances the company revision once.
+  Admission configuration and pending invitation-only edits do not advance it without a planning
+  projection or current membership/access change.
   No-change typed operations return 400 without an audit entry, marker or revision advance.
+- Committed typed activity updates supplying `kind` require a canonical refetch and clear page-local
+  history, including same-kind inputs that change another field. A kind change can discard dependent
+  allocation attribution that an ordinary inverse cannot recover. Kind-omitting edits retain their
+  normal patch response; full Undo-preserving activation remains gated on its accepted dependencies.
 - A durable planning mutation marker is unique per company and mutation UUID, belongs to its actor,
   and commits with the data, revision and audit entry. Lookup returns only committed revision or
   unknown; an absent marker cannot prove failure. Reusing a committed identity returns 409, never
