@@ -1,10 +1,12 @@
-import { Fragment, useMemo } from "react";
+import { Fragment, useMemo, useRef } from "react";
 import { startOfWeekISO } from "@capacitylens/shared/lib/dateMath";
 import { CalendarOff } from "lucide-react";
 import type { Closure } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { useEntityListState } from "@/hooks/useEntityListState";
 import { useConfirmDelete } from "@/hooks/useConfirmDelete";
+import { capturePlanningDraft } from "@/data/planning/planningActions";
+import { usePlanningActions } from "@/data/planning/usePlanningActions";
 import { formatShortDateRange } from "@/lib/dateDisplay";
 import { resolveTimeZone, resolveWeekStart } from "@/store/selectors";
 import { useActiveScopedData } from "@/store/useScopedData";
@@ -61,9 +63,17 @@ export function CompanyClosureSection() {
   const data = useActiveScopedData();
   const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
   const calendarWeekStartsOn = useStore((state) => resolveWeekStart(state.data, state.activeAccountId));
-  const deleteEntity = useStore((state) => state.deleteClosure);
+  const { deleteClosure: deleteEntity } = usePlanningActions();
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<Closure>();
-  const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
+  const confirmationDraft = useRef<ReturnType<typeof capturePlanningDraft>>(null);
+  const { confirmDelete, busy } = useConfirmDelete(deleteEntity, () => {
+    confirmationDraft.current = null;
+    setConfirming(null);
+  });
+  const requestDelete = (closure: Closure) => {
+    confirmationDraft.current = capturePlanningDraft(closure);
+    setConfirming(closure);
+  };
   const today = useCalendarToday(calendarTimeZone);
   const currentWeekStart = startOfWeekISO(today, calendarWeekStartsOn);
   const closures = useMemo(() => buildClosureList(data.closures, currentWeekStart), [currentWeekStart, data.closures]);
@@ -84,7 +94,7 @@ export function CompanyClosureSection() {
           </EmptyState>
         </div>
       ) : (
-        <ClosureItems closures={closures} onEdit={setEditing} onDelete={setConfirming} />
+        <ClosureItems closures={closures} onEdit={setEditing} onDelete={requestDelete} />
       )}
 
       {creating && <ClosureForm onClose={() => setCreating(false)} />}
@@ -93,8 +103,12 @@ export function CompanyClosureSection() {
         <ConfirmDialog
           title={m.list_closures_delete_title()}
           message={m.list_closures_delete_message()}
-          onConfirm={() => confirmDelete(confirming.id)}
-          onCancel={() => setConfirming(null)}
+          busy={busy}
+          onConfirm={() => void confirmDelete(confirming.id, confirmationDraft.current)}
+          onCancel={() => {
+            confirmationDraft.current = null;
+            setConfirming(null);
+          }}
         />
       )}
     </section>

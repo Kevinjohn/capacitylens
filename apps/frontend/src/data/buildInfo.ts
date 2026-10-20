@@ -47,7 +47,7 @@ export interface BrowserDiagnostics {
   language: string;
 }
 
-/** Facts known only to the running client: its sign-in mode, persistence counters and browser. */
+/** Facts known only to the running client: its sign-in mode, planning status and browser. */
 export interface ClientDiagnostics {
   signInMode: AccountMode;
   persistence: PersistenceDiagnostics;
@@ -206,13 +206,11 @@ export function formatDiagnostics(report: DiagnosticsReport): string {
     `Backup: ${server.backup.status}`,
     `Backup last success: ${server.backup.lastSuccessAt ?? UNKNOWN}`,
     `Sign-in mode: ${report.client.signInMode}`,
-    `Saves failed: ${persistence.savesFailed}`,
-    `Retries armed: ${persistence.retriesArmed}`,
-    `Reconciliations resolved: ${persistence.reconciliationsResolved}`,
-    `Reloads superseded: ${persistence.reloadsSuperseded}`,
-    `Edits rebased: ${persistence.editsRebased}`,
-    `Edits discarded: ${persistence.editsDiscarded}`,
-    `Saving suspended: ${persistence.suspended ? "yes" : "no"}`,
+    `Planning status: ${persistence.status}`,
+    `Planning revision: ${persistence.revision ?? UNKNOWN}`,
+    `Pending commitment: ${persistence.commitment}`,
+    `Undo available: ${persistence.canUndo ? "yes" : "no"}`,
+    `Redo available: ${persistence.canRedo ? "yes" : "no"}`,
     `User agent: ${browser.userAgent}`,
     `Viewport: ${browser.viewport}`,
     `Time zone: ${browser.timeZone}`,

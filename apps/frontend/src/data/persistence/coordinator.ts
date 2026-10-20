@@ -1,5 +1,5 @@
 import type { FlushPendingWritesResult, RefreshOutcome } from "./facades";
-/** Callbacks registered by an adapter for refresh and write coordination. */
+/** Callbacks registered by the planning runtime for refresh and command coordination. */
 export interface PersistenceRegistration {
   refreshActive?: (id: string) => Promise<Exclude<RefreshOutcome, { kind: "unattached" }>>;
   flushPending?: () => Promise<FlushPendingWritesResult>;
@@ -9,7 +9,7 @@ export interface PersistenceRegistration {
   hasUnsavedWrites: () => boolean;
 }
 
-// Owns the currently attached persistence lifecycle so public seams share one coordinator.
+// Owns the currently attached planning runtime so public seams share one coordinator.
 class PersistenceCoordinator {
   private registration: PersistenceRegistration | null = null;
 
@@ -48,5 +48,5 @@ class PersistenceCoordinator {
   }
 }
 
-/** Shared coordinator for persistence refreshes and write reconciliation. */
+/** Shared coordinator for planning refreshes and command reconciliation. */
 export const persistenceCoordinator = new PersistenceCoordinator();

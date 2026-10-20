@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { MasqueradeBootstrapStatus } from "./masqueradeApi";
 import { AUTH_INVALIDATION_STORAGE_KEY } from "./signOut";
+import type { PlanningTransport } from "@/data/planning/planningCacheController";
 
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({ active: false })),
@@ -28,8 +29,11 @@ async function freshProvider() {
   vi.resetModules();
   const { AuthProvider } = await import("./AuthProvider");
   const { useStore } = await import("@/store/useStore");
-  const { attachPersistence } = await import("@/data/persist");
+  const { persistenceCoordinator } = await import("@/data/persistence/coordinator");
   const { resetStoreWithAccount } = await import("@/test/fixtures");
+  const { makeResource } = await import("@/test/fixtures");
+  const { createDemoHistoryEntry } = await import("@/store/history");
+  const { attachPlanningRuntime } = await import("@/data/planning/planningRuntime");
   // authContext must come from the same fresh module graph as AuthProvider (which imports it
   // internally): a statically-imported useAuth from before vi.resetModules() would read the
   // context object's default value, not whatever this AuthProvider instance provides.
@@ -39,8 +43,11 @@ async function freshProvider() {
     AuthProvider,
     useStore,
     useAuth,
-    attachPersistence,
+    persistenceCoordinator,
     resetStoreWithAccount,
+    makeResource,
+    createDemoHistoryEntry,
+    attachPlanningRuntime,
     requestReauth,
     isReauthPending,
   };
@@ -795,6 +802,110 @@ function registerServerModeTest27() {
   });
 }
 
+function registerServerModeTest32() {
+  it("rechecks /me when planning scope loss clears the live company without a persistError", async () => {
+    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(
+        me(200, {
+          authMode: "password-only",
+          user: { id: "u1", email: "a@b.test" },
+        }),
+      )
+      .mockResolvedValue(me(401, { authMode: "password-only", providers: [] }));
+    vi.stubGlobal("fetch", fetchSpy);
+    const {
+      AuthProvider,
+      useStore,
+      resetStoreWithAccount,
+      makeResource,
+      createDemoHistoryEntry,
+      attachPlanningRuntime,
+    } = await freshProvider();
+    resetStoreWithAccount("a-studio");
+    render(
+      <AuthProvider>
+        <div>tenant-content</div>
+      </AuthProvider>,
+    );
+    expect(await screen.findByText("tenant-content")).toBeInTheDocument();
+
+    const initialData = useStore.getState().data;
+    const runtime = attachPlanningRuntime(useStore, {
+      read: async () => ({ revision: 1, data: initialData, accessKey: "u1", canWrite: true }),
+      execute: async () => {
+        throw new Error("not used");
+      },
+      lookup: async (_context, mutationId) => ({ status: "unknown", mutationId }),
+    } satisfies PlanningTransport);
+    await runtime.ready();
+    const before = useStore.getState().data;
+    const after = {
+      ...before,
+      resources: [...before.resources, makeResource({ id: "scope-loss-resource", accountId: "a-studio" })],
+    };
+    const historyEntry = createDemoHistoryEntry(before, after);
+    if (!historyEntry) throw new Error("Expected test history entry");
+    useStore.setState({ data: after, past: [historyEntry], future: [historyEntry] });
+    expect(useStore.getState().data.resources).toHaveLength(1);
+    expect(useStore.getState().past.length).toBeGreaterThan(0);
+    expect(useStore.getState().persistError).toBe(false);
+
+    act(() => runtime.controller.setContext(null));
+
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(useStore.getState().activeAccountId).toBeNull();
+    expect(useStore.getState().data.resources).toHaveLength(0);
+    expect(useStore.getState().past).toHaveLength(0);
+    expect(useStore.getState().future).toHaveLength(0);
+    runtime.dispose();
+  });
+}
+
+function registerServerModeTest33() {
+  it("does not recheck /me for an ordinary company switch or deliberate close", async () => {
+    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(me(200, { authMode: "password-only", user: { id: "u1", email: "a@b.test" } }))
+      .mockResolvedValue(me(401, { authMode: "password-only", providers: [] }));
+    vi.stubGlobal("fetch", fetchSpy);
+    const { AuthProvider, useStore, resetStoreWithAccount } = await freshProvider();
+    resetStoreWithAccount("a-studio");
+    render(
+      <AuthProvider>
+        <div>tenant-content</div>
+      </AuthProvider>,
+    );
+    expect(await screen.findByText("tenant-content")).toBeInTheDocument();
+
+    act(() => {
+      const planning = useStore.getState().planning;
+      useStore.setState({
+        activeAccountId: "a-studio",
+        planning: { ...planning, context: { identity: "u1", companyId: "a-studio" } },
+      });
+    });
+    act(() => {
+      const planning = useStore.getState().planning;
+      useStore.setState({
+        activeAccountId: "a-loft",
+        planning: { ...planning, context: { identity: "u1", companyId: "a-loft" } },
+      });
+    });
+    act(() => useStore.setState({ activeAccountId: null }));
+    act(() => {
+      const planning = useStore.getState().planning;
+      useStore.setState({ planning: { ...planning, context: null } });
+    });
+
+    expect(screen.getByText("tenant-content")).toBeInTheDocument();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+}
+
 function registerServerModeTest28() {
   it("cancels a pending step-up when a session re-check removes its React host", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
@@ -843,7 +954,7 @@ function registerServerModeTest29() {
       )
       .mockResolvedValue(me(401, { authMode: "password-only", providers: [] }));
     vi.stubGlobal("fetch", fetchSpy);
-    const { AuthProvider, useStore, attachPersistence, resetStoreWithAccount } = await freshProvider();
+    const { AuthProvider, useStore, persistenceCoordinator, resetStoreWithAccount } = await freshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
@@ -852,16 +963,7 @@ function registerServerModeTest29() {
     expect(await screen.findByText("app-content")).toBeInTheDocument();
 
     resetStoreWithAccount();
-    const detach = attachPersistence({
-      store: useStore,
-      adapter: {
-        loadAll: async () => useStore.getState().data,
-        saveAll: vi.fn().mockResolvedValue(undefined),
-      },
-      debounceMs: 60_000,
-      serverMode: true,
-    });
-    useStore.getState().addClient({ name: "Not yet saved", color: "#222222" });
+    const detach = persistenceCoordinator.attach({ hasUnsavedWrites: () => true });
 
     act(() => useStore.getState().setPersistError(true));
 
@@ -977,6 +1079,8 @@ describe("AuthProvider — server mode", () => {
   registerServerModeTest29();
   registerServerModeTest30();
   registerServerModeTest31();
+  registerServerModeTest32();
+  registerServerModeTest33();
 });
 
 // The server supplies the first-company setup flag; it remains the authorization boundary.

@@ -1,9 +1,10 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { screen, fireEvent, act } from "@testing-library/react";
+import { screen, fireEvent, act, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { m } from "@/i18n";
 import { AllocationBar } from "./AllocationBar";
 import { PermissionContext } from "@/auth/permissionContext";
+import { planningActions } from "@/data/planning/planningActions";
 import { useStore } from "@/store/useStore";
 import { resetStoreWithAccount } from "@/test/fixtures";
 import { buildVisibleRange } from "@/store/selectors";
@@ -247,6 +248,42 @@ function registerPopoverAndEditorTests() {
 }
 
 function registerKeyboardMovementTests() {
+  it("waits for canonical acknowledgement before saving and announcing a keyboard move", async () => {
+    const allocation = seedAllocation();
+    const commit = planningActions.updateAllocation;
+    let acknowledge!: () => void;
+    const pendingAck = new Promise<void>((resolve) => (acknowledge = resolve));
+    const update = vi.spyOn(planningActions, "updateAllocation").mockImplementation(async (...args) => {
+      await pendingAck;
+      return commit(...args);
+    });
+    render(<AllocationBar bar={barFor(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+
+    fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
+
+    expect(getStoredAllocation(allocation.id)).toMatchObject({ startDate: "2026-06-01", endDate: "2026-06-03" });
+    expect(useStore.getState().srAnnouncement).toBeNull();
+
+    await act(async () => acknowledge());
+    await waitFor(() =>
+      expect(getStoredAllocation(allocation.id)).toMatchObject({ startDate: "2026-06-02", endDate: "2026-06-04" }),
+    );
+    expect(useStore.getState().srAnnouncement).not.toBeNull();
+    expect(update).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a refused asynchronous keyboard move unchanged and surfaces the error", async () => {
+    const allocation = seedAllocation();
+    vi.spyOn(planningActions, "updateAllocation").mockRejectedValue(new Error("write refused"));
+    render(<AllocationBar bar={barFor(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+
+    fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
+
+    await waitFor(() => expect(useStore.getState().notice).toMatchObject({ tone: "error", message: "write refused" }));
+    expect(getStoredAllocation(allocation.id)).toMatchObject({ startDate: "2026-06-01", endDate: "2026-06-03" });
+    expect(useStore.getState().srAnnouncement).toBeNull();
+  });
+
   it("moves with arrow keys and resizes with Shift+arrow (keyboard equivalent of drag)", () => {
     const a = seedAllocation();
     const { rerender } = render(
@@ -263,7 +300,7 @@ function registerKeyboardMovementTests() {
     expect([moved.startDate, moved.endDate]).toEqual(["2026-06-02", "2026-06-05"]);
   });
 
-  it("rejects and announces a keyboard move beyond the person's availability", () => {
+  it("rejects and announces a keyboard move beyond the person's availability", async () => {
     const allocation = seedAllocation();
     useStore.getState().updateResource(allocation.resourceId, { lastAvailableDate: "2026-06-03" });
     render(<AllocationBar bar={barFor(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
@@ -274,7 +311,7 @@ function registerKeyboardMovementTests() {
       startDate: "2026-06-01",
       endDate: "2026-06-03",
     });
-    expect(useStore.getState().notice).toMatchObject({ tone: "error" });
+    await waitFor(() => expect(useStore.getState().notice).toMatchObject({ tone: "error" }));
     expect(useStore.getState().notice?.message).toMatch(/after this person is available/i);
   });
 
@@ -300,7 +337,7 @@ function registerKeyboardMovementTests() {
 }
 
 function registerKeyboardFocusTests() {
-  it("keeps a keyboard-moved bar focused and scrolls it to the nearest visible position", () => {
+  it("keeps a keyboard-moved bar focused and scrolls it to the nearest visible position", async () => {
     useStore.getState().setOriginDate("2026-06-01");
     useStore.getState().setZoom(1);
     const allocation = seedAllocation();
@@ -317,7 +354,7 @@ function registerKeyboardFocusTests() {
 
       fireEvent.keyDown(bar, { key: "ArrowRight" });
 
-      expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest", inline: "nearest" });
+      await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest", inline: "nearest" }));
       expect(bar).toHaveFocus();
     } finally {
       raf.mockRestore();
@@ -326,7 +363,7 @@ function registerKeyboardFocusTests() {
 }
 
 function registerKeyboardFocusRaceTests() {
-  it("cancels replaced focus work and runs only the latest keyboard operation", () => {
+  it("cancels replaced focus work and runs only the latest keyboard operation", async () => {
     const callbacks: FrameRequestCallback[] = [];
     const requestFrame = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
       callbacks.push(callback);
@@ -343,8 +380,10 @@ function registerKeyboardFocusRaceTests() {
       fireEvent.keyDown(bar, { key: "ArrowRight" });
       fireEvent.keyDown(bar, { key: "ArrowRight" });
 
-      expect(cancelFrame).toHaveBeenCalledWith(1);
-      expect(requestFrame).toHaveBeenCalledTimes(2);
+      await waitFor(() => {
+        expect(cancelFrame).toHaveBeenCalledWith(1);
+        expect(requestFrame).toHaveBeenCalledTimes(2);
+      });
       callbacks[1]?.(0);
       expect(bar).toHaveFocus();
     } finally {
@@ -354,7 +393,7 @@ function registerKeyboardFocusRaceTests() {
     }
   });
 
-  it("cancels pending keyboard focus when the allocation bar unmounts", () => {
+  it("cancels pending keyboard focus when the allocation bar unmounts", async () => {
     const requestFrame = vi.spyOn(window, "requestAnimationFrame").mockImplementation(() => 41);
     const cancelFrame = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
     const allocation = seedAllocation();
@@ -363,6 +402,7 @@ function registerKeyboardFocusRaceTests() {
     );
 
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
+    await waitFor(() => expect(requestFrame).toHaveBeenCalledOnce());
     unmount();
 
     expect(cancelFrame).toHaveBeenCalledWith(41);

@@ -10,10 +10,12 @@ import { buildTimeOffGroups } from "./timeOffView";
 import type { TimeOffGroup } from "./timeOffView";
 import type { TimeOff } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
-import { Fragment, useMemo } from "react";
+import { Fragment, useMemo, useRef } from "react";
 import { Calendar } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/components/ui/item";
 import { useConfirmDelete } from "@/hooks/useConfirmDelete";
+import { capturePlanningDraft } from "@/data/planning/planningActions";
+import { usePlanningActions } from "@/data/planning/usePlanningActions";
 import { CompanyClosureSection } from "./CompanyClosureSection";
 import { useCalendarToday } from "@/components/scheduler/useCalendarToday";
 
@@ -119,9 +121,17 @@ export function TimeOffList() {
   const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
   const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
   const calendarWeekStartsOn = useStore((state) => resolveWeekStart(state.data, state.activeAccountId));
-  const deleteEntity = useStore((state) => state.deleteTimeOff);
+  const { deleteTimeOff: deleteEntity } = usePlanningActions();
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<TimeOff>();
-  const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
+  const confirmationDraft = useRef<ReturnType<typeof capturePlanningDraft>>(null);
+  const { confirmDelete, busy } = useConfirmDelete(deleteEntity, () => {
+    confirmationDraft.current = null;
+    setConfirming(null);
+  });
+  const requestDelete = (timeOff: TimeOff) => {
+    confirmationDraft.current = capturePlanningDraft(timeOff);
+    setConfirming(timeOff);
+  };
 
   const today = useCalendarToday(calendarTimeZone);
   const currentWeekStart = startOfWeekISO(today, calendarWeekStartsOn);
@@ -144,7 +154,7 @@ export function TimeOffList() {
           groups={groups}
           onAdd={() => setCreating(true)}
           onEdit={setEditing}
-          onDelete={setConfirming}
+          onDelete={requestDelete}
         />
       </div>
 
@@ -154,8 +164,12 @@ export function TimeOffList() {
         <ConfirmDialog
           title={m.list_timeoff_delete_title()}
           message={m.list_timeoff_delete_message()}
-          onConfirm={() => confirmDelete(confirming.id)}
-          onCancel={() => setConfirming(null)}
+          busy={busy}
+          onConfirm={() => void confirmDelete(confirming.id, confirmationDraft.current)}
+          onCancel={() => {
+            confirmationDraft.current = null;
+            setConfirming(null);
+          }}
         />
       )}
     </ListPage>

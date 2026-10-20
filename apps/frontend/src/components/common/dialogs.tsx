@@ -122,6 +122,8 @@ export function Modal({
   dirty: controlledDirty,
   onDirtyChange,
   onEdit,
+  busy = false,
+  recovery,
 }: {
   title: ReactNode;
   description?: ReactNode;
@@ -137,6 +139,10 @@ export function Modal({
   onDirtyChange?: (dirty: boolean) => void;
   /** Called for every form edit, including edits after the form is already dirty. */
   onEdit?: () => void;
+  /** Disable the editable form surface and prevent dismissal while an owned submission settles. */
+  busy?: boolean;
+  /** Recovery controls stay available while editable form controls are disabled. */
+  recovery?: ReactNode;
 }) {
   const { markDirty, requestClose } = useModalController({
     guardDirty,
@@ -144,6 +150,7 @@ export function Modal({
     onDirtyChange,
     onEdit,
     onClose,
+    busy,
   });
 
   return (
@@ -155,6 +162,8 @@ export function Modal({
       markDirty={markDirty}
       children={children}
       footer={footer}
+      busy={busy}
+      recovery={recovery}
     />
   );
 }
@@ -165,12 +174,14 @@ function useModalController({
   onDirtyChange,
   onEdit,
   onClose,
+  busy,
 }: {
   guardDirty: boolean;
   controlledDirty: boolean | undefined;
   onDirtyChange: ((dirty: boolean) => void) | undefined;
   onEdit: (() => void) | undefined;
   onClose: () => void;
+  busy: boolean;
 }) {
   const setNotice = useStore((state) => state.setNotice);
   const setDirtyFormSource = useStore((state) => state.setDirtyFormSource);
@@ -202,6 +213,7 @@ function useModalController({
   useEffect(() => () => restoreFocus(invoker), [invoker]);
 
   const requestClose = () => {
+    if (busy) return;
     // `dirtyRef` flips synchronously in markDirty, before a controlled parent has had a chance to
     // feed `dirty=true` back through props. Reading it here closes that one-render escape hatch.
     if (guardDirty && dirtyRef.current) {
@@ -221,6 +233,8 @@ function ModalSurface({
   children,
   footer,
   markDirty,
+  busy,
+  recovery,
 }: {
   title: ReactNode;
   description: ReactNode | undefined;
@@ -229,6 +243,8 @@ function ModalSurface({
   children: ReactNode;
   footer: ReactNode | undefined;
   markDirty: () => void;
+  busy: boolean;
+  recovery: ReactNode | undefined;
 }) {
   const descriptionId = useId();
   return (
@@ -241,14 +257,16 @@ function ModalSurface({
       <DialogContent
         showCloseButton={false}
         aria-modal="true"
+        aria-busy={busy ? "true" : undefined}
         aria-describedby={description ? descriptionId : undefined}
         className="max-h-[90dvh] max-w-md grid-cols-[minmax(0,1fr)] gap-0 overflow-y-auto p-0"
         onEscapeKeyDown={(event) => {
           event.preventDefault();
-          requestClose();
+          if (!busy) requestClose();
         }}
         onPointerDownOutside={(event) => {
           event.preventDefault();
+          if (busy) return;
           if (hasOpenNestedOverlay()) return;
           const pointer = event.detail.originalEvent;
           if (pointer.button === 2 || (pointer.button === 0 && pointer.ctrlKey)) return;
@@ -260,7 +278,7 @@ function ModalSurface({
           <DialogTitle className="text-base">{title}</DialogTitle>
           {description && <DialogDescription id={descriptionId}>{description}</DialogDescription>}
         </DialogHeader>
-        <ModalForm onSubmit={onSubmit} markDirty={markDirty} footer={footer}>
+        <ModalForm onSubmit={onSubmit} markDirty={markDirty} footer={footer} busy={busy} recovery={recovery}>
           {children}
         </ModalForm>
       </DialogContent>
@@ -273,19 +291,24 @@ function ModalForm({
   markDirty,
   footer,
   children,
+  busy,
+  recovery,
 }: {
   onSubmit: (() => void) | undefined;
   markDirty: () => void;
   footer: ReactNode | undefined;
   children: ReactNode;
+  busy: boolean;
+  recovery: ReactNode | undefined;
 }) {
   return (
     <FormDirtyContext.Provider value={markDirty}>
       <form
         noValidate
+        aria-busy={busy ? "true" : undefined}
         onSubmit={(event) => {
           event.preventDefault();
-          onSubmit?.();
+          if (!busy) onSubmit?.();
         }}
         onInputCapture={markDirty}
         onChangeCapture={markDirty}
@@ -294,8 +317,11 @@ function ModalForm({
           if (toggle && !toggle.hasAttribute("data-form-dirty-managed")) markDirty();
         }}
       >
-        <div className="flex min-w-0 flex-col gap-3 p-4">{children}</div>
-        {footer && <DialogFooter className="border-t px-4 py-3">{footer}</DialogFooter>}
+        <fieldset disabled={busy} className="m-0 min-w-0 border-0 p-0">
+          <div className="flex min-w-0 flex-col gap-3 p-4">{children}</div>
+          {footer && <DialogFooter className="border-t px-4 py-3">{footer}</DialogFooter>}
+        </fieldset>
+        {recovery && <div data-testid="modal-recovery-controls">{recovery}</div>}
       </form>
     </FormDirtyContext.Provider>
   );

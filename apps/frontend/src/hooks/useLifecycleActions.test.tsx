@@ -4,54 +4,120 @@ import { act, renderHook } from "@testing-library/react";
 import { useLifecycleActions } from "./useLifecycleActions";
 import { useStore } from "@/store/useStore";
 import { makeAccount, makeAppData, resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
+import type { FlushPendingWritesResult } from "@/data/persist";
 import type { AppData } from "@capacitylens/shared/types/entities";
 
-// Exercise the attached orchestrator separately from the unattached fallback so
-// lifecycle refreshes cannot bypass pending-write coordination.
+// Exercise lifecycle refreshes through the attached planning-cache coordinator.
 
 // Hoist the server-mode mock before its factory runs to avoid the temporal dead zone.
 const cfg = vi.hoisted(() => ({ base: "http://api.test" }));
 const refreshControl = vi.hoisted(() => ({
-  outcome: { kind: "unattached" } as
+  outcome: { kind: "reloaded" } as
     { kind: "reloaded" } | { kind: "skipped" } | { kind: "failed" } | { kind: "unattached" },
   call: vi.fn(async (accountId: string) => {
     void accountId;
     return refreshControl.outcome;
   }),
+  publish: vi.fn<(accountId: string) => void>(),
+}));
+const lifecycleControl = vi.hoisted(() => ({
+  flush: vi.fn(async (): Promise<FlushPendingWritesResult> => ({ kind: "clean" })),
+  suspend: vi.fn<() => () => void>(() => vi.fn()),
+  begin: vi.fn(),
+  assertAllowed: vi.fn(),
+  generation: 1,
 }));
 vi.mock("@/data/apiConfig", () => ({
   API_BASE: cfg.base,
   isServerConfigured: () => true,
 }));
 vi.mock("@/data/persist", () => ({
-  refreshActiveAccountSlice: (accountId: string) => refreshControl.call(accountId),
+  refreshActiveAccountSlice: async (accountId: string) => {
+    const outcome = await refreshControl.call(accountId);
+    if (outcome.kind === "reloaded") refreshControl.publish(accountId);
+    return outcome;
+  },
+  flushPendingWrites: () => lifecycleControl.flush(),
+  suspendServerWrites: () => lifecycleControl.suspend(),
+}));
+vi.mock("@/data/planning/planningRuntime", () => ({
+  assertPlanningWritesAllowed: () => lifecycleControl.assertAllowed(),
+  getPlanningController: () => ({ begin: (originalWritable: unknown) => lifecycleControl.begin(originalWritable) }),
+  hasPlanningRuntime: () => true,
 }));
 
-const reloadedSlice: AppData = makeAppData({
-  clients: [
-    {
-      ...NULLABLE_FIELDS.clients,
-      id: "c-reloaded",
-      accountId: DEFAULT_ACCOUNT_ID,
-      name: "Reloaded",
-      color: "#111",
-      createdAt: "t",
-      updatedAt: "t",
+function reloadedSliceFor(accountId: string): AppData {
+  return makeAppData({
+    accounts: [makeAccount({ id: accountId })],
+    clients: [
+      {
+        ...NULLABLE_FIELDS.clients,
+        id: "c-reloaded",
+        accountId,
+        name: "Reloaded",
+        color: "#111",
+        createdAt: "t",
+        updatedAt: "t",
+      },
+    ],
+  });
+}
+
+function installPlanningContext(accountId = DEFAULT_ACCOUNT_ID): void {
+  const context = { identity: Symbol(`planning-${accountId}`), companyId: accountId };
+  useStore.setState((state) => ({
+    planning: {
+      ...state.planning,
+      context,
+      accessKey: "access-test",
+      canWrite: true,
+      revision: 1,
+      status: "ready",
+      pending: null,
+      error: null,
     },
-  ],
-});
-
-const loadAll = vi.fn<(accountId: string) => Promise<AppData>>(() => Promise.resolve(reloadedSlice));
-vi.mock("@/data/storageAdapter", () => ({
-  persistenceAdapter: { loadAll: (id: string) => loadAll(id) },
-}));
+    masquerade: { kind: "inactive" },
+  }));
+  useStore.getState().setActiveRole("owner", "resolved");
+}
 
 beforeEach(() => {
   resetStoreWithAccount();
-  loadAll.mockClear();
-  loadAll.mockResolvedValue(reloadedSlice);
-  refreshControl.outcome = { kind: "unattached" };
-  refreshControl.call.mockClear();
+  installPlanningContext();
+  refreshControl.outcome = { kind: "reloaded" };
+  refreshControl.call.mockReset();
+  refreshControl.call.mockImplementation(async (accountId: string) => {
+    void accountId;
+    return refreshControl.outcome;
+  });
+  refreshControl.publish.mockClear();
+  refreshControl.publish.mockImplementation((accountId) => {
+    useStore.setState({ data: reloadedSliceFor(accountId) });
+  });
+  lifecycleControl.flush.mockReset();
+  lifecycleControl.flush.mockResolvedValue({ kind: "clean" });
+  lifecycleControl.suspend.mockReset();
+  lifecycleControl.suspend.mockImplementation(() => vi.fn());
+  lifecycleControl.assertAllowed.mockReset();
+  lifecycleControl.begin.mockReset();
+  lifecycleControl.begin.mockImplementation((originalWritable: unknown) => {
+    const planning = useStore.getState().planning;
+    if (
+      !planning.context ||
+      !planning.canWrite ||
+      planning.revision === null ||
+      planning.pending ||
+      !["ready", "refused"].includes(planning.status)
+    ) {
+      throw new Error("Planning is not ready for a lifecycle action.");
+    }
+    return {
+      baseRevision: planning.revision,
+      originalWritable,
+      context: planning.context,
+      generation: lifecycleControl.generation,
+    };
+  });
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -65,7 +131,7 @@ function stubFetch(response: Partial<Response> & { json?: () => Promise<unknown>
 }
 
 describe("useLifecycleActions — SERVER mode dispatch", () => {
-  it("queues an overlapping lifecycle mutation until the first transition settles", async () => {
+  it("rejects an overlapping lifecycle mutation instead of replaying a stale action", async () => {
     const pendingRequest: { release?: () => void } = {};
     const fetchMock = vi
       .fn()
@@ -88,11 +154,12 @@ describe("useLifecycleActions — SERVER mode dispatch", () => {
     pendingRequest.release();
     await Promise.all([first, overlapping]);
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
-      "http://api.test/api/clients/c-1/archive",
-      "http://api.test/api/clients/c-1/purge",
-    ]);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("http://api.test/api/clients/c-1/archive");
+    expect(useStore.getState().notice).toMatchObject({
+      tone: "info",
+      message: "A lifecycle action is already in progress. Try again when it finishes.",
+    });
   });
 });
 
@@ -121,8 +188,13 @@ describe("useLifecycleActions — refresh outcomes", () => {
       expect(init.credentials).toBe("include");
       expect(JSON.parse(init.body as string)).toEqual({ accountId: DEFAULT_ACCOUNT_ID });
 
-      expect(loadAll).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
+      expect(refreshControl.call).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
       expect(useStore.getState().data.clients.some((c) => c.id === "c-reloaded")).toBe(true);
+
+      if (method === "softDelete" || method === "purge") {
+        expect(lifecycleControl.flush).toHaveBeenCalledOnce();
+        expect(lifecycleControl.suspend).toHaveBeenCalledOnce();
+      }
 
       expect(useStore.getState().notice).toBeNull();
     },
@@ -140,7 +212,6 @@ describe("useLifecycleActions — orchestrated refresh", () => {
 
     expect(refreshControl.call).toHaveBeenCalledOnce();
     expect(refreshControl.call).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
-    expect(loadAll).not.toHaveBeenCalled();
     expect(onReloaded).toHaveBeenCalledOnce();
   });
 
@@ -158,6 +229,7 @@ describe("useLifecycleActions — orchestrated refresh", () => {
     async ({ outcome, expectedGuidance }) => {
       const accountId = `acct-confirmed-${outcome}`;
       resetStoreWithAccount(accountId);
+      installPlanningContext(accountId);
       refreshControl.outcome = { kind: outcome };
       const onReloaded = vi.fn();
       const fetchMock = stubFetch({ ok: true, status: 200, json: async () => ({}) });
@@ -168,7 +240,6 @@ describe("useLifecycleActions — orchestrated refresh", () => {
       expect(fetchMock).toHaveBeenCalledOnce();
       expect(refreshControl.call).toHaveBeenCalledOnce();
       expect(refreshControl.call).toHaveBeenCalledWith(accountId);
-      expect(loadAll).not.toHaveBeenCalled();
       expect(onReloaded).not.toHaveBeenCalled();
       const notice = useStore.getState().notice;
       expect(notice?.tone).toBe("error");
@@ -187,6 +258,172 @@ describe("useLifecycleActions — orchestrated refresh", () => {
       expect(useStore.getState().notice?.message).toContain(expectedGuidance);
     },
   );
+
+  it.each(["softDelete", "purge"] as const)(
+    "%s flushes, suspends, dispatches, refreshes, clears history, and resumes in order",
+    async (method) => {
+      const order: string[] = [];
+      lifecycleControl.flush.mockImplementation(async () => {
+        order.push("flush");
+        return { kind: "clean" };
+      });
+      lifecycleControl.suspend.mockImplementation(() => {
+        order.push("suspend");
+        return () => order.push("resume");
+      });
+      refreshControl.call.mockImplementation(async () => {
+        order.push("refresh");
+        return { kind: "reloaded" };
+      });
+      const fetchMock = vi.fn(async () => {
+        order.push("request");
+        return { ok: true, status: 200, json: async () => ({}) } as unknown as Response;
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      const clearHistory = vi.spyOn(useStore.getState(), "clearUndoHistory").mockImplementation(() => {
+        order.push("clear-history");
+      });
+      clearHistory.mockClear();
+      const { result } = renderHook(() => useLifecycleActions());
+
+      await result.current[method]("clients", "c-1");
+
+      expect(order).toEqual(["flush", "suspend", "request", "refresh", "clear-history", "resume"]);
+      expect(clearHistory).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("does not hand off when pending planning work cannot be flushed", async () => {
+    lifecycleControl.flush.mockResolvedValue({ kind: "blocked" });
+    const fetchMock = stubFetch({ ok: true, status: 200, json: async () => ({}) });
+    const clearHistory = vi.spyOn(useStore.getState(), "clearUndoHistory");
+    clearHistory.mockClear();
+    const { result } = renderHook(() => useLifecycleActions());
+
+    await result.current.softDelete("clients", "c-1");
+
+    expect(lifecycleControl.flush).toHaveBeenCalledOnce();
+    expect(lifecycleControl.assertAllowed).toHaveBeenCalledOnce();
+    expect(lifecycleControl.suspend).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(clearHistory).not.toHaveBeenCalled();
+    expect(useStore.getState().notice?.tone).toBe("error");
+    expect(useStore.getState().notice?.message).toContain("Pending company changes must finish saving");
+  });
+
+  it("rejects a delete while a planning mutation is already pending so it cannot capture stale intent", async () => {
+    useStore.setState((state) => ({
+      planning: {
+        ...state.planning,
+        pending: { kind: "new" } as NonNullable<typeof state.planning.pending>,
+        status: "pending",
+      },
+    }));
+    const fetchMock = stubFetch({ ok: true, status: 200, json: async () => ({}) });
+    const { result } = renderHook(() => useLifecycleActions());
+
+    await result.current.softDelete("clients", "c-1");
+
+    expect(lifecycleControl.flush).not.toHaveBeenCalled();
+    expect(lifecycleControl.suspend).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(useStore.getState().notice?.message).toContain("A company change is still in progress");
+  });
+
+  it("rechecks captured context after flushing and suppresses work after access changes", async () => {
+    lifecycleControl.flush.mockImplementation(async () => {
+      useStore.setState((state) => ({
+        planning: { ...state.planning, context: { identity: Symbol("new-access"), companyId: DEFAULT_ACCOUNT_ID } },
+      }));
+      return { kind: "clean" };
+    });
+    const fetchMock = stubFetch({ ok: true, status: 200, json: async () => ({}) });
+    const { result } = renderHook(() => useLifecycleActions());
+
+    await result.current.purge("clients", "c-1");
+
+    expect(lifecycleControl.flush).toHaveBeenCalledOnce();
+    expect(lifecycleControl.suspend).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not clear history or notify after access changes while the delete request is in flight", async () => {
+    const onReloaded = vi.fn();
+    const clearHistory = vi.spyOn(useStore.getState(), "clearUndoHistory");
+    const fetchMock = vi.fn(async () => {
+      useStore.setState((state) => ({
+        planning: {
+          ...state.planning,
+          context: { identity: Symbol("replacement-access"), companyId: DEFAULT_ACCOUNT_ID },
+        },
+      }));
+      return { ok: true, status: 200, json: async () => ({}) } as unknown as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useLifecycleActions(onReloaded));
+
+    await result.current.softDelete("clients", "c-1");
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(refreshControl.call).not.toHaveBeenCalled();
+    expect(clearHistory).not.toHaveBeenCalled();
+    expect(onReloaded).not.toHaveBeenCalled();
+    expect(useStore.getState().notice).toBeNull();
+  });
+
+  it.each(["viewer", "masquerade", "read-only"] as const)(
+    "refuses %s authority before flushing or dispatching a delete",
+    async (mode) => {
+      if (mode === "viewer") useStore.getState().setActiveRole("viewer", "resolved");
+      if (mode === "masquerade")
+        useStore.getState().setMasquerade({
+          kind: "starting",
+          pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: "user-target" },
+          generation: 1,
+        });
+      if (mode === "read-only") useStore.setState((state) => ({ planning: { ...state.planning, canWrite: false } }));
+      const fetchMock = stubFetch({ ok: true, status: 200, json: async () => ({}) });
+      const { result } = renderHook(() => useLifecycleActions());
+
+      await result.current.softDelete("clients", "c-1");
+
+      expect(lifecycleControl.flush).not.toHaveBeenCalled();
+      expect(lifecycleControl.suspend).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(useStore.getState().notice?.tone).toBe("error");
+    },
+  );
+
+  it("releases suspension and gates retries when a confirmed delete cannot refresh canonical data", async () => {
+    const accountId = "acct-confirmed-delete-refresh-failed";
+    resetStoreWithAccount(accountId);
+    installPlanningContext(accountId);
+    refreshControl.outcome = { kind: "failed" };
+    const onReloaded = vi.fn();
+    const fetchMock = stubFetch({ ok: true, status: 200, json: async () => ({}) });
+    const resume = vi.fn();
+    const clearHistory = vi.spyOn(useStore.getState(), "clearUndoHistory");
+    clearHistory.mockClear();
+    lifecycleControl.suspend.mockReturnValue(resume);
+    const { result, unmount } = renderHook(() => useLifecycleActions(onReloaded));
+
+    await result.current.softDelete("clients", "c-1");
+
+    expect(useStore.getState().notice?.message).not.toBe(
+      "Lifecycle actions are unavailable for the current company or access level.",
+    );
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(resume).toHaveBeenCalledOnce();
+    expect(clearHistory).not.toHaveBeenCalled();
+    expect(onReloaded).not.toHaveBeenCalled();
+    expect(useStore.getState().notice?.message).toContain("saved on the server");
+    expect(useStore.getState().notice?.message).toContain("could not be loaded");
+    unmount();
+    const second = renderHook(() => useLifecycleActions());
+    await second.result.current.purge("clients", "c-1");
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(lifecycleControl.flush).toHaveBeenCalledOnce();
+  });
 });
 
 describe("useLifecycleActions — refresh callback", () => {
@@ -201,7 +438,6 @@ describe("useLifecycleActions — refresh callback", () => {
     await expect(result.current.archive("clients", "c-1")).resolves.toBeUndefined();
 
     expect(refreshControl.call).toHaveBeenCalledOnce();
-    expect(loadAll).not.toHaveBeenCalled();
     expect(onReloaded).toHaveBeenCalledOnce();
     expect(useStore.getState().notice).toMatchObject({
       tone: "error",
@@ -224,8 +460,6 @@ describe("useLifecycleActions — refresh callback", () => {
     expect(useStore.getState().notice?.tone).toBe("error");
     expect(useStore.getState().notice?.message).toBe("Can only be permanently deleted 30 days after deletion.");
 
-    expect(loadAll).not.toHaveBeenCalled();
-
     expect(useStore.getState().data.clients.some((c) => c.id === "c-reloaded")).toBe(false);
   });
 });
@@ -239,7 +473,7 @@ describe("useLifecycleActions — server failures", () => {
 
     expect(useStore.getState().notice?.tone).toBe("error");
     expect(useStore.getState().notice?.message).toBe("You do not have permission to do that.");
-    expect(loadAll).not.toHaveBeenCalled();
+    expect(refreshControl.call).not.toHaveBeenCalled();
   });
 
   it.each([408, 504])(
@@ -255,7 +489,7 @@ describe("useLifecycleActions — server failures", () => {
 
       await result.current.softDelete("resources", "r-1");
 
-      expect(loadAll).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
+      expect(refreshControl.call).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
       expect(onReloaded).toHaveBeenCalledOnce();
       expect(useStore.getState().data.clients.some((client) => client.id === "c-reloaded")).toBe(true);
       expect(useStore.getState().notice?.tone).toBe("warning");
@@ -280,7 +514,7 @@ describe("useLifecycleActions — successful response variants", () => {
     await result.current.purge("clients", "c-old");
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe("http://api.test/api/clients/c-old/purge");
-    expect(loadAll).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
+    expect(refreshControl.call).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
     expect(useStore.getState().data.clients.some((c) => c.id === "c-reloaded")).toBe(true);
     expect(useStore.getState().notice).toBeNull();
   });
@@ -303,7 +537,7 @@ describe("useLifecycleActions — account switching", () => {
     await result.current.archive("clients", "c-1");
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(loadAll).not.toHaveBeenCalled();
+    expect(refreshControl.call).not.toHaveBeenCalled();
 
     expect(useStore.getState().data.clients.some((c) => c.id === "c-reloaded")).toBe(false);
     expect(useStore.getState().notice).toBeNull();
@@ -314,36 +548,40 @@ describe("useLifecycleActions — account switching", () => {
     await result.current.unarchive("clients", "c-1");
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(loadAll).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
+    expect(refreshControl.call).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
     expect(useStore.getState().notice).toBeNull();
   });
 });
 
-describe("useLifecycleActions — fallback account switching", () => {
-  it("discards a bare fallback slice when the active account changes while loadAll is in flight", async () => {
-    const otherAccount = makeAccount({ id: "acct-other", name: "Other Co" });
-    const original = useStore.getState().data;
-    useStore.getState().replaceAll({ ...original, accounts: [...original.accounts, otherAccount] });
-    let resolveLoad!: (data: AppData) => void;
-    loadAll.mockImplementationOnce(
-      () =>
-        new Promise<AppData>((resolve) => {
-          resolveLoad = resolve;
-        }),
-    );
+describe("useLifecycleActions — detached coordinator safety", () => {
+  it("requires a full reload when detached after a confirmed mutation and never publishes a bare slice", async () => {
+    const accountId = "acct-detached-refresh";
+    resetStoreWithAccount(accountId);
+    installPlanningContext(accountId);
+    refreshControl.outcome = { kind: "unattached" };
+    const onReloaded = vi.fn();
     stubFetch({ ok: true, status: 200, json: async () => ({}) });
-    const { result } = renderHook(() => useLifecycleActions());
+    const first = renderHook(() => useLifecycleActions(onReloaded));
 
-    const mutation = result.current.archive("clients", "c-1");
-    await vi.waitFor(() => expect(loadAll).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID));
-    act(() => useStore.getState().setActiveAccount(otherAccount.id));
-    await act(async () => resolveLoad(reloadedSlice));
-    await mutation;
+    await first.result.current.archive("clients", "c-1");
 
-    expect(useStore.getState().activeAccountId).toBe(otherAccount.id);
-    expect(useStore.getState().data.accounts).toContainEqual(otherAccount);
+    expect(refreshControl.call).toHaveBeenCalledOnce();
+    expect(refreshControl.call).toHaveBeenCalledWith(accountId);
+    expect(refreshControl.publish).not.toHaveBeenCalled();
+    expect(onReloaded).not.toHaveBeenCalled();
     expect(useStore.getState().data.clients.some((client) => client.id === "c-reloaded")).toBe(false);
-    expect(useStore.getState().notice).toBeNull();
+    expect(useStore.getState().notice?.tone).toBe("error");
+    expect(useStore.getState().notice?.message).toContain("saved on the server");
+    expect(useStore.getState().notice?.message).toContain(
+      "Reload this page before archiving, restoring, or deleting another item",
+    );
+
+    const second = renderHook(() => useLifecycleActions());
+    await second.result.current.purge("clients", "c-1");
+    expect(refreshControl.call).toHaveBeenCalledOnce();
+    expect(useStore.getState().notice?.message).toContain(
+      "Reload this page before archiving, restoring, or deleting another item",
+    );
   });
 
   it.each(["skipped", "failed"] as const)(
@@ -364,7 +602,6 @@ describe("useLifecycleActions — fallback account switching", () => {
       await first.result.current.archive("clients", "c-1");
 
       expect(onReloaded).not.toHaveBeenCalled();
-      expect(loadAll).not.toHaveBeenCalled();
       expect(useStore.getState().notice?.tone).toBe("error");
       expect(useStore.getState().notice?.message).toContain("could not be reconciled");
       expect(useStore.getState().notice?.message).toContain(`(${outcome})`);
@@ -395,7 +632,6 @@ describe("useLifecycleActions — stale transport failures", () => {
 
     expect(onReloaded).not.toHaveBeenCalled();
     expect(refreshControl.call).not.toHaveBeenCalled();
-    expect(loadAll).not.toHaveBeenCalled();
     expect(useStore.getState().notice).toBeNull();
   });
 });

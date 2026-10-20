@@ -14,6 +14,7 @@ import {
 
 /** Requires a choice between deleting one entry and its repeated group. */
 export function RepeatedAllocationDeleteDialog({
+  busy = false,
   onDeleteOne,
   onDeleteFuture,
   onCancel,
@@ -21,6 +22,7 @@ export function RepeatedAllocationDeleteDialog({
   onDeleteOne: () => void;
   onDeleteFuture: () => void;
   onCancel: () => void;
+  busy?: boolean;
 }) {
   const confirmingRef = useRef(false);
   const confirm = (action: () => void) => {
@@ -32,7 +34,7 @@ export function RepeatedAllocationDeleteDialog({
     <AlertDialog
       open
       onOpenChange={(open) => {
-        if (!open && !confirmingRef.current) onCancel();
+        if (!open && !confirmingRef.current && !busy) onCancel();
       }}
     >
       <AlertDialogContent>
@@ -43,11 +45,11 @@ export function RepeatedAllocationDeleteDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="sm:grid sm:grid-cols-1">
-          <AlertDialogCancel>{m.form_cancel()}</AlertDialogCancel>
-          <AlertDialogAction variant="danger-soft" onClick={() => confirm(onDeleteOne)}>
+          <AlertDialogCancel disabled={busy}>{m.form_cancel()}</AlertDialogCancel>
+          <AlertDialogAction disabled={busy} variant="danger-soft" onClick={() => confirm(onDeleteOne)}>
             {m.form_allocation_delete_occurrence()}
           </AlertDialogAction>
-          <AlertDialogAction variant="danger-soft" onClick={() => confirm(onDeleteFuture)}>
+          <AlertDialogAction disabled={busy} variant="danger-soft" onClick={() => confirm(onDeleteFuture)}>
             {m.form_allocation_delete_occurrence_and_future()}
           </AlertDialogAction>
         </AlertDialogFooter>

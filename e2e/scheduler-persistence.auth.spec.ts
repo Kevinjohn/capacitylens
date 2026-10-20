@@ -193,7 +193,9 @@ test("same-revision authenticated refresh preserves Undo and Redo in SQLite", as
 
   await page.clock.setFixedTime(new Date("2026-06-03T12:00:31"));
   const refresh = page.waitForResponse(
-    (response) => new URL(response.url()).pathname === "/api/state" && response.request().method() === "GET",
+    (response) =>
+      new URL(response.url()).pathname === `/api/accounts/${accountId}/planning` &&
+      response.request().method() === "GET",
   );
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   const refreshResponse = await refresh;
@@ -224,17 +226,29 @@ test("same-revision authenticated refresh preserves Undo and Redo in SQLite", as
 test("a refused scheduler save is visible and does not persist", async ({ page, request }) => {
   const { owner, accountId, ownerEmail, projectId, activityId } = await createScenario(request);
   await signIn(page, ownerEmail);
-  await page.route("**/api/batch", (route) =>
-    route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ error: "Write refused" }) }),
-  );
+  let createAttempts = 0;
+  await page.route(`**/api/accounts/${accountId}/allocations`, async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    createAttempts += 1;
+    await route.fulfill({
+      status: 403,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Write refused", code: "authorization_denied" }),
+    });
+  });
 
-  const bar = await createAllocation(page, projectId, activityId);
-  const allocationId = await bar.getAttribute("data-alloc-id");
-  expect(allocationId).toBeTruthy();
-  await expect(page.getByRole("alert").filter({ hasText: /save|persist|refus/i })).toBeVisible();
-  await expect
-    .poll(async () =>
-      (await persistedAllocations(request, owner.cookie, accountId)).some(({ id }) => id === allocationId),
-    )
-    .toBe(false);
+  await page.getByRole("button", { name: "Add allocation for Bruce Wayne" }).click();
+  const dialog = page.getByRole("dialog", { name: "New allocation" });
+  await selectShadOption(dialog.getByLabel("Project", { exact: true }), projectId);
+  await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), activityId);
+  await dialog.getByLabel("Start Date").fill("2026-06-01");
+  await dialog.getByLabel("Days of work").fill("1");
+  await dialog.getByRole("button", { name: "Save" }).click();
+
+  await expect.poll(() => createAttempts).toBe(1);
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("Write refused")).toBeVisible();
+  await expect(page.getByTestId("allocation-bar").filter({ hasText: "City planning" })).toHaveCount(0);
+  await expect(page.getByTestId("undo-button")).toBeDisabled();
+  await expect.poll(async () => (await persistedAllocations(request, owner.cookie, accountId)).length).toBe(0);
 });

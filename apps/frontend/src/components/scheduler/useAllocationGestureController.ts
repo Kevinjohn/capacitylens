@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { m } from "@/i18n";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
@@ -11,6 +11,7 @@ import { resolveErrorMessage } from "@/lib/errorMessage";
 import { applyGesture } from "@/lib/gestureMath";
 import type { DateRange, DragMode } from "@/lib/gestureMath";
 import { buildUndoShortcut } from "@/lib/keyboardShortcuts";
+import { capturePlanningDraft, planningActions } from "@/data/planning/planningActions";
 import { buildVisibleRange, listAccountWorkingDays } from "@/store/selectors";
 import { useStore } from "@/store/useStore";
 import { reconcileReassignedHours, resolveGesture, resolveVolumePreservingHours } from "./allocationDrag";
@@ -190,9 +191,12 @@ interface SavePointerCommitInput {
   result: ReturnType<typeof resolveCommitDates>;
 }
 
-function savePointerCommit({ options, effectiveResourceId, targetResourceId, result }: SavePointerCommitInput) {
+async function savePointerCommit(
+  { options, effectiveResourceId, targetResourceId, result }: SavePointerCommitInput,
+  draft: ReturnType<typeof capturePlanningDraft>,
+) {
   const { bar, isBlocks } = options;
-  const { setNotice, updateAllocation } = useStore.getState();
+  const { setNotice } = useStore.getState();
   const reconciledHours = reconcileCommitHours({
     options,
     targetResourceId,
@@ -200,12 +204,19 @@ function savePointerCommit({ options, effectiveResourceId, targetResourceId, res
     hours: result.hours,
   });
   try {
-    const updated = updateAllocation(bar.allocation.id, {
-      ...result.dates,
-      ...(reconciledHours !== bar.allocation.hoursPerDay ? { hoursPerDay: reconciledHours } : null),
-      ...(targetResourceId ? { resourceId: targetResourceId } : {}),
-    });
-    if (!updated) return;
+    const updated = await planningActions.updateAllocation(
+      bar.allocation.id,
+      {
+        ...result.dates,
+        ...(reconciledHours !== bar.allocation.hoursPerDay ? { hoursPerDay: reconciledHours } : null),
+        ...(targetResourceId ? { resourceId: targetResourceId } : {}),
+      },
+      draft,
+    );
+    if (!updated) {
+      setNotice(m.scheduler_toast_move_rejected(), "error");
+      return;
+    }
   } catch (error) {
     // A diagonal drag is one transaction. A rejected reassignment must not commit its horizontal
     // component as a second update.
@@ -233,7 +244,12 @@ interface PointerCommitInput {
   pointer: Pointer;
 }
 
-function commitPointerGesture(options: ControllerOptions, runtime: GestureRuntime, input: PointerCommitInput) {
+function commitPointerGesture(
+  options: ControllerOptions,
+  runtime: GestureRuntime,
+  input: PointerCommitInput,
+  draft: ReturnType<typeof capturePlanningDraft>,
+) {
   const { mode, deltaDays, pointer } = input;
   // The final hit test is authoritative. Refresh move-lane geometry even if a scroll/resize
   // observer callback has not run yet, then stop its queued preview refresh.
@@ -248,7 +264,7 @@ function commitPointerGesture(options: ControllerOptions, runtime: GestureRuntim
   if (refuseIneffectiveResize(options.bar, mode, effectiveResourceId)) return;
   const result = resolveCommitDates({ options, mode, deltaDays, resourceId: effectiveResourceId });
   if (refuseBlockedCommit({ options, mode, resourceId: effectiveResourceId, dates: result.dates })) return;
-  savePointerCommit({ options, effectiveResourceId, targetResourceId, result });
+  void savePointerCommit({ options, effectiveResourceId, targetResourceId, result }, draft);
 }
 
 function resolveKeyboardGesture(options: ControllerOptions, mode: DragMode, deltaDays: number) {
@@ -293,20 +309,28 @@ function refuseBlockedKeyboardGesture({ options, mode, current, next }: Keyboard
   return leavesTimeline;
 }
 
-function saveKeyboardGesture(
+async function saveKeyboardGesture(
   options: ControllerOptions,
   scheduleFocus: ScheduleAllocationFocus,
   input: { next: DateRange; rescale: ReturnType<typeof resolveVolumePreservingHours> | null },
+  draft: ReturnType<typeof capturePlanningDraft>,
 ) {
   const { bar } = options;
   const { next, rescale } = input;
-  const { activeAccountId, setNotice, updateAllocation, announceCapacity } = useStore.getState();
+  const { activeAccountId, setNotice, announceCapacity } = useStore.getState();
   try {
-    const updated = updateAllocation(bar.allocation.id, {
-      ...next,
-      ...(rescale ? { hoursPerDay: rescale.hours } : null),
-    });
-    if (!updated) return;
+    const updated = await planningActions.updateAllocation(
+      bar.allocation.id,
+      {
+        ...next,
+        ...(rescale ? { hoursPerDay: rescale.hours } : null),
+      },
+      draft,
+    );
+    if (!updated) {
+      setNotice(m.scheduler_toast_move_disallowed(), "error");
+      return;
+    }
     if (rescale?.clamped) {
       setNotice(m.scheduler_toast_capped({ max: MAX_HOURS_PER_DAY, shortcut: buildUndoShortcut() }), "warning");
     }
@@ -324,6 +348,7 @@ function nudgeAllocation(
   input: { mode: DragMode; deltaDays: number },
 ) {
   const { bar } = options;
+  const draft = capturePlanningDraft({ ...bar.allocation });
   const { mode, deltaDays } = input;
   if (refuseIneffectiveResize(bar, mode, bar.allocation.resourceId)) return;
   const { current, next, gestureOptions } = resolveKeyboardGesture(options, mode, deltaDays);
@@ -342,7 +367,7 @@ function nudgeAllocation(
     next.endDate === current.endDate &&
     (rescale === null || rescale.hours === bar.allocation.hoursPerDay);
   if (unchanged) return;
-  saveKeyboardGesture(options, scheduleFocus, { next, rescale });
+  void saveKeyboardGesture(options, scheduleFocus, { next, rescale }, draft);
 }
 
 function startPointerGesture(runtime: GestureRuntime) {
@@ -354,6 +379,7 @@ function startPointerGesture(runtime: GestureRuntime) {
 export function useAllocationGestureController(options: ControllerOptions, runtime: GestureRuntime) {
   const { bar, indexAtClientX, onEdit } = options;
   const [preview, setPreview] = useState<GesturePreview | null>(null);
+  const planningDraftRef = useRef<ReturnType<typeof capturePlanningDraft>>(null);
   const scheduleFocus = useAllocationFocus();
   // Read store actions at call time because handlers commit against live state.
   const setDragging = (id: ID | null) => useStore.getState().setDraggingAllocation(id);
@@ -368,6 +394,7 @@ export function useAllocationGestureController(options: ControllerOptions, runti
     onClick: () => {
       runtime.stopGeometryWatch();
       setDragging(null);
+      planningDraftRef.current = null;
       onEdit?.(bar.allocation.id);
     },
     onCancel: () => {
@@ -375,15 +402,18 @@ export function useAllocationGestureController(options: ControllerOptions, runti
       setDragging(null);
       setPreview(null);
       runtime.setDropTarget(null);
+      planningDraftRef.current = null;
     },
     onCommit: (mode, deltaDays, pointer) => {
       setPreview(null);
       setDragging(null);
-      commitPointerGesture(options, runtime, { mode, deltaDays, pointer });
+      commitPointerGesture(options, runtime, { mode, deltaDays, pointer }, planningDraftRef.current);
+      planningDraftRef.current = null;
     },
   });
   const beginPointerGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!armPointerGesture(event)) return;
+    planningDraftRef.current = capturePlanningDraft({ ...bar.allocation });
     startPointerGesture(runtime);
   };
   return {

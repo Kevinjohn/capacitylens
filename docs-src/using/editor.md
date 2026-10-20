@@ -26,6 +26,11 @@ the installer to resolve it before continuing.
 Signing in alone doesn't make you a member: follow [Join your team](/using/join-your-team) with
 the address you were invited on. Being on the schedule doesn't give someone a sign-in, either.
 
+If the company page says **This server is read-only because sign-in is off. Configure password or
+Google sign-in to edit planning data.**, the server is showing its canonical plan without allowing
+planning edits. Ask the operator to configure sign-in. This is different from the in-memory demo,
+which is temporary and remains editable.
+
 ## Check who has room
 
 Before booking, read the person's row as a whole: utilisation, working days, time off and existing
@@ -108,9 +113,13 @@ on an allowed working day.
 
 ### What if a save failed or someone changed the same record?
 
-Use the retry or recovery control offered. If CapacityLens replaces your edit with the current
-saved record, review it before editing again. A bar you can still see is not proof its last change
-was saved. [Day-to-day FAQ](/using/faq) covers connection messages.
+Follow the persistent warning above the page. If the server could not confirm whether a change was
+saved, select **Check saved change** before trying it again; CapacityLens checks the original
+command without replaying it. If the warning says the change was saved but the latest company data
+could not be loaded, select **Refresh company data** to read the current company slice. If a company
+read failed without a pending change, use **Refresh company data** as well. **Check saved change**
+is only for an unknown outcome. Do not repeat a change while its outcome is unknown. A visible edit
+is not proof that the server saved it. [Day-to-day FAQ](/using/faq) covers connection messages.
 
 <span id="i-can-see-a-code-name-but-not-a-clients-real-name"></span>
 

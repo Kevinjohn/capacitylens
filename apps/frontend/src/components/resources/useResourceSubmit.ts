@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { flushPendingWrites } from "@/data/persist";
-import { BatchReconciliationError, BatchValidationError } from "@/data/sync/batchErrors";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import { isStaleEdit } from "@/lib/isStaleEdit";
 import { DEFAULT_COLORS } from "@/lib/palette";
 import { parseText, validateWorkingDays } from "@/lib/validation";
-import type { StoreState } from "@/store/types";
+import type { usePlanningActions } from "@/data/planning/usePlanningActions";
 import { m } from "@/i18n";
 import { FULL_DAY_HOURS, placeholderCapacityDefaults } from "@capacitylens/shared/types/entities";
 import type { Resource, ResourceEngagement, ResourceKind, Weekday } from "@capacitylens/shared/types/entities";
@@ -26,8 +24,8 @@ export type ResourceSubmitDraft = {
 const optionalValue = (value: string): string | undefined => (value === "" ? undefined : value);
 
 type Fail = (field: string | null, message: string) => void;
-type AddResource = StoreState["addResource"];
-type UpdateResource = StoreState["updateResource"];
+type AddResource = ReturnType<typeof usePlanningActions>["addResource"];
+type UpdateResource = ReturnType<typeof usePlanningActions>["updateResource"];
 type SubmitInputBase = {
   resource: Resource | undefined;
   kind: ResourceKind;
@@ -41,7 +39,6 @@ type SubmitInputBase = {
   readActiveAccountId: () => string | null;
 };
 type SubmitInput = SubmitInputBase & {
-  pendingResourceRef: { current: Resource | undefined };
   mountedRef: { current: boolean };
   submittingRef: { current: boolean };
   setSubmitting: (submitting: boolean) => void;
@@ -143,7 +140,7 @@ function validateResourceFreshness(resource: Resource | undefined, resources: Re
   return false;
 }
 
-function saveResource(input: {
+async function saveResource(input: {
   resource: Resource | undefined;
   patch: ResourcePatch;
   add: AddResource;
@@ -151,7 +148,7 @@ function saveResource(input: {
 }) {
   const { resource, patch, add, update } = input;
   if (resource) {
-    update(resource.id, patch);
+    await update(resource.id, patch);
     return undefined;
   }
   return add({
@@ -172,48 +169,15 @@ function saveResource(input: {
   });
 }
 
-function refreshPendingResource(input: SubmitInput, resource: Resource | undefined, saved: Resource | undefined) {
-  const pendingId = resource?.id ?? saved?.id;
-  const latest = pendingId && input.readResources().find(({ id }) => id === pendingId);
-  if (latest) input.pendingResourceRef.current = latest;
-}
-
-type FlushResult = Awaited<ReturnType<typeof flushPendingWrites>>;
-
-function completeResourceSubmit(input: SubmitInput, result: FlushResult, submittedAccountId: string | null) {
-  if (!input.mountedRef.current || input.readActiveAccountId() !== submittedAccountId) return;
-  if (result.kind === "clean") {
-    input.pendingResourceRef.current = undefined;
-    input.onClose();
-    return;
-  }
-  input.fail(null, result.kind === "failed" ? resolveFlushFailureMessage(result.error) : m.app_persist_error());
-}
-
-// Reconciliation is already recovering, so show its localized status. Domain validation
-// refusals retain the server’s explanation of why the write was rejected.
-function resolveFlushFailureMessage(error: unknown): string {
-  if (error instanceof BatchValidationError) return resolveErrorMessage(error);
-  return error instanceof BatchReconciliationError ? m.app_persist_error() : resolveErrorMessage(error);
-}
-
-function reportResourceFlushError(input: SubmitInput, error: unknown, submittedAccountId: string | null) {
-  if (input.mountedRef.current && input.readActiveAccountId() === submittedAccountId) {
-    input.fail(null, resolveErrorMessage(error));
-  }
-}
-
 function finishResourceSubmit(input: SubmitInput) {
   input.submittingRef.current = false;
   if (input.mountedRef.current) input.setSubmitting(false);
 }
 
 function createSubmit(input: SubmitInput) {
-  return () => {
+  return async () => {
     if (input.submittingRef.current) return;
-    const pending = input.pendingResourceRef.current;
-    const retryResource = pending && input.readResources().some(({ id }) => id === pending.id) ? pending : undefined;
-    const resource = retryResource ?? input.resource;
+    const resource = input.resource;
     const fields = parseFormFields({ ...input.draft, isPlaceholder: input.isPlaceholder, fail: input.fail });
     if (!fields) return;
     const patch = buildResourcePatch({
@@ -228,22 +192,17 @@ function createSubmit(input: SubmitInput) {
       if (!validateResourceFreshness(resource, input.readResources(), input.fail)) return;
       input.submittingRef.current = true;
       input.setSubmitting(true);
-      const saved = saveResource({ resource, patch, add: input.add, update: input.update });
+      const saved = await saveResource({ resource, patch, add: input.add, update: input.update });
       if (saved?.kind === "blocked") {
-        input.submittingRef.current = false;
-        input.setSubmitting(false);
         return;
       }
-      refreshPendingResource(input, resource, saved?.value);
-      void flushPendingWrites()
-        .then((result) => completeResourceSubmit(input, result, submittedAccountId))
-        .catch((error: unknown) => reportResourceFlushError(input, error, submittedAccountId))
-        .finally(() => finishResourceSubmit(input));
+      if (input.mountedRef.current && input.readActiveAccountId() === submittedAccountId) input.onClose();
     } catch (e) {
-      // Release both submission locks and surface the failed resource write so the form remains retryable.
-      input.submittingRef.current = false;
-      input.setSubmitting(false);
-      input.fail(null, resolveErrorMessage(e));
+      if (input.mountedRef.current && input.readActiveAccountId() === submittedAccountId) {
+        input.fail(null, resolveErrorMessage(e));
+      }
+    } finally {
+      finishResourceSubmit(input);
     }
   };
 }
@@ -251,7 +210,6 @@ function createSubmit(input: SubmitInput) {
 /** Save a resource and keep its draft available until persistence acknowledges the write. */
 export function useResourceSubmit(input: SubmitInputBase) {
   const [submitting, setSubmitting] = useState(false);
-  const pendingResourceRef = useRef<Resource | undefined>(undefined);
   const mountedRef = useRef(true);
   const submittingRef = useRef(false);
   useEffect(() => {
@@ -263,7 +221,6 @@ export function useResourceSubmit(input: SubmitInputBase) {
   const submit = () =>
     createSubmit({
       ...input,
-      pendingResourceRef,
       mountedRef,
       submittingRef,
       setSubmitting,

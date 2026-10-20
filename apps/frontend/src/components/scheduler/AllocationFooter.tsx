@@ -16,13 +16,20 @@ export function AllocationFooter({
   onDelete,
   onDuplicate,
   onClose,
+  busy,
 }: AllocationFooterProps) {
+  // The delete and duplicate commands catch and surface their own failures.
   let deleteDialog = null;
   if (confirmDelete && editing?.seriesId) {
     deleteDialog = (
       <RepeatedAllocationDeleteDialog
-        onDeleteOne={() => onDelete("one")}
-        onDeleteFuture={() => onDelete("future")}
+        busy={busy}
+        onDeleteOne={() => {
+          void onDelete("one");
+        }}
+        onDeleteFuture={() => {
+          void onDelete("future");
+        }}
         onCancel={() => setConfirmDelete(false)}
       />
     );
@@ -31,8 +38,11 @@ export function AllocationFooter({
       <ConfirmDialog
         title={m.form_allocation_delete_title()}
         message={m.form_allocation_delete_message({ shortcut: buildUndoShortcut() })}
-        onConfirm={() => onDelete("one")}
+        onConfirm={() => {
+          void onDelete("one");
+        }}
         onCancel={() => setConfirmDelete(false)}
+        busy={busy}
       />
     );
   }
@@ -41,22 +51,30 @@ export function AllocationFooter({
       {deleteDialog}
       {editing && canEdit && (
         <>
-          <Button size="sm" type="button" variant="danger-soft" onClick={() => setConfirmDelete(true)}>
+          <Button size="sm" type="button" variant="danger-soft" disabled={busy} onClick={() => setConfirmDelete(true)}>
             {m.form_delete()}
           </Button>
           {!editing.seriesId && (
-            <Button size="sm" type="button" variant="outline" onClick={onDuplicate}>
+            <Button
+              size="sm"
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                void onDuplicate();
+              }}
+            >
               {m.form_allocation_duplicate()}
             </Button>
           )}
         </>
       )}
       <span className="flex-1" />
-      <Button size="sm" type="button" variant="outline" onClick={onClose}>
+      <Button size="sm" type="button" variant="outline" disabled={busy} onClick={onClose}>
         {m.form_cancel()}
       </Button>
       {canEdit && (
-        <Button size="sm" type="submit">
+        <Button size="sm" type="submit" disabled={busy}>
           {m.form_save()}
         </Button>
       )}

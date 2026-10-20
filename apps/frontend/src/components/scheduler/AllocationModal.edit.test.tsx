@@ -1,6 +1,6 @@
 import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AllocationModal } from "./AllocationModal";
 import { useStore } from "@/store/useStore";
@@ -290,9 +290,9 @@ describe("AllocationModal edit", () => {
       await user.click(screen.getByRole("button", { name: "Delete" }));
       await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Delete" }));
 
-      expect(deleteAllocation).toHaveBeenCalledWith(allocation.id);
+      await waitFor(() => expect(deleteAllocation).toHaveBeenCalledWith(allocation.id));
       expect(onClose).not.toHaveBeenCalled();
-      expect(screen.getByRole("dialog", { name: "Edit allocation" })).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByRole("dialog", { name: "Edit allocation" })).toBeInTheDocument());
       expect(screen.getByRole("alert")).toHaveTextContent("The allocation is protected by an integrity rule.");
       expect(useStore.getState().data.allocations).toContainEqual(allocation);
     } finally {

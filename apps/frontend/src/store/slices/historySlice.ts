@@ -1,10 +1,10 @@
 import type { StateCreator } from "zustand";
 import { m } from "@/i18n";
 import {
+  applyDemoRowCommands,
   buildClearedSession,
   hasSameEntityRevisions,
   HISTORY_LIMIT,
-  prepareHistoryTarget,
   resetSchedulerView,
 } from "@/store/storeInternal";
 import type { StoreInternals } from "@/store/storeInternal";
@@ -30,26 +30,26 @@ export function createHistorySlice(internals: HistorySliceInternals): StateCreat
       undo: createGuardedAction(() => {
         set((state) => {
           if (state.past.length === 0) return {};
-          const snapshot = state.past[state.past.length - 1];
-          if (!snapshot) return {};
-          const previous = prepareHistoryTarget(state.data, snapshot);
+          const entry = state.past[state.past.length - 1];
+          if (!entry) return {};
+          const previous = applyDemoRowCommands(state.data, entry.inverse);
           return {
             data: previous,
             past: state.past.slice(0, -1),
-            future: [state.data, ...state.future].slice(0, HISTORY_LIMIT),
+            future: [entry, ...state.future].slice(0, HISTORY_LIMIT),
           };
         });
       }),
       redo: createGuardedAction(() => {
         set((state) => {
           if (state.future.length === 0) return {};
-          const snapshot = state.future[0];
-          if (!snapshot) return {};
-          const next = prepareHistoryTarget(state.data, snapshot);
+          const entry = state.future[0];
+          if (!entry) return {};
+          const next = applyDemoRowCommands(state.data, entry.forward);
           return {
             data: next,
             future: state.future.slice(1),
-            past: [...state.past, state.data].slice(-HISTORY_LIMIT),
+            past: [...state.past, entry].slice(-HISTORY_LIMIT),
           };
         });
       }),
@@ -95,8 +95,8 @@ function replaceAllState(state: StoreState, data: StoreState["data"]): Partial<S
   if (!account || previouslyHadActiveAccount) {
     // A no-op server refresh may replace every object identity, but identical ids and
     // authoritative revisions prove that no row changed. Preserve undo/redo only in that
-    // exact case. Any remote addition, deletion or revision change clears history because a
-    // historical whole-slice snapshot could otherwise resurrect or overwrite remote work.
+    // exact case. Any remote addition, deletion or revision change clears history because
+    // a local inverse could otherwise resurrect or overwrite remote work.
     return unchangedActiveSlice ? { data } : { data, past: [], future: [] };
   }
   return {

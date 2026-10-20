@@ -212,7 +212,7 @@ function registerTimeOffRepeatValidation(): void {
 }
 
 function registerTimeOffRepeatSubmission(): void {
-  it("guards re-entrant submission of one accepted batch", () => {
+  it("guards re-entrant submission of one accepted batch", async () => {
     const { onClose } = renderCreateForm();
     chooseRepeat("Monthly on the last Friday");
     const form = screen.getByRole("dialog", { name: "Add time off" }).querySelector("form");
@@ -221,8 +221,8 @@ function registerTimeOffRepeatSubmission(): void {
     fireEvent.submit(form);
     fireEvent.submit(form);
 
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     expect(useStore.getState().data.timeOff).toHaveLength(12);
-    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("releases the submit guard after a synchronous store rejection", async () => {

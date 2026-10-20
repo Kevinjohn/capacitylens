@@ -1,4 +1,5 @@
 import type { StateCreator } from "zustand";
+import { createPlanningCacheState } from "@/data/planning/planningCacheController";
 import {
   readDefaultSidebarOpen,
   readStoredBarLabelPrefs,
@@ -17,6 +18,7 @@ import { applyThemeToDom, readStoredTheme, writeStoredTheme } from "@/lib/theme"
 import type { StoreState } from "@/store/types";
 
 type RuntimeSliceKeys =
+  | "planning"
   | "hydrated"
   | "persistError"
   | "loadError"
@@ -77,6 +79,7 @@ const createPersistedFlagSetter = <K extends PersistedFlagKey>(
 
 function readRuntimeInitialState() {
   return {
+    planning: createPlanningCacheState().planning,
     hydrated: false,
     persistError: false,
     loadError: false,
@@ -158,7 +161,12 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
       set({ activeRole: role, activeRoleStatus: status }),
     invalidateMemberships: () => set((state) => ({ membershipRevision: state.membershipRevision + 1 })),
     setMasquerade: (masquerade) => set({ masquerade }),
-    clearUndoHistory: () => set({ past: [], future: [] }),
+    clearUndoHistory: () =>
+      set((state) => ({
+        past: [],
+        future: [],
+        planning: { ...state.planning, history: { past: [], future: [], tipRevision: null } },
+      })),
     signOutDemo: () => {
       get().setActiveAccount(null);
       writeStoredFakeSignedIn(false);

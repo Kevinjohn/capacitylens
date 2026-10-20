@@ -43,12 +43,10 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
-- Prepared a nonpersisted planning cache controller with generated typed requests and real-server
-  checks for revision ordering, acknowledgement, uncertainty and typed history. Request timeouts
-  retain their original mutation for commitment lookup; obsolete contexts suppress completion
-  results, and activity-kind updates clear incomplete typed history. The schedule retains
-  its current persistence path until typed delete
-  restoration and session cleanup are verified.
+- Prepared frontend ordinary forms and scheduling commands for the typed planning controller,
+  canonical acknowledgements, captured revisions and safe recovery. Full production activation
+  and server-side inverse restoration remain gated until backend support is complete; the in-memory
+  demo remains editable.
 
 - Use Adonis BodyParser and compiled Vine validation for requests, with flat 400 errors and no CSP report endpoint.
 

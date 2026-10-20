@@ -2,6 +2,7 @@ import { expect } from "@playwright/test";
 import type { APIRequestContext } from "@playwright/test";
 import { ports } from "../scripts/ports.mjs";
 import { serverTestApiOrigin } from "../scripts/playwrightRunMode.mjs";
+import { resetDbE2EProductData } from "./dbAuthenticationSupport";
 
 // Database-backed specs reset server state between tests, then exercise the app through
 // real UI flows. Their normal app fixture contains one company; server tests seed legacy
@@ -13,8 +14,9 @@ export const API = serverTestApiOrigin(ports().dbApi);
 type ResetServerOptions = { request: APIRequestContext; withSeed?: boolean };
 /** Wipes the server data and optionally restores one supported-company fixture. */
 export async function resetServer({ request, withSeed = true }: ResetServerOptions): Promise<void> {
-  const res = await request.post(`${API}/api/test/reset`, { data: { seed: withSeed ? "single" : false } });
-  expect(res.ok()).toBeTruthy();
+  const identity = await request.get(`${API}/api/auth/me`);
+  expect(identity.ok(), "DB-backed setup requires the real seeded administrator session").toBeTruthy();
+  resetDbE2EProductData(withSeed);
 }
 
 /** Returns the server tables used by database-backed assertions. */

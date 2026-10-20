@@ -4,7 +4,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render as rtlRender, screen } from "@testing-library/react";
 import type { RenderOptions } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { PermissionContext } from "./permissionContext";
+import { PermissionContext, useCan } from "./permissionContext";
+import { createPlanningCacheState } from "@/data/planning/planningCacheController";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 // Isolated AllocationBar renders need a tooltip provider.
@@ -27,7 +28,7 @@ function withRole(role: Role | null, ui: ReactNode) {
 }
 
 beforeEach(() => {
-  useStore.getState().replaceAll(emptyAppData());
+  useStore.setState(createPlanningCacheState());
   useStore.getState().clearFilters();
   useStore.getState().setActiveRole(null);
   useStore.getState().setNotice(null);
@@ -49,6 +50,25 @@ describe("useCanEdit gates the ListPage create affordance", () => {
   it('role null keeps the "Add" button outside masquerade', () => {
     withRole(null, <ListPage title="Clients" addLabel="Add client" onAdd={onAdd} />);
     expect(screen.getByRole("button", { name: "Add client" })).toBeInTheDocument();
+  });
+
+  it("denies editing a canonical read-only company even without a membership role", () => {
+    const initial = createPlanningCacheState();
+    useStore.setState({
+      planning: { ...initial.planning, context: { identity: "local", companyId: "wayne" }, canWrite: false },
+    });
+    function ReadAccess() {
+      return <span>{useCan("read") ? "Planning remains readable" : "Denied"}</span>;
+    }
+    withRole(
+      null,
+      <>
+        <ListPage title="Clients" addLabel="Add client" onAdd={onAdd} />
+        <ReadAccess />
+      </>,
+    );
+    expect(screen.queryByRole("button", { name: "Add client" })).not.toBeInTheDocument();
+    expect(screen.getByText("Planning remains readable")).toBeInTheDocument();
   });
 
   it('REGRESSION GUARD: NO provider at all keeps the "Add" button (default-editable)', () => {

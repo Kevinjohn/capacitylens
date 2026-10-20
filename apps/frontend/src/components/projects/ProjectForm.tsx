@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useStore } from "@/store/useStore";
+import { usePlanningActions, usePlanningDraft } from "@/data/planning/usePlanningActions";
 import { useActiveScopedData, useScopedData } from "@/store/useScopedData";
 import { useFieldError } from "@/hooks/useFieldError";
 import { resolveDomainErrorMessage, resolveErrorMessage } from "@/lib/errorMessage";
@@ -15,14 +16,17 @@ import { PrivateNameFields } from "@/components/common/PrivateNameFields";
 import { usePrivateNameFields } from "@/components/common/usePrivateNameFields";
 import { FieldError } from "@/components/ui/field";
 import type { Project } from "@capacitylens/shared/types/entities";
+import { PlanningStatusBanner } from "@/components/PlanningStatusBanner";
 
 type ProjectPrivacy = NonNullable<ReturnType<ReturnType<typeof usePrivateNameFields>["parsePrivacyPatch"]>>;
 
 /** Add (no `project`) or edit a project: name, required client, preset colour. `onClose` fires on
  * save or cancel. */
 export function ProjectForm({ project, onClose }: { project?: Project; onClose: () => void }) {
-  const add = useStore((state) => state.addProject);
-  const update = useStore((state) => state.updateProject);
+  const draft = usePlanningDraft(project);
+  const { addProject: add, updateProject: update } = usePlanningActions(draft);
+  const submitting = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const data = useActiveScopedData();
   const clients = data.clients;
   // The raw scoped slice, for the archived-parent label only (see clientOptions below): in the demo
@@ -54,14 +58,28 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   }, [clients]);
   // Retain a disabled selected option for the existing archived client so unrelated project edits round-trip its unchanged ID.
   const clientOptions = resolveProjectClientOptions({ baseOptions: baseClientOptions, clients, rawClients, project });
-  const submit = useProjectSubmit({ project, name, clientId, color, privateNameFields, fail, add, update, onClose });
+  const submit = useProjectSubmit({
+    project,
+    name,
+    clientId,
+    color,
+    privateNameFields,
+    fail,
+    add,
+    update,
+    submitting,
+    setIsSubmitting,
+    onClose,
+  });
 
   return (
     <Modal
       title={project ? m.form_project_edit_title() : m.form_project_add_title()}
       onClose={onClose}
-      onSubmit={submit}
-      footer={<FormActions onCancel={onClose} />}
+      onSubmit={() => void submit()}
+      busy={isSubmitting}
+      recovery={<PlanningStatusBanner placement="modal" />}
+      footer={<FormActions onCancel={onClose} disabled={isSubmitting} />}
     >
       <ProjectFormFields
         name={name}
@@ -114,6 +132,8 @@ function useProjectSubmit({
   fail,
   add,
   update,
+  submitting,
+  setIsSubmitting,
   onClose,
 }: {
   project: Project | undefined;
@@ -122,11 +142,14 @@ function useProjectSubmit({
   color: string;
   privateNameFields: ReturnType<typeof usePrivateNameFields>;
   fail: ReturnType<typeof useFieldError>["fail"];
-  add: ReturnType<typeof useStore.getState>["addProject"];
-  update: ReturnType<typeof useStore.getState>["updateProject"];
+  add: ReturnType<typeof usePlanningActions>["addProject"];
+  update: ReturnType<typeof usePlanningActions>["updateProject"];
+  submitting: { current: boolean };
+  setIsSubmitting: (value: boolean) => void;
   onClose: () => void;
 }) {
-  return () => {
+  return async () => {
+    if (submitting.current) return;
     const trimmed = parseName(name, fail);
     if (!trimmed) return;
     const privacy = privateNameFields.parsePrivacyPatch();
@@ -139,21 +162,26 @@ function useProjectSubmit({
       return;
     }
     if (!validatePresetColor(color, fail)) return;
+    submitting.current = true;
+    setIsSubmitting(true);
     try {
       if (project && isStaleEdit(useStore.getState().data.projects, project.id, project.updatedAt)) {
         fail(null, m.form_project_err_changed());
         return;
       }
-      if (!saveProject({ project, trimmed, clientId, color, privacy, add, update })) return;
+      if (!(await saveProject({ project, trimmed, clientId, color, privacy, add, update }))) return;
       onClose();
     } catch (error) {
       // Surface store rejection at the project form so invalid writes cannot escape the event boundary.
       fail(null, resolveErrorMessage(error));
+    } finally {
+      submitting.current = false;
+      setIsSubmitting(false);
     }
   };
 }
 
-function saveProject({
+async function saveProject({
   project,
   trimmed,
   clientId,
@@ -167,20 +195,22 @@ function saveProject({
   clientId: string;
   color: string;
   privacy: ProjectPrivacy;
-  add: ReturnType<typeof useStore.getState>["addProject"];
-  update: ReturnType<typeof useStore.getState>["updateProject"];
+  add: ReturnType<typeof usePlanningActions>["addProject"];
+  update: ReturnType<typeof usePlanningActions>["updateProject"];
 }) {
   if (project) {
-    update(project.id, { name: trimmed, clientId, color, ...privacy });
+    await update(project.id, { name: trimmed, clientId, color, ...privacy });
     return true;
   }
   return (
-    add({
-      name: trimmed,
-      clientId,
-      color,
-      ...(privacy.isPrivate && privacy.codeName ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName } : {}),
-    }).kind === "created"
+    (
+      await add({
+        name: trimmed,
+        clientId,
+        color,
+        ...(privacy.isPrivate && privacy.codeName ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName } : {}),
+      })
+    ).kind === "created"
   );
 }
 

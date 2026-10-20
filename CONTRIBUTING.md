@@ -98,6 +98,23 @@ Authentication changes need explicit threat-oriented tests. Google is the
 supported company provider; Microsoft is deferred and GitHub is retired. Provider changes must
 remain secure when configuration is missing, partial or malicious.
 
+### Planning data
+
+`apps/frontend/src/store/useStore.ts` holds the one nonpersisted planning `data` value. Its
+`data/planning/planningCacheController.ts` owns canonical reads, company revisions, pending
+commitment and page-local typed history. `planningRuntime.ts` connects it to company/access
+changes and browser refresh. Planning reads do not use TanStack Query; account and administration
+queries retain their own cache.
+
+Forms and gestures capture their revision, original writable values and access context when they
+begin. `planningCommands.ts` builds explicit typed intents, and `planningActions.ts` resolves only
+after commitment and canonical refresh. A stale draft is refused rather than replayed with a newer
+revision. Unknown outcomes retain the original execution for commitment lookup. Delete restoration
+keeps opaque session-bound handles in history; private before-images stay on the server.
+
+The temporary demo runs in the same Zustand `data` value and resets on page reload. Its local Undo
+and Redo retain compact typed row commands, with no browser persistence or whole-data snapshots.
+
 ## Pull requests
 
 - Create pull requests on GitHub and leave them open for review; merging follows

@@ -1,6 +1,10 @@
 # US-SET-11 — Viewer read-only mode (server + auth-on)
 
-**Area:** Access / whole-app · **Persona:** A Viewer member (read-only) · **Linked E2E:** `e2e/viewer.auth.spec.ts` → "a viewer sees no edit affordances; an editor does; a direct viewer write is 403"
+**Area:** Access / whole-app · **Persona:** A Viewer member (read-only) · **Linked tests:**
+`apps/frontend/src/components/PlanningStatusBanner.test.tsx` + **E2E:** `e2e/viewer.auth.spec.ts` →
+"a viewer sees no edit affordances; an editor does; a direct viewer write is 403"
+
+**Documentation:** [Editor guide — check your role and company](../../docs-src/using/editor.md#check-your-role-and-company)
 
 ## Goal
 
@@ -18,11 +22,14 @@ what's stored. So the client hides every edit affordance for a Viewer (UX) and t
 viewer's mutation locally (defense-in-depth). The **server 403** remains the authoritative access
 boundary — the client gating is a courtesy + a desync guard, never the security boundary.
 
-**Critical invariant:** while online, with **auth off** or in the in-memory demo there is no
-membership role to enforce, so the role resolves to `null` and remains fully editable. The persisted auth-off server is
-labelled **Open access**; only the disposable in-memory build is labelled **Demo access**. The
-online membership-driven Viewer mode is reachable only on a server + auth-on deploy where a real
-`viewer` membership exists.
+**Critical invariant:** planning write authority comes from the server's typed planning response,
+not the account role used for account-level administration. An auth-off server is a read-only
+canonical planning display; it never falls back to a client writer. Its informational banner
+(`data-testid="planning-readonly-auth-banner"`) says **This server is read-only because sign-in is
+off. Configure password or Google sign-in to edit planning data.** The in-memory demo has no server
+planning context and remains fully editable. On an auth-enabled server, Owner, Admin and Editor
+members can edit; a Viewer cannot. The persisted auth-off server is labelled **Open access**; only
+the disposable in-memory build is labelled **Demo access**.
 
 ## How (end-to-end)
 
@@ -71,10 +78,11 @@ draggable/resizable.
   (`PUT /api/<entity>/<id>` with the account's `accountId`, write tier = editor+) is **403** even if
   the UI is bypassed. As a second local guard, the store no-ops a viewer's `add*`/`update*`/`delete*`/
   `importData` and surfaces _"Read-only — you don't have edit access."_
-- **Default-editable invariant:** with **auth off** or in the in-memory demo the role is `null` and
-  the online app is fully editable.
-  The persistent badge says **Open access** for the persisted auth-off
-  server and **Demo access** for the in-memory build, rather than claiming a real membership role.
+- **Planning write-authority invariant:** with auth off, the account-level role is `null`, but the
+  server's planning data remains read-only; the in-memory demo remains fully editable. The auth-off
+  banner has no fake-login action, and an authenticated Viewer does not see the auth-off explanation.
+  The persistent badge says **Open access** for the persisted auth-off server and **Demo access** for
+  the in-memory build, rather than claiming a real membership role.
 - UI: `src/auth/PermissionProvider.tsx` + `src/auth/permissionContext.ts` (`useRole`/`useCanEdit`, off
   the pure `can`); story `user-stories/settings/US-SET-11-viewer-readonly.md`; spec
   `e2e/viewer.auth.spec.ts`.

@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 import { useCanEdit } from "@/auth/permissionContext";
+import { planningActions } from "@/data/planning/planningActions";
+import { isPlanningHistoryReady } from "@/data/planning/planningCacheController";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import { hasActiveFilters, useStore } from "@/store/useStore";
 import { hasDisciplinesEnabled } from "@/store/selectors";
@@ -10,20 +12,23 @@ import { buildFilterOptions } from "./toolbarFilterOptions";
 import { useToolbarSearch } from "./useToolbarSearch";
 
 function useToolbarHistory() {
-  const undo = useStore((state) => state.undo);
-  const redo = useStore((state) => state.redo);
-  const canUndo = useStore((state) => state.past.length > 0);
-  const canRedo = useStore((state) => state.future.length > 0);
+  const canUndo = useStore((state) =>
+    state.planning.context
+      ? isPlanningHistoryReady(state.planning) && state.planning.history.past.length > 0
+      : state.past.length > 0,
+  );
+  const canRedo = useStore((state) =>
+    state.planning.context
+      ? isPlanningHistoryReady(state.planning) && state.planning.history.future.length > 0
+      : state.future.length > 0,
+  );
   const setNotice = useStore((state) => state.setNotice);
-  const runHistoryAction = (action: () => void) => {
-    try {
-      action();
-    } catch (error) {
-      // Surface a rejected toolbar mutation instead of letting it escape its event handler.
+  const runHistoryAction = (action: () => Promise<unknown>) => {
+    void action().catch((error: unknown) => {
       setNotice(resolveErrorMessage(error), "error");
-    }
+    });
   };
-  return { undo, redo, canUndo, canRedo, runHistoryAction };
+  return { undo: planningActions.undo, redo: planningActions.redo, canUndo, canRedo, runHistoryAction };
 }
 
 /** Exposes date navigation, search, filters, and drawing controls. */

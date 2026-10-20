@@ -1,12 +1,13 @@
 import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ClientForm } from "./ClientForm";
 import { useStore } from "@/store/useStore";
 import { resolveColorName } from "@/lib/palette";
 import { resetStoreWithAccount } from "@/test/fixtures";
 import { PermissionContext } from "@/auth/permissionContext";
+import { planningActions } from "@/data/planning/planningActions";
 
 beforeEach(() => {
   resetStoreWithAccount();
@@ -134,6 +135,59 @@ it("adds a client and calls onClose when a valid name is provided", async () => 
   const clients = useStore.getState().data.clients;
   expect(clients).toHaveLength(1);
   expect(clients[0]?.name).toBe("Ferris Corp");
+});
+
+it("waits for the planning action acknowledgement and suppresses duplicate submits", async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  const originalAdd = planningActions.addClient;
+  let acknowledge!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    acknowledge = resolve;
+  });
+  const addClient = vi
+    .spyOn(planningActions, "addClient")
+    .mockImplementation((...args) => pending.then(() => originalAdd(...args)));
+  try {
+    render(<ClientForm onClose={onClose} />);
+    await user.type(screen.getByLabelText("Name"), "Wayne Enterprises");
+    const save = screen.getByRole("button", { name: "Save" });
+    await user.click(save);
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByLabelText("Name")).toBeDisabled();
+    expect(save).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+    expect(onClose).not.toHaveBeenCalled();
+    await user.click(save);
+    expect(addClient).toHaveBeenCalledOnce();
+
+    acknowledge();
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+    expect(useStore.getState().data.clients).toHaveLength(1);
+  } finally {
+    addClient.mockRestore();
+  }
+});
+
+it("keeps a client form open and shows an asynchronous action rejection", async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  const addClient = vi.spyOn(planningActions, "addClient").mockRejectedValue(new Error("Client save refused."));
+  try {
+    render(<ClientForm onClose={onClose} />);
+    await user.type(screen.getByLabelText("Name"), "Wayne Enterprises");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Client save refused.");
+    expect(screen.getByRole("dialog")).not.toHaveAttribute("aria-busy", "true");
+    expect(screen.getByLabelText("Name")).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(useStore.getState().data.clients).toHaveLength(0);
+  } finally {
+    addClient.mockRestore();
+  }
 });
 
 it("trims leading and trailing whitespace from the name", async () => {

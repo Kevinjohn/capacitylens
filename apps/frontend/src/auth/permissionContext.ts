@@ -54,6 +54,8 @@ export function usePermissionStatus(): NonNullable<PermissionContextValue["statu
 export function useCan(action: Action): boolean {
   const masqueradeKind = useStore((state) => state.masquerade.kind);
   const role = useRole();
+  const planningWritable = useStore((state) => state.planning.context === null || state.planning.canWrite);
+  if (action !== "read" && !planningWritable) return false;
   if (action !== "read" && masqueradeKind !== "inactive") return false;
   return role === null ? true : can(role, action);
 }

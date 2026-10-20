@@ -10,6 +10,7 @@ import { isStaleEdit } from "@/lib/isStaleEdit";
 import { buildRepeatedTimeOffDrafts } from "@/lib/repeatingTimeOff";
 import { parseText } from "@/lib/validation";
 import { useStore } from "@/store/useStore";
+import type { usePlanningActions } from "@/data/planning/usePlanningActions";
 import type { Draft } from "@/store/useStore";
 import type { TimeOffRepeatChoice } from "./useTimeOffRepeat";
 
@@ -26,12 +27,12 @@ export interface SaveTimeOffOptions {
   note: string;
   canEditNote: boolean;
   fail: Fail;
-  add: ReturnType<typeof useStore.getState>["addTimeOff"];
-  addMany: ReturnType<typeof useStore.getState>["addTimeOffs"];
-  update: ReturnType<typeof useStore.getState>["updateTimeOff"];
+  add: ReturnType<typeof usePlanningActions>["addTimeOff"];
+  addMany: ReturnType<typeof usePlanningActions>["addTimeOffs"];
+  update: ReturnType<typeof usePlanningActions>["updateTimeOff"];
   repeat: TimeOffRepeatChoice;
   repeatUntil: ISODate | "";
-  acceptedSubmission: { current: boolean };
+  onSubmittingChange?: (submitting: boolean) => void;
   onClose: () => void;
 }
 
@@ -57,30 +58,6 @@ function parseTimeOffDraft(options: SaveTimeOffOptions) {
     cleanNote = validatedNote || undefined;
   }
   return { basePatch: { resourceId, startDate, endDate, type }, cleanNote };
-}
-
-function persistNewTimeOff(options: {
-  baseDraft: Draft<TimeOff>;
-  repeatedDrafts: Draft<TimeOff>[];
-  add: SaveTimeOffOptions["add"];
-  addMany: SaveTimeOffOptions["addMany"];
-  acceptedSubmission: SaveTimeOffOptions["acceptedSubmission"];
-  repeat: TimeOffRepeatChoice;
-}): boolean {
-  if (options.acceptedSubmission.current) return false;
-  options.acceptedSubmission.current = true;
-  try {
-    const result = options.repeat === "none" ? options.add(options.baseDraft) : options.addMany(options.repeatedDrafts);
-    if (result.kind === "blocked") {
-      options.acceptedSubmission.current = false;
-      return false;
-    }
-    return true;
-  } catch (error) {
-    // Release the accepted-submission marker before propagating failure so later attempts are not suppressed.
-    options.acceptedSubmission.current = false;
-    throw error;
-  }
 }
 
 function buildTimeOffDraftsForSave(
@@ -129,7 +106,7 @@ function resolveRepeatFailure(startDate: ISODate, error: unknown, fail: Fail): n
 }
 
 /** Validates a time-off form and persists its single entry or repeated batch. */
-export function saveTimeOff(options: SaveTimeOffOptions): void {
+export async function saveTimeOff(options: SaveTimeOffOptions): Promise<void> {
   const draft = parseTimeOffDraft(options);
   if (!draft) return;
   const { basePatch, cleanNote } = draft;
@@ -140,12 +117,15 @@ export function saveTimeOff(options: SaveTimeOffOptions): void {
         options.fail(null, m.form_timeoff_err_changed());
         return;
       }
-      options.update(options.timeOff.id, patch);
+      options.onSubmittingChange?.(true);
+      await options.update(options.timeOff.id, patch);
     } else {
       const baseDraft = { ...basePatch, ...(cleanNote ? { note: cleanNote } : {}) };
       const repeatedDrafts = buildTimeOffDraftsForSave(baseDraft, options);
       if (!repeatedDrafts) return;
-      if (!persistNewTimeOff({ ...options, baseDraft, repeatedDrafts })) return;
+      options.onSubmittingChange?.(true);
+      const result = options.repeat === "none" ? await options.add(baseDraft) : await options.addMany(repeatedDrafts);
+      if (result.kind === "blocked") return;
     }
     options.onClose();
   } catch (error) {

@@ -28,15 +28,17 @@ The page shows exactly the text that is copied:
 - server connectivity, database schema, persistence and backup status, as observed when the page
   opened (**Snapshot observed**);
 - the company's sign-in mode;
-- this browser session's save counters: failed saves, retries, reconciliations, superseded
-  reloads, rebased and discarded edits, and whether saving is suspended;
+- the current **Planning status**, **Planning revision**, **Pending commitment** (`none`,
+  `unknown` or `confirmed`), **Undo available** and **Redo available** values;
 - the browser's user agent, window size, time zone and language.
 
 A value the page cannot read shows **Unknown** or **unavailable**. The demo has no server, so its
 server values are always unavailable. If the build provides a revision or feedback address,
 **Build details** shows it and may include a **Send feedback** link.
 
-The report is a snapshot: reopen the page to check the server again.
+The report is a snapshot: reopen the page to check the server again. Planning status, revision,
+pending commitment and history availability are current client facts when the report is copied.
+History contains no row, session or actor identifiers.
 
 ## What the report leaves out
 

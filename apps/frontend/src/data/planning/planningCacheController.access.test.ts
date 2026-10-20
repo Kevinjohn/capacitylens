@@ -18,6 +18,7 @@ const inverse = { operation: "allocation.update", id: "allocation-1", changes: {
 function snapshot(name: string, revision = 1): PlanningSnapshot {
   return {
     revision,
+    canWrite: true,
     accessKey: "owner",
     data: makeAppData({
       accounts: [makeAccount({ id: "wayne", name: "Wayne Enterprises" })],

@@ -12,14 +12,16 @@ import { AuthProvider } from "./auth/AuthProvider";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { useStore } from "./store/useStore";
 import { retireBrowserSnapshots } from "./data/retireBrowserSnapshots";
-import { persistenceAdapter } from "./data/storageAdapter";
+import { bootstrapDemo } from "./data/bootstrapDemo";
+import { attachPlanningRuntime } from "./data/planning/planningRuntime";
+import { createPlanningTransport } from "./data/planning/planningTransport";
+import { createProductionPlanningActions } from "./data/planning/productionPlanningActions";
+import { registerPlanningExecutor } from "./data/planning/planningActions";
 import { isDemoMode, isServerConfigured } from "./data/apiConfig";
-import { bootstrap, ReloadDiscardedEditError } from "./data/persist";
-import { resolvePersistenceErrorNotice } from "./data/persistenceErrorNotice";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { seedForCurrentWeek } from "@capacitylens/shared/data/seed";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { applyThemeToDom, watchSystemTheme } from "./lib/theme";
-import { m } from "@/i18n";
 
 // Validate the fatal mount precondition before theme, persistence, network or listener side effects.
 const rootEl = document.getElementById("root");
@@ -36,61 +38,24 @@ const detachTheme = watchSystemTheme(() => useStore.getState().theme);
 // flash empty data. The module guard also makes the callback safe under StrictMode's effect replay.
 let persistenceStarted = false;
 let detachPersistence: (() => void) | null = null;
-let moduleDisposed = false;
-function startPersistence(identitySource: "live" | "open"): void {
+function startPersistence(): void {
   if (persistenceStarted) return;
   persistenceStarted = true;
-  const masquerade = useStore.getState().masquerade;
-  const activeMasquerade = masquerade.kind !== "inactive" ? masquerade.state : undefined;
-  let bootstrapProjectionOptions: {
-    initialLoad?: "empty";
-    initialAccountId?: string;
-    skipExistingCheck?: boolean;
-  } = {};
-  if (activeMasquerade && isServerConfigured()) {
-    bootstrapProjectionOptions = { initialAccountId: activeMasquerade.accountId, skipExistingCheck: true };
-  } else if (identitySource === "live" && isServerConfigured()) {
-    bootstrapProjectionOptions = { initialLoad: "empty" };
+  if (isServerConfigured()) {
+    const runtime = attachPlanningRuntime(useStore, createPlanningTransport());
+    const actions = createProductionPlanningActions(useStore, runtime.controller);
+    const detachActions = registerPlanningExecutor(async (name, parameters, draft) =>
+      Reflect.apply(actions[name], actions, [...parameters, draft]),
+    );
+    detachPersistence = () => {
+      detachActions();
+      runtime.dispose();
+    };
+    return;
   }
-  void bootstrap(useStore, persistenceAdapter, {
-    ...bootstrapProjectionOptions,
-    // Seed only the memory-only demo build. Server-backed instances load their own data
-    // and begin at company creation when empty.
-    ...(isDemoMode() ? { seedIfEmpty: seedForCurrentWeek() } : {}),
-
-    serverMode: isServerConfigured(),
-    onError: (error) => {
-      // Successful reloads rebase edits made during their network window. This typed error is the
-      // exceptional case where an older failed write or committed external replacement cannot be
-      // safely replayed. It is a discrete loss, not an ongoing transport failure, so its sticky
-      // toast is the whole surface, skip the "changes aren't saving" banner.
-      if (error instanceof ReloadDiscardedEditError) {
-        useStore.getState().setNotice(m.notice_edit_dropped_reload(), "error");
-        return;
-      }
-      useStore.getState().setPersistError(true);
-      const notice = resolvePersistenceErrorNotice(error);
-      if (notice) useStore.getState().setNotice(notice, "error");
-    },
-    // Recovery: once a write lands again (e.g. the server comes back), take the
-    // "changes aren't saving" banner back down. Guarded so a normal save doesn't
-    // churn the store on every keystroke.
-    onSuccess: () => {
-      if (useStore.getState().persistError) useStore.getState().setPersistError(false);
-    },
-  })
-    .then((detach) => {
-      if (moduleDisposed) detach();
-      else detachPersistence = detach;
-    })
-    .catch((e) => {
-      // Hydration itself failed, still let the app render (with the banner) rather
-      // than dying on an unhandled rejection. The banner tells the user "changes aren't saving",
-      // but log the real cause too so a contributor isn't left guessing what broke at boot.
-      console.error("bootstrap: hydration failed; rendering with the persist-error banner", e);
-      useStore.getState().setHydrated(true);
-      useStore.getState().setPersistError(true);
-    });
+  // The demo owns only the current page's Zustand state. A fresh page boot starts from
+  // the canonical seed again; no browser persistence or diff subscriber is attached.
+  bootstrapDemo(useStore, isDemoMode() ? seedForCurrentWeek() : emptyAppData());
 }
 
 const reactRoot = createRoot(rootEl);
@@ -110,7 +75,6 @@ reactRoot.render(
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
-    moduleDisposed = true;
     detachPersistence?.();
     detachTheme();
     reactRoot.unmount();

@@ -275,6 +275,7 @@ describe("Modal", () => {
   registerModalControlRenderingTests();
   registerModalControlMixedValueTests();
   registerModalFooterTests();
+  registerModalBusyTests();
 });
 
 function registerModalPresentationTests() {
@@ -599,6 +600,52 @@ function registerModalFooterTests() {
     unmount();
     expect(document.activeElement).toBe(trigger);
     trigger.remove();
+  });
+}
+
+function registerModalBusyTests() {
+  it("keeps a busy submission open and leaves recovery controls enabled outside its disabled fields", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const onSubmit = vi.fn();
+    const onRecover = vi.fn();
+    render(
+      <Modal
+        title="Saving editor"
+        onClose={onClose}
+        onSubmit={onSubmit}
+        busy
+        footer={<Button type="submit">Save changes</Button>}
+        recovery={
+          <Button type="button" onClick={onRecover}>
+            Check saved change
+          </Button>
+        }
+      >
+        <input aria-label="Company name" defaultValue="Wayne Enterprises" />
+      </Modal>,
+    );
+
+    const dialog = screen.getByRole("dialog", { name: "Saving editor" });
+    const form = dialog.querySelector("form");
+    expect(dialog).toHaveAttribute("aria-busy", "true");
+    expect(form).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByLabelText("Company name")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
+
+    if (!form) throw new Error("Expected Modal to wrap its controls in a form");
+    fireEvent.submit(form);
+    fireEvent.keyDown(document, { key: "Escape" });
+    const backdrop = getRequiredElement<HTMLElement>(document, '[data-slot="dialog-overlay"]');
+    await user.click(backdrop);
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+
+    const recovery = within(dialog).getByRole("button", { name: "Check saved change" });
+    expect(recovery).toBeEnabled();
+    expect(within(dialog).getByTestId("modal-recovery-controls")).toContainElement(recovery);
+    await user.click(recovery);
+    expect(onRecover).toHaveBeenCalledOnce();
   });
 }
 

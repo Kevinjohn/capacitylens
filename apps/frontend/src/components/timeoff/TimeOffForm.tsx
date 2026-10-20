@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useStore } from "@/store/useStore";
+import { usePlanningActions, usePlanningDraft } from "@/data/planning/usePlanningActions";
 import { hasPlaceholdersEnabled, resolveTimeZone } from "@/store/selectors";
 import { useActiveScopedData } from "@/store/useScopedData";
 import { useFieldError, useFieldErrorFocus } from "@/hooks/useFieldError";
@@ -17,6 +18,7 @@ import { useRole } from "@/auth/permissionContext";
 import { useTimeOffRepeat } from "./useTimeOffRepeat";
 import { TimeOffRepeatFields } from "./TimeOffRepeatFields";
 import { saveTimeOff } from "./timeOffFormSubmission";
+import { PlanningStatusBanner } from "@/components/PlanningStatusBanner";
 
 interface TimeOffFormProps {
   timeOff?: TimeOff;
@@ -118,9 +120,8 @@ function useCanEditTimeOffNote(): boolean {
 
 /** Creates or edits time off for an authorised resource. */
 export function TimeOffForm({ timeOff, defaults, onClose }: TimeOffFormProps) {
-  const add = useStore((state) => state.addTimeOff);
-  const addMany = useStore((state) => state.addTimeOffs);
-  const update = useStore((state) => state.updateTimeOff);
+  const draft = usePlanningDraft(timeOff);
+  const { addTimeOff: add, addTimeOffs: addMany, updateTimeOff: update } = usePlanningActions(draft);
   const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
   const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
   const resources = useActiveScopedData().resources;
@@ -128,6 +129,7 @@ export function TimeOffForm({ timeOff, defaults, onClose }: TimeOffFormProps) {
 
   const fields = useTimeOffDraft({ timeOff, defaults, calendarTimeZone, canEditNote });
   const acceptedSubmission = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const repeatState = useTimeOffRepeat(fields);
   const fieldError = useFieldError();
   const { error, errorField, errorId, fail, clear } = fieldError;
@@ -146,29 +148,39 @@ export function TimeOffForm({ timeOff, defaults, onClose }: TimeOffFormProps) {
     errorId,
   });
 
-  const submit = () =>
-    saveTimeOff({
-      timeOff,
-      resources,
-      ...fields,
-      canEditNote,
-      fail,
-      add,
-      addMany,
-      update,
-      repeat: repeatState.repeat,
-      repeatUntil: repeatState.repeatUntil,
-      acceptedSubmission,
-      onClose,
-    });
+  const submit = async () => {
+    if (acceptedSubmission.current) return;
+    acceptedSubmission.current = true;
+    try {
+      await saveTimeOff({
+        timeOff,
+        resources,
+        ...fields,
+        canEditNote,
+        fail,
+        add,
+        addMany,
+        update,
+        repeat: repeatState.repeat,
+        repeatUntil: repeatState.repeatUntil,
+        onSubmittingChange: setIsSubmitting,
+        onClose,
+      });
+    } finally {
+      acceptedSubmission.current = false;
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <Modal
       title={timeOff ? m.form_timeoff_edit_title() : m.form_timeoff_add_title()}
       onClose={onClose}
-      onSubmit={submit}
+      onSubmit={() => void submit()}
       onEdit={clear}
-      footer={<FormActions onCancel={onClose} />}
+      busy={isSubmitting}
+      recovery={<PlanningStatusBanner placement="modal" />}
+      footer={<FormActions onCancel={onClose} disabled={isSubmitting} />}
     >
       <TimeOffFields
         {...fields}

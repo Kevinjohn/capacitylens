@@ -1,8 +1,14 @@
 import { useCallback, useMemo, useRef } from "react";
+import { can } from "@capacitylens/shared/domain/access";
 import { newId } from "@capacitylens/shared/lib/id";
 import { API_BASE, isServerConfigured } from "@/data/apiConfig";
-import { persistenceAdapter } from "@/data/storageAdapter";
-import { refreshActiveAccountSlice } from "@/data/persist";
+import { flushPendingWrites, refreshActiveAccountSlice, suspendServerWrites } from "@/data/persist";
+import {
+  assertPlanningWritesAllowed,
+  getPlanningController,
+  hasPlanningRuntime,
+} from "@/data/planning/planningRuntime";
+import type { PlanningClientContext } from "@/data/planning/planningCacheController";
 import { useStore } from "@/store/useStore";
 import type { LifecycleEntity } from "@/store/useStore";
 import { resolveErrorMessage } from "@/lib/errorMessage";
@@ -13,12 +19,10 @@ import { API_BULK_TIMEOUT_MS } from "@/data/requestTimeout";
 import { notifyInactiveDataChanged } from "@/data/inactiveDataEvents";
 import type { ReauthAction } from "@/auth/reauthCoordinator";
 
-// Lifecycle writes use dedicated server routes and then reload through persistence
-// coordination to keep the store and sync baseline paired. Uncertain write outcomes
-// require authoritative recovery before another destructive attempt. Demo builds
-// use the same domain transitions locally.
+// Lifecycle actions are asynchronous so callers can wait for server commitment. Demo
+// builds still apply the shared domain transitions locally.
 
-/** A lifecycle transition verb. Mirrors the four dedicated server routes + the four store actions. */
+/** A lifecycle transition verb. */
 export type LifecycleVerb = "archive" | "unarchive" | "delete" | "purge";
 
 // A timeout or intermediary failure cannot prove whether the dispatched write committed.
@@ -42,9 +46,8 @@ export interface LifecycleActions {
   purge: (entity: LifecycleEntity, id: string) => Promise<void>;
 }
 
-// Reload through the persistence orchestrator so pending ordinary edits settle before
-// a lifecycle write reseeds the baseline. An unattached fallback has no queued writes
-// to race; a failed save preserves the optimistic edit until recovery.
+// A lifecycle refresh must use the attached planning coordinator so accepted rows stay
+// paired with their revision and access context.
 type LifecycleReloadOutcome =
   { kind: "reloaded" } | { kind: "skipped" } | { kind: "failed" } | { kind: "stale-account" };
 
@@ -52,21 +55,16 @@ async function reloadFromServer(accountId: string): Promise<LifecycleReloadOutco
   // A lifecycle POST can finish after a company switch. Check ownership before reload
   // so its old tenant slice cannot replace the current tenant, including the unattached fallback.
   if (useStore.getState().activeAccountId !== accountId) return { kind: "stale-account" };
-  // Anything but 'unattached' means the orchestrator owned the call, including 'skipped' (a
-  // failed save's edits win; the committed change appears on the next successful refresh) and
-  // 'failed' (surfaced via the persist banner). Only the no-orchestrator case may fall back.
+  // The coordinator outcome distinguishes a canonical reload from a stale or failed read.
   const outcome = await refreshActiveAccountSlice(accountId);
   // `skipped` also covers an orchestrator superseded by a tenant switch. Re-check ownership so the
   // caller can keep that deliberate stale-tenant outcome silent while treating a same-tenant skip
   // (normally a failed save that must not be overwritten) as committed-but-stale.
   if (useStore.getState().activeAccountId !== accountId) return { kind: "stale-account" };
   if (outcome.kind !== "unattached") return outcome;
-  const slice = await persistenceAdapter.loadAll(accountId);
-  // The bare load is asynchronous too. A switch can happen after the pre-load guard but before the
-  // old slice arrives, so check ownership again at the exact store-install boundary.
-  if (useStore.getState().activeAccountId !== accountId) return { kind: "stale-account" };
-  useStore.getState().replaceAll(slice);
-  return { kind: "reloaded" };
+  // Production always attaches the planning controller before admitting this UI. A detached
+  // fallback must not publish rows outside its revision and access-generation checks.
+  return { kind: "failed" };
 }
 
 function buildCommittedButStaleMessage(outcome: "skipped" | "failed", cause?: unknown): string {
@@ -87,6 +85,91 @@ type SetNotice = ReturnType<typeof useStore.getState>["setNotice"];
 interface ServerLifecycleContext {
   activeAccountId: string;
   setNotice: SetNotice;
+}
+
+interface CapturedLifecycleContext {
+  activeAccountId: string;
+  entity: LifecycleEntity;
+  id: string;
+  planningContext: PlanningClientContext;
+  generation: number;
+  accessKey: string | null;
+  membershipRevision: number;
+  masquerade: ReturnType<typeof useStore.getState>["masquerade"];
+  activeRole: ReturnType<typeof useStore.getState>["activeRole"];
+  canWrite: boolean;
+}
+
+function canRunServerLifecycle(state: ReturnType<typeof useStore.getState>): boolean {
+  return (
+    state.planning.canWrite &&
+    state.masquerade.kind === "inactive" &&
+    (state.activeRole === null || can(state.activeRole, "purge"))
+  );
+}
+
+function captureServerLifecycleContext(
+  activeAccountId: string,
+  entity: LifecycleEntity,
+  id: string,
+): CapturedLifecycleContext {
+  const state = useStore.getState();
+  if (
+    state.activeAccountId !== activeAccountId ||
+    !hasPlanningRuntime() ||
+    state.planning.context === null ||
+    state.planning.pending !== null ||
+    !canRunServerLifecycle(state)
+  ) {
+    throw new Error(
+      state.planning.pending
+        ? "A company change is still in progress. Wait for it to finish before deleting or purging."
+        : "Lifecycle actions are unavailable for the current company or access level.",
+    );
+  }
+  assertPlanningWritesAllowed();
+  const draft = getPlanningController().begin({ entity: entity, id: id });
+  if (draft.context !== state.planning.context) throw new Error("The company or access context changed. Try again.");
+  return {
+    activeAccountId,
+    entity,
+    id,
+    planningContext: state.planning.context,
+    generation: draft.generation,
+    accessKey: state.planning.accessKey,
+    membershipRevision: state.membershipRevision,
+    masquerade: state.masquerade,
+    activeRole: state.activeRole,
+    canWrite: state.planning.canWrite,
+  };
+}
+
+function stillOwnsLifecycleScope(captured: CapturedLifecycleContext): boolean {
+  const state = useStore.getState();
+  if (
+    state.activeAccountId !== captured.activeAccountId ||
+    state.planning.context !== captured.planningContext ||
+    state.planning.accessKey !== captured.accessKey ||
+    state.membershipRevision !== captured.membershipRevision ||
+    state.masquerade !== captured.masquerade ||
+    state.activeRole !== captured.activeRole ||
+    state.planning.canWrite !== captured.canWrite ||
+    !canRunServerLifecycle(state)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function hasCurrentLifecycleGeneration(captured: CapturedLifecycleContext, generation: number): boolean {
+  if (!stillOwnsLifecycleScope(captured)) return false;
+  if (captured.generation !== generation) return false;
+  try {
+    const draft = getPlanningController().begin({ entity: captured.entity, id: captured.id });
+    return draft.context === captured.planningContext && draft.generation === generation;
+  } catch {
+    return false;
+  }
 }
 
 type ReconcileLifecycleFailureOptions = { context: ServerLifecycleContext; mutationConfirmed: boolean; cause: unknown };
@@ -173,6 +256,117 @@ async function dispatchServerLifecycle(
   }
 }
 
+async function dispatchProtectedServerLifecycle(
+  context: ServerLifecycleContext,
+  captured: CapturedLifecycleContext,
+  transition: { verb: "delete" | "purge"; entity: LifecycleEntity; id: string },
+): Promise<boolean> {
+  const { activeAccountId, setNotice } = context;
+  const reloadRequiredMessage = reloadRequiredByAccount.get(activeAccountId);
+  if (reloadRequiredMessage) {
+    setNotice(reloadRequiredMessage, "error");
+    return false;
+  }
+
+  let resumeWrites: ReturnType<typeof suspendServerWrites> | null = null;
+  let mutationConfirmed = false;
+  const capturedGeneration = captured.generation;
+  try {
+    const flushed = await flushPendingWrites();
+    if (!stillOwnsLifecycleScope(captured)) return false;
+    if (flushed.kind !== "clean") {
+      const details = flushed.kind === "failed" ? ` ${resolveErrorMessage(flushed.error)}` : "";
+      setNotice(`Pending company changes must finish saving before this action.${details}`, "error");
+      return false;
+    }
+
+    // Recheck after the async flush, then capture the controller generation that this action owns.
+    assertPlanningWritesAllowed();
+    const draft = getPlanningController().begin({ entity: transition.entity, id: transition.id });
+    if (
+      !stillOwnsLifecycleScope(captured) ||
+      draft.context !== captured.planningContext ||
+      draft.generation !== capturedGeneration
+    ) {
+      return false;
+    }
+    // No async gap remains between the handoff check and suspension, so a replacement operation
+    // cannot begin with the old company revision between these calls.
+    assertPlanningWritesAllowed();
+    resumeWrites = suspendServerWrites();
+
+    const response = await apiFetchReauth(
+      `${API_BASE}/api/${transition.entity}/${encodeURIComponent(transition.id)}/${transition.verb}`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": newId() },
+        body: JSON.stringify({ accountId: activeAccountId }),
+      },
+      {
+        timeoutMs: API_BULK_TIMEOUT_MS,
+        action: `lifecycle-${transition.verb}` satisfies ReauthAction,
+      },
+    );
+    if (isLifecycleOutcomeUnknown(response)) {
+      throw new Error(`HTTP ${response.status} did not confirm whether the lifecycle mutation committed.`);
+    }
+    if (!response.ok && response.status !== 204) {
+      const message = (await readApiError(response)) ?? m.settings_archived_err_action({ status: response.status });
+      if (stillOwnsLifecycleScope(captured)) setNotice(message, "error");
+      return false;
+    }
+    mutationConfirmed = true;
+
+    if (!stillOwnsLifecycleScope(captured)) return false;
+    const outcome = await reloadFromServer(activeAccountId);
+    if (!stillOwnsLifecycleScope(captured)) return false;
+    if (outcome.kind === "stale-account") return false;
+    if (outcome.kind !== "reloaded") {
+      const message = buildCommittedButStaleMessage(outcome.kind);
+      reloadRequiredByAccount.set(activeAccountId, message);
+      setNotice(message, "error");
+      return false;
+    }
+    if (!hasCurrentLifecycleGeneration(captured, capturedGeneration)) return false;
+    useStore.getState().clearUndoHistory();
+    return true;
+  } catch (cause) {
+    if (!stillOwnsLifecycleScope(captured)) return false;
+    if (mutationConfirmed) {
+      const message = buildCommittedButStaleMessage("failed", cause);
+      reloadRequiredByAccount.set(activeAccountId, message);
+      setNotice(message, "error");
+      return false;
+    }
+
+    try {
+      const outcome = await reloadFromServer(activeAccountId);
+      if (!stillOwnsLifecycleScope(captured)) return false;
+      if (outcome.kind !== "reloaded") {
+        throw new Error(`Authoritative reload did not complete (${outcome.kind}).`, { cause });
+      }
+      if (!hasCurrentLifecycleGeneration(captured, capturedGeneration)) return false;
+      // An uncertain delete may have committed; the canonical read reconciles it, so old history
+      // must not remain available against the refreshed server projection.
+      useStore.getState().clearUndoHistory();
+      setNotice(
+        `The lifecycle request had an unknown outcome, so the latest company data was reloaded. ${resolveErrorMessage(cause)}`,
+        "warning",
+      );
+      return true;
+    } catch (reloadError) {
+      if (!stillOwnsLifecycleScope(captured)) return false;
+      const message = `The lifecycle request had an unknown outcome and could not be reconciled. Reload before retrying. ${resolveErrorMessage(reloadError)} Original request: ${resolveErrorMessage(cause)}`;
+      reloadRequiredByAccount.set(activeAccountId, message);
+      setNotice(message, "error");
+      return false;
+    }
+  } finally {
+    resumeWrites?.();
+  }
+}
+
 interface LocalLifecycleActions {
   archive: (entity: LifecycleEntity, id: string) => void;
   unarchive: (entity: LifecycleEntity, id: string) => void;
@@ -194,30 +388,16 @@ function dispatchLocalLifecycle(
   }
 }
 
-/** Returns lifecycle actions that serialize server mutations with authoritative reloads
- * or apply domain transitions locally in demo builds. onReloaded fires after confirmed
- * server mutation and refresh so an independently loaded inactive list can refetch.
+/** Returns lifecycle actions that await server completion or apply domain transitions
+ * locally in demo builds. onReloaded fires after the active company view is current.
  */
 export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
-  const mutationQueue = useRef<Promise<void>>(Promise.resolve());
-  const activeAccountId = useStore((state) => state.activeAccountId);
+  const lifecycleBusy = useRef(false);
   const setNotice = useStore((state) => state.setNotice);
   const archiveEntity = useStore((state) => state.archiveEntity);
   const unarchiveEntity = useStore((state) => state.unarchiveEntity);
   const softDeleteEntity = useStore((state) => state.softDeleteEntity);
   const purgeEntity = useStore((state) => state.purgeEntity);
-
-  const dispatchServer = useCallback(
-    async (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
-      if (!activeAccountId) return;
-      const reloaded = await dispatchServerLifecycle({ activeAccountId, setNotice }, { verb, entity, id });
-      if (reloaded) {
-        notifyInactiveDataChanged(activeAccountId);
-        onReloaded?.();
-      }
-    },
-    [activeAccountId, setNotice, onReloaded],
-  );
 
   const dispatchLocal = useCallback(
     (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
@@ -232,27 +412,60 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
 
   const run = useCallback(
     (verb: LifecycleVerb, entity: LifecycleEntity, id: string): Promise<void> => {
+      if (lifecycleBusy.current) {
+        setNotice("A lifecycle action is already in progress. Try again when it finishes.", "info");
+        return Promise.resolve();
+      }
+      lifecycleBusy.current = true;
+      const activeAccountId = useStore.getState().activeAccountId;
+      const reloadRequiredMessage = activeAccountId ? reloadRequiredByAccount.get(activeAccountId) : undefined;
+      if (isServerConfigured() && reloadRequiredMessage) {
+        lifecycleBusy.current = false;
+        setNotice(reloadRequiredMessage, "error");
+        return Promise.resolve();
+      }
+      let captured: CapturedLifecycleContext | null = null;
+      if (isServerConfigured() && (verb === "delete" || verb === "purge") && activeAccountId) {
+        try {
+          captured = captureServerLifecycleContext(activeAccountId, entity, id);
+        } catch (error) {
+          lifecycleBusy.current = false;
+          setNotice(resolveErrorMessage(error), "error");
+          return Promise.resolve();
+        }
+      }
+
       const execute = async () => {
         try {
           if (isServerConfigured()) {
-            await dispatchServer(verb, entity, id);
+            if (!activeAccountId) return;
+            const reloaded = captured
+              ? await dispatchProtectedServerLifecycle({ activeAccountId, setNotice }, captured, {
+                  verb: verb as "delete" | "purge",
+                  entity,
+                  id,
+                })
+              : await dispatchServerLifecycle({ activeAccountId, setNotice }, { verb, entity, id });
+            const stillCurrent = captured
+              ? stillOwnsLifecycleScope(captured)
+              : useStore.getState().activeAccountId === activeAccountId;
+            if (reloaded && stillCurrent) {
+              notifyInactiveDataChanged(activeAccountId);
+              onReloaded?.();
+            }
           } else {
             dispatchLocal(verb, entity, id);
           }
         } catch (e) {
           // Preserve the never-reject contract if dispatch or configuration fails outside the inner operation boundary.
           setNotice(resolveErrorMessage(e), "error");
+        } finally {
+          lifecycleBusy.current = false;
         }
       };
-
-      // Lifecycle routes mutate outside snapshot-diff sync, and each operation must complete its
-      // authoritative reload before the next starts. Queue confirmed intent instead of silently
-      // discarding a second click while the first transition is still settling.
-      const scheduled = mutationQueue.current.then(execute, execute);
-      mutationQueue.current = scheduled;
-      return scheduled;
+      return execute();
     },
-    [dispatchServer, dispatchLocal, setNotice],
+    [dispatchLocal, onReloaded, setNotice],
   );
 
   // Stabilize the returned surface so consumers do not rerender solely because its object identity changes.

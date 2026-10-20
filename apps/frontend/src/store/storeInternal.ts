@@ -13,7 +13,7 @@ import type { Allocation, AppData, Entity, ID, ScopedEntityKey, TimeOff } from "
 import { clearEntityLenses } from "./types";
 import type { Draft, ImportSummary, Patch, ScopedRow, StoreState } from "./types";
 import { stamp, touch, touchAfter } from "./revisions";
-import { HISTORY_LIMIT } from "./history";
+import { createDemoHistoryEntry, HISTORY_LIMIT } from "./history";
 import { resetSchedulerView } from "./storeConstants";
 import { createGuards } from "./storeGuards";
 import type { CreateResult } from "./types";
@@ -35,16 +35,24 @@ function createMutationActions(set: StoreApi<StoreState>["setState"]) {
   // untouched. Let these pure failures reach the caller’s error surface rather than
   // hiding rejected writes. Undo and redo use the same validation boundary.
   const mutate = (producer: (data: AppData) => AppData) =>
-    set((state) => ({
-      data: producer(state.data),
-      past: [...state.past, state.data].slice(-HISTORY_LIMIT),
-      future: [],
-    }));
+    set((state) => {
+      if (state.planning.context) throw new Error("Production planning writes must use typed actions.");
+      const data = producer(state.data);
+      const entry = createDemoHistoryEntry(state.data, data);
+      return {
+        data,
+        past: entry ? [...state.past, entry].slice(-HISTORY_LIMIT) : state.past,
+        future: [],
+      };
+    });
 
   // Erasure/purge actions must not leave a recoverable pre-erasure snapshot in memory. They also
   // cannot honestly be undoable, so clear both history directions as part of the same state write.
   const mutateIrreversible = (producer: (data: AppData) => AppData) =>
-    set((state) => ({ data: producer(state.data), past: [], future: [] }));
+    set((state) => {
+      if (state.planning.context) throw new Error("Production planning writes must use typed actions.");
+      return { data: producer(state.data), past: [], future: [] };
+    });
 
   return { mutate, mutateIrreversible };
 }
@@ -181,14 +189,19 @@ function createImportAction(
 ) {
   return createGuardedValueAction(
     (accountId: ID, incoming: AppData): ImportSummary => {
-      const result = remapAndValidateImport(get().data, accountId, incoming, touch());
+      const before = get().data;
+      const result = remapAndValidateImport(before, accountId, incoming, touch());
       if (result.imported === 0) return { imported: 0, skipped: result.skipped };
-      set((state) => ({
-        data: result.data,
-        past: [...state.past, state.data].slice(-HISTORY_LIMIT),
-        future: [],
-        ui: { ...resetSchedulerView(state.ui), filters: clearEntityLenses(state.ui.filters) },
-      }));
+      set((state) => {
+        if (state.planning.context) throw new Error("Production planning writes must use typed actions.");
+        const entry = createDemoHistoryEntry(state.data, result.data);
+        return {
+          data: result.data,
+          past: entry ? [...state.past, entry].slice(-HISTORY_LIMIT) : state.past,
+          future: [],
+          ui: { ...resetSchedulerView(state.ui), filters: clearEntityLenses(state.ui.filters) },
+        };
+      });
       return { imported: result.imported, skipped: result.skipped };
     },
     { imported: 0, skipped: 0 },

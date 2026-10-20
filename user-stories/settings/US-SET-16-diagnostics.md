@@ -27,8 +27,9 @@ open the app in a build with `VITE_CAPACITYLENS_DEMO=1`.
    The URL is `/diagnostics`.
 2. Review the **Support report**: the **Snapshot observed** ISO timestamp, the app version, build
    revision, deployment mode and export schema; the server connectivity, database, persistence and
-   backup values that are available; the sign-in mode; this browser session's save counters; and
-   the browser's user agent, viewport, time zone and language.
+   backup values that are available; the sign-in mode; current **Planning status**, **Planning
+   revision**, **Pending commitment**, **Undo available** and **Redo available**; and the browser's
+   user agent, viewport, time zone and language.
 3. Click **Copy diagnostics**. A generic success message confirms that the report was copied.
 4. Paste the report into a private support note and confirm it contains no company data,
    credentials, private paths, hostnames, personal information or raw error text.
@@ -42,7 +43,9 @@ open the app in a build with `VITE_CAPACITYLENS_DEMO=1`.
 - The page shows the report text exactly as **Copy diagnostics** copies it.
 - The server values are a point-in-time snapshot: the client records **Snapshot observed** when the
   server response arrives, or when its failure is observed. Copying does not request it again.
-  The save counters are this browser session's running totals.
+- Planning status and revision are reported under **Planning status** and **Planning revision**.
+  **Pending commitment** is **none**, **unknown** or **confirmed**. History is reported only as
+  **Undo available** and **Redo available**, without row, session or actor identifiers.
 - Unknown, offline, shallow-health, deep-health, missing-backup and error cases stay explicitly
   labelled and never fall back to a browser schema constant as the server schema. Demo mode keeps
   client facts and marks server values unavailable.

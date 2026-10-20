@@ -14,7 +14,6 @@ import { readActiveDateStyle, formatDayMonth } from "@/lib/dateDisplay";
 import { resolveDateStyle } from "./selectors";
 import { serializeData } from "@capacitylens/shared/data/transfer";
 import { PAST_BUFFER_DAYS } from "@/lib/schedulerConfig";
-import { diffOps } from "@/data/syncOps";
 
 const s = () => useStore.getState();
 beforeEach(() => resetStoreWithAccount());
@@ -81,17 +80,13 @@ function registerStoreCrudPart1(): void {
 }
 
 function registerStoreCrudPart2(): void {
-  it("updates fields, advances updatedAt and emits a sync PUT", () => {
+  it("updates fields and advances updatedAt", () => {
     const r = requireCreated(s().addResource({ ...personDraft }));
-    const before = s().data;
     s().updateResource(r.id, { name: "Tyler" });
     const updated = s().data.resources[0];
     if (!updated) throw new Error("Expected updated resource");
     expect(updated.name).toBe("Tyler");
     expect(Date.parse(updated.updatedAt)).toBeGreaterThan(Date.parse(r.updatedAt));
-    expect(diffOps(before, s().data)).toEqual([
-      expect.objectContaining({ method: "PUT", table: "resources", id: r.id }),
-    ]);
   });
 
   it("rejects assigning a placeholder to an activity outside its bound project", () => {

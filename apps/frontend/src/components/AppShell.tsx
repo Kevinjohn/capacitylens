@@ -28,6 +28,7 @@ import { chooseAnotherAccountAfterLoadFailure } from "./accountLoadRecoveryActio
 import { useAuth } from "@/auth/authContext";
 import { ProductOrientation } from "./ProductOrientation";
 import { useProductOrientation } from "./useProductOrientation";
+import { PlanningStatusBanner } from "./PlanningStatusBanner";
 
 const masqueradeButtonClassName = "border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white";
 
@@ -114,7 +115,6 @@ type GatedAppProps = {
   dirtyForm: boolean;
   paletteOpen: boolean;
   closePalette: () => void;
-  persistError: ReturnType<typeof useStore.getState>["persistError"];
   masqueradeBanner: ReturnType<typeof buildMasqueradeBannerContent>;
   navigate: ReturnType<typeof useNavigate>;
 };
@@ -137,7 +137,6 @@ function GatedApp({
   dirtyForm,
   paletteOpen,
   closePalette,
-  persistError,
   masqueradeBanner,
   navigate,
 }: GatedAppProps) {
@@ -184,7 +183,7 @@ function GatedApp({
             sidebarOpen={sidebarOpen}
           />
           {/* prettier-ignore */}
-          <GatedMain hydrated={hydrated} persistError={persistError} masqueradeBanner={masqueradeBanner} navigate={navigate} orientation={orientation} />
+          <GatedMain hydrated={hydrated} masqueradeBanner={masqueradeBanner} navigate={navigate} orientation={orientation} />
           {paletteOpen && !dirtyForm && <CommandPalette onClose={closePalette} />}
           <RotateHint />
         </SidebarProvider>
@@ -237,11 +236,10 @@ function GatedSidebar({
 
 function GatedMain({
   hydrated,
-  persistError,
   masqueradeBanner,
   navigate,
   orientation,
-}: Pick<GatedAppProps, "hydrated" | "persistError" | "masqueradeBanner" | "navigate"> & {
+}: Pick<GatedAppProps, "hydrated" | "masqueradeBanner" | "navigate"> & {
   orientation: ReturnType<typeof useProductOrientation>;
 }) {
   const loader = <AppShellLoader />;
@@ -251,11 +249,7 @@ function GatedMain({
         <MobileSidebarTrigger />
       </div>
       {masqueradeBanner && <MasqueradeBanner banner={masqueradeBanner} navigate={navigate} />}
-      {persistError && (
-        <Alert variant="destructive" className="rounded-none border-x-0 border-t-0">
-          <AlertDescription>{m.app_persist_error()}</AlertDescription>
-        </Alert>
-      )}
+      <PlanningStatusBanner />
       {orientation.visible && (
         <ProductOrientation
           key={orientation.scope}
@@ -322,7 +316,6 @@ export function AppShell() {
   const navigate = useNavigate();
   const { paletteOpen, closePalette } = useAppShellController();
   const hydrated = useStore((state) => state.hydrated);
-  const persistError = useStore((state) => state.persistError);
   const loadError = useStore((state) => state.loadError);
   const connectionError = useStore((state) => state.connectionError);
   const masquerade = useStore((state) => state.masquerade);
@@ -370,7 +363,6 @@ export function AppShell() {
         dirtyForm={dirtyForm}
         paletteOpen={paletteOpen}
         closePalette={closePalette}
-        persistError={persistError}
         masqueradeBanner={masqueradeBanner}
         navigate={navigate}
       />

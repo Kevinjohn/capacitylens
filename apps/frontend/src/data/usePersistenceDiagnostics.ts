@@ -1,12 +1,13 @@
-import { useSyncExternalStore } from "react";
-import { readPersistenceDiagnosticsSnapshot, subscribePersistenceDiagnostics } from "./persistenceDiagnostics";
+import { useMemo } from "react";
+import { useStore } from "@/store/useStore";
+import { isDemoMode } from "./apiConfig";
+import { readPlanningDiagnostics } from "./persistenceDiagnostics";
 
-/** Reactive view of the process-local persistence counters (failed saves, rebased edits, whether
- * persistence is suspended) that the Diagnostics page adds to its support report. */
+/** Observes the same planning metadata that gates the scheduler's writes and history. */
 export function usePersistenceDiagnostics() {
-  return useSyncExternalStore(
-    subscribePersistenceDiagnostics,
-    readPersistenceDiagnosticsSnapshot,
-    readPersistenceDiagnosticsSnapshot,
-  );
+  const planning = useStore((state) => state.planning);
+  const past = useStore((state) => state.past.length);
+  const future = useStore((state) => state.future.length);
+  const demo = isDemoMode();
+  return useMemo(() => readPlanningDiagnostics(planning, demo, { past, future }), [planning, demo, past, future]);
 }

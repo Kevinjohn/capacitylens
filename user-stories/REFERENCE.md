@@ -190,7 +190,8 @@ In an authenticated
 server deployment, **Import JSON** is owner-only because a slice replacement can author or erase
 owner-confidential client/project identities; **Export JSON** remains available at its existing
 role tiers and is server-redacted for non-owners. The local demo and auth-off deploy remain
-owner-equivalent. Import repair applies the same erasure privacy rule as an interactive resource
+owner-equivalent for account-level administration; an auth-off server still has read-only planning
+data. Import repair applies the same erasure privacy rule as an interactive resource
 deletion: a deleted person is anonymised and notes on their dependent allocations and time off are
 removed before the replacement slice is stored. The portable file contains the active company's
 scoped planning records but deliberately omits the company row itself. Import re-stamps those
@@ -264,32 +265,20 @@ phone's first contact). **Got it** (or Escape / backdrop) dismisses it for the s
 (`sessionStorage` key `capacitylens/rotateHintDismissed`); rotating to landscape hides it. It
 never appears on desktop viewports or in landscape.
 
-**Overlapping save and page close (server mode).** If an ordinary background save is still in
-flight when the page is hidden or closed, the teardown keepalive sends the newest complete intent
-immediately. The server orders both requests per browser session, so the newest edit wins whether
-the ordinary request or the teardown request arrives first. An undo performed before the first
-save acknowledges is also preserved, including removal of a newly created row that uses the
-archive lifecycle. Teardown lifecycle archives travel in the same ordered atomic batch as ordinary
-changes, so an older in-flight creation cannot recreate the archived row. If the page survives in
-the back/forward cache and the user undoes a confirmed teardown archive, the foreground retry
-unarchives that remembered row even when its local content already matches the pre-teardown save
-baseline. An unrelated writer's intervening edit still produces the normal conflict-and-reload path.
-On a conflict, the sticky notice says the edit was not saved and that CapacityLens is reloading the
-latest copy; it does not claim reload completion before the authoritative read succeeds. If that
-read fails, every write remains gated and connectivity recovery retries the read before any clean or
-rebased follow-up save.
-Every successful non-superseded batch receipt must identify the server-owned revision for each
-written row exactly once. If that receipt is absent, partial, duplicated or names another row,
-CapacityLens treats the commit state as uncertain, reloads the authoritative company slice before
-accepting another write, and shows: **The server could not confirm every saved change, so the latest
-server copy was reloaded. Review your recent changes and re-apply anything missing.**
-A failed write also leaves the persistent save-error banner visible above the current page. If a
-page-closing save is too large to dispatch, a sticky notice asks the user to keep the page open until
-the warning clears and retry. Its
-normal-size body copy uses the opaque danger token so it clears WCAG AA in both themes.
-If a later company switch safely rebases a newer edit made while its slice loads but must discard
-the older failed write, the newer edit still saves and the sticky re-apply notice remains visible;
-success for the rebase never hides the independent loss.
+**Server planning writes.** Each ordinary change is sent as one command against the revision
+captured when the form or gesture began. New changes stay blocked while that command is pending.
+After a confirmed command, CapacityLens reads the canonical company data before releasing the
+pending state. If that read fails, the committed change remains identified as saved until the
+company data can be refreshed. If the command's outcome is unknown, the app checks that same command
+before allowing another write; it does not replay the edit or queue it for later.
+A failed write leaves the persistent `data-testid="planning-status-banner"` above the current page.
+An unknown outcome says **The server could not confirm whether this change was saved. Check the
+saved change before trying it again.** and offers **Check saved change**. This remains true if a
+failed reconciliation read changes the planning status to error. A confirmed save whose
+canonical company read failed says **Your change was saved. The latest company data could not be
+loaded. Check it before making another change.** and offers **Refresh company data**. A normal
+company read failure with no pending mutation says **Company data could not be loaded. Refresh it
+before making another change.** and offers the same refresh action. The banner never replays the edit.
 
 ## Seed data (first run)
 
@@ -861,9 +850,9 @@ timestamp captured by the client when the server response arrives or its failure
 server values are a point-in-time snapshot, not a live monitor, and copying does not request them
 again. The fixed allowlist is: app version, a validated build revision when present, deployment
 mode and export schema; separately labelled server connectivity, database schema, persistence and
-backup status; the sign-in mode (`off`, `password-only`, `sso-only` or `password-and-sso`); this
-browser session's save counters (saves failed, retries armed, reconciliations resolved, reloads
-superseded, edits rebased, edits discarded, saving suspended); and the browser's user agent,
+backup status; the sign-in mode (`off`, `password-only`, `sso-only` or `password-and-sso`); the
+current **Planning status**, **Planning revision**, **Pending commitment** (`none`, `unknown` or
+`confirmed`), **Undo available** and **Redo available** values; and the browser's user agent,
 viewport, time zone and language. A browser value outside its expected shape reads **Unknown**.
 The page is present in demo mode too, with server values unavailable. A missing or unavailable
 value is shown as **Unknown** or **unavailable**; a `null` schema means that value was unavailable
@@ -1259,8 +1248,9 @@ note and makes no request. The page is `src/auth/ResetPassword.tsx`; spec
 **Viewer read-only mode (server + auth-on).** On an auth-on, server-backed deploy a member's account
 **role** (`owner` | `admin` | `editor` | `viewer`) drives the UI. `GET /api/accounts` now returns
 `{ id, name, role }` per account (the caller's role for it; in **OFF mode** every entry's role is the
-trusted-local sentinel `'owner'`, keeping OFF fully editable). When the active account's role resolves
-to **viewer**, the whole app goes **read-only**:
+trusted-local sentinel `'owner'` for account-level controls). Planning writes additionally require
+the typed planning response to grant write authority; the auth-off server response is read-only.
+When the active account's role resolves to **viewer**, the whole app goes **read-only**:
 
 - **No create/edit/delete affordances** — list pages show no **Add X** button and no row **Edit** /
   **Delete** buttons (`EditButton`/`DeleteButton` render nothing), and the "Add your first X" empty-state
@@ -1283,9 +1273,14 @@ to **viewer**, the whole app goes **read-only**:
   viewer's `add*`/`update*`/`delete*`/`importData` — including company creation — and surfaces a
   _"Read-only — you don't have edit access."_ notice, so an ungated path or an optimistic write can't
   desync local state. Account-setting writes additionally require their target to be the active
-  company; a stale missing target is a no-op, while an existing foreign target is rejected. **Online
-  default-editable invariant:** in auth off (the default everywhere) or local mode the live role is
-  `null` → fully editable. CapacityLens requires a server connection and never queues changes for later.
+  company; a stale missing target is a no-op, while an existing foreign target is rejected. **Planning
+  write-authority invariant:** an auth-off server is read-only for planning data, even though its
+  trusted-local account role is Owner. Configure password or Google sign-in for authenticated
+  planning edits. It shows `data-testid="planning-readonly-auth-banner"` with the exact message
+  **This server is read-only because sign-in is off. Configure password or Google sign-in to edit
+  planning data.** The in-memory demo has no server planning context, shows no such banner and
+  remains fully editable.
+  CapacityLens requires a server connection and never queues changes for later.
   The provider is `src/auth/PermissionProvider.tsx` (the hooks `useRole`/`useCanEdit` in
   `src/auth/permissionContext.ts`, off the pure `can`); story `user-stories/settings/US-SET-11-viewer-readonly.md`;
   spec `e2e/viewer.auth.spec.ts`.

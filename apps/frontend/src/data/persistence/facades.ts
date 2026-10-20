@@ -1,25 +1,15 @@
 import { persistenceCoordinator } from "./coordinator";
 
-/** Live, synchronous guard for beforeunload/UI decisions. */
+/** Reports an unresolved planning command for beforeunload and session handoff decisions. */
 export function hasUnsavedPersistenceWrites(): boolean {
   return persistenceCoordinator.hasUnsavedWrites();
 }
 
 /**
- * Suspend the orchestrator's writes and return a resume function. While suspended, edits are
- * parked, not sent; a successful reload rebases just those edits onto the fresh slice. Resume
- * decides the fate of an edit still parked when the last
- * suspension lifts:
- *  - default: re-schedule it. The caller's operation never replaced the slice (e.g. the import
- *    POST failed), so the parked edit is an ordinary unsaved edit and dropping it would be a
- *    silent loss;
- *  - `dropParkedEdits: true`: drop it and surface a {@link ReloadDiscardedEditError}. The
- *    caller's operation replaced the slice server-side, so an edit made against the old basis must
- *    not survive. A successful reload may temporarily rebase that edit for the caller to decide;
- *    dropping restores the retained authoritative slice. Without a successful reload, saving the
- *    stale tree could instead upsert ghost pre-import rows into the replacement.
- * No-op (returns a no-op resume) when no orchestrator is attached. The demo build's import is a
- * local, undoable store operation with no write pipeline to race.
+ * Suspend planning commands during an external replacement operation and return a resume function.
+ * Commands attempted while suspended are refused; they are never queued against the old company
+ * revision. No-op when the planning runtime is not attached. The optional resume argument is
+ * retained for replacement callers; there are no parked edits to discard.
  */
 export function suspendServerWrites(): (options?: { dropParkedEdits?: boolean }) => void {
   return persistenceCoordinator.suspendWrites();
@@ -28,64 +18,40 @@ export function suspendServerWrites(): (options?: { dropParkedEdits?: boolean })
 /**
  * Outcomes from requesting a persistence refresh.
  *
- * - `reloaded`: The server slice was installed.
- * - `skipped`: A stale account, failed save, or newer refresh prevented the operation; the store
- *   was untouched.
- * - `failed`: The load failed and was surfaced through `onError`; the store was untouched.
- * - `unattached`: No orchestrator exists; a bare load-and-replace is safe because no debounce
- *   state can race it.
+ * - `reloaded`: The controller installed the canonical server slice.
+ * - `skipped`: A stale account or pending command prevented replacement.
+ * - `failed`: The authoritative load failed; the current slice remains available for recovery.
+ * - `unattached`: No planning runtime is active.
  */
 export type RefreshOutcome = { kind: "reloaded" } | { kind: "skipped" } | { kind: "failed" } | { kind: "unattached" };
-/** Outcome of flushing queued persistence writes. */
+/** Outcome of resolving any in-flight planning commitment. */
 export type FlushPendingWritesResult = { kind: "clean" } | { kind: "blocked" } | { kind: "failed"; error: unknown };
 
 /**
- * Flush any pending debounced write through the orchestrator and await the round-trip.
+ * Resolve any pending planning commitment before an operation that replaces the company slice.
  *
- * @returns a clean result when writes are acknowledged, a failed result when the attempted write
- * was rejected, or a blocked result otherwise. A caller
- * must not proceed with an operation (e.g. a server-side import) that assumes the local
- * edits it just tried to land are either persisted or knowingly abandoned while blocked.
- * Also returns clean when no orchestrator is attached (demo build / tests): there is no
- * debounce state to flush.
+ * @returns clean when no command remains unresolved, failed when reconciliation throws, or
+ * blocked while the server still cannot establish the outcome. Clean without an attached runtime.
  */
 export async function flushPendingWrites(): Promise<FlushPendingWritesResult> {
   return persistenceCoordinator.flushPending();
 }
 
 /**
- * Thrown (via `onError`) only when an unsaved edit cannot be safely rebased or retried: for example,
- * a prior save exhausted its retries before a mandatory tenant reload, or an external replacement
- * committed but its follow-up re-hydrate failed. Ordinary edits made during a successful reload are
- * diffed from the sequence base, rebased onto the fresh slice, and saved. A typed error lets the boot
- * wiring raise a sticky notice for the exceptional loss instead of letting the next successful load
- * immediately clear the generic persistence banner.
- */
-export class ReloadDiscardedEditError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ReloadDiscardedEditError";
-  }
-}
-
-/**
- * Re-hydrate the active account's slice through the persistence orchestrator: pending debounced
- * edits are flushed and in-flight saves awaited before the reload, and the reload is skipped
- * entirely while a save is in a failed state (reloading would clobber the un-persisted edits the
- * retry machinery still holds; see refreshActive's abortIfSaveFailed note).
+ * Re-hydrate the active account's slice through the planning controller. The controller reconciles
+ * any uncertain command before accepting a canonical read.
  *
  * @returns a {@link RefreshOutcome}. Callers whose follow-up claims "the view now shows committed
  * state" (the server-mode import's success notice) must gate on 'reloaded'; 'skipped'
- * and 'failed' mean the store still holds the pre-operation slice.
+ * and 'failed' mean the store still holds its current slice.
  */
 export async function refreshActiveAccountSlice(id: string): Promise<RefreshOutcome> {
   return persistenceCoordinator.refreshActive(id);
 }
 
-/** Switch the active account through the persistence subscriber and await the exact hydration it
- * owns. A null switch has no slice to load and resolves after the old account's pending write has
- * drained. Authenticated account-transition code must use this seam instead of racing a second
- * refresh against the subscriber. */
+/** Switch the selected company and await its controller hydration. An unresolved command refuses
+ * the switch with skipped, including a null selection. Callers must first resolve the commitment
+ * through flushPendingWrites; no new read races the pending command. */
 export async function switchAndAwaitHydration(id: string | null): Promise<RefreshOutcome> {
   return persistenceCoordinator.switchAndAwaitHydration(id);
 }

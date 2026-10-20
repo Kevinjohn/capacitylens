@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useStore } from "@/store/useStore";
+import { usePlanningActions, usePlanningDraft } from "@/data/planning/usePlanningActions";
 import { useActiveScopedData } from "@/store/useScopedData";
 import { useFieldError } from "@/hooks/useFieldError";
 import { resolveErrorMessage } from "@/lib/errorMessage";
@@ -10,11 +11,14 @@ import { ColorField, FormActions, Modal, RequiredLegend, TextField } from "@/com
 import { FieldError } from "@/components/ui/field";
 import { DEFAULT_COLORS } from "@/lib/palette";
 import type { Discipline } from "@capacitylens/shared/types/entities";
+import { PlanningStatusBanner } from "@/components/PlanningStatusBanner";
 
 /** Creates or edits a discipline with its name and colour, closing after save or cancel. New disciplines receive the next canonical sortOrder. */
 export function DisciplineForm({ discipline, onClose }: { discipline?: Discipline; onClose: () => void }) {
-  const add = useStore((state) => state.addDiscipline);
-  const update = useStore((state) => state.updateDiscipline);
+  const draft = usePlanningDraft(discipline);
+  const { addDiscipline: add, updateDiscipline: update } = usePlanningActions(draft);
+  const submitting = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   // Append new disciplines after the maximum sortOrder so gaps from deleted disciplines cannot collide. Edits retain the existing order.
   const disciplines = useActiveScopedData().disciplines;
   const nextSortOrder = disciplines.reduce((max, discipline) => Math.max(max, discipline.sortOrder + 1), 0);
@@ -23,25 +27,31 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
   const sortOrder = discipline?.sortOrder ?? nextSortOrder;
   const { error, errorField, errorId, fail } = useFieldError();
 
-  const submit = () => {
+  const submit = async () => {
+    if (submitting.current) return;
     const trimmed = parseName(name, fail);
     if (!trimmed) return;
     if (!validatePresetColor(color, fail)) return;
     // Surface a store-side rejection as a form error rather than an uncaught React error, see the
     // store CRUD contract.
+    submitting.current = true;
+    setIsSubmitting(true);
     try {
       if (discipline) {
         if (isStaleEdit(useStore.getState().data.disciplines, discipline.id, discipline.updatedAt)) {
           fail(null, m.form_discipline_err_changed());
           return;
         }
-        update(discipline.id, { name: trimmed, color, sortOrder });
+        await update(discipline.id, { name: trimmed, color, sortOrder });
       } else {
-        if (add({ name: trimmed, color, sortOrder }).kind === "blocked") return;
+        if ((await add({ name: trimmed, color, sortOrder })).kind === "blocked") return;
       }
       onClose();
     } catch (e) {
       fail(null, resolveErrorMessage(e));
+    } finally {
+      submitting.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -49,8 +59,10 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
     <Modal
       title={discipline ? m.form_discipline_edit_title() : m.form_discipline_add_title()}
       onClose={onClose}
-      onSubmit={submit}
-      footer={<FormActions onCancel={onClose} />}
+      onSubmit={() => void submit()}
+      busy={isSubmitting}
+      recovery={<PlanningStatusBanner placement="modal" />}
+      footer={<FormActions onCancel={onClose} disabled={isSubmitting} />}
     >
       <TextField
         label={m.form_discipline_name_label()}

@@ -126,7 +126,8 @@ function registerSoftDeleteGuardsAndResourceScrubTests() {
 
       // Ensure both directions contain recoverable data immediately before the destructive action.
       // Soft-delete must discard both, rather than leaving a path that resurrects the tombstone.
-      useStore.setState({ past: [s().data], future: [s().data] });
+      const historyEntry = requireValue(s().past.at(-1), "archive history entry");
+      useStore.setState({ past: [historyEntry], future: [historyEntry] });
       s().softDeleteEntity(entity, id);
 
       expect(s().past).toEqual([]);

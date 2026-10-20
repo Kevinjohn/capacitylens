@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { resolveResourceDisplayName } from "@/lib/metadata";
 import { parseText } from "@/lib/validation";
-import type { useStore } from "@/store/useStore";
+import type { PlanningActions } from "@/data/planning/planningActions";
 import type { Option } from "@/components/common/ui";
 import {
   buildActivityOptions,
@@ -40,7 +40,9 @@ interface TargetInput {
   clear: FieldError["clear"];
   errorField: FieldError["errorField"];
   errorId: string;
-  addActivity: ReturnType<typeof useStore.getState>["addActivity"];
+  addActivity: PlanningActions["addActivity"];
+  runWhileBusy: <Result>(command: () => Promise<Result>) => Promise<Result | undefined>;
+  onInlineActivityCreated: () => boolean;
 }
 
 function describeResource(resource: Resource): string {
@@ -205,6 +207,8 @@ function useAddInlineActivity({
   newActivityName,
   activityScope,
   addActivity,
+  runWhileBusy,
+  onInlineActivityCreated,
   fail,
   setInlineActivityOption,
   setActivityId,
@@ -212,37 +216,44 @@ function useAddInlineActivity({
 }: Pick<TargetInput, "canEdit" | "addActivity" | "fail"> & {
   newActivityName: string;
   activityScope: ReturnType<typeof buildActivityScope>;
+  runWhileBusy: TargetInput["runWhileBusy"];
+  onInlineActivityCreated: TargetInput["onInlineActivityCreated"];
   setInlineActivityOption: React.Dispatch<
     React.SetStateAction<(Option & { kind: Activity["kind"]; projectId?: string }) | null>
   >;
   setActivityId: React.Dispatch<React.SetStateAction<string>>;
   setNewActivityName: React.Dispatch<React.SetStateAction<string>>;
 }) {
-  return () => {
-    if (!canEdit) return;
-    const cleanActivityName = parseText(newActivityName, fail, {
-      field: "newactivity",
-      requiredMessage: m.form_allocation_err_new_activity_name(),
-    });
-    if (cleanActivityName === null) return;
-    try {
-      const activity = addActivity({ name: cleanActivityName, ...activityScope });
-      if (activity.kind === "blocked") return;
-      flushSync(() => {
-        setInlineActivityOption({
-          value: activity.value.id,
-          label: activity.value.name,
-          kind: activity.value.kind,
-          ...(activity.value.projectId ? { projectId: activity.value.projectId } : {}),
-        });
+  return () =>
+    runWhileBusy(async () => {
+      if (!canEdit) return;
+      const cleanActivityName = parseText(newActivityName, fail, {
+        field: "newactivity",
+        requiredMessage: m.form_allocation_err_new_activity_name(),
       });
-      setActivityId(activity.value.id);
-      setNewActivityName("");
-    } catch (error) {
-      // Report inline-creation failure without treating the new target as successfully selected.
-      fail(null, error instanceof Error ? error.message : m.form_allocation_err_save_failed());
-    }
-  };
+      if (cleanActivityName === null) return;
+      try {
+        const activity = await addActivity({ name: cleanActivityName, ...activityScope });
+        if (activity.kind === "blocked") return;
+        if (!onInlineActivityCreated()) {
+          fail(null, "Company data changed while adding the activity. Reopen this form before saving.");
+          return;
+        }
+        flushSync(() => {
+          setInlineActivityOption({
+            value: activity.value.id,
+            label: activity.value.name,
+            kind: activity.value.kind,
+            ...(activity.value.projectId ? { projectId: activity.value.projectId } : {}),
+          });
+        });
+        setActivityId(activity.value.id);
+        setNewActivityName("");
+      } catch (error) {
+        // Report inline-creation failure without treating the new target as successfully selected.
+        fail(null, error instanceof Error ? error.message : m.form_allocation_err_save_failed());
+      }
+    });
 }
 
 function useTargetChangeHandlers({
@@ -299,7 +310,16 @@ function useTargetFieldState(seed: AllocationModalSeed) {
 /** Tracks resource and activity selections for an allocation draft. */
 export function useAllocationTargetState(input: TargetInput) {
   const { seed, resourceById: resourcesById, canEdit } = input;
-  const { inlineActivityCreateEnabled, fail, clear, errorField, errorId, addActivity } = input;
+  const {
+    inlineActivityCreateEnabled,
+    fail,
+    clear,
+    errorField,
+    errorId,
+    addActivity,
+    runWhileBusy,
+    onInlineActivityCreated,
+  } = input;
   const { create } = seed;
   const fieldState = useTargetFieldState(seed);
   const { resourceId, projectSelection, activityId, setActivityId } = fieldState;
@@ -311,6 +331,8 @@ export function useAllocationTargetState(input: TargetInput) {
     canEdit,
     newActivityName,
     activityScope: choices.activityScope,
+    runWhileBusy,
+    onInlineActivityCreated,
     addActivity,
     fail,
     setInlineActivityOption,

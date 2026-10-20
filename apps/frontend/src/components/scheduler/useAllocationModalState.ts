@@ -2,8 +2,12 @@ import { m } from "@/i18n";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { carriesHourlyLoad } from "@capacitylens/shared/types/entities";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCanEdit } from "@/auth/permissionContext";
+import { capturePlanningDraft } from "@/data/planning/planningActions";
+import { isPlanningHistoryReady } from "@/data/planning/planningCacheController";
+import type { PlanningControllerMetadata, PlanningDraft } from "@/data/planning/planningCacheController";
+import { usePlanningActions, usePlanningDraft } from "@/data/planning/usePlanningActions";
 import { useFieldError, useFieldErrorFocus } from "@/hooks/useFieldError";
 import { formatWeekdayScheduleDate } from "@/lib/dateDisplay";
 import { resolveResourceDisplayName } from "@/lib/metadata";
@@ -25,15 +29,15 @@ import { createAllocationCommands } from "./allocationSubmit";
 import { useAllocationScheduleState } from "./useAllocationScheduleState";
 import { useAllocationTargetState } from "./useAllocationTargetState";
 
-function useAllocationStoreActions() {
-  return {
-    addAllocation: useStore((state) => state.addAllocation),
-    addAllocations: useStore((state) => state.addAllocations),
-    updateAllocation: useStore((state) => state.updateAllocation),
-    deleteAllocation: useStore((state) => state.deleteAllocation),
-    deleteAllocationSeriesFrom: useStore((state) => state.deleteAllocationSeriesFrom),
-    addActivity: useStore((state) => state.addActivity),
-  };
+/** A form may advance its captured revision only when its own single-step activity write is acknowledged. */
+export function isInlineActivityAcknowledgement(draft: PlanningDraft, planning: PlanningControllerMetadata): boolean {
+  return (
+    planning.context === draft.context &&
+    planning.revision === draft.baseRevision + 1 &&
+    isPlanningHistoryReady(planning) &&
+    planning.outcome?.kind === "acknowledged" &&
+    planning.outcome.revision === planning.revision
+  );
 }
 
 function useSchedulingContext() {
@@ -53,7 +57,6 @@ function useAllocationModalContext(props: AllocationModalProps) {
   const canEdit = useCanEdit();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const data = useActiveScopedData();
-  const actions = useAllocationStoreActions();
   const { mode, accountWorkingDays } = useSchedulingContext();
   // Read the active account row directly because the scoped entity projection omits accounts.
   const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
@@ -97,7 +100,6 @@ function useAllocationModalContext(props: AllocationModalProps) {
     confirmDelete,
     setConfirmDelete,
     data,
-    ...actions,
     mode,
     accountWorkingDays,
     placeholdersEnabled,
@@ -116,7 +118,12 @@ function useAllocationModalContext(props: AllocationModalProps) {
   };
 }
 
-function useTargetSchedule(context: ReturnType<typeof useAllocationModalContext>) {
+function useTargetSchedule(
+  context: ReturnType<typeof useAllocationModalContext>,
+  addActivity: ReturnType<typeof usePlanningActions>["addActivity"],
+  runWhileBusy: <Result>(command: () => Promise<Result>) => Promise<Result | undefined>,
+  onInlineActivityCreated: () => boolean,
+) {
   const target = useAllocationTargetState({
     data: context.data,
     seed: context.seed,
@@ -126,7 +133,9 @@ function useTargetSchedule(context: ReturnType<typeof useAllocationModalContext>
     externalEnabled: context.externalEnabled,
     inlineActivityCreateEnabled: context.inlineActivityCreateEnabled,
     ...context.fieldError,
-    addActivity: context.addActivity,
+    addActivity,
+    runWhileBusy,
+    onInlineActivityCreated,
   });
   const schedule = useAllocationScheduleState({
     selectedResource: target.selectedResource,
@@ -146,12 +155,60 @@ function useTargetSchedule(context: ReturnType<typeof useAllocationModalContext>
 /** Coordinates allocation dialog fields, validation, and submission. */
 export function useAllocationModalState(props: AllocationModalProps) {
   const context = useAllocationModalContext(props);
-  return buildModalState(context, useTargetSchedule(context));
+  const initialDraft = usePlanningDraft(context.editing);
+  const [draft, setDraft] = useState(initialDraft);
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const runWhileBusy = useCallback(async <Result>(command: () => Promise<Result>): Promise<Result | undefined> => {
+    if (busyRef.current) return undefined;
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      return await command();
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  }, []);
+  const onInlineActivityCreated = useCallback(() => {
+    if (!draft) return true;
+    const acknowledged = useStore.getState().planning;
+    if (!isInlineActivityAcknowledgement(draft, acknowledged)) return false;
+    const nextDraft = capturePlanningDraft(draft.originalWritable);
+    if (
+      !nextDraft ||
+      nextDraft.context !== draft.context ||
+      nextDraft.generation !== draft.generation ||
+      nextDraft.baseRevision !== acknowledged.revision
+    )
+      return false;
+    setDraft(nextDraft);
+    return true;
+  }, [draft]);
+  const actions = usePlanningActions(draft);
+  const state = buildModalState(
+    context,
+    useTargetSchedule(context, actions.addActivity, runWhileBusy, onInlineActivityCreated),
+    actions,
+    busy,
+  );
+  return {
+    ...state,
+    busy,
+    shell: { ...state.shell, submit: () => runWhileBusy(state.shell.submit) },
+    footer: {
+      ...state.footer,
+      onDelete: (scope?: "one" | "future") => runWhileBusy(() => state.footer.onDelete(scope)),
+      onDuplicate: () => runWhileBusy(state.footer.onDuplicate),
+    },
+  };
 }
 
 function buildModalState(
   context: ReturnType<typeof useAllocationModalContext>,
   state: ReturnType<typeof useTargetSchedule>,
+  actions: ReturnType<typeof usePlanningActions>,
+  busy: boolean,
 ) {
   const { target, schedule, repeatProjection, advisory, endDateHint } = state;
   const { submit, onDuplicate, onDelete } = createAllocationCommands({
@@ -170,11 +227,12 @@ function buildModalState(
     canEdit: context.canEdit,
     onClose: context.onClose,
     setConfirmDelete: context.setConfirmDelete,
-    addAllocation: context.addAllocation,
-    addAllocations: context.addAllocations,
-    updateAllocation: context.updateAllocation,
-    deleteAllocation: context.deleteAllocation,
-    deleteAllocationSeriesFrom: context.deleteAllocationSeriesFrom,
+    addAllocation: actions.addAllocation,
+    duplicateAllocation: actions.duplicateAllocation,
+    addAllocations: actions.addAllocations,
+    updateAllocation: actions.updateAllocation,
+    deleteAllocation: actions.deleteAllocation,
+    deleteAllocationSeriesFrom: actions.deleteAllocationSeriesFrom,
   });
 
   const createName = resolveCreateName({
@@ -183,7 +241,13 @@ function buildModalState(
   });
   const repeatLastStart = repeatProjection?.startDates.at(-1);
   return {
-    shell: { editing: context.editing, createName, onClose: context.onClose, submit, clear: context.fieldError.clear },
+    shell: {
+      editing: context.editing,
+      createName,
+      onClose: context.onClose,
+      submit,
+      clear: context.fieldError.clear,
+    },
     targetFields: target.fields,
     scheduleFields: {
       ...schedule.fields,
@@ -205,6 +269,7 @@ function buildModalState(
       onDelete,
       onDuplicate,
       onClose: context.onClose,
+      busy,
     },
   };
 }

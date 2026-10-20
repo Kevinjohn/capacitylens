@@ -17,6 +17,8 @@ import {
   resolveWeekStart,
 } from "@/store/selectors";
 import { useStore } from "@/store/useStore";
+import { capturePlanningDraft } from "@/data/planning/planningActions";
+import { usePlanningActions } from "@/data/planning/usePlanningActions";
 import { useLocalDataActions } from "./useLocalDataActions";
 
 function useDisplayPreferences() {
@@ -58,16 +60,16 @@ export function useSettingsViewController() {
   const data = useStore((state) => state.data);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const activeAccount = data.accounts.find((account) => account.id === activeAccountId) ?? null;
-  const updateAccount = useStore((state) => state.updateAccount);
+  const { updateAccount } = usePlanningActions();
   const setNotice = useStore((state) => state.setNotice);
   const display = useDisplayPreferences();
   const serverMode = isServerConfigured();
   const scheduling = readSchedulingSettings(data, activeAccountId);
   const localData = useLocalDataActions(setNotice);
-  const updateSetting = (patch: Parameters<typeof updateAccount>[1]) => {
+  const updateSetting = async (patch: Parameters<typeof updateAccount>[1]) => {
     if (!activeAccount) return;
     try {
-      updateAccount(activeAccount.id, patch);
+      await updateAccount(activeAccount.id, patch, capturePlanningDraft(activeAccount));
     } catch (error) {
       // Surface the rejected settings write so controls cannot imply a saved value.
       setNotice(resolveErrorMessage(error), "error");

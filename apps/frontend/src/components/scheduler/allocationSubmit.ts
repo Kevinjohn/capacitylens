@@ -6,16 +6,22 @@ import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from "@capacitylens/shared/lib/strin
 import { resolveDomainErrorMessage, resolveErrorMessage } from "@/lib/errorMessage";
 import { buildRepeatedAllocationDrafts, resolveRepeatPattern } from "@/lib/repeatingAllocations";
 import { parseText } from "@/lib/validation";
-import type { useStore } from "@/store/useStore";
 import { resolveEndDate, validateAllocationDraft } from "./allocationDraft";
 import { resolveEffectiveWeekCreationBlockReason } from "./creationAvailability";
+import type { usePlanningActions } from "@/data/planning/usePlanningActions";
 
 import type { FieldError } from "@/hooks/useFieldError";
 import type { AllocationModalSnapshot } from "./AllocationModalSnapshot";
+type PlanningActions = ReturnType<typeof usePlanningActions>;
 type CommandInput = Omit<AllocationModalSnapshot, "editId" | "repeatUntilMinimum"> &
   Pick<
-    ReturnType<typeof useStore.getState>,
-    "addAllocation" | "addAllocations" | "updateAllocation" | "deleteAllocation" | "deleteAllocationSeriesFrom"
+    PlanningActions,
+    | "addAllocation"
+    | "duplicateAllocation"
+    | "addAllocations"
+    | "updateAllocation"
+    | "deleteAllocation"
+    | "deleteAllocationSeriesFrom"
   > & {
     fail: FieldError["fail"];
     canEdit: boolean;
@@ -144,10 +150,10 @@ function rejectsNewPlacement({ command, draft, newPlacement }: RejectNewPlacemen
   return blocked !== null;
 }
 
-function saveDraft(input: CommandInput, draft: ValidatedDraft): boolean {
+async function saveDraft(input: CommandInput, draft: ValidatedDraft): Promise<boolean> {
   if (input.editing) {
     const { hoursPerDay, ...fields } = draft;
-    input.updateAllocation(input.editing.id, {
+    await input.updateAllocation(input.editing.id, {
       ...fields,
       projectId: draft.projectId,
       ...(!input.isBlocks || input.isExternal ? { hoursPerDay } : {}),
@@ -155,7 +161,7 @@ function saveDraft(input: CommandInput, draft: ValidatedDraft): boolean {
     return true;
   }
   if (input.repeat === "none") {
-    return input.addAllocation(draft).kind === "created";
+    return (await input.addAllocation(draft)).kind === "created";
   }
   if (!input.selectedResource || input.selectedEffectiveWeek === undefined) {
     throw new Error("The selected resource could not be resolved for repeat projection.");
@@ -172,7 +178,7 @@ function saveDraft(input: CommandInput, draft: ValidatedDraft): boolean {
     effectiveWeek: input.selectedEffectiveWeek,
   });
   const seriesId = newId();
-  return input.addAllocations(drafts.map((occurrence) => ({ ...occurrence, seriesId }))).kind === "created";
+  return (await input.addAllocations(drafts.map((occurrence) => ({ ...occurrence, seriesId })))).kind === "created";
 }
 
 function reportSaveError(input: CommandInput, error: unknown): void {
@@ -186,7 +192,7 @@ function reportSaveError(input: CommandInput, error: unknown): void {
 /** Builds validated create and update commands for the allocation dialog. */
 export function createAllocationCommands(input: CommandInput) {
   const validateDraft = () => parseAllocationCommandDraft(input);
-  const submit = () => {
+  const submit = async () => {
     if (!input.canEdit) return;
     const draft = validateDraft();
     if (
@@ -199,31 +205,32 @@ export function createAllocationCommands(input: CommandInput) {
     )
       return;
     try {
-      if (saveDraft(input, draft)) input.onClose();
+      if (await saveDraft(input, draft)) input.onClose();
     } catch (e) {
       // Route save rejection through the dialog error policy so invalid allocations remain editable.
       reportSaveError(input, e);
     }
   };
-  const duplicateAllocation = () => {
+  const duplicateAllocation = async () => {
     if (!input.editing) return;
     const draft = validateDraft();
     if (!draft || rejectsNewPlacement({ command: input, draft, newPlacement: true })) return;
     try {
-      if (input.addAllocation(draft).kind === "created") input.onClose();
+      if ((await input.duplicateAllocation(input.editing.id, draft)).kind === "created") input.onClose();
     } catch (e) {
       // Surface a failed duplication at form level without closing the dialog.
       input.fail(null, e instanceof Error ? resolveErrorMessage(e) : m.form_allocation_err_save_failed());
     }
   };
-  const deleteSelectedAllocation = (scope: "one" | "future" = "one") => {
+  const deleteSelectedAllocation = async (scope: "one" | "future" = "one") => {
     if (!input.editing || !input.canEdit) return;
-    input.setConfirmDelete(false);
     try {
-      if (scope === "future") input.deleteAllocationSeriesFrom(input.editing.id);
-      else input.deleteAllocation(input.editing.id);
+      if (scope === "future") await input.deleteAllocationSeriesFrom(input.editing.id);
+      else await input.deleteAllocation(input.editing.id);
+      input.setConfirmDelete(false);
     } catch (e) {
       // Surface a failed deletion at form level without closing the dialog.
+      input.setConfirmDelete(false);
       input.fail(null, e instanceof Error ? resolveErrorMessage(e) : m.form_allocation_err_delete_failed());
     }
   };

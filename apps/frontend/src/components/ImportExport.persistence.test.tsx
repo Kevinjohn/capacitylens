@@ -1,14 +1,11 @@
-import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Mock } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { serializeData } from "@capacitylens/shared/data/transfer";
-import { attachPersistence, ReloadDiscardedEditError } from "@/data/persist";
-import { InMemoryDemoAdapter } from "@/data/InMemoryDemoAdapter";
+import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
+import { persistenceCoordinator } from "@/data/persistence/coordinator";
 import { useStore } from "@/store/useStore";
-import { DEFAULT_ACCOUNT_ID, makeAppData, makeResourceDraft, resetStoreWithAccount } from "@/test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from "@/test/fixtures";
 import { ImportExport } from "./ImportExport";
 import { useServerImport } from "./import-export/useServerImport";
 
@@ -21,27 +18,23 @@ vi.mock("@/data/apiConfig", () => ({
 const TS = "2026-05-01T00:00:00.000Z";
 
 function incomingFile(): File {
-  return new File(
-    [
-      serializeData({
-        ...emptyAppData(),
-        resources: [
-          {
-            ...NULLABLE_FIELDS.resources,
-            ...makeResourceDraft({ name: "Imported person" }),
-            id: "import-resource",
-            accountId: "source-account",
-            createdAt: TS,
-            updatedAt: TS,
-            engagement: "studio",
-            halfDays: [],
-          },
-        ],
-      }),
+  return new File([serializeData(importedSlice())], "incoming.json", { type: "application/json" });
+}
+
+function importedSlice(): AppData {
+  return makeAppData({
+    clients: [
+      {
+        ...NULLABLE_FIELDS.clients,
+        id: "import-client",
+        accountId: DEFAULT_ACCOUNT_ID,
+        name: "Imported client",
+        color: "#2563eb",
+        createdAt: TS,
+        updatedAt: TS,
+      },
     ],
-    "incoming.json",
-    { type: "application/json" },
-  );
+  });
 }
 
 async function chooseAndConfirmImport(): Promise<void> {
@@ -65,162 +58,67 @@ function RepeatedConfirmationHarness() {
   );
 }
 
-function importedSlice(): AppData {
-  return makeAppData({
-    clients: [
-      {
-        ...NULLABLE_FIELDS.clients,
-        id: "import-client",
-        accountId: DEFAULT_ACCOUNT_ID,
-        name: "Imported client",
-        color: "#2563eb",
-        createdAt: TS,
-        updatedAt: TS,
-      },
-    ],
-  });
-}
+let detachCoordinator: (() => void) | null = null;
+let coordination: string[];
 
-function stringMatching(pattern: RegExp): unknown {
-  return expect.stringMatching(pattern);
-}
-
-function savedData(saveAll: Mock<(data: AppData) => Promise<void>>): AppData {
-  const saved = saveAll.mock.calls[0]?.[0];
-  if (saved === undefined) {
-    throw new Error("Expected persistence to save data.");
-  }
-  return saved;
-}
-
-let detachPersistence: (() => void) | null = null;
-let adapter: InMemoryDemoAdapter;
-let saveAll: Mock<(data: AppData) => Promise<void>>;
-let onPersistenceError: Mock<(error: unknown) => void>;
-
-beforeEach(async () => {
+beforeEach(() => {
   resetStoreWithAccount();
-  adapter = new InMemoryDemoAdapter();
-  await adapter.saveAll(structuredClone(useStore.getState().data));
-  saveAll = vi.spyOn(adapter, "saveAll");
-  onPersistenceError = vi.fn((error: unknown) => {
-    useStore.getState().setNotice(error instanceof Error ? error.message : "Persistence failed.", "error");
-  });
-  detachPersistence = attachPersistence({
-    store: useStore,
-    adapter: adapter,
-    debounceMs: 0,
-    onError: onPersistenceError,
-    serverMode: true,
+  coordination = [];
+  detachCoordinator = persistenceCoordinator.attach({
+    hasUnsavedWrites: () => false,
+    flushPending: async () => {
+      coordination.push("flush");
+      return { kind: "clean" };
+    },
+    suspendWrites: () => {
+      coordination.push("suspend");
+      return () => coordination.push("resume");
+    },
+    refreshActive: async (accountId) => {
+      coordination.push(`refresh:${accountId}`);
+      useStore.getState().replaceAll(importedSlice());
+      return { kind: "reloaded" };
+    },
   });
 });
 
 afterEach(() => {
-  detachPersistence?.();
-  detachPersistence = null;
+  detachCoordinator?.();
+  detachCoordinator = null;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
-async function dropsParkedEditDuringCommittedImport(): Promise<void> {
-  let finishImport!: (response: Response) => void;
-  const fetchMock = vi.fn(
-    () =>
-      new Promise<Response>((resolve) => {
-        finishImport = resolve;
+describe("server import coordination", () => {
+  it("starts only one import for repeated immediate confirmation and coordinates its committed refresh", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ imported: 1, skipped: 0 }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
       }),
-  );
-  vi.stubGlobal("fetch", fetchMock);
-  render(<ImportExport />);
-
-  await chooseAndConfirmImport();
-  await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-
-  useStore.getState().addClient({ name: "Parked during import", color: "#dc2626" });
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  expect(saveAll).not.toHaveBeenCalled();
-
-  await adapter.saveAll(importedSlice());
-  saveAll.mockClear();
-  finishImport(
-    new Response(JSON.stringify({ imported: 1, skipped: 0 }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    }),
-  );
-
-  await waitFor(() =>
-    expect(onPersistenceError.mock.calls.some(([error]) => error instanceof ReloadDiscardedEditError)).toBe(true),
-  );
-  expect(useStore.getState().notice).toMatchObject({
-    tone: "error",
-    message: stringMatching(/could not be saved/i),
-  });
-  expect(saveAll).not.toHaveBeenCalled();
-
-  // A later ordinary edit must not smuggle the dropped pre-import edit back into persistence.
-  useStore.getState().addClient({ name: "After import", color: "#16a34a" });
-  await waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
-  const saved = savedData(saveAll);
-  expect(saved.clients.map((client) => client.name)).toContain("Imported client");
-  expect(saved.clients.map((client) => client.name)).toContain("After import");
-  expect(saved.clients.map((client) => client.name)).not.toContain("Parked during import");
-}
-
-async function reschedulesParkedEditDuringZeroRecordImport(): Promise<void> {
-  let finishImport!: (response: Response) => void;
-  const fetchMock = vi.fn(
-    () =>
-      new Promise<Response>((resolve) => {
-        finishImport = resolve;
-      }),
-  );
-  vi.stubGlobal("fetch", fetchMock);
-  render(<ImportExport />);
-
-  await chooseAndConfirmImport();
-  await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-
-  useStore.getState().addClient({ name: "Keep after refused import", color: "#16a34a" });
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  expect(saveAll).not.toHaveBeenCalled();
-
-  finishImport(
-    new Response(JSON.stringify({ imported: 0, skipped: 1 }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    }),
-  );
-
-  await waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
-  const saved = savedData(saveAll);
-  expect(saved.clients.map((client) => client.name)).toContain("Keep after refused import");
-  expect(onPersistenceError.mock.calls.some(([error]) => error instanceof ReloadDiscardedEditError)).toBe(false);
-  expect(useStore.getState().notice).toMatchObject({
-    tone: "error",
-    message: stringMatching(/no records imported/i),
-  });
-}
-
-describe("ImportExport with the real persistence coordinator", () => {
-  it("starts only one server import for repeated immediate confirmation", async () => {
-    const fetchMock = vi.fn(() => new Promise<Response>(() => undefined));
+    );
     vi.stubGlobal("fetch", fetchMock);
     render(<RepeatedConfirmationHarness />);
 
     fireEvent.click(screen.getByRole("button", { name: "Confirm twice" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    await waitFor(() => expect(coordination).toEqual(["flush", "suspend", `refresh:${DEFAULT_ACCOUNT_ID}`, "resume"]));
 
-    useStore.getState().addClient({ name: "Parked during import", color: "#dc2626" });
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(saveAll).not.toHaveBeenCalled();
+    expect(useStore.getState().data.clients.map((client) => client.name)).toContain("Imported client");
   });
 
-  it("drops an edit parked during a committed import and surfaces the loss", async () => {
-    await dropsParkedEditDuringCommittedImport();
-  });
+  it("refreshes only after the confirmed import response", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ imported: 1, skipped: 0 }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<ImportExport />);
 
-  it("re-schedules an edit parked during a zero-record import", async () => {
-    await reschedulesParkedEditDuringZeroRecordImport();
+    await chooseAndConfirmImport();
+    await waitFor(() => expect(coordination).toEqual(["flush", "suspend", `refresh:${DEFAULT_ACCOUNT_ID}`, "resume"]));
+    expect(useStore.getState().notice?.tone).toBe("info");
   });
 });

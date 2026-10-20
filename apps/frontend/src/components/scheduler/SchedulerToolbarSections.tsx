@@ -3,6 +3,7 @@ import { ListFilter, Redo2, Trash2, Undo2 } from "lucide-react";
 import { m } from "@/i18n";
 import type { StoreState } from "@/store/useStore";
 import { hasLensFilter } from "@/store/useStore";
+import type { planningActions } from "@/data/planning/planningActions";
 import { buildRedoShortcut, buildUndoShortcut } from "@/lib/keyboardShortcuts";
 import { SegmentedControl, TogglePill } from "@/components/common/ui";
 import { Button } from "@/components/ui/button";
@@ -27,9 +28,9 @@ interface ChromeProps {
   canEdit: boolean;
   canUndo: boolean;
   canRedo: boolean;
-  undo: StoreState["undo"];
-  redo: StoreState["redo"];
-  runHistoryAction: (action: () => void) => void;
+  undo: typeof planningActions.undo;
+  redo: typeof planningActions.redo;
+  runHistoryAction: (action: () => Promise<unknown>) => void;
   filtersOpen: boolean;
   setFiltersOpen: (value: boolean | ((open: boolean) => boolean)) => void;
 }

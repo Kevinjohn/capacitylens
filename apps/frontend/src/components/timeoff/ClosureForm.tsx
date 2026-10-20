@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { todayISO } from "@capacitylens/shared/lib/dateMath";
 import type { Closure } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
@@ -8,8 +8,10 @@ import { isStaleEdit } from "@/lib/isStaleEdit";
 import { parseText } from "@/lib/validation";
 import { resolveTimeZone } from "@/store/selectors";
 import { useStore } from "@/store/useStore";
+import { usePlanningActions, usePlanningDraft } from "@/data/planning/usePlanningActions";
 import { DateField, FormActions, Modal, RequiredLegend, TextField } from "@/components/common/ui";
 import { FieldError } from "@/components/ui/field";
+import { PlanningStatusBanner } from "@/components/PlanningStatusBanner";
 
 type ClosureFormFieldsProps = {
   name: string;
@@ -64,8 +66,10 @@ function ClosureFormFields(props: ClosureFormFieldsProps) {
 
 /** Creates or edits a company closure with guarded date fields. */
 export function ClosureForm({ closure, onClose }: { closure?: Closure; onClose: () => void }) {
-  const add = useStore((state) => state.addClosure);
-  const update = useStore((state) => state.updateClosure);
+  const draft = usePlanningDraft(closure);
+  const { addClosure: add, updateClosure: update } = usePlanningActions(draft);
+  const submitting = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
   const today = todayISO(calendarTimeZone);
   const [name, setName] = useState(closure?.name ?? "");
@@ -75,7 +79,8 @@ export function ClosureForm({ closure, onClose }: { closure?: Closure; onClose: 
   const { error, errorField, errorId, fail, clear } = fieldError;
   useFieldErrorFocus(fieldError);
 
-  const submit = () => {
+  const submit = async () => {
+    if (submitting.current) return;
     const cleanName = parseText(name, fail, { requiredMessage: m.form_closure_err_name_required() });
     if (!cleanName) return;
     if (!startDate || !endDate) {
@@ -88,20 +93,25 @@ export function ClosureForm({ closure, onClose }: { closure?: Closure; onClose: 
     }
 
     const patch = { name: cleanName, startDate, endDate };
+    submitting.current = true;
+    setIsSubmitting(true);
     try {
       if (closure) {
         if (isStaleEdit(useStore.getState().data.closures, closure.id, closure.updatedAt)) {
           fail(null, m.form_closure_err_changed());
           return;
         }
-        update(closure.id, patch);
+        await update(closure.id, patch);
       } else {
-        if (add(patch).kind === "blocked") return;
+        if ((await add(patch)).kind === "blocked") return;
       }
       onClose();
     } catch (error) {
       // Surface the rejected closure write at the form boundary so invalid data remains correctable.
       fail(null, error instanceof Error ? resolveErrorMessage(error) : m.form_closure_err_save_failed());
+    } finally {
+      submitting.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -109,9 +119,11 @@ export function ClosureForm({ closure, onClose }: { closure?: Closure; onClose: 
     <Modal
       title={closure ? m.form_closure_edit_title() : m.form_closure_add_title()}
       onClose={onClose}
-      onSubmit={submit}
+      onSubmit={() => void submit()}
       onEdit={clear}
-      footer={<FormActions onCancel={onClose} />}
+      busy={isSubmitting}
+      recovery={<PlanningStatusBanner placement="modal" />}
+      footer={<FormActions onCancel={onClose} disabled={isSubmitting} />}
     >
       <ClosureFormFields
         name={name}

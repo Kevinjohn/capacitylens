@@ -1,11 +1,12 @@
 import { requireCreated } from "@/test/requireCreated";
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
+import { render, screen, fireEvent, within, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AllocationModal } from "./AllocationModal";
 import { useStore } from "@/store/useStore";
 import { makeResourceDraft } from "@/test/fixtures";
 import { PermissionContext } from "@/auth/permissionContext";
+import { planningActions } from "@/data/planning/planningActions";
 import { chooseOption } from "./__tests__/schedulerTestKit";
 import { first, ACC, resetAllocationModalStore } from "./__tests__/allocationModalTestKit";
 
@@ -30,6 +31,8 @@ beforeEach(() => {
   capacityAdvisoryMock.mockClear();
   capacityAdvisoryMock.mockImplementation(() => ({ overDays: 0, timeOffDays: 0 }));
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 function addInlineActivityTestPerson() {
   useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
@@ -79,6 +82,55 @@ describe("AllocationModal inline activity creation pref", () => {
       }),
     ).toBeInTheDocument();
   });
+
+  it("waits for canonical activity creation before selecting the new activity", async () => {
+    const resourceId = addInlineActivityTestPerson();
+    useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
+    const user = userEvent.setup();
+    const create = planningActions.addActivity;
+    let acknowledge!: () => void;
+    const pendingAck = new Promise<void>((resolve) => (acknowledge = resolve));
+    const action = vi.spyOn(planningActions, "addActivity").mockImplementation(async (...args) => {
+      await pendingAck;
+      return create(...args);
+    });
+    render(
+      <AllocationModal
+        kind="create"
+        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByLabelText("New activity name"), "Canonical activity");
+    await user.click(screen.getByRole("button", { name: "Add activity" }));
+    expect(screen.getByLabelText("New activity name")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(useStore.getState().data.activities.map((activity) => activity.name)).not.toContain("Canonical activity");
+
+    await act(async () => acknowledge());
+    await waitFor(() =>
+      expect(useStore.getState().data.activities.map((activity) => activity.name)).toContain("Canonical activity"),
+    );
+    expect(screen.getByRole("combobox", { name: "Activity" })).toHaveTextContent("Canonical activity");
+    expect(screen.getByLabelText("New activity name")).toBeEnabled();
+    await user.type(screen.getByLabelText("New activity name"), "Second canonical activity");
+    await user.click(screen.getByRole("button", { name: "Add activity" }));
+    await waitFor(() =>
+      expect(useStore.getState().data.activities.map((activity) => activity.name)).toContain(
+        "Second canonical activity",
+      ),
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    const savedAllocation = useStore.getState().data.allocations[0];
+    expect(savedAllocation).toBeDefined();
+    if (!savedAllocation) throw new Error("Expected the allocation to save after inline activity creation.");
+    expect(
+      useStore.getState().data.activities.find((activity) => activity.id === savedAllocation.activityId)?.name,
+    ).toBe("Second canonical activity");
+    expect(action).toHaveBeenCalledTimes(2);
+  });
+
   it('hides the inline "Add activity" controls by default while retaining the Activity picker', () => {
     const resourceId = addInlineActivityTestPerson();
     render(

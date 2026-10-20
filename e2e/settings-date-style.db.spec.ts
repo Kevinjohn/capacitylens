@@ -5,8 +5,8 @@ import { resetServer, serverState, requireStateRows } from "./serverTestState";
 // DB-backed flavour of the date-format preference (US-SET-17). The demo project
 // cannot carry this assertion: its in-memory store restores the seed on every reload, so a
 // surviving choice there would prove nothing. Here the reload re-hydrates purely from
-// GET /api/state, so the choice coming back proves the full round-trip
-// UI → store → ServerSyncAdapter → PATCH → SQLite `accounts.dateStyle` → GET on reload.
+// the server planning read, so the choice coming back proves the full round-trip
+// UI → planning action → SQLite `accounts.dateStyle` → planning read on reload.
 test.describe("Settings — date format is account data", () => {
   test.beforeEach(async ({ request }) => {
     await resetServer({ request: request, withSeed: true });
@@ -17,8 +17,7 @@ test.describe("Settings — date format is account data", () => {
     await page.getByRole("radio", { name: "Sep 9", exact: true }).click();
     await expect(page.getByRole("radio", { name: "Sep 9", exact: true })).toHaveAttribute("aria-checked", "true");
 
-    // The control reads back from the store immediately, but the write to the server is debounced.
-    // Reloading before it lands would fail on the round trip the next assertion is testing.
+    // Confirm the typed settings mutation reached SQLite before reloading the company data.
     await expect
       .poll(
         async () =>

@@ -158,9 +158,30 @@ describe("generated planning transport", () => {
     };
     const { transport, requests } = harness({ accountId: "wayne", revision: 5, authority, data: emptyAppData() });
     const result = await transport.read(context, signal);
-    expect(result).toEqual({ revision: 5, data: emptyAppData(), accessKey: JSON.stringify(Object.values(authority)) });
+    expect(result).toEqual({
+      revision: 5,
+      data: emptyAppData(),
+      canWrite: false,
+      accessKey: JSON.stringify(Object.values(authority)),
+    });
     expect(requests[0]?.url).toBe("http://planning.test/api/accounts/wayne/planning");
     expect(requests[0]?.method).toBe("GET");
+  });
+
+  it("refuses a canonical read without a verified write capability", async () => {
+    const { transport } = harness({
+      accountId: "wayne",
+      revision: 5,
+      authority: {
+        actorId: "bruce",
+        effectiveActorId: "bruce",
+        role: "owner",
+        canSeePrivateNames: true,
+        canSeeTimeOffNote: true,
+      },
+      data: emptyAppData(),
+    });
+    await expect(transport.read(context, signal)).rejects.toThrow();
   });
 
   it("refuses a read naming another company", async () => {

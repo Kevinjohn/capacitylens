@@ -1,15 +1,31 @@
+import { useRef, useState } from "react";
 import { useStore } from "@/store/useStore";
 import { resolveErrorMessage } from "@/lib/errorMessage";
+import type { capturePlanningDraft } from "@/data/planning/planningActions";
 
-/** Deletes an entity and closes on success; failures leave the dialog open and show a store notice. */
-export function useConfirmDelete(deleteEntity: (id: string) => void, close: () => void) {
+type PlanningDraft = ReturnType<typeof capturePlanningDraft>;
+
+/** Deletes an entity and closes only after acknowledgement; failures leave the dialog open. */
+export function useConfirmDelete(
+  deleteEntity: (id: string, draft?: PlanningDraft) => Promise<unknown>,
+  close: () => void,
+) {
   const setNotice = useStore((state) => state.setNotice);
-  return (id: string) => {
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const confirmDelete = async (id: string, draft?: PlanningDraft) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
     try {
-      deleteEntity(id);
+      await deleteEntity(id, draft);
       close();
     } catch (error) {
       setNotice(resolveErrorMessage(error), "error");
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
     }
   };
+  return { confirmDelete, busy };
 }

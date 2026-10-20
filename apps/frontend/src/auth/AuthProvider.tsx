@@ -49,6 +49,7 @@ function useAuthStatus({ serverMode }: UseAuthStatusOptions) {
     serverMode ? { kind: "checking" } : buildOpenAuthResult("off", null),
   );
   const authRequestSeq = useRef(0);
+  const admittedIdentity = useRef<string | null>(null);
   const checkAuth: CheckAuth = useCallback(async (onNull) => {
     const requestId = ++authRequestSeq.current;
     const next = await fetchAuthStatus(() => requestId === authRequestSeq.current);
@@ -58,8 +59,17 @@ function useAuthStatus({ serverMode }: UseAuthStatusOptions) {
       else console.warn("AuthProvider: /api/auth/me refresh failed; keeping the previous auth snapshot");
       return next;
     }
-    if (next.kind === "login") clearStoredAccountCommands();
-    else if (next.kind === "pass") bindStoredAccountCommandsToIdentity(next.user?.id ?? "auth-off");
+    if (next.kind === "login") {
+      clearStoredAccountCommands();
+      admittedIdentity.current = null;
+      useStore.getState().setActiveAccount(null);
+    } else if (next.kind === "pass") {
+      const identity = next.user?.id ?? "auth-off";
+      if (admittedIdentity.current !== null && admittedIdentity.current !== identity)
+        useStore.getState().setActiveAccount(null);
+      admittedIdentity.current = identity;
+      bindStoredAccountCommandsToIdentity(identity);
+    }
     setStatus(next);
     return next;
   }, []);
@@ -87,6 +97,13 @@ function useAuthRevalidation({
   useEffect(() => {
     if (serverMode && persistError) void refreshAuth();
   }, [serverMode, persistError, refreshAuth]);
+  useEffect(() => {
+    if (!serverMode) return;
+    return useStore.subscribe((state, previous) => {
+      if (previous.activeAccountId !== null && previous.planning.context !== null && state.planning.context === null)
+        void refreshAuth();
+    });
+  }, [serverMode, refreshAuth]);
   useEffect(() => {
     if (!serverMode) return;
     const revalidateVisibleSession = () => {

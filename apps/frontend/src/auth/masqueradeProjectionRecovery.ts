@@ -11,7 +11,7 @@ export function publishMasqueradeAccount(state: MasqueradeState, selectAccount =
     list: account ? [{ id: account.id, name: account.name, role: state.effectiveRole }] : [],
     complete: account !== undefined,
   });
-  if (selectAccount && useStore.getState().activeAccountId !== state.accountId) {
+  if (selectAccount && account && useStore.getState().activeAccountId !== state.accountId) {
     useStore.getState().setActiveAccount(state.accountId);
   }
   useStore.getState().setActiveRole(state.effectiveRole, "resolved");

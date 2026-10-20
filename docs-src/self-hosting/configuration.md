@@ -11,17 +11,17 @@ Restart the single backend process after changing its environment.
 
 ## Runtime and database
 
-| Setting | Purpose |
-| --- | --- |
-| `NODE_ENV` | Set to `production` for a deployed service. |
-| `HOST`, `PORT` | Listener address and port. The supplied release example binds loopback on port 8787. |
-| `APP_URL` | Canonical public application URL, including `https://` when TLS ends at a proxy. |
-| `APP_KEY` | Adonis encryption key. Generate it from `backend/` with `node ace.js generate:key --show`; keep it stable and secret. |
-| `SESSION_DRIVER` | Use `database` for a deployed application. |
-| `CAPACITYLENS_DB` | SQLite database path. Put it in persistent storage outside the release. |
-| `CAPACITYLENS_SECRET` | Independent application secret used by product account operations. |
-| `CAPACITYLENS_PUBLIC_URL` | Public origin used for sign-in callbacks and addressed links. Match `APP_URL`. |
-| `CAPACITYLENS_SETUP_TOKEN` | One-time secret for first-run identity setup. Remove it after the first identity exists. |
+| Setting                    | Purpose                                                                                                               |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                 | Set to `production` for a deployed service.                                                                           |
+| `HOST`, `PORT`             | Listener address and port. The supplied release example binds loopback on port 8787.                                  |
+| `APP_URL`                  | Canonical public application URL, including `https://` when TLS ends at a proxy.                                      |
+| `APP_KEY`                  | Adonis encryption key. Generate it from `backend/` with `node ace.js generate:key --show`; keep it stable and secret. |
+| `SESSION_DRIVER`           | Use `database` for a deployed application.                                                                            |
+| `CAPACITYLENS_DB`          | SQLite database path. Put it in persistent storage outside the release.                                               |
+| `CAPACITYLENS_SECRET`      | Independent application secret used by product account operations.                                                    |
+| `CAPACITYLENS_PUBLIC_URL`  | Public origin used for sign-in callbacks and addressed links. Match `APP_URL`.                                        |
+| `CAPACITYLENS_SETUP_TOKEN` | One-time secret for first-run identity setup. Remove it after the first identity exists.                              |
 
 Run `node ace.js app:upgrade` with the service stopped before the first start and after each
 release. The application uses one SQLite connection and one writer process per database file.
@@ -39,6 +39,12 @@ with the operator's actual registration; deterministic tests do not prove it.
 
 Keep `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION` and `CAPACITYLENS_ALLOW_OPEN_SIGNUP` unset for a
 normal deployment. Open mode is not an authentication alternative for production data.
+
+With `CAPACITYLENS_MODE=off`, the persisted server provides a read-only canonical planning view;
+it does not fall back to browser-side planning writes. To let members edit planning data, configure
+`password-only`, `password-and-sso` or `sso-only` and the required identity provider. The
+in-memory demo is separate: it has no server planning context and remains editable for temporary
+evaluation.
 
 ## Email
 

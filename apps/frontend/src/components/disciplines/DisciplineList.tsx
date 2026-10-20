@@ -1,4 +1,3 @@
-import { useStore } from "@/store/useStore";
 import { useActiveScopedData } from "@/store/useScopedData";
 import { useEntityListState } from "@/hooks/useEntityListState";
 import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "@/components/common/ui";
@@ -6,18 +5,28 @@ import { NEUTRAL_COLOR } from "@/lib/palette";
 import { DisciplineForm } from "./DisciplineForm";
 import type { Discipline } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
-import { Fragment, useMemo } from "react";
+import { Fragment, useMemo, useRef } from "react";
 import { Plus, Tag } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/components/ui/item";
 import { byName } from "@/lib/displayOrder";
 import { useConfirmDelete } from "@/hooks/useConfirmDelete";
+import { capturePlanningDraft } from "@/data/planning/planningActions";
+import { usePlanningActions } from "@/data/planning/usePlanningActions";
 
 /** Lists scoped disciplines and their available management actions. */
 export function DisciplineList() {
   const disciplines = useActiveScopedData().disciplines;
-  const deleteEntity = useStore((state) => state.deleteDiscipline);
+  const { deleteDiscipline: deleteEntity } = usePlanningActions();
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<Discipline>();
-  const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
+  const confirmationDraft = useRef<ReturnType<typeof capturePlanningDraft>>(null);
+  const { confirmDelete, busy } = useConfirmDelete(deleteEntity, () => {
+    confirmationDraft.current = null;
+    setConfirming(null);
+  });
+  const requestDelete = (discipline: Discipline) => {
+    confirmationDraft.current = capturePlanningDraft(discipline);
+    setConfirming(discipline);
+  };
 
   // Management is alphabetical for scanning; the scheduler deliberately keeps discipline sortOrder.
   const sorted = useMemo(() => [...disciplines].sort(byName), [disciplines]);
@@ -54,7 +63,7 @@ export function DisciplineList() {
                   />
                   <DeleteButton
                     label={m.list_disciplines_delete_aria({ name: discipline.name })}
-                    onClick={() => setConfirming(discipline)}
+                    onClick={() => requestDelete(discipline)}
                   />
                 </ItemActions>
               </Item>
@@ -69,8 +78,12 @@ export function DisciplineList() {
         <ConfirmDialog
           title={m.list_disciplines_delete_title()}
           message={m.list_disciplines_delete_message({ name: confirming.name })}
-          onConfirm={() => confirmDelete(confirming.id)}
-          onCancel={() => setConfirming(null)}
+          busy={busy}
+          onConfirm={() => void confirmDelete(confirming.id, confirmationDraft.current)}
+          onCancel={() => {
+            confirmationDraft.current = null;
+            setConfirming(null);
+          }}
         />
       )}
     </ListPage>

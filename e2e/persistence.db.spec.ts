@@ -2,9 +2,8 @@ import { test, expect } from "./fixtures";
 import { openApp, selectShadOption } from "./browserTestSupport";
 import { resetServer, serverState, requireStateRows } from "./serverTestState";
 
-// This database-backed project uses VITE_CAPACITYLENS_API, so persistence runs through ServerSyncAdapter and SQLite.
-// The specs use the same UI flows as the in-memory demo, but reloads hydrate from GET /api/state without a
-// localStorage fallback. A record that survives reload proves the full UI-to-database round trip.
+// This database-backed project drives the production UI against SQLite. Rows that survive reload prove the
+// typed planning action and server projection round trip.
 
 function registerBeforeEachHooks() {
   test.beforeEach(async ({ request }) => {
@@ -15,7 +14,7 @@ function registerBeforeEachHooks() {
 function registerHydratesSeededDatasetServerLoadTest() {
   test("hydrates the seeded dataset from the server on load", async ({ page }) => {
     await openApp(page);
-    // "Bruce Wayne" is part of the server seed; seeing it proves GET /api/state → UI.
+    // "Bruce Wayne" is part of the server seed; seeing it proves server hydration → UI.
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
   });
 }
@@ -29,7 +28,7 @@ function registerCreateReloadNewClientRoundTest() {
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByText("Persisted DB Co")).toBeVisible();
 
-    // The write is debounced; confirm it actually reached the server tables.
+    // Verify the acknowledged typed action reached the server tables before reloading.
     await expect
       .poll(
         async () => requireStateRows(await serverState(request), "clients").some((c) => c.name === "Persisted DB Co"),
@@ -46,13 +45,25 @@ function registerCreateReloadNewClientRoundTest() {
 }
 
 function registerRepeatCreationPersistsAllAllocationTest() {
-  test("repeat creation persists all allocation PUTs through one atomic client batch", async ({ page, request }) => {
+  test("repeat creation persists one typed allocation group transaction", async ({ page, request }) => {
     const before = requireStateRows(await serverState(request), "allocations");
-    const batchBodies: Array<{ ops?: Array<{ method?: string; table?: string; id?: string }> }> = [];
+    const groupRequests: Array<{
+      mutationId?: string;
+      baseRevision?: number;
+      intent?: { operation?: string; allocations?: Array<{ id?: string }> };
+    }> = [];
+    let batchRequests = 0;
     page.on("request", (outgoing) => {
-      if (outgoing.method() === "POST" && outgoing.url().endsWith("/api/batch")) {
-        batchBodies.push(outgoing.postDataJSON() as { ops?: Array<{ method?: string; table?: string; id?: string }> });
+      if (outgoing.method() === "POST" && outgoing.url().endsWith("/allocations/create-group")) {
+        groupRequests.push(
+          outgoing.postDataJSON() as {
+            mutationId?: string;
+            baseRevision?: number;
+            intent?: { operation?: string; allocations?: Array<{ id?: string }> };
+          },
+        );
       }
+      if (outgoing.method() === "POST" && outgoing.url().endsWith("/api/batch")) batchRequests += 1;
     });
     await openApp(page);
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
@@ -63,16 +74,27 @@ function registerRepeatCreationPersistsAllAllocationTest() {
     await dialog.getByLabel(/^End/).fill("2026-06-10");
     await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "weekly");
     await dialog.getByLabel("Repeat until").fill("2026-09-10");
+    const groupResponsePromise = page.waitForResponse((response) =>
+      response.url().endsWith("/allocations/create-group"),
+    );
     await dialog.getByRole("button", { name: "Save" }).click();
+    const groupResponse = await groupResponsePromise;
+    const receipt = (await groupResponse.json()) as { status?: string; revision?: number };
 
     await expect
       .poll(async () => requireStateRows(await serverState(request), "allocations").length, { timeout: 10_000 })
       .toBe(before.length + 14);
-    expect(batchBodies).toHaveLength(1);
-    const batch = batchBodies[0];
-    if (batch === undefined) throw new Error("Repeat creation must send one batch");
-    expect(batch.ops).toHaveLength(14);
-    expect(batch.ops?.every((op) => op.method === "PUT" && op.table === "allocations")).toBe(true);
+    expect(groupRequests).toHaveLength(1);
+    expect(batchRequests).toBe(0);
+    const group = groupRequests[0];
+    if (group === undefined) throw new Error("Repeat creation must send one allocation group");
+    expect(group.mutationId).toEqual(expect.any(String));
+    expect(group.baseRevision).toEqual(expect.any(Number));
+    expect(group.intent?.operation).toBe("allocation.createGroup");
+    expect(group.intent?.allocations).toHaveLength(14);
+    expect(new Set(group.intent?.allocations?.map(({ id }) => id)).size).toBe(14);
+    expect(groupResponse.status()).toBe(200);
+    expect(receipt).toMatchObject({ status: "committed", revision: group.baseRevision! + 1 });
 
     await openApp(page);
     const afterReload = requireStateRows(await serverState(request), "allocations");

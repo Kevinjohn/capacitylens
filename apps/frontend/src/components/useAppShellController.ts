@@ -10,6 +10,8 @@ import { clearJoinedAccountHandoff, readJoinedAccountHandoff } from "@/lib/joine
 import { ACCOUNT_LINK, ADMIN_LINKS, HELP_LINK, LINKS } from "@/lib/navLinks";
 import { hasOpenModal, isTextEntryShortcutOwner } from "@/lib/shortcutGuards";
 import { hasUnsavedPersistenceWrites } from "@/data/persist";
+import { planningActions } from "@/data/planning/planningActions";
+import { resolveErrorMessage } from "@/lib/errorMessage";
 import { useStore } from "@/store/useStore";
 import { useAuth } from "@/auth/authContext";
 import { useDemoAuthActive } from "@/lib/fakeAuth";
@@ -223,13 +225,10 @@ function useNoticeBridge(notice: StoreState["notice"], setNotice: StoreState["se
 
 interface GlobalShortcutsInput {
   paletteOpen: boolean;
-  redo: StoreState["redo"];
   setPaletteOpen: Dispatch<SetStateAction<boolean>>;
-  undo: StoreState["undo"];
 }
 
 type PaletteShortcutInput = Pick<GlobalShortcutsInput, "paletteOpen" | "setPaletteOpen">;
-type HistoryShortcutInput = Pick<GlobalShortcutsInput, "redo" | "undo">;
 
 function applyPaletteShortcutEffect(event: KeyboardEvent, input: PaletteShortcutInput): boolean {
   if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "k") return false;
@@ -246,26 +245,28 @@ function applyPaletteShortcutEffect(event: KeyboardEvent, input: PaletteShortcut
   return true;
 }
 
-function applyHistoryShortcutEffect(event: KeyboardEvent, input: HistoryShortcutInput) {
+function applyHistoryShortcutEffect(event: KeyboardEvent) {
   if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "z") return;
   if (event.isComposing || isTextEntryShortcutOwner(event.target) || hasOpenModal()) return;
   if (useStore.getState().dirtyForm) return;
   event.preventDefault();
-  if (event.shiftKey) input.redo();
-  else input.undo();
+  const action = event.shiftKey ? planningActions.redo : planningActions.undo;
+  void action().catch((error: unknown) => {
+    useStore.getState().setNotice(resolveErrorMessage(error), "error");
+  });
 }
 
 function useGlobalShortcuts(input: GlobalShortcutsInput) {
-  const { paletteOpen, redo, setPaletteOpen, undo } = input;
+  const { paletteOpen, setPaletteOpen } = input;
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!applyPaletteShortcutEffect(event, { paletteOpen, setPaletteOpen })) {
-        applyHistoryShortcutEffect(event, { redo, undo });
+        applyHistoryShortcutEffect(event);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [paletteOpen, redo, setPaletteOpen, undo]);
+  }, [paletteOpen, setPaletteOpen]);
 }
 
 function useAuditWarning(setNotice: StoreState["setNotice"]) {
@@ -287,8 +288,6 @@ export function useAppShellController() {
   const notice = useStore((state) => state.notice);
   const setNotice = useStore((state) => state.setNotice);
   const dirtyForm = useStore((state) => state.dirtyForm);
-  const undo = useStore((state) => state.undo);
-  const redo = useStore((state) => state.redo);
   const accounts = useStore((state) => state.data.accounts);
   const accountSummaries = useStore((state) => state.accountSummaries);
   const accountSummariesComplete = useStore((state) => state.accountSummariesComplete);
@@ -321,7 +320,7 @@ export function useAppShellController() {
   useDocumentTitle({ activeLanguage, activeLanguagePending, pathname });
   useBeforeUnloadWarning({ dirtyForm });
   useNoticeBridge(notice, setNotice);
-  useGlobalShortcuts({ paletteOpen, redo, setPaletteOpen, undo });
+  useGlobalShortcuts({ paletteOpen, setPaletteOpen });
   useAuditWarning(setNotice);
 
   return {

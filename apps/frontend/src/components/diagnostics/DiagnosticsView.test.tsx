@@ -2,13 +2,14 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthContext } from "@/auth/authContext";
-import { incrementPersistenceDiagnostic, resetPersistenceDiagnostics } from "@/data/persistenceDiagnostics";
+import { useStore } from "@/store/useStore";
+import { createPlanningCacheState } from "@/data/planning/planningCacheController";
 import { DiagnosticsView } from "./DiagnosticsView";
 
 const fetchMock = vi.hoisted(() => ({ fetch: vi.fn() }));
 
 beforeEach(() => {
-  resetPersistenceDiagnostics();
+  useStore.setState({ planning: createPlanningCacheState().planning, past: [], future: [] });
   vi.stubGlobal("fetch", fetchMock.fetch);
   fetchMock.fetch.mockReset();
   fetchMock.fetch.mockResolvedValue({
@@ -46,7 +47,7 @@ describe("DiagnosticsView — report", () => {
     expect(fetchMock.fetch).not.toHaveBeenCalled();
   });
 
-  it("adds the sign-in mode and live persistence counters", () => {
+  it("adds the sign-in mode and live planning status", () => {
     render(
       <AuthContext.Provider
         value={{
@@ -62,9 +63,10 @@ describe("DiagnosticsView — report", () => {
     );
 
     expect(reportText()).toHaveTextContent("Sign-in mode: password-and-sso");
-    expect(reportText()).toHaveTextContent("Saves failed: 0");
-    act(() => incrementPersistenceDiagnostic("savesFailed"));
-    expect(reportText()).toHaveTextContent("Saves failed: 1");
+    expect(reportText()).toHaveTextContent("Planning status: idle");
+    act(() => useStore.setState((state) => ({ planning: { ...state.planning, status: "uncertain", revision: 7 } })));
+    expect(reportText()).toHaveTextContent("Planning status: uncertain");
+    expect(reportText()).toHaveTextContent("Planning revision: 7");
     expect(reportText()).not.toHaveTextContent("Bruce Wayne");
     expect(reportText()).not.toHaveTextContent("@");
   });

@@ -1,4 +1,5 @@
 import type { Draft, Patch } from "./entityDrafts";
+import type { PlanningControllerMetadata } from "@/data/planning/planningCacheController";
 import type { Filters } from "./filters";
 import type { StoreEntityActions } from "./StoreEntityActions";
 export * from "./entityDrafts";
@@ -10,6 +11,7 @@ import type { ThemePreference } from "@/lib/theme";
 import type { Role } from "@capacitylens/shared/domain/access";
 import type { MasqueradeState } from "@capacitylens/shared/domain/masquerade";
 import type { Account, AppData, ID, ISODate } from "@capacitylens/shared/types/entities";
+import type { DemoHistoryEntry } from "./history";
 
 /** Runtime state for the current masquerade session. */
 export type MasqueradeRuntimeState =
@@ -90,6 +92,7 @@ type SetBarLabelPrefOptions = { key: keyof BarLabelPreferences; value: boolean }
 /** Public state and actions exposed by the application store. */
 export interface StoreState extends StoreEntityActions {
   data: AppData;
+  planning: PlanningControllerMetadata;
   ui: SchedulerUI;
   hydrated: boolean;
   /** The tenant currently in view. Null = no account chosen (show the picker). Never persisted. */
@@ -113,8 +116,8 @@ export interface StoreState extends StoreEntityActions {
   /** Latest issued server-directory read. Direct list mutations advance this too, so an older
    * response cannot overwrite a create/delete/join result. Transient and never persisted. */
   accountSummariesRequestId: number;
-  past: AppData[];
-  future: AppData[];
+  past: DemoHistoryEntry[];
+  future: DemoHistoryEntry[];
   persistError: boolean;
   /** True when stored data existed but could not be read (corrupt JSON / failed
    * migrate). Distinct from persistError (a write failure): on a load error the

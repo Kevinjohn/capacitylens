@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useStore } from "@/store/useStore";
+import { usePlanningActions, usePlanningDraft } from "@/data/planning/usePlanningActions";
 import { useActiveScopedData, useScopedData } from "@/store/useScopedData";
 import { useFieldError } from "@/hooks/useFieldError";
 import { resolveErrorMessage } from "@/lib/errorMessage";
@@ -11,6 +12,7 @@ import type { Option } from "@/components/common/ui";
 import { FieldError } from "@/components/ui/field";
 import type { Activity, ActivityKind, Client, Project } from "@capacitylens/shared/types/entities";
 import { ACTIVITY_KIND_ORDER } from "./activityKinds";
+import { PlanningStatusBanner } from "@/components/PlanningStatusBanner";
 
 // Resolved at render (a getter, not a module-scope const) so the labels re-resolve on a locale
 // switch rather than freezing to the import-time locale, per the i18n key convention (DECISIONS).
@@ -143,13 +145,16 @@ function useProjectOptions(activity?: Activity) {
 
 /** Creates or edits an activity and closes after save or cancel. Only project activities carry project and phase attribution. */
 export function ActivityForm({ activity, onClose }: { activity?: Activity; onClose: () => void }) {
-  const add = useStore((state) => state.addActivity);
-  const update = useStore((state) => state.updateActivity);
+  const draft = usePlanningDraft(activity);
+  const { addActivity: add, updateActivity: update } = usePlanningActions(draft);
+  const submitting = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { name, setName, kind, projectId, phaseId, changeKind, changeProject } = useActivityFields(activity);
   const { error, errorField, errorId, fail } = useFieldError();
   const projectOptions = useProjectOptions(activity);
 
-  const submit = () => {
+  const submit = async () => {
+    if (submitting.current) return;
     const trimmed = parseName(name, fail);
     if (!trimmed) return;
     // A project-specific activity must have a project; internal/all-projects are project-less (projectId/phaseId
@@ -159,27 +164,44 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
       fail("project", m.form_activity_err_project_required());
       return;
     }
-    const patch = {
-      name: trimmed,
-      kind,
-      ...(kind === "project" && projectId ? { projectId } : {}),
-      ...(kind === "project" && phaseId ? { phaseId } : {}),
-    };
+    const patch = activity
+      ? {
+          ...(trimmed !== activity.name ? { name: trimmed } : {}),
+          ...(kind !== activity.kind ? { kind } : {}),
+          ...(projectId !== (activity.projectId ?? "")
+            ? { projectId: kind === "project" && projectId ? projectId : undefined }
+            : {}),
+          ...(phaseId !== (activity.phaseId ?? "")
+            ? { phaseId: kind === "project" && phaseId ? phaseId : undefined }
+            : {}),
+        }
+      : null;
     // Surface a store-side rejection as a form error rather than an uncaught React error, see the
     // store CRUD contract.
+    submitting.current = true;
+    setIsSubmitting(true);
     try {
       if (activity) {
         if (isStaleEdit(useStore.getState().data.activities, activity.id, activity.updatedAt)) {
           fail(null, m.form_activity_err_changed());
           return;
         }
-        update(activity.id, patch);
+        if (patch && Object.keys(patch).length > 0) await update(activity.id, patch);
       } else {
-        if (add(patch).kind === "blocked") return;
+        const created = await add({
+          name: trimmed,
+          kind,
+          ...(kind === "project" && projectId ? { projectId } : {}),
+          ...(kind === "project" && phaseId ? { phaseId } : {}),
+        });
+        if (created.kind === "blocked") return;
       }
       onClose();
     } catch (e) {
       fail(null, resolveErrorMessage(e));
+    } finally {
+      submitting.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -187,8 +209,10 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
     <Modal
       title={activity ? m.form_activity_edit_title() : m.form_activity_add_title()}
       onClose={onClose}
-      onSubmit={submit}
-      footer={<FormActions onCancel={onClose} />}
+      onSubmit={() => void submit()}
+      busy={isSubmitting}
+      recovery={<PlanningStatusBanner placement="modal" />}
+      footer={<FormActions onCancel={onClose} disabled={isSubmitting} />}
     >
       <ActivityFields
         name={name}

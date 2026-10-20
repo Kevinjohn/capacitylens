@@ -21,7 +21,7 @@ interface ApplySnappedColorInput<T extends { color?: unknown }> {
 export function createGuards(get: StoreApi<StoreState>["getState"]) {
   // Every scoped add* stamps the active account. A non-null selection alone is insufficient. The
   // account must either exist in the published data or in the server-authorised summaries while a
-  // switch is loading its slice (mid-switch edits are deliberately rebased by persist.ts). An id in
+  // switch is loading its slice. Production commands independently require a ready canonical revision. An id in
   // neither source is dead, so fail loudly rather than stamp an orphan accountId into the slice.
   const requireAccount = (): ID => {
     const state = get();

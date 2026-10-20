@@ -26,6 +26,11 @@ function InlineActivityField({
   AllocationTargetFieldsProps,
   "newActivityName" | "setNewActivityName" | "activityScope" | "errorField" | "errorId" | "onAddActivity"
 >) {
+  // The activity command catches failures and reports them in the form before resolving.
+  const handleAddActivity = () => {
+    void onAddActivity();
+  };
+
   return (
     <AllocationControlColumn>
       <Field orientation="horizontal">
@@ -39,11 +44,11 @@ function InlineActivityField({
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault();
-              onAddActivity();
+              handleAddActivity();
             }
           }}
         />
-        <Button size="sm" type="button" variant="outline" onClick={onAddActivity}>
+        <Button size="sm" type="button" variant="outline" onClick={handleAddActivity}>
           <Plus data-icon="inline-start" />
           {m.form_allocation_add_activity()}
         </Button>

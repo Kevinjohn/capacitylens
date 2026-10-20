@@ -14,13 +14,11 @@ async function freshBuildInfo() {
 const client = {
   signInMode: "sso-only",
   persistence: {
-    savesFailed: 2,
-    retriesArmed: 1,
-    reconciliationsResolved: 0,
-    reloadsSuperseded: 0,
-    editsRebased: 3,
-    editsDiscarded: 0,
-    suspended: false,
+    status: "uncertain",
+    revision: 7,
+    commitment: "unknown",
+    canUndo: false,
+    canRedo: false,
   },
   browser: {
     userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15",
@@ -218,16 +216,17 @@ describe("diagnostics projection privacy", () => {
 });
 
 describe("diagnostics client facts", () => {
-  it("adds the sign-in mode, persistence counters and browser details", async () => {
+  it("adds the sign-in mode, planning status and browser details", async () => {
     const { readDiagnostics, formatDiagnostics } = await freshBuildInfo();
     const text = formatDiagnostics(readDiagnostics(null, undefined, client));
 
     for (const line of [
       "Sign-in mode: sso-only",
-      "Saves failed: 2",
-      "Retries armed: 1",
-      "Edits rebased: 3",
-      "Saving suspended: no",
+      "Planning status: uncertain",
+      "Planning revision: 7",
+      "Pending commitment: unknown",
+      "Undo available: no",
+      "Redo available: no",
       `User agent: ${client.browser.userAgent}`,
       "Viewport: 1280×800",
       "Time zone: Europe/London",

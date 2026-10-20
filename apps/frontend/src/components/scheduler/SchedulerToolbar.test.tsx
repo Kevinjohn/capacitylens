@@ -2,7 +2,10 @@ import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { PlanningExecution, PlanningHistoryEntry } from "@capacitylens/backend/planning";
 import { PermissionContext } from "@/auth/permissionContext";
+import { planningActions } from "@/data/planning/planningActions";
+import { createPlanningCacheState } from "@/data/planning/planningCacheController";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { SchedulerToolbar } from "./SchedulerToolbar";
 import { buildEmptyFilters, useStore } from "@/store/useStore";
@@ -432,29 +435,72 @@ describe("SchedulerToolbar tentative visibility", () => {
 });
 
 describe("SchedulerToolbar history errors", () => {
+  it.each(["pending", "uncertain"] as const)(
+    "disables previously acknowledged Undo and Redo history while a mutation is %s",
+    (status) => {
+      const execution: PlanningExecution = {
+        mutationId: "pending-mutation",
+        baseRevision: 1,
+        intent: { operation: "settings.update", changes: { dateStyle: "month-day" } },
+      };
+      const historyEntry: PlanningHistoryEntry = {
+        forward: execution.intent,
+        inverse: { operation: "settings.update", changes: { dateStyle: "day-month" } },
+      };
+      useStore.setState((state) => ({
+        planning: {
+          ...state.planning,
+          context: { identity: Symbol("toolbar test"), companyId: DEFAULT_ACCOUNT_ID },
+          accessKey: "test-access",
+          canWrite: true,
+          revision: 1,
+          status,
+          history: { past: [historyEntry], future: [historyEntry], tipRevision: 1 },
+          pending: {
+            execution,
+            inverse: historyEntry.inverse,
+            historyEntry,
+            originalWritable: null,
+            kind: "new",
+          },
+          outcome: status === "pending" ? { kind: "pending", execution } : { kind: "uncertain", execution },
+        },
+      }));
+
+      try {
+        render(<SchedulerToolbar />);
+
+        expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
+        expect(screen.getByRole("button", { name: "Redo" })).toBeDisabled();
+      } finally {
+        useStore.setState({ planning: createPlanningCacheState().planning });
+      }
+    },
+  );
+
   it.each([
     ["Undo", "undo"],
     ["Redo", "redo"],
   ] as const)("surfaces a rejected %s action as a persistent error notice", async (buttonName, action) => {
     const user = userEvent.setup();
-    const original = useStore.getState()[action];
+    const historyAction = vi.spyOn(planningActions, action).mockRejectedValue(new Error("History is corrupt"));
+    const historyEntry = { forward: [], inverse: [] };
     useStore.setState({
-      [action]: () => {
-        throw new Error("History is corrupt");
-      },
-      ...(action === "undo" ? { past: [useStore.getState().data] } : { future: [useStore.getState().data] }),
+      ...(action === "undo" ? { past: [historyEntry] } : { future: [historyEntry] }),
     });
 
     try {
       render(<SchedulerToolbar />);
       await user.click(screen.getByRole("button", { name: buttonName }));
 
-      expect(useStore.getState().notice).toEqual({
-        message: "History is corrupt",
-        tone: "error",
-      });
+      await waitFor(() =>
+        expect(useStore.getState().notice).toEqual({
+          message: "History is corrupt",
+          tone: "error",
+        }),
+      );
     } finally {
-      useStore.setState({ [action]: original });
+      historyAction.mockRestore();
     }
   });
 });

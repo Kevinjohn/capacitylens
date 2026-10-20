@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useStore } from "@/store/useStore";
+import { usePlanningActions, usePlanningDraft } from "@/data/planning/usePlanningActions";
 import { hasDisciplinesEnabled } from "@/store/selectors";
 import { useActiveScopedData, useScopedData } from "@/store/useScopedData";
 import { useFieldError } from "@/hooks/useFieldError";
@@ -13,6 +14,7 @@ import type { ResourceFormState } from "./useResourceFormState";
 import { useResourceSubmit } from "./useResourceSubmit";
 import type { ResourceSubmitDraft } from "./useResourceSubmit";
 import { ResourceAvailabilityFields } from "./ResourceAvailabilityFields";
+import { PlanningStatusBanner } from "@/components/PlanningStatusBanner";
 import type { Client, Discipline, Project, Resource, ResourceKind } from "@capacitylens/shared/types/entities";
 
 type ResourceFormProps = { resource?: Resource; kind?: ResourceKind; onClose: () => void };
@@ -189,8 +191,8 @@ function buildResourceSubmitDraft(form: ResourceFormState): ResourceSubmitDraft 
 
 /** Add or edit a person or placeholder while preserving kind-specific capacity semantics. */
 export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceFormProps) {
-  const add = useStore((state) => state.addResource);
-  const update = useStore((state) => state.updateResource);
+  const planningDraft = usePlanningDraft(resource);
+  const { addResource: add, updateResource: update } = usePlanningActions(planningDraft);
   const data = useActiveScopedData();
   const raw = useScopedData();
   const kind = resource?.kind ?? kindProp ?? "person";
@@ -224,7 +226,9 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
     <Modal
       title={resolveFormTitle({ resource: resource, isPlaceholder: isPlaceholder })}
       onClose={onClose}
-      onSubmit={submit}
+      onSubmit={() => void submit()}
+      busy={submitting}
+      recovery={<PlanningStatusBanner placement="modal" />}
       footer={<FormActions onCancel={onClose} disabled={submitting} />}
     >
       <ResourceFormBody

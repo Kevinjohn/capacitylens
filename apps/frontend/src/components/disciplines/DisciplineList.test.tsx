@@ -1,10 +1,11 @@
 import { requireCreated } from "@/test/requireCreated";
-import { describe, it, expect, beforeEach } from "vitest";
-import { act, render, screen, within } from "@testing-library/react";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DisciplineList } from "./DisciplineList";
 import { useStore } from "@/store/useStore";
 import { resetStoreWithAccount } from "@/test/fixtures";
+import { planningActions } from "@/data/planning/planningActions";
 
 beforeEach(() => {
   resetStoreWithAccount();
@@ -114,6 +115,52 @@ describe("DisciplineList", () => {
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(screen.queryByText("ToDelete")).not.toBeInTheDocument();
     expect(useStore.getState().data.disciplines).toHaveLength(0);
+  });
+
+  it("keeps the delete confirmation open until the planning action acknowledges", async () => {
+    const user = userEvent.setup();
+    requireCreated(useStore.getState().addDiscipline({ name: "Nightwing", color: "#ff0000", sortOrder: 0 }));
+    const originalDelete = planningActions.deleteDiscipline;
+    let acknowledge!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      acknowledge = resolve;
+    });
+    const deleteDiscipline = vi
+      .spyOn(planningActions, "deleteDiscipline")
+      .mockImplementation((...args) => pending.then(() => originalDelete(...args)));
+    try {
+      render(<DisciplineList />);
+      await user.click(within(screen.getByTestId("discipline-row")).getByRole("button", { name: "Delete Nightwing" }));
+      const dialog = screen.getByRole("alertdialog");
+      await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+      expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+      expect(useStore.getState().data.disciplines).toHaveLength(1);
+      acknowledge();
+      await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+      expect(useStore.getState().data.disciplines).toHaveLength(0);
+    } finally {
+      deleteDiscipline.mockRestore();
+    }
+  });
+
+  it("leaves the delete confirmation open when the action rejects", async () => {
+    const user = userEvent.setup();
+    useStore.getState().addDiscipline({ name: "Oracle", color: "#ff0000", sortOrder: 0 });
+    const deleteDiscipline = vi
+      .spyOn(planningActions, "deleteDiscipline")
+      .mockRejectedValue(new Error("Delete refused."));
+    try {
+      render(<DisciplineList />);
+      await user.click(within(screen.getByTestId("discipline-row")).getByRole("button", { name: "Delete Oracle" }));
+      await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Delete" }));
+
+      expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+      expect(useStore.getState().notice?.message).toBe("Delete refused.");
+      expect(useStore.getState().data.disciplines).toHaveLength(1);
+    } finally {
+      deleteDiscipline.mockRestore();
+    }
   });
 
   it("cancel on the delete ConfirmDialog keeps the discipline", async () => {

@@ -5,14 +5,15 @@ import { AppShell } from "./AppShell";
 import { useStore } from "@/store/useStore";
 import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
 import { stubMatchMedia } from "@/test/stubMatchMedia";
-import { attachPersistence } from "@/data/persist";
+import { persistenceCoordinator } from "@/data/persistence/coordinator";
+import { planningActions } from "@/data/planning/planningActions";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import * as accountTransition from "@/auth/accountTransition";
 import { renderWithQueryClient as render } from "@/test/renderWithQueryClient";
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
-const runtimeFlags = vi.hoisted(() => ({ serverMode: false }));
+const runtimeFlags = vi.hoisted(() => ({ serverMode: false, planningAttached: false }));
 vi.mock("@/i18n", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/i18n")>()),
   syncLocaleFromAccount: i18nMocks.syncLocaleFromAccount,
@@ -23,6 +24,10 @@ vi.mock("@/data/apiConfig", () => ({
   isDemoMode: () => !runtimeFlags.serverMode,
   isServerConfigured: () => runtimeFlags.serverMode,
 }));
+vi.mock("@/data/planning/planningRuntime", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/data/planning/planningRuntime")>()),
+  hasPlanningRuntime: () => runtimeFlags.planningAttached,
+}));
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -32,6 +37,7 @@ afterEach(() => {
 beforeEach(() => {
   i18nMocks.syncLocaleFromAccount.mockReset();
   runtimeFlags.serverMode = false;
+  runtimeFlags.planningAttached = false;
   // Sign through the cosmetic demo gate and seed an active account so these tests exercise the shell.
   useStore.getState().setFakeSignedIn(true);
   localStorage.setItem("capacitylens/productOrientation/v1/demo/acct-test", "dismissed");
@@ -42,6 +48,21 @@ beforeEach(() => {
   // toast layer is module-global; the store notice is the source of truth the bridge reads).
   useStore.getState().setNotice(null);
   useStore.getState().setMasquerade({ kind: "inactive" });
+  useStore.setState((state) => ({
+    persistError: false,
+    planning: {
+      ...state.planning,
+      context: null,
+      accessKey: null,
+      canWrite: false,
+      revision: null,
+      status: "idle",
+      history: { past: [], future: [], tipRevision: null },
+      pending: null,
+      outcome: null,
+      error: null,
+    },
+  }));
   // Most shell tests exercise the post-hydration UI; the dedicated handoff test overrides this.
   useStore.getState().setHydrated(true);
 });
@@ -108,6 +129,27 @@ it("offers projection recovery after the server has prepared a starting member v
   const banner = screen.getByTestId("masquerade-banner");
   expect(within(banner).getByRole("button", { name: "Retry" })).toBeInTheDocument();
   expect(within(banner).getByRole("button", { name: "End now" })).toBeInTheDocument();
+});
+
+it("shows the auth-off read-only status from the shell when there is no persistence error", () => {
+  runtimeFlags.planningAttached = true;
+  useStore.setState((state) => ({
+    persistError: false,
+    planning: {
+      ...state.planning,
+      context: { identity: "auth-off-readonly", companyId: DEFAULT_ACCOUNT_ID },
+      canWrite: false,
+      pending: null,
+      status: "ready",
+    },
+  }));
+
+  renderAppShell();
+
+  const banner = screen.getByTestId("planning-readonly-auth-banner");
+  expect(banner).toHaveTextContent(
+    "This server is read-only because sign-in is off. Configure password or Google sign-in to edit planning data.",
+  );
 });
 
 it("consumes a joined-account query only once and preserves later route queries", async () => {
@@ -378,11 +420,7 @@ it("does not reactivate a sole company after its loaded slice proves missing", a
 });
 
 it("guards navigation while a persistence write is still unacknowledged", () => {
-  const detachPersistence = attachPersistence({
-    store: useStore,
-    adapter: { loadAll: async () => emptyAppData(), saveAll: async () => {} },
-    debounceMs: 300,
-  });
+  const detachPersistence = persistenceCoordinator.attach({ hasUnsavedWrites: () => true });
   const { unmount } = renderAppShell({});
   act(() => {
     useStore.getState().addClient({ name: "Unsaved client", color: "#111111" });
@@ -1162,7 +1200,7 @@ describe("AppShell hydration gate", () => {
 });
 
 describe("AppShell undo/redo keyboard", () => {
-  it("⌘Z undoes a data change, but is IGNORED while a form is dirty", () => {
+  it("⌘Z undoes a data change, but is IGNORED while a form is dirty", async () => {
     useStore.getState().setHydrated(true);
     renderAppShell({});
 
@@ -1189,7 +1227,24 @@ describe("AppShell undo/redo keyboard", () => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
     });
 
-    expect(useStore.getState().data.clients).toHaveLength(0);
+    await waitFor(() => expect(useStore.getState().data.clients).toHaveLength(0));
+  });
+
+  it("surfaces a refused keyboard undo without changing data", async () => {
+    useStore.getState().setHydrated(true);
+    act(() => void useStore.getState().addClient({ name: "Undoable", color: "#111111" }));
+    const undo = vi.spyOn(planningActions, "undo").mockRejectedValue(new Error("History is unavailable"));
+    renderAppShell({});
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true, cancelable: true }));
+    });
+
+    await waitFor(() =>
+      expect(useStore.getState().notice).toMatchObject({ message: "History is unavailable", tone: "error" }),
+    );
+    expect(useStore.getState().data.clients).toHaveLength(1);
+    undo.mockRestore();
   });
 
   it("ignores undo and redo while a clean modal has focus on a non-text control", () => {

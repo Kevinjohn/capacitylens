@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useStore } from "@/store/useStore";
+import { usePlanningActions, usePlanningDraft } from "@/data/planning/usePlanningActions";
 import { useFieldError } from "@/hooks/useFieldError";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import { parseText } from "@/lib/validation";
@@ -10,6 +11,7 @@ import { FieldError } from "@/components/ui/field";
 import { NEUTRAL_COLOR } from "@/lib/palette";
 import { externalCapacityDefaults } from "@capacitylens/shared/types/entities";
 import type { Resource } from "@capacitylens/shared/types/entities";
+import { PlanningStatusBanner } from "@/components/PlanningStatusBanner";
 
 type ExternalFormFieldsProps = {
   name: string;
@@ -50,13 +52,16 @@ function ExternalFormFields(props: ExternalFormFieldsProps) {
 
 /** Creates or edits an external company and optional descriptor. Externals have no capacity; neutral colour and inert capacity defaults preserve the Resource entity contract. */
 export function ExternalForm({ resource, onClose }: { resource?: Resource; onClose: () => void }) {
-  const add = useStore((state) => state.addResource);
-  const update = useStore((state) => state.updateResource);
+  const draft = usePlanningDraft(resource);
+  const { addResource: add, updateResource: update } = usePlanningActions(draft);
+  const submitting = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [name, setName] = useState(resource?.name ?? "");
   const [role, setRole] = useState(resource?.role ?? "");
   const { error, errorField, errorId, fail } = useFieldError();
 
-  const submit = () => {
+  const submit = async () => {
+    if (submitting.current) return;
     const cleanName = parseText(name, fail, {
       field: "name",
       required: true,
@@ -73,18 +78,23 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
       ...externalCapacityDefaults(),
       color: NEUTRAL_COLOR,
     };
+    submitting.current = true;
+    setIsSubmitting(true);
     try {
       if (resource) {
         if (isStaleEdit(useStore.getState().data.resources, resource.id, resource.updatedAt)) {
           fail(null, m.form_external_err_changed());
           return;
         }
-        update(resource.id, patch);
-      } else if (add(patch).kind === "blocked") return;
+        await update(resource.id, patch);
+      } else if ((await add(patch)).kind === "blocked") return;
       onClose();
     } catch (e) {
       // Surface store rejection inside the external-resource form so invalid writes cannot fail silently.
       fail(null, resolveErrorMessage(e));
+    } finally {
+      submitting.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -92,8 +102,10 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
     <Modal
       title={resource ? m.form_external_edit_title() : m.form_external_add_title()}
       onClose={onClose}
-      onSubmit={submit}
-      footer={<FormActions onCancel={onClose} />}
+      onSubmit={() => void submit()}
+      busy={isSubmitting}
+      recovery={<PlanningStatusBanner placement="modal" />}
+      footer={<FormActions onCancel={onClose} disabled={isSubmitting} />}
     >
       <ExternalFormFields
         name={name}

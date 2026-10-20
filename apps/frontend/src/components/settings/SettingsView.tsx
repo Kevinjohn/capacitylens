@@ -61,6 +61,10 @@ export function SettingsView() {
   useSettingsOnboardingTarget({ ready: controller.activeAccount !== null });
   if (!controller.activeAccount) return null;
   const { scheduling, display, localData } = controller;
+  const updateSetting = (patch: Parameters<Controller["updateSetting"]>[0]) => {
+    // The controller catches rejected writes and surfaces them through the shared notice.
+    void controller.updateSetting(patch);
+  };
   return (
     <ListPage title={m.settings_title()}>
       <div className="flex flex-col gap-6">
@@ -70,15 +74,11 @@ export function SettingsView() {
             canManageCapacityOverviewAccess={controller.canManageCapacityOverviewAccess}
             {...scheduling}
             workingDaysMinimumId={controller.workingDaysMinimumId}
-            updateSetting={controller.updateSetting}
+            updateSetting={updateSetting}
           />
         </SettingsGroup>
         <SettingsGroup title={m.settings_features_heading()}>
-          <CompanyFeaturesSection
-            canEdit={controller.canEdit}
-            {...scheduling}
-            updateSetting={controller.updateSetting}
-          />
+          <CompanyFeaturesSection canEdit={controller.canEdit} {...scheduling} updateSetting={updateSetting} />
         </SettingsGroup>
         <SettingsGroup title={m.settings_display_heading()}>
           <ScheduleViewSection
