@@ -242,7 +242,8 @@ test("unactivated planning controller uses authenticated typed routes and reconc
       return pendingStart;
     } finally {
       releaseResponse.resolve();
-      await page.unroute(updatePath);
+      // Wait for the held handler to abort before interception removal releases the request.
+      await page.unrouteAll({ behavior: "wait" });
     }
   })();
   const lostResponse = await callHarness<{ result: { kind: string }; state: HarnessState }>(

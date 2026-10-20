@@ -1,4 +1,5 @@
-import { createStore } from "zustand/vanilla";
+// Reuse the app's prebundled entry so loading this test module does not trigger a Vite dependency reload.
+import { createStore } from "zustand";
 import type { StoreApi } from "zustand/vanilla";
 import type { PlanningIntent } from "@capacitylens/backend/planning";
 import { createPlanningCacheController, createPlanningCacheState } from "@/data/planning/planningCacheController";
