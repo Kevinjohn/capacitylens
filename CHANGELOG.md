@@ -38,7 +38,9 @@ new features and **patch** versions carry fixes.
 ### Changed
 
 - Prepared a nonpersisted planning cache controller with generated typed requests and real-server
-  checks for revision ordering, acknowledgement, uncertainty and typed history. The schedule retains
+  checks for revision ordering, acknowledgement, uncertainty and typed history. Request timeouts
+  retain their original mutation for commitment lookup; obsolete contexts suppress completion
+  results, and activity-kind updates clear incomplete typed history. The schedule retains
   its current persistence path until typed delete
   restoration and session cleanup are verified.
 

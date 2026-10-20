@@ -201,6 +201,14 @@ describe("generated planning transport", () => {
     expect(fetcher).toHaveBeenCalledOnce();
   });
 
+  it("preserves an upstream HTTP 408 without retrying the write", async () => {
+    const { transport, fetcher } = harness({ error: "Request timed out" }, 408);
+    await expect(
+      transport.execute(context, execution({ operation: "allocation.create", allocation }), signal),
+    ).rejects.toMatchObject({ status: 408, message: "Request timed out" });
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+
   it("never maps a blocked restore or delete to the batch endpoint", async () => {
     const { transport, fetcher } = harness({});
     await expect(

@@ -27,7 +27,10 @@ The suites cover the frontend, backend and shared workspace packages.
   backend assertions establish authenticated scheduler-write coverage. The failure case injects
   a refused response; successful writes are never mocked.
 - Planning-controller transition tests use controlled responses to check revision ordering,
-  pending and uncertain outcomes, context invalidation and page-local typed history. A separate
+  pending and uncertain outcomes (including HTTP 408), context invalidation and page-local typed
+  history. Completion results are suppressed if the initiating context changes during the
+  post-commit read. Activity updates supplying a kind conservatively clear typed history because
+  kind changes can discard allocation bindings that the inverse cannot recover. A separate
   authenticated browser harness exercises the controller through real typed routes and SQLite:
   create, move, resize, reassign, duplicate, repeat, update Undo/Redo, stale-edit refusal, lost-response
   commitment lookup and sign-out cache clearing. The controller is not yet connected to the

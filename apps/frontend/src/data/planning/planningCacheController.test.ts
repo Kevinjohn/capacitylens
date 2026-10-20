@@ -90,6 +90,38 @@ describe("planning cache controller", () => {
     expect(lookup).toHaveBeenCalledWith(context, "mutation-1", expect.any(AbortSignal));
   });
 
+  it.each([undefined, "request_timeout"])(
+    "reconciles HTTP 408 (%s) without releasing or resending the original attempt",
+    async (code) => {
+      const execute = vi.fn<PlanningTransport["execute"]>().mockRejectedValue({ status: 408, code });
+      const lookup = vi
+        .fn<PlanningTransport["lookup"]>()
+        .mockResolvedValueOnce({ status: "unknown", mutationId: "mutation-1" })
+        .mockResolvedValueOnce({ status: "committed", mutationId: "mutation-1", revision: 9 });
+      const h = harness({ execute, read: vi.fn<PlanningTransport["read"]>(), lookup });
+      h.controller.setContext(context);
+      await h.readSnapshot({ revision: 8, data: emptyAppData() });
+      await expect(h.controller.execute(h.controller.begin({}), intent, inverse)).rejects.toMatchObject({
+        status: 408,
+        uncertain: true,
+      });
+      const original = h.state().planning.pending?.execution;
+      expect(original).toMatchObject({ mutationId: "mutation-1", baseRevision: 8 });
+      expect(h.state().planning.outcome).toEqual({ kind: "uncertain", execution: original });
+      expect(() => h.controller.begin({})).toThrow();
+      await expect(h.controller.reconcile()).resolves.toBe(false);
+      expect(h.state().planning.pending?.execution).toBe(original);
+      expect(() => h.controller.begin({})).toThrow();
+      await h.readSnapshot({ revision: 9, data: emptyAppData() });
+      await expect(h.controller.reconcile()).resolves.toBe(true);
+      expect(h.state().planning.status).toBe("ready");
+      expect(h.state().planning.pending).toBeNull();
+      expect(h.state().planning.history.past).toEqual([{ forward: intent, inverse }]);
+      expect(execute).toHaveBeenCalledOnce();
+      expect(lookup.mock.calls.map((call) => call[1])).toEqual(["mutation-1", "mutation-1"]);
+    },
+  );
+
   it("retains history for same-revision reads and clears it for external revisions", async () => {
     const execute = vi.fn<PlanningTransport["execute"]>((_context, execution) =>
       Promise.resolve(success(execution.mutationId, execution.baseRevision + 1)),
@@ -574,6 +606,10 @@ describe("planning reconciliation races", () => {
   it.each([
     { operation: "settings.update", changes: { timezone: "Europe/London" } },
     { operation: "catalogue.update", entity: { entity: "clients", id: "client-1", changes: { codeName: "Wayne" } } },
+    {
+      operation: "catalogue.update",
+      entity: { entity: "activities", id: "activity-1", changes: { kind: "internal" } },
+    },
   ] as PlanningIntent[])("clears history for a lookup-proven projection change: %j", async (action) => {
     const h = await uncertainHarness();
     // Start a distinct operation so its submitted intent drives lookup eligibility.
@@ -656,4 +692,173 @@ describe("planning lookup history boundaries", () => {
     expect(h.state().planning.history.past).toHaveLength(1);
     expect(h.state().planning.pending).toBeNull();
   });
+});
+
+describe.each(["receipt", "lookup"] as const)("planning %s completion context", (proof) => {
+  for (const action of ["execute", "undo", "redo"] as const) {
+    it.each(["sign-out", "company switch", "authority change"] as const)(
+      `suppresses ${action} completion after %s during the acknowledged read`,
+      async (change) => {
+        const execute = vi.fn<PlanningTransport["execute"]>((_context, execution) =>
+          Promise.resolve(success(execution.mutationId, execution.baseRevision + 1)),
+        );
+        const read = vi.fn<PlanningTransport["read"]>();
+        const lookup = vi.fn<PlanningTransport["lookup"]>();
+        const h = harness({ execute, read, lookup });
+        h.controller.setContext(context);
+        await h.readSnapshot({ revision: 1, data: emptyAppData(), accessKey: "owner" });
+        await h.controller.execute(h.controller.begin({}), intent, inverse);
+        if (action === "redo") await h.controller.undo();
+        const baseRevision = h.state().planning.revision;
+        if (baseRevision === null) throw new Error("Expected an initialized planning revision.");
+        const revision = baseRevision + 1;
+        const delayed = deferred<PlanningSnapshot>();
+        read.mockImplementationOnce(() => delayed.promise);
+        if (proof === "lookup") {
+          execute.mockRejectedValueOnce({ status: 409, code: "mutation_id_reused" });
+          lookup.mockImplementationOnce(async (_context, mutationId) => ({
+            status: "committed",
+            mutationId,
+            revision,
+          }));
+        }
+        const completion =
+          action === "execute" ? h.controller.execute(h.controller.begin({}), intent, inverse) : h.controller[action]();
+        await vi.waitFor(() => expect(h.state().planning.outcome).toMatchObject({ kind: "acknowledged", revision }));
+        if (change === "sign-out") h.controller.setContext(null);
+        if (change === "company switch") h.controller.setContext({ ...context, companyId: "company-2" });
+        delayed.resolve({
+          revision,
+          data: emptyAppData(),
+          accessKey: change === "authority change" ? "editor" : "owner",
+        });
+        await expect(completion).resolves.toBe(action === "execute" ? null : false);
+        expect(h.state().planning.pending).toBeNull();
+        expect(h.state().planning.history.past).toEqual([]);
+        expect(h.state().planning.history.future).toEqual([]);
+        expect(h.state().planning.outcome).toBeNull();
+        expect(h.state().planning.error).toBeNull();
+        expect(execute).toHaveBeenCalledTimes(action === "redo" ? 3 : 2);
+      },
+    );
+  }
+});
+
+describe("planning commitment-only completion", () => {
+  it.each(["execute", "undo", "redo"] as const)(
+    "keeps %s acknowledged and locked after lookup proof followed by a failed read",
+    async (action) => {
+      const execute = vi.fn<PlanningTransport["execute"]>((_context, execution) =>
+        Promise.resolve(success(execution.mutationId, execution.baseRevision + 1)),
+      );
+      const read = vi.fn<PlanningTransport["read"]>();
+      const lookup = vi.fn<PlanningTransport["lookup"]>();
+      const h = harness({ execute, read, lookup });
+      h.controller.setContext(context);
+      await h.readSnapshot({ revision: 1, data: emptyAppData() });
+      await h.controller.execute(h.controller.begin({}), intent, inverse);
+      if (action === "redo") await h.controller.undo();
+      const baseRevision = h.state().planning.revision;
+      if (baseRevision === null) throw new Error("Expected an initialized planning revision.");
+      const revision = baseRevision + 1;
+      execute.mockRejectedValueOnce({ status: 409, code: "mutation_id_reused" });
+      lookup.mockImplementationOnce(async (_context, mutationId) => ({ status: "committed", mutationId, revision }));
+      read.mockRejectedValueOnce(new TypeError("read unavailable"));
+      const completion =
+        action === "execute" ? h.controller.execute(h.controller.begin({}), intent, inverse) : h.controller[action]();
+      await expect(completion).resolves.toBe(action === "execute" ? null : true);
+      expect(h.state().planning.outcome).toMatchObject({ kind: "acknowledged", revision });
+      expect(h.state().planning.pending?.commitment?.revision).toBe(revision);
+      expect(h.state().planning.status).toBe("error");
+      expect(() => h.controller.begin({})).toThrow();
+      read.mockResolvedValueOnce({ revision, data: emptyAppData() });
+      await expect(h.controller.reconcile()).resolves.toBe(true);
+      expect(h.state().planning.pending).toBeNull();
+      expect(h.state().planning.status).toBe("ready");
+      expect(lookup).toHaveBeenCalledOnce();
+      expect(execute).toHaveBeenCalledTimes(action === "redo" ? 3 : 2);
+    },
+  );
+
+  it("keeps a reused mutation uncertain when lookup has no commitment proof", async () => {
+    const execute = vi
+      .fn<PlanningTransport["execute"]>()
+      .mockRejectedValue({ status: 409, code: "mutation_id_reused" });
+    const lookup = vi.fn<PlanningTransport["lookup"]>(async (_context, mutationId) => ({
+      status: "unknown",
+      mutationId,
+    }));
+    const h = harness({ execute, lookup, read: vi.fn<PlanningTransport["read"]>() });
+    h.controller.setContext(context);
+    await h.readSnapshot({ revision: 1, data: emptyAppData() });
+    await expect(h.controller.execute(h.controller.begin({}), intent, inverse)).rejects.toMatchObject({
+      uncertain: true,
+    });
+    expect(h.state().planning.outcome?.kind).toBe("uncertain");
+    expect(h.state().planning.pending?.commitment).toBeUndefined();
+    expect(() => h.controller.begin({})).toThrow();
+    expect(execute).toHaveBeenCalledOnce();
+    expect(lookup).toHaveBeenCalledOnce();
+  });
+});
+
+describe.each(["receipt", "lookup"] as const)("planning activity history via %s", (proof) => {
+  it.each([true, false])(
+    "applies the kind-present=%s boundary to existing past and future history",
+    async (includesKind) => {
+      const execute = vi.fn<PlanningTransport["execute"]>((_context, execution) =>
+        Promise.resolve(success(execution.mutationId, execution.baseRevision + 1)),
+      );
+      const read = vi.fn<PlanningTransport["read"]>();
+      const lookup = vi.fn<PlanningTransport["lookup"]>();
+      const h = harness({ execute, read, lookup });
+      h.controller.setContext(context);
+      await h.readSnapshot({ revision: 1, data: emptyAppData() });
+      await h.controller.execute(h.controller.begin({}), intent, inverse);
+      await h.controller.execute(h.controller.begin({}), intent, inverse);
+      await h.controller.undo();
+      expect(h.state().planning.history.past).toHaveLength(1);
+      expect(h.state().planning.history.future).toHaveLength(1);
+      const changes = { name: "Facilities", ...(includesKind ? { kind: "internal" as const } : {}) };
+      const update: PlanningIntent = {
+        operation: "catalogue.update",
+        entity: { entity: "activities", id: "activity-1", changes },
+      };
+      const reverse: PlanningIntent = {
+        operation: "catalogue.update",
+        entity: { entity: "activities", id: "activity-1", changes: { ...changes, name: "Office" } },
+      };
+      read.mockResolvedValueOnce({ revision: 5, data: emptyAppData() });
+      if (proof === "lookup") {
+        execute.mockRejectedValueOnce(new TypeError("response lost"));
+        lookup.mockImplementationOnce(async (_context, mutationId) => ({
+          status: "committed",
+          mutationId,
+          revision: 5,
+        }));
+        await expect(
+          h.controller.execute(h.controller.begin({ name: "Office", kind: "internal" }), update, reverse),
+        ).rejects.toMatchObject({ uncertain: true });
+        await h.controller.reconcile();
+      } else {
+        execute.mockImplementationOnce(async (_context, execution) => ({
+          ...success(execution.mutationId, 5),
+          ...(includesKind ? { projection: { mode: "refetch" as const, history: "clear" as const } } : {}),
+        }));
+        await h.controller.execute(h.controller.begin({ name: "Office", kind: "internal" }), update, reverse);
+      }
+      expect(h.state().planning.history.past).toEqual(
+        includesKind
+          ? []
+          : [
+              { forward: intent, inverse },
+              { forward: update, inverse: reverse },
+            ],
+      );
+      expect(h.state().planning.history.future).toEqual([]);
+      expect(h.state().planning.history.tipRevision).toBe(includesKind ? null : 5);
+      expect(execute).toHaveBeenCalledTimes(4);
+      expect(lookup).toHaveBeenCalledTimes(proof === "lookup" ? 1 : 0);
+    },
+  );
 });

@@ -260,7 +260,9 @@ function isLookupHistoryEligible(intent: PlanningIntent, inverse: PlanningIntent
   if (!inverse || intent.operation === "settings.update") return false;
   return !(
     intent.operation === "catalogue.update" &&
-    ("isPrivate" in intent.entity.changes || "codeName" in intent.entity.changes)
+    ("isPrivate" in intent.entity.changes ||
+      "codeName" in intent.entity.changes ||
+      (intent.entity.entity === "activities" && "kind" in intent.entity.changes))
   );
 }
 
@@ -620,7 +622,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         receipt,
       );
       await refresh();
-      return receipt;
+      return isCurrent(draft.generation, draft.context) ? receipt : null;
     } catch (error) {
       const details = errorDetails(error);
       if (error instanceof PlanningControllerError && error.uncertain) throw error;
@@ -639,7 +641,8 @@ export function createPlanningCacheController(options: PlanningControllerOptions
               pending,
             },
           }));
-          if (await reconcilePending()) return null;
+          await reconcilePending();
+          if (owner.pending.commitment) return null;
         }
         throw new PlanningControllerError(details.message, details.code, details.status, true);
       }
@@ -664,10 +667,11 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         throw new PlanningControllerError(details.message, details.code ?? "stale_revision", details.status);
       }
       if (
-        details.code === "authorization_denied" ||
-        details.code === "validation_error" ||
-        details.code === "no_change" ||
-        (details.status !== undefined && details.status < 500)
+        details.status !== 408 &&
+        (details.code === "authorization_denied" ||
+          details.code === "validation_error" ||
+          details.code === "no_change" ||
+          (details.status !== undefined && details.status < 500))
       ) {
         if (ownsAttempt(owner)) {
           attempt = null;
@@ -707,6 +711,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     }
   }
 
+  /** Returns no receipt after context invalidation or commitment-only reconciliation; neither permits replay. */
   async function execute(
     draft: PlanningDraft,
     intent: PlanningIntent,
@@ -748,14 +753,14 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     const item = historyDraft("undo");
     if (!item) return false;
     await perform(item.draft, item.entry.inverse, item.entry.forward, "undo", item.entry);
-    return true;
+    return isCurrent(item.draft.generation, item.draft.context);
   }
 
   async function redo(): Promise<boolean> {
     const item = historyDraft("redo");
     if (!item) return false;
     await perform(item.draft, item.entry.forward, item.entry.inverse, "redo", item.entry);
-    return true;
+    return isCurrent(item.draft.generation, item.draft.context);
   }
 
   return { setContext, refresh, begin, execute, reconcile: reconcilePending, undo, redo };
