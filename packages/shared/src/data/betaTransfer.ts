@@ -2,7 +2,7 @@ import { APP_DATA_KEYS } from "../types/entityKeys.js";
 import type { AppData, ScopedEntityKey } from "../types/entities.js";
 import { isRecord } from "../lib/isRecord.js";
 import { hasUsablePrivateCodeName } from "../domain/privateNames.js";
-import { assert, fail, isId, isOneOf } from "./betaTransfer.errors.js";
+import { assert, fail, isId, isOneOf, own } from "./betaTransfer.errors.js";
 import { FIELDS, projectBetaData, validateRow } from "./betaTransfer.validation.js";
 import { validateBetaReferences } from "./betaTransfer.references.js";
 import { BetaTransferError } from "./betaTransfer.errors.js";
@@ -34,7 +34,6 @@ export interface PreparedBetaImport {
 }
 
 type Row = Record<string, unknown>;
-const own = (value: object, key: string) => Object.prototype.hasOwnProperty.call(value, key);
 
 function validateDocument(value: unknown): BetaExportDocument {
   assert(isRecord(value), "document", "must be an object");

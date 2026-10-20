@@ -22,5 +22,8 @@ export function assert(condition: unknown, path: string, message: string): asser
 export const isId = (value: unknown): value is string =>
   typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._~-]{0,127}$/.test(value);
 
+/** Return whether a plain object has its own property with this key. */
+export const own = (value: object, key: string) => Object.prototype.hasOwnProperty.call(value, key);
+
 /** Return whether a value exactly matches one of the supplied choices. */
 export const isOneOf = (value: unknown, choices: readonly unknown[]) => choices.includes(value);

@@ -13,7 +13,7 @@ import {
 import { parseResourceAvatarUrl } from "../domain/resourceAvatarUrl.js";
 import { externalCapacityDefaults, placeholderCapacityDefaults } from "../types/entities.js";
 import { isRecord } from "../lib/isRecord.js";
-import { assert, fail, isId } from "./betaTransfer.errors.js";
+import { assert, fail, isId, isOneOf, own } from "./betaTransfer.errors.js";
 
 /** Declares every portable field for each beta export table. */
 export const FIELDS = {
@@ -127,8 +127,6 @@ const portableFieldsAreComplete: MissingPortableField extends never ? true : nev
 void portableFieldsAreComplete;
 
 type Row = Record<string, unknown>;
-const own = (value: object, key: string) => Object.prototype.hasOwnProperty.call(value, key);
-const oneOf = (value: unknown, choices: readonly unknown[]) => choices.includes(value);
 const weekdays = [0, 1, 2, 3, 4, 5, 6];
 const nullable = (value: unknown, test: (candidate: unknown) => boolean) => value === null || test(value);
 const isString = (value: unknown) => typeof value === "string";
@@ -208,7 +206,7 @@ export function validateRow(
       assertText(row, "name", path);
       assertColor(row, "color", path);
       assert(
-        nullable(row.schedulingMode, (v) => oneOf(v, ["hourly", "days", "blocks"])),
+        nullable(row.schedulingMode, (v) => isOneOf(v, ["hourly", "days", "blocks"])),
         `${path}.schedulingMode`,
         "is invalid",
       );
@@ -246,12 +244,14 @@ export function validateRow(
       ])
         assert(nullable(row[field], isBoolean), `${path}.${field}`, "must be boolean or null");
       assert(
-        nullable(row.capacityOverviewAccess, (v) => oneOf(v, ["owner_admin", "owner_admin_editor", "everyone"])),
+        nullable(row.capacityOverviewAccess, (v) => isOneOf(v, ["owner_admin", "owner_admin_editor", "everyone"])),
         `${path}.capacityOverviewAccess`,
         "is invalid",
       );
       assert(
-        nullable(row.dateStyle, (v) => oneOf(v, ["day-month", "day-ordinal-month", "month-day", "month-day-ordinal"])),
+        nullable(row.dateStyle, (v) =>
+          isOneOf(v, ["day-month", "day-ordinal-month", "month-day", "month-day-ordinal"]),
+        ),
         `${path}.dateStyle`,
         "is invalid",
       );
@@ -262,17 +262,17 @@ export function validateRow(
       assert(Number.isSafeInteger(row.sortOrder), `${path}.sortOrder`, "must be a safe integer");
       break;
     case "resources": {
-      assert(oneOf(row.kind, ["person", "placeholder", "external"]), `${path}.kind`, "is invalid");
+      assert(isOneOf(row.kind, ["person", "placeholder", "external"]), `${path}.kind`, "is invalid");
       assertNullableText(row, "name", path);
       assertText(row, "role", path, { allowEmpty: true });
       assert(nullable(row.avatarUrl, isString), `${path}.avatarUrl`, "must be a string or null");
       assertNullableId(row, "disciplineId", path);
       assert(
-        oneOf(row.employmentType, ["permanent", "freelancer", "contractor"]),
+        isOneOf(row.employmentType, ["permanent", "freelancer", "contractor"]),
         `${path}.employmentType`,
         "is invalid",
       );
-      assert(oneOf(row.engagement, ["studio", "supplementary"]), `${path}.engagement`, "is invalid");
+      assert(isOneOf(row.engagement, ["studio", "supplementary"]), `${path}.engagement`, "is invalid");
       assert(
         isFiniteNumber(row.workingHoursPerDay) &&
           (row.workingHoursPerDay as number) > 0 &&
@@ -373,7 +373,7 @@ export function validateRow(
       break;
     case "activities":
       assertText(row, "name", path);
-      assert(oneOf(row.kind, ["project", "internal", "repeatable"]), `${path}.kind`, "is invalid");
+      assert(isOneOf(row.kind, ["project", "internal", "repeatable"]), `${path}.kind`, "is invalid");
       assertNullableId(row, "projectId", path);
       assertNullableId(row, "phaseId", path);
       assertNullableTimestamp(row, "archivedAt", path);
@@ -401,7 +401,7 @@ export function validateRow(
         `${path}.hoursPerDay`,
         "is outside the supported range",
       );
-      assert(oneOf(row.status, ["confirmed", "tentative", "completed"]), `${path}.status`, "is invalid");
+      assert(isOneOf(row.status, ["confirmed", "tentative", "completed"]), `${path}.status`, "is invalid");
       assertNullableText(row, "note", path, { multiline: true });
       assertNullableText(row, "task", path);
       assert(nullable(row.ignoreWeekends, isBoolean), `${path}.ignoreWeekends`, "must be boolean or null");
@@ -413,7 +413,7 @@ export function validateRow(
         path,
         "time-off date range is invalid",
       );
-      assert(oneOf(row.type, ["holiday", "sick", "unpaid", "other"]), `${path}.type`, "is invalid");
+      assert(isOneOf(row.type, ["holiday", "sick", "unpaid", "other"]), `${path}.type`, "is invalid");
       assertNullableText(row, "note", path, { multiline: true });
       break;
     case "closures":
@@ -431,10 +431,9 @@ export function projectBetaData(data: AppData, accountId: string): AppData {
     if (!Array.isArray(source)) fail(`data.${key}`, "must be a list");
     const selected =
       key === "accounts"
-        ? source.filter((row) => isRecord(row) && row.id === accountId)
-        : source.filter((row) => isRecord(row) && row.accountId === accountId);
+        ? source.filter((row): row is Row => isRecord(row) && row.id === accountId)
+        : source.filter((row): row is Row => isRecord(row) && row.accountId === accountId);
     (projected as unknown as Record<string, unknown>)[key] = selected.map((input) => {
-      if (!isRecord(input)) fail(`data.${key}`, "contains a non-object row");
       const copy: Row = {};
       for (const field of FIELDS[key] as readonly string[])
         if (own(input, field)) {
