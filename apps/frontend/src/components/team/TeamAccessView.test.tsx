@@ -26,7 +26,6 @@ const auth = (authMode: AuthContextValue["authMode"]): AuthContextValue => ({
   authMode,
   user: authMode === "off" ? null : { id: "me", email: "me@example.com" },
   canCreateAccount: true,
-  multiAccount: true,
   refreshAuth: async () => {},
   signOut: async () => {},
 });

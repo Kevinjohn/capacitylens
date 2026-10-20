@@ -43,7 +43,7 @@ async function signInAsEditor(page: Page) {
   await page.getByLabel("Email").fill(EDITOR);
   await page.getByLabel("Password").fill(AUTH_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.getByRole("button", { name: ORG, exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
   await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
 }
 

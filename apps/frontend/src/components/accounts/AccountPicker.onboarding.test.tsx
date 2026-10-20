@@ -39,7 +39,6 @@ function renderWithoutCreatePermission() {
         authMode: "off",
         user: null,
         canCreateAccount: false,
-        multiAccount: false,
         refreshAuth: async () => {},
         signOut: async () => {},
       }}
@@ -129,7 +128,6 @@ describe("AccountPicker example data", () => {
           authMode: "off",
           user: null,
           canCreateAccount: true,
-          multiAccount: true,
           refreshAuth: async () => {},
           signOut: async () => {},
         }}

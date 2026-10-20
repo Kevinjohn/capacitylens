@@ -26,7 +26,7 @@ function context(role: BatchCapabilities['role']): BatchDataContext {
   }
   const bouncer = new Bouncer({ id: 'bruce-wayne' })
   return {
-    ...trustedLocalDataContext('bruce-wayne', true),
+    ...trustedLocalDataContext('bruce-wayne'),
     ...capabilities,
     capabilitiesFor: () => capabilities,
     authorize: (accountId, action, resolved) =>

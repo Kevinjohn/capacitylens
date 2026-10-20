@@ -26,7 +26,6 @@ function auth(
     reauthMethod,
     user: authMode === "off" ? null : { id: "u1", name: "Diana Prince", email: "diana@example.test" },
     canCreateAccount: true,
-    multiAccount: true,
     refreshAuth: async () => {},
     signOut,
   };

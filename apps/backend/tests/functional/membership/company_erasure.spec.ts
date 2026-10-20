@@ -20,18 +20,12 @@ test.group('authenticated company erasure', (group) => {
     const previous = {
       mode: env.get('CAPACITYLENS_MODE'),
       setup: env.get('CAPACITYLENS_SETUP_TOKEN'),
-      multi: env.get('CAPACITYLENS_MULTI_ACCOUNT'),
-      multiProcess: process.env.CAPACITYLENS_MULTI_ACCOUNT,
     }
     env.set('CAPACITYLENS_MODE', 'password-only')
     env.set('CAPACITYLENS_SETUP_TOKEN', setupToken)
-    env.set('CAPACITYLENS_MULTI_ACCOUNT', true)
     return () => {
       env.set('CAPACITYLENS_MODE', previous.mode)
       env.set('CAPACITYLENS_SETUP_TOKEN', previous.setup)
-      env.set('CAPACITYLENS_MULTI_ACCOUNT', previous.multi)
-      if (previous.multiProcess === undefined) delete process.env.CAPACITYLENS_MULTI_ACCOUNT
-      else process.env.CAPACITYLENS_MULTI_ACCOUNT = previous.multiProcess
     }
   })
   group.setup(() => testUtils.db().migrate())

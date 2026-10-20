@@ -15,7 +15,6 @@ const signedOutAuth: AuthContextValue = {
   authMode: "password-only",
   user: null,
   canCreateAccount: true,
-  multiAccount: true,
   refreshAuth: async () => {},
   signOut: async () => {},
 };

@@ -22,7 +22,8 @@ week-start or time zone after work is scheduled would silently re-interpret ever
 
 **Capture (at creation):**
 
-1. From the company picker, click **New company**.
+1. On a fresh server installation, start the supported first-company setup. In the temporary demo,
+   use **New company** from the temporary demo picker.
 2. The inline form shows **Company name**, **Week starts on** (Monday/Sunday, default Monday),
    and a searchable **Timezone** combobox preselected to the browser's IANA zone. Its options
    keep the local and common zones first and show a friendly name, current abbreviation and

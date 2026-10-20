@@ -34,19 +34,13 @@ test.group('new company recovery authority', (group) => {
   }) => {
     const priorMode = env.get('CAPACITYLENS_MODE')
     const priorSetup = env.get('CAPACITYLENS_SETUP_TOKEN')
-    const priorMulti = env.get('CAPACITYLENS_MULTI_ACCOUNT')
-    const priorMultiProcess = process.env.CAPACITYLENS_MULTI_ACCOUNT
     const priorScreen = env.get('CAPACITYLENS_PASSWORD_BREACH_CHECK')
     env.set('CAPACITYLENS_MODE', 'password-only')
     env.set('CAPACITYLENS_SETUP_TOKEN', 'company-recovery-setup-token-2026')
-    env.set('CAPACITYLENS_MULTI_ACCOUNT', true)
     env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', false)
     cleanup(() => {
       env.set('CAPACITYLENS_MODE', priorMode)
       env.set('CAPACITYLENS_SETUP_TOKEN', priorSetup)
-      env.set('CAPACITYLENS_MULTI_ACCOUNT', priorMulti)
-      if (priorMultiProcess === undefined) delete process.env.CAPACITYLENS_MULTI_ACCOUNT
-      else process.env.CAPACITYLENS_MULTI_ACCOUNT = priorMultiProcess
       env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', priorScreen)
     })
     const signed = await client

@@ -158,12 +158,29 @@ export function readState(accountId?: string, includeInactive = accountId === un
   return readStateWithClient(db.connection(), accountId, includeInactive)
 }
 
-export async function resetState(seedRequested: boolean) {
+export async function resetState(seedRequested: boolean | 'single') {
   await withTransaction(async (trx) => {
     await trx.from('audit_entries').delete()
     for (const table of Object.values(tables).reverse()) await trx.from(table).delete()
     if (!seedRequested) return
-    const data = seed()
+    const seeded = seed()
+    const firstAccountId = seeded.accounts[0]?.id
+    const data =
+      seedRequested === 'single' && firstAccountId
+        ? {
+            ...seeded,
+            accounts: seeded.accounts.filter((row) => row.id === firstAccountId),
+            clients: filterCompanyRows(seeded.clients, firstAccountId),
+            disciplines: filterCompanyRows(seeded.disciplines, firstAccountId),
+            projects: filterCompanyRows(seeded.projects, firstAccountId),
+            phases: filterCompanyRows(seeded.phases, firstAccountId),
+            resources: filterCompanyRows(seeded.resources, firstAccountId),
+            activities: filterCompanyRows(seeded.activities, firstAccountId),
+            allocations: filterCompanyRows(seeded.allocations, firstAccountId),
+            timeOff: filterCompanyRows(seeded.timeOff, firstAccountId),
+            closures: filterCompanyRows(seeded.closures, firstAccountId),
+          }
+        : seeded
     for (const [key, table] of Object.entries(tables)) {
       const rows = data[key as keyof typeof tables]
       if (rows.length > 0)
@@ -174,6 +191,10 @@ export async function resetState(seedRequested: boolean) {
           )
     }
   })
+}
+
+function filterCompanyRows<T extends { accountId: string }>(rows: T[], accountId: string): T[] {
+  return rows.filter((row) => row.accountId === accountId)
 }
 
 export const replaceWithSeed = () => resetState(true)

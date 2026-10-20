@@ -23,7 +23,6 @@ import { passwordLengthFailure } from '@capacitylens/shared/domain/password'
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
 import { consumeFailedSignInBudget, resetFailedSignInBudget } from '#services/auth/request_limit'
 import { endMasqueradeForSignOut } from '#services/auth/masquerade'
-import { restrictedCompanyIds } from '#services/auth/authorization'
 
 function bodyFields(value: unknown, fields: string[]): value is Record<string, unknown> {
   return (
@@ -73,37 +72,22 @@ async function withRequestPasswordWork<T>(ctx: HttpContext, work: () => Promise<
 export default class AuthController {
   async me(ctx: HttpContext) {
     const mode = authMode()
-    const multiAccount = env.get('CAPACITYLENS_MULTI_ACCOUNT') === true
     const hasCompany = Boolean(await db.from('accounts').select('id').first())
     if (mode === 'off') {
       return {
         authMode: mode,
         user: ctx.auth.use('trustedLocal').getUserOrFail(),
         providers: [],
-        multiAccount,
-        canCreateAccount: multiAccount || !hasCompany,
+        canCreateAccount: !hasCompany,
       }
     }
     try {
       const actor = await resolveCurrentActor(ctx)
-      const mayCreateAnother =
-        multiAccount &&
-        (await withTransaction(async (trx) => {
-          const standing = await trx
-            .from('memberships')
-            .where('user_id', actor.userId)
-            .where('status', 'active')
-            .whereIn('role', ['owner', 'admin'])
-            .select('account_id')
-          const restricted = await restrictedCompanyIds(actor.userId, trx)
-          return standing.some((row) => !restricted.has(String(row.account_id)))
-        }))
       return {
         authMode: mode,
         user: userProjection(actor.user),
         providers: availableProviders(),
-        multiAccount,
-        canCreateAccount: !hasCompany || mayCreateAnother,
+        canCreateAccount: !hasCompany,
         reauthMethod: passwordEnabled() && actor.user.passwordHash ? 'password' : 'provider',
         reauthProviderId: passwordEnabled() && actor.user.passwordHash ? null : 'google',
       }

@@ -202,7 +202,7 @@ test.group('M2b protected Internal client batch contract', (group) => {
           { method: 'PUT', table: 'accounts', id: secondAccount.id, row: { ...secondAccount } },
         ],
         null,
-        trustedLocalDataContext('m2b-builtin-singleton-test', true)
+        trustedLocalDataContext('m2b-builtin-singleton-test')
       )
     )
 

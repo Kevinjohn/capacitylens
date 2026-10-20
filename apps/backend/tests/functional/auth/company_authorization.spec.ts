@@ -25,17 +25,11 @@ test.group('authenticated company administration', (group) => {
     cleanup,
   }) => {
     const oldMode = env.get('CAPACITYLENS_MODE')
-    const oldMulti = env.get('CAPACITYLENS_MULTI_ACCOUNT')
-    const oldMultiProcess = process.env.CAPACITYLENS_MULTI_ACCOUNT
     const oldSetup = env.get('CAPACITYLENS_SETUP_TOKEN')
     env.set('CAPACITYLENS_MODE', 'password-only')
-    env.set('CAPACITYLENS_MULTI_ACCOUNT', true)
     env.set('CAPACITYLENS_SETUP_TOKEN', setupToken)
     cleanup(() => {
       env.set('CAPACITYLENS_MODE', oldMode)
-      env.set('CAPACITYLENS_MULTI_ACCOUNT', oldMulti)
-      if (oldMultiProcess === undefined) delete process.env.CAPACITYLENS_MULTI_ACCOUNT
-      else process.env.CAPACITYLENS_MULTI_ACCOUNT = oldMultiProcess
       env.set('CAPACITYLENS_SETUP_TOKEN', oldSetup)
     })
     const signup = await trusted(client.post('/api/auth/sign-up'))
@@ -79,21 +73,15 @@ test.group('authenticated company administration', (group) => {
   }) => {
     const prior = {
       mode: env.get('CAPACITYLENS_MODE'),
-      multi: env.get('CAPACITYLENS_MULTI_ACCOUNT'),
-      multiProcess: process.env.CAPACITYLENS_MULTI_ACCOUNT,
       setup: env.get('CAPACITYLENS_SETUP_TOKEN'),
       open: env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP'),
       bootstrap: env.get('CAPACITYLENS_BOOTSTRAP_TOKEN'),
     }
     env.set('CAPACITYLENS_MODE', 'password-only')
-    env.set('CAPACITYLENS_MULTI_ACCOUNT', true)
     env.set('CAPACITYLENS_SETUP_TOKEN', setupToken)
     env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', true)
     cleanup(() => {
       env.set('CAPACITYLENS_MODE', prior.mode)
-      env.set('CAPACITYLENS_MULTI_ACCOUNT', prior.multi)
-      if (prior.multiProcess === undefined) delete process.env.CAPACITYLENS_MULTI_ACCOUNT
-      else process.env.CAPACITYLENS_MULTI_ACCOUNT = prior.multiProcess
       env.set('CAPACITYLENS_SETUP_TOKEN', prior.setup)
       env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', prior.open)
       env.set('CAPACITYLENS_BOOTSTRAP_TOKEN', prior.bootstrap)

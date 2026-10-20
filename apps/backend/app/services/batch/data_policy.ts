@@ -19,7 +19,6 @@ export interface BatchCapabilities {
 
 export interface BatchDataContext extends BatchCapabilities {
   actorId: string
-  multiAccount: boolean
   logCommitted: (event: { applied: number; changed: number }) => void | Promise<void>
   capabilitiesFor: (accountId: string) => BatchCapabilities
   authorize: (
@@ -32,7 +31,6 @@ export interface BatchDataContext extends BatchCapabilities {
 /** Trusted-local mode resolves the same explicit capabilities a future provider-backed guard supplies. */
 export function trustedLocalDataContext(
   actorId: string,
-  multiAccount: boolean,
   logCommitted: BatchDataContext['logCommitted'] = () => {}
 ): BatchDataContext {
   const capabilities = {
@@ -45,7 +43,6 @@ export function trustedLocalDataContext(
   const bouncer = new Bouncer({ id: actorId })
   return {
     actorId,
-    multiAccount,
     ...capabilities,
     logCommitted,
     capabilitiesFor: () => capabilities,
@@ -58,15 +55,10 @@ export function trustedLocalDataContext(
 export async function dataContextForActor(
   ctx: HttpContext,
   trx: TransactionClientContract,
-  multiAccount: boolean,
   logCommitted: BatchDataContext['logCommitted'] = () => {}
 ): Promise<BatchDataContext> {
   if (authMode() === 'off')
-    return trustedLocalDataContext(
-      ctx.auth.use('trustedLocal').getUserOrFail().id,
-      multiAccount,
-      logCommitted
-    )
+    return trustedLocalDataContext(ctx.auth.use('trustedLocal').getUserOrFail().id, logCommitted)
   const actor = await resolveCurrentActor(ctx, trx)
   const principal = await effectiveReadPrincipal(ctx, trx)
   const rows = await trx
@@ -99,7 +91,6 @@ export async function dataContextForActor(
   const bouncer = new Bouncer({ id: actor.userId })
   return {
     actorId: actor.userId,
-    multiAccount,
     ...capabilitiesFor(''),
     capabilitiesFor,
     logCommitted,

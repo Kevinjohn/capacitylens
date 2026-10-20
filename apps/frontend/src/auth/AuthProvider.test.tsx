@@ -47,9 +47,9 @@ async function freshProvider() {
 }
 
 // Pass the hook as a prop so reset module instances do not split context identity.
-function Probe({ useAuth }: { useAuth: () => { canCreateAccount: boolean; multiAccount: boolean } }) {
-  const { canCreateAccount, multiAccount } = useAuth();
-  return <div>{`canCreateAccount:${canCreateAccount} multiAccount:${multiAccount}`}</div>;
+function Probe({ useAuth }: { useAuth: () => { canCreateAccount: boolean } }) {
+  const { canCreateAccount } = useAuth();
+  return <div>{`canCreateAccount:${canCreateAccount}`}</div>;
 }
 
 // Exercise fire-and-forget refresh because callers rely on its never-reject contract.
@@ -979,10 +979,9 @@ describe("AuthProvider — server mode", () => {
   registerServerModeTest31();
 });
 
-// The server supplies account-creation flags for the UI; the server remains the authorization
-// boundary, so unavailable or invalid flags must not hide the affordance.
+// The server supplies the first-company setup flag; it remains the authorization boundary.
 function registerAccountPolicyTest01() {
-  it("parses canCreateAccount:false / multiAccount:false from a mocked /api/auth/me", async () => {
+  it("parses canCreateAccount:false from a mocked /api/auth/me", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
       "fetch",
@@ -991,7 +990,6 @@ function registerAccountPolicyTest01() {
           authMode: "off",
           user: null,
           canCreateAccount: false,
-          multiAccount: false,
         }),
       ),
     );
@@ -1001,12 +999,12 @@ function registerAccountPolicyTest01() {
         <Probe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(await screen.findByText("canCreateAccount:false multiAccount:false")).toBeInTheDocument();
+    expect(await screen.findByText("canCreateAccount:false")).toBeInTheDocument();
   });
 }
 
 function registerAccountPolicyTest02() {
-  it("parses canCreateAccount:true / multiAccount:true from a mocked /api/auth/me", async () => {
+  it("parses canCreateAccount:true from a mocked /api/auth/me", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
       "fetch",
@@ -1015,7 +1013,6 @@ function registerAccountPolicyTest02() {
           authMode: "off",
           user: null,
           canCreateAccount: true,
-          multiAccount: true,
         }),
       ),
     );
@@ -1025,12 +1022,12 @@ function registerAccountPolicyTest02() {
         <Probe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(await screen.findByText("canCreateAccount:true multiAccount:true")).toBeInTheDocument();
+    expect(await screen.findByText("canCreateAccount:true")).toBeInTheDocument();
   });
 }
 
 function registerAccountPolicyTest03() {
-  it("defaults BOTH fields to true when an older server omits them from an otherwise-valid body", async () => {
+  it("defaults first-company setup to true when an older server omits it from an otherwise-valid body", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
       "fetch",
@@ -1042,7 +1039,7 @@ function registerAccountPolicyTest03() {
         <Probe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(await screen.findByText("canCreateAccount:true multiAccount:true")).toBeInTheDocument();
+    expect(await screen.findByText("canCreateAccount:true")).toBeInTheDocument();
   });
 }
 
@@ -1099,7 +1096,6 @@ function registerAccountPolicyTest06() {
           authMode: "off",
           user: null,
           canCreateAccount: false,
-          multiAccount: false,
         }),
       )
       .mockResolvedValue(
@@ -1107,7 +1103,6 @@ function registerAccountPolicyTest06() {
           authMode: "off",
           user: null,
           canCreateAccount: true,
-          multiAccount: false,
         }),
       );
     vi.stubGlobal("fetch", fetchSpy);
@@ -1138,7 +1133,6 @@ function registerAccountPolicyTest07() {
           authMode: "off",
           user: null,
           canCreateAccount: false,
-          multiAccount: false,
         }),
       )
       .mockRejectedValue(new Error("ECONNREFUSED"));
@@ -1171,11 +1165,11 @@ function registerAccountPolicyTest08() {
         <Probe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(await screen.findByText("canCreateAccount:true multiAccount:true")).toBeInTheDocument();
+    expect(await screen.findByText("canCreateAccount:true")).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 }
-describe("AuthProvider — canCreateAccount / multiAccount (single-company-per-instance policy)", () => {
+describe("AuthProvider — first-company setup policy", () => {
   registerAccountPolicyTest01();
   registerAccountPolicyTest02();
   registerAccountPolicyTest03();

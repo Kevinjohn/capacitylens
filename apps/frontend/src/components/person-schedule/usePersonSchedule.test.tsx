@@ -32,7 +32,6 @@ function wrapper({
           user: authMode === "off" ? null : { id: "viewer" },
           providers: [],
           canCreateAccount: true,
-          multiAccount: true,
           refreshAuth: async () => {},
           signOut: async () => {},
         }}

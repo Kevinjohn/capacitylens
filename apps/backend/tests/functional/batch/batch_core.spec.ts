@@ -300,7 +300,7 @@ test.group('M2a atomic batch', (group) => {
         index === rows.findIndex((candidate) => candidate.accountId === row.accountId)
     )
     if (!allowed || !denied) throw new Error('Expected fixture disciplines for both companies')
-    const base = trustedLocalDataContext('policy-actor', true)
+    const base = trustedLocalDataContext('policy-actor')
     const context = {
       ...base,
       capabilitiesFor: (accountId: string) => ({
@@ -341,7 +341,7 @@ test.group('M2a atomic batch', (group) => {
     assert,
   }) => {
     await client.post('/api/test/reset').json({ seed: true }).send()
-    const base = trustedLocalDataContext('editor-actor', true)
+    const base = trustedLocalDataContext('editor-actor')
     const editorCapabilities = {
       ...base.capabilitiesFor('a-studio'),
       role: 'editor' as const,
@@ -373,7 +373,7 @@ test.group('M2a atomic batch', (group) => {
   }) => {
     await client.post('/api/test/reset').json({ seed: true }).send()
     const current = seed().disciplines[0]
-    const context = trustedLocalDataContext('log-failure-actor', true, () => {
+    const context = trustedLocalDataContext('log-failure-actor', () => {
       throw new Error('log unavailable')
     })
     const result = await withTransaction((trx) =>
@@ -399,7 +399,7 @@ test.group('M2a atomic batch', (group) => {
   test('redacts a hidden time-off note from an optimistic conflict', async ({ client, assert }) => {
     await client.post('/api/test/reset').json({ seed: true }).send()
     const current = seed().timeOff.find((row) => typeof row.note === 'string')!
-    const base = trustedLocalDataContext('note-blind', true)
+    const base = trustedLocalDataContext('note-blind')
     const capabilities = {
       ...base.capabilitiesFor(current.accountId),
       canSeeTimeOffNote: false,

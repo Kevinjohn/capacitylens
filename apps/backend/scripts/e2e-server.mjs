@@ -35,7 +35,6 @@ if (flavour === 'auth') {
     CAPACITYLENS_BOOTSTRAP_TOKEN: 'auth-e2e-bootstrap-token-0123456789abcdef',
     CAPACITYLENS_PASSWORD_BREACH_CHECK: 'false',
     CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
-    CAPACITYLENS_MULTI_ACCOUNT: '1',
     CAPACITYLENS_SECRET: 'capacitylens-auth-e2e-secret-0123456789abcdef',
     CAPACITYLENS_PUBLIC_URL: `http://localhost:${port}`,
     CAPACITYLENS_CORS_ORIGIN: `http://localhost:${lane.authWeb},http://127.0.0.1:${lane.authWeb}`,

@@ -54,13 +54,12 @@ accept responses never include it.
    has **no** popup: click the single preview account to continue. It is shown only
    when real auth is off (the default) and is skipped once "signed in" (the choice persists
    device-globally; "Sign out" on the picker or Account page returns to it).
-4. Then the **company picker**. The active company remains session-only and is never persisted.
-   On a browser reload, a login with exactly one valid company opens that company automatically and
-   keeps the requested route; first entry, an explicit **Switch company**, and every multi-company
-   login still show the picker. Pick **Wayne Enterprises** to see the seeded data these stories
-   describe. (A second seeded company, _Stark Industries_, is near-empty, so this demo remains on
-   the multi-company picker after a reload.) While "signed in", the picker shows
-   _"Signed in as Bruce Wayne"_ with a **Sign out** link. **`New company`**
+4. Production opens the sole company returned by the server and keeps the requested route. The
+   active company id remains session-only and is never persisted. If an installation contains
+   multiple stored companies, the server returns an actionable conflict and the UI offers no
+   selection controls. The temporary in-memory demo retains its fictional two-company picker and
+   switch action. While signed in, its picker shows _"Signed in as Bruce Wayne"_ with a **Sign out**
+   link. **`New company`**
    (`data-testid="new-company-button"`) opens an inline create form that captures the company
    name and the three **frozen-after-creation** fields: **Week starts on** (segmented
    Monday/Sunday, default Monday), **Timezone** (a searchable combobox that detects and preselects
@@ -71,63 +70,20 @@ accept responses never include it.
    server-backed deploy the form also shows a **Start with example data** checkbox, ticked when it
    is the user's first company and unticked otherwise; the in-memory demo does not offer it. These three are set ONCE here and are then **disabled** in
    Settings; the server rejects a later change with **409**.
-   When there are no companies and the caller may create one, the picker presents only two next
-   steps: **New company** or **Ask an admin for an invite**. A caller without create permission sees
-   only the invite step. With one or more companies already listed, the subtitle says
-   _"Choose a company to plan, or create another one."_
-   If the app is asked to select an unknown company while another company is active, it returns to
-   this picker, clears the leaving company's dirty-form, drag and screen-reader announcement state,
-   keeps the prior-company breadcrumb, shows the company-not-found notification, and rejects scoped
-   edits until a real company is selected. If a refresh or account switch publishes a slice that no
-   longer contains the selected company, CapacityLens returns atomically to this picker, clears the
-   same transient state and the prior-company breadcrumb, shows the company-not-found notification,
-   and rejects scoped edits until a real company is selected.
-   If switching companies fails before a slice can be loaded, the previous company's data stays
-   hidden behind the recovery stage (`data-testid="account-load-recovery"`). **Retry** loads the
-   selected company again; **Choose another company** returns to the picker.
-   A single-company reload attempt is consumed once, so a missing or deleted company cannot be
-   repeatedly reactivated. An unavailable membership, empty company list, or invite handoff also
-   remains at its safe entry boundary rather than being mistaken for a valid single company.
-   Only the newest complete company-directory response may treat a missing company as revoked
-   access. A superseded response cannot close the current company, and a partially malformed
-   directory may publish its valid rows with a warning but cannot claim that a dropped membership
-   was removed.
-   **Single-company-per-instance policy + caller standing:** a server-backed deploy defaults to
-   ONE company (`CAPACITYLENS_MULTI_ACCOUNT` unset) — once an account already exists,
-   `GET /api/auth/me` reports `canCreateAccount: false` and the **`New company`** button is
-   HIDDEN entirely (not merely disabled). Under auth-on the flag ALSO requires the caller's
-   standing (the same predicate `POST /api/orgs` enforces): only a user who is owner/admin of
-   SOME account — or any user on a zero-account instance — may create, so an editor-only or
-   membership-less login never sees the button (its empty picker says "ask an admin for an
-   invite" instead of "create your first one"). In SSO-only mode the current session must also come
-   from Google. A direct `POST /api/accounts` still 403s
-   regardless, so this is UX only. The
-   button stays visible whenever the fact is unavailable or doesn't apply: the demo build (no
-   server, no cap), a zero-account instance (the bootstrap exemption — you must be able to create
-   the FIRST company), an older server that predates these fields, or a deploy with
-   `CAPACITYLENS_MULTI_ACCOUNT=1` set (the auth-backed stories' server runs this way, so its
-   picker always shows the button). In a server deploy the create goes through `POST /api/orgs`
-   (atomic: company + built-in Internal client + your Owner membership); a server refusal (the
-   cap, org-create gate, or stale-session step-up) surfaces as the form's inline error. When an
-   existing Owner/Admin membership authorises another company, the server requires a fresh session
-   because creation grants a new Owner role. In an authenticated deploy,
-   every listed company shows the caller's membership role — **Owner**, **Admin**, **Editor** or
-   **Viewer** (`data-testid="company-role"`) — before it is opened. The in-memory demo instead says
-   **Demo access** and an auth-off persisted server says **Open access**; neither invents an Owner
-   membership. When an authenticated user switches companies, local writes fail closed as Viewer
-   until the role resolved for that exact company replaces the prior company's authority. Each
-   listed company also shows a **Delete** button (`Delete <name>`,
-   type-the-name-to-confirm dialog) only to its Owner; Admin/Editor/Viewer get no company-delete
-   affordance. In that dialog the destructive button remains keyboard-focusable while the typed
-   name does not match, exposes `aria-disabled="true"`, and is described by the confirmation hint;
-   activation is ignored until the exact company name is entered.
-   Company deletion is atomic and fail-closed: if a corrupt stored relationship would cascade a
-   delete or unbind into another company, both companies remain intact and the picker surfaces the
-   server refusal for operator repair. A completed authenticated deletion retains its anonymized
-   command receipt briefly. If the response is lost, the same authenticated principal can retry the
-   command and receive success even though the deleted company's membership is gone. Deleting the
-   principal's last company also removes that principal and invalidates its session, so the receipt
-   cannot be replayed without a surviving authenticated session. A post-delete `403` from an
+   When there is no company, the supported first-company setup or invitation path remains available.
+   Production does not offer company selection, switching, ordinary additional-company creation or
+   in-app company deletion. The server summary supplies the sole installation company; scoped APIs
+   still authorize every requested id from the caller's server-side membership. If the summary
+   detects multiple stored companies, the app asks the administrator to resolve the installation.
+   The in-memory demo retains its picker, temporary company creation and switching.
+   Company deletion remains an administrative API capability but is not offered in the production
+   UI. When an authorized deletion is used, it is atomic and fail-closed: if a corrupt stored
+   relationship would cascade a delete or unbind into another company, both companies remain
+   intact and the server refuses the operation for operator repair. A completed authenticated
+   deletion retains its anonymized command receipt briefly. If the response is lost, the same
+   authenticated principal can retry the command and receive success even though the deleted
+   company's membership is gone. Deleting the principal's last company also removes that principal
+   and invalidates its session, so the receipt cannot be replayed without a surviving authenticated session. A post-delete `403` from an
    older/mixed server is treated as an unknown outcome, so the browser retains the command and
    refreshes the company list from the server instead of converting uncertainty
    into a new destructive ceremony. The picker consumes that same erasure outcome classification
@@ -257,11 +213,10 @@ was selected, and export/import actions suppress duplicate in-flight requests.
 The footer puts **Help** immediately above the account block, with the same small button and tooltip
 in expanded, collapsed and mobile navigation. The account block stays at the very **bottom** of the
 sidebar, below a divider beneath the administration group. It contains exactly one avatar-led
-**Account** destination. In real
-authentication, the active company name, role badge and **Switch company** control are shown only
-when two or more companies are accessible; with one accessible company they are hidden. Auth-off
-and demo builds retain their company context and switching exception. (Keeping the context at the
-bottom keeps the logo + collapse toggle as the first item in both the open menu and collapsed rail.)
+**Account** destination. Production shows the active company name and role badge without a
+**Switch company** control. The temporary demo retains company switching. (Keeping the context at
+the bottom keeps the logo + collapse toggle as the first item in both the open menu and collapsed
+rail.)
 **Account** opens the signed-in person's identity and security page from every main app page. In
 its identity row, the avatar has its own unlabeled visible column, followed by Name, Email and
 Actions. The row scrolls horizontally on narrow screens. Long email
@@ -338,21 +293,19 @@ success for the rebase never hides the independent loss.
 
 ## Seed data (first run)
 
-> This auto-seed is **DEMO-BUILD-ONLY** going forward (single-company-per-instance policy). A
+> This auto-seed is **DEMO-BUILD-ONLY** going forward (one-company server policy). A
 > real, server-backed instance (the default deploy) no longer auto-seeds from the client side —
 > `bootstrap()` (src/main.tsx) only passes a seed dataset in the demo build
 > (`VITE_CAPACITYLENS_DEMO=1`); a fresh server-backed instance lands on the empty
-> create-your-company picker instead of a fabricated "Wayne Enterprises" (a pre-seeded two-company
-> instance would otherwise trip its own single-company cap on first boot). The two-company seed
-> described below happens only in: the demo build (`pnpm run dev:demo`, what these stories run
-> against), local dev tooling that opts in explicitly, and the db-backed E2E server's explicit
-> `POST /api/test/reset {seed:true}` (used by `e2e/serverTestState.ts`'s `resetServer()` — exempt from
-> the single-company cap so tests can still exercise a two-company picker). The reset route exists
+> create-your-company setup instead of a fabricated "Wayne Enterprises". The two-company seed
+> described below happens in the demo build (`pnpm run dev:demo`, what these stories run against)
+> and in backend tenant-isolation tests. The database-backed E2E server resets to a single-company
+> fixture so its user journeys match production. The reset route exists
 > only in trusted-local/auth-off mode; an auth-enabled server refuses it even when the development
 > flag is set because a browser session carries no installation-wide erasure authority.
 
-- **Accounts (companies):** **Wayne Enterprises** (holds everything below — pick this one) and
-  _Stark Industries_ (a second tenant with one Design discipline and no work).
+- **Accounts (companies):** **Wayne Enterprises** holds the demo data below; _Stark Industries_ is
+  a second fictional tenant used by the temporary demo picker and tenant-isolation tests.
 - **Disciplines:** Design (order 0), Development (1), Copywriting (2).
 - **Resources:**
   - _Bruce Wayne_ — Designer, Design, permanent, 8h, Mon–Fri.
@@ -485,9 +438,9 @@ The **create / "Add"**
 affordances carry a leading **`+`** glyph before the label (decorative, `aria-hidden`; the
 accessible name stays the label text). List pages and sections have an add button per entity: `Add resource`,
 `Add discipline`, `Add client`, `Add project`, `Add activity`, `Add time off`, `Add closure`,
-`Add external party` (plus the company picker's `New company`).
-Resolved Viewers do not see resource or section-level create affordances; the company picker's
-separately authorised `New company` action follows its account-creation capability instead.
+`Add external party` (plus the temporary demo picker's `New company`).
+Resolved Viewers do not see resource or section-level create affordances; the temporary demo picker's
+`New company` action follows its account-creation capability instead.
 Each list row has an **icon-only** `Edit <name>` (pencil) button and, where supported, an icon-only
 destructive action. Time-off rows include the resource and complete date range in both action names
 (`Edit <name> time off from <start> to <end>` / `Delete …`) so repeated entries for one person remain
@@ -1425,15 +1378,14 @@ header tier), `capacity-overview-totals-cell`, `capacity-totals-committed`, `cap
 shown for the few seconds of POST + re-hydrate; not dismissable, locks all editing/switching),
 `fake-sign-in` (the demo sign-in's account row — auth-off deploys only),
 `account-load-recovery` (failed selected-company hydration; replaces the application shell until
-Retry succeeds or another company is chosen),
+Retry succeeds; the demo also offers a return to its picker),
 `product-orientation` (the non-blocking **How CapacityLens works** region),
 `getting-started-progress` (the company-wide 0–5 bar), `getting-started` (the toggleable checklist
 card), `getting-started-tour` (its **Show me around** button — runs the role-based driver.js tour),
 `getting-started-dismiss` (the Owner/Admin **Dismiss** button; saves company-wide dismissal),
 `create-language` (company-create form's read-only Language row — **English**; frozen, P1.14),
-`new-company-button` (the company picker's **New company** button; HIDDEN — not merely disabled —
-whenever `GET /api/auth/me` reports `canCreateAccount: false`: the single-company cap is reached,
-or under auth-on the caller lacks owner/admin standing on any account),
+`new-company-button` (the temporary demo picker's **New company** button; production only shows
+first-company setup when no installation company exists),
 `settings-example-data` and `add-example-data` (Settings → Example data row and its button; shown only
 to an Owner or Admin of an empty company on a server-backed deploy),
 `archived-resources-section`, `archived-clients-section`, `archived-projects-section` and

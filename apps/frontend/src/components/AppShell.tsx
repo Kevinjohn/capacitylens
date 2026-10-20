@@ -204,7 +204,6 @@ function GatedSidebar({
   const accountRoute = matchPath({ path: ACCOUNT_LINK.to, end: true }, pathname) !== null;
   const role = useRole();
   const permissionStatus = usePermissionStatus();
-  const accessibleAccountCount = useStore((state) => state.accountSummaries.length);
   const overviewAccess = useStore((state) => resolveCapacityOverviewAccess(state.data, state.activeAccountId));
   const visibleNavLinks =
     resolveCapacityOverviewAccessDecision({ role, status: permissionStatus, access: overviewAccess }) === "allowed"
@@ -225,7 +224,6 @@ function GatedSidebar({
       <AppSidebar
         activeAccount={activeAccount}
         adminLinks={adminLinks}
-        accessibleAccountCount={accessibleAccountCount}
         demoAuthActive={demoAuthActive}
         navLinks={visibleNavLinks}
         onSwitchAccount={() =>

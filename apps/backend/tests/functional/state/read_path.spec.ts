@@ -73,7 +73,6 @@ test.group('M1 read path', (group) => {
         image: null,
       },
       providers: [],
-      multiAccount: false,
       canCreateAccount: false,
     })
   })

@@ -92,10 +92,14 @@ router.post('/api/test/reset', async ({ request, response }) => {
       typeof body !== 'object' ||
       Array.isArray(body) ||
       Object.keys(body).some((key) => key !== 'seed') ||
-      ('seed' in body && typeof body.seed !== 'boolean'))
+      ('seed' in body && body.seed !== true && body.seed !== false && body.seed !== 'single'))
   )
     return response.badRequest({ error: 'Invalid reset request.' })
-  await resetState(body !== undefined && 'seed' in body ? body.seed === true : false)
+  const requestedSeed =
+    body !== undefined && typeof body === 'object' && 'seed' in body
+      ? (body.seed as boolean | 'single')
+      : false
+  await resetState(requestedSeed)
   return { ok: true }
 })
 router.get('*', async ({ request, response }) => {

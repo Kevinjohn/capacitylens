@@ -68,7 +68,6 @@ function renderAs({
     authMode,
     user: authMode === "off" ? null : { id: "bruce", email: "bruce@wayne.test" },
     canCreateAccount: false,
-    multiAccount: false,
     refreshAuth,
     signOut: async () => {},
   };

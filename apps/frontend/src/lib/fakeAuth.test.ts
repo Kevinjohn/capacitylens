@@ -17,7 +17,6 @@ const withAuthMode = (authMode: AuthContextValue["authMode"]) => {
     authMode,
     user: null,
     canCreateAccount: true,
-    multiAccount: true,
     refreshAuth: async () => {},
     signOut: async () => {},
   };
