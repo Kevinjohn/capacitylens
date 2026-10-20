@@ -69,7 +69,6 @@ describe("useResourceAvatars", () => {
       authMode: "sso-only" as const,
       user: { id: "u1", image },
       canCreateAccount: true,
-      multiAccount: true,
       refreshAuth: async () => {},
       signOut: async () => {},
     });

@@ -209,7 +209,7 @@ test.group('M2a lifecycle contract', (group) => {
       .from('clients')
       .where('id', current.id)
       .update({ name: realName, code_name: codeName, is_private: JSON.stringify(true) })
-    const base = trustedLocalDataContext('editor-private-name', true)
+    const base = trustedLocalDataContext('editor-private-name')
     const capabilities = {
       ...base.capabilitiesFor(current.accountId),
       role: 'editor' as const,

@@ -1066,6 +1066,7 @@
   "picker_first_company_subtitle": "Create your company to start planning.",
   "picker_empty_subtitle": "Create a company to start planning, or ask an admin for an invite.",
   "picker_empty_subtitle_no_create": "Ask an admin for an invite to join a company.",
+  "picker_multiple_companies_error": "This installation has more than one company. Contact your administrator to resolve it.",
   "picker_empty_create_hint": "Set up a new company and start planning right away.",
   "picker_empty_invite": "Ask an admin for an invite to join an existing company.",
   "picker_empty_no_create": "Ask an admin for an invite to join a company.",

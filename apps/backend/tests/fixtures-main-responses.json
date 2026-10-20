@@ -1133,7 +1133,6 @@
           "image": null
         },
         "providers": [],
-        "multiAccount": false,
         "canCreateAccount": false
       }
     }

@@ -39,7 +39,6 @@ interface AppSidebarProps {
   activeAccount: { name: string } | undefined;
 
   adminLinks: NavigationLinkDefinition[];
-  accessibleAccountCount: number;
   demoAuthActive: boolean;
   navLinks: NavigationLinkDefinition[];
   onSwitchAccount: () => void;
@@ -50,7 +49,6 @@ interface AppSidebarProps {
 export function AppSidebar({
   activeAccount,
   adminLinks,
-  accessibleAccountCount,
   demoAuthActive,
   navLinks,
   onSwitchAccount,
@@ -85,7 +83,6 @@ export function AppSidebar({
       <SidebarNavigation navLinks={navLinks} adminLinks={adminLinks} pathname={pathname} onNavigate={closeOnMobile} />
       <SidebarAccountFooter
         activeAccount={activeAccount}
-        accessibleAccountCount={accessibleAccountCount}
         demoAuthActive={demoAuthActive}
         onSwitchAccount={onSwitchAccount}
         onNavigate={closeOnMobile}
@@ -157,21 +154,18 @@ function SidebarNavigation({
 
 function SidebarAccountFooter({
   activeAccount,
-  accessibleAccountCount,
   demoAuthActive,
   onSwitchAccount,
   onNavigate,
   pathname,
 }: {
   activeAccount: AppSidebarProps["activeAccount"];
-  accessibleAccountCount: number;
   demoAuthActive: boolean;
   onSwitchAccount: () => void;
   onNavigate: () => void;
   pathname: string;
 }) {
-  const { authMode } = useAuth();
-  const showCompanyContext = activeAccount !== undefined && (authMode === "off" || accessibleAccountCount > 1);
+  const showCompanyContext = activeAccount !== undefined;
   return (
     <SidebarFooter>
       {showCompanyContext && (
@@ -183,13 +177,15 @@ function SidebarAccountFooter({
             </div>
             <ActiveRoleBadge />
           </div>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton size="sm" onClick={onSwitchAccount}>
-                {m.nav_switch_company()}
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+          {demoAuthActive && (
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton size="sm" onClick={onSwitchAccount}>
+                  {m.nav_switch_company()}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          )}
         </div>
       )}
       <SidebarMenu>

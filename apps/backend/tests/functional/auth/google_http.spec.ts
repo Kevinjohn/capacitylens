@@ -549,16 +549,10 @@ test.group('Google browser entry', (group) => {
         assert.equal(me.body().reauthProviderId, 'google')
         assert.isNotNull(await db.from('user_session_index').first())
         const priorMode = env.get('CAPACITYLENS_MODE')
-        const priorMulti = env.get('CAPACITYLENS_MULTI_ACCOUNT')
-        const priorMultiProcess = process.env.CAPACITYLENS_MULTI_ACCOUNT
         cleanup(() => {
           env.set('CAPACITYLENS_MODE', priorMode)
-          env.set('CAPACITYLENS_MULTI_ACCOUNT', priorMulti)
-          if (priorMultiProcess === undefined) delete process.env.CAPACITYLENS_MULTI_ACCOUNT
-          else process.env.CAPACITYLENS_MULTI_ACCOUNT = priorMultiProcess
         })
         env.set('CAPACITYLENS_MODE', 'sso-only')
-        env.set('CAPACITYLENS_MULTI_ACCOUNT', true)
         const session = callback.cookie('adonis-session')!.value
         const ssoMe = await browserRequest(client.get('/api/auth/me'), { session }).send()
         ssoMe.assertStatus(200)

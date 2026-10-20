@@ -7,7 +7,6 @@ import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
 import { stubMatchMedia } from "@/test/stubMatchMedia";
 import { attachPersistence } from "@/data/persist";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { markCompanyPickerForNextReload } from "@/lib/companyPickerEntry";
 import { m } from "@/i18n";
 import * as accountTransition from "@/auth/accountTransition";
 import { renderWithQueryClient as render } from "@/test/renderWithQueryClient";
@@ -192,18 +191,6 @@ it("keeps the company picker on first entry even when exactly one company is ava
   expect(screen.getByTestId("location-probe")).toHaveTextContent("/clients");
 });
 
-it("keeps the company picker after a successful sign-in reload", async () => {
-  mockNavigationType("reload");
-  markCompanyPickerForNextReload();
-  useStore.setState({ activeAccountId: null, previousAccountId: null });
-
-  renderAppShell({ initialEntries: ["/clients"] });
-
-  expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
-  expect(useStore.getState().activeAccountId).toBeNull();
-  expect(window.history.state).toEqual({});
-});
-
 it("reopens the sole valid company on reload without changing the requested route", async () => {
   mockNavigationType("reload");
   useStore.setState({ activeAccountId: null, previousAccountId: null });
@@ -293,14 +280,14 @@ it("does not mistake an unavailable sole membership for a valid reload destinati
   expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
 });
 
-it("lets an invite handoff keep ownership of a reload instead of auto-opening another sole company", async () => {
+it("opens the sole server-selected company after a reload even when an invite handoff is present", async () => {
   mockNavigationType("reload");
   useStore.setState({ activeAccountId: null, previousAccountId: null });
 
   renderAppShell({ initialEntries: ["/clients?joinedAccount=not-yet-authorized"] });
 
-  expect(await screen.findByRole("heading", { name: "Choose a company" })).toBeInTheDocument();
-  expect(useStore.getState().activeAccountId).toBeNull();
+  await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
+  expect(screen.getByRole("link", { name: "Schedule" })).toBeInTheDocument();
 });
 
 it("does not reactivate a sole company after its loaded slice proves missing", async () => {

@@ -1,4 +1,5 @@
 import { m } from "@/i18n";
+import { isServerConfigured } from "@/data/apiConfig";
 import { can } from "@capacitylens/shared/domain/access";
 import { useId } from "react";
 import type { ReactNode } from "react";
@@ -336,14 +337,39 @@ export function AccountPicker() {
   const accountSummariesComplete = useStore((state) => state.accountSummariesComplete);
   const previousAccountId = useStore((state) => state.previousAccountId);
   const signOutDemo = useStore((state) => state.signOutDemo);
-  const previous = accounts.find((account) => account.id === previousAccountId) ?? null;
   const demoAuthActive = useDemoAuthActive();
+  const previous = demoAuthActive ? (accounts.find((account) => account.id === previousAccountId) ?? null) : null;
   const { authMode, canCreateAccount, refreshAuth } = useAuth();
   const roleDescriptionPrefix = useId();
+  const notice = useStore((state) => state.notice);
   const { form, submit, reset } = useCreateAccountForm({ refreshAuth });
   const accountDeletion = useDeleteAccount({ refreshAuth });
   const beginCreating = () => form.setCreating(true);
   const companySetupEligible = accounts.length === 0 && accountSummariesComplete && canCreateAccount;
+  const productionMode = isServerConfigured();
+  const conflictingProductionCompanies = productionMode && accounts.length > 1;
+  const ambiguousInstallation =
+    productionMode && (conflictingProductionCompanies || notice?.message === m.picker_multiple_companies_error());
+
+  if (ambiguousInstallation) {
+    return (
+      <PickerLayout>
+        <p role="alert" className="max-w-md text-center text-sm text-danger">
+          {m.picker_multiple_companies_error()}
+        </p>
+      </PickerLayout>
+    );
+  }
+
+  if (productionMode && (accounts.length > 0 || !accountSummariesComplete)) {
+    return (
+      <PickerLayout>
+        <p role="status" className="text-sm text-muted-foreground">
+          {m.app_loading()}
+        </p>
+      </PickerLayout>
+    );
+  }
 
   return (
     <PickerLayout>
@@ -356,14 +382,14 @@ export function AccountPicker() {
         onSignOut={signOutDemo}
         onActivate={activateAccount}
       />
-      {accounts.length === 0 && !form.creating && (
+      {accounts.length === 0 && !form.creating ? (
         <EmptyAccountOptions
           canCreateAccount={canCreateAccount}
           companySetupEligible={companySetupEligible}
           onCreate={beginCreating}
         />
-      )}
-      {accounts.length > 0 && (
+      ) : null}
+      {!productionMode && accounts.length > 0 && (
         <AccountItems
           accounts={accounts}
           accessExperience={resolveAccessExperience(authMode)}
@@ -378,7 +404,7 @@ export function AccountPicker() {
         onSubmit={submit}
         onCancel={reset}
       />
-      {!form.creating && accounts.length > 0 && canCreateAccount && (
+      {!productionMode && !form.creating && accounts.length > 0 && canCreateAccount && (
         <CreateAccountAffordance onCreate={beginCreating} />
       )}
       {accountDeletion.confirming && (

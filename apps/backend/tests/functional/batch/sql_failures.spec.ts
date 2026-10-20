@@ -117,7 +117,7 @@ test.group('M2a SQL failure and audit contracts', (group) => {
               },
             ],
             null,
-            trustedLocalDataContext('bruce-wayne', true)
+            trustedLocalDataContext('bruce-wayne')
           )
         )
       )
@@ -154,7 +154,7 @@ test.group('M2a SQL failure and audit contracts', (group) => {
               },
             ],
             null,
-            trustedLocalDataContext('bruce-wayne', true)
+            trustedLocalDataContext('bruce-wayne')
           )
         )
       )
@@ -176,7 +176,7 @@ test.group('M2a SQL failure and audit contracts', (group) => {
         trx,
         [{ method: 'PUT', table: 'disciplines', id: base.id, row: { ...base, name: sentinel } }],
         null,
-        trustedLocalDataContext('bruce-wayne', true)
+        trustedLocalDataContext('bruce-wayne')
       )
     )
     const rows = await db.from('audit_entries').where('entity_id', base.id)

@@ -53,7 +53,6 @@ describe("DiagnosticsView — report", () => {
           authMode: "password-and-sso",
           user: { id: "u-1", name: "Bruce Wayne", email: "bruce@wayne.example" },
           canCreateAccount: false,
-          multiAccount: false,
           refreshAuth: async () => {},
           signOut: async () => {},
         }}

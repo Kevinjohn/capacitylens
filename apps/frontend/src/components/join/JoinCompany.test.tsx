@@ -20,7 +20,6 @@ const auth: AuthContextValue = {
   authMode: "password-only",
   user: null,
   canCreateAccount: false,
-  multiAccount: true,
   refreshAuth: vi.fn(async () => {}),
   signOut: vi.fn(async () => {}),
 };

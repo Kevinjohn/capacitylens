@@ -90,6 +90,10 @@ export async function fetchAccountSummaries(requestOptions?: {
   try {
     const res = await accountClient.listWorkspaces(requestOptions?.signal);
     if (!res.ok) {
+      if (res.status === 409 && acceptEffects()) {
+        useStore.getState().setAccountSummaries({ list: [], complete: false });
+        useStore.getState().setNotice(m.picker_multiple_companies_error(), "warning");
+      }
       return null;
     }
     const body: unknown = await res.json();

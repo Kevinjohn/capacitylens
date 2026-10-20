@@ -35,7 +35,8 @@ self-registration closes automatically and only the Sign in form below is reacha
 1. Open the app URL. Instead of the company picker, a **Sign in** screen appears.
 2. Enter a wrong password → an inline error appears; you stay on the screen.
 3. Enter the correct **Email** and **Password**, press **Sign in** (or Enter).
-4. The app loads as normal: company picker → pick a company → scheduler.
+4. The server selects the installation company and the app opens its scheduler. If you have no
+   membership, follow the invitation path instead.
 5. Go to **Account**. It shows the signed-in email and the available personal security controls.
 6. On **Account**, click **Sign out** → you are back on the Sign in screen; reloading stays signed out.
 
@@ -60,7 +61,7 @@ self-registration closes automatically and only the Sign in form below is reacha
   callback creates a sign-in identity but does not create a company or membership. A later new
   Google identity needs an unused invitation addressed to its verified email.
 - Provider errors and pending/disabled states remain visible and accessible.
-- A successful sign-in resumes the normal company flow: the picker lists the user's memberships;
+- A successful sign-in opens the sole server-selected company when the user is an active member;
   when none are available, the documented first-company or invitation path is shown instead.
 - Account shows the signed-in identity and personal security controls only while signed in on an
   auth-enabled deploy; it never exposes credential controls with auth off or in local mode.

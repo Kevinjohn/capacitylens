@@ -42,7 +42,6 @@ function authenticatedAuth(userId: string): AuthContextValue {
     authMode: "password-only",
     user: { id: userId, name: subjectNames[userId] ?? "Bruce Wayne" },
     canCreateAccount: true,
-    multiAccount: true,
     refreshAuth: async () => {},
     signOut: async () => {},
   };

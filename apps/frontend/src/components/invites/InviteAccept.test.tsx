@@ -79,7 +79,6 @@ const signedInAuth: AuthContextValue = {
   authMode: "password-only",
   user: { id: "user-1", name: "Alex", email: "alex@example.com" },
   canCreateAccount: true,
-  multiAccount: true,
   refreshAuth: async () => {},
   signOut: async () => {},
 };

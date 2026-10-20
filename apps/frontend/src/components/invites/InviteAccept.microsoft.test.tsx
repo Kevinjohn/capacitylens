@@ -42,7 +42,6 @@ const signedOutAuth: AuthContextValue = {
     { id: "microsoft", label: "Microsoft", kind: "social", brand: "microsoft", experimental: false },
   ] as never,
   canCreateAccount: true,
-  multiAccount: true,
   refreshAuth: async () => {},
   signOut: async () => {},
 };

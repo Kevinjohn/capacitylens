@@ -13,8 +13,8 @@ import { hasUnsavedPersistenceWrites } from "@/data/persist";
 import { useStore } from "@/store/useStore";
 import { useAuth } from "@/auth/authContext";
 import { useDemoAuthActive } from "@/lib/fakeAuth";
-import { consumeCompanyPickerForReload } from "@/lib/companyPickerEntry";
 import { transitionAccount } from "@/auth/accountTransition";
+import { isServerConfigured } from "@/data/apiConfig";
 
 function readReloadNavigationState(): boolean {
   try {
@@ -80,8 +80,6 @@ interface SingleAccountReloadInput {
   demoAuthActive: boolean;
   fakeSignedIn: boolean;
   hydrated: boolean;
-  joinedAccountHandoff: ReturnType<typeof readJoinedAccountHandoff>;
-  previousAccountId: StoreState["previousAccountId"];
 }
 
 interface ResolveSingleAccountForReloadInput {
@@ -90,18 +88,12 @@ interface ResolveSingleAccountForReloadInput {
   activeAccountId: StoreState["activeAccountId"];
   demoAuthActive: boolean;
   fakeSignedIn: boolean;
-  joinedAccountHandoff: ReturnType<typeof readJoinedAccountHandoff>;
-  previousAccountId: StoreState["previousAccountId"];
-  showPickerForReload: boolean;
 }
 
 function resolveSingleAccountForReload(input: ResolveSingleAccountForReloadInput) {
   const account = input.accountSummaries[0];
   if (
-    input.joinedAccountHandoff !== null ||
-    input.showPickerForReload ||
     input.activeAccountId !== null ||
-    input.previousAccountId !== null ||
     (input.demoAuthActive && !input.fakeSignedIn) ||
     !input.accountSummariesComplete ||
     input.accountSummaries.length !== 1 ||
@@ -113,22 +105,13 @@ function resolveSingleAccountForReload(input: ResolveSingleAccountForReloadInput
 }
 
 function useSingleAccountReload(input: SingleAccountReloadInput) {
-  const {
-    accountSummaries,
-    accountSummariesComplete,
-    activeAccountId,
-    demoAuthActive,
-    fakeSignedIn,
-    hydrated,
-    joinedAccountHandoff,
-    previousAccountId,
-  } = input;
+  const { accountSummaries, accountSummariesComplete, activeAccountId, demoAuthActive, fakeSignedIn, hydrated } = input;
   const [reloadNavigation] = useState(readReloadNavigationState);
-  const [showPickerForReload] = useState(consumeCompanyPickerForReload);
   const singleAccountReloadHandled = useRef(false);
+  const serverMode = isServerConfigured();
 
   useEffect(() => {
-    if (!reloadNavigation || !hydrated || singleAccountReloadHandled.current) return;
+    if ((!serverMode && !reloadNavigation) || !hydrated || singleAccountReloadHandled.current) return;
     if (accountSummaries.length === 0) return;
 
     singleAccountReloadHandled.current = true;
@@ -138,9 +121,6 @@ function useSingleAccountReload(input: SingleAccountReloadInput) {
       activeAccountId,
       demoAuthActive,
       fakeSignedIn,
-      joinedAccountHandoff,
-      previousAccountId,
-      showPickerForReload,
     });
     if (!account) return;
 
@@ -152,10 +132,8 @@ function useSingleAccountReload(input: SingleAccountReloadInput) {
     demoAuthActive,
     fakeSignedIn,
     hydrated,
-    joinedAccountHandoff,
-    previousAccountId,
     reloadNavigation,
-    showPickerForReload,
+    serverMode,
   ]);
 }
 
@@ -298,12 +276,11 @@ export function useAppShellController() {
   const accountSummariesComplete = useStore((state) => state.accountSummariesComplete);
   const hydrated = useStore((state) => state.hydrated);
   const activeAccountId = useStore((state) => state.activeAccountId);
-  const previousAccountId = useStore((state) => state.previousAccountId);
   const fakeSignedIn = useStore((state) => state.fakeSignedIn);
   const { pathname, search, hash } = useLocation();
   const navigate = useNavigate();
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const joinedAccountHandoff = useJoinedAccountHandoff({
+  useJoinedAccountHandoff({
     accountSummaries,
     activeAccountId,
     hash,
@@ -319,8 +296,6 @@ export function useAppShellController() {
     demoAuthActive,
     fakeSignedIn,
     hydrated,
-    joinedAccountHandoff,
-    previousAccountId,
   });
   const { activeLanguage, activeLanguagePending } = useAccountLocale(accounts, activeAccountId);
   useDocumentTitle({ activeLanguage, activeLanguagePending, pathname });
