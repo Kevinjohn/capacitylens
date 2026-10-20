@@ -72,8 +72,10 @@ test.group('M2a CRUD and field policy contracts', (group) => {
   group.setup(() => testUtils.db().migrate())
   group.each.setup(() => replaceWithSeed())
 
-  test('round-trips a full create and update for every product entity', async ({ assert }) => {
-    for (const table of APP_DATA_KEYS) {
+  test('round-trips a full create and update for every account-scoped product entity', async ({
+    assert,
+  }) => {
+    for (const table of APP_DATA_KEYS.filter((key) => key !== 'accounts')) {
       const base = rowFor(await state(), table)
       const id = `m2a-crud-${table}`
       const created = await put(table, {

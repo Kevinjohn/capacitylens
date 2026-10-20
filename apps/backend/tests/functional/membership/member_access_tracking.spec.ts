@@ -2,7 +2,9 @@ import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
-import { resetState } from '#services/state_repository'
+import { seed } from '@capacitylens/shared/data/seed'
+import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
+import { encodeRow, resetState } from '#services/state_repository'
 import { acceptInvitation } from '#services/admission/invitations'
 
 const setupToken = 'member-setup-token-0123456789abcdef'
@@ -245,20 +247,31 @@ test.group('company member access and tracking', (group) => {
       .send()
     owner.assertStatus(201)
     const ownerCookie = owner.cookie('adonis-session')!.value
-    for (const account of [
-      { id: 'a-studio', name: 'Wayne Enterprises' },
-      { id: 'a-loft', name: 'Stark Industries' },
-    ]) {
-      const created = await signed(client.post('/api/orgs'), ownerCookie).json(account).send()
-      created.assertStatus(201)
-    }
+    const first = await signed(client.post('/api/orgs'), ownerCookie)
+      .json({ id: 'a-studio', name: 'Wayne Enterprises' })
+      .send()
+    first.assertStatus(201)
+    const now = new Date().toISOString()
+    const otherCompany = { ...seed().accounts[0]!, id: 'a-loft', name: 'Stark Industries' }
+    await db.table('accounts').insert(encodeRow('accounts', otherCompany))
+    await db.table('clients').insert(encodeRow('clients', buildInternalClient('a-loft', now)))
+    const ownerMembership = await db.from('memberships').where({ account_id: 'a-studio' }).first()
+    assert.isNotNull(ownerMembership)
+    await db.table('memberships').insert({
+      id: 'owner-loft',
+      account_id: 'a-loft',
+      user_id: ownerMembership.user_id,
+      role: 'owner',
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+    })
     const editor = await client
       .post('/api/auth/sign-up')
       .json({ email: 'clark.kent@wayne.example', password, name: 'Clark Kent' })
       .send()
     editor.assertStatus(201)
     const editorId = await userId('clark.kent@wayne.example')
-    const now = new Date().toISOString()
     await db.table('memberships').insert(
       ['a-studio', 'a-loft'].map((accountId) => ({
         id: `member-clark-${accountId}`,
@@ -301,7 +314,7 @@ test.group('company member access and tracking', (group) => {
     )
   })
 
-  test('restricted Admin cannot create a company or claim its capability until another active standing qualifies', async ({
+  test('an Admin cannot create another company once the first company exists', async ({
     client,
     assert,
   }) => {
@@ -335,7 +348,12 @@ test.group('company member access and tracking', (group) => {
     })
     const available = await signed(client.get('/api/auth/me'), adminCookie).send()
     available.assertStatus(200)
-    assert.isTrue(available.body().canCreateAccount)
+    assert.isFalse(available.body().canCreateAccount)
+    const refusedWhileActive = await signed(client.post('/api/orgs'), adminCookie)
+      .json({ id: 'a-loft', name: 'Stark Industries' })
+      .send()
+    refusedWhileActive.assertStatus(403)
+    assert.isNull(await db.from('accounts').where('id', 'a-loft').first())
     const disabled = await signed(
       client.patch(`/api/accounts/a-studio/members/${adminId}/status`),
       ownerCookie
@@ -346,31 +364,11 @@ test.group('company member access and tracking', (group) => {
     const unavailable = await signed(client.get('/api/auth/me'), adminCookie).send()
     unavailable.assertStatus(200)
     assert.isFalse(unavailable.body().canCreateAccount)
-    const refused = await signed(client.post('/api/orgs'), adminCookie)
+    const refused = await signed(client.post('/api/orgs'), ownerCookie)
       .json({ id: 'a-loft', name: 'Stark Industries' })
       .send()
     refused.assertStatus(403)
     assert.isNull(await db.from('accounts').where('id', 'a-loft').first())
-    const second = await signed(client.post('/api/orgs'), ownerCookie)
-      .json({ id: 'a-loft', name: 'Stark Industries' })
-      .send()
-    second.assertStatus(201)
-    await db.table('memberships').insert({
-      id: 'member-diana-loft',
-      account_id: 'a-loft',
-      user_id: adminId,
-      role: 'admin',
-      status: 'active',
-      created_at: now,
-      updated_at: now,
-    })
-    const restoredCapability = await signed(client.get('/api/auth/me'), adminCookie).send()
-    restoredCapability.assertStatus(200)
-    assert.isTrue(restoredCapability.body().canCreateAccount)
-    const third = await signed(client.post('/api/orgs'), adminCookie)
-      .json({ id: 'a-osc', name: 'Oscorp' })
-      .send()
-    third.assertStatus(201)
   })
 
   test('Disable and Enable Access preserve active, archived and removed membership lifecycle', async ({

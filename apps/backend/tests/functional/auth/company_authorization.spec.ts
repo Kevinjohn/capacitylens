@@ -66,7 +66,7 @@ test.group('authenticated company administration', (group) => {
     )
   })
 
-  test('current roles gate update, creation and owner-only fresh deletion', async ({
+  test('current roles gate updates and fresh deletion while preventing additional company creation', async ({
     client,
     assert,
     cleanup,
@@ -121,12 +121,12 @@ test.group('authenticated company administration', (group) => {
       .header('x-capacitylens-bootstrap-token', 'operator-bootstrap-token-0123456789abcdef')
       .json({ id: 'a-token', name: 'Stark Industries' })
       .send()
-    tokenCreated.assertStatus(201)
-    const tokenOwner = await db
-      .from('memberships')
-      .where({ account_id: 'a-token', user_id: editor.id })
-      .first()
-    assert.equal(tokenOwner.role, 'owner')
+    tokenCreated.assertStatus(403)
+    assert.deepEqual(tokenCreated.body(), {
+      error: 'This installation already has a company.',
+      code: 'FORBIDDEN',
+    })
+    assert.isNull(await db.from('accounts').where('id', 'a-token').first())
     await db.table('memberships').insert({
       id: 'editor-membership',
       account_id: 'a-studio',

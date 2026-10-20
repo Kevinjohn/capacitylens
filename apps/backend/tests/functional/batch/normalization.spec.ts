@@ -22,6 +22,9 @@ async function put(client: ApiClient, table: AppDataKey, row: Record<string, unk
     .send()
 }
 
+const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
+  request.header('sec-fetch-site', 'same-origin')
+
 test.group('M2a ordinary-write normalization', (group) => {
   group.setup(() => testUtils.db().migrate())
 
@@ -107,8 +110,10 @@ test.group('M2a ordinary-write normalization', (group) => {
     const source = seed().accounts.find((row) => row.id === 'a-studio')!
     const account = { ...source, id: 'a-sunday', weekStartsOn: 0 } as Record<string, unknown>
     delete account.workingDays
-    const created = await put(client, 'accounts', account)
-    created.assertStatus(200)
+    const created = await trusted(client.post('/api/accounts'))
+      .json({ id: account.id, name: account.name, weekStartsOn: account.weekStartsOn })
+      .send()
+    created.assertStatus(201)
     const afterCreate = await state(client, 'a-sunday')
     const stored = afterCreate.accounts.find((row) => row.id === account.id)!
     assert.deepEqual(stored.workingDays, [0, 1, 2, 3, 4])

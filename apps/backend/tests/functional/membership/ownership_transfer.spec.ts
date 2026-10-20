@@ -3,7 +3,9 @@ import type { ApiClient } from '@japa/api-client'
 import testUtils from '@adonisjs/core/services/test_utils'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
-import { resetState } from '#services/state_repository'
+import { seed } from '@capacitylens/shared/data/seed'
+import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
+import { encodeRow, resetState } from '#services/state_repository'
 
 const setupToken = 'ownership-setup-token-0123456789abcdef'
 const password = 'batman-secret-2026'
@@ -108,10 +110,29 @@ test.group('atomic ownership transfer', (group) => {
     assert,
   }) => {
     const { ownerId, adminId, ownerCookie, now } = await fixture(client)
-    const otherCompany = await signed(client.post('/api/orgs'), ownerCookie)
-      .json({ id: 'a-loft', name: 'Stark Industries' })
-      .send()
-    otherCompany.assertStatus(201)
+    const otherCompany = { ...seed().accounts[0]!, id: 'a-loft', name: 'Stark Industries' }
+    await db.table('accounts').insert(encodeRow('accounts', otherCompany))
+    await db.table('clients').insert(encodeRow('clients', buildInternalClient('a-loft', now)))
+    await db.table('memberships').insert([
+      {
+        id: 'owner-clark-loft',
+        account_id: 'a-loft',
+        user_id: ownerId,
+        role: 'owner',
+        status: 'active',
+        created_at: now,
+        updated_at: now,
+      },
+      {
+        id: 'member-clark-loft',
+        account_id: 'a-loft',
+        user_id: adminId,
+        role: 'admin',
+        status: 'active',
+        created_at: now,
+        updated_at: now,
+      },
+    ])
     for (const [id, email] of [
       [ownerId, 'bruce.wayne@wayne.example'],
       [adminId, 'clark.kent@wayne.example'],
