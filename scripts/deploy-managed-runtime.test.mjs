@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, readlink, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readlink, rm, symlink, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -31,6 +31,26 @@ test("production staging preserves source metadata and carries the compiled shar
   );
   assert.equal(await readFile(join(destination, "packages/shared/dist/brand.js"), "utf8"), "compiled-shared");
   await assert.rejects(() => readFile(join(destination, "node_modules/.modules.yaml")), { code: "ENOENT" });
+});
+
+test("production staging skips tracked files deleted from the working tree", async (context) => {
+  const root = await mkdtemp(join(tmpdir(), "capacitylens_package_deleted_source_test_"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  const source = join(root, "source");
+  const destination = join(root, "staged");
+  await mkdir(source);
+  execFileSync("git", ["init", "--quiet"], { cwd: source });
+  for (const path of ["apps/backend/build", "packages/shared/dist"])
+    await mkdir(join(source, path), { recursive: true });
+  await writeFile(join(source, "removed.ts"), "removed from the working tree");
+  await writeFile(join(source, "apps/backend/build/ace.js"), "compiled-ace");
+  await writeFile(join(source, "packages/shared/dist/brand.js"), "compiled-shared");
+  execFileSync("git", ["add", "removed.ts"], { cwd: source });
+  await unlink(join(source, "removed.ts"));
+
+  await stageRuntimeSource(source, destination);
+
+  await assert.rejects(() => readFile(join(destination, "removed.ts")), { code: "ENOENT" });
 });
 
 test("deployed backend self links target the compiled artifact and every dependency link stays internal", async (context) => {

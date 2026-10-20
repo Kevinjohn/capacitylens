@@ -26,6 +26,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Concurrent manual and scheduled backup retention preserves the newest completed recovery point.
+  Manual backup failures also report errors cleaning up temporary files.
+
 - Preserve planning drafts through admission-only configuration and pending invitation changes,
   and identify invalidated view-as authority as planning context loss.
 - Reject phase moves that would invalidate linked activities, and audit dependent attribution
@@ -47,13 +50,17 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Native SQLite snapshots run at startup and every 24 hours, retaining the configured number of
+  completed managed backups. Manual snapshots use the same retention; pre-upgrade recovery
+  snapshots remain separate. Removed interval configuration and the backup health latch.
+
 - Use Adonis BodyParser and compiled Vine validation for requests, with flat 400 errors and no CSP report endpoint.
 
 - Updated the account credential integration while preserving existing password-reset links, password policies, and stopped-server Owner recovery.
 
 - Native operator commands provide verified online backups, backup-before-upgrade, audited
   sole-Owner recovery links and a guarded snapshot/archive reset into a new database path.
-  Readiness includes scheduled-backup status and refuses unknown migration histories.
+  Readiness refuses unknown migration histories; backup outcomes are checked through logs and snapshots.
 
 - The AdonisJS fork uses native password sign-in and fixed-lifetime sessions, with credential
   changes, audit and session revocation committed together.

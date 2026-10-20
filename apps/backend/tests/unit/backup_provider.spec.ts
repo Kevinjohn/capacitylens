@@ -4,10 +4,9 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import BackupProvider, { backupService } from '#providers/backup_provider'
-import { backupHealth } from '#services/backup/scheduler'
 import { openNativeDatabase } from '#services/backup/native'
 
-test('the web provider starts readiness tracking and drains the real scheduler on shutdown', async ({
+test('the web provider starts daily backups and drains the real scheduler on shutdown', async ({
   assert,
 }) => {
   const root = mkdtempSync(join(tmpdir(), 'capacitylens-provider-'))
@@ -20,7 +19,7 @@ test('the web provider starts readiness tracking and drains the real scheduler o
     config: {
       get: (key: string) =>
         key === 'backup.settings'
-          ? { dir: join(root, 'backups'), intervalMin: 60, keep: 2 }
+          ? { dir: join(root, 'backups'), keep: 2 }
           : {
               connection: 'sqlite',
               connections: {
@@ -33,12 +32,12 @@ test('the web provider starts readiness tracking and drains the real scheduler o
   try {
     await provider.ready()
     const active = backupService!
-    assert.isNotNull(backupHealth())
+    await provider.ready()
+    assert.isTrue(backupService === active)
     const snapshot = active.snapshotNow()
     await provider.shutdown()
     assert.isString(await snapshot)
     assert.isNull(backupService)
-    assert.isNull(backupHealth())
     await assert.rejects(() => active.snapshotNow(), /stopped/)
   } finally {
     await provider.shutdown()

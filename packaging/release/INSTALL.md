@@ -46,8 +46,8 @@ For an upgrade, stop the service, unpack the new archive, point `current` to the
 the same `systemd-run` upgrade command, then restart the service. Do not restart if the upgrade
 command fails. Use `GET /health/ready` for readiness. An explicit verified backup uses the same
 `systemd-run` command with `db:backup` in place of `app:upgrade`. The running server also writes
-periodic verified snapshots to `CAPACITYLENS_BACKUP_DIR`. The supplied nginx site serves static
-assets from `backend/public` and proxies health and API requests; the Caddy example proxies
+verified snapshots at startup and every 24 hours to `CAPACITYLENS_BACKUP_DIR`. The supplied nginx
+site serves static assets from `backend/public` and proxies health and API requests; the Caddy example proxies
 everything to the backend.
 
 Verify an archive before unpacking it from a directory containing both downloads:

@@ -5,11 +5,6 @@ export const SNAPSHOT_RE = /^capacitylens-(?:utc-)?\d{8}-\d{6}(-\d{3})?\.db$/
 /** Matches snapshot filenames whose embedded timestamps are UTC. */
 export const UTC_SNAPSHOT_RE = /^capacitylens-utc-\d{8}-\d{6}(-\d{3})?\.db$/
 
-// Temporary names stay outside retention's completed-file pattern, so an interrupted copy
-// cannot advertise a restore point or displace one during pruning.
-/** Matches unpublished snapshot temporary files eligible for startup cleanup. */
-export const TMP_RE =
-  /^(?:capacitylens-(?:utc-)?\d{8}-\d{6}(?:-\d{3})?\.db|capacitylens-pre-migration-v\d+-to-v\d+\.db)(?:\.\d+-\d+)?\.tmp$/
 /**
  * Builds the UTC-stamped filename used to publish a database snapshot.
  */
