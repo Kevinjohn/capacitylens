@@ -30,6 +30,7 @@ import env from '#start/env'
 import { createEmailProofIntent, consumeEmailProofIntent } from '#services/admission/email_proof'
 import { reserveInvitationDelivery } from '#services/admission/mail_budget'
 import { confirmMemberSignIn } from '#services/membership/sign_in_tracking'
+import { advancePlanningRevision } from '#services/planning_revision'
 
 /** Company-scoped admission policy and direct existing-principal joining. */
 export default class JoiningController {
@@ -63,15 +64,16 @@ export default class JoiningController {
           kind: 'semantic',
         })
         if (claim.replayed) return claim.result
-        await writeJoiningPolicy(trx, ctx.params.accountId, settings)
-        await writeAudit(trx, {
-          accountId: ctx.params.accountId,
-          actorId: actor.userId,
-          action: 'joining-policy.updated',
-          entity: 'account',
-          entityId: ctx.params.accountId,
-          fields: ['policy', 'approvedDomains'],
-        })
+        const changed = await writeJoiningPolicy(trx, ctx.params.accountId, settings)
+        if (changed)
+          await writeAudit(trx, {
+            accountId: ctx.params.accountId,
+            actorId: actor.userId,
+            action: 'joining-policy.updated',
+            entity: 'account',
+            entityId: ctx.params.accountId,
+            fields: ['policy', 'approvedDomains'],
+          })
         await completeAccountCommand(trx, command.commandId, settings)
         return settings
       })
@@ -168,6 +170,7 @@ export default class JoiningController {
               created_at: now,
               updated_at: now,
             })
+          await advancePlanningRevision(trx, accountId)
           await trx.from('password_reset_tokens').where('tokenable_id', actor.userId).delete()
           await writeAudit(trx, {
             accountId,

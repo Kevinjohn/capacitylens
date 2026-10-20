@@ -8,6 +8,7 @@ import { TABLE_NAMES } from '#services/batch/entity_policy'
 import { validateEntityRow } from '#validators/entities/index'
 import { writeAudit } from '#services/audit'
 import { BatchRequestError } from '#services/batch/errors'
+import { advancePlanningRevision } from '#services/planning_revision'
 
 const INSERT_ORDER = [
   'clients',
@@ -103,6 +104,7 @@ export async function commitAccountImport(
     entityId: accountId,
     fields: [],
   })
+  await advancePlanningRevision(trx, accountId)
   return {
     imported: prepared.imported,
     skipped: prepared.skipped,

@@ -214,8 +214,14 @@ export async function resolveCurrentActor(
     )
     times.lastActivityAt = activity.lastActivityAt
   }
-  ctx.session.put('authenticatedAt', times.authenticatedAt)
-  ctx.session.put('lastActivityAt', times.lastActivityAt)
+  const saveSessionTimes = () => {
+    ctx.session.put('authenticatedAt', times.authenticatedAt)
+    ctx.session.put('lastActivityAt', times.lastActivityAt)
+  }
+  // A rolled-back idle touch must not leave the native session ahead of its durable index.
+  if ('after' in connection && typeof connection.after === 'function')
+    connection.after('commit', saveSessionTimes)
+  else saveSessionTimes()
   return { user, userId: String(user.id), sessionId, ...times }
 }
 

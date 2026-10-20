@@ -36,6 +36,10 @@
     {
       "name": "database/migrations/202610190001_create_login_link_tokens",
       "sha256": "d5d4237038220cb325b6386bd9fa5f639417e216e741624bb65f45ff9a18a11b"
+    },
+    {
+      "name": "database/migrations/202610200001_create_planning_revision",
+      "sha256": "cb7505df4d90ed56066cc818cb49d79a5cb76e382804573925a111332adba816"
     }
   ]
 }

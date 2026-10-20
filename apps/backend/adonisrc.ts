@@ -123,7 +123,8 @@ export default defineConfig({
       indexEntities({
         transformers: { enabled: true },
       }),
-      generateRegistry(),
+      // Validation refusals use our flat 400 adapter, rather than Vine's default 422 body.
+      generateRegistry({ validationErrorType: false }),
     ],
   },
 })

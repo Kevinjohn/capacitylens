@@ -12,6 +12,10 @@ export interface DataPolicyTarget {
 
 /** Authorizes one resolved actor action against one company. */
 export default class DataPolicy extends BasePolicy {
+  read(actor: DataPolicyActor, target: { accountId: string; hasMembership: boolean }) {
+    return actor.id.length > 0 && target.accountId.length > 0 && target.hasMembership
+  }
+
   write(actor: DataPolicyActor, target: DataPolicyTarget) {
     return actor.id.length > 0 && target.accountId.length > 0 && target.capabilities.canWrite
   }

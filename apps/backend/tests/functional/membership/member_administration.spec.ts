@@ -60,6 +60,11 @@ test.group('company member administration', (group) => {
       .json({ id: 'a-studio', name: 'Wayne Enterprises' })
       .send()
     created.assertStatus(201)
+    const setupRevision = await db
+      .from('company_planning_revisions')
+      .where('account_id', 'a-studio')
+      .first()
+    assert.equal(Number(setupRevision?.revision), 1)
     const editor = await client
       .post('/api/auth/sign-up')
       .json({ email: 'clark.kent@wayne.example', password, name: 'Clark Kent' })
@@ -93,6 +98,11 @@ test.group('company member administration', (group) => {
     const changed = await requestRole('admin')
     changed.assertStatus(200)
     assert.deepEqual(changed.body(), { userId: editorId, role: 'admin' })
+    const changedRevision = await db
+      .from('company_planning_revisions')
+      .where('account_id', 'a-studio')
+      .first()
+    assert.equal(Number(changedRevision?.revision), 2)
     assert.isNull(await db.from('password_reset_tokens').where('tokenable_id', editorId).first())
     const replay = await requestRole('admin')
     replay.assertStatus(200)
@@ -119,6 +129,11 @@ test.group('company member administration', (group) => {
       .json({ role: 'admin' })
       .send()
     unchanged.assertStatus(200)
+    const unchangedRevision = await db
+      .from('company_planning_revisions')
+      .where('account_id', 'a-studio')
+      .first()
+    assert.equal(Number(unchangedRevision?.revision), 2)
     const unchangedToken = await db
       .from('password_reset_tokens')
       .where('tokenable_id', editorId)

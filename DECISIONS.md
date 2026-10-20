@@ -97,6 +97,19 @@ This is the short, present-tense record of decisions that constrain future work.
   projections maintain id and reverse-foreign-key indexes as operations advance, so upserts,
   deletes and cascades do not rebuild unaffected arrays; whole-installation state is never used as
   a shortcut.
+- Planning reads resolve current product authority, one integer company revision and the complete
+  confidentially projected company slice inside one Lucid transaction. Typed mutations compare the
+  captured `baseRevision` inside their write transaction; a mismatch returns 409 without replay.
+  Every changed planning or product-authority transaction advances the company revision once.
+  No-change typed operations return 400 without an audit entry, marker or revision advance.
+- A durable planning mutation marker is unique per company and mutation UUID, belongs to its actor,
+  and commits with the data, revision and audit entry. Lookup returns only committed revision or
+  unknown; an absent marker cannot prove failure. Reusing a committed identity returns 409, never
+  a stored response. Company erasure removes its markers with its other product data.
+- Existing state, batch, import and lifecycle callers coexist temporarily with typed resource
+  operations and participate in the same company revision discipline. Typed operations do not pass
+  through the arbitrary-table batch engine. Session-bound delete restoration and cleanup remain
+  unavailable until the supported public session contract is verified.
 - Browser account-command retry identities survive transport failures, HTTP 408 and server
   failures, concurrent execution and unreadable or unrecognised 409 responses. Success or a
   successfully decoded known terminal caller/policy rejection may close the retry ceremony;
@@ -119,7 +132,9 @@ This is the short, present-tense record of decisions that constrain future work.
   feature-visibility settings. Editors are already trusted to shape the shared schedule, so these
   reversible account settings do not introduce a separate Admin-only `configureAccount` tier.
   Identity, membership, privacy, lifecycle, whole-slice import and company-erasure operations keep
-  their existing stricter Admin/Owner gates; creation-time calendar and language fields stay frozen.
+  their existing stricter Admin/Owner gates. Typed settings operations may change time zone and week
+  start; language is not an editable setting. The retained legacy settings transport keeps its
+  calendar-field restrictions until its callers move to typed operations.
   The compatibility path that adopts a legacy id for the server-managed Internal client and
   reparents its projects is an ordinary Admin/Owner operation; it does not require a fresh
   session (2026-09-11).
@@ -346,7 +361,8 @@ from framework defaults; other departures require an explicit decision.
    time.
 5. Validation and domain errors use the flat `{ error, code? }` contract. Structured admission
    decisions may accompany that object when the future Account Kit integration provides one.
-6. Product timestamps are ISO strings on the wire and in columns; revisions are strings. Columns
+6. Product timestamps are ISO strings on the wire and in columns. The company planning revision is
+   an integer; retained legacy row receipts use timestamp strings. Columns
    use snake_case, explicit transformers own camelCase wire fields, and empty optional values are
    null.
 7. Product environment variables use the `CAPACITYLENS_` prefix; framework variables retain

@@ -30,6 +30,8 @@ import {
 } from '@capacitylens/shared/lib/strings'
 
 const uuid = () => vine.string().uuid()
+// Existing rows retain their stable identifiers during the transport transition.
+const entityId = () => vine.string().regex(/^[A-Za-z0-9][A-Za-z0-9._~-]{0,127}$/)
 const number = () => vine.number({ strict: true })
 const boolean = () => vine.boolean({ strict: true })
 const userText = (multiline = false, required = false) =>
@@ -54,7 +56,7 @@ const userText = (multiline = false, required = false) =>
   )
 const nullableUserText = (multiline = false) => userText(multiline).nullable()
 const nameText = () => userText(false, true)
-const nullableId = () => uuid().nullable()
+const nullableId = () => entityId().nullable()
 const calendarDate = () =>
   vine.string().use(
     vine.createRule((value, _options, field) => {
@@ -131,8 +133,8 @@ const meta = () => ({ mutationId: uuid(), baseRevision: revision() })
 const allocationCreate = vine
   .object({
     id: uuid(),
-    resourceId: uuid(),
-    activityId: uuid(),
+    resourceId: entityId(),
+    activityId: entityId(),
     projectId: nullableId().optional(),
     startDate: calendarDate(),
     endDate: calendarDate(),
@@ -146,8 +148,8 @@ const allocationCreate = vine
 
 const allocationChanges = vine
   .object({
-    resourceId: uuid().optional(),
-    activityId: uuid().optional(),
+    resourceId: entityId().optional(),
+    activityId: entityId().optional(),
     projectId: nullableId().optional(),
     startDate: calendarDate().optional(),
     endDate: calendarDate().optional(),
@@ -240,7 +242,7 @@ const allocationIntent = vine
       (value) => operationMatches(value, 'allocation.update'),
       vine.object({
         operation: vine.literal('allocation.update'),
-        id: uuid(),
+        id: entityId(),
         changes: allocationChanges.use(
           requireChanges([
             'resourceId',
@@ -259,14 +261,14 @@ const allocationIntent = vine
     ),
     vine.union.if(
       (value) => operationMatches(value, 'allocation.delete'),
-      vine.object({ operation: vine.literal('allocation.delete'), id: uuid() })
+      vine.object({ operation: vine.literal('allocation.delete'), id: entityId() })
     ),
     vine.union.if(
       (value) => operationMatches(value, 'allocation.deleteGroup'),
       vine
         .object({
           operation: vine.literal('allocation.deleteGroup'),
-          ids: vine.array(uuid()).minLength(1),
+          ids: vine.array(entityId()).minLength(1),
         })
         .use(uniqueArrayIds('ids'))
     ),
@@ -275,7 +277,7 @@ const allocationIntent = vine
       vine
         .object({
           operation: vine.literal('allocation.duplicate'),
-          sourceAllocationId: uuid(),
+          sourceAllocationId: entityId(),
           occurrence,
         })
         .use(duplicateIdIsDistinct())
@@ -285,7 +287,7 @@ const allocationIntent = vine
       vine
         .object({
           operation: vine.literal('allocation.repeat'),
-          sourceAllocationId: uuid(),
+          sourceAllocationId: entityId(),
           occurrences: vine.array(occurrence).minLength(1),
         })
         .use(distinctOccurrenceIds())
@@ -300,7 +302,10 @@ export const allocationMutationValidator = vine.compile(
 )
 
 const nameAndColor = { name: nameText(), color: presetColor() }
-const privateName = { isPrivate: boolean().nullable(), codeName: nullableUserText() }
+const privateName = {
+  isPrivate: boolean().nullable().optional(),
+  codeName: nullableUserText().optional(),
+}
 
 const catalogueCreate = vine.union([
   vine.union.if(
@@ -316,7 +321,7 @@ const catalogueCreate = vine.union([
     vine.object({
       entity: vine.literal('projects'),
       id: uuid(),
-      fields: vine.object({ ...nameAndColor, ...privateName, clientId: uuid() }),
+      fields: vine.object({ ...nameAndColor, ...privateName, clientId: entityId() }),
     })
   ),
   vine.union.if(
@@ -324,7 +329,7 @@ const catalogueCreate = vine.union([
     vine.object({
       entity: vine.literal('phases'),
       id: uuid(),
-      fields: vine.object({ name: nameText(), projectId: uuid() }),
+      fields: vine.object({ name: nameText(), projectId: entityId() }),
     })
   ),
   vine.union.if(
@@ -363,7 +368,7 @@ const catalogueChanges = vine.union([
     (value) => entityMatches(value, 'clients'),
     vine.object({
       entity: vine.literal('clients'),
-      id: uuid(),
+      id: entityId(),
       changes: vine
         .object({
           name: nameText().optional(),
@@ -378,12 +383,12 @@ const catalogueChanges = vine.union([
     (value) => entityMatches(value, 'projects'),
     vine.object({
       entity: vine.literal('projects'),
-      id: uuid(),
+      id: entityId(),
       changes: vine
         .object({
           name: nameText().optional(),
           color: presetColor().optional(),
-          clientId: uuid().optional(),
+          clientId: entityId().optional(),
           isPrivate: boolean().nullable().optional(),
           codeName: nullableUserText().optional(),
         })
@@ -394,11 +399,11 @@ const catalogueChanges = vine.union([
     (value) => entityMatches(value, 'phases'),
     vine.object({
       entity: vine.literal('phases'),
-      id: uuid(),
+      id: entityId(),
       changes: vine
         .object({
           name: nameText().optional(),
-          projectId: uuid().optional(),
+          projectId: entityId().optional(),
         })
         .use(requireChanges(['name', 'projectId'])),
     })
@@ -407,7 +412,7 @@ const catalogueChanges = vine.union([
     (value) => entityMatches(value, 'activities'),
     vine.object({
       entity: vine.literal('activities'),
-      id: uuid(),
+      id: entityId(),
       changes: vine
         .object({
           name: nameText().optional(),
@@ -421,7 +426,7 @@ const catalogueChanges = vine.union([
   vine.union.else(
     vine.object({
       entity: vine.literal('disciplines'),
-      id: uuid(),
+      id: entityId(),
       changes: vine
         .object({
           name: nameText().optional(),
@@ -443,9 +448,9 @@ const catalogueChanges = vine.union([
 const catalogueDelete = vine.union([
   vine.union.if(
     (value) => entityMatches(value, 'phases'),
-    vine.object({ entity: vine.literal('phases'), id: uuid() })
+    vine.object({ entity: vine.literal('phases'), id: entityId() })
   ),
-  vine.union.else(vine.object({ entity: vine.literal('disciplines'), id: uuid() })),
+  vine.union.else(vine.object({ entity: vine.literal('disciplines'), id: entityId() })),
 ])
 
 const catalogueIntent = vine.union([
@@ -589,7 +594,7 @@ const resourceIntent = vine.union([
   vine.union.else(
     vine.object({
       operation: vine.literal('resource.update'),
-      id: uuid(),
+      id: entityId(),
       changes: vine
         .object(resourceChanges)
         .use(requireChanges(Object.keys(resourceChanges)))
@@ -619,7 +624,7 @@ export const resourceMutationValidator = vine.compile(
 const timeOffCreate = vine
   .object({
     id: uuid(),
-    resourceId: uuid(),
+    resourceId: entityId(),
     startDate: calendarDate(),
     endDate: calendarDate(),
     type: vine.enum(['holiday', 'sick', 'unpaid', 'other'] as const),
@@ -629,7 +634,7 @@ const timeOffCreate = vine
 const timeOffOccurrence = vine
   .object({
     id: uuid(),
-    resourceId: uuid(),
+    resourceId: entityId(),
     startDate: calendarDate(),
     endDate: calendarDate(),
     type: vine.enum(['holiday', 'sick', 'unpaid', 'other'] as const),
@@ -656,7 +661,7 @@ const timeOffIntent = vine.union([
     vine
       .object({
         operation: vine.literal('timeOff.deleteGroup'),
-        ids: vine.array(uuid()).minLength(1),
+        ids: vine.array(entityId()).minLength(1),
       })
       .use(uniqueArrayIds('ids'))
   ),
@@ -664,10 +669,10 @@ const timeOffIntent = vine.union([
     (value) => operationMatches(value, 'timeOff.update'),
     vine.object({
       operation: vine.literal('timeOff.update'),
-      id: uuid(),
+      id: entityId(),
       changes: vine
         .object({
-          resourceId: uuid().optional(),
+          resourceId: entityId().optional(),
           startDate: calendarDate().optional(),
           endDate: calendarDate().optional(),
           type: vine.enum(['holiday', 'sick', 'unpaid', 'other'] as const).optional(),
@@ -677,7 +682,7 @@ const timeOffIntent = vine.union([
         .use(dateRange()),
     })
   ),
-  vine.union.else(vine.object({ operation: vine.literal('timeOff.delete'), id: uuid() })),
+  vine.union.else(vine.object({ operation: vine.literal('timeOff.delete'), id: entityId() })),
 ])
 
 export const timeOffMutationValidator = vine.compile(
@@ -707,14 +712,14 @@ const closureIntent = vine.union([
     (value) => operationMatches(value, 'closure.update'),
     vine.object({
       operation: vine.literal('closure.update'),
-      id: uuid(),
+      id: entityId(),
       changes: vine
         .object(closureChanges)
         .use(requireChanges(Object.keys(closureChanges)))
         .use(dateRange()),
     })
   ),
-  vine.union.else(vine.object({ operation: vine.literal('closure.delete'), id: uuid() })),
+  vine.union.else(vine.object({ operation: vine.literal('closure.delete'), id: entityId() })),
 ])
 
 export const closureMutationValidator = vine.compile(

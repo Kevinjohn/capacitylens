@@ -7,6 +7,7 @@ import { withTransaction } from '#services/with_transaction'
 import { writeAudit } from '#services/audit'
 import { BatchRequestError } from '#services/batch/errors'
 import { assertCompanyAction } from '#services/auth/authorization'
+import { advancePlanningRevision } from '#services/planning_revision'
 
 const INSERT_ORDER = [
   'clients',
@@ -65,6 +66,7 @@ export default class ExampleDataController {
           entityId: accountId,
           fields: Object.keys(sample),
         })
+        await advancePlanningRevision(trx, accountId)
         return countExampleRows(sample)
       })
       try {

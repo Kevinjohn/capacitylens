@@ -5,6 +5,7 @@ import {
 } from '@capacitylens/shared/account/approvedDomains'
 import { isJoiningPolicy, type JoiningPolicySettings } from '@capacitylens/shared/account/types'
 import { forbiddenAdmission, invalidAdmission } from './errors.js'
+import { advancePlanningRevision } from '#services/planning_revision'
 
 const DEFAULT_POLICY: JoiningPolicySettings = { policy: 'invitation_only', approvedDomains: [] }
 
@@ -45,6 +46,12 @@ export async function writeJoiningPolicy(
   accountId: string,
   settings: JoiningPolicySettings
 ) {
+  const current = await readJoiningPolicy(trx, accountId)
+  if (
+    current.policy === settings.policy &&
+    JSON.stringify(current.approvedDomains) === JSON.stringify(settings.approvedDomains)
+  )
+    return false
   const now = new Date().toISOString()
   await trx
     .table('account_joining_policies')
@@ -58,6 +65,8 @@ export async function writeJoiningPolicy(
     })
     .onConflict('account_id')
     .merge(['policy', 'approved_domains', 'updated_at'])
+  await advancePlanningRevision(trx, accountId)
+  return true
 }
 
 /** Evaluates one admission from current trusted mailbox evidence. */
