@@ -87,15 +87,13 @@ test.group('M2a CRUD and field policy contracts', (group) => {
       let stored = rowFor(await state(), table, id)
       const field = table === 'allocations' || table === 'timeOff' ? 'note' : 'name'
       const value =
-        table === 'accounts'
-          ? 'Wayne Foundation'
-          : table === 'resources'
-            ? 'Clark Kent'
-            : table === 'clients'
-              ? 'Wayne Foundation'
-              : table === 'projects'
-                ? 'Justice League Watchtower'
-                : 'Updated scheduling detail'
+        table === 'resources'
+          ? 'Clark Kent'
+          : table === 'clients'
+            ? 'Wayne Foundation'
+            : table === 'projects'
+              ? 'Justice League Watchtower'
+              : 'Updated scheduling detail'
       const updated = await put(table, {
         ...stored,
         [field]: value,

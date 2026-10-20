@@ -60,7 +60,9 @@ test.group('authenticated company erasure', (group) => {
     const now = new Date().toISOString()
     const otherCompany = { ...seed().accounts[0]!, id: 'a-loft', name: 'Stark Industries' }
     await db.table('accounts').insert(encodeRow('accounts', otherCompany))
-    await db.table('clients').insert(encodeRow('clients', buildInternalClient('a-loft', now)))
+    await db
+      .table('clients')
+      .insert(encodeRow('clients', { ...buildInternalClient('a-loft', now) }))
     const owner = await db.from('memberships').where({ account_id: 'a-studio' }).first()
     assert.isNotNull(owner)
     await db.table('memberships').insert({
