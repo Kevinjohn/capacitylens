@@ -323,6 +323,7 @@ This is the short, present-tense record of decisions that constrain future work.
 - Adonis Shield owns HSTS, `nosniff` and frame protection. HSTS is enabled only when HTTPS is
   explicitly enabled and the configured public URL uses HTTPS. The application CSP has one
   middleware owner; the Origin / Sec-Fetch-Site guard remains active, without a CSP report route.
+- Socket, scrypt and HIBP work limits are finite and fail closed under overload.
 - CapacityLens ships no product analytics. Optional mail delivers addressed invitations and
   password resets.
 - Errors on data paths are surfaced, not swallowed.
