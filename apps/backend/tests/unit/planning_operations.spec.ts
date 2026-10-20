@@ -649,6 +649,13 @@ test.group('planning operation contracts', () => {
         },
       })
     )
+    await assert.rejects(() =>
+      resourceMutationValidator.validate({
+        mutationId: uuid,
+        baseRevision: 1,
+        intent: { operation: 'resource.update', id: otherUuid, changes: { workingDays: [] } },
+      })
+    )
   })
 
   test('returns a typed stale-revision conflict without implying transactional enforcement', ({

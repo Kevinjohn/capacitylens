@@ -498,7 +498,7 @@ const resourceChanges = {
   employmentType: resourceFields.employmentType.optional(),
   engagement: resourceFields.engagement.optional(),
   workingHoursPerDay: resourceFields.workingHoursPerDay.optional(),
-  workingDays: resourceFields.workingDays.optional(),
+  workingDays: weekdays().minLength(1).optional(),
   halfDays: resourceFields.halfDays.optional(),
   projectId: resourceFields.projectId.optional(),
   color: resourceFields.color.optional(),
