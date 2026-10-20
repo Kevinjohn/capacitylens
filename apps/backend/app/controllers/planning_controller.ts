@@ -53,10 +53,11 @@ function refusal(error: unknown): { status: number; body: PlanningMutationFailur
         code: error.status === 401 ? 'unauthenticated' : 'authorization_denied',
       },
     }
+  // Identity resolution failures invalidate the projection; action refusals use PlanningOperationError.
   if (error instanceof IdentityAuthorityError)
     return {
       status: 403,
-      body: { error: 'This action is not allowed.', code: 'authorization_denied' },
+      body: { error: 'Planning access is unavailable.', code: 'account_membership_lost' },
     }
   throw error
 }

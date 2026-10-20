@@ -1,10 +1,11 @@
 import { test } from '@japa/runner'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import testUtils from '@adonisjs/core/services/test_utils'
 import db from '@adonisjs/lucid/services/db'
 import { randomUUID } from 'node:crypto'
-import { readState, resetState } from '#services/state_repository'
+import { readState, readStateWithClient, resetState } from '#services/state_repository'
 import {
-  executePlanningIntent,
+  executePlanningIntent as applyPlanningIntent,
   PlanningOperationError,
 } from '#services/planning_operations/execute'
 import type { PlanningIntent } from '#validators/planning_operations'
@@ -16,6 +17,16 @@ const owner: BatchCapabilities = {
   canPurge: true,
   canSeePrivateNames: true,
   canSeeTimeOffNote: true,
+}
+
+async function executePlanningIntent(
+  trx: TransactionClientContract,
+  accountId: string,
+  intent: PlanningIntent,
+  capabilities: BatchCapabilities
+) {
+  const data = await readStateWithClient(trx, accountId, true)
+  return applyPlanningIntent(trx, accountId, intent, capabilities, data)
 }
 
 test.group('typed planning writers', (group) => {

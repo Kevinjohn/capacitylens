@@ -14,6 +14,7 @@ import { createServerRevision } from '#services/batch/revision'
 import { validateEntityRow } from '#validators/entities/index'
 import type { BatchCapabilities } from '#services/batch/data_policy'
 
+/** A safe refusal whose caller must roll back the enclosing planning transaction. */
 export class PlanningOperationError extends Error {
   constructor(
     readonly status: number,
@@ -52,6 +53,7 @@ function lookupFor(data: AppData): ValidationDataLookup {
   }
 }
 
+/** Resolves a stored row from the complete company snapshot, refusing missing targets. */
 export function existingRow(data: AppData, table: AppDataKey, id: string): Row {
   const row = (data[table] as unknown as Row[]).find((item) => item.id === id)
   if (!row) throw new PlanningOperationError(404, 'validation_error', 'The record was not found.')
@@ -85,6 +87,12 @@ function requirePrivacyPermission(
     )
 }
 
+/**
+ * Validates and writes one row in the caller's transaction, then mutates its unprojected company state.
+ * Later compound entries validate against those changes. The caller owns rollback and atomic
+ * revision, audit and commitment recording. Only later allocation-repeat occurrences may use
+ * permissiveRepeatStart; creates, duplicates and the first repeat retain the working-day gate.
+ */
 export async function writeRow(
   trx: TransactionClientContract,
   data: AppData,
@@ -161,6 +169,10 @@ export async function writeRow(
   return clean
 }
 
+/**
+ * Validates allowed settings and mutates the supplied complete company state after writing.
+ * The caller owns rollback, no-change detection and the refetch/history-clear acknowledgement.
+ */
 export async function updateSettings(
   trx: TransactionClientContract,
   data: AppData,

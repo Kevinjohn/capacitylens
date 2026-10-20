@@ -140,7 +140,8 @@ function requiresRefetch(intent: PlanningMutationInput['intent']) {
   if (intent.operation === 'catalogue.update' && 'changes' in intent.entity)
     return (
       Object.hasOwn(intent.entity.changes, 'isPrivate') ||
-      Object.hasOwn(intent.entity.changes, 'codeName')
+      Object.hasOwn(intent.entity.changes, 'codeName') ||
+      (intent.entity.entity === 'activities' && Object.hasOwn(intent.entity.changes, 'kind'))
     )
   return false
 }
@@ -172,7 +173,7 @@ export function mutatePlanning(
       input.mutationId
     )
     const before = await readStateWithClient(trx, accountId, true)
-    await executePlanningIntent(trx, accountId, input.intent, capabilities)
+    await executePlanningIntent(trx, accountId, input.intent, capabilities, structuredClone(before))
     const after = await readStateWithClient(trx, accountId, true)
     if (semanticState(before) === semanticState(after))
       throw new PlanningOperationError(

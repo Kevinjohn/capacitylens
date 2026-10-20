@@ -262,6 +262,63 @@ test.group('M2a batch projection attribution', (group) => {
       .where('account_id', activity.accountId)
       .first()
     assert.equal(Number(afterRevision?.revision), Number(beforeRevision?.revision ?? 0) + 1)
+    assert.equal((response.body() as { changed: number }).changed, 1)
+    const audits = await db
+      .from('audit_entries')
+      .where({ account_id: activity.accountId, entity: 'allocations', entity_id: allocation.id })
+    assert.lengthOf(audits, 1)
+    assert.equal(audits[0]?.action, 'update')
+  })
+
+  test('rolls back a legacy attribution repair when its audit write fails', async ({
+    client,
+    assert,
+  }) => {
+    await resetSeed(client)
+    const data = seed()
+    const activity = data.activities.find((row) => row.id === 't-admin')!
+    const allocation = data.allocations.find((row) => row.id === 'a-alex-design')!
+    await db
+      .from('allocations')
+      .where('id', allocation.id)
+      .update({ activity_id: activity.id, project_id: 'p-acme' })
+    const beforeRevision = await db
+      .from('company_planning_revisions')
+      .where('account_id', activity.accountId)
+      .first()
+    const beforeAuditCount = await db
+      .from('audit_entries')
+      .where({ account_id: activity.accountId, entity: 'allocations', entity_id: allocation.id })
+      .count('* as count')
+
+    await db.rawQuery(`
+      CREATE TRIGGER fail_attribution_repair_audit
+      BEFORE INSERT ON audit_entries
+      BEGIN
+        SELECT RAISE(ABORT, 'audit unavailable');
+      END
+    `)
+    try {
+      const response = await batch(client, [
+        { method: 'PUT', table: 'activities', id: activity.id, row: activity },
+      ])
+      response.assertStatus(500)
+    } finally {
+      await db.rawQuery('DROP TRIGGER IF EXISTS fail_attribution_repair_audit')
+    }
+
+    const storedAllocation = await db.from('allocations').where('id', allocation.id).first()
+    const afterRevision = await db
+      .from('company_planning_revisions')
+      .where('account_id', activity.accountId)
+      .first()
+    const afterAuditCount = await db
+      .from('audit_entries')
+      .where({ account_id: activity.accountId, entity: 'allocations', entity_id: allocation.id })
+      .count('* as count')
+    assert.equal(storedAllocation?.project_id, 'p-acme')
+    assert.equal(Number(afterRevision?.revision ?? 0), Number(beforeRevision?.revision ?? 0))
+    assert.equal(Number(afterAuditCount[0]?.count), Number(beforeAuditCount[0]?.count))
   })
 
   test('reconciles attribution when an activity edit follows corrupt existing attribution', async ({

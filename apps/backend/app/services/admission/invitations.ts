@@ -119,7 +119,6 @@ export async function createInvitation(
     entityId: id,
     fields: ['role', 'email', ...(input.proposedResourceId ? ['proposedResourceId'] : [])],
   })
-  await advancePlanningRevision(trx, input.accountId)
   return {
     id,
     token,

@@ -1,7 +1,7 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { allocationAttributionAllowed } from '@capacitylens/shared/lib/integrity'
 import { DomainError } from '@capacitylens/shared/domain/errors'
-import { readStateWithClient } from '#services/state_repository'
+import type { AppData } from '@capacitylens/shared/types/entities'
 import { BatchRequestError } from '#services/batch/errors'
 import { createServerRevision } from '#services/batch/revision'
 import type { PlanningIntent } from '#validators/planning_operations'
@@ -9,16 +9,19 @@ import type { BatchCapabilities } from '#services/batch/data_policy'
 import { existingRow, PlanningOperationError, updateSettings, writeRow } from './writer.js'
 export { PlanningOperationError } from './writer.js'
 
-/** Apply one validated typed planning intent inside the caller's transaction. */
+/**
+ * Applies one intent to the caller's transaction and mutable, complete company snapshot.
+ * The caller retains a separate before-image and owns rollback, revision, audit and commitment.
+ */
 export async function executePlanningIntent(
   trx: TransactionClientContract,
   accountId: string,
   intent: PlanningIntent,
-  capabilities: BatchCapabilities
+  capabilities: BatchCapabilities,
+  data: AppData
 ): Promise<void> {
   if (!capabilities.canWrite || capabilities.role === 'viewer')
     throw new PlanningOperationError(403, 'authorization_denied', 'Write access is required.')
-  const data = await readStateWithClient(trx, accountId, true)
   if (!data.accounts.some((row) => row.id === accountId))
     throw new PlanningOperationError(404, 'validation_error', 'The company was not found.')
   try {

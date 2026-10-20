@@ -413,4 +413,183 @@ test.group('authenticated planning operations', (group) => {
     assert.equal(first?.seriesId, later?.seriesId)
     assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 2)
   })
+  test('refuses phase reassignment that would invalidate its activities without committing effects', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup)
+    const { cookie } = await signIn(client)
+    const before = await readState(accountId, true)
+    const phase = before.phases.find((row) => row.id === 'ph-disc')!
+    const target = before.projects.find((row) => row.id === 'p-brand')!
+    const refused = await session(client.patch(route(`phases/${phase.id}`)), cookie)
+      .json(
+        input(0, {
+          operation: 'catalogue.update',
+          entity: { entity: 'phases', id: phase.id, changes: { projectId: target.id } },
+        })
+      )
+      .send()
+    refused.assertStatus(400)
+    assert.equal(body(refused).code, 'validation_error')
+    const retained = await session(client.post('/api/batch'), cookie)
+      .json({
+        ops: [
+          { method: 'PUT', table: 'phases', id: phase.id, row: { ...phase, projectId: target.id } },
+        ],
+      })
+      .send()
+    retained.assertStatus(400)
+    assert.deepEqual(await readState(accountId, true), before)
+    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0)
+    assert.lengthOf(await db.from('audit_entries').where('account_id', accountId), 0)
+    const current = await session(client.get(planningUrl), cookie).send()
+    assert.equal(body(current).revision, 0)
+  })
+
+  test('allows moving a phase without dependent activities', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup)
+    const { cookie } = await signIn(client)
+    const id = randomUUID()
+    const created = await session(client.post(route('phases')), cookie)
+      .json(
+        input(0, {
+          operation: 'catalogue.create',
+          entity: {
+            entity: 'phases',
+            id,
+            fields: { name: 'Planning', projectId: 'p-acme' },
+          },
+        })
+      )
+      .send()
+    created.assertStatus(200)
+    const moved = await session(client.patch(route(`phases/${id}`)), cookie)
+      .json(
+        input(1, {
+          operation: 'catalogue.update',
+          entity: {
+            entity: 'phases',
+            id,
+            changes: { projectId: 'p-brand' },
+          },
+        })
+      )
+      .send()
+    moved.assertStatus(200)
+    assert.equal(body(moved).revision, 2)
+    const afterMove = await readState(accountId, true)
+    assert.equal(afterMove.phases.find((row) => row.id === id)?.projectId, 'p-brand')
+  })
+  test('activity kind edits clear history after dependent attribution is removed', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup)
+    const { cookie } = await signIn(client)
+    const data = await readState(accountId, true)
+    const activityId = randomUUID()
+    const created = await session(client.post(route('activities')), cookie)
+      .json(
+        input(0, {
+          operation: 'catalogue.create',
+          entity: {
+            entity: 'activities',
+            id: activityId,
+            fields: {
+              name: 'All projects planning',
+              kind: 'repeatable',
+              projectId: null,
+              phaseId: null,
+            },
+          },
+        })
+      )
+      .send()
+    created.assertStatus(200)
+    const allocation = { ...newAllocation(data), activityId, projectId: 'p-acme' }
+    const allocated = await session(client.post(route('allocations')), cookie)
+      .json(input(1, { operation: 'allocation.create', allocation }))
+      .send()
+    allocated.assertStatus(200)
+    const changed = await session(client.patch(route(`activities/${activityId}`)), cookie)
+      .json(
+        input(2, {
+          operation: 'catalogue.update',
+          entity: {
+            entity: 'activities',
+            id: activityId,
+            changes: { kind: 'internal' },
+          },
+        })
+      )
+      .send()
+    changed.assertStatus(200)
+    assert.equal(body(changed).revision, 3)
+    assert.deepEqual(body(changed).projection, { mode: 'refetch', history: 'clear' })
+    const afterKindChange = await readState(accountId, true)
+    assert.isNull(afterKindChange.allocations.find((row) => row.id === allocation.id)?.projectId)
+
+    const auditBeforeNoop = await db.from('audit_entries').where('account_id', accountId)
+    const markersBeforeNoop = await db.from('planning_mutations').where('account_id', accountId)
+    const sameKindOnly = await session(client.patch(route(`activities/${activityId}`)), cookie)
+      .json(
+        input(3, {
+          operation: 'catalogue.update',
+          entity: {
+            entity: 'activities',
+            id: activityId,
+            changes: { kind: 'internal' },
+          },
+        })
+      )
+      .send()
+    sameKindOnly.assertStatus(400)
+    assert.equal(body(sameKindOnly).code, 'no_change')
+    assert.deepEqual(await readState(accountId, true), afterKindChange)
+    assert.deepEqual(await db.from('audit_entries').where('account_id', accountId), auditBeforeNoop)
+    assert.deepEqual(
+      await db.from('planning_mutations').where('account_id', accountId),
+      markersBeforeNoop
+    )
+    const afterNoop = await session(client.get(planningUrl), cookie).send()
+    afterNoop.assertStatus(200)
+    assert.equal(body(afterNoop).revision, 3)
+
+    const sameKind = await session(client.patch(route(`activities/${activityId}`)), cookie)
+      .json(
+        input(3, {
+          operation: 'catalogue.update',
+          entity: {
+            entity: 'activities',
+            id: activityId,
+            changes: { kind: 'internal', name: 'Internal planning' },
+          },
+        })
+      )
+      .send()
+    sameKind.assertStatus(200)
+    assert.deepEqual(body(sameKind).projection, { mode: 'refetch', history: 'clear' })
+    const renamed = await session(client.patch(route(`activities/${activityId}`)), cookie)
+      .json(
+        input(4, {
+          operation: 'catalogue.update',
+          entity: {
+            entity: 'activities',
+            id: activityId,
+            changes: { name: 'Internal coordination' },
+          },
+        })
+      )
+      .send()
+    renamed.assertStatus(200)
+    assert.equal(body(renamed).projection.mode, 'patch')
+    assert.equal(body(renamed).projection.history, 'retain')
+  })
 })
