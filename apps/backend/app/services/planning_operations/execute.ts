@@ -1,13 +1,102 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { allocationAttributionAllowed } from '@capacitylens/shared/lib/integrity'
+import { cleanText } from '@capacitylens/shared/lib/strings'
 import { DomainError } from '@capacitylens/shared/domain/errors'
-import type { AppData } from '@capacitylens/shared/types/entities'
+import {
+  archive,
+  canUnarchive,
+  LifecycleTransitionError,
+  lifecycleStatus,
+  unarchive,
+} from '@capacitylens/shared/domain/lifecycle'
+import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities'
 import { BatchRequestError } from '#services/batch/errors'
 import { createServerRevision } from '#services/batch/revision'
+import { encodeRow } from '#services/state_repository'
+import { TABLE_NAMES } from '#services/batch/entity_policy'
 import type { PlanningIntent } from '#validators/planning_operations'
 import type { BatchCapabilities } from '#services/batch/data_policy'
 import { existingRow, PlanningOperationError, updateSettings, writeRow } from './writer.js'
 export { PlanningOperationError } from './writer.js'
+
+type LifecycleTable = Extract<AppDataKey, 'clients' | 'projects' | 'resources' | 'activities'>
+
+type GroupAllocation = Extract<
+  PlanningIntent,
+  { operation: 'allocation.createGroup' }
+>['allocations'][number]
+
+function allocationGroupShape(allocation: GroupAllocation) {
+  return JSON.stringify({
+    resourceId: allocation.resourceId,
+    activityId: allocation.activityId,
+    projectId: allocation.projectId ?? null,
+    hoursPerDay: allocation.hoursPerDay,
+    status: allocation.status,
+    note:
+      allocation.note === null || allocation.note === undefined
+        ? null
+        : cleanText(allocation.note, { multiline: true }),
+    task:
+      allocation.task === null || allocation.task === undefined ? null : cleanText(allocation.task),
+    ignoreWeekends: allocation.ignoreWeekends === true,
+  })
+}
+
+function assertAllocationGroupHomogeneous(allocations: readonly GroupAllocation[]) {
+  const firstShape = allocationGroupShape(allocations[0]!)
+  if (allocations.some((allocation) => allocationGroupShape(allocation) !== firstShape))
+    throw new PlanningOperationError(
+      400,
+      'validation_error',
+      'All allocations in a group must share the same allocation details.'
+    )
+}
+
+async function transitionLifecycle(
+  trx: TransactionClientContract,
+  data: AppData,
+  accountId: string,
+  table: LifecycleTable,
+  id: string,
+  action: 'archive' | 'unarchive'
+) {
+  const current = existingRow(data, table, id)
+  if (table === 'clients' && current.builtin === true)
+    throw new PlanningOperationError(
+      400,
+      'validation_error',
+      `The built-in Internal client cannot be ${action === 'archive' ? 'archived' : 'unarchived'}.`
+    )
+  const now = createServerRevision(current.updatedAt)
+  let next: Record<string, unknown>
+  if (action === 'archive') {
+    next = {
+      ...(archive(current as never, now) as unknown as Record<string, unknown>),
+      updatedAt: now,
+    }
+  } else {
+    if (!canUnarchive(current as never)) {
+      const noChange = lifecycleStatus(current as never) === 'active'
+      throw new PlanningOperationError(
+        400,
+        noChange ? 'no_change' : 'validation_error',
+        noChange
+          ? 'The record is already active.'
+          : 'The record is not archived and cannot be unarchived.'
+      )
+    }
+    next = {
+      ...(unarchive(current as never) as unknown as Record<string, unknown>),
+      updatedAt: now,
+    }
+  }
+  await trx
+    .from(TABLE_NAMES[table])
+    .where({ id, account_id: accountId })
+    .update(encodeRow(TABLE_NAMES[table], next))
+  Object.assign(current, next)
+}
 
 /**
  * Applies one intent to the caller's transaction and mutable, complete company snapshot.
@@ -38,6 +127,24 @@ export async function executePlanningIntent(
           'create'
         )
         return
+      case 'allocation.createGroup': {
+        assertAllocationGroupHomogeneous(intent.allocations)
+        const seriesId = crypto.randomUUID()
+        for (const [index, allocation] of intent.allocations.entries()) {
+          await writeRow(
+            trx,
+            data,
+            accountId,
+            'allocations',
+            allocation.id,
+            { ...allocation, seriesId },
+            capabilities,
+            'create',
+            { permissiveRepeatStart: index > 0 }
+          )
+        }
+        return
+      }
       case 'allocation.update':
         await writeRow(
           trx,
@@ -114,6 +221,17 @@ export async function executePlanningIntent(
         }
         return
       }
+      case 'catalogue.archive':
+      case 'catalogue.unarchive':
+        await transitionLifecycle(
+          trx,
+          data,
+          accountId,
+          intent.entity.entity,
+          intent.entity.id,
+          intent.operation === 'catalogue.archive' ? 'archive' : 'unarchive'
+        )
+        return
       case 'resource.create':
       case 'resource.update':
         await writeRow(
@@ -125,6 +243,17 @@ export async function executePlanningIntent(
           intent.operation === 'resource.create' ? intent.fields : intent.changes,
           capabilities,
           intent.operation === 'resource.create' ? 'create' : 'update'
+        )
+        return
+      case 'resource.archive':
+      case 'resource.unarchive':
+        await transitionLifecycle(
+          trx,
+          data,
+          accountId,
+          'resources',
+          intent.id,
+          intent.operation === 'resource.archive' ? 'archive' : 'unarchive'
         )
         return
       case 'timeOff.create':
@@ -188,6 +317,12 @@ export async function executePlanningIntent(
       )
     if (error instanceof DomainError)
       throw new PlanningOperationError(400, 'validation_error', error.message)
+    if (error instanceof LifecycleTransitionError)
+      throw new PlanningOperationError(
+        400,
+        error.code === 'already_inactive' ? 'no_change' : 'validation_error',
+        error.message
+      )
     if (
       typeof error === 'object' &&
       error !== null &&

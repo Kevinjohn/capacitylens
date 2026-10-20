@@ -130,6 +130,57 @@ test.group('authenticated typed planning transactions', (group) => {
     )
   })
 
+  test('occupied and missing entity targets use the validation transport mapping without effects', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup)
+    const { cookie } = await signIn(client)
+    const allocation = newAllocation(await readState(accountId, true))
+    const created = await session(client.post(`/api/accounts/${accountId}/allocations`), cookie)
+      .json({
+        mutationId: randomUUID(),
+        baseRevision: 0,
+        intent: { operation: 'allocation.create', allocation },
+      })
+      .send()
+    created.assertStatus(200)
+    const before = await readState(accountId, true)
+    const occupied = await session(client.post(`/api/accounts/${accountId}/allocations`), cookie)
+      .json({
+        mutationId: randomUUID(),
+        baseRevision: 1,
+        intent: { operation: 'allocation.create', allocation },
+      })
+      .send()
+    occupied.assertStatus(400)
+    assert.equal(occupied.body().code, 'validation_error')
+    const missingId = randomUUID()
+    const missing = await session(
+      client.patch(`/api/accounts/${accountId}/allocations/${missingId}`),
+      cookie
+    )
+      .json({
+        mutationId: randomUUID(),
+        baseRevision: 1,
+        intent: {
+          operation: 'allocation.update',
+          id: missingId,
+          changes: { hoursPerDay: 4 },
+        },
+      })
+      .send()
+    missing.assertStatus(400)
+    assert.equal(missing.body().code, 'validation_error')
+    assert.deepEqual(await readState(accountId, true), before)
+    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 1)
+    assert.lengthOf(
+      await db.from('audit_entries').where({ account_id: accountId, entity: 'planning' }),
+      1
+    )
+  })
+
   test('lost response lookup is actor/company scoped and absent identity stays unknown', async ({
     client,
     assert,

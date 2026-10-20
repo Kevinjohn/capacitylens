@@ -30,6 +30,12 @@ const routes = {
     tokens: [{"old":"/api/accounts/:accountId/allocations/:id","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/allocations/:id","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/allocations/:id","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/allocations/:id","type":0,"val":"allocations","end":""},{"old":"/api/accounts/:accountId/allocations/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['api.planning.allocation.update']['types'],
   },
+  'api.planning.allocation.createGroup': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/allocations/create-group',
+    tokens: [{"old":"/api/accounts/:accountId/allocations/create-group","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/allocations/create-group","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/allocations/create-group","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/allocations/create-group","type":0,"val":"allocations","end":""},{"old":"/api/accounts/:accountId/allocations/create-group","type":0,"val":"create-group","end":""}],
+    types: placeholder as Registry['api.planning.allocation.createGroup']['types'],
+  },
   'api.planning.resource.create': {
     methods: ["POST"],
     pattern: '/api/accounts/:accountId/resources',
@@ -78,6 +84,18 @@ const routes = {
     tokens: [{"old":"/api/accounts/:accountId/clients/:id","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/clients/:id","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/clients/:id","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/clients/:id","type":0,"val":"clients","end":""},{"old":"/api/accounts/:accountId/clients/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['api.planning.client.update']['types'],
   },
+  'api.planning.client.archive': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/clients/:id/archive',
+    tokens: [{"old":"/api/accounts/:accountId/clients/:id/archive","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/clients/:id/archive","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/clients/:id/archive","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/clients/:id/archive","type":0,"val":"clients","end":""},{"old":"/api/accounts/:accountId/clients/:id/archive","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/clients/:id/archive","type":0,"val":"archive","end":""}],
+    types: placeholder as Registry['api.planning.client.archive']['types'],
+  },
+  'api.planning.client.unarchive': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/clients/:id/unarchive',
+    tokens: [{"old":"/api/accounts/:accountId/clients/:id/unarchive","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/clients/:id/unarchive","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/clients/:id/unarchive","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/clients/:id/unarchive","type":0,"val":"clients","end":""},{"old":"/api/accounts/:accountId/clients/:id/unarchive","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/clients/:id/unarchive","type":0,"val":"unarchive","end":""}],
+    types: placeholder as Registry['api.planning.client.unarchive']['types'],
+  },
   'api.planning.project.create': {
     methods: ["POST"],
     pattern: '/api/accounts/:accountId/projects',
@@ -90,6 +108,18 @@ const routes = {
     tokens: [{"old":"/api/accounts/:accountId/projects/:id","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/projects/:id","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/projects/:id","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/projects/:id","type":0,"val":"projects","end":""},{"old":"/api/accounts/:accountId/projects/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['api.planning.project.update']['types'],
   },
+  'api.planning.project.archive': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/projects/:id/archive',
+    tokens: [{"old":"/api/accounts/:accountId/projects/:id/archive","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/projects/:id/archive","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/projects/:id/archive","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/projects/:id/archive","type":0,"val":"projects","end":""},{"old":"/api/accounts/:accountId/projects/:id/archive","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/projects/:id/archive","type":0,"val":"archive","end":""}],
+    types: placeholder as Registry['api.planning.project.archive']['types'],
+  },
+  'api.planning.project.unarchive': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/projects/:id/unarchive',
+    tokens: [{"old":"/api/accounts/:accountId/projects/:id/unarchive","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/projects/:id/unarchive","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/projects/:id/unarchive","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/projects/:id/unarchive","type":0,"val":"projects","end":""},{"old":"/api/accounts/:accountId/projects/:id/unarchive","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/projects/:id/unarchive","type":0,"val":"unarchive","end":""}],
+    types: placeholder as Registry['api.planning.project.unarchive']['types'],
+  },
   'api.planning.activity.create': {
     methods: ["POST"],
     pattern: '/api/accounts/:accountId/activities',
@@ -101,6 +131,18 @@ const routes = {
     pattern: '/api/accounts/:accountId/activities/:id',
     tokens: [{"old":"/api/accounts/:accountId/activities/:id","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/activities/:id","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/activities/:id","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/activities/:id","type":0,"val":"activities","end":""},{"old":"/api/accounts/:accountId/activities/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['api.planning.activity.update']['types'],
+  },
+  'api.planning.activity.archive': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/activities/:id/archive',
+    tokens: [{"old":"/api/accounts/:accountId/activities/:id/archive","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/activities/:id/archive","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/activities/:id/archive","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/activities/:id/archive","type":0,"val":"activities","end":""},{"old":"/api/accounts/:accountId/activities/:id/archive","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/activities/:id/archive","type":0,"val":"archive","end":""}],
+    types: placeholder as Registry['api.planning.activity.archive']['types'],
+  },
+  'api.planning.activity.unarchive': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/activities/:id/unarchive',
+    tokens: [{"old":"/api/accounts/:accountId/activities/:id/unarchive","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/activities/:id/unarchive","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/activities/:id/unarchive","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/activities/:id/unarchive","type":0,"val":"activities","end":""},{"old":"/api/accounts/:accountId/activities/:id/unarchive","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/activities/:id/unarchive","type":0,"val":"unarchive","end":""}],
+    types: placeholder as Registry['api.planning.activity.unarchive']['types'],
   },
   'api.planning.phase.create': {
     methods: ["POST"],
@@ -125,6 +167,18 @@ const routes = {
     pattern: '/api/accounts/:accountId/disciplines/:id',
     tokens: [{"old":"/api/accounts/:accountId/disciplines/:id","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/disciplines/:id","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/disciplines/:id","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/disciplines/:id","type":0,"val":"disciplines","end":""},{"old":"/api/accounts/:accountId/disciplines/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['api.planning.discipline.update']['types'],
+  },
+  'api.planning.resource.archive': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/resources/:id/archive',
+    tokens: [{"old":"/api/accounts/:accountId/resources/:id/archive","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/resources/:id/archive","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/resources/:id/archive","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/resources/:id/archive","type":0,"val":"resources","end":""},{"old":"/api/accounts/:accountId/resources/:id/archive","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/resources/:id/archive","type":0,"val":"archive","end":""}],
+    types: placeholder as Registry['api.planning.resource.archive']['types'],
+  },
+  'api.planning.resource.unarchive': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/resources/:id/unarchive',
+    tokens: [{"old":"/api/accounts/:accountId/resources/:id/unarchive","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/resources/:id/unarchive","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/resources/:id/unarchive","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/resources/:id/unarchive","type":0,"val":"resources","end":""},{"old":"/api/accounts/:accountId/resources/:id/unarchive","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/resources/:id/unarchive","type":0,"val":"unarchive","end":""}],
+    types: placeholder as Registry['api.planning.resource.unarchive']['types'],
   },
   'api.planning.allocation.duplicate': {
     methods: ["POST"],

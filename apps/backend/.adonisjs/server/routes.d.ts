@@ -8,6 +8,7 @@ export type ScannedRoutes = {
     'api.planning.lookup': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'mutationId': ParamValue} }
     'api.planning.allocation.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.allocation.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.allocation.createGroup': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.resource.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.resource.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.timeOff.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
@@ -16,14 +17,22 @@ export type ScannedRoutes = {
     'api.planning.closure.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.client.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.client.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.client.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.client.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.project.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.project.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.project.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.project.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.activity.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.activity.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.activity.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.activity.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.phase.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.phase.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.discipline.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.discipline.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.resource.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.resource.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.allocation.duplicate': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.allocation.repeat': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.timeOff.repeat': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
@@ -125,14 +134,23 @@ export type ScannedRoutes = {
   }
   POST: {
     'api.planning.allocation.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.allocation.createGroup': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.resource.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.timeOff.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.closure.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.client.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.client.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.client.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.project.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.project.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.project.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.activity.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.activity.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.activity.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.phase.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.discipline.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.resource.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.resource.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.allocation.duplicate': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.allocation.repeat': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.timeOff.repeat': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }

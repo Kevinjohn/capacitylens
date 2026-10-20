@@ -9,12 +9,15 @@ export interface ApiDefinition {
       allocation: {
         create: typeof routes['api.planning.allocation.create']
         update: typeof routes['api.planning.allocation.update']
+        createGroup: typeof routes['api.planning.allocation.createGroup']
         duplicate: typeof routes['api.planning.allocation.duplicate']
         repeat: typeof routes['api.planning.allocation.repeat']
       }
       resource: {
         create: typeof routes['api.planning.resource.create']
         update: typeof routes['api.planning.resource.update']
+        archive: typeof routes['api.planning.resource.archive']
+        unarchive: typeof routes['api.planning.resource.unarchive']
       }
       timeOff: {
         create: typeof routes['api.planning.timeOff.create']
@@ -28,14 +31,20 @@ export interface ApiDefinition {
       client: {
         create: typeof routes['api.planning.client.create']
         update: typeof routes['api.planning.client.update']
+        archive: typeof routes['api.planning.client.archive']
+        unarchive: typeof routes['api.planning.client.unarchive']
       }
       project: {
         create: typeof routes['api.planning.project.create']
         update: typeof routes['api.planning.project.update']
+        archive: typeof routes['api.planning.project.archive']
+        unarchive: typeof routes['api.planning.project.unarchive']
       }
       activity: {
         create: typeof routes['api.planning.activity.create']
         update: typeof routes['api.planning.activity.update']
+        archive: typeof routes['api.planning.activity.archive']
+        unarchive: typeof routes['api.planning.activity.unarchive']
       }
       phase: {
         create: typeof routes['api.planning.phase.create']

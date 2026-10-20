@@ -82,7 +82,7 @@ async function currentAuthority(
     actorId: principal.actorId,
     effectiveActorId: principal.effectiveId,
     role,
-    canWrite: !masquerading && can(role, 'write'),
+    canWrite: authMode() !== 'off' && !masquerading && can(role, 'write'),
     canSeePrivateNames: canSeePrivateNames(role),
     canSeeTimeOffNote: canSeeTimeOffNote(role),
   }
@@ -152,6 +152,8 @@ export function mutatePlanning(
   accountId: string,
   input: PlanningMutationInput
 ): Promise<PlanningMutationSuccess> {
+  if (authMode() === 'off')
+    throw new PlanningOperationError(401, 'unauthenticated', 'Sign in to edit planning data.')
   return withTransaction(async (trx) => {
     const { authority, capabilities, bouncer } = await currentAuthority(ctx, trx, accountId)
     if (!(await bouncer.with(DataPolicy).allows('write', { accountId, capabilities })))

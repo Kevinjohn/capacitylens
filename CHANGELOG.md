@@ -9,6 +9,10 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Typed allocation-group creation and catalogue/resource archive and unarchive operations preserve
+  stable IDs and commit one revision per action. Existing deletion and Undo paths remain active
+  while their complete replacement is unfinished.
+
 - Transactional company planning snapshots and typed resource operations with one company revision,
   stale-edit refusal, atomic audit recording and actor-scoped mutation commitment lookup. Existing
   callers share the revision during transition; session-bound deletion restoration remains gated.

@@ -200,7 +200,7 @@ const distinctOccurrenceIds = vine.createRule((value, _options, field) => {
   }
 })
 
-const uniqueArrayIds = (property: 'ids' | 'entries') =>
+const uniqueArrayIds = (property: 'ids' | 'entries' | 'allocations') =>
   vine.createRule((value, _options, field) => {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) return
     const items = (value as Record<string, unknown>)[property]
@@ -271,6 +271,15 @@ const allocationIntent = vine
           ids: vine.array(entityId()).minLength(1),
         })
         .use(uniqueArrayIds('ids'))
+    ),
+    vine.union.if(
+      (value) => operationMatches(value, 'allocation.createGroup'),
+      vine
+        .object({
+          operation: vine.literal('allocation.createGroup'),
+          allocations: vine.array(allocationCreate).minLength(1),
+        })
+        .use(uniqueArrayIds('allocations'))
     ),
     vine.union.if(
       (value) => operationMatches(value, 'allocation.duplicate'),
@@ -453,6 +462,18 @@ const catalogueDelete = vine.union([
   vine.union.else(vine.object({ entity: vine.literal('disciplines'), id: entityId() })),
 ])
 
+const catalogueLifecycleEntity = vine.union([
+  vine.union.if(
+    (value) => entityMatches(value, 'clients'),
+    vine.object({ entity: vine.literal('clients'), id: entityId() })
+  ),
+  vine.union.if(
+    (value) => entityMatches(value, 'projects'),
+    vine.object({ entity: vine.literal('projects'), id: entityId() })
+  ),
+  vine.union.else(vine.object({ entity: vine.literal('activities'), id: entityId() })),
+])
+
 const catalogueIntent = vine.union([
   vine.union.if(
     (value) => operationMatches(value, 'catalogue.create'),
@@ -461,6 +482,15 @@ const catalogueIntent = vine.union([
   vine.union.if(
     (value) => operationMatches(value, 'catalogue.update'),
     vine.object({ operation: vine.literal('catalogue.update'), entity: catalogueChanges })
+  ),
+  vine.union.if(
+    (value) =>
+      operationMatches(value, 'catalogue.archive') ||
+      operationMatches(value, 'catalogue.unarchive'),
+    vine.object({
+      operation: vine.enum(['catalogue.archive', 'catalogue.unarchive'] as const),
+      entity: catalogueLifecycleEntity,
+    })
   ),
   vine.union.else(
     vine.object({ operation: vine.literal('catalogue.delete'), entity: catalogueDelete })
@@ -591,7 +621,8 @@ const resourceIntent = vine.union([
       ),
     })
   ),
-  vine.union.else(
+  vine.union.if(
+    (value) => operationMatches(value, 'resource.update'),
     vine.object({
       operation: vine.literal('resource.update'),
       id: entityId(),
@@ -613,6 +644,12 @@ const resourceIntent = vine.union([
             }
           })()
         ),
+    })
+  ),
+  vine.union.else(
+    vine.object({
+      operation: vine.enum(['resource.archive', 'resource.unarchive'] as const),
+      id: entityId(),
     })
   ),
 ])
@@ -849,7 +886,7 @@ export interface PlanningMutationSuccess {
   mutationId: string
   /** The account revision advances exactly once for a committed mutation. */
   revision: number
-  /** Deletes create the next restore handle; restore consumes its handle and has a typed delete inverse. */
+  /** Destructive writes retain a server-side inverse; restore consumes its handle. */
   restoration:
     | { consumedGroupId: null; replacementGroupId: string }
     | { consumedGroupId: string; replacementGroupId: null }
