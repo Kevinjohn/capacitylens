@@ -92,7 +92,6 @@ function parseMemberResourceStatus(value: unknown): "active" | "disabled" | "arc
   return undefined;
 }
 
-// eslint-disable-next-line complexity
 function parseMemberResourceLink(value: unknown): TeamMember["resourceLink"] | undefined {
   if (value === undefined || value === null) return null;
   if (!isRecord(value) || typeof value.resourceId !== "string" || value.resourceId.length === 0) return undefined;

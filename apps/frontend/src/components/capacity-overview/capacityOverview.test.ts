@@ -1,5 +1,5 @@
 import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
-/* eslint-disable max-params */
+
 import { describe, expect, it } from "vitest";
 import type { Allocation, AppData, Resource, Weekday } from "@capacitylens/shared/types/entities";
 import { emptyAppData } from "@capacitylens/shared/types/entities";

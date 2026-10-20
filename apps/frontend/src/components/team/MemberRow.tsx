@@ -15,7 +15,6 @@ import { MemberActionsDialog } from "./MemberActionsDialog";
 
 // Share affordance policy across active and inactive rows so grouping cannot change the actions offered. The server independently authorizes each operation.
 
-// eslint-disable-next-line complexity
 function buildMemberAffordances(
   myRole: Role | undefined,
   member: TeamMember,
@@ -265,7 +264,6 @@ function MemberSettingsMenuItems({
 }
 
 /** Shows one member's role, sign-in state, and permitted management actions. */
-// eslint-disable-next-line max-lines-per-function -- the row keeps the table cells and shared dialog wiring together.
 export function MemberRow({
   member: member,
   myRole,

@@ -58,7 +58,6 @@ async function assertViewerWriteRejected(request: APIRequestContext, accountId: 
   expect(directWrite.status()).toBe(403);
 }
 
-/* eslint-disable max-lines-per-function -- authenticated data setup keeps its batch assertions together. */
 async function seedViewerScenario(request: APIRequestContext) {
   const owner = await signUp(OWNER);
   const viewer = await signUp(VIEWER);
@@ -125,10 +124,9 @@ async function seedViewerScenario(request: APIRequestContext) {
   await assertViewerWriteRejected(request, accountId, viewer.cookie);
   return { resourceId };
 }
-/* eslint-enable max-lines-per-function */
 
 // This end-to-end permission contrast intentionally keeps both roles in one session.
-/* eslint-disable max-lines-per-function -- one journey contrasts viewer and editor permissions. */
+
 test("a viewer sees no edit affordances; an editor does; a direct viewer write is 403", async ({
   page,
   request,
@@ -217,4 +215,3 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
   await expect(page.getByRole("radiogroup", { name: "Draw mode" })).toBeVisible();
   await expect(page.getByTestId("undo-button")).toBeVisible();
 });
-/* eslint-enable max-lines-per-function */

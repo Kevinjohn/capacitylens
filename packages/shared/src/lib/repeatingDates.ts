@@ -266,7 +266,6 @@ function buildMonthlyLastWeekdayStartDates(
  * @throws RepeatingDateError when dates, cutoff, pattern, last-weekday anchor or generated count are invalid; no starts are returned.
  * @throws Error when an internal ordering invariant is violated.
  */
-// eslint-disable-next-line max-params -- The optional policy preserves the established three-argument allocation API.
 export function generateRepeatingStartDates(
   startDate: ISODate,
   repeatUntil: ISODate,

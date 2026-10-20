@@ -119,22 +119,12 @@ describe("first-use outcome truth table", () => {
     ],
     ["project activity without a project", activity({ kind: "project", projectId: "missing" }), [], [client()], false],
     ["project activity without a client", activity({ kind: "project", projectId: "p1" }), [project()], [], false],
-  ] as const)(
-    "classifies %s for the work outcome",
-    (
-      _name,
-      work,
-      projects,
-      clients,
-      expected,
-      // eslint-disable-next-line max-params -- each named truth-table dimension is independently significant
-    ) => {
-      expect(
-        buildGettingStartedSteps(dataWith({ activities: [work], projects: [...projects], clients: [...clients] }))
-          .activity,
-      ).toBe(expected);
-    },
-  );
+  ] as const)("classifies %s for the work outcome", (_name, work, projects, clients, expected) => {
+    expect(
+      buildGettingStartedSteps(dataWith({ activities: [work], projects: [...projects], clients: [...clients] }))
+        .activity,
+    ).toBe(expected);
+  });
 
   it("does not let a dangling project activity hide a coherent activity", () => {
     const steps = buildGettingStartedSteps(
@@ -221,7 +211,7 @@ describe("first-use outcome truth table", () => {
     ],
   ] as const)(
     "classifies %s for the scheduled outcome",
-    // eslint-disable-next-line max-params -- each named truth-table dimension is independently significant
+
     (_name, booked, resource, work, projects, clients, expected) => {
       const steps = buildGettingStartedSteps(
         dataWith({
