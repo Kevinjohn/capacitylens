@@ -72,6 +72,11 @@ const resource = {
 const cases: Array<{ intent: PlanningIntent; method: string; path: string }> = [
   { intent: { operation: "allocation.create", allocation }, method: "POST", path: "allocations" },
   {
+    intent: { operation: "allocation.createGroup", allocations: [allocation] },
+    method: "POST",
+    path: "allocations/create-group",
+  },
+  {
     intent: { operation: "allocation.update", id, changes: { hoursPerDay: 4 } },
     method: "PATCH",
     path: `allocations/${id}`,
@@ -127,6 +132,17 @@ for (const entity of ["clients", "projects", "activities", "phases", "discipline
     method: "PATCH",
     path: `${entity}/${id}`,
   });
+}
+
+for (const action of ["archive", "unarchive"] as const) {
+  cases.push({ intent: { operation: `resource.${action}`, id }, method: "POST", path: `resources/${id}/${action}` });
+  for (const entity of ["clients", "projects", "activities"] as const) {
+    cases.push({
+      intent: { operation: `catalogue.${action}`, entity: { entity, id } },
+      method: "POST",
+      path: `${entity}/${id}/${action}`,
+    });
+  }
 }
 
 describe("generated planning transport", () => {

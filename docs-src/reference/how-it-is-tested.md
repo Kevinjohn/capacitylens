@@ -38,7 +38,8 @@ The suites cover the frontend, backend and shared workspace packages.
   source-ID duplication, while a copy with edited non-date fields uses explicit creation with a fresh
   ID. These builders are preparation and are not wired to production forms. A separate
   authenticated browser harness exercises the controller through real typed routes and SQLite:
-  create, move, resize, reassign, duplicate, repeat, update Undo/Redo, stale-edit refusal, lost-response
+  create, move, resize, reassign, duplicate, repeat, grouped creation, archive/unarchive, update
+  Undo/Redo, stale-edit refusal, lost-response
   commitment lookup and sign-out cache clearing. The controller is not yet connected to the
   schedule. This coverage does not establish typed scheduler gestures or session-bound delete
   restoration; the existing authenticated scheduler tests still exercise the current persistence

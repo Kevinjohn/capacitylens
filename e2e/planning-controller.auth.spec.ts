@@ -72,11 +72,13 @@ async function planningSnapshot(request: APIRequestContext, cookie: string, comp
         resourceId: string;
         activityId: string;
         projectId: string | null;
+        seriesId: string | null;
+        seriesIndex: number | null;
       }>;
-      resources: Array<{ id: string }>;
-      clients: Array<{ id: string }>;
-      projects: Array<{ id: string }>;
-      activities: Array<{ id: string }>;
+      resources: Array<{ id: string; archivedAt: string | null }>;
+      clients: Array<{ id: string; archivedAt: string | null }>;
+      projects: Array<{ id: string; archivedAt: string | null }>;
+      activities: Array<{ id: string; archivedAt: string | null }>;
     };
   };
 }
@@ -450,6 +452,50 @@ test("unactivated planning controller uses authenticated typed routes and reconc
       expect.objectContaining({ id: repeatIds[1], startDate: "2026-11-16", endDate: "2026-11-18" }),
     ]),
   );
+
+  // The independent extension uses the same generated transport and existing real session.
+  const groupIds = [uuid(), uuid()];
+  await callHarness(page, "planningHarnessExecute", primaryKey, {
+    operation: "allocation.createGroup",
+    allocations: groupIds.map((id, index) => ({
+      ...sourceAllocation.allocation,
+      id,
+      startDate: index === 0 ? "2026-11-23" : "2026-11-30",
+      endDate: index === 0 ? "2026-11-25" : "2026-12-02",
+    })),
+  } satisfies Intent);
+  const groupedSnapshot = await planningSnapshot(request, owner.cookie, companyId);
+  expect(groupedSnapshot.revision).toBe(completeSnapshot.revision + 1);
+  const grouped = groupIds.map((id) => groupedSnapshot.data.allocations.find((row) => row.id === id));
+  expect(typeof grouped[0]?.seriesId).toBe("string");
+  expect(grouped).toMatchObject([
+    { id: groupIds[0], seriesId: expect.any(String), seriesIndex: 0 },
+    { id: groupIds[1], seriesId: grouped[0]?.seriesId, seriesIndex: 1 },
+  ]);
+  for (const target of [
+    { entity: "clients", id: clientId },
+    { entity: "projects", id: projectId },
+    { entity: "activities", id: activityId },
+    { entity: "resources", id: firstResourceId },
+  ] as const) {
+    for (const action of ["archive", "unarchive"] as const) {
+      const beforeLifecycle = await planningSnapshot(request, owner.cookie, companyId);
+      const intent: Intent =
+        target.entity === "resources"
+          ? { operation: `resource.${action}`, id: target.id }
+          : { operation: `catalogue.${action}`, entity: target };
+      await callHarness(page, "planningHarnessExecute", primaryKey, intent);
+      const afterLifecycle = await planningSnapshot(request, owner.cookie, companyId);
+      expect(afterLifecycle.revision).toBe(beforeLifecycle.revision + 1);
+      const changed = afterLifecycle.data[target.entity].find((row) => row.id === target.id);
+      expect(changed?.id).toBe(target.id);
+      if (action === "archive") expect(typeof changed?.archivedAt).toBe("string");
+      else expect(changed?.archivedAt).toBeNull();
+      expect(afterLifecycle.data.allocations.map(({ id }) => id).sort()).toEqual(
+        groupedSnapshot.data.allocations.map(({ id }) => id).sort(),
+      );
+    }
+  }
 
   // A request lost before dispatch has no commitment marker. Lookup remains unknown and blocks retries.
   const unknownRoute = `**/api/accounts/${companyId}/allocations/${allocationId}`;

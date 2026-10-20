@@ -35,6 +35,14 @@ async function sendOperation(
       return requireReply(
         await apiClient.request("api.planning.allocation.create", { params, body: { ...execution, intent }, signal }),
       );
+    case "allocation.createGroup":
+      return requireReply(
+        await apiClient.request("api.planning.allocation.createGroup", {
+          params,
+          body: { ...execution, intent },
+          signal,
+        }),
+      );
     case "allocation.update":
       return requireReply(
         await apiClient.request("api.planning.allocation.update", {
@@ -71,6 +79,17 @@ async function sendOperation(
           signal,
         }),
       );
+    case "resource.archive":
+    case "resource.unarchive": {
+      const action = intent.operation === "resource.archive" ? "archive" : "unarchive";
+      return requireReply(
+        await apiClient.request(`api.planning.resource.${action}`, {
+          params: { ...params, id: intent.id },
+          body: { ...execution, intent },
+          signal,
+        }),
+      );
+    }
     case "timeOff.create":
       return requireReply(
         await apiClient.request("api.planning.timeOff.create", { params, body: { ...execution, intent }, signal }),
@@ -136,6 +155,27 @@ async function sendOperation(
         case "disciplines":
           return requireReply(
             await apiClient.request("api.planning.discipline.update", { params: target, body, signal }),
+          );
+      }
+      break;
+    }
+    case "catalogue.archive":
+    case "catalogue.unarchive": {
+      const action = intent.operation === "catalogue.archive" ? "archive" : "unarchive";
+      const body = { ...execution, intent };
+      const target = { ...params, id: intent.entity.id };
+      switch (intent.entity.entity) {
+        case "clients":
+          return requireReply(
+            await apiClient.request(`api.planning.client.${action}`, { params: target, body, signal }),
+          );
+        case "projects":
+          return requireReply(
+            await apiClient.request(`api.planning.project.${action}`, { params: target, body, signal }),
+          );
+        case "activities":
+          return requireReply(
+            await apiClient.request(`api.planning.activity.${action}`, { params: target, body, signal }),
           );
       }
       break;
