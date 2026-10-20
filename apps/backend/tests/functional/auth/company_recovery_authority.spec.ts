@@ -66,14 +66,14 @@ test.group('new company recovery authority', (group) => {
         created_at: now,
       })
     await insertToken(token)
-    const create = (id: string, commandId: string, key: string) =>
+    const create = (id: string, commandId: string, key: string, name = 'Wayne Enterprises') =>
       withSession(
         client
           .post('/api/orgs')
           .header('sec-fetch-site', 'same-origin')
           .header('x-account-command-id', commandId)
           .header('idempotency-key', key)
-          .json({ id, name: 'Stark Industries' }),
+          .json({ id, name }),
         cookie
       )
     await db.rawQuery(
@@ -105,5 +105,10 @@ test.group('new company recovery authority', (group) => {
     const replay = await create('a-studio', commandId, key).send()
     replay.assertStatus(201)
     assert.isNotNull(await db.from('password_reset_tokens').where('tokenable_id', userId).first())
+    const mismatch = await create('a-studio', commandId, key, 'Queen Consolidated').send()
+    mismatch.assertStatus(409)
+    assert.isNotNull(await db.from('password_reset_tokens').where('tokenable_id', userId).first())
+    const storedCompany = await db.from('accounts').where('id', 'a-studio').first()
+    assert.equal(storedCompany?.name, 'Wayne Enterprises')
   })
 })
