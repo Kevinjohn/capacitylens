@@ -29,7 +29,7 @@ import { useAllocationScheduleState } from "./useAllocationScheduleState";
 import { useAllocationTargetState } from "./useAllocationTargetState";
 
 /** A form may advance its captured revision only when its own single-step activity write is acknowledged. */
-export function isInlineActivityAcknowledgement(draft: PlanningDraft, planning: PlanningControllerMetadata): boolean {
+function isInlineActivityAcknowledgement(draft: PlanningDraft, planning: PlanningControllerMetadata): boolean {
   return (
     planning.context === draft.context &&
     planning.canWrite &&
