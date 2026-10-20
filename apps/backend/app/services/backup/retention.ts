@@ -83,9 +83,10 @@ export function pruneSnapshots(input: {
     return 0
   }
   let pruned = 0
+  // Protecting an older caller's snapshot must never promote a newer recovery point to deletion.
   for (const file of files
-    .filter((name) => join(dir, name) !== currentFile)
-    .slice(0, Math.max(0, files.length - keep))) {
+    .slice(0, Math.max(0, files.length - keep))
+    .filter((name) => join(dir, name) !== currentFile)) {
     const path = join(dir, file)
     try {
       rmSync(path, { force: true })

@@ -2,14 +2,13 @@ import { BaseCommand } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
 import { openNativeDatabase } from '#services/backup/native'
 import { resolveBackupDatabasePath, type BackupConfig } from '#config/backup'
-import { buildSnapshotName } from '#services/backup/names'
+import { buildSnapshotName, parseSnapshotTimestamp } from '#services/backup/names'
 import {
   durableSnapshotPublisher,
   ensurePrivateBackupDirectory,
   writeOneShotSnapshot,
 } from '#services/backup/snapshot'
 import { listSnapshots, pruneSnapshots, readMainDatabaseIdentity } from '#services/backup/retention'
-import { parseSnapshotTimestamp } from '#services/backup/names'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -41,7 +40,13 @@ export default class DbBackup extends BaseCommand {
       )
       let file = join(config.dir, buildSnapshotName(new Date(stamp)))
       while (existsSync(file)) file = join(config.dir, buildSnapshotName(new Date(++stamp)))
-      await writeOneShotSnapshot({ database, dir: config.dir, file, overwrite: false })
+      await writeOneShotSnapshot({
+        database,
+        dir: config.dir,
+        file,
+        overwrite: false,
+        log: (message) => this.logger.warning(message),
+      })
       const pruned = pruneSnapshots({
         dir: config.dir,
         keep: config.keep,

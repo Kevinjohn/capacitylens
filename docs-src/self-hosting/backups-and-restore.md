@@ -30,8 +30,17 @@ node ace.js db:backup
 This command requires `CAPACITYLENS_BACKUP_DIR`. The resulting database snapshot is written to the
 configured directory. Scheduled and manual snapshots share count-based retention: after a
 successful snapshot, excess older managed snapshots are removed. Pre-upgrade snapshots, temporary
-files and unrelated files are excluded. A failed copy is not published as a completed snapshot and
-does not trigger retention. Copy snapshots off the host and protect them like production data.
+files and unrelated files are excluded. If an older in-flight backup finishes after a newer one,
+retention protects both the newly written snapshot and the newest recovery point. The completed
+count can exceed the configured target until a later successful backup reapplies the limit.
+A failed copy is not published as a completed snapshot and does not trigger retention. Copy
+snapshots off the host and protect them like production data.
+
+An interrupted process can leave unpublished `.tmp` files and their `-wal` or `-shm` sidecars.
+Retention excludes these files, and startup does not sweep them. To reclaim their disk space,
+stop the service and wait for any manual backup commands to finish. Inspect the backup directory
+and remove only confirmed abandoned temporary files; preserve completed `.db` snapshots and
+pre-upgrade recovery files.
 
 ## Restore a snapshot
 
