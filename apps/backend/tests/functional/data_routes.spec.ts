@@ -187,10 +187,10 @@ test.group('M2b data routes', (group) => {
   }) => {
     await client.post('/api/test/reset').json({ seed: true }).send()
     const route = '/api/accounts/a-studio/getting-started'
-    const malformed = await trusted(client.put(route))
+    const extraFields = await trusted(client.put(route))
       .json({ dismissed: true, extra: 'value' })
       .send()
-    malformed.assertStatus(200)
+    extraFields.assertStatus(200)
     const saved = await client.get(route).send()
     assert.deepEqual(saved.body(), { dismissed: true })
     const invalid = await trusted(client.put(route)).json({ dismissed: null }).send()
