@@ -84,6 +84,10 @@ This is the short, present-tense record of decisions that constrain future work.
 - Every schema-bearing release is rehearsed on released fixtures and an anonymised online snapshot
   of a representative long-lived installation. The rehearsal covers success, rollback-snapshot
   restoration, injected disk exhaustion, forced process termination and idempotent reopen.
+- Native SQLite backups run online at web-service startup and every 24 hours. Count-based retention
+  keeps the configured N completed managed snapshots; pre-upgrade snapshots remain separate.
+  Backup failures are logged or returned by the operator command, without a process-lifetime
+  health latch. Database readiness is independent of recovery verification.
 - The demo adapter is in-memory and resets on refresh.
 - Every scoped entity carries `accountId`; the active account is transient and never persisted.
 - Server session + membership is the security boundary. Client scoping is defense in depth and UI
@@ -335,7 +339,8 @@ from framework defaults; other departures require an explicit decision.
 
 1. `packages/shared` is imported by the backend and SPA. It contains pure domain rules and wire
    types, never backend code.
-2. Adonis BodyParser owns request parsing and its supported defaults. Compiled Vine validators
+2. Adonis BodyParser owns request parsing and its supported defaults, except a 5 MB JSON limit so
+   a whole company export can be imported. Compiled Vine validators
    validate supplied values and strip unknown object properties by default. Empty strings are not
    silently converted to null. Ordinary validation errors use the flat `{ error, code? }` contract
    with status 400.

@@ -165,23 +165,14 @@ test.group('M5 documentation and policy contracts', () => {
     assert.include(configuration, 'GitHub sign-in is retired')
   })
 
-  test('keeps backup bounds, flooring, and warning fallbacks documented', ({ assert }) => {
+  test('documents daily backups and retention bounds without an interval setting', ({ assert }) => {
     const configuration = read('docs-src/self-hosting/configuration.md').replace(/\s+/g, ' ')
-    assert.match(configuration, /default interval is 60 minutes and retention is 48 snapshots/)
-    assert.match(
-      configuration,
-      /positive fractional retention values are floored to whole snapshots/i
-    )
-    assert.match(
-      configuration,
-      /invalid or nonpositive values use the 48-snapshot default with a startup warning/
-    )
-    assert.match(configuration, /values above 10,000 clamp to 10,000 with a startup warning/)
-    assert.match(
-      configuration,
-      /invalid interval values use the 60-minute default with a startup warning/i
-    )
-    assert.match(configuration, /values above 35,000 clamp to 35,000 with a startup warning/)
+    assert.match(configuration, /at web-service startup and every 24 hours/)
+    assert.match(configuration, /defaulting to 48/)
+    assert.match(configuration, /Positive fractional values are floored to whole snapshots/)
+    assert.match(configuration, /invalid or nonpositive values use 48 with a startup warning/)
+    assert.match(configuration, /values above 10,000 clamp to 10,000 with a warning/)
+    assert.match(configuration, /`CAPACITYLENS_BACKUP_INTERVAL_MIN` setting is no longer used/)
   })
 
   test('limits sole-owner password recovery to an existing local password', ({ assert }) => {

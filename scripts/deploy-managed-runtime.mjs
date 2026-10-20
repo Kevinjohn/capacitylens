@@ -20,9 +20,15 @@ export async function stageRuntimeSource(repositoryRoot, destination) {
     throw new Error("Could not list production source inputs", { cause: listing.error });
   for (const file of new Set(listing.stdout.split("\0").filter(Boolean))) {
     if (file.split("/").includes("node_modules")) continue;
+    const source = join(repositoryRoot, file);
+    const present = await lstat(source).catch((error) => {
+      if (error?.code === "ENOENT") return false;
+      throw error;
+    });
+    if (!present) continue;
     const target = join(destination, file);
     await mkdir(dirname(target), { recursive: true });
-    await cp(join(repositoryRoot, file), target, { verbatimSymlinks: true });
+    await cp(source, target, { verbatimSymlinks: true });
   }
   for (const path of ["apps/backend/build", "packages/shared/dist"])
     await cp(join(repositoryRoot, path), join(destination, path), { recursive: true });

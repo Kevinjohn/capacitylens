@@ -36,6 +36,9 @@ A value the page cannot read shows **Unknown** or **unavailable**. The demo has 
 server values are always unavailable. If the build provides a revision or feedback address,
 **Build details** shows it and may include a **Send feedback** link.
 
+The native server leaves backup status **unavailable**. Operators check service logs and completed
+snapshots as described in [Backups and restore](/self-hosting/backups-and-restore).
+
 The report is a snapshot: reopen the page to check the server again.
 
 ## What the report leaves out

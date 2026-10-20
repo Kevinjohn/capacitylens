@@ -1,6 +1,6 @@
 ---
 title: Monitoring
-description: Monitor liveness, database readiness, backup health and privacy-safe application logs.
+description: Monitor liveness, database readiness, backup results and privacy-safe application logs.
 ---
 
 # Monitoring
@@ -11,7 +11,7 @@ health endpoints for process supervision:
 | Endpoint | Meaning |
 | --- | --- |
 | `GET /health/live` | The process can answer HTTP. It does not prove the database or backups are ready. |
-| `GET /health/ready` | Runs database and backup health checks; returns a failing status when readiness checks fail. |
+| `GET /health/ready` | Checks the database and accepted migration history; returns a failing status when those checks fail. |
 
 Do not use `/api/health` as a readiness probe; it is a lightweight API response. Keep health checks
 free of credentials and do not expose diagnostic internals publicly.
@@ -20,10 +20,12 @@ free of credentials and do not expose diagnostic internals publicly.
 
 Investigate readiness failures before restarting repeatedly. Check that the database file exists,
 its parent directory is writable by the service user, and the released migration history is
-accepted by the current release. For backup warnings, inspect free space and directory permissions,
-then check for a recent snapshot in `CAPACITYLENS_BACKUP_DIR`. The readiness report identifies
-whether scheduled backups are disabled, pending or degraded without disclosing filesystem paths or
-raw errors.
+accepted by the current release.
+
+Check backup success independently: inspect the service logs for failed snapshots or retention
+errors, free disk space and directory permissions, then confirm a recent completed snapshot in
+`CAPACITYLENS_BACKUP_DIR`. Backups run at startup and every 24 hours while the service runs.
+Readiness has no backup health latch; a healthy response does not prove recovery is available.
 
 Run `node ace.js db:backup` from `backend/` for an operator-requested snapshot. See
 [Backups and restore](/self-hosting/backups-and-restore).
