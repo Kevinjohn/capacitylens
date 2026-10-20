@@ -2,11 +2,299 @@
 /// <reference path="../manifest.d.ts" />
 
 import type { ExtractBody, ExtractErrorResponse, ExtractQuery, ExtractQueryForGet, ExtractResponse } from '@tuyau/core/types'
-import type { InferInput, SimpleError } from '@vinejs/vine/types'
+import type { InferInput } from '@vinejs/vine/types'
 
 export type ParamValue = string | number | bigint | boolean
 
 export interface Registry {
+  'api.planning.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/accounts/:accountId/planning'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { accountId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['show']>>>
+    }
+  }
+  'api.planning.lookup': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/accounts/:accountId/planning/mutations/:mutationId'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; mutationId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['lookup']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['lookup']>>>
+    }
+  }
+  'api.planning.allocation.create': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/allocations'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      paramsTuple: [ParamValue]
+      params: { accountId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationCreate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationCreate']>>>
+    }
+  }
+  'api.planning.allocation.update': {
+    methods: ["PATCH"]
+    pattern: '/api/accounts/:accountId/allocations/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationUpdate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationUpdate']>>>
+    }
+  }
+  'api.planning.resource.create': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/resources'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').resourceMutationValidator)>>
+      paramsTuple: [ParamValue]
+      params: { accountId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').resourceMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceCreate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceCreate']>>>
+    }
+  }
+  'api.planning.resource.update': {
+    methods: ["PATCH"]
+    pattern: '/api/accounts/:accountId/resources/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').resourceMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').resourceMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceUpdate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['resourceUpdate']>>>
+    }
+  }
+  'api.planning.timeOff.create': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/time-off'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
+      paramsTuple: [ParamValue]
+      params: { accountId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffCreate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffCreate']>>>
+    }
+  }
+  'api.planning.timeOff.update': {
+    methods: ["PATCH"]
+    pattern: '/api/accounts/:accountId/time-off/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffUpdate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffUpdate']>>>
+    }
+  }
+  'api.planning.closure.create': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/closures'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').closureMutationValidator)>>
+      paramsTuple: [ParamValue]
+      params: { accountId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').closureMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureCreate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureCreate']>>>
+    }
+  }
+  'api.planning.closure.update': {
+    methods: ["PATCH"]
+    pattern: '/api/accounts/:accountId/closures/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').closureMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').closureMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureUpdate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureUpdate']>>>
+    }
+  }
+  'api.planning.client.create': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/clients'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      paramsTuple: [ParamValue]
+      params: { accountId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientCreate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientCreate']>>>
+    }
+  }
+  'api.planning.client.update': {
+    methods: ["PATCH"]
+    pattern: '/api/accounts/:accountId/clients/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientUpdate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['clientUpdate']>>>
+    }
+  }
+  'api.planning.project.create': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/projects'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      paramsTuple: [ParamValue]
+      params: { accountId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectCreate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectCreate']>>>
+    }
+  }
+  'api.planning.project.update': {
+    methods: ["PATCH"]
+    pattern: '/api/accounts/:accountId/projects/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectUpdate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['projectUpdate']>>>
+    }
+  }
+  'api.planning.activity.create': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/activities'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      paramsTuple: [ParamValue]
+      params: { accountId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityCreate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityCreate']>>>
+    }
+  }
+  'api.planning.activity.update': {
+    methods: ["PATCH"]
+    pattern: '/api/accounts/:accountId/activities/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityUpdate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['activityUpdate']>>>
+    }
+  }
+  'api.planning.phase.create': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/phases'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      paramsTuple: [ParamValue]
+      params: { accountId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseCreate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseCreate']>>>
+    }
+  }
+  'api.planning.phase.update': {
+    methods: ["PATCH"]
+    pattern: '/api/accounts/:accountId/phases/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseUpdate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseUpdate']>>>
+    }
+  }
+  'api.planning.discipline.create': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/disciplines'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      paramsTuple: [ParamValue]
+      params: { accountId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineCreate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineCreate']>>>
+    }
+  }
+  'api.planning.discipline.update': {
+    methods: ["PATCH"]
+    pattern: '/api/accounts/:accountId/disciplines/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineUpdate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineUpdate']>>>
+    }
+  }
+  'api.planning.allocation.duplicate': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/allocations/:id/duplicate'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDuplicate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDuplicate']>>>
+    }
+  }
+  'api.planning.allocation.repeat': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/allocations/:id/repeat'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationRepeat']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationRepeat']>>>
+    }
+  }
+  'api.planning.timeOff.repeat': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/time-off/repeat'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
+      paramsTuple: [ParamValue]
+      params: { accountId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffRepeat']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffRepeat']>>>
+    }
+  }
+  'api.planning.settings.update': {
+    methods: ["PATCH"]
+    pattern: '/api/accounts/:accountId/settings'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').settingsMutationValidator)>>
+      paramsTuple: [ParamValue]
+      params: { accountId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').settingsMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['settingsUpdate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['settingsUpdate']>>>
+    }
+  }
   'api.batch': {
     methods: ["POST"]
     pattern: '/api/batch'
@@ -16,7 +304,7 @@ export interface Registry {
       params: {}
       query: ExtractQuery<InferInput<(typeof import('#validators/batch').batchValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/batch_controller').default['store']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/batch_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/batch_controller').default['store']>>>
     }
   }
   'api.import': {
@@ -652,7 +940,7 @@ export interface Registry {
       params: { entity: ParamValue; id: ParamValue; action: ParamValue }
       query: ExtractQuery<InferInput<(typeof import('#validators/lifecycle').lifecycleValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/lifecycle_controller').default['mutate']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/lifecycle_controller').default['mutate']>>> | { status: 422; response: { errors: SimpleError[] } }
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/lifecycle_controller').default['mutate']>>>
     }
   }
   'api.health': {

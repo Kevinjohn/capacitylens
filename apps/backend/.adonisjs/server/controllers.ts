@@ -20,4 +20,5 @@ export const controllers = {
   MemberResources: () => import('#controllers/member_resources_controller'),
   Members: () => import('#controllers/members_controller'),
   Ownership: () => import('#controllers/ownership_controller'),
+  Planning: () => import('#controllers/planning_controller'),
 }

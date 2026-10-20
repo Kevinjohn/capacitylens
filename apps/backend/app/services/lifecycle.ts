@@ -16,6 +16,7 @@ import { BatchStateProjection } from '#services/batch/projection'
 import { APP_DATA_KEYS } from '@capacitylens/shared/types/entities'
 import { redactPrivateName } from '@capacitylens/shared/domain/privateNames'
 import { parseISOTimestamp } from '@capacitylens/shared/lib/integrity'
+import { advancePlanningRevision } from '#services/planning_revision'
 
 type Action = 'archive' | 'unarchive' | 'delete' | 'purge'
 
@@ -175,6 +176,7 @@ export async function applyLifecycle(
       fields: [],
       cascadeCounts,
     })
+    await advancePlanningRevision(trx, accountId)
     logAfterCommit()
     return null
   }
@@ -228,6 +230,7 @@ export async function applyLifecycle(
     entityId: id,
     fields,
   })
+  await advancePlanningRevision(trx, accountId)
   logAfterCommit()
   return (entity === 'clients' || entity === 'projects') && !capabilities.canSeePrivateNames
     ? (redactPrivateName(next as never) as unknown as Record<string, unknown>)

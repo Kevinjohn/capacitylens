@@ -6,6 +6,7 @@ import { withTransaction } from '#services/with_transaction'
 import { applyBatch } from '#services/batch/service'
 import { trustedLocalDataContext } from '#services/batch/data_policy'
 import { applyLifecycle } from '#services/lifecycle'
+import { readState } from '#services/state_repository'
 
 const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
   request.header('sec-fetch-site', 'same-origin')
@@ -35,6 +36,62 @@ test.group('M2a atomic batch', (group) => {
     const body = response.body() as unknown as { revisions: Array<Record<string, unknown>> }
     assert.equal(body.revisions[0]?.table, 'disciplines')
     assert.equal(body.revisions[0]?.id, current.id)
+  })
+
+  test('advances one company revision for a multi-row batch and none for a semantic no-op', async ({
+    client,
+    assert,
+  }) => {
+    await client.post('/api/test/reset').json({ seed: true }).send()
+    const state = seed()
+    const [first, second] = state.disciplines
+    const updated = await trusted(client.post('/api/batch'))
+      .json({
+        ops: [first, second].map((row) => ({
+          method: 'PUT',
+          table: 'disciplines',
+          id: row.id,
+          row: { ...row, name: `${row.name} updated` },
+        })),
+      })
+      .send()
+    updated.assertStatus(200)
+    updated.assertBodyContains({ changed: 2 })
+    const committedRevision = await db
+      .from('company_planning_revisions')
+      .where('account_id', first.accountId)
+      .first()
+    assert.equal(Number(committedRevision?.revision), 1)
+
+    const snapshot = await readState(first.accountId, true)
+    const unchanged = await trusted(client.post('/api/batch'))
+      .json({
+        ops: [
+          {
+            method: 'PUT',
+            table: 'disciplines',
+            id: first.id,
+            row: snapshot.disciplines.find((row) => row.id === first.id)! as unknown as Record<
+              string,
+              unknown
+            >,
+          },
+        ],
+      })
+      .send()
+    unchanged.assertStatus(200)
+    unchanged.assertBodyContains({ applied: 1, changed: 0 })
+    assert.lengthOf(
+      await db
+        .from('audit_entries')
+        .where({ account_id: first.accountId, entity: 'disciplines', entity_id: first.id }),
+      1
+    )
+    const unchangedRevision = await db
+      .from('company_planning_revisions')
+      .where('account_id', first.accountId)
+      .first()
+    assert.equal(Number(unchangedRevision?.revision), 1)
   })
 
   test('rolls back preceding writes and their audit row when a later operation fails', async ({

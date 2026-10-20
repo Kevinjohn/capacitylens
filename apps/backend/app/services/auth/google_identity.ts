@@ -11,6 +11,7 @@ import {
 } from './session_authority.js'
 import { recordMemberSignIn } from '#services/membership/sign_in_tracking'
 import { hasCurrentEmailProof } from '#services/admission/joining_policy'
+import { advanceRevisionsForNewEmailProof } from '#services/planning_revision'
 
 export const GOOGLE_ISSUER = 'https://accounts.google.com'
 
@@ -70,6 +71,7 @@ async function recordProof(trx: TransactionClientContract, userId: string, email
   if (owner)
     throw new GoogleIdentityError('Google identity cannot be linked.', 403, 'GOOGLE_LINK_DENIED')
   const now = new Date().toISOString()
+  await advanceRevisionsForNewEmailProof(trx, userId, email)
   await trx
     .table('email_proofs')
     .insert({

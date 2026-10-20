@@ -379,6 +379,15 @@ export class CompanyJoinIntentSchema extends BaseModel {
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }
 
+export class CompanyPlanningRevisionSchema extends BaseModel {
+  static $columns = ['accountId', 'revision'] as const
+  $columns = CompanyPlanningRevisionSchema.$columns
+  @column({ isPrimary: true })
+  declare accountId: string
+  @column()
+  declare revision: number
+}
+
 export class CompanySettingSchema extends BaseModel {
   static $columns = ['accountId', 'createdAt', 'id', 'key', 'updatedAt', 'value'] as const
   $columns = CompanySettingSchema.$columns
@@ -626,6 +635,19 @@ export class PhaseSchema extends BaseModel {
   declare projectId: string
   @column()
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+}
+
+export class PlanningMutationSchema extends BaseModel {
+  static $columns = ['accountId', 'actorId', 'mutationId', 'revision'] as const
+  $columns = PlanningMutationSchema.$columns
+  @column({ isPrimary: true })
+  declare accountId: string
+  @column()
+  declare actorId: string
+  @column()
+  declare mutationId: string
+  @column()
+  declare revision: number
 }
 
 export class ProjectSchema extends BaseModel {

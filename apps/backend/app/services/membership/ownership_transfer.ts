@@ -11,6 +11,7 @@ import {
 import { affectedRows } from '#services/admission/affected_rows'
 import { writeAudit } from '#services/audit'
 import { withTransaction } from '#services/with_transaction'
+import { advancePlanningRevision } from '#services/planning_revision'
 
 export class OwnershipTransferError extends Error {
   constructor(
@@ -93,6 +94,7 @@ export async function transferOwnership(
     if (finalOwners.length !== 1 || finalOwners[0].user_id !== toUserId)
       throw new Error('Company Owner invariant failed after transfer.')
 
+    await advancePlanningRevision(trx, accountId)
     await trx
       .from('password_reset_tokens')
       .whereIn('tokenable_id', [actor.userId, toUserId])

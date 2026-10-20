@@ -3,6 +3,52 @@ import type { routes } from './index.ts'
 
 export interface ApiDefinition {
   api: {
+    planning: {
+      show: typeof routes['api.planning.show']
+      lookup: typeof routes['api.planning.lookup']
+      allocation: {
+        create: typeof routes['api.planning.allocation.create']
+        update: typeof routes['api.planning.allocation.update']
+        duplicate: typeof routes['api.planning.allocation.duplicate']
+        repeat: typeof routes['api.planning.allocation.repeat']
+      }
+      resource: {
+        create: typeof routes['api.planning.resource.create']
+        update: typeof routes['api.planning.resource.update']
+      }
+      timeOff: {
+        create: typeof routes['api.planning.timeOff.create']
+        update: typeof routes['api.planning.timeOff.update']
+        repeat: typeof routes['api.planning.timeOff.repeat']
+      }
+      closure: {
+        create: typeof routes['api.planning.closure.create']
+        update: typeof routes['api.planning.closure.update']
+      }
+      client: {
+        create: typeof routes['api.planning.client.create']
+        update: typeof routes['api.planning.client.update']
+      }
+      project: {
+        create: typeof routes['api.planning.project.create']
+        update: typeof routes['api.planning.project.update']
+      }
+      activity: {
+        create: typeof routes['api.planning.activity.create']
+        update: typeof routes['api.planning.activity.update']
+      }
+      phase: {
+        create: typeof routes['api.planning.phase.create']
+        update: typeof routes['api.planning.phase.update']
+      }
+      discipline: {
+        create: typeof routes['api.planning.discipline.create']
+        update: typeof routes['api.planning.discipline.update']
+      }
+      settings: {
+        update: typeof routes['api.planning.settings.update']
+      }
+    }
     batch: typeof routes['api.batch']
     import: typeof routes['api.import']
     state: typeof routes['api.state']

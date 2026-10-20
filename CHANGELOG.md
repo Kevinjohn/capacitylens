@@ -7,6 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- Transactional company planning snapshots and typed resource operations with one company revision,
+  stale-edit refusal, atomic audit recording and actor-scoped mutation commitment lookup. Existing
+  callers share the revision during transition; session-bound deletion restoration remains gated.
+
 ### Removed
 
 - Production company selection, switching, multi-company configuration and ordinary additional-company creation. Server-backed installations now select their sole company; the in-memory demo retains its temporary company picker.

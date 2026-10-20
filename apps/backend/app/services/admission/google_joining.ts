@@ -18,6 +18,7 @@ import {
 } from '#services/account_commands'
 import { resolveCurrentActor } from '#services/auth/session_authority'
 import { confirmMemberSignIn } from '#services/membership/sign_in_tracking'
+import { advancePlanningRevision } from '#services/planning_revision'
 import { writeAudit } from '#services/audit'
 import { affectedRows } from './affected_rows.js'
 import type { VerifiedGoogleProfile } from '#services/auth/google_identity'
@@ -320,6 +321,7 @@ export async function completeGoogleJoin(
         .where('id', member.id)
         .update({ status: 'active', role, updated_at: now })
     if (!member || member.status === 'archived') {
+      await advancePlanningRevision(trx, accountId)
       await trx.from('password_reset_tokens').where('tokenable_id', actor.userId).delete()
       await writeAudit(trx, {
         accountId,
