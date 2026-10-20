@@ -1,7 +1,6 @@
 import vine from '@vinejs/vine'
 import type { AppDataKey } from '@capacitylens/shared/types/entities'
 import { fieldSchema, type FieldKind } from './fields.js'
-import { rejectUnknownFields } from '#validators/rules/unknown_fields'
 
 const base = { id: 'identifier', createdAt: 'identifier', updatedAt: 'identifier' } as const
 const scoped = { ...base, accountId: 'identifier' } as const
@@ -9,7 +8,7 @@ const lifecycle = { archivedAt: 'identifier', deletedAt: 'identifier' } as const
 const privateName = { isPrivate: 'boolean', codeName: 'text' } as const
 const dates = { startDate: 'date', endDate: 'date' } as const
 
-/** The supplied fields each entity command accepts. The Vine object itself rejects unknown keys. */
+/** The supplied fields each entity command accepts. Vine strips unknown keys from validated rows. */
 export const entityFields: Record<AppDataKey, Record<string, FieldKind>> = {
   accounts: {
     ...base,
@@ -119,20 +118,26 @@ export const requiredFields: Record<AppDataKey, readonly string[]> = {
   closures: ['accountId', 'name', 'startDate', 'endDate'],
 }
 
+const validators = new Map<string, ReturnType<typeof vine.compile>>()
+
 /** Validate one complete PUT body without coercing its supplied scalar values. */
 export async function validateEntityRow(table: AppDataKey, row: Record<string, unknown>) {
-  const properties = Object.fromEntries(
-    Object.entries(entityFields[table]).map(([field, kind]) => [
-      field,
-      fieldSchema(table, field, kind, row),
-    ])
-  )
-  return vine
-    .compile(
-      vine
-        .object(properties)
-        .allowUnknownProperties()
-        .use(rejectUnknownFields(Object.keys(properties)))
+  // Only these discriminators affect field rules. Reuse compiled schemas while preserving
+  // row-dependent color validation for external resources and the built-in client.
+  const isExternalResource = table === 'resources' && row.kind === 'external'
+  const isBuiltinClient = table === 'clients' && row.builtin === true
+  const cacheKey = `${table}:${isExternalResource}:${isBuiltinClient}`
+  let validator = validators.get(cacheKey)
+  if (!validator) {
+    const ruleContext = { kind: isExternalResource ? 'external' : '', builtin: isBuiltinClient }
+    const properties = Object.fromEntries(
+      Object.entries(entityFields[table]).map(([field, fieldKind]) => [
+        field,
+        fieldSchema(table, field, fieldKind, ruleContext),
+      ])
     )
-    .validate(row) as Promise<Record<string, unknown>>
+    validator = vine.compile(vine.object(properties))
+    validators.set(cacheKey, validator)
+  }
+  return validator.validate(row) as Promise<Record<string, unknown>>
 }

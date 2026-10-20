@@ -3,7 +3,8 @@ export class AdmissionError extends Error {
   constructor(
     message: string,
     readonly status: number,
-    readonly code: string
+    readonly code: string,
+    readonly decision?: Record<string, unknown>
   ) {
     super(message)
   }

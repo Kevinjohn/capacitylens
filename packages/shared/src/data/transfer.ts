@@ -1,6 +1,5 @@
 import { importCandidate, RECOGNISED_KEYS, migrate, looksLikeCapacityLens, hasNonArrayKnownTable } from "./migrate.js";
-import { assertUnambiguousJson } from "./strictJson.js";
-import { EXPORT_SCHEMA_VERSION } from "../types/entities.js";
+import { APP_DATA_KEYS, EXPORT_SCHEMA_VERSION } from "../types/entities.js";
 import type { AppData, PersistedState } from "../types/entities.js";
 
 // Import validates the file structure before migration; callers repair field values through the import remapper.
@@ -11,52 +10,12 @@ export function serializeData(data: AppData): string {
   return JSON.stringify(state, null, 2);
 }
 
-/** Guard against a JSON bomb / runaway file: a real agency dataset is thousands of
- * rows, not millions. Refuse anything wildly out of range rather than locking the
- * main thread (client import) or the server event loop trying to remap it.
- *
- * Not redundant with the 5 MiB byte caps (ImportExport's client file-size check and
- * the server's request BODY_LIMIT): those bound the payload size, this bounds the
- * record count, a different axis. Real exports run ~100–400 bytes/record, so a 5 MiB
- * file holds well under this cap and the byte cap fires first there. But `parseData`
- * also runs on the server's POST /api/import, where a hostile body of many near-empty
- * records (`{}` compacts to ~3 bytes) fits well over a million inside the 5 MiB
- * BODY_LIMIT, so this count cap is the live backstop that actually bites on that path.
- * (I.e. the error is reachable, not dead code; keep it.) */
-export const MAX_IMPORT_RECORDS = 200_000;
-
-/**
- * Most operations one POST /api/batch request may carry, inclusive. One protocol limit: the client
- * refuses an over-cap diff and the server rejects one, both importing it from here.
- *
- * The MAX_IMPORT_RECORDS precedent, applied to the sync path. BODY_LIMIT bounds request bytes, not
- * request work: every operation is sanitized, authorized, validated and applied to the in-memory
- * projection. The transaction reads each affected account slice once, then indexed point/reverse
- * lookups keep per-op validation and projection updates proportional to each operation's
- * referenced/affected rows rather than the whole tenant. Op count is therefore the remaining
- * request-controlled multiplier. 5 000 is generous headroom over the largest realistic full-slice
- * diff the client sync adapter produces (a whole busy agency's slice is low-thousands of rows)
- * while bounding a crafted/looping flood.
- *
- * The inclusive boundary integration test applies 5 000 real existing-row updates and enforces a
- * four-second handler budget under the supported Node 24 gate, leaving headroom below the packaged
- * five-second container healthcheck timeout. Keep that budget and this cap in lockstep; an
- * in-process queue cannot shorten one synchronous SQLite turn. The server checks the cap before
- * its pre-scan and transaction, so an over-cap batch writes nothing.
- */
-export const MAX_BATCH_OPS = 5000;
-
 function parseJson(json: string): unknown {
-  assertUnambiguousJson(json);
   return JSON.parse(json) as unknown;
 }
 
 function isUnknownArray(value: unknown): value is unknown[] {
   return Array.isArray(value);
-}
-
-function countRecords(value: unknown): number {
-  return isUnknownArray(value) ? value.length : 0;
 }
 
 /**
@@ -83,13 +42,6 @@ export function parseData(json: string): AppData {
   if (candidate === null || !looksLikeCapacityLens(raw)) {
     throw new Error("This file is not CapacityLens data.");
   }
-  const rawTotal = RECOGNISED_KEYS.reduce(
-    (recordCount, key) => recordCount + (isUnknownArray(candidate[key]) ? candidate[key].length : 0),
-    0,
-  );
-  if (rawTotal > MAX_IMPORT_RECORDS) {
-    throw new Error(`This file has too many records (${rawTotal.toLocaleString()}).`);
-  }
   // parseData's public return type is AppData, so every present table element must at least be a
   // record before migrations/repairs may inspect it. Field-level sanitisation remains the import
   // remapper's job; this guard prevents null/primitives from escaping as typed rows or triggering
@@ -102,15 +54,10 @@ export function parseData(json: string): AppData {
     }
   }
   const data = migrate(raw);
-  // File limits include accounts; the destination import counts only retained non-built-in scoped rows.
-  const total = Object.values(data).reduce<number>((recordCount, rows) => recordCount + countRecords(rows), 0);
-  if (total > MAX_IMPORT_RECORDS) {
-    throw new Error(`This file has too many records (${total.toLocaleString()}).`);
-  }
   // A CapacityLens-shaped file that migrates to zero records would, if imported, replace the
   // active company's slice with nothing, a silent wipe. Refuse it: importing an empty
   // file is never the intent (delete is the explicit path for clearing data).
-  if (total === 0) {
+  if (APP_DATA_KEYS.every((key) => data[key].length === 0)) {
     throw new Error("This file contains no CapacityLens records.");
   }
   return data;

@@ -46,24 +46,6 @@ export default class LifecycleController {
       if (auditWarning) response.header('x-capacitylens-audit-warning', 'true')
       return action === 'purge' ? response.noContent() : response.ok(result)
     } catch (error) {
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        error.code === 'E_VALIDATION_ERROR'
-      ) {
-        const messages =
-          'messages' in error && Array.isArray(error.messages) ? error.messages : undefined
-        const first = messages?.[0]
-        if (
-          typeof first === 'object' &&
-          first !== null &&
-          'rule' in first &&
-          first.rule === 'unknownFields'
-        )
-          throw error
-        return response.badRequest({ error: 'accountId is required.' })
-      }
       if (error instanceof BatchRequestError)
         return response
           .status(error.status)

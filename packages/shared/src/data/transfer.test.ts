@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseData, serializeData, MAX_IMPORT_RECORDS } from "./transfer.js";
+import { parseData, serializeData } from "./transfer.js";
 import { seed } from "./seed.js";
 import { EXPORT_SCHEMA_VERSION } from "../types/entities.js";
 
@@ -70,11 +70,12 @@ describe("data transfer wrapper validation", () => {
   });
 });
 
-describe("data transfer limits and repair", () => {
-  it("rejects ambiguous imported JSON before repair", () => {
-    expect(() => parseData('{"schemaVersion":3,"data":{"clients":[]},"data":{"clients":[]}}')).toThrow();
-    expect(() => parseData(`{"schemaVersion":3,"data":${"[".repeat(65)}0${"]".repeat(65)}}`)).toThrow();
-    expect(() => parseData('{"schemaVersion":3,"data":{"clients":[{"id":9007199254740992}]}}')).toThrow();
+describe("data transfer repair", () => {
+  it("uses the platform JSON parser for duplicate object keys", () => {
+    const imported = parseData(
+      '{"schemaVersion":3,"data":{"clients":[{"id":"old","name":"Wayne Applied Sciences"},{"id":"new","name":"Wayne Aerospace"}]},"data":{"clients":[{"id":"new","name":"Wayne Aerospace"}]}}',
+    );
+    expect(imported.clients.map(({ id }) => id)).toEqual(["new"]);
   });
   it.each([
     ["string", String(10)],
@@ -90,14 +91,7 @@ describe("data transfer limits and repair", () => {
         futureRecords: [{ id: "would-be-lost" }],
       },
     });
-    expect(() => parseData(json)).toThrow(
-      _label === "unsafe integer" ? /valid JSON/i : /schema version must be a non-negative safe integer/i,
-    );
-  });
-
-  it("refuses a file with an absurd record count (JSON-bomb guard)", () => {
-    const resources = Array.from({ length: MAX_IMPORT_RECORDS + 1 }, (_, i) => ({ id: `r${i}` }));
-    expect(() => parseData(JSON.stringify({ schemaVersion: 3, data: { resources } }))).toThrow(/too many records/i);
+    expect(() => parseData(json)).toThrow(/schema version must be a non-negative safe integer/i);
   });
 
   it("refuses a CapacityLens-shaped file that contains zero records (would silently wipe the account)", () => {

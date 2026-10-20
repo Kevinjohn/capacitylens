@@ -116,20 +116,13 @@ test.group('M2b import routes', (group) => {
     assert.deepEqual(await readState('a-studio', true), before)
   })
 
-  test('import rejects unrecognized, future-version and oversized record sets without replacing data', async ({
+  test('import rejects unrecognized and future-version data without replacing data', async ({
     client,
     assert,
   }) => {
     await client.post('/api/test/reset').json({ seed: true }).send()
     const before = await readState('a-studio', true)
-    for (const data of [
-      { random: [] },
-      { schemaVersion: 999, data: before },
-      {
-        schemaVersion: 24,
-        data: { ...before, resources: Array.from({ length: 200_001 }, () => ({})) },
-      },
-    ]) {
+    for (const data of [{ random: [] }, { schemaVersion: 999, data: before }]) {
       const result = await trusted(client.post('/api/import'))
         .json({ accountId: 'a-studio', data })
         .send()
@@ -177,7 +170,7 @@ test.group('M2b import routes', (group) => {
       .json({ accountId: 'a-studio', data: { accounts: before.accounts } })
       .send()
     result.assertStatus(400)
-    assert.deepInclude(result.body(), { imported: 0, maxRecords: 200_000 })
+    assert.deepInclude(result.body(), { imported: 0 })
     assert.deepEqual(await readState('a-studio', true), before)
   })
 

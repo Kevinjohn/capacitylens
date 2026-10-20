@@ -279,7 +279,6 @@ export default class CompaniesController {
       return ctx.response.forbidden({
         error: 'Use /api/orgs to create a company.',
         code: 'FORBIDDEN',
-        retryable: false,
       })
     return this.write(ctx, undefined, false, true)
   }

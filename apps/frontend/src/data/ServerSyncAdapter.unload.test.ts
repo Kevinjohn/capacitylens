@@ -1,6 +1,6 @@
 import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { describe, it, expect, vi } from "vitest";
-import { ServerSyncAdapter, BatchTooLargeError, KeepaliveNotDispatchedError, MAX_BATCH_OPS } from "./ServerSyncAdapter";
+import { ServerSyncAdapter, KeepaliveNotDispatchedError } from "./ServerSyncAdapter";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Client } from "@capacitylens/shared/types/entities";
 import type { Discipline } from "@capacitylens/shared/types/entities";
@@ -27,7 +27,7 @@ async function expectAtomicLargeDiff(): Promise<void> {
   }) as unknown as typeof fetch;
   const adapter = new ServerSyncAdapter("http://x", fetchImpl);
 
-  const clients = manyClients(4500);
+  const clients = manyClients(5001);
   await adapter.saveAll(withData({ clients }));
 
   expect(batches).toHaveLength(1);
@@ -89,16 +89,7 @@ async function expectSmallUnloadBatch(): Promise<void> {
 }
 
 describe("atomic large diffs and unload behaviour", () => {
-  it("sends 4500 ordinary UI ops as one ordered transaction", expectAtomicLargeDiff);
-
-  it("refuses an over-limit diff before sending anything", async () => {
-    const fetchImpl = okFetch() as unknown as typeof fetch;
-    const a = new ServerSyncAdapter("http://x", fetchImpl);
-    const data = withData({ clients: manyClients(MAX_BATCH_OPS + 1) });
-
-    await expect(a.saveAll(data)).rejects.toThrow(`Atomic sync exceeds the ${MAX_BATCH_OPS}-operation server limit.`);
-    expect(fetchImpl).not.toHaveBeenCalled();
-  });
+  it("sends a diff larger than the retired operation cap as one ordered transaction", expectAtomicLargeDiff);
 
   it("does not dispatch a keepalive body over the browser byte budget", async () => {
     const fetchImpl = okFetch() as unknown as typeof fetch;
@@ -121,11 +112,6 @@ describe("atomic large diffs and unload behaviour", () => {
       boundary: "browser byte budget",
       target: () => scopedData("a1", { clients: manyClients(1000) }),
       errorType: KeepaliveNotDispatchedError,
-    },
-    {
-      boundary: "server operation limit",
-      target: () => scopedData("a1", { clients: manyClients(MAX_BATCH_OPS + 1) }),
-      errorType: BatchTooLargeError,
     },
   ])(
     "does not archive a lifecycle delete when the $boundary prevents batch dispatch",

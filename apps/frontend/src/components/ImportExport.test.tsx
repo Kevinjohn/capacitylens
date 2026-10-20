@@ -95,30 +95,23 @@ describe("ImportExport – Export", () => {
 });
 
 describe("ImportExport – Import", () => {
-  it("rejects an oversized file before reading or opening the confirmation dialog", async () => {
-    const text = vi.fn(async () => serializeData(seed()));
-    const oversized = {
-      name: "oversized.json",
-      size: 5 * 1024 * 1024 + 1,
-      text,
-    } as unknown as File;
+  it("reads and previews a valid file larger than five MiB", async () => {
+    const data = seed();
+    const largeName = "x".repeat(5 * 1024 * 1024 + 1);
+    data.resources = data.resources.map((resource, index) =>
+      index === 0 ? { ...resource, name: largeName } : resource,
+    );
+    const file = new File([serializeData(data)], "large.json", { type: "application/json" });
     render(<ImportExport />);
     const input = screen.getByTestId("import-input");
     Object.defineProperty(input, "files", {
-      value: [oversized],
+      value: [file],
       configurable: true,
     });
 
     fireEvent.change(input);
 
-    expect(text).not.toHaveBeenCalled();
-    expect(screen.queryByRole("button", { name: "Replace data" })).not.toBeInTheDocument();
-    const noticeMatcher = { tone: "error" as const };
-    Object.defineProperty(noticeMatcher, "message", {
-      value: expect.stringMatching(/5\s*MB/i),
-      enumerable: true,
-    });
-    expect(useStore.getState().notice).toMatchObject(noticeMatcher);
+    expect(await screen.findByRole("button", { name: "Replace data" })).toBeInTheDocument();
   });
 });
 
@@ -137,12 +130,12 @@ describe("ImportExport – Import", () => {
     const first = {
       name: "first.json",
       size: 1,
-      arrayBuffer: () => firstRead.then((text) => new TextEncoder().encode(text).buffer),
+      text: () => firstRead,
     } as File;
     const second = {
       name: "second.json",
       size: 1,
-      arrayBuffer: () => secondRead.then((text) => new TextEncoder().encode(text).buffer),
+      text: () => secondRead,
     } as File;
     const input = screen.getByTestId("import-input");
 
