@@ -44,10 +44,14 @@ The suites cover the frontend, backend and shared workspace packages.
   create, move, resize, reassign, duplicate, repeat, grouped creation, archive/unarchive, update
   Undo/Redo, stale-edit refusal, lost-response
   commitment lookup and sign-out cache clearing. The controller is not yet connected to the
-  schedule. This coverage does not establish typed scheduler gestures or session-bound delete
-  restoration; the existing authenticated scheduler tests still exercise the current persistence
-  path. Complete typed Undo and session-bound restoration remain unfinished; later identity-link
-  integration is separate from this milestone, which uses the existing real authentication.
+  schedule. Server tests cover session-bound allocation deletion and restoration through the typed
+  routes: each delete saves the removed rows as a group that only the deleting session can restore,
+  once, with the original row and timestamps, and invalidating that session removes its groups.
+  This coverage does not establish typed scheduler gestures or restoration from the schedule; the
+  existing authenticated scheduler tests still exercise the current persistence path. Time-off,
+  closure and catalogue deletion still refuse typed restoration, and complete typed Undo remains
+  unfinished; later identity-link integration is separate from this milestone, which uses the
+  existing real authentication.
 - Axe finds common problems such as missing names and low contrast. It does not replace testing
   with assistive technology.
 - Mutation testing covers only the pure scheduling and helper code, not the server or React

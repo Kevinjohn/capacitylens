@@ -9,6 +9,12 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Typed allocation deletion and restoration routes. Deleting one allocation or a listed set saves
+  the complete rows as a restoration group bound to the deleting company, person and session;
+  restoring it reinserts them unchanged, once, with one revision and audit entry per action.
+  Commitment lookup returns the unconsumed group to its own session, and revoking a person's
+  sessions removes their groups. The schedule does not use these routes yet.
+
 - Typed allocation-group creation and catalogue/resource archive and unarchive operations preserve
   stable IDs and commit one revision per action. Existing deletion and Undo paths remain active
   while their complete replacement is unfinished.
