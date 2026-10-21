@@ -17,8 +17,8 @@ const EMPTY_CAPACITYLENS = JSON.stringify({
 });
 
 // A small but complete linked graph. Importing nothing is refused (it would silently wipe the
-// account), and a resource-only fixture would not prove that replacement and undo preserve
-// relationships across the whole scoped slice.
+// account), and a resource-only fixture would not prove that replacement preserves relationships
+// across the whole scoped slice.
 const NONEMPTY_CAPACITYLENS = JSON.stringify({
   schemaVersion: 2,
   data: {
@@ -131,7 +131,8 @@ function registerImportShowsConfirmationReplacesAllTest() {
     await expect(dialog).toContainText(/1 project/i);
     await expect(dialog).toContainText(/1 activit(?:y|ies)/i);
     await expect(dialog).toContainText(/1 allocation/i);
-    await expect(dialog).toContainText(/undo this with/i);
+    // Scheduler Undo covers bookings only, so the confirmation must not promise to reverse an import.
+    await expect(dialog).not.toContainText(/undo/i);
     await dialog.getByRole("button", { name: "Cancel" }).click();
 
     await openSchedule(page);
@@ -139,7 +140,7 @@ function registerImportShowsConfirmationReplacesAllTest() {
   });
 }
 
-function registerConfirmingImportReplacesDatasetRestoresTest() {
+function registerConfirmingImportReplacesDatasetUndoKeepsItTest() {
   test("confirming an import replaces the dataset, and ⌘Z leaves it imported", async ({ page }) => {
     await openApp(page);
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
@@ -249,7 +250,7 @@ function registerRejectsRefusalNamePreciseNoticeTests() {
 test.describe("Data import/export", () => {
   registerSeedsDemoDatasetFirstLoadTest();
   registerImportShowsConfirmationReplacesAllTest();
-  registerConfirmingImportReplacesDatasetRestoresTest();
+  registerConfirmingImportReplacesDatasetUndoKeepsItTest();
   registerRejectsNonCapacitylensFileNoticeTest();
   registerRejectsEMPTYCapacitylensFileWouldTest();
   registerRejectsRefusalNamePreciseNoticeTests();

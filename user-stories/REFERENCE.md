@@ -272,12 +272,12 @@ never appears on desktop viewports or in landscape.
 **Overlapping save and page close (server mode).** If an ordinary background save is still in
 flight when the page is hidden or closed, the teardown keepalive sends the newest complete intent
 immediately. The server orders both requests per browser session, so the newest edit wins whether
-the ordinary request or the teardown request arrives first. An undo performed before the first
+the ordinary request or the teardown request arrives first. A removal performed before the first
 save acknowledges is also preserved, including removal of a newly created row that uses the
 archive lifecycle. Teardown lifecycle archives travel in the same ordered atomic batch as ordinary
 changes, so an older in-flight creation cannot recreate the archived row. If the page survives in
-the back/forward cache and the user undoes a confirmed teardown archive, the foreground retry
-unarchives that remembered row even when its local content already matches the pre-teardown save
+the back/forward cache and local state restores a row after its confirmed teardown archive, the
+foreground retry unarchives that remembered row even when its local content already matches the pre-teardown save
 baseline. An unrelated writer's intervening edit still produces the normal conflict-and-reload path.
 On a conflict, the sticky notice says the edit was not saved and that CapacityLens is reloading the
 latest copy; it does not claim reload completion before the authoritative read succeeds. If that
@@ -472,8 +472,8 @@ Personal time off likewise keeps **Add time off** beside its heading, without a 
 The company section uses
 `data-testid="company-closures-section"`; each dated row uses
 `data-testid="company-closure-row"` and shows the required closure name plus its inclusive date
-span. Closure rows have the same edit, confirm-delete and undo/redo behaviour and permissions as
-personal entries.
+span. Closure rows have the same edit and confirm-delete behaviour and permissions as personal
+entries; like other time off, they are outside booking Undo/Redo.
 
 **Repeat personal time-off creation.** New personal time-off forms opened from either **Add time
 off** or a drawn schedule range include a create-only **Repeat** dropdown with
@@ -495,7 +495,7 @@ The form shows the entry count and final occurrence's complete start–end range
 `data-testid="timeoff-repeat-preview"`, plus an expandable list of every generated range in
 `data-testid="timeoff-repeat-ranges"`. Preview and save use the same generated drafts, including
 the optional note that permitted roles deliberately copy to every occurrence. Saving publishes all
-entries in one mutation and one undo/redo step; a repeated submit event from the same open form
+entries in one mutation; a repeated submit event from the same open form
 cannot create a second batch. The entries remain independent dated records with no series identity:
 each can be edited or deleted normally, and edits never regenerate siblings. The form explains this
 before save. Edit forms do not show repeat controls. Time off remains whole-day; working patterns do
@@ -1726,8 +1726,8 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   and actionable. A successful invitation keeps the newly selected company active while its account
   list refreshes.
 - Company management data is fetched only for members who may manage it. Removing a client or
-  project through the normal UI is undoable, and keyboard or pointer allocation gestures stop
-  cleanly when focus, capture or the initiating button is lost.
+  project through the normal UI is not reversed by booking Undo/Redo, and keyboard or pointer
+  allocation gestures stop cleanly when focus, capture or the initiating button is lost.
 - A deleted person's retained tombstone contains neither their original name nor role; the displayed
   identifier is an opaque `Removed person #…` label.
 

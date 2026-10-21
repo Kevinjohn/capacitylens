@@ -46,7 +46,8 @@ US-PRI-01. Have both the owner and an admin available.
   hidden for admin/editor/viewer, their direct request is `403`, and no table changes. Export remains
   available at its existing role tiers.
 - ✅ **DAT-PRIV-04 — Mode semantics.** An owner server import remains atomic and not undoable. Trusted local/demo and auth-off server
-  remain owner-equivalent; local import retains its existing undo behavior.
+  remain owner-equivalent. Scheduler Undo/Redo covers bookings only, so it does not reverse an import in
+  any mode.
 - ✅ **DAT-PRIV-05 — Fail-closed repair.** Import sanitisation accepts privacy only when `isPrivate === true`; otherwise it removes both
   optional fields. Valid code names are cleaned and de-quoted. A private row whose code name becomes
   empty is repaired to neutral code name `Confidential`, never to the real name.

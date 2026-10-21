@@ -23,7 +23,7 @@ Power users expect the standard keyboard undo/redo. But those keys must not stea
 
 - ✅ With focus outside any field, **⌘Z** undoes the last booking change (the deleted bar returns) and **⌘⇧Z** redoes it (the bar disappears again).
 - ✅ While focus is in the **Search people…** text input, **⌘Z** is ignored at the app level — it does not undo a schedule change (it acts on the field's text instead).
-- ✅ The guard covers text **input** / **textarea** / contentEditable; after blurring the search box, **⌘Z** undoes app-level edits again.
+- ✅ The guard covers text **input** / **textarea** / contentEditable; after blurring the search box, **⌘Z** undoes booking changes again.
 - ✅ The shortcut acts on booking (allocation) history only; it does not undo archiving, time off,
   catalogue edits or imports.
 - ✅ A saved booking change remains undoable after a background refresh containing only its own acknowledged revisions; a genuine remote change clears the history to protect the other writer’s work.
