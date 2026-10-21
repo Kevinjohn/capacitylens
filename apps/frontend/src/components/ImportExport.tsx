@@ -268,7 +268,7 @@ export function ImportExport() {
   // `role === null` stays importable. That is the off/demo/no-provider regression guard
   // (see permissionContext.ts); the server 403 remains the authoritative backstop either way.
   const canImport = !serverMode || role === null || canSeePrivateNames(role);
-  // A full-slice replacement needs explicit confirmation. Demo imports can be undone; server imports replace the authoritative slice without local undo.
+  // A full-slice replacement needs explicit confirmation. Scheduler Undo covers bookings only, so no import mode can be undone from the UI.
   const {
     pending: pendingImport,
     readFile,
