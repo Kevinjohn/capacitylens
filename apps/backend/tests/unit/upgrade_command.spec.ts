@@ -176,7 +176,7 @@ test('a failing later migration rolls back its own DDL after an earlier file com
     assert.equal(init.status, 0, init.output)
     const scratch = scratchApp(root, {
       '202610210001_commit_before_failure': `import { BaseSchema } from '@adonisjs/lucid/schema'\nexport default class extends BaseSchema { async up() { this.schema.createTable('upgrade_committed', (table) => table.increments('id')) } }\n`,
-      '202610210002_fail_after_ddl': `import { BaseSchema } from '@adonisjs/lucid/schema'\nexport default class extends BaseSchema { async up() { this.schema.createTable('upgrade_rolled_back', (table) => table.increments('id')); await this.schema.raw('SELECT * FROM table_that_does_not_exist') } }\n`,
+      '202610210002_fail_after_ddl': `import { BaseSchema } from '@adonisjs/lucid/schema'\nexport default class extends BaseSchema { async up() { this.schema.createTable('upgrade_rolled_back', (table) => table.increments('id')); this.schema.raw('SELECT * FROM table_that_does_not_exist') } }\n`,
     })
 
     const upgrade = ace(scratch, dbPath, 'app:upgrade')

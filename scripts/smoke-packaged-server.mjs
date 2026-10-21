@@ -223,9 +223,10 @@ async function main() {
     assert.doesNotMatch(initial.output, /Pre-upgrade backup written/);
     assert.equal(inspectDatabase(databasePath).length, MIGRATION_COUNT);
 
-    const upgrade = command(backend, environment, "app:upgrade");
+    const upgradeDir = join(workDir, "upgrade snapshots");
+    const upgrade = command(backend, { ...environment, CAPACITYLENS_BACKUP_DIR: upgradeDir }, "app:upgrade");
     assert.equal(upgrade.status, 0, upgrade.output);
-    const upgradeSnapshot = upgrade.output.match(/Pre-upgrade backup written (\S+\.db)/)?.[1];
+    const upgradeSnapshot = upgrade.output.match(/Pre-upgrade backup written (.+\.db)/)?.[1];
     assert.ok(upgradeSnapshot, `Upgrade did not name its snapshot: ${upgrade.output}`);
     assert.match(upgradeSnapshot, /capacitylens-pre-migration-utc-/);
     assert.equal(inspectDatabase(upgradeSnapshot).length, MIGRATION_COUNT);
