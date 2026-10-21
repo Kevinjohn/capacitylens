@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
 import type { Page } from "./fixtures";
-import { openApp } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
 
 async function editOrder(page: Page, rowTestId: string): Promise<string[]> {
   return page

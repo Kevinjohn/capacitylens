@@ -1,7 +1,8 @@
 import { expect, test } from "./fixtures";
 import type { Page } from "./fixtures";
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./authTestSupport";
-import { waitForAppLanding } from "./browserTestSupport";
+import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from "./authTestSupport";
+import { seedFixtureMember } from "./authDatabaseFixtures";
+import { waitForAppLanding } from "./appEntrySupport";
 
 const STAMP = Date.now();
 const OWNER = `overview-owner-${STAMP}@capacitylens.dev`;

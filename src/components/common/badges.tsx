@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { resolveAccessibleBarColors } from "@capacitylens/shared/lib/color";
+import { resolveAccessibleBarColors } from "@capacitylens/shared/lib/accessibleColors";
 import { Avatar as ShadAvatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 /** Shows a preset colour without changing its semantic value. */

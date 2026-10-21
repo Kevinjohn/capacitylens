@@ -1,5 +1,13 @@
 import { test, expect } from "./fixtures";
-import { goToSeedWeek, openApp, resetSchedulerScroll, selectShadOption, setZoom } from "./browserTestSupport";
+import {
+  boundingBoxOrThrow as box,
+  goToSeedWeek,
+  selectShadOption,
+  setZoom,
+  showScheduleFilters,
+} from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
+import { resetSchedulerScroll } from "./schedulerGeometrySupport";
 
 // Covers US-TOF-01..05.
 function registerBooksTimeOffShowsLabelledTest() {
@@ -191,6 +199,57 @@ function registerCreatesRepeatedTimeOffIndependentTests() {
   });
 }
 
+function registerBookingTimeOffGreysScheduleTest() {
+  test("booking time off greys the schedule", async ({ page }) => {
+    await openApp(page);
+    await expect(page.getByTestId("scheduler-grid")).toBeVisible();
+    await expect(page.getByTestId("timeoff-block").first()).toBeVisible();
+    const blocksBefore = await page.getByTestId("timeoff-block").count();
+
+    await page.getByRole("link", { name: "Time off" }).click();
+    await page.getByRole("button", { name: "Add time off" }).click();
+    await selectShadOption(page.getByLabel("Resource"), {
+      label: "Clark Kent",
+    });
+    await page.getByLabel("Start", { exact: true }).fill("2026-06-18");
+    await page.getByLabel("End").fill("2026-06-20");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByTestId("timeoff-row")).toHaveCount(2);
+
+    await page.getByRole("link", { name: "Schedule" }).click();
+    await expect(page.getByTestId("scheduler-grid")).toBeVisible();
+    await expect.poll(() => page.getByTestId("timeoff-block").count()).toBeGreaterThan(blocksBefore);
+  });
+}
+
+function registerDrawingTimeOffModeOpensTest() {
+  test("drawing in Time off mode opens a prefilled time-off form", async ({ page }) => {
+    await openApp(page);
+    await showScheduleFilters(page);
+    await setZoom(page, 4);
+    // Toolbar draw-mode radio, distinct from the "Time off" nav link.
+    await page.getByRole("radio", { name: "Time off", exact: true }).click();
+
+    const lane = page.locator('[data-resource-id="r-nike"]');
+    const b = await box(lane);
+    const y = b.y + b.height / 2;
+    // Start on Clark's next empty working day. The global/personal working-day
+    // contract deliberately rejects a time-off gesture that starts on a blocked day.
+    const monday = await box(page.locator('[data-date="2026-06-08"]'));
+    const x0 = monday.x + monday.width / 2;
+    await page.mouse.move(x0, y);
+    await page.mouse.down();
+    await page.mouse.move(x0 + 72, y, { steps: 6 });
+    await page.mouse.up();
+
+    const dialog = page.getByRole("dialog", { name: "Add time off" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByLabel("Resource")).toHaveText("Clark Kent");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByRole("dialog", { name: "Add time off" })).toHaveCount(0);
+  });
+}
+
 test.describe("Time off", () => {
   registerBooksTimeOffShowsLabelledTest();
   registerGroupsCurrentFutureEntriesResourceTest();
@@ -198,4 +257,6 @@ test.describe("Time off", () => {
   registerEditsTimeOffEntryListTest();
   registerDeletesTimeOffEntryConfirmationTest();
   registerCreatesRepeatedTimeOffIndependentTests();
+  registerBookingTimeOffGreysScheduleTest();
+  registerDrawingTimeOffModeOpensTest();
 });

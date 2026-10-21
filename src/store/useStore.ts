@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { setActiveDateStyle } from "@/lib/dateDisplay";
-import { resolveDateStyle } from "./selectors";
+import { resolveDateStyle } from "./accountSettingsSelectors";
 import { createAccountSlice } from "./slices/accountSlice";
 import { createAllocationSlice } from "./slices/allocationSlice";
 import { createCatalogSlice } from "./slices/catalogSlice";

@@ -34,7 +34,7 @@
       "purpose": "Deterministic SHA-256 fingerprint of the account's scoped import snapshot so equivalent reads compare equal and any accepted tenant mutation changes the token"
     },
     {
-      "path": "server/src/routes/stateRoutes.ts",
+      "path": "server/src/routes/organisationRoutes.ts",
       "purpose": "Deterministic SHA-256 workspace identifiers derived from the command id so a retried create addresses the same workspace"
     },
     {
@@ -75,7 +75,7 @@
     },
     {
       "path": "server/src/authConfig/bootstrapAdmin.ts",
-      "purpose": "Independent 192-bit CSPRNG credential user and account identifiers and first-owner bootstrap claim tokens"
+      "purpose": "192-bit CSPRNG claim tokens for first-owner bootstrap coordination"
     },
     {
       "path": "server/src/authConfig/microsoftProofPrimitives.ts",
@@ -111,7 +111,7 @@
     },
     {
       "path": "server/src/passwordSecurity.ts",
-      "purpose": "Versioned scrypt password storage, constant-time verification and HIBP SHA-1 range prefix"
+      "purpose": "HIBP SHA-1 range-prefix breach screening with bounded response parsing and fail-closed admission"
     },
     {
       "path": "server/src/resetOwnerPassword.ts",
@@ -182,7 +182,7 @@
       "purpose": "Domain-separated SHA-256 fallback session handles"
     },
     {
-      "path": "server/src/accounts/identityPort/credentials.ts",
+      "path": "server/src/accounts/identityPort/passwordReset.ts",
       "purpose": "Domain-separated SHA-256 reset ceremony handles"
     },
     {
@@ -192,6 +192,34 @@
     {
       "path": "server/src/accounts/adminPort/invitationClaims.ts",
       "purpose": "Domain-separated SHA-256 bearer indexing for account commands"
+    },
+    {
+      "path": "server/src/passwordHasher.ts",
+      "purpose": "Versioned scrypt password storage, resource-bounded legacy verification, CSPRNG salts and constant-time comparison"
+    },
+    {
+      "path": "server/src/authConfig/credentialUser.ts",
+      "purpose": "Independent 192-bit CSPRNG credential user and account identifiers inside atomic identity persistence"
+    },
+    {
+      "path": "server/src/auditOutbox.ts",
+      "purpose": "CSPRNG non-secret event identifiers for durable audit outbox deduplication"
+    },
+    {
+      "path": "server/src/cutoverRepair/assignWorkspaceOwner.ts",
+      "purpose": "CSPRNG non-secret audit identifiers for stopped-server workspace owner repair"
+    },
+    {
+      "path": "server/src/cutoverRepair/deprovisionCredentialOrphan.ts",
+      "purpose": "CSPRNG non-secret audit identifiers for stopped-server orphan identity cleanup"
+    },
+    {
+      "path": "server/src/cutoverRepair/eraseEmptyWorkspace.ts",
+      "purpose": "CSPRNG non-secret audit identifiers for stopped-server empty workspace erasure"
+    },
+    {
+      "path": "server/src/cutoverRepair/removeProviderLink.ts",
+      "purpose": "CSPRNG non-secret audit identifiers for stopped-server exact provider-link removal"
     }
   ]
 }

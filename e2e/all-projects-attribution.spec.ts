@@ -3,13 +3,13 @@ import type { Locator, Page } from "./fixtures";
 import {
   boundingBoxOrThrow,
   enableInlineActivityCreation,
-  openApp,
-  resetSchedulerScroll,
   selectShadOption,
   setZoom,
   showPlaceholders,
   showScheduleFilters,
 } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
+import { resetSchedulerScroll } from "./schedulerGeometrySupport";
 
 const attributedBar = (page: Page) =>
   page.locator('[data-resource-id="r-nike"]').getByTestId("allocation-bar").filter({ hasText: "Design" });

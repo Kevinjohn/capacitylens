@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
 import { resetServer, serverState, requireStateRows } from "./serverTestState";
 
 // DB-backed flavour of the date-format preference (US-SET-17). The demo project

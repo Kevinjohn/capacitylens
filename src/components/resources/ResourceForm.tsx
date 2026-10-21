@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useStore } from "@/store/useStore";
-import { hasDisciplinesEnabled } from "@/store/selectors";
+import { hasDisciplinesEnabled } from "@/store/accountSettingsSelectors";
 import { useActiveScopedData, useScopedData } from "@/store/useScopedData";
 import { useFieldError } from "@/hooks/useFieldError";
 import { m } from "@/i18n";

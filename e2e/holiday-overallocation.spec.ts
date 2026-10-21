@@ -1,6 +1,8 @@
 import { test, expect } from "./fixtures";
 import type { Locator, Page } from "./fixtures";
-import { openApp, resetSchedulerScroll, selectShadOption, setZoom } from "./browserTestSupport";
+import { selectShadOption, setZoom } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
+import { resetSchedulerScroll } from "./schedulerGeometrySupport";
 
 async function addTimeOff(page: Page, resource: string, start: string, end = start) {
   await page.getByRole("button", { name: "Add time off" }).click();

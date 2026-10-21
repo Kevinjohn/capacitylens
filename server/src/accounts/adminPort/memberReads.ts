@@ -1,7 +1,7 @@
 import type { SsoCutoverAccountAdminPort } from "./contracts";
 import type { AdminPortContext } from "./contracts";
 import { ACCOUNT_POLICY_VERSION } from "./contracts";
-import { assertAccountAuthority, assertAdministrativeAssurance } from "./authority";
+import { assertAccountAuthority, assertAdministrativeAssurance } from "./accountAuthority";
 import { readMembership, readSecurityRevisionsByPrincipalId } from "./mappers";
 import { readSecurityRevision } from "../state";
 import { getRow } from "../../db";

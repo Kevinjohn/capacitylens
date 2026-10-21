@@ -4,7 +4,8 @@ import type { Auth } from "../auth";
 import { openDb } from "../db";
 import { PASSWORD_ENV } from "../testHelpers/passwordAuth";
 import { registerServerFixtureCleanup } from "../testHelpers/registerServerFixtureCleanup";
-import { captureResetToken, resetTokenCapture } from "./captureContexts";
+import { resetTokenCapture } from "./captureContexts";
+import { captureResetToken } from "./passwordResetDelivery";
 
 const fixtures = registerServerFixtureCleanup();
 

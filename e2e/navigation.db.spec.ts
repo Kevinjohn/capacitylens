@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
 import { API, resetServer } from "./serverTestState";
-import { waitForAppLanding } from "./browserTestSupport";
+import { waitForAppLanding } from "./appEntrySupport";
 
 test.describe("single-company reload entry", () => {
   test.beforeEach(async ({ request }) => {

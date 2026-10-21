@@ -3,7 +3,7 @@ import type { ActorContext, CommandIdentity } from "@capacitylens/shared/account
 import type { Db } from "../db";
 import { enqueueAudit } from "../auditOutbox";
 import { beginCommand, completeCommand, markAccountCommandReplay } from "./commands";
-import { assertAccountAuthority } from "./adminPort/authority";
+import { assertAccountAuthority } from "./adminPort/accountAuthority";
 import { tx } from "../txn";
 import type { SynchronousCallback } from "../txn";
 import {

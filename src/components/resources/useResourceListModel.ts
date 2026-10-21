@@ -5,9 +5,9 @@ import { useStore } from "@/store/useStore";
 import {
   hasDisciplinesEnabled,
   hasExternalResourcesEnabled,
-  hasResourceEngagementGrouping,
   hasPlaceholdersEnabled,
-} from "@/store/selectors";
+} from "@/store/accountSettingsSelectors";
+import { hasResourceEngagementGrouping } from "@/store/schedulerSelectors";
 import { useActiveScopedData } from "@/store/useScopedData";
 import { resolveResourceDisplayName } from "@/lib/metadata";
 import {

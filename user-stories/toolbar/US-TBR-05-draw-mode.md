@@ -1,6 +1,6 @@
 # US-TBR-05 — Switch Work / Time-off draw mode
 
-**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "switches draw mode between Work and Time off" · `e2e/features.spec.ts` → "drawing in Time off mode opens a prefilled time-off form"
+**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "switches draw mode between Work and Time off" · `e2e/timeoff.spec.ts` → "drawing in Time off mode opens a prefilled time-off form"
 
 ## Goal
 

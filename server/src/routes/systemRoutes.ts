@@ -51,13 +51,7 @@ function parseCspReports(payload: unknown): Record<string, unknown>[] {
   return reports;
 }
 
-interface MetaRouteDependencies {
-  section: "meta";
-  isInitialized: () => boolean;
-}
-
 interface PublicRouteDependencies {
-  section: "public";
   securityEvent: (event: Record<string, unknown>) => void;
   healthStatement: { get(): unknown } | null;
   diagnosticsSchemaStatement: { get(): unknown };
@@ -67,9 +61,6 @@ interface PublicRouteDependencies {
   internalTlsExpiresAt?: string;
   internalTlsFingerprintSha256?: string;
 }
-
-/** Dependencies for the initialization probe or public health, diagnostics and security-report routes. */
-export type SystemRouteDependencies = MetaRouteDependencies | PublicRouteDependencies;
 
 type AuditStatus = "degraded" | "recovering" | "ok";
 
@@ -155,13 +146,8 @@ function registerDiagnosticsRoute(app: FastifyInstance, dependencies: PublicRout
   });
 }
 
-function registerMetaRoute(app: FastifyInstance, dependencies: MetaRouteDependencies): void {
-  // Initialization survives deliberate data deletion so startup never resurrects demo rows.
-  // The authenticated probe exposes only this installation-level boolean, not tenant or identity facts.
-  app.get("/api/meta", (_req, reply) => reply.code(200).send({ hasData: dependencies.isInitialized() }));
-}
-
-function registerPublicRoutes(app: FastifyInstance, dependencies: PublicRouteDependencies): void {
+/** Registers public operational routes with their endpoint-specific availability policies. */
+export function registerSystemRoutes(app: FastifyInstance, dependencies: PublicRouteDependencies): void {
   // Public browser telemetry endpoint. It returns no data, accepts only bounded JSON media types,
   // is covered by the normal IP rate limit, and logs a strict origin/directive projection rather
   // than attacker-controlled full URLs. Authentication cannot be required because a CSP failure
@@ -216,10 +202,4 @@ function registerPublicRoutes(app: FastifyInstance, dependencies: PublicRouteDep
   });
 
   registerDiagnosticsRoute(app, dependencies);
-}
-
-/** Registers the selected system-route section with each endpoint’s own access policy. */
-export function registerSystemRoutes(app: FastifyInstance, dependencies: SystemRouteDependencies): void {
-  if (dependencies.section === "meta") registerMetaRoute(app, dependencies);
-  else registerPublicRoutes(app, dependencies);
 }

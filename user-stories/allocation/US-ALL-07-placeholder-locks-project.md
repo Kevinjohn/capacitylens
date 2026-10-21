@@ -1,6 +1,6 @@
 # US-ALL-07 — Placeholder assignee locks the project
 
-**Area:** Allocation editor · **Persona:** Studio manager · **Linked E2E:** `e2e/allocation.spec.ts` → "snaps the project to a placeholder bound project when chosen" · `e2e/features.spec.ts` → "drawing on a placeholder locks the modal to its bound project"
+**Area:** Allocation editor · **Persona:** Studio manager · **Linked E2E:** `e2e/allocation.spec.ts` → "snaps the project to a placeholder bound project when chosen" · `e2e/placeholders.spec.ts` → "drawing on a placeholder locks the modal to its bound project"
 
 ## Goal
 

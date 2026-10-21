@@ -3,7 +3,7 @@ import {
   deleteClientCascade,
   deleteProjectCascade,
   deleteResourceCascade,
-} from "@capacitylens/shared/lib/integrity";
+} from "@capacitylens/shared/lib/cascades";
 import type { AppData, ID, ISODate } from "@capacitylens/shared/types/entities";
 import { buildEmptyFilters } from "./types";
 import type { LifecycleEntity, SchedulerUI } from "./types";

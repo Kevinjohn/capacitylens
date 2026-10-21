@@ -1,7 +1,16 @@
 import type { MemberDirectoryEntry } from "@capacitylens/shared/account/ports";
 import type { LocalAccountFlows } from "../createLocalAccountFlows";
-import { resolveDirectorySortName } from "./actorContext";
 import type { LocalAccountFlowContext } from "./context";
+
+/** Sorts a directory entry by the same fallback chain used to label it in the UI. */
+function resolveDirectorySortName(entry: MemberDirectoryEntry): string {
+  const principal = entry.principal;
+  const displayName = principal?.displayName?.trim();
+  if (displayName) return displayName;
+  const email = principal?.email?.trim();
+  if (email) return email;
+  return entry.membership.principalId;
+}
 
 /**
  * Creates the account administration reads that also inspect local identity state.

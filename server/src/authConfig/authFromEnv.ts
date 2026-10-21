@@ -24,12 +24,8 @@ import {
   SESSION_ABSOLUTE_TTL_SECONDS,
   SESSION_FRESH_AGE_SECONDS,
 } from "./authConstants";
-import {
-  authHandlerErrorCapture,
-  passwordResetSessionCapture,
-  captureResetToken,
-  microsoftCallbackCapture,
-} from "./captureContexts";
+import { authHandlerErrorCapture, passwordResetSessionCapture, microsoftCallbackCapture } from "./captureContexts";
+import { captureResetToken } from "./passwordResetDelivery";
 import { hashPasswordWithBackpressure, verifyPasswordWithBackpressure } from "./passwordBackpressure";
 import { enforceSessionActivity } from "./sessionActivity";
 import type { createAuthAdapterFactory } from "./authAdapter";

@@ -5,7 +5,7 @@ import type { Db } from "../db";
 import { tx } from "../txn";
 import type { SynchronousCallback } from "../txn";
 import { createAccountAuditWriter, recordTerminalOutcome } from "./accountFlowRuntime";
-import { createAuthority } from "./adminPort/authority";
+import { createIdentityAdminAuthority } from "./adminPort/identityAdminAuthority";
 import type { AdminPortContext, MutationOptions, SsoCutoverAccountAdminPort } from "./adminPort/contracts";
 import { createCutover } from "./adminPort/cutover";
 import { createInvitationClaims } from "./adminPort/invitationClaims";
@@ -187,7 +187,7 @@ export function createSqliteAccountAdminPort(input: CreateSqliteAccountAdminPort
   const runMutation = createRunMutation({ applicationId, db, lock, audit });
   const context = { applicationId, audit, db, trustedLocal, invitationSecretReplay, runMutation };
   return {
-    ...createAuthority(context),
+    ...createIdentityAdminAuthority(context),
     ...createCutover(context),
     ...createMembership(context),
     ...createOwnershipTransferOperations(context),

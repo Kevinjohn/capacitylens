@@ -1,6 +1,6 @@
 # US-SCH-03 — Draw time off directly on a lane
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/features.spec.ts` → "drawing in Time off mode opens a prefilled time-off form"
+**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/timeoff.spec.ts` → "drawing in Time off mode opens a prefilled time-off form"
 
 ## Goal
 

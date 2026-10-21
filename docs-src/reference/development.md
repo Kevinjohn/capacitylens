@@ -351,10 +351,44 @@ requirements for account-scoped requests.
 
 **Follow through:** Inspect the route that consumes the authorization seam, such as
 `server/src/routes/entityRoutes.ts`, then `server/src/accountStore.ts` when the operation crosses the
-scoped storage boundary. Client visibility or permission projection is never server authority.
+scoped storage boundary. Root origin and CORS hooks belong to
+`server/src/routes/appOriginPolicy.ts`; workspace authority lives in
+`server/src/accounts/adminPort/accountAuthority.ts`, while cross-workspace identity administration
+lives in `server/src/accounts/adminPort/identityAdminAuthority.ts`. Client visibility or permission
+projection is never server authority.
 
 **Tests:** Start with `server/src/app.authz.test.ts`; include `server/src/db.accountStore.test.ts` and
 `e2e/viewer.auth.spec.ts` when storage isolation or end-to-end role enforcement is affected.
+
+#### Authentication setup and identity lifecycle {#task-authentication-identity}
+
+**Start:** `server/src/authConfig/authFromEnv.ts` composes authentication configuration and its
+provider adapters.
+
+**Follow through:** `server/src/authConfig/authSchemaMigrations.ts` owns schema convergence and
+proof-gate installation; `credentialUser.ts` in the same folder owns atomic credential persistence,
+and `bootstrapAdmin.ts` owns the first-owner command. `server/src/passwordHasher.ts` owns stored
+hash formats and derivation; `server/src/passwordSecurity.ts` owns password admission and breach
+screening. Session verification and lifecycle operations are separate owners under
+`server/src/accounts/identityPort/`. Self-service provider linking and administrative identity repair
+use `providerLinkRoutes.ts` and `identityRepairRoutes.ts` under `server/src/accounts/`.
+
+**Tests:** Start with `server/src/authStartup.test.ts`, `server/src/passwordHasher.test.ts`,
+`server/src/passwordSecurity.test.ts` and the account identity-port conformance suites. Keep
+`server/src/app.auth.proxySurface.test.ts` for the exposed provider HTTP surface.
+
+#### Company reads and provisioning {#task-company-provisioning}
+
+**Start:** `server/src/routes/appRouteTree.ts` registers the routes in their required order.
+
+**Follow through:** `identityRoutes.ts` owns the current-identity response, `stateRoutes.ts` owns
+account/state reads, and `organisationRoutes.ts` owns company provisioning. `authProxyRoutes.ts`
+owns the constrained provider HTTP proxy. Provisioning retains its account row, Internal client,
+owner membership and audit work inside the workspace-provisioning transaction.
+
+**Tests:** Start with `server/src/app.companyCreation.test.ts`, `server/src/app.accounts.test.ts`
+and `server/src/app.singleCompanyCap.test.ts`; include identity and proxy tests when the admission
+or reported capabilities change.
 
 #### Online persistence and refresh {#task-online-persistence}
 
@@ -364,7 +398,9 @@ account switching, refresh and browser lifecycle hooks.
 **Follow through:** Read `src/data/persistence/refreshController.ts`,
 `src/data/persistence/accountSwitch.ts` and `src/data/persistence/writeQueue.ts` for the relevant
 coordination path. `src/data/ServerSyncAdapter.ts` owns whole-slice loading and ordered,
-transactional batch diffs against the server.
+transactional batch diffs against the server. `src/data/sync/batchWire.ts` owns batch preparation
+and dispatch; `src/data/sync/batchReceipt.ts` validates the successful response, revision coverage
+and lifecycle archive receipt before the adapter advances its baseline.
 
 **Tests:** Start with the `src/data/persist.*.test.ts` suites (`persist.attach.test.ts` for writes,
 retries and page lifecycle; `persist.reconciliation.test.ts` for batch conflicts),
@@ -403,6 +439,36 @@ the archive and `.github/workflows/gate.yml` → `release-package-smoke` runs it
 **Tests:** Start with `pnpm run package:managed-release:test` and
 `server/src/routes/staticWeb.test.ts`; the gate's `release-package-smoke` job is the end-to-end
 check, and its steps can be run locally against an extracted archive.
+
+#### Shared calendar, colour and deletion policy {#task-shared-policy}
+
+**Start:** Find the rule owner under `shared/src/lib/`; the existing `dateMath`, `color` and
+`integrity` package paths retain their compatibility exports.
+
+**Follow through:** `today.ts` owns clock/timezone resolution and cached formatters; `dateMath.ts`
+contains date-only arithmetic. `colorPalette.ts`, `barColors.ts` and `accessibleColors.ts` own palette
+membership, scheduler colour precedence and contrast respectively. `cascades.ts` owns pure deletion
+and relationship transformations, while `integrity.ts` contains input validators. Browser instant
+formatting belongs to `src/lib/instantDisplay.ts`; company-calendar presentation stays in
+`src/lib/dateDisplay.ts`.
+
+**Tests:** Start with each owner's matching test file. Preserve package export compatibility,
+caller-owned account scoping and timestamps on surviving rows when changing cascades.
+
+#### Stopped-server repair and operational policy {#task-operational-policy}
+
+**Start:** `server/src/cutoverRepair.ts` owns stopped-server repair locking, schema checks, context
+creation and dispatch. Its operation modules under `server/src/cutoverRepair/` receive only the
+facts and capabilities each repair consumes.
+
+**Follow through:** Rehearsal identity-address/domain mapping lives in
+`server/scripts/rehearse/anonymiseIdentityAddresses.ts`, called inside the anonymisation transaction.
+`server/src/backup/config.ts` owns backup configuration, and `server/src/internalTlsHealth.ts` owns
+certificate health projection. `server/src/auditEntryValidation.ts` validates persisted audit event
+shapes; `server/src/auditOutbox.ts` retains durable enqueue and ordered delivery.
+
+**Tests:** Start with `server/src/cutoverRepair.test.ts`, `server/src/rehearseAnonymise.test.ts`,
+`server/src/backup.test.ts`, `server/src/internalTls.test.ts` and `server/src/auditOutbox.test.ts`.
 
 Maintain an entry when its starting point or ownership changes. A task brief should link to the
 relevant entry and name the exact implementation and test paths it needs, rather than copy this

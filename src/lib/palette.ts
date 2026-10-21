@@ -2,8 +2,8 @@
 // palette instead of hex literals scattered across forms.
 
 // Share canonical preset colors so app presentation and domain fallbacks cannot drift.
-export { NEUTRAL_COLOR } from "@capacitylens/shared/lib/color";
-import { PRESET_COLORS } from "@capacitylens/shared/lib/color";
+export { NEUTRAL_COLOR } from "@capacitylens/shared/lib/colorPalette";
+import { PRESET_COLORS } from "@capacitylens/shared/lib/colorPalette";
 import { m } from "@/i18n";
 
 /** Default preset colors grouped by entity type. */

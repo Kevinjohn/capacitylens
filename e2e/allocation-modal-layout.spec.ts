@@ -3,12 +3,12 @@ import { expect, test } from "./fixtures";
 import {
   dismissLandscapeHint,
   enableInlineActivityCreation,
-  openApp,
-  resetSchedulerScroll,
   selectShadOption,
   setZoom,
   showPlaceholders,
 } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
+import { resetSchedulerScroll } from "./schedulerGeometrySupport";
 
 async function expectLabelControl(control: Locator) {
   const field = control.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');

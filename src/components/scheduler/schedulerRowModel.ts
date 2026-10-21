@@ -2,7 +2,7 @@ import { resolveLaneTop, packLanes, resolveRowHeightForLanes } from "@/lib/laneP
 import { isHalfDay } from "@/lib/capacity";
 import { rangesOverlap, weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { resolveBarColor } from "@capacitylens/shared/lib/color";
+import { resolveBarColor } from "@capacitylens/shared/lib/barColors";
 import { resolveTimeOffTypeLabel } from "@/lib/metadata";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import type { Allocation, ID, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";

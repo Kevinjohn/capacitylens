@@ -17,16 +17,8 @@ import {
   stampServerRevision,
 } from "../writePipeline";
 import type { PreparedWrite } from "../writePipeline";
-import {
-  NO_REPROMPT,
-  isGenericEntity,
-  isLifecycleEntity,
-  isScopedTable,
-  isStaleWrite,
-  ownsRow,
-  shapeActivityWriteEcho,
-  writeActivityRow,
-} from "./routeShared";
+import { NO_REPROMPT, isGenericEntity, isLifecycleEntity, isScopedTable, isStaleWrite, ownsRow } from "./routeShared";
+import { shapeActivityWriteEcho, writeActivityRow } from "./activityWrite";
 /** Dependencies required by the generic entity routes. */
 export interface EntityRouteDependencies {
   db: Db;

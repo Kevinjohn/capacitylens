@@ -7,9 +7,10 @@ import {
   bootstrapOrg,
   signUpUser as signUp,
   signUpUserWithId,
-  seedFixtureMember,
 } from "./authTestSupport";
-import { waitForAppLanding, selectShadOption } from "./browserTestSupport";
+import { seedFixtureMember } from "./authDatabaseFixtures";
+import { selectShadOption } from "./browserTestSupport";
+import { waitForAppLanding } from "./appEntrySupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 

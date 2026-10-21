@@ -18,15 +18,8 @@ import {
   revokeInvitation,
   signupInvitation,
 } from "./routes/handlers/invitation";
-import {
-  changeMemberRole,
-  changeMemberStatus,
-  enableMemberAccess,
-  listMembers,
-  removeMember,
-  setMemberSignInTracking,
-  listResourceAvatars,
-} from "./routes/handlers/memberAdmin";
+import { changeMemberRole, changeMemberStatus, enableMemberAccess, removeMember } from "./routes/handlers/memberAdmin";
+import { listMembers, setMemberSignInTracking, listResourceAvatars } from "./routes/handlers/memberDirectory";
 import {
   clearMemberResourceLink,
   dismissMemberResourceLinkException,

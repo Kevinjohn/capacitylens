@@ -1,7 +1,8 @@
 import { test, expect } from "./fixtures";
 import { resetServer, serverState, requireStateRows } from "./serverTestState";
 import { failRequestsUntilReleased } from "./failRequestsUntilReleased";
-import { waitForAppLanding, freezeBrowserDate, openApp } from "./browserTestSupport";
+import { waitForAppLanding } from "./appEntrySupport";
+import { freezeBrowserDate, openApp } from "./appEntrySupport";
 
 const PERSISTENCE_WARNING = "Changes aren’t being saved right now — we’ll keep retrying.";
 

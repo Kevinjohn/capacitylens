@@ -1,7 +1,10 @@
 import { expect, test } from "./fixtures";
 import type { APIRequestContext, Page } from "./fixtures";
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./authTestSupport";
-import { waitForAppLanding, freezeBrowserDate, goToSeedWeek, setZoom } from "./browserTestSupport";
+import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from "./authTestSupport";
+import { seedFixtureMember } from "./authDatabaseFixtures";
+import { goToSeedWeek, setZoom } from "./browserTestSupport";
+import { waitForAppLanding } from "./appEntrySupport";
+import { freezeBrowserDate } from "./appEntrySupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 

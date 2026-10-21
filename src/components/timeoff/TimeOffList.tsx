@@ -1,6 +1,6 @@
 import { useStore } from "@/store/useStore";
 import { startOfWeekISO } from "@capacitylens/shared/lib/dateMath";
-import { hasPlaceholdersEnabled, resolveTimeZone, resolveWeekStart } from "@/store/selectors";
+import { hasPlaceholdersEnabled, resolveTimeZone, resolveWeekStart } from "@/store/accountSettingsSelectors";
 import { useActiveScopedData } from "@/store/useScopedData";
 import { useEntityListState } from "@/hooks/useEntityListState";
 import { AddButton, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "@/components/common/ui";

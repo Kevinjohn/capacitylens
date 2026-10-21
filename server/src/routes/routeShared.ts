@@ -4,10 +4,6 @@ import type { Action } from "@capacitylens/shared/domain/access";
 import { isLifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
 import { isScopedEntityKey } from "@capacitylens/shared/types/entities";
 import type { SanitizeWriteOptions } from "../fieldPolicy";
-import { allocationAttributionAllowed } from "@capacitylens/shared/lib/integrity";
-import { clearAllocationAttributionForActivities, upsertRow } from "../db";
-import type { Db, RewrittenAllocationRevision } from "../db";
-import type { BatchStateProjection } from "../BatchStateProjection";
 import { TABLES } from "../tables";
 import type { TableName } from "../tables";
 
@@ -110,42 +106,3 @@ export const ALL_FIELDS_VISIBLE: SanitizeWriteOptions = Object.freeze({
 
 /** Authorization function used by route handlers. */
 export type AuthorizeRoute = (input: AuthorizeRouteInput) => AuthorizationResult;
-
-interface WriteActivityRowInput {
-  db: Db;
-  projection: BatchStateProjection | undefined;
-  row: Record<string, unknown>;
-  existing: Record<string, unknown> | undefined;
-}
-
-/** Writes an activity and reconciles any allocation attribution changes. */
-export function writeActivityRow({
-  db,
-  projection,
-  row,
-  existing,
-}: WriteActivityRowInput): RewrittenAllocationRevision[] {
-  upsertRow(db, "activities", row);
-  projection?.upsert("activities", row);
-  const id = row.id as string;
-  if (projection) {
-    projection.reconcileAllocationAttributionForActivity({
-      activityId: id,
-      attributionAllowed: allocationAttributionAllowed(row.kind),
-    });
-    return [];
-  }
-  // A newly created activity cannot have an allocation referencing it yet, so POST/PUT-create
-  // never needs a sweep. Direct writes retain their immediate database reconciliation.
-  if (!existing || allocationAttributionAllowed(row.kind)) return [];
-  return clearAllocationAttributionForActivities(db, new Set([id]));
-}
-
-/** Adds server-owned allocation revisions to activity write echoes for client reconciliation. */
-export function shapeActivityWriteEcho(
-  entity: string,
-  echo: Record<string, unknown>,
-  rewrittenAllocations: RewrittenAllocationRevision[],
-): Record<string, unknown> {
-  return entity === "activities" ? { ...echo, rewrittenAllocations } : echo;
-}

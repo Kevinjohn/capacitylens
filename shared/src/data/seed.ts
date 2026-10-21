@@ -1,5 +1,6 @@
 import type { AppData } from "../types/entities";
-import { addDaysISO, dayIndex, startOfWeekISO, todayISO } from "../lib/dateMath";
+import { addDaysISO, dayIndex, startOfWeekISO } from "../lib/dateMath";
+import { todayISO } from "../lib/today";
 import { isValidISODate } from "../lib/integrity";
 import { SEED_WEEK } from "./seed/constants";
 import { createOrgTables } from "./seed/orgTables";

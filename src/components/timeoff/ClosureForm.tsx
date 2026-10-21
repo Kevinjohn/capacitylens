@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { todayISO } from "@capacitylens/shared/lib/dateMath";
+import { todayISO } from "@capacitylens/shared/lib/today";
 import type { Closure } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { useFieldError, useFieldErrorFocus } from "@/hooks/useFieldError";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import { isStaleEdit } from "@/lib/isStaleEdit";
 import { parseText } from "@/lib/validation";
-import { resolveTimeZone } from "@/store/selectors";
+import { resolveTimeZone } from "@/store/accountSettingsSelectors";
 import { useStore } from "@/store/useStore";
 import { DateField, FormActions, Modal, RequiredLegend, TextField } from "@/components/common/ui";
 import { FieldError } from "@/components/ui/field";

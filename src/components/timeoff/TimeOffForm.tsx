@@ -1,10 +1,10 @@
 import { useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useStore } from "@/store/useStore";
-import { hasPlaceholdersEnabled, resolveTimeZone } from "@/store/selectors";
+import { hasPlaceholdersEnabled, resolveTimeZone } from "@/store/accountSettingsSelectors";
 import { useActiveScopedData } from "@/store/useScopedData";
 import { useFieldError, useFieldErrorFocus } from "@/hooks/useFieldError";
-import { todayISO } from "@capacitylens/shared/lib/dateMath";
+import { todayISO } from "@capacitylens/shared/lib/today";
 import { m } from "@/i18n";
 import { DateField, FormActions, Modal, RequiredLegend, SelectField, TextField } from "@/components/common/ui";
 import type { Option } from "@/components/common/ui";

@@ -14,7 +14,8 @@ import {
   stampServerRevision,
 } from "../../writePipeline";
 import { hasFrozenAccountFieldChanges } from "../accountEntityRoutes";
-import { isLifecycleEntity, isScopedTable, isStaleWrite, ownsRow, writeActivityRow } from "../routeShared";
+import { isLifecycleEntity, isScopedTable, isStaleWrite, ownsRow } from "../routeShared";
+import { writeActivityRow } from "../activityWrite";
 
 import { isMatchingMintedInternalClient } from "./appData";
 import { StaleWriteError } from "./errors";

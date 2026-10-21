@@ -1,6 +1,6 @@
 # US-SCH-06 — Reassign an allocation onto another resource
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/features.spec.ts` → "dragging an allocation onto another row reassigns it" and "rejects a vertical reassignment onto a non-working start date"
+**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/allocation.spec.ts` → "dragging an allocation onto another row reassigns it" and "rejects a vertical reassignment onto a non-working start date"
 
 **Documentation:** [Schedule and change work → Edit, move and remove allocations](../../docs-src/using/schedule-work.md#edit-move-and-remove-allocations)
 

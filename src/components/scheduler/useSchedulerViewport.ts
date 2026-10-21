@@ -8,7 +8,7 @@ import {
   WEEKEND_COLUMN_REM,
   resolveColumnFit,
 } from "@/lib/schedulerConfig";
-import { buildVisibleRange } from "@/store/selectors";
+import { buildVisibleRange } from "@/store/schedulerSelectors";
 import { useStore } from "@/store/useStore";
 import type { SchedulerUI } from "@/store/useStore";
 import { buildColumnGeometry, resolveLeftEdgeDate } from "./columnGeometry";

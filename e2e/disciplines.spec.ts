@@ -1,7 +1,20 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
 
 // Covers US-DIS-01..04.
+function registerClickingDisciplineHeaderCollapsesRowsTest() {
+  test("clicking a discipline header collapses its rows", async ({ page }, testInfo) => {
+    await openApp(page);
+    await expect(page.getByText("Bruce Wayne")).toBeVisible();
+    await page.getByRole("button", { name: "Design", exact: true }).click();
+    await expect(page.getByText("Bruce Wayne")).toHaveCount(0);
+    await expect(page.getByTestId("discipline-group").first()).toBeVisible();
+    await page.screenshot({
+      path: testInfo.outputPath("capacitylens_collapsed.png"),
+    });
+  });
+}
+
 test.describe("Disciplines", () => {
   test("adds a discipline and shows it in the list and as a schedule group", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/disciplines");
@@ -43,4 +56,5 @@ test.describe("Disciplines", () => {
     await expect(page.getByTestId("discipline-group").filter({ hasText: "Unassigned" })).toBeVisible();
     await expect(page.getByTestId("discipline-group").filter({ hasText: "No discipline" })).toHaveCount(0);
   });
+  registerClickingDisciplineHeaderCollapsesRowsTest();
 });

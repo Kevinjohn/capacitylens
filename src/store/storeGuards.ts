@@ -2,7 +2,7 @@ import type { StoreApi } from "zustand";
 import { assertAllocationRefs, getOwned as findOwnedIn } from "@capacitylens/shared/domain/mutations";
 import { m } from "@/i18n";
 import { isBuiltinClient } from "@capacitylens/shared/data/internalClient";
-import { NEUTRAL_COLOR, snapToPresetColor } from "@capacitylens/shared/lib/color";
+import { NEUTRAL_COLOR, snapToPresetColor } from "@capacitylens/shared/lib/colorPalette";
 import type { AppData, ID, ScopedEntityKey, Weekday } from "@capacitylens/shared/types/entities";
 import { isWeekdaySet } from "@capacitylens/shared/lib/accountWorkingDays";
 import type { StoreState } from "./types";

@@ -1,4 +1,6 @@
 import type { FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
+import { REPLY_ERRORS } from "./replyErrors";
 
 /** Returns the allowed origin to echo, or null when the request origin is not allowed. */
 export function resolveCorsOrigin(reqOrigin: string | undefined, allow: ReadonlySet<string>): string | null {
@@ -44,4 +46,68 @@ export function isSameRequestOrigin({ req, reqOrigin, trustForwarded }: IsSameRe
   // error, not an attacker-reachable one. We deliberately do not accept the reverse (Origin http
   // while we are https) and never accept any host:port mismatch.
   return origin.protocol === "https:" && reconstructed.protocol === "http:" && origin.host === reconstructed.host;
+}
+
+interface TrustedOriginInput {
+  req: FastifyRequest;
+  listedOrigin: string | null;
+  fetchSite: string | undefined;
+  trustForwarded: boolean;
+}
+
+function resolveTrustedOrigin({ req, listedOrigin, fetchSite, trustForwarded }: TrustedOriginInput): string | null {
+  if (listedOrigin !== null) return listedOrigin;
+  const reqOrigin = req.headers.origin;
+  if (reqOrigin === undefined) return null;
+  if (fetchSite === "same-origin" || isSameRequestOrigin({ req, reqOrigin, trustForwarded })) return reqOrigin;
+  return null;
+}
+
+/** Installs the root-origin gate so API routes, preflights and not-found responses share policy. */
+export function installOriginPolicy(input: {
+  app: FastifyInstance;
+  corsOrigins: ReadonlySet<string>;
+  securityEvent: (event: Record<string, unknown>) => void;
+  trustProxyHeaders: boolean;
+}): void {
+  const { app, corsOrigins, securityEvent, trustProxyHeaders } = input;
+  app.addHook("onRequest", async function enforceOriginPolicy(req: FastifyRequest, reply: FastifyReply) {
+    const reqOrigin = req.headers.origin;
+    const listedOrigin = resolveCorsOrigin(reqOrigin, corsOrigins);
+    const fetchSite = req.headers["sec-fetch-site"];
+    // Sec-Fetch-Site is browser-controlled and covers packaged proxy requests whose public origin
+    // cannot be reconstructed from the app's local protocol and host.
+    const origin = resolveTrustedOrigin({
+      req,
+      listedOrigin,
+      fetchSite,
+      trustForwarded: trustProxyHeaders,
+    });
+    const unsafe = !["GET", "HEAD", "OPTIONS"].includes(req.method);
+    // Only a listed origin or same-origin signal may send an unsafe browser request.
+    if (unsafe && origin === null && (reqOrigin !== undefined || fetchSite === "cross-site")) {
+      securityEvent({
+        event: "cross_site_request",
+        outcome: "blocked",
+        method: req.method,
+        path: req.url,
+        origin: reqOrigin,
+        fetchSite,
+      });
+      return reply.code(403).send({ error: REPLY_ERRORS.crossSiteRequest });
+    }
+    if (origin) {
+      reply.header("Access-Control-Allow-Origin", origin);
+      reply.header("Vary", "Origin");
+      reply.header("Access-Control-Allow-Credentials", "true");
+    }
+    reply.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    reply.header("Access-Control-Expose-Headers", "x-capacitylens-audit-warning");
+    // Never reflect arbitrary requested headers on credentialed origins.
+    reply.header(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Idempotency-Key, x-account-command-id, x-capacitylens-bootstrap-token, x-capacitylens-setup-token, x-capacitylens-sync-session, x-capacitylens-sync-sequence",
+    );
+    if (req.method === "OPTIONS") return reply.code(204).send();
+  });
 }

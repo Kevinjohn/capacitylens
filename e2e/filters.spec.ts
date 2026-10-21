@@ -1,5 +1,6 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption, showScheduleFilters } from "./browserTestSupport";
+import { selectShadOption, showScheduleFilters } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
 
 // Covers US-FIL-01..08. Seed has 6 allocations (one tentative: Bruce's Visual Design)
 // and 5 resource rows across Design/Development/Copywriting.
@@ -156,6 +157,22 @@ function registerActivityLensMutuallyExclusiveClientTests() {
   });
 }
 
+function registerFilteringProjectNarrowsScheduleProjectTest() {
+  test("filtering by project narrows the schedule to that project", async ({ page }) => {
+    await openApp(page);
+    await showScheduleFilters(page);
+    const bars = page.getByTestId("allocation-bar");
+    await expect.poll(() => bars.count()).toBeGreaterThan(1);
+
+    await selectShadOption(page.getByLabel("Filter by project"), "p-brand");
+    await expect(page.getByTestId("allocation-bar").filter({ hasText: "Brand System" })).toBeVisible();
+
+    // Filtering hides non-matching resources by default, collapsing the schedule to
+    // just the project's work ("Show unallocated" opts the dimmed staffing view in).
+    await expect(bars).toHaveCount(1);
+  });
+}
+
 test.describe("Filters", () => {
   registerOrdersFilterOptionsPlanningHierarchyTest();
   registerSearchesResourcesNameHidesNonTest();
@@ -167,4 +184,5 @@ test.describe("Filters", () => {
   registerShowsFilteredEmptyStateNothingTest();
   registerFiltersScheduleAllProjectsActivityTest();
   registerActivityLensMutuallyExclusiveClientTests();
+  registerFilteringProjectNarrowsScheduleProjectTest();
 });

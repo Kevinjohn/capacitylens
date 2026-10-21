@@ -1,5 +1,7 @@
 import { test, expect } from "./fixtures";
-import { openApp, resetSchedulerScroll, setZoom } from "./browserTestSupport";
+import { setZoom } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
+import { resetSchedulerScroll } from "./schedulerGeometrySupport";
 
 // Covers US-KBD-01..03, 05. (US-KBD-04 axe lives in e2e/a11y.spec.ts.)
 function registerAllocationBarFocusableEnterOpensTest() {

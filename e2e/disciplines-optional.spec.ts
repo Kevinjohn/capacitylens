@@ -1,6 +1,7 @@
 import { test, expect } from "./fixtures";
 import type { Page } from "./fixtures";
-import { openApp, showScheduleFilters } from "./browserTestSupport";
+import { showScheduleFilters } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
 
 async function moveDianaToSupplementary(page: Page) {
   await page

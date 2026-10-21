@@ -52,7 +52,6 @@ function createRaceHarness(nextRole: Role | null) {
     db: {} as Db,
     store: { readFullSlice: () => currentSlice } as unknown as AccountStore,
     authMode: "password-only",
-    allowReset: false,
     accountAdminPort: {
       roleForPrincipalInWorkspace: () => currentRole,
     } as unknown as ImportRouteDependencies["accountAdminPort"],

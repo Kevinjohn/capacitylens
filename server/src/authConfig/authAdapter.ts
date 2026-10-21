@@ -18,7 +18,7 @@ import type { Auth, AuthProviderInfo, RawSessionUser } from "./authTypes";
 import { SESSION_ABSOLUTE_TTL_SECONDS } from "./authConstants";
 import { buildSessionUser } from "./sessionActivity";
 import { verifiedUnauditedFederatedLinks, sqliteTableExists } from "./federatedIdentitySchema";
-import { createCredentialUserWith } from "./bootstrapAdmin";
+import { createCredentialUserWith } from "./credentialUser";
 import { createAuthRequestHandler } from "./authRequestHandler";
 import type { MicrosoftProof } from "./microsoftProof";
 import type { createJoiningProviderCallbacks } from "../accounts/adminPort/joiningProviderCallbacks";

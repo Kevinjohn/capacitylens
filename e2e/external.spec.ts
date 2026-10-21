@@ -1,5 +1,7 @@
 import { test, expect } from "./fixtures";
-import { openApp, resetSchedulerScroll, selectShadOption, setZoom, showScheduleFilters } from "./browserTestSupport";
+import { selectShadOption, setZoom, showScheduleFilters } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
+import { resetSchedulerScroll } from "./schedulerGeometrySupport";
 
 // External visibility is an account preference that defaults off; toggling it must preserve the underlying bookings.
 

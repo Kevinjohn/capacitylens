@@ -1,6 +1,6 @@
 # US-SCH-11 — Time off renders as a labelled hatched block
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/features.spec.ts` → "booking time off greys the schedule"
+**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/timeoff.spec.ts` → "booking time off greys the schedule"
 
 ## Goal
 

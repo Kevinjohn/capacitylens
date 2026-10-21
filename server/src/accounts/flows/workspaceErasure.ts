@@ -1,3 +1,4 @@
+import type { KeyedOperationLock } from "../KeyedOperationLock";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import { tx } from "../../txn";
 import { recordTerminalOutcome } from "../accountFlowRuntime";
@@ -9,7 +10,6 @@ import {
   terminateCommand,
 } from "../commands";
 import type { LocalAccountFlows } from "../createLocalAccountFlows";
-import { withMembershipSnapshotRetry } from "./actorContext";
 import type { LocalAccountFlowContext } from "./context";
 
 type WorkspaceErasureFlows = Pick<LocalAccountFlows, "eraseWorkspace" | "withWorkspaceErasureLocks">;
@@ -200,4 +200,49 @@ export function createWorkspaceErasureFlows(dependencies: WorkspaceErasureDepend
       });
     },
   };
+}
+
+const WORKSPACE_ERASURE_SNAPSHOT_MAX_ATTEMPTS = 3;
+
+interface WithMembershipSnapshotRetryInput<T> {
+  lock: KeyedOperationLock;
+  currentPrincipalIds: () => readonly string[];
+  lockKeysFor: (principalIds: readonly string[]) => readonly string[];
+  run: () => Promise<T>;
+  onAttemptsExhausted: () => never;
+}
+
+/**
+ * Runs an operation while holding locks for a stable workspace membership snapshot.
+ * Retries with newly observed principals, then calls onAttemptsExhausted if the snapshot remains unstable.
+ * Propagates lock, callback, and exhaustion failures; callers supply workspace and principal lock keys.
+ */
+async function withMembershipSnapshotRetry<T>({
+  lock,
+  currentPrincipalIds,
+  lockKeysFor,
+  run,
+  onAttemptsExhausted,
+}: WithMembershipSnapshotRetryInput<T>): Promise<T> {
+  const attempt = async (principalIds: readonly string[], attemptNumber: number): Promise<T> => {
+    const locked = new Set(principalIds);
+    const result = await lock.withKeys(
+      lockKeysFor(principalIds),
+      async (): Promise<{ kind: "retry"; principalIds: readonly string[] } | { kind: "done"; value: T }> => {
+        // The membership snapshot was taken synchronously before lock acquisition. A mutation
+        // that already held the workspace lock may have added a principal while we waited.
+        // Re-snapshot under the workspace lock and retry with the full key set before running;
+        // this keeps identity-admin operations serialized with every principal in scope.
+        const current = currentPrincipalIds();
+        if (current.some((principalId) => !locked.has(principalId))) {
+          return { kind: "retry", principalIds: current };
+        }
+        return { kind: "done", value: await run() };
+      },
+    );
+    if (result.kind === "done") return result.value;
+    if (attemptNumber >= WORKSPACE_ERASURE_SNAPSHOT_MAX_ATTEMPTS) onAttemptsExhausted();
+    return attempt(result.principalIds, attemptNumber + 1);
+  };
+  return attempt(currentPrincipalIds(), 1);
 }

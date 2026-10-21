@@ -1,5 +1,6 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption } from "./browserTestSupport";
+import { selectShadOption } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
 
 // Covers US-SET-14: Internal work is always neutral grey, and Settings has no colour mode for it.
 test("Internal work is always grey and hides the project colour picker", async ({ page }) => {

@@ -1,12 +1,7 @@
 import { test, expect } from "./fixtures";
 import type { APIRequestContext } from "./fixtures";
-import {
-  AUTH_API as API,
-  AUTH_PASSWORD as PASSWORD,
-  bootstrapOrg,
-  seedFixtureMember,
-  signUpUser,
-} from "./authTestSupport";
+import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUser } from "./authTestSupport";
+import { seedFixtureMember } from "./authDatabaseFixtures";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 

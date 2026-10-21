@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
 import { API, resetServer, serverState, requireStateRows } from "./serverTestState";
-import { createCompany } from "./browserTestSupport";
+import { createCompany } from "./appEntrySupport";
 
 // The server rejects direct API updates to frozen account fields (language, weekStartsOn, and
 // timezone) with 409. The read-only Settings summary is a convenience; server enforcement also

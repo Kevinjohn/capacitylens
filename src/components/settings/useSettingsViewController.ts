@@ -17,7 +17,7 @@ import {
   resolveSchedulingMode,
   resolveTimeZone,
   resolveWeekStart,
-} from "@/store/selectors";
+} from "@/store/accountSettingsSelectors";
 import { useStore } from "@/store/useStore";
 import { useLocalDataActions } from "./useLocalDataActions";
 

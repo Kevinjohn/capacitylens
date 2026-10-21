@@ -1,6 +1,6 @@
 import type { FastifyRequest } from "fastify";
 import type { Auth } from "../auth";
-import type { SsoCutoverIdentityPort } from "./betterAuthIdentityPort";
+import type { SsoCutoverIdentityPort } from "./identityPort/contracts";
 import { MicrosoftProofError } from "../authConfig/microsoftProof";
 import { newId } from "@capacitylens/shared/lib/id";
 import { resolveRequestClientIp } from "../routes/appErrors";
@@ -28,7 +28,7 @@ function returnUrl(value: string, marker: string, ceremonyId: string): string {
  */
 export async function startMicrosoftProviderLink(input: {
   auth: Auth;
-  identity: SsoCutoverIdentityPort;
+  identity: Pick<SsoCutoverIdentityPort, "inspectProviderLinks">;
   request: FastifyRequest;
   body: LinkBody;
   headers: Headers;

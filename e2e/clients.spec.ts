@@ -1,5 +1,6 @@
 import { test, expect } from "./fixtures";
-import { openApp, showScheduleFilters } from "./browserTestSupport";
+import { showScheduleFilters } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
 
 // Covers US-CLI-01..03.
 function registerAddsClientMakesAvailableScheduleTest() {

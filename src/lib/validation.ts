@@ -1,5 +1,5 @@
 import { isWeekdaySet } from "@capacitylens/shared/lib/accountWorkingDays";
-import { isPresetColor } from "@capacitylens/shared/lib/color";
+import { isPresetColor } from "@capacitylens/shared/lib/colorPalette";
 import {
   hasDisallowedChars,
   MAX_NAME_LENGTH,

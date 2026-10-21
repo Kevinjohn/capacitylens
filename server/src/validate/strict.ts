@@ -1,6 +1,6 @@
 import { INTERNAL_CLIENT_COLOR } from "@capacitylens/shared/data/internalClient";
 import { isWeekdaySet } from "@capacitylens/shared/lib/accountWorkingDays";
-import { isPresetColor, NEUTRAL_COLOR } from "@capacitylens/shared/lib/color";
+import { isPresetColor, NEUTRAL_COLOR } from "@capacitylens/shared/lib/colorPalette";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import {
   hasDisallowedChars,

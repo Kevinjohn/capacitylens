@@ -1,5 +1,6 @@
 import type { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
-import { daysInclusive, todayISO } from "@capacitylens/shared/lib/dateMath";
+import { daysInclusive } from "@capacitylens/shared/lib/dateMath";
+import { todayISO } from "@capacitylens/shared/lib/today";
 import { effectiveWorkingWeek, lacksEffectiveWorkingDays } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import { defaultRepeatUntilDate, maximumRepeatUntilDate } from "@capacitylens/shared/lib/repeatingDates";

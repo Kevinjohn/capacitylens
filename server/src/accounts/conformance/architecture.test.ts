@@ -62,7 +62,7 @@ const runtimeImports = (file: string): string[] => internalImports(file, (edge) 
 const adapterTypeDebt = [
   ["accounts/createLocalAccountFlows.ts", "accounts/betterAuthIdentityPort.ts", "LocalIdentityPort"],
   ["accounts/createLocalAccountFlows.ts", "accounts/sqliteAccountAdminPort.ts", "LocalAccountAdminPort"],
-  ["accounts/flows/actorContext.ts", "accounts/sqliteAccountAdminPort.ts", "LocalAccountAdminPort"],
+  ["accounts/flows/workspaceLifecycle.ts", "accounts/adminPort/contracts.ts", "LocalAccountAdminPort"],
 ] as const;
 
 interface IsOwnershipTypeBoundaryInput {
@@ -268,6 +268,7 @@ describe("account-boundary architecture", () => {
 const identitySqlOwners = new Set([
   resolve(serverRoot, "auth.ts"),
   resolve(serverRoot, "authConfig/authAdapter.ts"),
+  resolve(serverRoot, "authConfig/credentialUser.ts"),
   resolve(serverRoot, "authConfig/externalAvatar.ts"),
   resolve(serverRoot, "authConfig/bootstrapAdmin.ts"),
   resolve(serverRoot, "authConfig/federatedIdentitySchema.ts"),
@@ -280,13 +281,15 @@ const identitySqlOwners = new Set([
   resolve(serverRoot, "authConfig/socialProviders.ts"),
   resolve(serverRoot, "authConfig/federatedEmailProof.ts"),
   resolve(serverRoot, "db/microsoftProofGateSql.ts"),
-  resolve(serverRoot, "accounts/identityPort/credentials.ts"),
+  resolve(serverRoot, "accounts/identityPort/credentialPrincipals.ts"),
+  resolve(serverRoot, "accounts/identityPort/passwordReset.ts"),
+  resolve(serverRoot, "accounts/identityPort/applicationSessionVerification.ts"),
+  resolve(serverRoot, "accounts/identityPort/sessionLifecycle.ts"),
   resolve(serverRoot, "accounts/identityPort/cutover.ts"),
   resolve(serverRoot, "accounts/identityPort/erasure.ts"),
   resolve(serverRoot, "accounts/identityPort/federatedLinks.ts"),
   resolve(serverRoot, "accounts/identityPort/inspection.ts"),
   resolve(serverRoot, "accounts/identityPort/sessionRevocation.ts"),
-  resolve(serverRoot, "accounts/identityPort/sessions.ts"),
   resolve(serverRoot, "accounts/adminPort/joiningProviderLifecycle.ts"),
   resolve(serverRoot, "accounts/adminPort/joiningProviderCallbacks.ts"),
   resolve(serverRoot, "accounts/adminPort/joiningProviderIntent.ts"),
@@ -347,8 +350,10 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "controlTables/ownershipMigrations.ts"),
       resolve(serverRoot, "controlTables/ownershipTransfers.ts"),
       resolve(serverRoot, "controlTables/retentionV24.ts"),
-      resolve(serverRoot, "accounts/adminPort/authority.ts"),
-      resolve(serverRoot, "accounts/adminPort/cutover.ts"),
+      resolve(serverRoot, "accounts/adminPort/accountAuthority.ts"),
+      resolve(serverRoot, "accounts/adminPort/identityAdminAuthority.ts"),
+      resolve(serverRoot, "accounts/adminPort/cutoverInspection.ts"),
+      resolve(serverRoot, "accounts/adminPort/workspaceAdministration.ts"),
       resolve(serverRoot, "accounts/adminPort/invitationClaims.ts"),
       resolve(serverRoot, "accounts/adminPort/invitations.ts"),
       resolve(serverRoot, "accounts/adminPort/joiningPolicy.ts"),

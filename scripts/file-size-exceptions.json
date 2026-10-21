@@ -25,6 +25,10 @@
     {
       "path": "shared/src/domain/mutations.test.ts",
       "reason": "domain mutation matrix; grows with each mutation and invariant case"
+    },
+    {
+      "path": "shared/src/lib/integrity.testSupport.ts",
+      "reason": "shared cascade fixture catalogue; complete relationship trees stay together rather than being split by line count"
     }
   ],
   "temporary": [
@@ -54,28 +58,13 @@
       "reason": "test-size ratchet baseline; split when touched"
     },
     {
-      "path": "server/src/auth.test.ts",
-      "baseline": 1197,
-      "reason": "test-size ratchet baseline; split when touched"
-    },
-    {
       "path": "server/src/backup.test.ts",
       "baseline": 1008,
       "reason": "test-size ratchet baseline; split when touched"
     },
     {
-      "path": "server/src/routes/entityRoutes.ts",
-      "baseline": 402,
-      "reason": "temporary allowance for required exported-symbol TSDoc; remove when the route module is split"
-    },
-    {
       "path": "shared/src/domain/lifecycle.test.ts",
       "baseline": 1028,
-      "reason": "test-size ratchet baseline; split when touched"
-    },
-    {
-      "path": "shared/src/lib/integrity.test.ts",
-      "baseline": 844,
       "reason": "test-size ratchet baseline; split when touched"
     },
     {

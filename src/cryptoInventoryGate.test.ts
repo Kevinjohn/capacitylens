@@ -36,4 +36,24 @@ describe("cryptographic inventory file selection", () => {
     expect(result.stderr).toContain("scratch.mjs");
     expect(result.stderr).toContain("Stale cryptographic inventory paths");
   });
+
+  it("requires review for a standard node crypto import with identifier generation", () => {
+    directory = mkdtempSync(join(tmpdir(), "capacitylens-crypto-import-"));
+    mkdirSync(join(directory, "scripts"), { recursive: true });
+    mkdirSync(join(directory, "docs-src/security"), { recursive: true });
+    cpSync(resolve("scripts/check-crypto-inventory.mjs"), join(directory, "scripts/check-crypto-inventory.mjs"));
+    writeFileSync(join(directory, "docs-src/security/crypto-inventory.json"), JSON.stringify({ entries: [] }));
+    writeFileSync(join(directory, "identifier.mjs"), `import { randomUUID } from 'node:crypto'\nrandomUUID()\n`);
+    execFileSync("git", ["init", "--quiet"], { cwd: directory });
+    execFileSync("git", ["add", "."], { cwd: directory });
+
+    const result = spawnSync(process.execPath, ["scripts/check-crypto-inventory.mjs"], {
+      cwd: directory,
+      encoding: "utf8",
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Unreviewed cryptographic implementation paths");
+    expect(result.stderr).toContain("identifier.mjs");
+  });
 });

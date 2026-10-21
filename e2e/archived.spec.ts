@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
 
 // The temporary demo state exercises archive, restore and soft-delete without a server.
 // Each action must update the scheduler and active list together.

@@ -5,15 +5,17 @@ import {
   disableWeekSnap,
   dismissLandscapeHint,
   goToSeedWeek,
-  openApp,
+  selectShadOption,
+  setZoom,
+} from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
+import {
   probeSchedulerGeometry as probe,
   resetSchedulerScroll,
   schedulerLeftMonthLabel,
-  selectShadOption,
-  setZoom,
   settledSchedulerLeftDate,
   waitForWeekSnap,
-} from "./browserTestSupport";
+} from "./schedulerGeometrySupport";
 
 async function expectMonthLabelsVerticallyCentred(page: Page) {
   const dateHeader = page.getByRole("columnheader", { name: "Dates" });

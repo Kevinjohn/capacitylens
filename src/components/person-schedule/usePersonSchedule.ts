@@ -13,7 +13,7 @@ import {
   resolveSchedulingMode,
   resolveTimeZone,
   resolveWeekStart,
-} from "@/store/selectors";
+} from "@/store/accountSettingsSelectors";
 import { useActiveScopedData } from "@/store/useScopedData";
 import { useStore } from "@/store/useStore";
 import { buildPersonSchedule } from "./personScheduleModel";

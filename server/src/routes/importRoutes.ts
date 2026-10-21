@@ -5,19 +5,17 @@ import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
 import type { AccountMemberResourcePort } from "@capacitylens/shared/account/ports";
 import type { Role } from "@capacitylens/shared/account/types";
 import { canSeePrivateNames } from "@capacitylens/shared/domain/access";
-import { seed } from "@capacitylens/shared/data/seed";
 import { parseData, MAX_IMPORT_RECORDS } from "@capacitylens/shared/data/transfer";
 import { APP_DATA_KEYS } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import type { AuditRecord } from "../audit";
 import type { AccountMode } from "../auth";
 import type { KeyedOperationLock } from "../accounts/KeyedOperationLock";
-import { buildCompleteAccountSlice, insertAll, replaceAccountSlice, wipe } from "../db";
+import { buildCompleteAccountSlice, replaceAccountSlice } from "../db";
 import type { Db } from "../db";
 import { readCurrentRequestAbortSignal } from "../requestAbort";
 import type { runImportWorker } from "../runImportWorker";
 import type { AccountStore } from "../accountStore";
-import { tx } from "../txn";
 import { WorkQueueFullError } from "../workQueue";
 import type { WriteRejection } from "../writePipeline";
 import { REPLY_ERRORS } from "./replyErrors";
@@ -59,7 +57,6 @@ export interface ImportRouteDependencies {
   db: Db;
   store: AccountStore;
   authMode: AccountMode;
-  allowReset: boolean;
   accountAdminPort: ImportAccountAdministration;
   /** Retained for test/runtime dependency compatibility; replacement cleanup is owned by replaceAccountSlice. */
   memberResources: AccountMemberResourcePort;
@@ -80,10 +77,6 @@ function parseImportRequestBody(body: unknown): ParseResult<ImportRequestBody, W
     return { kind: "invalid", failure: { status: 400, error: REPLY_ERRORS.accountIdRequired } };
   }
   return { kind: "parsed", value: { accountId: body.accountId, data: "data" in body ? body.data : undefined } };
-}
-
-function isResetSeedRequested(body: unknown): boolean {
-  return body !== null && typeof body === "object" && "seed" in body && Boolean(body.seed);
 }
 
 interface AuthorizedImportUserInput {
@@ -210,17 +203,6 @@ async function importState(
   }
 }
 
-function resetState(req: FastifyRequest, reply: FastifyReply, dependencies: ImportRouteDependencies): FastifyReply {
-  if (!dependencies.allowReset || dependencies.authMode !== "off") {
-    return reply.code(403).send({ error: REPLY_ERRORS.resetDisabled });
-  }
-  tx(dependencies.db, () => {
-    wipe(dependencies.db);
-    if (isResetSeedRequested(req.body)) insertAll(dependencies.db, seed());
-  });
-  return reply.code(200).send({ ok: true });
-}
-
 /** Registers the account import endpoint. */
 export function registerImportRoutes(app: FastifyInstance, dependencies: ImportRouteDependencies): void {
   // Bulk import into one account, reusing the same remap+validate+sanitize the store
@@ -250,15 +232,4 @@ export function registerImportRoutes(app: FastifyInstance, dependencies: ImportR
     // defence-in-depth so any residual constraint failure is classified by fail rather than lost.
     return importState(req, reply, dependencies);
   });
-
-  // Test-only, trusted-local only: wipe (and optionally re-seed) so E2E/integration runs start
-  // clean. An authenticated browser identity has tenant-scoped memberships, never installation-
-  // wide erasure authority, so auth-on modes refuse this route even when allowReset was set.
-  //
-  // Exempt from the single-company cap: this is the raw insertAll test-only path (itself
-  // production-forbidden: see bootGuard/resetForbidden, and allowReset just below), not an
-  // HTTP create vector the cap is meant to police. It's how e2e fixtures reach a known
-  // multi-company state (the demo seed ships two companies) without threading multiAccount
-  // through every spec.
-  app.post("/api/test/reset", (req, reply) => resetState(req, reply, dependencies));
 }

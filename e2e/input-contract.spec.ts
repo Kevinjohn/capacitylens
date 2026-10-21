@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
 
 test("a decomposed name at the canonical maximum saves intact", async ({ page }) => {
   await openApp(page);

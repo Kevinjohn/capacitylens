@@ -94,7 +94,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 
 | Story                                                        | Title                                      | Automated coverage                                  |
 | ------------------------------------------------------------ | ------------------------------------------ | --------------------------------------------------- |
-| [US-PRJ-01](projects/US-PRJ-01-add-project.md)               | Add a project (needs a client)             | `e2e/projects.spec.ts` + `e2e/crud.spec.ts`         |
+| [US-PRJ-01](projects/US-PRJ-01-add-project.md)               | Add a project (needs a client)             | `e2e/projects.spec.ts`                              |
 | [US-PRJ-02](projects/US-PRJ-02-edit-project.md)              | Edit a project                             | `e2e/projects.spec.ts`                              |
 | [US-PRJ-03](projects/US-PRJ-03-archive-project.md)           | Archive a project (retain children + undo) | `e2e/projects.spec.ts` + unit (`integrity.test.ts`) |
 | [US-PRJ-04](projects/US-PRJ-04-manage-phases.md)             | Manage phases in a project                 | manual — n/a (Phase UI hidden)                      |
@@ -120,7 +120,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 
 | Story                                                   | Title                             | Automated coverage                                                                           |
 | ------------------------------------------------------- | --------------------------------- | -------------------------------------------------------------------------------------------- |
-| [US-TOF-01](time-off/US-TOF-01-book-time-off.md)        | Book time off                     | `e2e/timeoff.spec.ts` + `e2e/features.spec.ts`                                               |
+| [US-TOF-01](time-off/US-TOF-01-book-time-off.md)        | Book time off                     | `e2e/timeoff.spec.ts`                                                                        |
 | [US-TOF-02](time-off/US-TOF-02-edit-time-off.md)        | Edit a time-off entry             | `e2e/timeoff.spec.ts`                                                                        |
 | [US-TOF-03](time-off/US-TOF-03-delete-time-off.md)      | Delete a time-off entry (undo)    | `e2e/timeoff.spec.ts`                                                                        |
 | [US-TOF-04](time-off/US-TOF-04-type-label.md)           | Human type label                  | `e2e/timeoff.spec.ts` + unit (`TimeOffList.test.tsx`)                                        |
@@ -133,38 +133,38 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | --------------------------------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------- |
 | [US-SCH-01](scheduler/US-SCH-01-grouped-capacity-cues.md)       | Grouped rows + capacity cues               | `e2e/scheduler.spec.ts`                                          |
 | [US-SCH-02](scheduler/US-SCH-02-draw-allocation.md)             | Draw a new allocation                      | `e2e/scheduler.spec.ts`                                          |
-| [US-SCH-03](scheduler/US-SCH-03-draw-time-off.md)               | Draw time off on a lane                    | `e2e/features.spec.ts`                                           |
+| [US-SCH-03](scheduler/US-SCH-03-draw-time-off.md)               | Draw time off on a lane                    | `e2e/timeoff.spec.ts`                                            |
 | [US-SCH-04](scheduler/US-SCH-04-move-drag.md)                   | Move an allocation by dragging             | `e2e/scheduler.spec.ts`                                          |
 | [US-SCH-05](scheduler/US-SCH-05-resize.md)                      | Resize an allocation                       | `e2e/scheduler.spec.ts`                                          |
-| [US-SCH-06](scheduler/US-SCH-06-reassign-drag.md)               | Reassign by dragging between rows          | `e2e/features.spec.ts`                                           |
+| [US-SCH-06](scheduler/US-SCH-06-reassign-drag.md)               | Reassign by dragging between rows          | `e2e/allocation.spec.ts`                                         |
 | [US-SCH-07](scheduler/US-SCH-07-placeholder-reassign-reject.md) | Placeholder reassign rejected              | unit (`AllocationBar.pointerDrag.interaction.test.tsx`) + manual |
 | [US-SCH-08](scheduler/US-SCH-08-lane-stacking.md)               | Overlapping allocations stack              | `e2e/scheduler.spec.ts` + unit (`lanePacking.test.ts`)           |
 | [US-SCH-09](scheduler/US-SCH-09-over-allocation.md)             | Over-allocated days flagged                | `e2e/scheduler.spec.ts`                                          |
 | [US-SCH-10](scheduler/US-SCH-10-unavailable-days.md)            | Unavailable days greyed                    | `e2e/scheduler.spec.ts`                                          |
-| [US-SCH-11](scheduler/US-SCH-11-time-off-block.md)              | Time off as a labelled block               | `e2e/features.spec.ts` + `e2e/timeoff.spec.ts`                   |
+| [US-SCH-11](scheduler/US-SCH-11-time-off-block.md)              | Time off as a labelled block               | `e2e/timeoff.spec.ts`                                            |
 | [US-SCH-12](scheduler/US-SCH-12-today-line.md)                  | Today line                                 | `e2e/scheduler.spec.ts`                                          |
 | [US-SCH-13](scheduler/US-SCH-13-utilisation-flag.md)            | Per-resource utilisation %, red when over  | `e2e/scheduler.spec.ts` + unit (`schedulerModel.test.ts`)        |
 | [US-SCH-14](scheduler/US-SCH-14-utilisation-summary.md)         | Overall + per-discipline summary           | `e2e/scheduler.spec.ts`                                          |
 | [US-SCH-15](scheduler/US-SCH-15-bar-popover.md)                 | Bar detail popover                         | `e2e/scheduler.spec.ts` + unit (`AllocationBar.test.tsx`)        |
-| [US-SCH-16](scheduler/US-SCH-16-collapse-group.md)              | Collapse/expand a discipline group         | `e2e/features.spec.ts`                                           |
+| [US-SCH-16](scheduler/US-SCH-16-collapse-group.md)              | Collapse/expand a discipline group         | `e2e/disciplines.spec.ts`                                        |
 | [US-SCH-17](scheduler/US-SCH-17-row-quick-create.md)            | Row "+" quick-create                       | `e2e/allocation.spec.ts`                                         |
 | [US-SCH-18](scheduler/US-SCH-18-quick-create-visible-window.md) | Quick-create defaults to visible window    | manual                                                           |
 | [US-SCH-19](scheduler/US-SCH-19-status-and-note-distinct.md)    | Status & note visually distinct on the bar | `e2e/scheduler.spec.ts`                                          |
 
 ## Allocation editor — `allocation/`
 
-| Story                                                          | Title                         | Automated coverage                                |
-| -------------------------------------------------------------- | ----------------------------- | ------------------------------------------------- |
-| [US-ALL-01](allocation/US-ALL-01-create.md)                    | Create via the modal          | `e2e/allocation.spec.ts`                          |
-| [US-ALL-02](allocation/US-ALL-02-edit.md)                      | Edit an allocation            | `e2e/allocation.spec.ts`                          |
-| [US-ALL-03](allocation/US-ALL-03-duplicate.md)                 | Duplicate an allocation       | `e2e/allocation.spec.ts`                          |
-| [US-ALL-04](allocation/US-ALL-04-delete.md)                    | Delete an allocation          | `e2e/allocation.spec.ts`                          |
-| [US-ALL-05](allocation/US-ALL-05-add-activity-inline.md)       | Add an activity inline        | `e2e/allocation.spec.ts`                          |
-| [US-ALL-06](allocation/US-ALL-06-change-assignee.md)           | Change assignee               | `e2e/allocation.spec.ts`                          |
-| [US-ALL-07](allocation/US-ALL-07-placeholder-locks-project.md) | Placeholder locks the project | `e2e/allocation.spec.ts` + `e2e/features.spec.ts` |
-| [US-ALL-08](allocation/US-ALL-08-validation.md)                | Rejects bad input             | `e2e/allocation.spec.ts`                          |
-| [US-ALL-09](allocation/US-ALL-09-repeat-creation.md)           | Create repeating allocations  | `e2e/allocation.spec.ts`                          |
-| [US-ALL-10](allocation/US-ALL-10-task-field.md)                | Add an optional task label    | unit/component + manual                           |
+| Story                                                          | Title                         | Automated coverage                                    |
+| -------------------------------------------------------------- | ----------------------------- | ----------------------------------------------------- |
+| [US-ALL-01](allocation/US-ALL-01-create.md)                    | Create via the modal          | `e2e/allocation.spec.ts`                              |
+| [US-ALL-02](allocation/US-ALL-02-edit.md)                      | Edit an allocation            | `e2e/allocation.spec.ts`                              |
+| [US-ALL-03](allocation/US-ALL-03-duplicate.md)                 | Duplicate an allocation       | `e2e/allocation.spec.ts`                              |
+| [US-ALL-04](allocation/US-ALL-04-delete.md)                    | Delete an allocation          | `e2e/allocation.spec.ts`                              |
+| [US-ALL-05](allocation/US-ALL-05-add-activity-inline.md)       | Add an activity inline        | `e2e/allocation.spec.ts`                              |
+| [US-ALL-06](allocation/US-ALL-06-change-assignee.md)           | Change assignee               | `e2e/allocation.spec.ts`                              |
+| [US-ALL-07](allocation/US-ALL-07-placeholder-locks-project.md) | Placeholder locks the project | `e2e/allocation.spec.ts` + `e2e/placeholders.spec.ts` |
+| [US-ALL-08](allocation/US-ALL-08-validation.md)                | Rejects bad input             | `e2e/allocation.spec.ts`                              |
+| [US-ALL-09](allocation/US-ALL-09-repeat-creation.md)           | Create repeating allocations  | `e2e/allocation.spec.ts`                              |
+| [US-ALL-10](allocation/US-ALL-10-task-field.md)                | Add an optional task label    | unit/component + manual                               |
 
 ## Toolbar — `toolbar/`
 
@@ -174,24 +174,24 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-TBR-02](toolbar/US-TBR-02-pan.md)                | Pan a week (icon-only Prev/Next)              | `e2e/toolbar.spec.ts`                                                    |
 | [US-TBR-03](toolbar/US-TBR-03-today.md)              | Re-centre on Today                            | `e2e/toolbar.spec.ts` + `e2e/scheduler.spec.ts`                          |
 | [US-TBR-04](toolbar/US-TBR-04-jump-to-date.md)       | Jump to a date (hidden from toolbar — #173)   | `src/components/scheduler/JumpToDateInput.test.tsx` + `useStore.test.ts` |
-| [US-TBR-05](toolbar/US-TBR-05-draw-mode.md)          | Work / Time-off draw mode                     | `e2e/toolbar.spec.ts` + `e2e/features.spec.ts`                           |
+| [US-TBR-05](toolbar/US-TBR-05-draw-mode.md)          | Work / Time-off draw mode                     | `e2e/toolbar.spec.ts` + `e2e/timeoff.spec.ts`                            |
 | [US-TBR-06](toolbar/US-TBR-06-undo-redo-buttons.md)  | Undo/redo toolbar buttons + keyboard          | `e2e/toolbar.spec.ts`                                                    |
 | [US-TBR-07](toolbar/US-TBR-07-undo-redo-keyboard.md) | Undo/redo (⌘Z / ⌘⇧Z)                          | `e2e/toolbar.spec.ts`                                                    |
 | [US-TBR-08](toolbar/US-TBR-08-week-start-snap.md)    | Navigation re-anchors left edge to week start | `e2e/scheduler.spec.ts` + `e2e/toolbar.spec.ts`                          |
 
 ## Filters — `filters/`
 
-| Story                                               | Title                | Automated coverage                             |
-| --------------------------------------------------- | -------------------- | ---------------------------------------------- |
-| [US-FIL-01](filters/US-FIL-01-search.md)            | Search by name/role  | `e2e/filters.spec.ts`                          |
-| [US-FIL-02](filters/US-FIL-02-filter-discipline.md) | Filter by discipline | `e2e/filters.spec.ts`                          |
-| [US-FIL-03](filters/US-FIL-03-filter-client.md)     | Filter by client     | `e2e/filters.spec.ts`                          |
-| [US-FIL-04](filters/US-FIL-04-filter-project.md)    | Filter by project    | `e2e/filters.spec.ts` + `e2e/features.spec.ts` |
-| [US-FIL-05](filters/US-FIL-05-hide-tentative.md)    | Hide tentative       | `e2e/filters.spec.ts`                          |
-| [US-FIL-06](filters/US-FIL-06-clear-filters.md)     | Clear all filters    | `e2e/filters.spec.ts`                          |
-| [US-FIL-07](filters/US-FIL-07-empty-state.md)       | Filtered empty state | `e2e/filters.spec.ts`                          |
-| [US-FIL-08](filters/US-FIL-08-filter-activity.md)   | Filter by activity   | `e2e/filters.spec.ts`                          |
-| [US-FIL-09](filters/US-FIL-09-toggle-filter-row.md) | Toggle filter row    | `e2e/toolbar.spec.ts`                          |
+| Story                                               | Title                | Automated coverage    |
+| --------------------------------------------------- | -------------------- | --------------------- |
+| [US-FIL-01](filters/US-FIL-01-search.md)            | Search by name/role  | `e2e/filters.spec.ts` |
+| [US-FIL-02](filters/US-FIL-02-filter-discipline.md) | Filter by discipline | `e2e/filters.spec.ts` |
+| [US-FIL-03](filters/US-FIL-03-filter-client.md)     | Filter by client     | `e2e/filters.spec.ts` |
+| [US-FIL-04](filters/US-FIL-04-filter-project.md)    | Filter by project    | `e2e/filters.spec.ts` |
+| [US-FIL-05](filters/US-FIL-05-hide-tentative.md)    | Hide tentative       | `e2e/filters.spec.ts` |
+| [US-FIL-06](filters/US-FIL-06-clear-filters.md)     | Clear all filters    | `e2e/filters.spec.ts` |
+| [US-FIL-07](filters/US-FIL-07-empty-state.md)       | Filtered empty state | `e2e/filters.spec.ts` |
+| [US-FIL-08](filters/US-FIL-08-filter-activity.md)   | Filter by activity   | `e2e/filters.spec.ts` |
+| [US-FIL-09](filters/US-FIL-09-toggle-filter-row.md) | Toggle filter row    | `e2e/toolbar.spec.ts` |
 
 ## Settings — `settings/`
 
@@ -230,15 +230,15 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 
 ## Data management — `data/`
 
-| Story                                                   | Title                                           | Automated coverage                                 |
-| ------------------------------------------------------- | ----------------------------------------------- | -------------------------------------------------- |
-| [US-DAT-01](data/US-DAT-01-export-json.md)              | Export to JSON                                  | `e2e/crud.spec.ts`                                 |
-| [US-DAT-02](data/US-DAT-02-import-json.md)              | Import (with confirmation)                      | `e2e/data.spec.ts`                                 |
-| [US-DAT-03](data/US-DAT-03-undo-import.md)              | Undo an import                                  | `e2e/data.spec.ts`                                 |
-| [US-DAT-04](data/US-DAT-04-reject-non-capacitylens.md)  | Reject a non-CapacityLens file                  | `e2e/data.spec.ts`                                 |
-| [US-DAT-05](data/US-DAT-05-persist-reload.md)           | Persist across reload                           | `e2e/crud.spec.ts`                                 |
-| [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md)       | Seed on first run, no re-seed after clear       | `e2e/data.spec.ts` + `e2e/crud.spec.ts`            |
-| [US-DAT-07](data/US-DAT-07-private-name-portability.md) | Export, import and upgrade private names safely | server authz + import unit tests; v6→v7 manual gap |
+| Story                                                   | Title                                           | Automated coverage                                  |
+| ------------------------------------------------------- | ----------------------------------------------- | --------------------------------------------------- |
+| [US-DAT-01](data/US-DAT-01-export-json.md)              | Export to JSON                                  | `e2e/data.spec.ts`                                  |
+| [US-DAT-02](data/US-DAT-02-import-json.md)              | Import (with confirmation)                      | `e2e/data.spec.ts`                                  |
+| [US-DAT-03](data/US-DAT-03-undo-import.md)              | Undo an import                                  | `e2e/data.spec.ts`                                  |
+| [US-DAT-04](data/US-DAT-04-reject-non-capacitylens.md)  | Reject a non-CapacityLens file                  | `e2e/data.spec.ts`                                  |
+| [US-DAT-05](data/US-DAT-05-persist-reload.md)           | Persist across reload                           | `e2e/persistence.db.spec.ts`                        |
+| [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md)       | Seed on first run, no re-seed after clear       | `e2e/data.spec.ts` + `e2e/demo-persistence.spec.ts` |
+| [US-DAT-07](data/US-DAT-07-private-name-portability.md) | Export, import and upgrade private names safely | server authz + import unit tests; v6→v7 manual gap  |
 
 ## Installation — `installation/`
 

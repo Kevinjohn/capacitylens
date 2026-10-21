@@ -18,7 +18,7 @@ import {
 } from "../../controlTables";
 import { markAccountCommandReplay, resumeExistingCommand } from "../commands";
 import { confirmTrackedMemberSignIn } from "../memberSignInTracking";
-import { assertWorkspaceExists } from "./authority";
+import { assertWorkspaceExists } from "./accountAuthority";
 import type { AdminPortContext } from "./contracts";
 import type { SsoCutoverAccountAdminPort } from "./contracts";
 import { assertRedeemableInvitationRole, createAccountFailure } from "./failures";
