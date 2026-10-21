@@ -241,8 +241,8 @@
   "devDependencies": {
     "@types/node": "^24.13.6",
     "fast-check": "^4.10.2",
-    "vite": "^8.3.1",
-    "vitest": "^4.1.11"
+    "vite": "^8.3.4",
+    "vitest": "^4.1.12"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
