@@ -35,9 +35,7 @@ hop that appends untrusted `X-Forwarded-*` values.
 
 The release example binds to `127.0.0.1:8787`. Permit inbound public traffic only to the edge's
 HTTPS port (and HTTP only when used for HTTPS redirection). Keep the application listener and the
-SQLite/backup directories private to the host. If the edge runs on another machine, use a private
-network and an authenticated transport provided by that infrastructure; this application does
-not create an internal certificate authority or renew internal certificates.
+SQLite/backup directories private to the host.
 
 Check `/health/live` and `/health/ready` through the intended proxy after changing networking. See
 [Monitoring](/self-hosting/monitoring) for their distinct meanings.
