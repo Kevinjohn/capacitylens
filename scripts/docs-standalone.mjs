@@ -15,7 +15,7 @@
 // Pages), because relative links resolve the same way there.
 //
 
-import { readdirSync, readFileSync, writeFileSync, copyFileSync, rmSync, existsSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync, rmSync, existsSync } from "node:fs";
 import { join, relative, dirname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BASE } from "../docs-src/.vitepress/base.mjs";
@@ -25,7 +25,6 @@ const siteDir = join(repoDir, "docs");
 
 // Files a page links to that VitePress does not treat as a page asset, so the
 // build leaves them behind. Source path → path in the built site.
-const EXTRA_ASSETS = [["docs-src/security/crypto-inventory.json", "security/crypto-inventory.json"]];
 
 if (!existsSync(join(siteDir, "index.html"))) {
   console.error(`docs-standalone: no build found at ${siteDir} — run \`vitepress build docs-src\` first.`);
@@ -145,10 +144,6 @@ for (const file of files.filter((f) => f.endsWith(".css"))) {
   const css = readFileSync(file, "utf8");
   // Fonts sit in the same directory as the stylesheet that references them.
   writeFileSync(file, css.replaceAll(`url(${BASE}assets/`, "url("));
-}
-
-for (const [source, target] of EXTRA_ASSETS) {
-  copyFileSync(join(repoDir, source), join(siteDir, target));
 }
 
 // The client-side app and its data are no longer referenced by anything.

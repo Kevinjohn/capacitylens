@@ -69,11 +69,8 @@ after its platform dependencies provide interoperable production implementations
 cryptography will be added. Re-encryption of operator volumes/backups belongs in that platform's key
 rotation plan.
 
-`pnpm run security:crypto-inventory` automatically discovers cryptographic implementation paths
-and fails when they differ from the reviewed [machine-readable inventory](crypto-inventory.json).
-Both green gates run it, so a new primitive or TLS/key-handling path requires an explicit inventory
-review. SBOM, dependency review and CodeQL cover third-party implementation code that this source
-path check cannot inspect.
+This inventory is reviewed by hand; no gate discovers cryptographic implementation paths. SBOM,
+dependency review and CodeQL cover third-party implementation code.
 
 ## Service connection and work limits
 
