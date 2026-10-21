@@ -69,7 +69,10 @@ const resource = {
   firstAvailableDate: null,
   lastAvailableDate: null,
 };
-const cases: Array<{ intent: PlanningIntent; method: string; path: string }> = [
+type Restoration = { consumedGroupId: string | null; replacementGroupId: string | null };
+const noRestoration: Restoration = { consumedGroupId: null, replacementGroupId: null };
+const groupId = "5d0c3f8e-8a54-4b7e-9f0a-3c2e1b6d7a90";
+const cases: Array<{ intent: PlanningIntent; method: string; path: string; restoration?: Restoration }> = [
   { intent: { operation: "allocation.create", allocation }, method: "POST", path: "allocations" },
   {
     intent: { operation: "allocation.createGroup", allocations: [allocation] },
@@ -90,6 +93,24 @@ const cases: Array<{ intent: PlanningIntent; method: string; path: string }> = [
     intent: { operation: "allocation.repeat", sourceAllocationId: "source-1", occurrences: [occurrence] },
     method: "POST",
     path: "allocations/source-1/repeat",
+  },
+  {
+    intent: { operation: "allocation.delete", id },
+    method: "POST",
+    path: `allocations/${id}/delete`,
+    restoration: { consumedGroupId: null, replacementGroupId: groupId },
+  },
+  {
+    intent: { operation: "allocation.deleteGroup", ids: [id] },
+    method: "POST",
+    path: "allocations/delete-group",
+    restoration: { consumedGroupId: null, replacementGroupId: groupId },
+  },
+  {
+    intent: { operation: "planning.restoreGroup", restorationGroupId: groupId },
+    method: "POST",
+    path: "planning/restore-group",
+    restoration: { consumedGroupId: groupId, replacementGroupId: null },
   },
   { intent: { operation: "resource.create", id, fields: resource }, method: "POST", path: "resources" },
   {
@@ -146,22 +167,25 @@ for (const action of ["archive", "unarchive"] as const) {
 }
 
 describe("generated planning transport", () => {
-  it.each(cases)("sends $intent.operation to its implemented $method $path route", async ({ intent, method, path }) => {
-    const receipt = {
-      status: "committed",
-      mutationId,
-      revision: 6,
-      restoration: { consumedGroupId: null, replacementGroupId: null },
-      projection: { mode: "patch", history: "retain", changed: { upserts: [], removed: [] } },
-    };
-    const { transport, requests } = harness(receipt);
-    expect(await transport.execute(context, execution(intent), signal)).toEqual(receipt);
-    expect(requests).toHaveLength(1);
-    expect(requests[0]?.url).toBe(`http://planning.test/api/accounts/wayne/${path}`);
-    expect(requests[0]?.method).toBe(method);
-    expect(requests[0]?.credentials).toBe("include");
-    expect(await requests[0]?.json()).toEqual(execution(intent));
-  });
+  it.each(cases)(
+    "sends $intent.operation to its implemented $method $path route",
+    async ({ intent, method, path, restoration = noRestoration }) => {
+      const receipt = {
+        status: "committed",
+        mutationId,
+        revision: 6,
+        restoration,
+        projection: { mode: "patch", history: "retain", changed: { upserts: [], removed: [] } },
+      };
+      const { transport, requests } = harness(receipt);
+      expect(await transport.execute(context, execution(intent), signal)).toEqual(receipt);
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.url).toBe(`http://planning.test/api/accounts/wayne/${path}`);
+      expect(requests[0]?.method).toBe(method);
+      expect(requests[0]?.credentials).toBe("include");
+      expect(await requests[0]?.json()).toEqual(execution(intent));
+    },
+  );
 
   it("normalizes a read with the complete canonical authority fingerprint", async () => {
     const authority = {
@@ -246,14 +270,17 @@ describe("generated planning transport", () => {
     expect(fetcher).toHaveBeenCalledOnce();
   });
 
-  it("never maps a blocked restore or delete to the batch endpoint", async () => {
+  it.each([
+    { operation: "timeOff.delete", id },
+    { operation: "timeOff.deleteGroup", ids: [id] },
+    { operation: "catalogue.delete", entity: { entity: "phases", id } },
+    { operation: "closure.delete", id },
+  ] as PlanningIntent[])("keeps refusing the unrestorable $operation without a request", async (intent) => {
     const { transport, fetcher } = harness({});
-    await expect(
-      transport.execute(context, execution({ operation: "allocation.delete", id }), signal),
-    ).rejects.toMatchObject({ code: "restoration_unavailable", status: 400 });
-    await expect(
-      transport.execute(context, execution({ operation: "planning.restoreGroup", restorationGroupId: id }), signal),
-    ).rejects.toMatchObject({ code: "restoration_unavailable", status: 400 });
+    await expect(transport.execute(context, execution(intent), signal)).rejects.toMatchObject({
+      code: "restoration_unavailable",
+      status: 400,
+    });
     expect(fetcher).not.toHaveBeenCalled();
   });
 });
