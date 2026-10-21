@@ -53,6 +53,14 @@ new features and **patch** versions carry fixes.
 - Native SQLite snapshots run at startup and every 24 hours, retaining the configured number of
   completed managed backups. Manual snapshots use the same retention; pre-upgrade recovery
   snapshots remain separate. Removed interval configuration and the backup health latch.
+- Prepared a nonpersisted planning cache controller with generated typed requests and real-server
+  checks for revision ordering, acknowledgement, uncertainty and typed history. Request timeouts
+  retain their original mutation for commitment lookup; obsolete contexts suppress completion
+  results, and activity-kind updates clear incomplete typed history. Canonical reads require explicit
+  server write authority, typed history keeps at most 50 entries, and pure non-delete command builders
+  prepare field-preserving typed requests. The schedule retains its current persistence, deletion
+  and Undo path; complete typed Undo and session-bound restoration remain unfinished. This milestone
+  uses the existing real authentication; later identity-link integration is separate.
 
 - Use Adonis BodyParser and compiled Vine validation for requests, with flat 400 errors and no CSP report endpoint.
 

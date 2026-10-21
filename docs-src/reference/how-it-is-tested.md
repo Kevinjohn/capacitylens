@@ -21,11 +21,33 @@ The suites cover the frontend, backend and shared workspace packages.
 
 - Backup and upgrade tests cover supported databases and recovery behavior.
 - End-to-end tests run Chromium by default. WebKit and Firefox runs are opt-in.
-- Demo scheduler tests exercise the in-memory experience. The authenticated scheduler suite signs
+- Demo scheduler tests exercise the in-memory experience.
+- Database-project scenarios exercise the retained legacy transport against SQLite in the fixture
+  server's auth-off mode.
+- The dedicated authenticated scheduler suite signs
   in through the real password session and verifies create, pointer move/resize, delete and
   Undo/Redo against SQLite, including reload and acknowledgement-only refresh. Only those real
   backend assertions establish authenticated scheduler-write coverage. The failure case injects
   a refused response; successful writes are never mocked.
+- Planning-controller transition tests use controlled responses to check revision ordering,
+  pending and uncertain outcomes (including HTTP 408), context invalidation, explicit server write
+  authority and page-local typed history capped at 50 entries. A missing write capability rejects
+  the snapshot; a read-only snapshot cannot open a writable draft or execute history. Completion results are suppressed if the initiating context changes during the
+  post-commit read. Activity updates supplying a kind conservatively clear typed history because
+  kind changes can discard allocation bindings that the inverse cannot recover. Activity updates
+  omitting kind retain ordinary patch/history behavior, including project or phase changes. Settings
+  updates and catalogue privacy/code-name updates also clear typed history. Pure command builders
+  preserve captured fields and send explicit non-delete intents: an unchanged allocation copy uses
+  source-ID duplication, while a copy with edited non-date fields uses explicit creation with a fresh
+  ID. These builders are preparation and are not wired to production forms. A separate
+  authenticated browser harness exercises the controller through real typed routes and SQLite:
+  create, move, resize, reassign, duplicate, repeat, grouped creation, archive/unarchive, update
+  Undo/Redo, stale-edit refusal, lost-response
+  commitment lookup and sign-out cache clearing. The controller is not yet connected to the
+  schedule. This coverage does not establish typed scheduler gestures or session-bound delete
+  restoration; the existing authenticated scheduler tests still exercise the current persistence
+  path. Complete typed Undo and session-bound restoration remain unfinished; later identity-link
+  integration is separate from this milestone, which uses the existing real authentication.
 - Axe finds common problems such as missing names and low contrast. It does not replace testing
   with assistive technology.
 - Mutation testing covers only the pure scheduling and helper code, not the server or React

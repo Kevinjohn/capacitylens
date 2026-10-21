@@ -18,6 +18,10 @@
       "purpose": "CSPRNG non-secret browser sync-session identifiers for server-side request ordering"
     },
     {
+      "path": "apps/frontend/src/data/planning/planningCacheController.ts",
+      "purpose": "Secure-context UUID generation for non-secret planning mutation identifiers; each deliberate action receives a fresh identifier retained in page memory for commitment lookup, with no keys or bearer material"
+    },
+    {
       "path": "apps/frontend/src/account/accountCommands.ts",
       "purpose": "Secure-context UUID generation for non-secret account-command correlation and safe unknown-outcome reconciliation"
     },
