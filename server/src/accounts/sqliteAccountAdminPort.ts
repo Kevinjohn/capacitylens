@@ -7,12 +7,13 @@ import type { SynchronousCallback } from "../txn";
 import { createAccountAuditWriter, recordTerminalOutcome } from "./accountFlowRuntime";
 import { createIdentityAdminAuthority } from "./adminPort/identityAdminAuthority";
 import type { AdminPortContext, MutationOptions, SsoCutoverAccountAdminPort } from "./adminPort/contracts";
-import { createCutover } from "./adminPort/cutover";
+import { createCutoverInspection } from "./adminPort/cutoverInspection";
 import { createInvitationClaims } from "./adminPort/invitationClaims";
 import { createInvitations } from "./adminPort/invitations";
 import { createJoiningPolicyAdministration } from "./adminPort/joiningPolicy";
 import { createMembership } from "./adminPort/membership";
 import { createOwnershipTransferOperations } from "./adminPort/ownershipTransfer";
+import { createWorkspaceAdministration } from "./adminPort/workspaceAdministration";
 import { beginCommand, completeCommand, markAccountCommandReplay, terminateCommand } from "./commands";
 import type { KeyedOperationLock } from "./KeyedOperationLock";
 import { WriteOnceSecretReplay } from "./WriteOnceSecretReplay";
@@ -23,7 +24,7 @@ export {
   assertAccountControlPlaneCurrent,
   assertAccountControlPlaneSchemaCurrent,
   listSoleOwnerAccountIds,
-} from "./adminPort/cutover";
+} from "./adminPort/cutoverInspection";
 export { hasLivePreauthorizedInvitation } from "./adminPort/invitations";
 
 const MAX_SECRET_REPLAYS = 256;
@@ -188,7 +189,8 @@ export function createSqliteAccountAdminPort(input: CreateSqliteAccountAdminPort
   const context = { applicationId, audit, db, trustedLocal, invitationSecretReplay, runMutation };
   return {
     ...createIdentityAdminAuthority(context),
-    ...createCutover(context),
+    ...createCutoverInspection(db),
+    ...createWorkspaceAdministration(context),
     ...createMembership(context),
     ...createOwnershipTransferOperations(context),
     ...createInvitations(context),

@@ -15,7 +15,13 @@ export {
   resolveWeekStart,
 } from "./accountSettingsSelectors";
 export { scopeData } from "./tenancySelectors";
-export { hasResourceEngagementGrouping, hasSupplementaryResources } from "./schedulerSelectors";
-export type { DisciplineGroup } from "./schedulerSelectors";
-export { buildDisciplineGroups, buildExternalBand, buildVisibleRange, byDisciplineOrder } from "./schedulerSelectors";
+export {
+  buildDisciplineGroups,
+  buildExternalBand,
+  buildVisibleRange,
+  byDisciplineOrder,
+  hasResourceEngagementGrouping,
+  hasSupplementaryResources,
+  type DisciplineGroup,
+} from "./schedulerSelectors";
 export { activityById, clientById, listResourceAllocations, projectById, resourceById };
