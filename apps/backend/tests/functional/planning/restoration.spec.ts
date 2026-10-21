@@ -280,6 +280,43 @@ test.group('session-bound allocation restoration', (suite) => {
     )
   })
 
+  test('a group larger than one SQLite compound select deletes and restores as one mutation', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup)
+    const { cookie } = await signIn(client)
+    const [kept, ...listed] = await createAllocations(client, cookie, 502)
+    const before = await readState(accountId, true)
+    const deleted = await deleteGroup(client, cookie, listed, 1)
+    deleted.assertStatus(200)
+    assert.equal(deleted.body().revision, 2)
+    assert.lengthOf(deleted.body().projection.changed.removed, 501)
+    assert.notInclude(deleted.text(), note)
+    const groupId = deleted.body().restoration.replacementGroupId
+    assert.isString(groupId)
+    assert.lengthOf(await db.from('deleted_groups'), 1)
+    assert.lengthOf(await db.from('deleted_rows').where('group_id', groupId), 501)
+    const afterDelete = await readState(accountId, true)
+    assert.lengthOf(
+      afterDelete.allocations.filter((row) => listed.includes(row.id)),
+      0
+    )
+    assert.deepEqual(
+      await stored(kept!),
+      before.allocations.find((row) => row.id === kept)
+    )
+    assert.lengthOf(await markers(), 2)
+    assert.lengthOf(await planningAudit(), 2)
+    const restored = await restore(client, cookie, groupId, 2)
+    restored.assertStatus(200)
+    assert.equal(restored.body().revision, 3)
+    assert.deepEqual(await readState(accountId, true), before)
+    assert.lengthOf(await markers(), 3)
+    assert.lengthOf(await planningAudit(), 3)
+  })
+
   test('stale delete and restore revisions return 409 without effects', async ({
     client,
     assert,
