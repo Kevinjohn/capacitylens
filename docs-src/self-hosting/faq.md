@@ -36,7 +36,8 @@ configuration does not prove live Google sign-in; verify it with the actual prov
 
 ### What should I monitor?
 
-Check `/health/live` for process liveness and `/health/ready` for database and backup readiness.
+Check `/health/live` for process liveness and `/health/ready` for database readiness. Check backup
+logs and recent completed snapshots separately.
 Also watch disk space, service restarts and the freshness of off-host snapshots. See
 [Monitoring](/self-hosting/monitoring).
 

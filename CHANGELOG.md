@@ -26,6 +26,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Concurrent manual and scheduled backup retention preserves the newest completed recovery point.
+  Manual backup failures also report errors cleaning up temporary files.
+
 - Preserve planning drafts through admission-only configuration and pending invitation changes,
   and identify invalidated view-as authority as planning context loss.
 - Reject phase moves that would invalidate linked activities, and audit dependent attribution
@@ -47,6 +50,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Native SQLite snapshots run at startup and every 24 hours, retaining the configured number of
+  completed managed backups. Manual snapshots use the same retention; pre-upgrade recovery
+  snapshots remain separate. Removed interval configuration and the backup health latch.
 - Prepared a nonpersisted planning cache controller with generated typed requests and real-server
   checks for revision ordering, acknowledgement, uncertainty and typed history. Request timeouts
   retain their original mutation for commitment lookup; obsolete contexts suppress completion
@@ -62,7 +68,7 @@ new features and **patch** versions carry fixes.
 
 - Native operator commands provide verified online backups, backup-before-upgrade, audited
   sole-Owner recovery links and a guarded snapshot/archive reset into a new database path.
-  Readiness includes scheduled-backup status and refuses unknown migration histories.
+  Readiness refuses unknown migration histories; backup outcomes are checked through logs and snapshots.
 
 - The AdonisJS fork uses native password sign-in and fixed-lifetime sessions, with credential
   changes, audit and session revocation committed together.
@@ -99,6 +105,9 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- A beta-native JSON transfer contract and frontend preview. The versioned format validates a
+  complete single-account dataset and rejects malformed or cross-scope data; the existing Settings
+  import/export controls remain on the legacy writer until backend replacement is integrated (#1520).
 - A role-based schedule tour that begins with the caller's role, includes lower-role guidance, and
   disables its Getting started launcher while permissions are unresolved or an offline snapshot is read-only (#969).
 - A shared Help page above Account in the sidebar and command palette. Every role can start its

@@ -1,14 +1,9 @@
-import { existsSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { openNativeDatabase } from './native.js'
 import type { BackupConfig } from '../../../config/backup.js'
-import { buildSnapshotName, parseSnapshotTimestamp, TMP_RE } from './names.js'
-import {
-  isProtectedDatabasePath,
-  listSnapshots,
-  pruneSnapshots,
-  readMainDatabaseIdentity,
-} from './retention.js'
+import { buildSnapshotName, parseSnapshotTimestamp } from './names.js'
+import { listSnapshots, pruneSnapshots, readMainDatabaseIdentity } from './retention.js'
 import {
   durableSnapshotPublisher,
   ensurePrivateBackupDirectory,
@@ -16,29 +11,13 @@ import {
   type SnapshotPublisher,
 } from './snapshot.js'
 
-/** Process-lifetime result of attempted snapshots. */
-export interface BackupHealth {
-  degraded: boolean
-  lastSuccessAt: string | null
-}
-
-/** Serialized backup service and its shutdown drain. */
+/** Backup service that coalesces concurrent snapshots and drains on shutdown. */
 export interface Backups {
-  readonly health: Readonly<BackupHealth>
   snapshotNow(): Promise<string>
   stop(): Promise<void>
 }
 
-let active: Backups | null = null
-/** Return null until the scheduler is active, including when backups are disabled. */
-export function backupHealth(): Readonly<BackupHealth> | null {
-  return active?.health ?? null
-}
-
-/** Publish the provider-owned scheduler to readiness checks. */
-export function setActiveBackups(backups: Backups | null): void {
-  active = backups
-}
+const DAY_MS = 24 * 60 * 60_000
 
 /** Start the web scheduler after validating the source file and backup directory. */
 export function startBackups(input: {
@@ -47,8 +26,20 @@ export function startBackups(input: {
   log?: (message: string) => void
   now?: () => Date
   publisher?: SnapshotPublisher
+  schedule?: (callback: () => void, delayMs: number) => () => void
 }): Backups {
-  const { dbPath, config, log = console.log, now = () => new Date(), publisher } = input
+  const {
+    dbPath,
+    config,
+    log = console.log,
+    now = () => new Date(),
+    publisher,
+    schedule = (callback, delayMs) => {
+      const timer = setInterval(callback, delayMs)
+      timer.unref()
+      return () => clearInterval(timer)
+    },
+  } = input
   if (!dbPath || dbPath === ':memory:' || /^file:.*(?:\?|&)mode=memory(?:&|$)/i.test(dbPath))
     throw new Error('Backups require a file-backed SQLite database')
   ensurePrivateBackupDirectory(config.dir)
@@ -59,20 +50,9 @@ export function startBackups(input: {
   } finally {
     source.close()
   }
-  for (const name of readdirSync(config.dir)) {
-    if (!TMP_RE.test(name)) continue
-    const path = join(config.dir, name)
-    if (isProtectedDatabasePath(path, identity)) continue
-    try {
-      if (Date.now() - statSync(path).mtimeMs > 60 * 60_000) rmSync(path)
-    } catch (error) {
-      log(`backup startup sweep skipped ${path}: ${String(error)}`)
-    }
-  }
   let lastStampMs = Math.max(0, ...listSnapshots(config.dir, identity).map(parseSnapshotTimestamp))
   let pending: Promise<string> | null = null
   let stopping = false
-  const health: BackupHealth = { degraded: false, lastSuccessAt: null }
   const write = async (): Promise<string> => {
     let database: ReturnType<typeof openNativeDatabase> | undefined
     try {
@@ -105,22 +85,18 @@ export function startBackups(input: {
           log(`backup retention directory sync failed for ${config.dir}: ${String(error)}`)
         }
       }
-      health.lastSuccessAt = now().toISOString()
       log(`backup written ${file}${pruned ? ` (pruned ${pruned})` : ''}`)
       return file
-    } catch (error) {
-      health.degraded = true
-      throw error
     } finally {
       database?.close()
     }
   }
   const backups: Backups = {
-    health,
     snapshotNow() {
       if (stopping)
         return Promise.reject(new Error('backups stopped — snapshot refused during shutdown'))
-      const run = (pending ?? Promise.resolve()).then(write, write)
+      if (pending) return pending
+      const run = write()
       pending = run
       const clear = () => {
         if (pending === run) pending = null
@@ -130,7 +106,7 @@ export function startBackups(input: {
     },
     async stop() {
       stopping = true
-      clearInterval(timer)
+      cancelSchedule()
       while (pending) await pending.catch(() => undefined)
     },
   }
@@ -142,7 +118,6 @@ export function startBackups(input: {
     void backups.snapshotNow().catch((error) => log(`backup FAILED — ${String(error)}`))
   }
   safely()
-  const timer = setInterval(safely, config.intervalMin * 60_000)
-  timer.unref()
+  const cancelSchedule = schedule(safely, DAY_MS)
   return backups
 }

@@ -86,6 +86,30 @@ test.group('M2b import routes', (group) => {
     )
   })
 
+  test('import accepts a company export larger than the framework default body size', async ({
+    client,
+    assert,
+  }) => {
+    await client.post('/api/test/reset').json({ seed: true }).send()
+    const incoming = await readState('a-studio', true)
+    const template = incoming.allocations[0]!
+    const allocations = Array.from({ length: 8000 }, (_, index) => ({
+      ...template,
+      id: `al-large-${index}`,
+    }))
+    const data = JSON.parse(serializeData({ ...incoming, allocations }))
+    const bytes = Buffer.byteLength(JSON.stringify({ accountId: 'a-studio', data }))
+    assert.isAbove(bytes, 2 * 1024 * 1024)
+    assert.isBelow(bytes, 5 * 1024 * 1024)
+
+    const response = await trusted(client.post('/api/import'))
+      .json({ accountId: 'a-studio', data })
+      .send()
+    assert.equal(response.status(), 200, JSON.stringify(response.body()))
+    const after = await readState('a-studio', true)
+    assert.lengthOf(after.allocations, 8000)
+  })
+
   test('damaged import returns 400 without changing company rows', async ({ client, assert }) => {
     await client.post('/api/test/reset').json({ seed: true }).send()
     const before = await readState('a-studio', true)

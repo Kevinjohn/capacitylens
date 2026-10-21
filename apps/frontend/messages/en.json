@@ -999,6 +999,8 @@
   "data_import_confirm_outro_server": ". This cannot be undone.",
   "login_sign_in": "Sign in",
   "common_sign_out": "Sign out",
+  "data_beta_preview": "{count} planning records for {company}. Entity IDs and company settings are preserved.",
+  "data_beta_preview_boundary": "The file is valid. No data has changed. The server must still check permission, current member links and the company revision before replacement.",
   "common_continue": "Continue",
   "common_try_again": "Try again",
   "auth_checking_session": "Checking your session…",

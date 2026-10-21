@@ -32,6 +32,12 @@ const bodyParserConfig: BodyParserConfig = defineConfig({
      * Normalize empty string values to null.
      */
     convertEmptyStringsToNull: false,
+
+    /**
+     * A company export is posted back whole to the import route, and a large save is one batch.
+     * Matches the 6 MB proxy allowance, less headroom; the 1 MB default refuses realistic exports.
+     */
+    limit: '5mb',
   },
 
   /**

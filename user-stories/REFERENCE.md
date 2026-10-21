@@ -210,6 +210,11 @@ If the import may have committed but the reload cannot prove the resulting state
 blocked behind an explicit reload action; parked pre-import edits are never replayed over the
 replacement. File reads and confirmations remain bound to the company that was active when the file
 was selected, and export/import actions suppress duplicate in-flight requests.
+The separate beta preview validates a `capacitylens-beta` version `1` document before offering
+**Continue**. It preserves entity IDs and supported company settings and reports invalid fields or
+current member links before passing prepared data to its caller. It does not execute a replacement;
+the existing Settings flow remains in place pending backend integration. See the
+[beta transfer contract](../docs-src/using/settings.md#beta-transfer-contract).
 The footer puts **Help** immediately above the account block, with the same small button and tooltip
 in expanded, collapsed and mobile navigation. The account block stays at the very **bottom** of the
 sidebar, below a divider beneath the administration group. It contains exactly one avatar-led
@@ -868,7 +873,9 @@ viewport, time zone and language. A browser value outside its expected shape rea
 The page is present in demo mode too, with server values unavailable. A missing or unavailable
 value is shown as **Unknown** or **unavailable**; a `null` schema means that value was unavailable
 or invalid, not zero or a browser fallback, while an unknown backup timestamp does not assert that
-no backup exists. Browser constants are never presented as the server's database schema. The report
+no backup exists. The native backend leaves backup status unavailable: operators verify service logs
+and completed snapshots separately from database readiness. Browser constants are never presented
+as the server's database schema. The report
 contains no names, emails, identifiers, paths, hostnames, secrets, invite or session values, raw
 errors or arbitrary response fields. The button reports a generic success or clipboard failure
 message.

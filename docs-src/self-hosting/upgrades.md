@@ -37,7 +37,8 @@ The credential-cleanup migration adds an internal proof table. It preserves exis
 reset links; passwordless email-link sign-in remains unavailable.
 
 After a successful upgrade, start the service and check `/health/ready`. Keep the snapshot until the
-new release has passed sign-in, reads, writes and backup checks.
+new release has passed sign-in, reads, writes and backup checks. Pre-upgrade snapshots are kept
+separately from daily/manual retention; copy them off-host and keep the needed recovery points.
 
 ## Roll back
 

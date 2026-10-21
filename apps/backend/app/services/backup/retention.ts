@@ -1,4 +1,4 @@
-import { readdirSync, rmSync, statSync } from 'node:fs'
+import { lstatSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import type { NativeDatabase } from './native.js'
 import { SNAPSHOT_RE, parseSnapshotTimestamp, UTC_SNAPSHOT_RE } from './names.js'
@@ -44,9 +44,17 @@ export function isProtectedDatabasePath(path: string, database: FileIdentity | n
 
 /** Order known snapshot files oldest-first, using mtime for legacy local names. */
 export function listSnapshots(dir: string, database: FileIdentity | null): string[] {
-  const files = readdirSync(dir).filter(
-    (file) => SNAPSHOT_RE.test(file) && !isProtectedDatabasePath(join(dir, file), database)
-  )
+  const files = readdirSync(dir).filter((file) => {
+    if (!SNAPSHOT_RE.test(file)) return false
+    const path = join(dir, file)
+    try {
+      if (!lstatSync(path).isFile()) return false
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
+      throw error
+    }
+    return !isProtectedDatabasePath(path, database)
+  })
   const stamp = (file: string) => {
     if (UTC_SNAPSHOT_RE.test(file)) return parseSnapshotTimestamp(file)
     try {
@@ -75,9 +83,10 @@ export function pruneSnapshots(input: {
     return 0
   }
   let pruned = 0
+  // Protecting an older caller's snapshot must never promote a newer recovery point to deletion.
   for (const file of files
-    .filter((name) => join(dir, name) !== currentFile)
-    .slice(0, Math.max(0, files.length - keep))) {
+    .slice(0, Math.max(0, files.length - keep))
+    .filter((name) => join(dir, name) !== currentFile)) {
     const path = join(dir, file)
     try {
       rmSync(path, { force: true })

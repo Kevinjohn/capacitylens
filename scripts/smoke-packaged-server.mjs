@@ -10,7 +10,6 @@ import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const STARTUP_TIMEOUT_MS = 30_000;
-const PERIODIC_TIMEOUT_MS = 80_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 const RESOURCE_NAME = "Bruce Wayne Packaged Schedule";
@@ -60,7 +59,6 @@ export function buildSmokeEnvironment(inherited, { backupDir, databasePath, port
     CAPACITYLENS_AUDIT: "on",
     CAPACITYLENS_DB: databasePath,
     CAPACITYLENS_BACKUP_DIR: backupDir,
-    CAPACITYLENS_BACKUP_INTERVAL_MIN: "1",
     CAPACITYLENS_PUBLIC_URL: `http://127.0.0.1:${port}`,
   });
 }
@@ -252,10 +250,24 @@ async function main() {
     restored.prepare("UPDATE adonis_schema SET name = ? WHERE name = ?").run(lastName, "database/migrations/unknown");
     restored.close();
 
+    const beforeStartup = await snapshotFiles(backupDir);
     child = startServer(backend, environment, (chunk) => {
       log += chunk;
     });
     await assertReady(baseUrl, child);
+    const scheduledAtStartup = await waitFor(
+      "the daily scheduled startup snapshot",
+      STARTUP_TIMEOUT_MS,
+      async () => {
+        const files = await snapshotFiles(backupDir);
+        const created = files.find((name) => !beforeStartup.includes(name));
+        if (!created) return null;
+        inspectDatabase(join(backupDir, created));
+        return created;
+      },
+      child,
+    );
+    assert.ok(scheduledAtStartup);
     const html = (await fetchOk(`${baseUrl}/`)).body;
     assert.match(html, /<html/);
     const asset = html.match(/(?:src|href)="(\/assets\/[^"]+)"/)?.[1];
@@ -313,20 +325,6 @@ async function main() {
     assert.ok(!beforeExplicit.includes(explicitPath.split("/").at(-1)));
     assert.ok(afterExplicit.includes(explicitPath.split("/").at(-1)));
     assert.equal(inspectDatabase(explicitPath, RESOURCE_NAME).length, migrationCount);
-    const scheduled = await waitFor(
-      "a scheduled snapshot after the write",
-      PERIODIC_TIMEOUT_MS,
-      async () => {
-        const files = await snapshotFiles(backupDir);
-        const matching = files.filter((name) => name !== `capacitylens-pre-migration-v1-to-v${migrationCount}.db`);
-        if (matching.length <= afterExplicit.length - 1) return null;
-        const latest = matching.at(-1);
-        inspectDatabase(join(backupDir, latest), RESOURCE_NAME);
-        return latest;
-      },
-      child,
-    );
-    assert.ok(scheduled);
 
     assert.deepEqual(await stopServer(child), { code: 0, signal: null });
     child = startServer(backend, environment, (chunk) => {
@@ -348,7 +346,7 @@ async function main() {
         databaseSession: "survived restart",
         scheduleWrite: "persisted",
         explicitBackup: "verified",
-        scheduledBackup: "verified",
+        scheduledStartupBackup: "verified",
         upgradeSnapshot: "verified",
         unknownJournal: "refused",
         shutdown: "clean",

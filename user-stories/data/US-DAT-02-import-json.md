@@ -2,7 +2,7 @@
 
 **Area:** Data management · **Persona:** Studio manager · **Linked E2E:** `e2e/data.spec.ts` → "import shows a confirmation that replaces all data; Cancel keeps the data", "confirming an import replaces the dataset and ⌘Z restores it"
 
-**Documentation:** [Settings — Import and export](../../docs-src/using/settings.md#everything-else-on-the-page)
+**Documentation:** [Settings — Import and export](../../docs-src/using/settings.md#import-and-export)
 
 ## Goal
 
@@ -45,3 +45,25 @@ Import is a full replace, not a merge — restoring a backup or loading a shared
   retryable conflict notice; the committed change remains stored and ordinary writes resume.
 - ✅ Server import preparation is concurrency- and queue-bounded; abandoned work is cancelled, and
   saturation returns a retryable busy response without starting another worker.
+
+## Beta transfer preparation contract
+
+- ✅ The beta parser accepts only `format: "capacitylens-beta"` and schema version `1`; the version
+  is independent of database and legacy export versions.
+- ✅ The document includes all `AppData` tables, exactly one account and all scoped rows. It
+  preserves IDs, timestamps and settings. It excludes identity, sessions, membership, roles,
+  admission records and device preferences.
+- ✅ Preparation rejects invalid dates or scalars, duplicate table IDs, dangling references,
+  mismatched account scope, and current member links that do not point to an imported person
+  resource. It does not remap IDs or repair records.
+- ✅ A beta import accepts only `completeness: "full"`; a redacted export is not a restorable full
+  replacement. The document must include exactly one canonical, public, active **Internal** client.
+- ✅ Preparation checks the exported account against the selected destination account and checks
+  current member-to-person resource links. Backend activation must retain those links and provide
+  privileged authorization proof, a destination revision recheck and an atomic replacement.
+
+This slice implements the shared beta contract and a frontend preview only. The current Settings
+flow continues to use the legacy importer until backend writer replacement is integrated. The
+accepted replacement map is [recorded under issue
+#1482](https://github.com/Kevinjohn/capacitylens/issues/1482#issuecomment-6276475651); see also
+[implementation issue #1520](https://github.com/Kevinjohn/capacitylens/issues/1520).

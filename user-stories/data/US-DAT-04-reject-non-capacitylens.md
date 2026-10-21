@@ -2,7 +2,7 @@
 
 **Area:** Data management · **Persona:** Studio manager · **Linked E2E:** `e2e/data.spec.ts` → "rejects a non-CapacityLens file with a notice and preserves existing data"
 
-**Documentation:** [Settings — Import and export](../../docs-src/using/settings.md#everything-else-on-the-page)
+**Documentation:** [Settings — Import and export](../../docs-src/using/settings.md#import-and-export)
 
 ## Goal
 
@@ -30,3 +30,10 @@ Import replaces everything, so feeding it a random JSON or a non-CapacityLens fi
 - ✅ Choosing an unrecognised file shows a rejection toast naming the SPECIFIC reason — **"This file is not CapacityLens data."** for a JSON object with none of CapacityLens's entity keys, or **"That file isn't valid JSON."** for a non-JSON/garbage file — and does **not** open the "Import data?" confirmation dialog. (The toast surfaces the real reason rather than one generic message, so the manager knows what was wrong with the file.)
 - ✅ The current dataset is fully preserved — no entities are removed or changed (the Clients list still shows _Queen Consolidated_ and _LexCorp_; the seed schedule is intact). There is no silent wipe.
 - ✅ A subsequent valid import still works normally (the failed attempt doesn't leave the import flow stuck).
+
+For the beta preparation contract, unsupported format/schema versions, malformed values,
+duplicate IDs, invalid references and incorrect scope fail before a replacement can be prepared.
+The parser does not guess a legacy format, remap IDs or repair invalid rows. The current Settings
+importer remains on its legacy format pending backend writer replacement. See the [accepted
+replacement map for issue #1482](https://github.com/Kevinjohn/capacitylens/issues/1482#issuecomment-6276475651)
+and [implementation issue #1520](https://github.com/Kevinjohn/capacitylens/issues/1520).
