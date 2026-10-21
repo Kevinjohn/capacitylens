@@ -99,7 +99,7 @@ let saveAll: Mock<(data: AppData) => Promise<void>>;
 let onPersistenceError: Mock<(error: unknown) => void>;
 
 beforeEach(async () => {
-  resetStoreWithAccount();
+  await resetStoreWithAccount();
   adapter = new InMemoryDemoAdapter();
   await adapter.saveAll(structuredClone(useStore.getState().data));
   saveAll = vi.spyOn(adapter, "saveAll");

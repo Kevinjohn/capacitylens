@@ -7,12 +7,18 @@ import { useStore } from "@/store/useStore";
 import { resetStoreWithAccount, makeResourceDraft } from "@/test/fixtures";
 import { renderWithTooltip as render, GEOM, indexAtClientX } from "./__tests__/schedulerTestKit";
 
-import { barFor, getStoredAllocation, rect, seedAllocation } from "./__tests__/allocationBarInteractionTestKit";
+import {
+  barFor,
+  getStoredAllocation,
+  rect,
+  seedAllocation,
+  settlePlanning,
+} from "./__tests__/allocationBarInteractionTestKit";
 
 beforeEach(() => resetStoreWithAccount());
 
 function registerTargetCalendarTest() {
-  it("a cross-row reassign computes dates against the TARGET resource’s working week, not the source’s", () => {
+  it("a cross-row reassign computes dates against the TARGET resource’s working week, not the source’s", async () => {
     const st = useStore.getState();
     const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
@@ -46,7 +52,7 @@ function registerTargetCalendarTest() {
     );
 
     const a = requireCreated(
-      st.addAllocation({
+      await st.addAllocation({
         resourceId: src.id,
         activityId: t.id,
         startDate: "2026-06-05",
@@ -76,6 +82,7 @@ function registerTargetCalendarTest() {
 
     document.dispatchEvent(new MouseEvent("pointermove", { clientX: 72, clientY: 125, bubbles: true }));
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 72, clientY: 125, bubbles: true }));
+    await settlePlanning();
 
     const moved = getStoredAllocation(a.id);
     expect(moved.resourceId).toBe(dst.id);
@@ -84,7 +91,7 @@ function registerTargetCalendarTest() {
     expect([moved.startDate, moved.endDate]).toEqual(["2026-06-08", "2026-06-08"]);
   });
 
-  it("does not reread a destination resource from the store on every preview frame", () => {
+  it("does not reread a destination resource from the store on every preview frame", async () => {
     const st = useStore.getState();
     const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
@@ -92,7 +99,7 @@ function registerTargetCalendarTest() {
     const src = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
     const dst = requireCreated(st.addResource(makeResourceDraft({ name: "Sam", role: "Dev", color: "#4" })));
     const a = requireCreated(
-      st.addAllocation({
+      await st.addAllocation({
         resourceId: src.id,
         activityId: t.id,
         startDate: "2026-06-01",
@@ -145,7 +152,7 @@ function registerSourceCalendarTest() {
   const renderedLeft = (from: string, to: string) =>
     buildAllocationBarInset(GEOM.xForDateInGeom(from), GEOM.widthForDates(from, to)).insetLeft;
 
-  function seedCrossWeekPair() {
+  async function seedCrossWeekPair() {
     const st = useStore.getState();
     const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
@@ -158,7 +165,7 @@ function registerSourceCalendarTest() {
     );
 
     const a = requireCreated(
-      st.addAllocation({
+      await st.addAllocation({
         resourceId: src.id,
         activityId: t.id,
         startDate: "2026-06-04",
@@ -170,8 +177,8 @@ function registerSourceCalendarTest() {
     return { src, dst, a };
   }
 
-  it("a cross-row reassign keeps the duration the SOURCE measured, so the bar shrinks", () => {
-    const { src, dst, a } = seedCrossWeekPair();
+  it("a cross-row reassign keeps the duration the SOURCE measured, so the bar shrinks", async () => {
+    const { src, dst, a } = await seedCrossWeekPair();
     render(
       <>
         <div data-resource-id={src.id} data-testid="lane-src" />
@@ -208,6 +215,8 @@ function registerSourceCalendarTest() {
       document.dispatchEvent(new MouseEvent("pointerup", { clientX: startX, clientY: 125, bubbles: true }));
     });
 
+    await settlePlanning();
+
     const moved = getStoredAllocation(a.id);
     expect(moved.resourceId).toBe(dst.id);
 
@@ -216,7 +225,7 @@ function registerSourceCalendarTest() {
     expect(moved.hoursPerDay).toBe(8);
   });
 
-  it("a reassignment the drop will refuse previews nothing, so the bar does not stretch then snap back", () => {
+  it("a reassignment the drop will refuse previews nothing, so the bar does not stretch then snap back", async () => {
     // A refused drop must preview the source-row range, not a destination range that would snap back after rejection.
     const st = useStore.getState();
     const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
@@ -229,7 +238,7 @@ function registerSourceCalendarTest() {
       st.addResource(makeResourceDraft({ name: "Mid", role: "Dev", color: "#4", workingDays: [...midWeek] })),
     );
     const a = requireCreated(
-      st.addAllocation({
+      await st.addAllocation({
         resourceId: src.id,
         activityId: t.id,
         startDate: "2026-06-08",
@@ -274,12 +283,14 @@ function registerSourceCalendarTest() {
       document.dispatchEvent(new MouseEvent("pointerup", { clientX: startX, clientY: 125, bubbles: true }));
     });
 
+    await settlePlanning();
+
     const after = getStoredAllocation(a.id);
     expect(after.resourceId).toBe(src.id);
     expect([after.startDate, after.endDate]).toEqual(["2026-06-08", "2026-06-12"]);
   });
 
-  it("keeps following the pointer sideways while the row under it refuses the drop", () => {
+  it("keeps following the pointer sideways while the row under it refuses the drop", async () => {
     // Same refused drop as above, but dragged a week to the right as well as down. The bar must not
     // take the destination's re-placement, and it must not freeze at its old column either: it
     // previews the range this drag would give it on its own row, so it tracks the pointer.
@@ -294,7 +305,7 @@ function registerSourceCalendarTest() {
       st.addResource(makeResourceDraft({ name: "Mid", role: "Dev", color: "#4", workingDays: [...midWeek] })),
     );
     const a = requireCreated(
-      st.addAllocation({
+      await st.addAllocation({
         resourceId: src.id,
         activityId: t.id,
         startDate: "2026-06-08",
@@ -342,10 +353,12 @@ function registerSourceCalendarTest() {
     act(() => {
       document.dispatchEvent(new MouseEvent("pointerup", { clientX: movedX, clientY: 125, bubbles: true }));
     });
+
+    await settlePlanning();
     expect(getStoredAllocation(a.id).resourceId).toBe(src.id);
   });
 
-  it("keeps previewing a zero-column reassignment when the source resource disappears", () => {
+  it("keeps previewing a zero-column reassignment when the source resource disappears", async () => {
     const st = useStore.getState();
     const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
@@ -359,7 +372,7 @@ function registerSourceCalendarTest() {
     // The stored range ends on a Sunday. Reinterpreting its seven target working days should end
     // on Friday instead, so a missing source week cannot be mistaken for a same-row no-op.
     const a = requireCreated(
-      st.addAllocation({
+      await st.addAllocation({
         resourceId: src.id,
         activityId: t.id,
         startDate: "2026-06-04",
@@ -411,6 +424,7 @@ function registerSourceCalendarTest() {
         new MouseEvent("pointerup", { clientX: GEOM.xForDateInGeom(a.startDate) + 10, clientY: 125, bubbles: true }),
       );
     });
+    await settlePlanning();
     expect(getStoredAllocation(a.id)).toMatchObject({
       resourceId: dst.id,
       startDate: "2026-06-04",
@@ -418,7 +432,7 @@ function registerSourceCalendarTest() {
     });
   });
 
-  it("a same-row vertical wiggle previews nothing, even for a range its own week would renormalise", () => {
+  it("a same-row vertical wiggle previews nothing, even for a range its own week would renormalise", async () => {
     const st = useStore.getState();
     const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
@@ -429,7 +443,7 @@ function registerSourceCalendarTest() {
     // Thu 06-04 - Sun 06-07: two working days drawn over four calendar days, so re-deriving the
     // range here would change it. A gesture that commits nothing must not preview that change.
     const a = requireCreated(
-      st.addAllocation({
+      await st.addAllocation({
         resourceId: r.id,
         activityId: t.id,
         startDate: "2026-06-04",
@@ -473,13 +487,15 @@ function registerSourceCalendarTest() {
       document.dispatchEvent(new MouseEvent("pointerup", { clientX: startX, clientY: 120, bubbles: true }));
     });
 
+    await settlePlanning();
+
     const after = getStoredAllocation(a.id);
     expect([after.startDate, after.endDate]).toEqual(["2026-06-04", "2026-06-07"]);
   });
 }
 
 function registerWeekendPreviewTests() {
-  it("previews the SAME weekend-snapped geometry the commit applies (no jump on release)", () => {
+  it("previews the SAME weekend-snapped geometry the commit applies (no jump on release)", async () => {
     const st = useStore.getState();
     const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
@@ -487,7 +503,7 @@ function registerWeekendPreviewTests() {
     const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
 
     const a = requireCreated(
-      st.addAllocation({
+      await st.addAllocation({
         resourceId: r.id,
         activityId: t.id,
         startDate: "2026-06-01",
@@ -519,8 +535,8 @@ function registerWeekendPreviewTests() {
     expect(previewedWidth).toBeGreaterThan(6 * dayWidth - 12);
   });
 
-  it("aborts a drag on pointercancel without committing or leaking listeners", () => {
-    const a = seedAllocation();
+  it("aborts a drag on pointercancel without committing or leaking listeners", async () => {
+    const a = await seedAllocation();
     render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
     const bar = screen.getByTestId("allocation-bar");
 
@@ -532,6 +548,7 @@ function registerWeekendPreviewTests() {
 
     // Listeners were torn down: a stray later pointerup must not commit a stale move.
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 300, bubbles: true }));
+    await settlePlanning();
     expect(getStoredAllocation(a.id).startDate).toBe("2026-06-01");
   });
 }

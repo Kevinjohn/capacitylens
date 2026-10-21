@@ -10,6 +10,7 @@ import type { ThemePreference } from "@/lib/theme";
 import type { Role } from "@capacitylens/shared/domain/access";
 import type { MasqueradeState } from "@capacitylens/shared/domain/masquerade";
 import type { Account, AppData, ID, ISODate } from "@capacitylens/shared/types/entities";
+import type { PlanningControllerMetadata } from "@/data/planning/planningCacheController";
 
 /** Runtime state for the current masquerade session. */
 export type MasqueradeRuntimeState =
@@ -113,8 +114,11 @@ export interface StoreState extends StoreEntityActions {
   /** Latest issued server-directory read. Direct list mutations advance this too, so an older
    * response cannot overwrite a create/delete/join result. Transient and never persisted. */
   accountSummariesRequestId: number;
+  /** Legacy whole-data history for writers that still use batch persistence; not shown in the UI. */
   past: AppData[];
   future: AppData[];
+  /** Planning cache metadata, including the typed allocation Undo/Redo history. Page-local. */
+  planning: PlanningControllerMetadata;
   persistError: boolean;
   /** True when stored data existed but could not be read (corrupt JSON / failed
    * migrate). Distinct from persistError (a write failure): on a load error the
@@ -258,6 +262,12 @@ export interface StoreState extends StoreEntityActions {
   undo: () => void;
   /** Re-apply the most recently undone snapshot, if any. */
   redo: () => void;
+  /** Load the active company's canonical planning snapshot, entering its planning context first. */
+  refreshPlanning: () => Promise<boolean>;
+  /** Undo the latest typed allocation change as one typed planning write. */
+  undoPlanning: () => Promise<boolean>;
+  /** Redo the latest undone typed allocation change as one typed planning write. */
+  redoPlanning: () => Promise<boolean>;
 
   /** Set how many weeks the schedule shows. */
   setZoom: (zoom: WeeksZoom) => void;

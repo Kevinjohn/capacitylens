@@ -10,10 +10,10 @@ import type { AppData } from "@capacitylens/shared/types/entities";
 import { makeAccount, resetStoreWithAccount } from "@/test/fixtures";
 import { internalClient, requireCallback, makeLocalTwoAccounts, accountSwitchSlices } from "./__tests__/persistTestKit";
 
-beforeEach(() => {
+beforeEach(async () => {
   localStorage.clear();
   // Seed an active account because store additions require an account scope.
-  resetStoreWithAccount();
+  await resetStoreWithAccount();
 });
 
 interface AccountSwitchWireEntry {

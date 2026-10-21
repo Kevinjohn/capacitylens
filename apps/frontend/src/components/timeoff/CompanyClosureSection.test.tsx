@@ -6,10 +6,10 @@ import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
 import { CompanyClosureSection } from "./CompanyClosureSection";
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-06-03T12:00:00.000Z"));
-  resetStoreWithAccount();
+  await resetStoreWithAccount();
 });
 
 afterEach(() => {

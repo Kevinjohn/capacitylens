@@ -220,7 +220,7 @@ describe("AllocationModal days mode", () => {
     enableDays();
     const resource = requireCreated(useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 3, 5] }));
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -463,7 +463,7 @@ describe("AllocationModal days mode", () => {
     const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
     // A 1.875-day seed must retain its precision; rounding it to two decimal places would alter work volume on an unchanged save.
     const alloc = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: r.id,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -490,7 +490,7 @@ describe("AllocationModal days mode", () => {
       useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -509,12 +509,12 @@ describe("AllocationModal days mode", () => {
     );
   });
 
-  it("seeds the days inputs by inverting an existing allocation", () => {
+  it("seeds the days inputs by inverting an existing allocation", async () => {
     enableDays();
     const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
 
     const alloc = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: r.id,
         activityId: "t1",
         startDate: "2026-06-01",

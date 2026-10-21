@@ -89,9 +89,9 @@ function addSecondAccount() {
   useStore.getState().setActiveAccount("acct-test");
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   permissionMocks.masqueradeStatus.mockReset().mockResolvedValue({ active: false });
-  resetStoreWithAccount();
+  await resetStoreWithAccount();
   useStore.setState({ masquerade: { kind: "inactive" } });
   vi.stubEnv("VITE_CAPACITYLENS_DEMO", "");
 });

@@ -219,8 +219,8 @@ function registerDateStyleReactivityTests() {
     afterEach(() => resetStoreWithAccount());
 
     // Date format changes must invalidate week-label memoisation even when the visible days are unchanged.
-    it("re-reads its labels when the format changes", () => {
-      resetStoreWithAccount();
+    it("re-reads its labels when the format changes", async () => {
+      await resetStoreWithAccount();
       renderHeader(17);
       expect(screen.getByText("1 Jun")).toBeInTheDocument();
 

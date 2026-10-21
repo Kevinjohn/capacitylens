@@ -15,8 +15,8 @@ import {
 } from "@/test/fixtures";
 import { PermissionContext } from "@/auth/permissionContext";
 
-beforeEach(() => {
-  resetStoreWithAccount();
+beforeEach(async () => {
+  await resetStoreWithAccount();
   useStore.getState().clearFilters();
   // Enable placeholders for this suite because the management cases require their otherwise-hidden section.
   setPlaceholdersEnabled({ on: true });

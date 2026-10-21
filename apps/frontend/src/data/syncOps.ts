@@ -120,6 +120,8 @@ export function diffOpsFromPossibleBases(possibleBases: readonly AppData[], next
   const upserts: Op[] = [];
   const deletes: Op[] = [];
   for (const table of UPSERT_ORDER) {
+    // Allocations are written only through typed planning operations, never as batch operations.
+    if (table === "allocations") continue;
     const tableDiff = diffTable(table, possibleBases, next);
     upserts.push(...tableDiff.upserts);
     deletes.push(...tableDiff.deletes);

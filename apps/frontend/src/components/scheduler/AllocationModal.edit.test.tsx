@@ -87,7 +87,7 @@ describe("AllocationModal edit", () => {
       );
       const activity = resolveScopeActivity(activityKind, activityName);
       const allocation = requireCreated(
-        useStore.getState().addAllocation({
+        await useStore.getState().addAllocation({
           resourceId: resource.id,
           activityId: activity.id,
           ...(allocationProjectId ? { projectId: allocationProjectId } : {}),
@@ -118,7 +118,7 @@ describe("AllocationModal edit", () => {
       useStore.getState().addResource({ ...person("Clark Kent"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -147,7 +147,7 @@ describe("AllocationModal edit", () => {
     );
     const activity = requireCreated(useStore.getState().addActivity({ name: "Planning", kind: "repeatable" }));
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: activity.id,
         projectId: "p1",
@@ -175,7 +175,7 @@ describe("AllocationModal edit", () => {
       useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -211,7 +211,7 @@ describe("AllocationModal edit", () => {
       useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -234,7 +234,7 @@ describe("AllocationModal edit", () => {
     const alice = person("Alice");
     const resource = requireCreated(useStore.getState().addResource({ ...alice, workingDays: [...alice.workingDays] }));
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -270,7 +270,7 @@ describe("AllocationModal edit", () => {
       useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -306,7 +306,7 @@ describe("AllocationModal edit", () => {
     );
     const seriesId = "series-weekly";
     const [earlier, selected, later] = requireCreated(
-      useStore.getState().addAllocations([
+      await useStore.getState().addAllocations([
         {
           resourceId: resource.id,
           activityId: "t1",
@@ -361,7 +361,7 @@ describe("AllocationModal edit", () => {
       useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const [selected, later] = requireCreated(
-      useStore.getState().addAllocations([
+      await useStore.getState().addAllocations([
         {
           resourceId: resource.id,
           activityId: "t1",
@@ -404,7 +404,7 @@ describe("AllocationModal edit", () => {
     const a = requireCreated(useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }));
     const b = requireCreated(useStore.getState().addResource({ ...person("Bob"), workingDays: [1, 2, 3, 4, 5] }));
     const alloc = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: a.id,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -431,7 +431,7 @@ describe("AllocationModal edit", () => {
     const source = requireCreated(useStore.getState().addResource({ ...person("Alice"), workingDays: [2] }));
     const destination = requireCreated(useStore.getState().addResource({ ...person("Bob"), workingDays: [1] }));
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: source.id,
         activityId: "t1",
         startDate: "2026-06-02",
@@ -462,7 +462,7 @@ describe("AllocationModal edit", () => {
     const source = requireCreated(useStore.getState().addResource({ ...person("Alice"), workingDays: [2] }));
     useStore.getState().addResource({ ...person("Bob"), workingDays: [1] });
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: source.id,
         activityId: "t1",
         startDate: "2026-06-02",
@@ -501,7 +501,7 @@ describe("AllocationModal edit", () => {
       projectId: "p2",
     });
     const alloc = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: a.id,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -537,7 +537,7 @@ describe("AllocationModal edit", () => {
       }),
     );
     const alloc = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: ph.id,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -572,7 +572,7 @@ describe("AllocationModal edit", () => {
       }),
     );
     const alloc = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: ext.id,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -608,7 +608,7 @@ describe("AllocationModal edit", () => {
     );
     const gen = requireCreated(useStore.getState().addActivity({ name: "Admin", kind: "repeatable" }));
     const alloc = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: ph.id,
         activityId: gen.id,
         startDate: "2026-06-01",
@@ -633,7 +633,7 @@ describe("AllocationModal edit", () => {
     );
   });
 
-  it("uses a bound placeholder's project when an edited allocation has a dangling activity", () => {
+  it("uses a bound placeholder's project when an edited allocation has a dangling activity", async () => {
     const ph = requireCreated(
       useStore.getState().addResource({
         kind: "placeholder",
@@ -649,7 +649,7 @@ describe("AllocationModal edit", () => {
     );
     const activity = requireCreated(useStore.getState().addActivity({ name: "Temporary", kind: "repeatable" }));
     const alloc = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: ph.id,
         activityId: activity.id,
         startDate: "2026-06-01",
@@ -673,7 +673,7 @@ describe("AllocationModal edit", () => {
   it("duplicates the current validated form values without changing the saved allocation", async () => {
     const a = requireCreated(useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }));
     const alloc = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: a.id,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -712,13 +712,13 @@ describe("AllocationModal edit", () => {
     });
   });
 
-  it("keeps Duplicate for an unlinked all-projects allocation and hides it for a linked occurrence", () => {
+  it("keeps Duplicate for an unlinked all-projects allocation and hides it for a linked occurrence", async () => {
     const resource = requireCreated(
       useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const activity = requireCreated(useStore.getState().addActivity({ name: "Planning", kind: "repeatable" }));
     const oneOff = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: activity.id,
         startDate: "2026-06-01",
@@ -727,17 +727,19 @@ describe("AllocationModal edit", () => {
         status: "confirmed",
       }),
     );
-    const linked = requireCreated(
-      useStore.getState().addAllocation({
-        resourceId: resource.id,
-        activityId: activity.id,
-        startDate: "2026-06-08",
-        endDate: "2026-06-08",
-        hoursPerDay: 8,
-        status: "confirmed",
-        seriesId: "series-weekly",
-      }),
+    const [linked] = requireCreated(
+      await useStore.getState().addAllocations(
+        ["2026-06-08", "2026-06-15"].map((date) => ({
+          resourceId: resource.id,
+          activityId: activity.id,
+          startDate: date,
+          endDate: date,
+          hoursPerDay: 8,
+          status: "confirmed" as const,
+        })),
+      ),
     );
+    if (!linked) throw new Error("Expected a linked occurrence.");
 
     const oneOffView = render(<AllocationModal kind="edit" allocationId={oneOff.id} onClose={vi.fn()} />);
     expect(screen.getByRole("button", { name: "Duplicate" })).toBeInTheDocument();
@@ -751,7 +753,7 @@ describe("AllocationModal edit", () => {
     const a = requireCreated(useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }));
     useStore.getState().updateAccount(ACC, { schedulingMode: "blocks" });
     const alloc = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: a.id,
         activityId: "t1",
         startDate: "2026-06-01",

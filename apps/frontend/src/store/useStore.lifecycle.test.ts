@@ -17,8 +17,8 @@ const requireById = <T extends { id: string }>(rows: readonly T[], id: string, c
     context,
   );
 
-beforeEach(() => {
-  resetStoreWithAccount();
+beforeEach(async () => {
+  await resetStoreWithAccount();
   s().clearFilters();
 });
 
@@ -49,7 +49,7 @@ describe("archiveEntity", () => {
     expect(() => s().archiveEntity("resources", r.id)).toThrow(/already archived/i);
   });
 
-  it("rejects stale descendant creates beneath a client hidden after the caller captured its ids", () => {
+  it("rejects stale descendant creates beneath a client hidden after the caller captured its ids", async () => {
     const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
@@ -64,18 +64,16 @@ describe("archiveEntity", () => {
     expect(() => requireCreated(s().addActivity({ name: "Late activity", kind: "project", projectId: p.id }))).toThrow(
       "Activity must reference a project in this company.",
     );
-    expect(() =>
-      requireCreated(
-        s().addAllocation({
-          resourceId: r.id,
-          activityId: t.id,
-          startDate: "2026-06-01",
-          endDate: "2026-06-02",
-          hoursPerDay: 8,
-          status: "confirmed",
-        }),
-      ),
-    ).toThrow(/Allocation must reference an activity under an active project/);
+    await expect(
+      s().addAllocation({
+        resourceId: r.id,
+        activityId: t.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    ).rejects.toThrow(/Allocation must reference an activity under an active project/);
     expect(s().data.phases).toHaveLength(0);
     expect(s().data.activities).toEqual([t]);
     expect(s().data.allocations).toHaveLength(0);
@@ -152,13 +150,13 @@ function registerSoftDeleteGuardsAndResourceScrubTests() {
 }
 
 function registerDependentNoteScrubTest() {
-  it("scrubs and re-stamps only dependent rows that actually carry a note", () => {
+  it("scrubs and re-stamps only dependent rows that actually carry a note", async () => {
     const client = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const project = requireCreated(s().addProject({ name: "Project", clientId: client.id, color: "#2" }));
     const activity = requireCreated(s().addActivity({ name: "Activity", kind: "project", projectId: project.id }));
     const resource = requireCreated(s().addResource(personDraft));
     const notedAllocation = requireCreated(
-      s().addAllocation({
+      await s().addAllocation({
         resourceId: resource.id,
         activityId: activity.id,
         startDate: "2026-06-01",
@@ -169,7 +167,7 @@ function registerDependentNoteScrubTest() {
       }),
     );
     const plainAllocation = requireCreated(
-      s().addAllocation({
+      await s().addAllocation({
         resourceId: resource.id,
         activityId: activity.id,
         startDate: "2026-06-03",
@@ -266,14 +264,14 @@ function registerResourcePurgeTests() {
     expect(s().notice?.message).toMatch(/30 days/i);
   });
 
-  it("purges a tombstone deleted ≥ 30 days ago AND cascades its children", () => {
+  it("purges a tombstone deleted ≥ 30 days ago AND cascades its children", async () => {
     // Construct an aged tombstone directly to exercise purge eligibility without waiting for the grace period.
     const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
     const r = requireCreated(s().addResource(personDraft));
     const a = requireCreated(
-      s().addAllocation({
+      await s().addAllocation({
         resourceId: r.id,
         activityId: t.id,
         startDate: "2026-06-01",
@@ -301,12 +299,12 @@ function registerResourcePurgeTests() {
 }
 
 function registerClientPurgeTest() {
-  it("cascades a purged client through its projects/activities/allocations", () => {
+  it("cascades a purged client through its projects/activities/allocations", async () => {
     const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
     const r = requireCreated(s().addResource(personDraft));
-    s().addAllocation({
+    await s().addAllocation({
       resourceId: r.id,
       activityId: t.id,
       startDate: "2026-06-01",
@@ -334,13 +332,13 @@ function registerClientPurgeTest() {
 }
 
 function registerProjectPurgeTest() {
-  it("clears a purged project's attribution while preserving its shared booking", () => {
+  it("clears a purged project's attribution while preserving its shared booking", async () => {
     const client = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const project = requireCreated(s().addProject({ name: "Project Watchtower", clientId: client.id, color: "#2" }));
     const activity = requireCreated(s().addActivity({ name: "Planning", kind: "repeatable" }));
     const resource = requireCreated(s().addResource(personDraft));
     const allocation = requireCreated(
-      s().addAllocation({
+      await s().addAllocation({
         resourceId: resource.id,
         activityId: activity.id,
         projectId: project.id,

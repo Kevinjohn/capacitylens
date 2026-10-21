@@ -6,8 +6,8 @@ import { DisciplineList } from "./DisciplineList";
 import { useStore } from "@/store/useStore";
 import { resetStoreWithAccount } from "@/test/fixtures";
 
-beforeEach(() => {
-  resetStoreWithAccount();
+beforeEach(async () => {
+  await resetStoreWithAccount();
   useStore.getState().clearFilters();
 });
 

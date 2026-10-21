@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createVolatilePlanningTransport } from "@/data/planning/volatilePlanningTransport";
 import { createAccountSlice } from "./accountSlice";
 import { createAllocationSlice } from "./allocationSlice";
 import { createCatalogSlice } from "./catalogSlice";
@@ -22,15 +23,10 @@ describe("store slice composition", () => {
       createSchedulerSlice(buildEmptyFilters)(set, get, useStore),
       createCatalogSlice(internals)(set, get, useStore),
       createResourceSlice(internals)(set, get, useStore),
-      createAllocationSlice({
-        createGuardedAction: internals.createGuardedAction,
-        createGuardedValueAction: internals.createGuardedValueAction,
-        createAllocations: internals.createAllocations,
-        updateOwned: internals.updateOwned,
-        assertAllocation: internals.assertAllocation,
-        resolveOwnedRow: internals.resolveOwnedRow,
-        mutate: internals.mutate,
-      })(set, get, useStore),
+      createAllocationSlice(
+        internals,
+        createVolatilePlanningTransport(() => get().data),
+      )(set, get, useStore),
       createLifecycleSlice(internals)(set, get, useStore),
     ];
 

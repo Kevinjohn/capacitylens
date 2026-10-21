@@ -51,13 +51,13 @@ vi.mock("@/data/persist", async (importOriginal) => {
   };
 });
 
-beforeEach(() => {
+beforeEach(async () => {
   serverFlag.on = false;
   refreshOverride.value = null;
   refreshNotice.error = null;
   resumeSpy.calls.length = 0;
   reloadMock.reloadPage.mockReset();
-  resetStoreWithAccount();
+  await resetStoreWithAccount();
   useStore.getState().clearFilters();
 });
 

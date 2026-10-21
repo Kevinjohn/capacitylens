@@ -168,10 +168,21 @@ class AttachmentOwner {
     this.update({ retryAttempts: 0, failedSinceSuccess: false, lastError: null });
     this.cancelRetry();
     this.onSuccess?.();
+    // A committed legacy write advances the company's planning revision; read it so typed writes
+    // use the current base revision.
+    void this.store.getState().refreshPlanning();
   }
   installSlice(data: AppData): void {
     this.values.loadingSlice = true;
-    this.store.getState().replaceAll(data);
+    // A legacy reload owns every table except the planning company's allocations, which keep the
+    // planning controller's canonical rows.
+    const { planning, data: current } = this.store.getState();
+    const companyId = planning.context?.companyId;
+    const installed =
+      companyId !== undefined && data.accounts.some((account) => account.id === companyId)
+        ? { ...data, allocations: current.allocations.filter((allocation) => allocation.accountId === companyId) }
+        : data;
+    this.store.getState().replaceAll(installed);
     this.values.lastData = this.store.getState().data;
     this.values.loadingSlice = false;
   }

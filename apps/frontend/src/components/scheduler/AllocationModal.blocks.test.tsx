@@ -75,11 +75,11 @@ describe("AllocationModal blocks mode", () => {
     });
   });
 
-  it("counts the existing load through the blocks projection, like the grid and the drag path", () => {
+  it("counts the existing load through the blocks projection, like the grid and the drag path", async () => {
     const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
     // Legacy hourly allocation persisted before the account switched to blocks: it keeps its stored
     // 8h/day, and every capacity surface must read it as zero load while the account is in blocks.
-    useStore.getState().addAllocation({
+    await useStore.getState().addAllocation({
       resourceId: r.id,
       activityId: "t1",
       startDate: "2026-06-01",
@@ -177,7 +177,7 @@ describe("AllocationModal blocks mode", () => {
       useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: "t1",
         startDate: "2026-06-01",

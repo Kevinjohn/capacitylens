@@ -42,8 +42,8 @@ function harness(overrides: Partial<MasqueradeControllerDependencies> = {}) {
   return { controller: new MasqueradeController(dependencies), dependencies, resume };
 }
 
-beforeEach(() => {
-  resetStoreWithAccount();
+beforeEach(async () => {
+  await resetStoreWithAccount();
   useStore.getState().setMasquerade({ kind: "inactive" });
   useStore.getState().setNotice(null);
 });

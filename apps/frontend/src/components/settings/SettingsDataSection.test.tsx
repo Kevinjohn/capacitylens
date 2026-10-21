@@ -43,9 +43,9 @@ function renderSection({ role = "owner", serverMode = true }: { role?: Role | nu
 const owned = { accountId: DEFAULT_ACCOUNT_ID };
 const section = () => screen.queryByTestId("settings-example-data");
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
-  resetStoreWithAccount();
+  await resetStoreWithAccount();
 });
 afterEach(() => vi.restoreAllMocks());
 

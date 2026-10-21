@@ -7,7 +7,7 @@ import {
   BatchMasqueradeReadOnlyError,
 } from "./ServerSyncAdapter";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import type { Allocation, Discipline, TimeOff } from "@capacitylens/shared/types/entities";
+import type { Discipline, TimeOff } from "@capacitylens/shared/types/entities";
 import { AUDIT_WARNING_EVENT } from "@/lib/auditWarning";
 import {
   TS1,
@@ -103,51 +103,22 @@ function registerBasicSaveTests(): void {
     ]);
   });
 
-  it("dispatches an isolated weekly repeat as allocation PUTs in one client batch", async () => {
+  it("never sends allocation rows through the batch, even beside a later catalogue save", async () => {
     const fetchImpl = okFetch() as unknown as typeof fetch;
     const adapter = new ServerSyncAdapter("http://x", fetchImpl);
-    const allocations = Array.from({ length: 14 }, (_, index) =>
-      allocation(
-        `repeat-${index}`,
-        `2026-${String(1 + Math.floor(index / 4)).padStart(2, "0")}-${String(1 + (index % 4) * 7).padStart(2, "0")}` as Allocation["startDate"],
-      ),
-    );
+    const allocations = [allocation("typed-1", "2026-06-01"), allocation("typed-2", "2026-06-08")];
+
     await adapter.saveAll(withData({ allocations }));
+    await adapter.saveAll(withData({ allocations: allocations.slice(0, 1) }));
+    await adapter.saveAll(withData({ allocations: [], clients: [client("c1")] }));
 
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
     expect(calls).toHaveLength(1);
-    const ops = batchOps(calls[0]);
-    expect(ops).toHaveLength(14);
-    expect(ops.every((op) => op.method === "PUT" && op.table === "allocations")).toBe(true);
-    expect(ops.map((op) => op.id)).toEqual(allocations.map((row) => row.id));
+    expect(batchOps(calls[0]).map((o) => `${o.method} ${o.table}/${o.id}`)).toEqual(["PUT clients/c1"]);
   });
 }
 
 function registerBatchFailureAndUnloadTests(): void {
-  it("dispatches a linked series-tail deletion as one transactional client batch", async () => {
-    const fetchImpl = okFetch() as unknown as typeof fetch;
-    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
-    const allocations = ["2026-06-01", "2026-06-08", "2026-06-15"].map((startDate, index) => ({
-      ...allocation(`repeat-${index}`, startDate as Allocation["startDate"]),
-      seriesId: "series-weekly",
-    }));
-    await adapter.saveAll(withData({ allocations }));
-    (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
-
-    await adapter.saveAll(withData({ allocations: allocations.slice(0, 1) }));
-
-    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
-    expect(calls).toHaveLength(1);
-    const ops = batchOps(calls[0]);
-    expect(ops).toHaveLength(2);
-    expect(ops).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ method: "DELETE", table: "allocations", id: "repeat-1" }),
-        expect.objectContaining({ method: "DELETE", table: "allocations", id: "repeat-2" }),
-      ]),
-    );
-  });
-
   it("does NOT advance the snapshot on a failed batch, so the next save replays the delta", async () => {
     let failNext = false;
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {

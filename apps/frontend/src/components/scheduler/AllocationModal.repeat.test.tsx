@@ -64,7 +64,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     unmount();
 
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -158,10 +158,13 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     expect(drafts).toHaveLength(14);
     expect(drafts[0]).toMatchObject({ startDate: "2099-06-01", endDate: "2099-06-03" });
     expect(drafts.at(-1)).toMatchObject({ startDate: "2099-08-31", endDate: "2099-09-02" });
-    const seriesIds = drafts.map(({ seriesId }) => seriesId);
+    // The typed group write assigns one series id to every stored occurrence.
+    expect(drafts.some((draft) => "seriesId" in draft)).toBe(false);
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    const seriesIds = useStore.getState().data.allocations.map(({ seriesId }) => seriesId);
+    expect(seriesIds).toHaveLength(14);
     expect(seriesIds[0]).toEqual(expect.any(String));
     expect(new Set(seriesIds).size).toBe(1);
-    expect(onClose).toHaveBeenCalledTimes(1);
     bulkSpy.mockRestore();
     oneSpy.mockRestore();
   });
@@ -492,7 +495,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
   it("duplicates exactly one allocation through the single-row path and never exposes Repeat", async () => {
     const resource = addPerson();
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -501,15 +504,16 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
         status: "confirmed",
       }),
     );
-    const oneSpy = vi.spyOn(useStore.getState(), "addAllocation");
+    const oneSpy = vi.spyOn(useStore.getState(), "duplicateAllocation");
     const bulkSpy = vi.spyOn(useStore.getState(), "addAllocations");
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
     expect(screen.queryByRole("combobox", { name: "Repeat" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Duplicate" }));
     expect(oneSpy).toHaveBeenCalledTimes(1);
+    expect(oneSpy).toHaveBeenCalledWith(allocation.id, expect.any(Object));
     expect(bulkSpy).not.toHaveBeenCalled();
-    expect(useStore.getState().data.allocations).toHaveLength(2);
+    await vi.waitFor(() => expect(useStore.getState().data.allocations).toHaveLength(2));
     oneSpy.mockRestore();
     bulkSpy.mockRestore();
   });
@@ -517,7 +521,7 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
   it("surfaces an availability error when duplication would recreate retained conflicting dates", async () => {
     const resource = addPerson();
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: "t1",
         startDate: "2026-06-01",

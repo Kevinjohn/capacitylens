@@ -26,9 +26,9 @@ function deferred<T>() {
 const secondAccount = makeAccount({ id: "a-loft", name: "Stark Industries" });
 let detach: (() => void) | undefined;
 
-beforeEach(() => {
+beforeEach(async () => {
   localStorage.clear();
-  resetStoreWithAccount();
+  await resetStoreWithAccount();
   useStore.getState().setAccountSummaries({
     list: [
       { id: DEFAULT_ACCOUNT_ID, name: "Wayne Enterprises", role: "owner" },

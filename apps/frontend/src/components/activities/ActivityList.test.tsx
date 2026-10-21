@@ -368,7 +368,7 @@ describe("ActivityList", () => {
         color: "#333333",
       }),
     );
-    useStore.getState().addAllocation({
+    await useStore.getState().addAllocation({
       resourceId: resource.id,
       activityId: activity.id,
       startDate: "2026-06-01",
@@ -376,7 +376,7 @@ describe("ActivityList", () => {
       hoursPerDay: 8,
       status: "confirmed",
     });
-    useStore.getState().addAllocation({
+    await useStore.getState().addAllocation({
       resourceId: resource.id,
       activityId: activity.id,
       startDate: "2026-06-08",

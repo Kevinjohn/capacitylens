@@ -22,8 +22,8 @@ function expectRevisionAdvanced(before: { updatedAt: string }, after: { updatedA
   expect(Date.parse(after.updatedAt)).toBeGreaterThan(Date.parse(before.updatedAt));
 }
 
-beforeEach(() => {
-  resetStoreWithAccount();
+beforeEach(async () => {
+  await resetStoreWithAccount();
   s().clearFilters();
 });
 
@@ -213,13 +213,13 @@ function registerStoreCrudEntity11(): void {
 }
 
 function registerStoreCrudEntity12(): void {
-  it("activities: moving out of repeatable atomically clears allocation attribution", () => {
+  it("activities: moving out of repeatable atomically clears allocation attribution", async () => {
     const resource = requireCreated(s().addResource({ ...personDraft }));
     const client = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const project = requireCreated(s().addProject({ name: "P", clientId: client.id, color: "#2" }));
     const activity = requireCreated(s().addActivity({ name: "Shared", kind: "repeatable" }));
     const allocation = requireCreated(
-      s().addAllocation({
+      await s().addAllocation({
         resourceId: resource.id,
         activityId: activity.id,
         projectId: project.id,
@@ -338,13 +338,13 @@ function registerStoreCrudEntity17(): void {
 }
 
 function registerStoreCrudEntity18(): void {
-  it("allocations: add / update / delete", () => {
+  it("allocations: add / update / delete", async () => {
     const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
     const r = requireCreated(s().addResource({ ...personDraft }));
     const a = requireCreated(
-      s().addAllocation({
+      await s().addAllocation({
         resourceId: r.id,
         activityId: t.id,
         startDate: "2026-06-01",
@@ -353,13 +353,13 @@ function registerStoreCrudEntity18(): void {
         status: "confirmed",
       }),
     );
-    expect(s().updateAllocation(a.id, { hoursPerDay: 4, status: "tentative" })).toBe(true);
+    expect(await s().updateAllocation(a.id, { hoursPerDay: 4, status: "tentative" })).toBe(true);
     expect(s().data.allocations[0]).toMatchObject({
       hoursPerDay: 4,
       status: "tentative",
     });
     expectRevisionAdvanced(a, requireValue(s().data.allocations[0], "updated allocation"));
-    s().deleteAllocation(a.id);
+    await s().deleteAllocation(a.id);
     expect(s().data.allocations).toHaveLength(0);
   });
 }
@@ -491,7 +491,7 @@ describe("store UI + history extras", () => {
 });
 
 describe("allocation integrity at the store boundary", () => {
-  it("updateAllocation enforces the placeholder binding", () => {
+  it("updateAllocation enforces the placeholder binding", async () => {
     const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p1 = requireCreated(s().addProject({ name: "P1", clientId: c.id, color: "#2" }));
     const p2 = requireCreated(s().addProject({ name: "P2", clientId: c.id, color: "#3" }));
@@ -523,7 +523,7 @@ describe("allocation integrity at the store boundary", () => {
       }),
     );
     const a = requireCreated(
-      s().addAllocation({
+      await s().addAllocation({
         resourceId: ph.id,
         activityId: t1.id,
         startDate: "2026-06-01",
@@ -532,7 +532,7 @@ describe("allocation integrity at the store boundary", () => {
         status: "confirmed",
       }),
     );
-    expect(() => s().updateAllocation(a.id, { activityId: t2.id })).toThrow(/placeholder.*bound project/i);
+    await expect(s().updateAllocation(a.id, { activityId: t2.id })).rejects.toThrow(/placeholder.*bound project/i);
     expect(
       requireValue(
         s().data.allocations.find((x) => x.id === a.id),
@@ -541,19 +541,17 @@ describe("allocation integrity at the store boundary", () => {
     ).toBe(t1.id);
   });
 
-  it("addAllocation rejects dangling resource/activity references", () => {
-    expect(() =>
-      requireCreated(
-        s().addAllocation({
-          resourceId: "nope",
-          activityId: "nope",
-          startDate: "2026-06-01",
-          endDate: "2026-06-01",
-          hoursPerDay: 8,
-          status: "confirmed",
-        }),
-      ),
-    ).toThrow(/allocation must reference an existing resource and activity/i);
+  it("addAllocation rejects dangling resource/activity references", async () => {
+    await expect(
+      s().addAllocation({
+        resourceId: "nope",
+        activityId: "nope",
+        startDate: "2026-06-01",
+        endDate: "2026-06-01",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    ).rejects.toThrow(/allocation must reference an existing resource and activity/i);
     expect(s().data.allocations).toHaveLength(0);
   });
 });
@@ -567,41 +565,37 @@ const seedAlloc = () => {
 };
 
 function registerDateRangeGuard1(): void {
-  it("addAllocation rejects an empty or reversed date range", () => {
+  it("addAllocation rejects an empty or reversed date range", async () => {
     const { r, t } = seedAlloc();
-    expect(() =>
-      requireCreated(
-        s().addAllocation({
-          resourceId: r.id,
-          activityId: t.id,
-          startDate: "",
-          endDate: "",
-          hoursPerDay: 8,
-          status: "confirmed",
-        }),
-      ),
-    ).toThrow(/start and end dates are required/i);
-    expect(() =>
-      requireCreated(
-        s().addAllocation({
-          resourceId: r.id,
-          activityId: t.id,
-          startDate: "2026-06-05",
-          endDate: "2026-06-01",
-          hoursPerDay: 8,
-          status: "confirmed",
-        }),
-      ),
-    ).toThrow(/end date cannot be before the start date/i);
+    await expect(
+      s().addAllocation({
+        resourceId: r.id,
+        activityId: t.id,
+        startDate: "",
+        endDate: "",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    ).rejects.toThrow(/start and end dates are required/i);
+    await expect(
+      s().addAllocation({
+        resourceId: r.id,
+        activityId: t.id,
+        startDate: "2026-06-05",
+        endDate: "2026-06-01",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    ).rejects.toThrow(/end date cannot be before the start date/i);
     expect(s().data.allocations).toHaveLength(0);
   });
 }
 
 function registerDateRangeGuard2(): void {
-  it("clamps allocation hoursPerDay to a real working day (<= 24) on add and update", () => {
+  it("clamps allocation hoursPerDay to a real working day (<= 24) on add and update", async () => {
     const { r, t } = seedAlloc();
     const a = requireCreated(
-      s().addAllocation({
+      await s().addAllocation({
         resourceId: r.id,
         activityId: t.id,
         startDate: "2026-06-01",
@@ -611,16 +605,16 @@ function registerDateRangeGuard2(): void {
       }),
     );
     expect(a.hoursPerDay).toBe(24);
-    s().updateAllocation(a.id, { hoursPerDay: 99 });
+    await s().updateAllocation(a.id, { hoursPerDay: 99 });
     expect(s().data.allocations[0]?.hoursPerDay).toBe(24);
   });
 }
 
 function registerDateRangeGuard3(): void {
-  it("updateAllocation allows a note/status-only patch (validates the effective range, not the patch)", () => {
+  it("updateAllocation allows a note/status-only patch (validates the effective range, not the patch)", async () => {
     const { r, t } = seedAlloc();
     const a = requireCreated(
-      s().addAllocation({
+      await s().addAllocation({
         resourceId: r.id,
         activityId: t.id,
         startDate: "2026-06-01",
@@ -629,10 +623,10 @@ function registerDateRangeGuard3(): void {
         status: "confirmed",
       }),
     );
-    expect(() => s().updateAllocation(a.id, { status: "tentative" })).not.toThrow();
+    await s().updateAllocation(a.id, { status: "tentative" });
     expect(s().data.allocations[0]?.status).toBe("tentative");
 
-    expect(() => s().updateAllocation(a.id, { endDate: "2026-05-01" })).toThrow(
+    await expect(s().updateAllocation(a.id, { endDate: "2026-05-01" })).rejects.toThrow(
       /end date cannot be before the start date/i,
     );
     expect(s().data.allocations[0]?.endDate).toBe("2026-06-03");
@@ -830,13 +824,13 @@ const externalResource = (id: string): Resource =>
   });
 
 function registerMergedRow1(): void {
-  it("a normal-resource note/date-only updateAllocation + updateTimeOff still succeed (no false reject)", () => {
+  it("a normal-resource note/date-only updateAllocation + updateTimeOff still succeed (no false reject)", async () => {
     const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
     const r = requireCreated(s().addResource({ ...personDraft }));
     const a = requireCreated(
-      s().addAllocation({
+      await s().addAllocation({
         resourceId: r.id,
         activityId: t.id,
         startDate: "2026-06-01",
@@ -846,8 +840,8 @@ function registerMergedRow1(): void {
       }),
     );
 
-    expect(() => s().updateAllocation(a.id, { note: "ping" })).not.toThrow();
-    expect(() => s().updateAllocation(a.id, { startDate: "2026-06-02" })).not.toThrow();
+    await s().updateAllocation(a.id, { note: "ping" });
+    await s().updateAllocation(a.id, { startDate: "2026-06-02" });
     expect(s().data.allocations[0]?.note).toBe("ping");
     expect(s().data.allocations[0]?.startDate).toBe("2026-06-02");
 
@@ -866,7 +860,7 @@ function registerMergedRow1(): void {
 }
 
 function registerMergedRow2(): void {
-  it("rejects a note-only updateAllocation on an external resource carrying allocated hours", () => {
+  it("rejects a note-only updateAllocation on an external resource carrying allocated hours", async () => {
     const ext = externalResource("ext-1");
     const alloc: Allocation = {
       ...NULLABLE_FIELDS.allocations,
@@ -900,7 +894,9 @@ function registerMergedRow2(): void {
     s().replaceAll(data);
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
 
-    expect(() => s().updateAllocation(alloc.id, { note: "just a note" })).toThrow(/external.*can.t carry hours/i);
+    await expect(s().updateAllocation(alloc.id, { note: "just a note" })).rejects.toThrow(
+      /external.*can.t carry hours/i,
+    );
     expect(requireValue(s().data.allocations[0], "allocation")).toHaveProperty("note", null);
   });
 }

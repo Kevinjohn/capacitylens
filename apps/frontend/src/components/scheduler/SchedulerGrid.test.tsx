@@ -185,8 +185,8 @@ describe("SchedulerGrid", () => {
     expect(within(row as HTMLElement).getByText(/half working days\./)).toBeInTheDocument();
   });
 
-  it("marks over-allocated days and shows a utilization figure", () => {
-    useStore.getState().addAllocation({
+  it("marks over-allocated days and shows a utilization figure", async () => {
+    await useStore.getState().addAllocation({
       resourceId: "r1",
       activityId: "t1",
       startDate: "2026-06-01",
@@ -289,7 +289,7 @@ describe("SchedulerGrid", () => {
 });
 
 describe("SchedulerGrid", () => {
-  it("does not replay a handled resource jump after a later model change", () => {
+  it("does not replay a handled resource jump after a later model change", async () => {
     renderGrid();
     const grid = screen.getByTestId("scheduler-grid");
 
@@ -298,9 +298,9 @@ describe("SchedulerGrid", () => {
     expect(grid.scrollTop).toBe(SCHEDULER_DENSITY.groupHeaderHeight);
     expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true);
 
-    act(() => {
+    await act(async () => {
       grid.scrollTop = 777;
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: "r1",
         activityId: "t1",
         startDate: "2026-06-03",
@@ -477,8 +477,8 @@ describe("SchedulerGrid account-local day rollover", () => {
 });
 
 describe("SchedulerGrid filters", () => {
-  it('hides tentative allocations when "hide tentative" is on', () => {
-    useStore.getState().addAllocation({
+  it('hides tentative allocations when "hide tentative" is on', async () => {
+    await useStore.getState().addAllocation({
       resourceId: "r1",
       activityId: "t1",
       startDate: "2026-06-10",

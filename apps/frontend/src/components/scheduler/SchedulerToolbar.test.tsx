@@ -6,7 +6,7 @@ import { PermissionContext } from "@/auth/permissionContext";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { SchedulerToolbar } from "./SchedulerToolbar";
 import { buildEmptyFilters, useStore } from "@/store/useStore";
-import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "@/test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeResourceDraft, resetStoreWithAccount } from "@/test/fixtures";
 import { chooseOption } from "./__tests__/schedulerTestKit";
 import { m } from "@/i18n";
 
@@ -14,8 +14,8 @@ function showFilters() {
   fireEvent.click(screen.getByRole("button", { name: "Show filters" }));
 }
 
-beforeEach(() => {
-  resetStoreWithAccount();
+beforeEach(async () => {
+  await resetStoreWithAccount();
   useStore.getState().clearFilters();
   useStore.getState().setZoom(4);
 });
@@ -433,26 +433,37 @@ describe("SchedulerToolbar tentative visibility", () => {
 
 describe("SchedulerToolbar history errors", () => {
   it.each([
-    ["Undo", "undo"],
-    ["Redo", "redo"],
+    ["Undo", "undoPlanning"],
+    ["Redo", "redoPlanning"],
   ] as const)("surfaces a rejected %s action as a persistent error notice", async (buttonName, action) => {
     const user = userEvent.setup();
+    const resource = requireCreated(useStore.getState().addResource(makeResourceDraft()));
+    const activity = requireCreated(useStore.getState().addActivity({ name: "Operations", kind: "internal" }));
+    // A real typed write gives the toolbar acknowledged planning history to act on.
+    requireCreated(
+      await useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: activity.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-01",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
+    if (action === "redoPlanning") await useStore.getState().undoPlanning();
     const original = useStore.getState()[action];
-    useStore.setState({
-      [action]: () => {
-        throw new Error("History is corrupt");
-      },
-      ...(action === "undo" ? { past: [useStore.getState().data] } : { future: [useStore.getState().data] }),
-    });
+    useStore.setState({ [action]: () => Promise.reject(new Error("History is corrupt")) });
 
     try {
       render(<SchedulerToolbar />);
       await user.click(screen.getByRole("button", { name: buttonName }));
 
-      expect(useStore.getState().notice).toEqual({
-        message: "History is corrupt",
-        tone: "error",
-      });
+      await waitFor(() =>
+        expect(useStore.getState().notice).toEqual({
+          message: "History is corrupt",
+          tone: "error",
+        }),
+      );
     } finally {
       useStore.setState({ [action]: original });
     }

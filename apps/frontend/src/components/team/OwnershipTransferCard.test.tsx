@@ -95,7 +95,7 @@ async function selectNextOwner(): Promise<void> {
   fireEvent.click(await screen.findByRole("option", { name: ADMIN.name ?? "" }));
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
   client.listMembers.mockResolvedValue({
     kind: "ok",
@@ -108,7 +108,7 @@ beforeEach(() => {
     value: { fromUserId: OWNER.userId, toUserId: ADMIN.userId },
   });
   reproject.mockResolvedValue(true);
-  resetStoreWithAccount(DEFAULT_ACCOUNT_ID);
+  await resetStoreWithAccount(DEFAULT_ACCOUNT_ID);
 });
 
 describe("OwnershipTransferCard", () => {

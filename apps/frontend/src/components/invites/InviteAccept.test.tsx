@@ -645,7 +645,7 @@ registerInviteAcceptTest(() =>
 
 registerInviteAcceptTest(() =>
   it("hands a newly-created invitee to a fresh boot for the verified joined company", async () => {
-    resetStoreWithAccount();
+    await resetStoreWithAccount();
     useStore.getState().setActiveAccount(null);
     useStore.getState().setAccountSummaries({ list: [] });
     authClientMock.signInEmail.mockResolvedValueOnce({ error: null });
@@ -849,7 +849,7 @@ registerInviteAcceptTest(() =>
 
 registerInviteAcceptTest(() =>
   it("does not switch companies after the invite route is left during activation", async () => {
-    resetStoreWithAccount();
+    await resetStoreWithAccount();
     let resolveAccounts!: (response: Response) => void;
     const pendingAccounts = new Promise<Response>((resolve) => {
       resolveAccounts = resolve;

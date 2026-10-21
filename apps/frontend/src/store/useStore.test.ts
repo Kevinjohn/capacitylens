@@ -94,7 +94,7 @@ function registerStoreCrudPart2(): void {
     ]);
   });
 
-  it("rejects assigning a placeholder to an activity outside its bound project", () => {
+  it("rejects assigning a placeholder to an activity outside its bound project", async () => {
     const client = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     const p1 = requireCreated(s().addProject({ name: "P1", clientId: client.id, color: "#2" }));
     const p2 = requireCreated(s().addProject({ name: "P2", clientId: client.id, color: "#3" }));
@@ -118,18 +118,16 @@ function registerStoreCrudPart2(): void {
         projectId: p1.id,
       }),
     );
-    expect(() =>
-      requireCreated(
-        s().addAllocation({
-          resourceId: ph.id,
-          activityId: activityP2.id,
-          startDate: "2026-06-01",
-          endDate: "2026-06-02",
-          hoursPerDay: 8,
-          status: "confirmed",
-        }),
-      ),
-    ).toThrow(/placeholder.*bound project/i);
+    await expect(
+      s().addAllocation({
+        resourceId: ph.id,
+        activityId: activityP2.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    ).rejects.toThrow(/placeholder.*bound project/i);
     expect(s().data.allocations).toHaveLength(0);
   });
 }
@@ -339,8 +337,8 @@ function registerSchedulerUiPart3(): void {
 }
 
 function registerSchedulerUiPart4(): void {
-  it("undo and redo move through mutation history", () => {
-    resetStoreWithAccount();
+  it("undo and redo move through mutation history", async () => {
+    await resetStoreWithAccount();
     const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     expect(s().data.clients).toHaveLength(1);
     s().undo();
@@ -350,8 +348,8 @@ function registerSchedulerUiPart4(): void {
     expect(s().data.clients[0]?.id).toBe(c.id);
   });
 
-  it("re-stamps a changed revision without serializing content unnecessarily", () => {
-    resetStoreWithAccount();
+  it("re-stamps a changed revision without serializing content unnecessarily", async () => {
+    await resetStoreWithAccount();
     const clients = Array.from({ length: 100 }, (_, index) =>
       requireCreated(s().addClient({ name: `Client ${index}`, color: "#1" })),
     );

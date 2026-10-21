@@ -125,95 +125,6 @@ function registerUnexpectedRevisionTests(): void {
 
     await expect(a.saveAll(withData({ clients: [client("c1"), client("c2")] }))).resolves.toBeUndefined();
   });
-
-  it("drops an untagged duplicate allocation revision without touching local revision state", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const rewrittenAt = "2030-01-02T00:00:00.000Z";
-    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
-      const ops = opsFromInit(init);
-      return Response.json({
-        ok: true,
-        applied: ops.length,
-        revisions: [revisionFor(required(ops[0])), { ...revisionFor(required(ops[0])), updatedAt: rewrittenAt }],
-      });
-    }) as unknown as typeof fetch;
-    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
-    const target = withData({
-      allocations: [{ ...allocation("allocation", "2026-01-01"), projectId: "p1" }],
-    });
-
-    await adapter.saveAll(target);
-    await adapter.saveAll(target);
-    await adapter.saveAll(
-      withData({
-        allocations: [{ ...required(target.allocations[0]), note: "Edited", updatedAt: TS2 }],
-      }),
-    );
-
-    expect(fetchImpl).toHaveBeenCalledTimes(2);
-    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
-    const retriedOperation = required(batchOps(calls[1])[0], "retried allocation operation");
-    expect(requiredRecord(retriedOperation.row, "expected retried allocation row").updatedAt).not.toBe(rewrittenAt);
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("unexpected or duplicate"));
-  });
-}
-
-function registerAllocationRewriteTests(): void {
-  it("folds a non-op allocation rewrite into the cache and revision provenance", async () => {
-    const activity: Activity = {
-      ...NULLABLE_FIELDS.activities,
-      id: "t1",
-      accountId: "a1",
-      name: "Planning",
-      kind: "repeatable",
-      createdAt: TS1,
-      updatedAt: TS1,
-    };
-    const baseline = withData({
-      activities: [activity],
-      allocations: [{ ...allocation("allocation", "2026-01-01"), projectId: "p1" }],
-    });
-    const rewrittenAt = "2030-01-02T00:00:00.000Z";
-    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
-      if (String(url).endsWith("/api/state")) return Response.json(baseline);
-      const ops = opsFromInit(init);
-      return Response.json({
-        ok: true,
-        applied: ops.length,
-        revisions: [
-          revisionFor(required(ops[0])),
-          {
-            table: "allocations",
-            id: "allocation",
-            createdAt: TS1,
-            updatedAt: rewrittenAt,
-            rewrite: true,
-          },
-        ],
-      });
-    }) as unknown as typeof fetch;
-    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
-    await adapter.loadAll();
-    const target = withData({
-      ...baseline,
-      activities: [{ ...activity, kind: "internal", updatedAt: TS2 }],
-    });
-
-    await adapter.saveAll(target);
-    await adapter.saveAll(target);
-    await adapter.saveAll(
-      withData({
-        ...target,
-        allocations: [{ ...withoutAllocationAttribution(required(target.allocations[0]), TS2), note: "Edited" }],
-      }),
-    );
-
-    expect(fetchImpl).toHaveBeenCalledTimes(3);
-    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
-    expect(requiredRecord(required(batchOps(calls[2])[0]).row, "expected rewritten allocation row").updatedAt).toBe(
-      rewrittenAt,
-    );
-  });
 }
 
 function registerTaggedRewriteTests(): void {
@@ -240,7 +151,7 @@ function registerTaggedRewriteTests(): void {
         applied: ops.length,
         revisions: [
           ...ops.map(revisionFor),
-          ...(batchNumber === 2
+          ...(batchNumber === 1
             ? [{ table: "allocations", id: allocationRow.id, createdAt: TS1, updatedAt: rewrittenAt, rewrite: true }]
             : []),
         ],
@@ -272,7 +183,7 @@ function registerTaggedRewriteTests(): void {
     expect(visible.allocations[0]).toHaveProperty("projectId", null);
     expect(visible.allocations[0]?.updatedAt).toBe(rewrittenAt);
     await adapter.saveAll(visible);
-    expect(batchNumber).toBe(2);
+    expect(batchNumber).toBe(1);
   });
 }
 
@@ -334,10 +245,8 @@ function registerConcurrentRewriteTests(): void {
     });
     await adapter.saveAll(visible);
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
-    const followUpOps = calls.slice(2).flatMap((call) => batchOps(call));
-    expect(followUpOps).toEqual(
-      expect.arrayContaining([expect.objectContaining({ table: "allocations", id: allocationRow.id })]),
-    );
+    const followUpTables = calls.slice(2).flatMap((call) => batchOps(call).map((op) => op.table));
+    expect(followUpTables).not.toContain("allocations");
   });
 }
 
@@ -450,7 +359,6 @@ function registerQueuedRebaseTests(): void {
 describe("ServerSyncAdapter.saveAll", () => {
   registerRevisionCoverageTests();
   registerUnexpectedRevisionTests();
-  registerAllocationRewriteTests();
   registerTaggedRewriteTests();
   registerConcurrentRewriteTests();
   registerQueuedSaveTests();

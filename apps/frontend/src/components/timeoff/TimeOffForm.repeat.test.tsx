@@ -19,10 +19,10 @@ const resourceDraft = {
   color: "#111111",
 };
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
-  resetStoreWithAccount();
+  await resetStoreWithAccount();
 });
 
 afterEach(() => {

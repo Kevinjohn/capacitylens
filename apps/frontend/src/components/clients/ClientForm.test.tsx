@@ -8,8 +8,8 @@ import { resolveColorName } from "@/lib/palette";
 import { resetStoreWithAccount } from "@/test/fixtures";
 import { PermissionContext } from "@/auth/permissionContext";
 
-beforeEach(() => {
-  resetStoreWithAccount();
+beforeEach(async () => {
+  await resetStoreWithAccount();
   useStore.getState().clearFilters();
 });
 

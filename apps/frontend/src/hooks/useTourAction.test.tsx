@@ -19,7 +19,10 @@ const tourMock = vi.hoisted(() => ({
 }));
 const apiMode = vi.hoisted(() => ({ demo: false }));
 vi.mock("@/lib/tour", () => ({ startTour: tourMock.startTour }));
-vi.mock("@/data/apiConfig", () => ({ isDemoMode: () => apiMode.demo }));
+vi.mock("@/data/apiConfig", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/data/apiConfig")>()),
+  isDemoMode: () => apiMode.demo,
+}));
 
 const setNotice = vi.fn();
 const actionRef = createRef<() => Promise<void>>();

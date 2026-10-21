@@ -14,10 +14,10 @@ import { makeAccount, resetStoreWithAccount } from "@/test/fixtures";
 import { readPersistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
 import { a2Slice, attachActiveA2 } from "./__tests__/persistTestKit";
 
-beforeEach(() => {
+beforeEach(async () => {
   localStorage.clear();
   // Seed an active account because store additions require an account scope.
-  resetStoreWithAccount();
+  await resetStoreWithAccount();
 });
 
 describe("persistence coordinator fault-injection branches", () => {

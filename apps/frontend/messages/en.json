@@ -955,6 +955,8 @@
   "dialog_unsaved_changes": "You have unsaved changes — use Cancel or Save to close this dialog.",
   "app_loading": "Loading…",
   "app_persist_error": "Changes aren’t being saved right now — we’ll keep retrying.",
+  "app_planning_refused": "That schedule change was refused, so it wasn’t saved.",
+  "app_planning_unavailable": "The schedule couldn’t be loaded from the server. Reload to try again.",
   "data_err_invalid_json": "Could not import that file — it is not valid {app} JSON.",
   "data_no_records": "No records imported{why}.",
   "data_imported_one": "Imported {count} record{skipped}. Press {shortcut} to undo.",

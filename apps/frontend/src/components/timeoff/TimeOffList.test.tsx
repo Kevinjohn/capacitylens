@@ -37,10 +37,10 @@ const placeholderDraft = {
   color: "#222",
 };
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-06-03T12:00:00.000Z"));
-  resetStoreWithAccount();
+  await resetStoreWithAccount();
   useStore.getState().clearFilters();
   // Enable the company placeholder setting for fixtures that need its rows; visibility tests override it explicitly.
   setPlaceholdersEnabled({ on: true });

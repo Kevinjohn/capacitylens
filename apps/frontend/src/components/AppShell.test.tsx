@@ -1,4 +1,5 @@
 import { afterEach, describe, it, expect, beforeEach, vi } from "vitest";
+import type { Mock } from "vitest";
 import { screen, act, fireEvent, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { AppShell } from "./AppShell";
@@ -1162,42 +1163,53 @@ describe("AppShell hydration gate", () => {
 });
 
 describe("AppShell undo/redo keyboard", () => {
-  it("⌘Z undoes a data change, but is IGNORED while a form is dirty", () => {
+  // The shortcuts drive the planning controller's typed history, never the legacy snapshot stack.
+  function withPlanningHistorySpies(run: (spies: { undo: Mock; redo: Mock }) => void) {
+    const { undoPlanning, redoPlanning, undo, redo } = useStore.getState();
+    const spies = { undo: vi.fn(async () => true), redo: vi.fn(async () => true) };
+    const legacy = vi.fn();
+    useStore.setState({ undoPlanning: spies.undo, redoPlanning: spies.redo, undo: legacy, redo: legacy });
+    try {
+      run(spies);
+      expect(legacy).not.toHaveBeenCalled();
+    } finally {
+      useStore.setState({ undoPlanning, redoPlanning, undo, redo });
+    }
+  }
+
+  it("⌘Z undoes through planning history, but is IGNORED while a form is dirty", () => {
     useStore.getState().setHydrated(true);
     renderAppShell({});
 
-    act(() => {
-      useStore.getState().addClient({ name: "Undoable", color: "#111111" });
-    });
-    expect(useStore.getState().data.clients).toHaveLength(1);
+    withPlanningHistorySpies((spies) => {
+      // A dirty form owns ⌘Z, undoing would revert the data behind the unsaved form (the
+      // focus check alone misses non-text controls like a <select>), so it must be ignored.
+      act(() => {
+        useStore.getState().setDirtyForm(true);
+      });
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
+      });
+      expect(spies.undo).not.toHaveBeenCalled();
 
-    // A dirty form owns ⌘Z, undoing would revert the data behind the unsaved form (the
-    // focus check alone misses non-text controls like a <select>), so it must be ignored.
-    act(() => {
-      useStore.getState().setDirtyForm(true);
-    });
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
-    });
+      act(() => {
+        useStore.getState().setDirtyForm(false);
+      });
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
+      });
+      expect(spies.undo).toHaveBeenCalledOnce();
 
-    expect(useStore.getState().data.clients).toHaveLength(1);
-
-    act(() => {
-      useStore.getState().setDirtyForm(false);
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true, shiftKey: true }));
+      });
+      expect(spies.redo).toHaveBeenCalledOnce();
     });
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
-    });
-
-    expect(useStore.getState().data.clients).toHaveLength(0);
   });
 
   it("ignores undo and redo while a clean modal has focus on a non-text control", () => {
     useStore.getState().setHydrated(true);
     renderAppShell({});
-    act(() => {
-      useStore.getState().addClient({ name: "Undoable", color: "#111111" });
-    });
 
     const modal = document.createElement("div");
     modal.setAttribute("role", "dialog");
@@ -1208,24 +1220,23 @@ describe("AppShell undo/redo keyboard", () => {
     document.body.append(modal);
 
     try {
-      act(() => {
-        button.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true, bubbles: true }));
+      withPlanningHistorySpies((spies) => {
+        act(() => {
+          button.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true, bubbles: true }));
+        });
+        act(() => {
+          button.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key: "z",
+              metaKey: true,
+              shiftKey: true,
+              bubbles: true,
+            }),
+          );
+        });
+        expect(spies.undo).not.toHaveBeenCalled();
+        expect(spies.redo).not.toHaveBeenCalled();
       });
-      expect(useStore.getState().data.clients).toHaveLength(1);
-
-      act(() => useStore.getState().undo());
-      expect(useStore.getState().data.clients).toHaveLength(0);
-      act(() => {
-        button.dispatchEvent(
-          new KeyboardEvent("keydown", {
-            key: "z",
-            metaKey: true,
-            shiftKey: true,
-            bubbles: true,
-          }),
-        );
-      });
-      expect(useStore.getState().data.clients).toHaveLength(0);
     } finally {
       modal.remove();
     }

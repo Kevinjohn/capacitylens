@@ -8,8 +8,8 @@ import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, requireValue } from "@/test/
 
 const s = () => useStore.getState();
 
-beforeEach(() => {
-  resetStoreWithAccount(DEFAULT_ACCOUNT_ID);
+beforeEach(async () => {
+  await resetStoreWithAccount(DEFAULT_ACCOUNT_ID);
 });
 
 function registerImportHardening1(): void {

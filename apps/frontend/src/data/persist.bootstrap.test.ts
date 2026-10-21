@@ -10,10 +10,10 @@ import { seed } from "@capacitylens/shared/data/seed";
 import { DEFAULT_ACCOUNT_ID, makeAccount, makeAppData, resetStoreWithAccount } from "@/test/fixtures";
 import type { MasqueradeState } from "@capacitylens/shared/domain/masquerade";
 
-beforeEach(() => {
+beforeEach(async () => {
   localStorage.clear();
   // Seed an active account because store additions require an account scope.
-  resetStoreWithAccount();
+  await resetStoreWithAccount();
 });
 
 describe("bootstrap", () => {

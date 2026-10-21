@@ -10,15 +10,15 @@ import type { AppData } from "@capacitylens/shared/types/entities";
 import { deleteProjectCascade } from "@capacitylens/shared/lib/integrity";
 import { resetStoreWithAccount, requireValue } from "@/test/fixtures";
 import { readPersistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
-import { requireCallback, a2Slice, attachActiveA2 } from "./__tests__/persistTestKit";
+import { requireCallback, a2Slice, attachActiveA2, deferredSignal } from "./__tests__/persistTestKit";
 
-beforeEach(() => {
+beforeEach(async () => {
   localStorage.clear();
   // Seed an active account because store additions require an account scope.
-  resetStoreWithAccount();
+  await resetStoreWithAccount();
 });
 
-const addAllocationFixture = (projectName: string) => {
+const addAllocationFixture = async (projectName: string) => {
   const resource = requireCreated(
     useStore.getState().addResource({
       kind: "person",
@@ -38,7 +38,7 @@ const addAllocationFixture = (projectName: string) => {
   );
   const activity = requireCreated(useStore.getState().addActivity({ name: "Shared", kind: "repeatable" }));
   const allocation = requireCreated(
-    useStore.getState().addAllocation({
+    await useStore.getState().addAllocation({
       resourceId: resource.id,
       activityId: activity.id,
       projectId: project.id,
@@ -48,10 +48,10 @@ const addAllocationFixture = (projectName: string) => {
       status: "confirmed",
     }),
   );
-  return { allocation, client };
+  return { allocation, activity, client };
 };
 it("attachPersistence publishes allocation rewrites into the visible Zustand row", async () => {
-  const { allocation } = addAllocationFixture("Project");
+  const { allocation, activity } = await addAllocationFixture("Project");
   const rewrittenAt = "2030-01-02T00:00:00.000Z";
   let publish: ((revisions: readonly AllocationRewriteRevision[]) => void) | null = null;
   let rewrote = false;
@@ -80,15 +80,15 @@ it("attachPersistence publishes allocation rewrites into the visible Zustand row
   };
   const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 0 });
 
-  useStore.getState().updateAllocation(allocation.id, { note: "Trigger save" });
+  useStore.getState().updateActivity(activity.id, { name: "Trigger save" });
   await vi.waitFor(() => expect(useStore.getState().data.allocations[0]?.updatedAt).toBe(rewrittenAt));
 
   expect(useStore.getState().data.allocations[0]).toHaveProperty("projectId", null);
   detach();
 });
 
-it("attachPersistence keeps an allocation edit made while its rewrite receipt is in flight dirty", async () => {
-  const { allocation, client } = addAllocationFixture("First");
+it("attachPersistence keeps a typed allocation edit made while a rewrite receipt is in flight", async () => {
+  const { allocation, activity, client } = await addAllocationFixture("First");
   const secondProject = requireCreated(
     useStore.getState().addProject({ name: "Second", clientId: client.id, color: "#333333" }),
   );
@@ -98,6 +98,7 @@ it("attachPersistence keeps an allocation edit made while its rewrite receipt is
   const flushed = new Promise<void>((resolve) => {
     releaseReceipt = resolve;
   });
+  const published = deferredSignal();
   const saved: AppData[] = [];
   const adapter: PersistenceAdapter = {
     loadAll: async () => emptyAppData(),
@@ -117,6 +118,7 @@ it("attachPersistence keeps an allocation edit made while its rewrite receipt is
           flushedUpdatedAt: flushedAllocation.updatedAt,
         },
       ]);
+      published.resolve();
     },
     setAllocationRewriteHandler: (handler) => {
       publish = handler;
@@ -124,13 +126,13 @@ it("attachPersistence keeps an allocation edit made while its rewrite receipt is
   };
   const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 0 });
 
-  useStore.getState().updateAllocation(allocation.id, { note: "Flushed edit" });
+  useStore.getState().updateActivity(activity.id, { name: "Flushed edit" });
   await vi.waitFor(() => expect(saved).toHaveLength(1));
   const flushedStamp = requireValue(
     requireValue(saved[0], "flushed snapshot").allocations.find((row) => row.id === allocation.id),
     "flushed allocation",
   ).updatedAt;
-  useStore.getState().updateAllocation(allocation.id, { projectId: secondProject.id });
+  await useStore.getState().updateAllocation(allocation.id, { projectId: secondProject.id });
   const concurrentStamp = requireValue(
     useStore.getState().data.allocations.find((row) => row.id === allocation.id),
     "concurrently edited allocation",
@@ -138,7 +140,7 @@ it("attachPersistence keeps an allocation edit made while its rewrite receipt is
   expect(concurrentStamp).not.toBe(flushedStamp);
 
   requireCallback(releaseReceipt, "rewrite receipt release")();
-  await vi.waitFor(() => expect(saved).toHaveLength(2));
+  await published.promise;
 
   const visible = requireValue(
     useStore.getState().data.allocations.find((row) => row.id === allocation.id),
@@ -146,10 +148,8 @@ it("attachPersistence keeps an allocation edit made while its rewrite receipt is
   );
   expect(visible.projectId).toBe(secondProject.id);
   expect(visible.updatedAt).toBe(concurrentStamp);
-  expect(saved[1]?.allocations.find((row) => row.id === allocation.id)).toMatchObject({
-    projectId: secondProject.id,
-    updatedAt: concurrentStamp,
-  });
+  // The typed edit is not a legacy write, so it never re-enters the batch.
+  expect(saved).toHaveLength(1);
   detach();
 });
 
@@ -202,7 +202,7 @@ it("attachPersistence persists the demo project cascade with attributed bookings
   );
   const activity = requireCreated(useStore.getState().addActivity({ name: "Shared", kind: "repeatable" }));
   const allocation = requireCreated(
-    useStore.getState().addAllocation({
+    await useStore.getState().addAllocation({
       resourceId: resource.id,
       activityId: activity.id,
       projectId: project.id,

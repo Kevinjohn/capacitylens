@@ -177,6 +177,20 @@ function errorDetails(error: unknown): { code?: string; status?: number; message
   return { message: error instanceof Error ? error.message : "Planning request failed." };
 }
 
+/** True when the planning state already shows the outcome: the follow-up canonical read resolves a
+ * stale revision, and a 403 refusal stays visible as refused. Callers add no notice for either. */
+export function isShownByPlanningState(error: unknown): boolean {
+  const { code, status } = errorDetails(error);
+  return code === "stale_revision" || status === 409 || status === 403;
+}
+
+/** The planning notice to show: a 403 refusal keeps the rows (K2), and a failed read leaves them stale. */
+export function readPlanningProblem(planning: PlanningControllerMetadata): "refused" | "unavailable" | null {
+  if (planning.error === null) return null;
+  if (errorDetails(planning.error).status === 403) return "refused";
+  return planning.status === "error" ? "unavailable" : null;
+}
+
 function isValidSnapshot(snapshot: unknown): snapshot is PlanningSnapshot {
   if (!isRecord(snapshot) || !isRecord(snapshot.data)) return false;
   const data = snapshot.data;
@@ -260,9 +274,11 @@ function isValidReceipt(receipt: unknown, execution: PlanningExecution): receipt
   );
 }
 
+// K2: only an ended session loses scope. Every 403, membership loss included, is a refusal that
+// keeps the readable rows and history.
 function losesScope(error: unknown): boolean {
   const details = errorDetails(error);
-  return details.status === 401 || details.code === "unauthenticated" || details.code === "account_membership_lost";
+  return details.status === 401 || details.code === "unauthenticated";
 }
 
 function restoreIntent(handle: string): PlanningIntent {
@@ -650,7 +666,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     } catch (error) {
       const details = errorDetails(error);
       if (error instanceof PlanningControllerError && error.uncertain) throw error;
-      if (details.code === "unauthenticated" || details.code === "account_membership_lost" || details.status === 401) {
+      if (losesScope(error)) {
         if (ownsAttempt(owner)) setContext(null);
         throw new PlanningControllerError(details.message, details.code, details.status);
       }

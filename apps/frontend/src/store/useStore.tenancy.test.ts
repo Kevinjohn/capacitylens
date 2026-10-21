@@ -223,18 +223,18 @@ function registerEntityOwnershipTests(): void {
     expect(s().data.activities.find((t) => t.id === "tB")).toBeDefined();
   });
 
-  it("treats a stale / non-existent id as a silent no-op (does not throw)", () => {
+  it("treats a stale / non-existent id as a silent no-op (does not throw)", async () => {
     // A drag committed after an undo, or a double Delete keypress, can target an id
     // that no longer exists. That must not throw (it fires from window listeners
     // outside React's error boundary), only a cross-account hit is a violation.
-    expect(s().updateAllocation("gone", { status: "tentative" })).toBe(false);
-    expect(() => s().deleteAllocation("gone")).not.toThrow();
+    expect(await s().updateAllocation("gone", { status: "tentative" })).toBe(false);
+    await s().deleteAllocation("gone");
     expect(() => s().updateClient("gone", { name: "x" })).not.toThrow();
     expect(() => s().archiveEntity("projects", "gone")).not.toThrow();
     expect(() => s().updateTimeOff("gone", { type: "sick" })).not.toThrow();
   });
 
-  it("refuses to update/delete an allocation owned by another account", () => {
+  it("refuses to update/delete an allocation owned by another account", async () => {
     const withAlloc = twoAccountData();
     withAlloc.allocations.push({
       ...NULLABLE_FIELDS.allocations,
@@ -251,8 +251,10 @@ function registerEntityOwnershipTests(): void {
     });
     s().replaceAll(withAlloc);
     s().setActiveAccount(A);
-    expect(() => s().updateAllocation("aB", { status: "tentative" })).toThrow(/does not belong to the active company/i);
-    expect(() => s().deleteAllocation("aB")).toThrow(/does not belong to the active company/i);
+    await expect(s().updateAllocation("aB", { status: "tentative" })).rejects.toThrow(
+      /does not belong to the active company/i,
+    );
+    await expect(s().deleteAllocation("aB")).rejects.toThrow(/does not belong to the active company/i);
     const allocation = assertDefined(
       s().data.allocations.find((a) => a.id === "aB"),
       "allocation aB",
@@ -286,19 +288,17 @@ describe("foreign-key refs must stay in the active account", () => {
     );
   });
 
-  it("addAllocation rejects a resource/activity from another account", () => {
-    expect(() =>
-      requireCreated(
-        s().addAllocation({
-          resourceId: "rB",
-          activityId: "tB",
-          startDate: "2026-01-01",
-          endDate: "2026-01-02",
-          hoursPerDay: 8,
-          status: "confirmed",
-        }),
-      ),
-    ).toThrow(/allocation must reference an existing resource and activity in this company/i);
+  it("addAllocation rejects a resource/activity from another account", async () => {
+    await expect(
+      s().addAllocation({
+        resourceId: "rB",
+        activityId: "tB",
+        startDate: "2026-01-01",
+        endDate: "2026-01-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    ).rejects.toThrow(/allocation must reference an existing resource and activity in this company/i);
     expect(s().data.allocations).toHaveLength(0);
   });
 

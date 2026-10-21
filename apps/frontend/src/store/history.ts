@@ -24,10 +24,11 @@ export function prepareHistoryTarget(current: AppData, target: AppData): AppData
         : row;
     });
   };
-  // Use the exhaustive shared table list so history transitions cannot omit a new table.
+  // Use the exhaustive shared table list so history transitions cannot omit a new table. Allocations
+  // belong to the planning controller's typed history, so legacy history keeps the current rows.
   const next = emptyAppData() as Record<AppDataKey, Entity[]>;
   for (const key of APP_DATA_KEYS) {
-    next[key] = retime(current[key] as Entity[], target[key] as Entity[]);
+    next[key] = key === "allocations" ? current.allocations : retime(current[key] as Entity[], target[key] as Entity[]);
   }
   return next as AppData;
 }

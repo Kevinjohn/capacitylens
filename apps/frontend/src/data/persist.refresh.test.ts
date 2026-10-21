@@ -15,10 +15,10 @@ import {
   attachActiveA2,
 } from "./__tests__/persistTestKit";
 
-beforeEach(() => {
+beforeEach(async () => {
   localStorage.clear();
   // Seed an active account because store additions require an account scope.
-  resetStoreWithAccount();
+  await resetStoreWithAccount();
 });
 
 describe("refresh-on-focus (P1.16, server mode)", () => {

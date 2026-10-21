@@ -162,7 +162,7 @@ describe("AllocationModal task field", () => {
   it("allows an existing task to be cleared", async () => {
     const resourceId = addInlineActivityTestPerson();
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -182,7 +182,7 @@ describe("AllocationModal task field", () => {
   it("preserves a hidden task while an unrelated allocation is edited and restores it when enabled", async () => {
     const resourceId = addInlineActivityTestPerson();
     const taskAllocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -193,7 +193,7 @@ describe("AllocationModal task field", () => {
       }),
     );
     const unrelated = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId,
         activityId: "t1",
         startDate: "2026-06-08",

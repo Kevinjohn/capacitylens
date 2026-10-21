@@ -15,10 +15,10 @@ import { readPersistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
 import type { PersistenceAdapter } from "./PersistenceAdapter";
 import { deferredSignal, requireCallback, recordingAdapter, a2Slice, attachActiveA2 } from "./__tests__/persistTestKit";
 
-beforeEach(() => {
+beforeEach(async () => {
   localStorage.clear();
   // Seed an active account because store additions require an account scope.
-  resetStoreWithAccount();
+  await resetStoreWithAccount();
 });
 
 function heldFirstSaveAdapter() {

@@ -24,6 +24,7 @@ import { Button } from "./ui/button";
 import { ROUTE_CAPACITY_OVERVIEW, ROUTE_DIAGNOSTICS } from "@/lib/tourAnchors";
 import { useDiagnosticsAccessDecision } from "./diagnostics/useDiagnosticsAccessDecision";
 import { retryActiveAccountLoad } from "@/data/persist";
+import { readPlanningProblem } from "@/data/planning/planningCacheController";
 import { chooseAnotherAccountAfterLoadFailure } from "./accountLoadRecoveryActions";
 import { useAuth } from "@/auth/authContext";
 import { ProductOrientation } from "./ProductOrientation";
@@ -245,6 +246,7 @@ function GatedMain({
   orientation: ReturnType<typeof useProductOrientation>;
 }) {
   const loader = <AppShellLoader />;
+  const planningProblem = useStore((state) => readPlanningProblem(state.planning));
   return (
     <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-auto">
       <div className="border-b border-line p-2 md:hidden">
@@ -254,6 +256,13 @@ function GatedMain({
       {persistError && (
         <Alert variant="destructive" className="rounded-none border-x-0 border-t-0">
           <AlertDescription>{m.app_persist_error()}</AlertDescription>
+        </Alert>
+      )}
+      {planningProblem && (
+        <Alert variant="destructive" className="rounded-none border-x-0 border-t-0">
+          <AlertDescription>
+            {planningProblem === "refused" ? m.app_planning_refused() : m.app_planning_unavailable()}
+          </AlertDescription>
         </Alert>
       )}
       {orientation.visible && (

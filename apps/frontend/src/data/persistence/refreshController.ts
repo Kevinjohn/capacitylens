@@ -205,6 +205,8 @@ async function runRefresh(
   // Suspend writes across every await, not only loadAll. Edits arriving during the initial save,
   // flush, or load are parked until they can be included before re-seed or rebased afterward.
   const resume = owner.beginSuspension({ external: false, writes });
+  // The planning controller reads the same company alongside every legacy reload.
+  void store.getState().refreshPlanning();
   try {
     if (!(await flushBeforeLoad({ input: input, token: myToken, preserveParkedEdit: preserveParkedEdit })))
       return { kind: "skipped" };

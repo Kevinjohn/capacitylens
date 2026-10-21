@@ -15,8 +15,8 @@ const apiMode = vi.hoisted(() => ({ demo: true }));
 vi.mock("@/lib/tour", () => ({ startTour: tourMock.startTour }));
 vi.mock("@/data/apiConfig", () => ({ API_BASE: "", isDemoMode: () => apiMode.demo }));
 
-beforeEach(() => {
-  resetStoreWithAccount();
+beforeEach(async () => {
+  await resetStoreWithAccount();
   useStore.getState().setMasquerade({ kind: "inactive" });
   apiMode.demo = true;
   tourMock.startTour.mockReset().mockResolvedValue(undefined);
@@ -75,7 +75,7 @@ describe("Getting started", () => {
   });
 
   it("keeps the completed bar until dismissal and skips the warning at 5/5", async () => {
-    resetStoreWithAccount("acct-complete-checklist");
+    await resetStoreWithAccount("acct-complete-checklist");
     const store = useStore.getState();
     const person = requireCreated(
       store.addResource({
@@ -93,7 +93,7 @@ describe("Getting started", () => {
     const client = requireCreated(store.addClient({ name: "Wayne Enterprises", color: "#2d75da" }));
     store.addProject({ name: "Wayne redesign", clientId: client.id, color: "#2d75da" });
     const activity = requireCreated(store.addActivity({ name: "Planning", kind: "internal" }));
-    store.addAllocation({
+    await store.addAllocation({
       resourceId: person.id,
       activityId: activity.id,
       startDate: "2026-06-03",

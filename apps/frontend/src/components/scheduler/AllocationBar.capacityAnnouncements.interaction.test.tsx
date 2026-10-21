@@ -12,17 +12,18 @@ import {
   getStoredAllocation,
   seedAllocation,
   seedVisibleAllocationWithHiddenCapacity,
+  settlePlanning,
 } from "./__tests__/allocationBarInteractionTestKit";
 
 beforeEach(() => resetStoreWithAccount());
 
-function seedConflictPair() {
+async function seedConflictPair() {
   const st = useStore.getState();
   const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
   const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
   const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
   const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
-  st.addAllocation({
+  await st.addAllocation({
     resourceId: r.id,
     activityId: t.id,
     startDate: "2026-06-03",
@@ -31,7 +32,7 @@ function seedConflictPair() {
     status: "confirmed",
   });
   return requireCreated(
-    st.addAllocation({
+    await st.addAllocation({
       resourceId: r.id,
       activityId: t.id,
       startDate: "2026-06-01",
@@ -43,16 +44,17 @@ function seedConflictPair() {
 }
 
 function registerCapacityAnnouncementTests() {
-  it('announces the over-capacity outcome when a nudge flips a day to over, and "no conflicts" when it resolves', () => {
+  it('announces the over-capacity outcome when a nudge flips a day to over, and "no conflicts" when it resolves', async () => {
     // Anchor the visible window to the fixed fixture dates so capacity announcements remain deterministic as today advances.
     useStore.setState((s) => ({ ui: { ...s.ui, originDate: "2026-06-01", rangeDays: 14 } }));
-    const b = seedConflictPair();
+    const b = await seedConflictPair();
     const { rerender } = render(
       <AllocationBar bar={barFor(b)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
     );
     expect(useStore.getState().srAnnouncement).toBeNull();
 
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
+    await settlePlanning();
     let moved = getStoredAllocation(b.id);
     expect([moved.startDate, moved.endDate]).toEqual(["2026-06-02", "2026-06-03"]);
     const over = getSrAnnouncement();
@@ -60,6 +62,7 @@ function registerCapacityAnnouncementTests() {
 
     rerender(<AllocationBar bar={barFor(moved)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowLeft" });
+    await settlePlanning();
     moved = getStoredAllocation(b.id);
     expect([moved.startDate, moved.endDate]).toEqual(["2026-06-01", "2026-06-02"]);
     const clear = getSrAnnouncement();
@@ -67,12 +70,13 @@ function registerCapacityAnnouncementTests() {
     expect(clear.seq).toBeGreaterThan(over.seq);
   });
 
-  it("ignores retained allocations hidden beneath an archived client", () => {
+  it("ignores retained allocations hidden beneath an archived client", async () => {
     useStore.setState((s) => ({ ui: { ...s.ui, originDate: "2026-06-01", rangeDays: 14 } }));
-    const visible = seedVisibleAllocationWithHiddenCapacity();
+    const visible = await seedVisibleAllocationWithHiddenCapacity();
     render(<AllocationBar bar={barFor(visible)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
+    await settlePlanning();
 
     expect(useStore.getState().srAnnouncement?.text).toBe("Ty: no capacity conflicts.");
   });
@@ -80,7 +84,7 @@ function registerCapacityAnnouncementTests() {
 
 function registerVisibleWindowAnnouncementTest() {
   // Gesture announcements count only conflicts within the visible zoom window; off-window conflicts must not enter the spoken result.
-  it("does NOT count an over-day OUTSIDE the visible window (spoken count == rendered row summary)", () => {
+  it("does NOT count an over-day OUTSIDE the visible window (spoken count == rendered row summary)", async () => {
     useStore.setState((s) => ({ ui: { ...s.ui, originDate: "2026-06-01", rangeDays: 14 } }));
     const st = useStore.getState();
     const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
@@ -88,7 +92,7 @@ function registerVisibleWindowAnnouncementTest() {
     const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
     const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
 
-    st.addAllocation({
+    await st.addAllocation({
       resourceId: r.id,
       activityId: t.id,
       startDate: "2026-09-02",
@@ -97,7 +101,7 @@ function registerVisibleWindowAnnouncementTest() {
       status: "confirmed",
     });
     const b = requireCreated(
-      st.addAllocation({
+      await st.addAllocation({
         resourceId: r.id,
         activityId: t.id,
         startDate: "2026-09-01",
@@ -111,6 +115,7 @@ function registerVisibleWindowAnnouncementTest() {
       <AllocationBar bar={barFor(b)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
     );
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
+    await settlePlanning();
     const moved = getStoredAllocation(b.id);
     expect([moved.startDate, moved.endDate]).toEqual(["2026-09-02", "2026-09-02"]);
 
@@ -121,6 +126,7 @@ function registerVisibleWindowAnnouncementTest() {
     rerender(<AllocationBar bar={barFor(moved)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowLeft" });
+    await settlePlanning();
     rerender(
       <AllocationBar
         bar={barFor(getStoredAllocation(b.id))}
@@ -130,19 +136,21 @@ function registerVisibleWindowAnnouncementTest() {
       />,
     );
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
+    await settlePlanning();
     expect(getSrAnnouncement().text).toBe("Ty now over capacity on 1 day.");
   });
 }
 
 function registerPointerAnnouncementTest() {
-  it("does NOT announce on a pointer drag (sighted feedback — would be noise)", () => {
-    const a = seedAllocation();
+  it("does NOT announce on a pointer drag (sighted feedback — would be noise)", async () => {
+    const a = await seedAllocation();
     render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
     const bar = screen.getByTestId("allocation-bar");
 
     fireEvent.pointerDown(bar, { clientX: 50, button: 0 });
     document.dispatchEvent(new MouseEvent("pointermove", { clientX: 98, bubbles: true }));
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 98, bubbles: true }));
+    await settlePlanning();
 
     expect(getStoredAllocation(a.id).startDate).toBe("2026-06-02");
     expect(useStore.getState().srAnnouncement).toBeNull();
@@ -158,19 +166,20 @@ function registerCapacityAnnouncementSuite() {
 }
 
 function registerCapacityAdviceTests() {
-  it("excludes retained hidden allocations from pointer capacity advice", () => {
-    const visible = seedVisibleAllocationWithHiddenCapacity();
+  it("excludes retained hidden allocations from pointer capacity advice", async () => {
+    const visible = await seedVisibleAllocationWithHiddenCapacity();
     render(<AllocationBar bar={barFor(visible)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
     fireEvent.pointerDown(screen.getByTestId("allocation-bar"), { clientX: 50, button: 0 });
     document.dispatchEvent(new MouseEvent("pointermove", { clientX: 98, bubbles: true }));
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 98, bubbles: true }));
+    await settlePlanning();
 
     expect(useStore.getState().notice?.message).not.toMatch(/over capacity/i);
   });
 
-  it("pins the dragged row (draggingAllocationId) on the first move and clears it on commit", () => {
-    const a = seedAllocation();
+  it("pins the dragged row (draggingAllocationId) on the first move and clears it on commit", async () => {
+    const a = await seedAllocation();
     render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
     const bar = screen.getByTestId("allocation-bar");
     expect(useStore.getState().draggingAllocationId).toBeNull();
@@ -180,11 +189,12 @@ function registerCapacityAdviceTests() {
     expect(useStore.getState().draggingAllocationId).toBe(a.id);
 
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 98, bubbles: true }));
+    await settlePlanning();
     expect(useStore.getState().draggingAllocationId).toBeNull();
   });
 
-  it("clears the drag-pin on pointercancel, and on unmount if the bar still owns it", () => {
-    const a = seedAllocation();
+  it("clears the drag-pin on pointercancel, and on unmount if the bar still owns it", async () => {
+    const a = await seedAllocation();
     const { unmount } = render(
       <AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
     );

@@ -46,8 +46,8 @@ vi.mock("@/data/storageAdapter", () => ({
   persistenceAdapter: { loadAll: (id: string) => loadAll(id) },
 }));
 
-beforeEach(() => {
-  resetStoreWithAccount();
+beforeEach(async () => {
+  await resetStoreWithAccount();
   loadAll.mockClear();
   loadAll.mockResolvedValue(reloadedSlice);
   refreshControl.outcome = { kind: "unattached" };
@@ -157,7 +157,7 @@ describe("useLifecycleActions — orchestrated refresh", () => {
     "a confirmed mutation with a $outcome mandatory refresh surfaces committed-but-stale guidance and gates retries",
     async ({ outcome, expectedGuidance }) => {
       const accountId = `acct-confirmed-${outcome}`;
-      resetStoreWithAccount(accountId);
+      await resetStoreWithAccount(accountId);
       refreshControl.outcome = { kind: outcome };
       const onReloaded = vi.fn();
       const fetchMock = stubFetch({ ok: true, status: 200, json: async () => ({}) });

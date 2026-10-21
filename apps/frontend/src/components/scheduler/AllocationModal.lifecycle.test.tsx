@@ -138,16 +138,16 @@ describe("AllocationModal submit exclusion", () => {
     fireEvent.submit(form);
 
     expect(addAllocation).toHaveBeenCalledOnce();
-    expect(useStore.getState().data.allocations).toHaveLength(1);
+    await vi.waitFor(() => expect(useStore.getState().data.allocations).toHaveLength(1));
     addAllocation.mockRestore();
   });
 });
 
 describe("AllocationModal lifecycle", () => {
-  it("closes when the allocation being edited disappears from the store", () => {
+  it("closes when the allocation being edited disappears from the store", async () => {
     const resource = requireCreated(useStore.getState().addResource(person("Barbara")));
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -159,7 +159,7 @@ describe("AllocationModal lifecycle", () => {
     const onClose = vi.fn();
     render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
 
-    act(() => useStore.getState().deleteAllocation(allocation.id));
+    await act(() => useStore.getState().deleteAllocation(allocation.id));
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });

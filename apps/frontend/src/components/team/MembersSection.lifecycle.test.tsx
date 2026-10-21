@@ -47,9 +47,9 @@ vi.mock("@/data/persist", () => ({
   }),
 }));
 
-beforeEach(() => {
+beforeEach(async () => {
   accountTransitionMocks.startMasquerade.mockClear();
-  resetStoreWithAccount();
+  await resetStoreWithAccount();
   vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });
 });
 afterEach(() => {

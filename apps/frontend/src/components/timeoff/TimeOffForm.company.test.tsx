@@ -17,10 +17,10 @@ const personDraft = {
   color: "#111",
 };
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-06-03T12:00:00.000Z"));
-  resetStoreWithAccount();
+  await resetStoreWithAccount();
   setPlaceholdersEnabled({ on: true });
 });
 

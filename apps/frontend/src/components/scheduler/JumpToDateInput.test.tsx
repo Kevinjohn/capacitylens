@@ -6,8 +6,8 @@ import { resetStoreWithAccount } from "@/test/fixtures";
 
 // The toolbar hides this picker, so exercise its date validation independently.
 
-beforeEach(() => {
-  resetStoreWithAccount();
+beforeEach(async () => {
+  await resetStoreWithAccount();
 });
 
 describe("JumpToDateInput", () => {

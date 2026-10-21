@@ -1,15 +1,8 @@
 import type { StoreApi } from "zustand";
 import { newId } from "@capacitylens/shared/lib/id";
-import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
-import {
-  assertAllocationWithinResourceAvailability,
-  assertDateRange,
-  assertResourceExists,
-  remapAndValidateImport,
-} from "@capacitylens/shared/domain/mutations";
-import { clampHoursPerDay } from "@capacitylens/shared/types/entities";
+import { assertDateRange, assertResourceExists, remapAndValidateImport } from "@capacitylens/shared/domain/mutations";
 import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
-import type { Allocation, AppData, Entity, ID, ScopedEntityKey, TimeOff } from "@capacitylens/shared/types/entities";
+import type { AppData, Entity, ID, ScopedEntityKey, TimeOff } from "@capacitylens/shared/types/entities";
 import { clearEntityLenses } from "./types";
 import type { Draft, ImportSummary, Patch, ScopedRow, StoreState } from "./types";
 import { stamp, touch, touchAfter } from "./revisions";
@@ -100,56 +93,12 @@ function createOwnedUpdater({ get, resolveOwnedRow, mutate }: OwnedUpdateDepende
   };
 }
 
-interface AllocationCreationDependencies {
-  get: StoreApi<StoreState>["getState"];
-  requireAccount: ReturnType<typeof createGuards>["requireAccount"];
-  blockedByViewer: ReturnType<typeof createGuards>["blockedByViewer"];
-  assertAllocation: ReturnType<typeof createGuards>["assertAllocation"];
-  mutate: (producer: (data: AppData) => AppData) => void;
-}
-
 interface TimeOffCreationDependencies {
   get: StoreApi<StoreState>["getState"];
   requireAccount: ReturnType<typeof createGuards>["requireAccount"];
   blockedByViewer: ReturnType<typeof createGuards>["blockedByViewer"];
   assertResourceExists: typeof assertResourceExists;
   mutate: (producer: (data: AppData) => AppData) => void;
-}
-
-function createAllocationCreator(dependencies: AllocationCreationDependencies) {
-  return (inputs: readonly Draft<Allocation>[]): CreateResult<Allocation[]> => {
-    if (inputs.length === 0) throw new Error("At least one allocation is required.");
-    const accountId = dependencies.requireAccount();
-    const allocations = inputs.map((input) => ({
-      ...NULLABLE_FIELDS.allocations,
-      ...input,
-      hoursPerDay: clampHoursPerDay(input.hoursPerDay),
-      id: newId(),
-      accountId,
-      ...stamp(),
-    }));
-    if (dependencies.blockedByViewer()) return { kind: "blocked" };
-    const data = dependencies.get().data;
-    const account = data.accounts.find((candidate) => candidate.id === accountId);
-    const accountWorkingDays = normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn ?? 1);
-    for (const allocation of allocations) {
-      dependencies.assertAllocation(
-        data,
-        accountId,
-        allocation.resourceId,
-        allocation.activityId,
-        allocation.hoursPerDay,
-        allocation.projectId,
-      );
-      assertDateRange(allocation.startDate, allocation.endDate);
-      const resource = data.resources.find(
-        (candidate) => candidate.accountId === accountId && candidate.id === allocation.resourceId,
-      );
-      if (resource) assertAllocationWithinResourceAvailability({ allocation, resource, accountWorkingDays });
-    }
-    dependencies.mutate((current) => ({ ...current, allocations: [...current.allocations, ...allocations] }));
-    return { kind: "created", value: allocations };
-  };
 }
 
 function createTimeOffCreator(dependencies: TimeOffCreationDependencies) {
@@ -214,7 +163,6 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
   const { createGuardedAction, createGuardedValueAction, createGuardedAddAction } =
     createGuardedActions(blockedByViewer);
   const updateOwned = createOwnedUpdater({ get, resolveOwnedRow, mutate });
-  const createAllocations = createAllocationCreator({ get, requireAccount, blockedByViewer, assertAllocation, mutate });
   const createTimeOffs = createTimeOffCreator({ get, requireAccount, blockedByViewer, assertResourceExists, mutate });
   const importSlice = createImportAction(set, get, createGuardedValueAction);
 
@@ -240,7 +188,6 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
     createGuardedValueAction,
     createGuardedAddAction,
     updateOwned,
-    createAllocations,
     createTimeOffs,
     importSlice,
   };

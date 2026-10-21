@@ -10,8 +10,8 @@ import { resolveDateStyle } from "@/store/selectors";
 
 const fetchMock = vi.hoisted(() => ({ fetch: vi.fn() }));
 
-beforeEach(() => {
-  resetStoreWithAccount();
+beforeEach(async () => {
+  await resetStoreWithAccount();
   useStore.getState().setTheme("light");
   vi.stubGlobal("fetch", fetchMock.fetch);
   fetchMock.fetch.mockReset();

@@ -269,7 +269,7 @@ function registerServerModeTest06() {
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
     const { AuthProvider, useAuth, useStore, resetStoreWithAccount } = await freshProvider();
-    resetStoreWithAccount("a-studio");
+    await resetStoreWithAccount("a-studio");
 
     render(
       <AuthProvider>
@@ -851,7 +851,7 @@ function registerServerModeTest29() {
     );
     expect(await screen.findByText("app-content")).toBeInTheDocument();
 
-    resetStoreWithAccount();
+    await resetStoreWithAccount();
     const detach = attachPersistence({
       store: useStore,
       adapter: {

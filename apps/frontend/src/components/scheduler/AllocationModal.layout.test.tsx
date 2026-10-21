@@ -89,12 +89,12 @@ describe("AllocationModal compact layout", () => {
     expectInAllocationControlColumn(screen.getByText(/Creates \d+ linked allocations/));
   });
 
-  it("adds Assignee to the shared rows in edit mode without adding Repeat", () => {
+  it("adds Assignee to the shared rows in edit mode without adding Repeat", async () => {
     const resource = requireCreated(
       useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: "t1",
         startDate: "2026-06-01",

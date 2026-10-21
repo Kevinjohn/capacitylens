@@ -55,18 +55,20 @@ export interface StoreEntityActions {
   /** Delete an activity from the active account; dependent rows follow the shared cascade rules. */
   deleteActivity: (id: ID) => void;
 
-  /** Create one allocation through the same atomic validation/write path as `addAllocations`. */
-  addAllocation: (input: Draft<Allocation>) => CreateResult<Allocation>;
-  /** Create a non-empty allocation batch in one mutation/history step. Every draft is validated before
-   * anything commits; a tenancy, reference or date-range failure throws and leaves state untouched. */
-  addAllocations: (inputs: readonly Draft<Allocation>[]) => CreateResult<Allocation[]>;
-  /** Apply an allocation patch. False means the write was deliberately refused as a Viewer or the
-   * target disappeared before commit; validation/tenancy violations still throw. */
-  updateAllocation: (id: ID, patch: Patch<Allocation>) => boolean;
+  /** Create one allocation as one typed planning write; it resolves once the server acknowledges it. */
+  addAllocation: (input: Draft<Allocation>) => Promise<CreateResult<Allocation>>;
+  /** Create a non-empty repeated set as one typed planning write and one Undo step. Every draft is
+   * validated before anything is sent; a tenancy, reference or date-range failure rejects. */
+  addAllocations: (inputs: readonly Draft<Allocation>[]) => Promise<CreateResult<Allocation[]>>;
+  /** Copy an allocation as one typed planning write, reusing the source when nothing else changed. */
+  duplicateAllocation: (sourceId: ID, input: Draft<Allocation>) => Promise<CreateResult<Allocation>>;
+  /** Apply an allocation patch. False means a Viewer refusal, a missing target or no change;
+   * validation, tenancy and server refusals reject. */
+  updateAllocation: (id: ID, patch: Patch<Allocation>) => Promise<boolean>;
   /** Delete an allocation from the active account. */
-  deleteAllocation: (id: ID) => void;
+  deleteAllocation: (id: ID) => Promise<void>;
   /** Atomically delete one linked occurrence and every same-series occurrence starting on/after it. */
-  deleteAllocationSeriesFrom: (id: ID) => void;
+  deleteAllocationSeriesFrom: (id: ID) => Promise<void>;
 
   /** Create a time-off entry in the active account. */
   addTimeOff: (input: Draft<TimeOff>) => CreateResult<TimeOff>;
