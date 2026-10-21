@@ -3,7 +3,9 @@ import type { ApiClient } from '@japa/api-client'
 import { test } from '@japa/runner'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
-import { readState } from '#services/state_repository'
+import { encodeRow, readState } from '#services/state_repository'
+import { withTransaction } from '#services/with_transaction'
+import { deleteAllocations } from '#services/planning_operations/restoration'
 import {
   accountId,
   planningUrl,
@@ -317,6 +319,52 @@ test.group('session-bound allocation restoration', (suite) => {
     assert.lengthOf(await markers(), 3)
     assert.lengthOf(await planningAudit(), 3)
   })
+
+  test('a group beyond the SQLite variable limit deletes exactly its listed rows in one group', async ({
+    assert,
+  }) => {
+    // 32,766 ids plus the account filter exceed SQLite's 32,766 bound variables in one statement.
+    const listedCount = 32_766
+    const seeded = await readState(accountId, true)
+    const now = new Date().toISOString()
+    const rows = Array.from({ length: listedCount + 1 }, () =>
+      encodeRow('allocations', {
+        ...newAllocation(seeded),
+        accountId,
+        note,
+        createdAt: now,
+        updatedAt: now,
+      })
+    )
+    for (let start = 0; start < rows.length; start += 500)
+      await db.table('allocations').multiInsert(rows.slice(start, start + 500))
+    const [kept, ...listed] = rows.map((row) => String(row.id))
+    const otherAccounts = () =>
+      db.from('allocations').whereNot('account_id', accountId).count('* as n')
+    const othersBefore = await otherAccounts()
+    assert.isAbove(Number(othersBefore[0].n), 0)
+    const data = await readState(accountId, true)
+    const groupId = await withTransaction((trx) =>
+      deleteAllocations(trx, data, accountId, listed, {
+        actorId: 'u-bruce',
+        sessionId: 's-batcave',
+        mutationId: randomUUID(),
+      })
+    )
+    assert.lengthOf(await db.from('deleted_groups'), 1)
+    const saved = await db.from('deleted_rows').where('group_id', groupId).select('row_id')
+    assert.lengthOf(saved, listedCount)
+    const listedIds = new Set(listed)
+    assert.isTrue(saved.every((row) => listedIds.has(String(row.row_id))))
+    const remaining = await readState(accountId, true)
+    assert.lengthOf(remaining.allocations, data.allocations.length - listedCount)
+    assert.isFalse(remaining.allocations.some((row) => listedIds.has(row.id)))
+    assert.deepEqual(
+      remaining.allocations.find((row) => row.id === kept),
+      data.allocations.find((row) => row.id === kept)
+    )
+    assert.deepEqual(await otherAccounts(), othersBefore)
+  }).timeout(60_000)
 
   test('stale delete and restore revisions return 409 without effects', async ({
     client,
