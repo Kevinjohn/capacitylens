@@ -1,0 +1,66 @@
+import { existsSync } from "node:fs";
+import { openDbConnection, planDatabaseMigrations } from "../src/db";
+import { restrictIdentifiedDatabasePermissions } from "../src/db/filePermissions";
+import {
+  assertAccountBoundaryStateCurrent,
+  closeAccountCommandReconciliation,
+  readAccountCommandAndFlagStalePending,
+} from "../src/accounts/state";
+import { buildSecretDigest } from "../src/accounts/commands";
+
+const [databasePath, applicationId, commandId, operatorReference] = process.argv.slice(2);
+if (!databasePath || !applicationId || !commandId || !operatorReference) {
+  console.error(
+    "Usage: tsx scripts/reconcile-account-command.ts <database> <application-id> <command-id> <operator-reference>",
+  );
+  process.exitCode = 2;
+} else {
+  if (databasePath === ":memory:" || !existsSync(databasePath)) {
+    throw new Error("The reconciliation database must be an existing on-disk CapacityLens database.");
+  }
+  // This is a narrowly scoped repair tool, not an alternate application startup path. Opening a
+  // stale database through openDb() would silently run migrations without the production rollback
+  // snapshot ceremony, so require the daemon to have completed migrations first.
+  const db = openDbConnection(databasePath);
+  try {
+    const migrationPlan = planDatabaseMigrations(db);
+    if (migrationPlan.migrations.length > 0) {
+      throw new Error(
+        `Database schema v${migrationPlan.fromVersion} is not current (expected v${migrationPlan.toVersion}); ` +
+          "start this release normally to complete its backed-up migration before reconciliation.",
+      );
+    }
+    assertAccountBoundaryStateCurrent(db);
+    const record = readAccountCommandAndFlagStalePending({ db, applicationId, commandId });
+    if (!record) throw new Error("No matching account command exists.");
+    if (record.status !== "reconciliation_required") {
+      throw new Error(`Command is ${record.status}; only reconciliation_required commands can be closed.`);
+    }
+    let repairKind: string | null = null;
+    try {
+      const result = record.resultJson ? (JSON.parse(record.resultJson) as { repair?: { kind?: unknown } }) : null;
+      repairKind = typeof result?.repair?.kind === "string" ? result.repair.kind : null;
+    } catch {
+      // The persisted failure code and status remain printable even if legacy result metadata is malformed.
+    }
+    console.log(
+      JSON.stringify({
+        commandId: record.commandId,
+        operation: record.operation,
+        status: record.status,
+        createdAt: record.createdAt,
+        failureCode: record.failureCode,
+        repairKind,
+      }),
+    );
+    // Planning is read-only; closing the command writes, so harden the identified file first.
+    restrictIdentifiedDatabasePermissions(db);
+    const referenceHash = buildSecretDigest("reconciliation-reference", operatorReference);
+    if (!closeAccountCommandReconciliation({ db, applicationId, commandId, referenceHash })) {
+      throw new Error("The command changed while reconciliation was being closed; inspect it again.");
+    }
+    console.log(JSON.stringify({ commandId, status: "compensated", referenceHash }));
+  } finally {
+    db.close();
+  }
+}

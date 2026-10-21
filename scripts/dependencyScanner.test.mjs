@@ -58,32 +58,23 @@ test("resolves relative paths, aliases, extensions and indexes; distinguishes ex
   const root = mkdtempSync(join(tmpdir(), "dependency-scanner-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   for (const file of [
-    "apps/frontend/src/component.tsx",
-    "apps/frontend/src/folder/index.mts",
-    "apps/frontend/src/runtime.cts",
-    "packages/shared/src/types.ts",
-    "apps/frontend/src/style.css",
-    "apps/backend/app/controllers/example.ts",
+    "src/component.tsx",
+    "src/folder/index.mts",
+    "src/runtime.cts",
+    "shared/src/types.ts",
+    "src/style.css",
   ]) {
     mkdirSync(dirname(join(root, file)), { recursive: true });
     writeFileSync(join(root, file), "");
   }
-  writeFileSync(
-    join(root, "apps/backend/package.json"),
-    JSON.stringify({ imports: { "#controllers/*": "./app/controllers/*.js" } }),
-  );
-  assert.deepEqual(resolveDependency("#controllers/example", join(root, "apps/backend/start/routes.ts"), root), {
-    classification: "internal",
-    path: join(root, "apps/backend/app/controllers/example.ts"),
-  });
-  const from = join(root, "apps/frontend/src/main.ts");
+  const from = join(root, "src/main.ts");
   for (const [specifier, target] of [
-    ["./component", "apps/frontend/src/component.tsx"],
-    ["./component.js", "apps/frontend/src/component.tsx"],
-    ["@/folder", "apps/frontend/src/folder/index.mts"],
-    ["./runtime.cjs", "apps/frontend/src/runtime.cts"],
-    ["@capacitylens/shared/types", "packages/shared/src/types.ts"],
-    ["./style.css", "apps/frontend/src/style.css"],
+    ["./component", "src/component.tsx"],
+    ["./component.js", "src/component.tsx"],
+    ["@/folder", "src/folder/index.mts"],
+    ["./runtime.cjs", "src/runtime.cts"],
+    ["@capacitylens/shared/types", "shared/src/types.ts"],
+    ["./style.css", "src/style.css"],
   ]) {
     assert.deepEqual(resolveDependency(specifier, from, root), {
       classification: "internal",
@@ -122,37 +113,28 @@ test("uses each package's compiler configuration, including inherited options, a
     join(root, "base.json"),
     JSON.stringify({ compilerOptions: { module: "ESNext", verbatimModuleSyntax: true } }),
   );
-  for (const directory of ["apps/frontend/src", "apps/backend/app", "packages/shared/src"]) {
+  for (const directory of ["src", "server/src", "shared/src"]) {
     mkdirSync(join(root, directory), { recursive: true });
     writeFileSync(join(root, directory, "main.ts"), "export {};");
   }
+  writeFileSync(join(root, "tsconfig.app.json"), JSON.stringify({ extends: "./base.json", include: ["src"] }));
+  writeFileSync(join(root, "shared/tsconfig.json"), JSON.stringify({ extends: "../base.json", include: ["src"] }));
   writeFileSync(
-    join(root, "apps/frontend/tsconfig.app.json"),
-    JSON.stringify({ extends: "../../base.json", include: ["src"] }),
-  );
-  writeFileSync(
-    join(root, "packages/shared/tsconfig.json"),
-    JSON.stringify({ extends: "../../base.json", include: ["src"] }),
-  );
-  writeFileSync(
-    join(root, "apps/backend/tsconfig.json"),
+    join(root, "server/tsconfig.json"),
     JSON.stringify({
-      extends: "../../base.json",
+      extends: "../base.json",
       compilerOptions: { verbatimModuleSyntax: false },
-      include: ["app"],
+      include: ["src"],
     }),
   );
   const parse = createDependencyParser(root);
   const source = 'import { type T } from "./types";';
-  assert.equal(parse(source, join(root, "apps/frontend/src/main.ts"))[0].kind, "runtime");
-  assert.equal(parse(source, join(root, "packages/shared/src/main.ts"))[0].kind, "runtime");
-  assert.equal(parse(source, join(root, "apps/backend/app/main.ts"))[0].kind, "type");
-  writeFileSync(
-    join(root, "apps/backend/tsconfig.json"),
-    JSON.stringify({ compilerOptions: { unknownSetting: true } }),
-  );
+  assert.equal(parse(source, join(root, "src/main.ts"))[0].kind, "runtime");
+  assert.equal(parse(source, join(root, "shared/src/main.ts"))[0].kind, "runtime");
+  assert.equal(parse(source, join(root, "server/src/main.ts"))[0].kind, "type");
+  writeFileSync(join(root, "server/tsconfig.json"), JSON.stringify({ compilerOptions: { unknownSetting: true } }));
   assert.throws(() => createDependencyParser(root), /Unknown compiler option/);
-  rmSync(join(root, "apps/backend/tsconfig.json"));
+  rmSync(join(root, "server/tsconfig.json"));
   assert.throws(() => createDependencyParser(root), /Cannot read file/);
 });
 

@@ -22,15 +22,8 @@ const configPath = ".gitleaks.toml";
 const raw = readFileSync(configPath, "utf8");
 const failures = [];
 
-// Exact development fixtures include test app keys, the scaffold example and an idempotency key.
-const developmentValues = [
-  "capacitylens-test-key-0123456789abcdef",
-  "capacitylens-e2e-key-0123456789abcdef",
-  "zKXHe-Ahdb7aPK1ylAJlRgTefktEaACi",
-  "ownership-broken-owner-key-0001",
-];
-
-// Reviewed development values must remain allowlisted so full-history scans stay actionable.
+// Values that are fake by construction. Each must be allowlisted, or the scan goes red on a value
+// already reviewed and the fingerprint treadmill starts over.
 const fixtures = [
   "idempotency-1",
   "idempotency-2",
@@ -44,7 +37,6 @@ const fixtures = [
   "auth-e2e-bootstrap-token-0123456789abcdef",
   "unique-passphrase-2026",
   "0123456789abcdef0123456789abcdef",
-  ...developmentValues,
 ];
 
 // Assemble high-entropy credentials from short fragments so scanner test values exist only in
@@ -69,10 +61,6 @@ const credentials = [
   "prefix-0123456789abcdef0123456789abcdef",
   "0123456789abcdef0123456789abcdef-suffix",
   "0123456789abcdef0123456789abcdee",
-  ...developmentValues.flatMap((value) => [`prefix-${value}`, `${value}-suffix`, `${value.slice(0, -1)}X`]),
-  `capacitylens-test-key-${randomLooking}`,
-  `capacitylens-e2e-key-${randomLooking}`,
-  "capacitylens-prod-key-0123456789abcdef",
 ];
 
 // Track the current TOML table so `paths` is judged only where it would do harm.

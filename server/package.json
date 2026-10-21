@@ -1,0 +1,57 @@
+{
+  "name": "capacitylens-server",
+  "private": true,
+  "version": "0.73.0-alpha.1",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "SQLite-backed REST API for CapacityLens. Imports the shared domain core so server and client validation cannot drift.",
+  "engines": {
+    "node": ">=24.19.0 <25 || >=26.9.0 <27"
+  },
+  "files": [
+    "dist",
+    "scripts/check-health.mjs",
+    "scripts/check-node.mjs",
+    "scripts/verify-tls-renewal.mjs"
+  ],
+  "scripts": {
+    "build:runtime": "esbuild src/index.ts src/importWorker.ts --bundle --platform=node --format=esm --target=node24 --outdir=dist --out-extension:.js=.mjs --external:fastify '--external:@fastify/*' --external:better-auth '--external:better-auth/*' && esbuild scripts/reset-owner-password.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/reset-owner-password.mjs --external:fastify '--external:@fastify/*' --external:better-auth '--external:better-auth/*'",
+    "start": "node scripts/check-node.mjs && tsx src/index.ts",
+    "dev": "node scripts/check-node.mjs && tsx watch src/index.ts",
+    "start:e2e": "node scripts/check-node.mjs && node scripts/e2e-server.mjs db",
+    "start:auth-e2e": "node scripts/check-node.mjs && node scripts/e2e-server.mjs auth",
+    "rehearse:migrations": "node scripts/check-node.mjs && tsx scripts/rehearse-migrations.ts",
+    "recover:audit-outbox": "node scripts/check-node.mjs && tsx scripts/recover-audit-outbox.ts",
+    "recover:ownership-transfer": "node scripts/check-node.mjs && tsx scripts/recover-ownership-transfer.ts",
+    "reset:owner-password": "node scripts/check-node.mjs && tsx scripts/reset-owner-password.ts",
+    "cutover:preflight": "node scripts/check-node.mjs && tsx scripts/cutover-preflight.ts",
+    "cutover:repair": "node scripts/check-node.mjs && tsx scripts/cutover-repair.ts",
+    "fixtures:database": "node scripts/check-node.mjs && tsx scripts/generate-database-fixtures.ts",
+    "test": "pnpm run test:coverage && pnpm run test:account-flows && pnpm run test:credential-durability && pnpm run test:migrations",
+    "test:coverage": "node scripts/check-node.mjs && vitest run --config vitest.coverage.config.ts --pool=forks --no-file-parallelism --coverage",
+    "test:unit": "node scripts/check-node.mjs && node scripts/run-unit-shard.mjs 1/1",
+    "test:unit-shard": "node scripts/check-node.mjs && node scripts/run-unit-shard.mjs",
+    "test:account-flows": "node scripts/check-node.mjs && vitest run src/accounts/conformance/accountFlows.conformance.test.ts --pool=forks --no-file-parallelism",
+    "test:credential-durability": "node scripts/check-node.mjs && vitest run src/credentialOnboardingDurability.test.ts --pool=forks --no-file-parallelism",
+    "test:migrations": "node scripts/check-node.mjs && vitest run src/rehearseMigrations.test.ts --pool=forks --no-file-parallelism --reporter=verbose --testTimeout=45000",
+    "test:watch": "node scripts/check-node.mjs && vitest",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@capacitylens/shared": "workspace:*",
+    "@fastify/helmet": "^13.1.1",
+    "@fastify/rate-limit": "^11.2.0",
+    "@fastify/static": "^10.1.5",
+    "better-auth": "1.7.7",
+    "fastify": "^5.12.5",
+    "nodemailer": "^10.0.13"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "@types/nodemailer": "^8.0.2",
+    "@vitest/coverage-v8": "^4.1.11",
+    "esbuild": "0.28.2",
+    "tsx": "4.23.15",
+    "typescript": "~6.0.2"
+  }
+}

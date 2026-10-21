@@ -1,0 +1,328 @@
+import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
+import { BoundedWorkQueue } from "./workQueue";
+import { readCurrentRequestAbortSignal, reportCurrentRequestQueueSaturation } from "./requestAbort";
+
+// OWASP Password Storage Cheat Sheet minimum scrypt profile: N=2^17, r=8, p=1.
+// The format is versioned so parameters can be raised and legacy Better Auth hashes can be
+// verified during a rolling upgrade without silently weakening newly-created credentials.
+/**
+ * Scrypt work factor used for new password hashes; stored hashes above this bound are rejected during verification.
+ */
+export const SCRYPT_N = 2 ** 17;
+/**
+ * Scrypt block size used for new password hashes and as the verification resource ceiling.
+ */
+export const SCRYPT_R = 8;
+/**
+ * Scrypt parallelization used for new password hashes and as the verification resource ceiling.
+ */
+export const SCRYPT_P = 1;
+const KEY_BYTES = 64;
+const SALT_BYTES = 16;
+/**
+ * Caps the breach-check response body before parsing it.
+ */
+export const MAX_HIBP_RESPONSE_BYTES = 2 * 1024 * 1024;
+/**
+ * Limits simultaneous breach-password lookups to eight.
+ */
+export const MAX_CONCURRENT_HIBP = 8;
+/**
+ * Limits waiting breach-password lookups to thirty-two.
+ */
+export const MAX_QUEUED_HIBP = 32;
+/**
+ * Limits simultaneous CPU and memory intensive password derivations to two.
+ */
+export const MAX_CONCURRENT_SCRYPT = 2;
+/**
+ * Limits password derivations waiting for a scrypt slot to sixteen.
+ */
+export const MAX_QUEUED_SCRYPT = 16;
+const MAX_PASSWORD_QUEUE_WAIT_MS = 5_000;
+const hibpQueue = new BoundedWorkQueue({
+  maxActive: MAX_CONCURRENT_HIBP,
+  maxQueued: MAX_QUEUED_HIBP,
+  fullMessage: "Breached-password checking is temporarily at capacity.",
+  options: {
+    maxWaitMs: MAX_PASSWORD_QUEUE_WAIT_MS,
+    onSaturated: (reason) => reportCurrentRequestQueueSaturation("hibp", reason),
+  },
+});
+const scryptQueue = new BoundedWorkQueue({
+  maxActive: MAX_CONCURRENT_SCRYPT,
+  maxQueued: MAX_QUEUED_SCRYPT,
+  fullMessage: "Password processing is temporarily at capacity.",
+  options: {
+    maxWaitMs: MAX_PASSWORD_QUEUE_WAIT_MS,
+    onSaturated: (reason) => reportCurrentRequestQueueSaturation("scrypt", reason),
+  },
+});
+
+/**
+ * Provides asynchronous password hashing and verification for account credentials.
+ */
+export interface PasswordHasher {
+  hash(password: string): Promise<string>;
+  verify(input: { hash: string; password: string }): Promise<boolean>;
+}
+
+interface DeriveInput {
+  password: string;
+  salt: Buffer;
+  n: number;
+  r: number;
+  p: number;
+}
+
+interface StoredScryptHash extends DeriveInput {
+  expected: Buffer;
+}
+
+type ResponseChunk = { done: true } | { done: false; value: Uint8Array };
+
+function derive({ password, salt, n, r, p }: DeriveInput): Promise<Buffer> {
+  const signal = readCurrentRequestAbortSignal();
+  return scryptQueue.run(
+    () =>
+      new Promise((resolve, reject) => {
+        scryptCallback(password, salt, KEY_BYTES, { N: n, r, p, maxmem: 256 * 1024 * 1024 }, (error, key) => {
+          if (error) reject(error);
+          else resolve(key);
+        });
+      }),
+    signal,
+  );
+}
+
+function parseStoredInteger(raw: string | undefined, minimum: number): number | undefined {
+  if (!raw) return undefined;
+  const value = Number(raw);
+  return Number.isSafeInteger(value) && value >= minimum ? value : undefined;
+}
+
+function hasAllowedScryptResources(input: StoredScryptHash): boolean {
+  // A malformed or hostile stored hash must not allocate arbitrary amounts of memory.
+  return (
+    input.n <= SCRYPT_N &&
+    (input.n & (input.n - 1)) === 0 &&
+    input.r <= SCRYPT_R &&
+    input.p <= SCRYPT_P &&
+    input.salt.length === SALT_BYTES &&
+    input.expected.length === KEY_BYTES
+  );
+}
+
+function parseVersionedHash(fields: string[], password: string): StoredScryptHash | undefined {
+  const [, rawN, rawR, rawP, rawSalt, rawExpected] = fields;
+  const n = parseStoredInteger(rawN, 2);
+  const r = parseStoredInteger(rawR, 1);
+  const p = parseStoredInteger(rawP, 1);
+  if (n === undefined || r === undefined || p === undefined || !rawSalt || !rawExpected) return undefined;
+  let salt: Buffer;
+  let expected: Buffer;
+  try {
+    salt = Buffer.from(rawSalt, "base64url");
+    expected = Buffer.from(rawExpected, "base64url");
+  } catch {
+    // Stored representation failure is a safe credential non-match. Derivation happens
+    // outside this guard so operational queue/crypto failures remain loud and retryable.
+    return undefined;
+  }
+  const parsed = { password, salt, n, r, p, expected };
+  return hasAllowedScryptResources(parsed) ? parsed : undefined;
+}
+
+async function verifyVersionedHash(fields: string[], password: string): Promise<boolean> {
+  const parsed = parseVersionedHash(fields, password);
+  if (!parsed) return false;
+  const { expected, ...deriveInput } = parsed;
+  const actual = await derive(deriveInput);
+  return timingSafeEqual(actual, expected);
+}
+
+async function verifyLegacyHash(hash: string, password: string): Promise<boolean> {
+  // Better Auth <=1.6.23 used `hex-salt:hex-key`, N=2^14,r=16,p=1 and normalized the
+  // password to NFKC before hashing. Compatibility is verify-only; every new/change/reset hash
+  // uses the exact password bytes and the stronger versioned profile above.
+  const legacy = hash.split(":");
+  const [legacySalt, legacyExpected] = legacy;
+  if (
+    !legacySalt ||
+    !legacyExpected ||
+    legacy.length !== 2 ||
+    !/^[0-9a-f]{32}$/i.test(legacySalt) ||
+    !/^[0-9a-f]{128}$/i.test(legacyExpected)
+  )
+    return false;
+  const expected = Buffer.from(legacyExpected, "hex");
+  const actual = await derive({
+    password: password.normalize("NFKC"),
+    salt: Buffer.from(legacySalt, "utf8"),
+    n: 2 ** 14,
+    r: 16,
+    p: 1,
+  });
+  return timingSafeEqual(actual, expected);
+}
+
+/** Strong new hashes plus read-only compatibility with Better Auth's former `salt:key` format. */
+export function createScryptPasswordHasher(n = SCRYPT_N): PasswordHasher {
+  if (!Number.isSafeInteger(n) || n < 2 || (n & (n - 1)) !== 0) {
+    throw new RangeError("scrypt N must be a power of two greater than one.");
+  }
+  return {
+    async hash(password: string): Promise<string> {
+      const salt = randomBytes(SALT_BYTES);
+      const key = await derive({ password, salt, n, r: SCRYPT_R, p: SCRYPT_P });
+      return `scrypt-v1$${n}$${SCRYPT_R}$${SCRYPT_P}$${salt.toString("base64url")}$${key.toString("base64url")}`;
+    },
+    async verify({ hash, password }): Promise<boolean> {
+      const fields = hash.split("$");
+      if (fields.length === 6 && fields[0] === "scrypt-v1") {
+        return verifyVersionedHash(fields, password);
+      }
+      return verifyLegacyHash(hash, password);
+    },
+  };
+}
+
+/**
+ * Lists context terms used to reject passwords tied to the installation identity.
+ */
+export const PASSWORD_CONTEXT_WORDS = [
+  "capacitylens",
+  "capacity-lens",
+  "capacity lens",
+  "administrator",
+  "adminadmin",
+] as const;
+
+/**
+ * Signals that a password fails the installation’s credential policy.
+ */
+export class PasswordPolicyError extends Error {
+  constructor(
+    message: string,
+    readonly code: "PASSWORD_CONTEXT_REJECTED" | "PASSWORD_COMPROMISED",
+  ) {
+    super(message);
+  }
+}
+
+/** A fail-closed breach-screening dependency failure is operational, not a user validation error. */
+export class PasswordPolicyDependencyError extends Error {
+  readonly code = "PASSWORD_CHECK_UNAVAILABLE";
+}
+
+function isResponseChunk(value: unknown): value is ResponseChunk {
+  if (typeof value !== "object" || value === null || !("done" in value)) return false;
+  if (value.done === true) return true;
+  return value.done === false && "value" in value && value.value instanceof Uint8Array;
+}
+
+async function readBoundedResponseText(response: Response): Promise<string> {
+  const declared = Number(response.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > MAX_HIBP_RESPONSE_BYTES) {
+    await response.body?.cancel();
+    throw new RangeError("Breached-password response exceeded the configured limit.");
+  }
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytes = 0;
+  let text = "";
+  for (;;) {
+    const chunk: unknown = await reader.read();
+    if (!isResponseChunk(chunk)) throw new TypeError("Breached-password response contained an invalid chunk.");
+    if (chunk.done) break;
+    bytes += chunk.value.byteLength;
+    if (bytes > MAX_HIBP_RESPONSE_BYTES) {
+      await reader.cancel();
+      throw new RangeError("Breached-password response exceeded the configured limit.");
+    }
+    text += decoder.decode(chunk.value, { stream: true });
+  }
+  return text + decoder.decode();
+}
+
+/**
+ * Rejects passwords containing installation-specific identity terms that are easy to guess.
+ */
+export function assertNoContextSpecificPassword(
+  password: string,
+  contextWords: readonly string[] = PASSWORD_CONTEXT_WORDS,
+): void {
+  const lowered = password.toLocaleLowerCase("en-GB");
+  if (contextWords.some((word) => lowered.includes(word.toLocaleLowerCase("en-GB")))) {
+    throw new PasswordPolicyError(
+      "Choose a password that does not contain the product name or an administrative role.",
+      "PASSWORD_CONTEXT_REJECTED",
+    );
+  }
+}
+
+/**
+ * Pwned Passwords range lookup: only the first five SHA-1 characters leave the process (k-anonymity).
+ * A failed lookup fails password creation closed; sign-in verification never calls the service.
+ */
+export async function assertPasswordNotBreached(password: string, fetcher: typeof fetch = fetch): Promise<void> {
+  const digest = createHash("sha1").update(password, "utf8").digest("hex").toUpperCase();
+  const prefix = digest.slice(0, 5);
+  const suffix = digest.slice(5);
+  let responseText: string;
+  try {
+    const requestSignal = readCurrentRequestAbortSignal();
+    responseText = await hibpQueue.run(async () => {
+      const timeoutSignal = AbortSignal.timeout(5_000);
+      const response = await fetcher(`https://api.pwnedpasswords.com/range/${prefix}`, {
+        headers: {
+          "Add-Padding": "true",
+          "User-Agent": "CapacityLens password checker",
+        },
+        signal: requestSignal ? AbortSignal.any([requestSignal, timeoutSignal]) : timeoutSignal,
+        // The destination is fixed. Do not let a compromised endpoint turn an HTTP redirect into
+        // an application-layer SSRF primitive; an unexpected redirect fails closed like an outage.
+        redirect: "error",
+      });
+      if (!response.ok) {
+        await response.body?.cancel();
+        throw new PasswordPolicyDependencyError(
+          `The breached-password check failed with HTTP ${response.status}; try again later.`,
+        );
+      }
+      try {
+        return await readBoundedResponseText(response);
+      } catch (cause) {
+        // Reject malformed or oversized breach-service responses as dependency failure so password creation cannot assume a clean result.
+        throw new PasswordPolicyDependencyError("The breached-password response was invalid; try again later.", {
+          cause,
+        });
+      }
+    }, requestSignal);
+  } catch (cause) {
+    // Preserve typed dependency failures and wrap transport or queue faults as unavailable screening, keeping password creation closed.
+    if (cause instanceof PasswordPolicyDependencyError) throw cause;
+    throw new PasswordPolicyDependencyError(
+      "The breached-password check is temporarily unavailable; try again later.",
+      { cause },
+    );
+  }
+  // The range contract is a 35-character SHA-1 suffix and a decimal occurrence count.
+  // Zero-count records are privacy padding, not breached passwords. Validate the entire body
+  // before trusting a clean result; never include service content in dependency diagnostics.
+  const lines = responseText.replace(/\r?\n$/, "").split(/\r?\n/);
+  let found = false;
+  for (const line of lines) {
+    const record = /^([A-Fa-f0-9]{35}):([0-9]+)$/.exec(line);
+    if (!record) {
+      throw new PasswordPolicyDependencyError("The breached-password response was invalid; try again later.");
+    }
+    if (record[1]?.toUpperCase() === suffix && /[1-9]/.test(record[2] ?? "")) found = true;
+  }
+  if (found)
+    throw new PasswordPolicyError(
+      "This password appears in a known breach. Choose a different password.",
+      "PASSWORD_COMPROMISED",
+    );
+}

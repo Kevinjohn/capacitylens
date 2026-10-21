@@ -1,6 +1,6 @@
 # US-SET-01 — Team calendar settings are set at creation, then frozen
 
-**Area:** Settings · **Persona:** Studio manager · **Linked automated coverage:** `e2e/onboarding.spec.ts` (capture at creation + read-only summary in Settings), `e2e/settings-calendar.spec.ts` (frozen summary/help + Settings axe), `e2e/onboarding.db.spec.ts` (server 409), `apps/frontend/src/lib/timezones.test.ts` (numeric UTC offset labels and DST)
+**Area:** Settings · **Persona:** Studio manager · **Linked automated coverage:** `e2e/onboarding.spec.ts` (capture at creation + read-only summary in Settings), `e2e/settings-calendar.spec.ts` (frozen summary/help + Settings axe), `e2e/onboarding.db.spec.ts` (server 409), `src/lib/timezones.test.ts` (numeric UTC offset labels and DST)
 
 **Documentation:** [Settings](../../docs-src/using/settings.md)
 
@@ -22,8 +22,7 @@ week-start or time zone after work is scheduled would silently re-interpret ever
 
 **Capture (at creation):**
 
-1. On a fresh server installation, start the supported first-company setup. In the temporary demo,
-   use **New company** from the temporary demo picker.
+1. From the company picker, click **New company**.
 2. The inline form shows **Company name**, **Week starts on** (Monday/Sunday, default Monday),
    and a searchable **Timezone** combobox preselected to the browser's IANA zone. Its options
    keep the local and common zones first and show a friendly name, current abbreviation and

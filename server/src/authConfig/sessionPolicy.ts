@@ -1,0 +1,83 @@
+import type { BetterAuthOptions } from "better-auth";
+import type { Db } from "../db";
+
+/** Request header carrying the client address the server resolved (`resolveRequestClientIp`). The
+ * root request hook overwrites any client-supplied value, so it is the only address Better Auth
+ * trusts for rate limiting and session records. */
+export const AUTH_CLIENT_IP_HEADER = "x-capacitylens-client-ip";
+
+/** Builds session, cookie and identity-storage policy from validated installation configuration.
+ * Pure; it neither creates auth tables nor resolves sessions. */
+export function buildSessionPolicy({
+  db,
+  secret,
+  baseURL,
+  cookiePrefix,
+  secureCookies,
+  sessionAbsoluteTtlSeconds,
+  sessionFreshAgeSeconds,
+}: {
+  db: Db;
+  secret: string;
+  baseURL: string;
+  cookiePrefix: string;
+  secureCookies: boolean;
+  sessionAbsoluteTtlSeconds: number;
+  sessionFreshAgeSeconds: number;
+}): Pick<
+  BetterAuthOptions,
+  "database" | "secret" | "baseURL" | "basePath" | "verification" | "account" | "advanced" | "session" | "telemetry"
+> {
+  return {
+    // Keep Better Auth tables in the app database so account and session writes share one SQLite file.
+    database: db,
+    secret,
+    baseURL,
+    basePath: "/api/auth",
+    // Better Auth defaults verification identifiers to plaintext. Reset identifiers contain the
+    // live bearer token (`reset-password:<token>`), so a DB/backup reader could otherwise take over
+    // the account. The library hashes on both create and consume, preserving the normal API while
+    // ensuring no live reset/email-verification token is recoverable from storage.
+    verification: { storeIdentifier: "hashed" },
+    // Email is an attribute, never an account-link key. Linking requires a separate authenticated
+    // ceremony outside an OIDC callback, so a newly observed issuer/subject cannot attach itself to
+    // an existing local principal merely by presenting the same verified email address.
+    //
+    // Provider access/refresh/id tokens are encrypted with the application secret before they reach
+    // SQLite, so a stolen database or backup copy alone does not surrender live provider credentials,
+    // defence in depth between database-copy theft and application-secret theft.
+    account: { accountLinking: { disableImplicitLinking: true }, encryptOAuthTokens: true },
+    // Session-cookie hardening follows the public Better Auth URL, not the Node listener: an HTTPS
+    // browser origin still needs Secure cookies when nginx proxies to Node over HTTP. Better Auth's
+    // built-in secure-cookie switch emits the weaker `__Secure-` name prefix. Disable that naming
+    // helper and express Secure directly so every HTTPS cookie can use the stricter `__Host-`
+    // prefix (Secure + Path=/ + no Domain). Loopback HTTP keeps an unprefixed development name.
+    // `sameSite:'lax'` (not 'strict') is required for SSO: 'strict' would
+    // drop the session cookie on the top-level OAuth redirect back from the IdP → broken sign-in;
+    // 'lax' still sends the cookie on that GET callback and is safe. `httpOnly:true` keeps the token
+    // out of document.cookie (no JS read).
+    // Better Auth would otherwise read a raw `X-Forwarded-For`: a client could spoof it past the
+    // credential rate limits, and without it every client would share one bucket per path.
+    advanced: {
+      // The application runs and verifies auth migrations after its own migration snapshot.
+      // Disable the library’s construction-time check so a fresh database is not diagnosed before those migrations run.
+      database: { validateSchema: false },
+      ipAddress: { ipAddressHeaders: [AUTH_CLIENT_IP_HEADER] },
+      useSecureCookies: false,
+      cookiePrefix,
+      defaultCookieAttributes: {
+        sameSite: "lax",
+        httpOnly: true,
+        ...(secureCookies ? { secure: true } : {}),
+      },
+    },
+    // Fixed absolute expiry prevents activity from extending a stolen session indefinitely.
+    // enforceSessionActivity supplies the independent idle timeout; freshAge bounds sensitive administrative actions.
+    session: {
+      expiresIn: sessionAbsoluteTtlSeconds,
+      disableSessionRefresh: true,
+      freshAge: sessionFreshAgeSeconds,
+    },
+    telemetry: { enabled: false },
+  };
+}

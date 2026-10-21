@@ -1,0 +1,151 @@
+import type { AuthorizationResult } from "./appAuthorization";
+import type { FastifyReply, FastifyRequest } from "fastify";
+import type { Action } from "@capacitylens/shared/domain/access";
+import { isLifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
+import { isScopedEntityKey } from "@capacitylens/shared/types/entities";
+import type { SanitizeWriteOptions } from "../fieldPolicy";
+import { allocationAttributionAllowed } from "@capacitylens/shared/lib/integrity";
+import { clearAllocationAttributionForActivities, upsertRow } from "../db";
+import type { Db, RewrittenAllocationRevision } from "../db";
+import type { BatchStateProjection } from "../BatchStateProjection";
+import { TABLES } from "../tables";
+import type { TableName } from "../tables";
+
+/** Existing and incoming rows used to evaluate the stale-write precondition. */
+export interface StaleWriteInput {
+  existing: Record<string, unknown> | undefined;
+  row: Record<string, unknown>;
+  requirePrecondition?: boolean | undefined;
+}
+
+/** Authorization input without options that are specific to selected call sites. */
+export type AuthorizeBasicInput = Omit<AuthorizeRouteInput, "options">;
+
+/**
+ * The one request-parsing result shape for route handlers: the typed value, or the failure the
+ * handler replies with. Parsers never send a response themselves, so every reply is returned
+ * from the handler that owns it.
+ */
+export type ParseResult<T, E> = { kind: "parsed"; value: T } | { kind: "invalid"; failure: E };
+
+/** Request and account context required to authorize a route action. */
+export interface AuthorizeRouteInput {
+  req: FastifyRequest;
+  reply: FastifyReply;
+  accountId: string;
+  action: Action;
+  /** Ordinary administrative actions, and read-only account-management projections, keep role checks
+   * without requiring a recent sign-in. Freshness stays mandatory by default: only the
+   * call sites that pass this flag opt out, and the high-impact actions (ownership transfer,
+   * credential/session administration, company deletion, import/purge, SSO identity work) never do. */
+  options?: { concealNonMembership?: boolean; requireFreshSession?: boolean } | undefined;
+}
+
+/**
+ * The `options` value every ordinary administrative action passes to `authorize`. Role checks
+ * are unaffected; only the fresh-sign-in re-prompt is waived. Freshness stays mandatory by
+ * default, so grepping for this constant lists every call site that opts out.
+ *
+ * The opt-out is per call site, not per action: the same `Action` can legitimately appear both with
+ * and without this constant (`manageMembers` is opted out for role, status and removal routes, and
+ * not opted out for credential and session administration). So the grep is an inventory to review,
+ * never a rule to complete, never add this constant to a call site for consistency with another
+ * site sharing its action. Ownership transfer, credential and session administration, company
+ * deletion, import/purge and SSO identity work must never opt out; see AGENTS.md and DECISIONS.md.
+ */
+export const NO_REPROMPT: AuthorizeRouteInput["options"] = { requireFreshSession: false };
+
+/** Returns whether an entity name identifies a known server table. */
+export const isKnownTable = (entity: string): entity is TableName =>
+  Object.prototype.hasOwnProperty.call(TABLES, entity);
+
+/**
+ * The tables the generic /api/:entity routes serve: every known table except `accounts`, which has
+ * its own dedicated static routes (routes/accountEntityRoutes.ts).
+ *
+ * Fastify matches those static paths first, so this is unreachable in practice. It is a fail-closed
+ * backstop. `accounts` carries no accountId column, so every guard the generic handlers derive from
+ * `row.accountId` (the isScopedTable authorize gate, ownsRow, the scoped DELETE owner assertion) is
+ * a silent no-op for it; if a dedicated verb is ever removed, an account row must 404 loudly here
+ * rather than fall through to those no-op scoped semantics. /api/batch keeps its own account
+ * handling (a client sync diff genuinely carries accounts ops) and still uses isKnownTable.
+ */
+export const isGenericEntity = (entity: string): entity is keyof typeof TABLES =>
+  isKnownTable(entity) && entity !== "accounts";
+
+/** Returns whether a table is account-scoped. */
+export const isScopedTable = isScopedEntityKey;
+
+/** Returns whether a table supports lifecycle tombstones. */
+export const isLifecycleEntity = isLifecycleEntityKey;
+
+/** Returns whether the row is new or already belongs to the requested account. */
+export const ownsRow = (existing: { accountId?: unknown } | undefined, accountId: unknown): boolean =>
+  !existing || existing.accountId === accountId;
+
+/** Detects a mismatched revision instant for an existing row.
+ * Full replacements require a valid matching precondition; PATCH may omit it for compatibility.
+ * Missing rows and corrupt stored revisions do not conflict, allowing creation or metadata repair.
+ */
+export function isStaleWrite(input: StaleWriteInput): input is StaleWriteInput & { existing: Record<string, unknown> } {
+  const { existing, row, requirePrecondition = true } = input;
+
+  // Conflict callers use the narrowed input.existing for successor checks and redacted echoes.
+  if (existing === undefined) return false;
+  // Corrupt stored revisions must remain repairable, so this predicate cannot demand a matching precondition until storage has a valid revision.
+  if (typeof existing.updatedAt !== "string" || !Number.isFinite(Date.parse(existing.updatedAt))) return false;
+  if (typeof row.updatedAt !== "string" || !Number.isFinite(Date.parse(row.updatedAt))) {
+    return requirePrecondition || Object.hasOwn(row, "updatedAt");
+  }
+  return Date.parse(existing.updatedAt) !== Date.parse(row.updatedAt);
+}
+
+/** Fully visible writer context (unaffected tables, auth off, or an owner). One frozen module-level
+ * instance keeps the hot generic write paths allocation-free. */
+export const ALL_FIELDS_VISIBLE: SanitizeWriteOptions = Object.freeze({
+  canSeeTimeOffNote: true,
+  canSeePrivateNames: true,
+  canChangeCapacityOverviewAccess: true,
+});
+
+/** Authorization function used by route handlers. */
+export type AuthorizeRoute = (input: AuthorizeRouteInput) => AuthorizationResult;
+
+interface WriteActivityRowInput {
+  db: Db;
+  projection: BatchStateProjection | undefined;
+  row: Record<string, unknown>;
+  existing: Record<string, unknown> | undefined;
+}
+
+/** Writes an activity and reconciles any allocation attribution changes. */
+export function writeActivityRow({
+  db,
+  projection,
+  row,
+  existing,
+}: WriteActivityRowInput): RewrittenAllocationRevision[] {
+  upsertRow(db, "activities", row);
+  projection?.upsert("activities", row);
+  const id = row.id as string;
+  if (projection) {
+    projection.reconcileAllocationAttributionForActivity({
+      activityId: id,
+      attributionAllowed: allocationAttributionAllowed(row.kind),
+    });
+    return [];
+  }
+  // A newly created activity cannot have an allocation referencing it yet, so POST/PUT-create
+  // never needs a sweep. Direct writes retain their immediate database reconciliation.
+  if (!existing || allocationAttributionAllowed(row.kind)) return [];
+  return clearAllocationAttributionForActivities(db, new Set([id]));
+}
+
+/** Adds server-owned allocation revisions to activity write echoes for client reconciliation. */
+export function shapeActivityWriteEcho(
+  entity: string,
+  echo: Record<string, unknown>,
+  rewrittenAllocations: RewrittenAllocationRevision[],
+): Record<string, unknown> {
+  return entity === "activities" ? { ...echo, rewrittenAllocations } : echo;
+}

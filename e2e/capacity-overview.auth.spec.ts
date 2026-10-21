@@ -7,12 +7,12 @@ const STAMP = Date.now();
 const OWNER = `overview-owner-${STAMP}@capacitylens.dev`;
 const VIEWER = `overview-viewer-${STAMP}@capacitylens.dev`;
 
-async function signIn(page: Page, email: string) {
+async function signIn(page: Page, email: string, accountName: string) {
   await page.goto("/");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(AUTH_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
+  await page.getByRole("button", { name: accountName, exact: true }).click();
   await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
 }
 
@@ -23,7 +23,7 @@ test("the account access setting gates viewer navigation and direct routes", asy
   const accountId = await bootstrapOrg(request, owner.cookie, accountName);
   seedFixtureMember(accountId, viewer.email, "viewer");
 
-  await signIn(page, VIEWER);
+  await signIn(page, VIEWER, accountName);
   await expect(page.getByRole("link", { name: "Overview" })).toHaveCount(0);
   await page.keyboard.press("ControlOrMeta+k");
   const palette = page.getByTestId("command-palette");

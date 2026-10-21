@@ -1,0 +1,191 @@
+import { isAccountRole } from "./types";
+import type { IdentityAdminAction, Role } from "./types";
+
+/** Single-company-per-instance cap (owner policy, see AppOptions.multiAccount). The
+ * deployment defaults to hosting exactly one company; every route that could add a second `accounts`
+ * row shares this one message so the rule can't drift between PUT/batch/orgs. */
+export const SINGLE_COMPANY_CAP_MESSAGE =
+  "This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.";
+
+/** Company administration actions the role policy authorizes. */
+export type AccountAdminAction =
+  | "list-members"
+  | "manage-members"
+  | "manage-invitations"
+  | "masquerade-member"
+  | "manage-member-sign-in-tracking"
+  | "transfer-ownership"
+  | "act-on-ownership-transfer"
+  | "erase-workspace";
+
+const ROLE_RANK: Readonly<Record<Role, number>> = {
+  viewer: 0,
+  editor: 1,
+  admin: 2,
+  owner: 3,
+};
+
+const MIN_ADMIN_TIER = {
+  "list-members": "admin",
+  "manage-members": "admin",
+  "manage-invitations": "admin",
+  "masquerade-member": "admin",
+  "manage-member-sign-in-tracking": "owner",
+  "transfer-ownership": "owner",
+  // Admin tier, not owner: this is the gate every ceremony route shares, and the nominated Admin
+  // must pass it to give or withdraw their own consent. It is deliberately the weakest necessary
+  // gate: who may actually perform each ceremony action is decided by canActOnOwnershipTransfer,
+  // which knows participant identity, and by the owner-only "transfer-ownership" threshold above
+  // for the Owner's three actions. Making this gate owner-only would lock the nominee out of
+  // consenting; making it the only check would let any Admin consent on the nominee's behalf.
+  "act-on-ownership-transfer": "admin",
+  "erase-workspace": "owner",
+} as const satisfies Record<AccountAdminAction, Role>;
+
+const IDENTITY_ADMIN_ACTIONS: ReadonlySet<IdentityAdminAction> = new Set([
+  "issue-password-reset",
+  "revoke-sessions",
+  "correct-email",
+  "remove-federated-link",
+]);
+
+/** Whether `role` ranks at or above `minimum` in the owner > admin > editor > viewer order. Pure. */
+export function isAtLeast(role: Role, minimum: Role): boolean {
+  const actualRank = ROLE_RANK[role];
+  const requiredRank = ROLE_RANK[minimum];
+  return actualRank >= requiredRank;
+}
+
+/**
+ * Whether `role` meets the minimum tier for one account administration `action`. This is the role
+ * check only; the server still applies session and fresh-session policy separately.
+ */
+export function canAdministerAccount(role: Role, action: AccountAdminAction): boolean {
+  const minimum = MIN_ADMIN_TIER[action];
+  return isAtLeast(role, minimum);
+}
+
+/**
+ * May `actor` edit `target`'s role at all, i.e. is this member's role even a thing this actor can
+ * touch, setting aside which role they would set it to?
+ *
+ * The question a member row asks: whether to render a role control for that member. It is separate
+ * from {@link canManageMemberRole}, which additionally judges one specific destination role and is
+ * therefore the wrong question for a row that has not chosen one yet.
+ *
+ * Rules (deny by default): the actor must hold `manage-members` (admin tier), and the target must
+ * not be the Owner, an Owner's role only ever moves through the atomic ownership transfer, so no
+ * ordinary role edit reaches one. Fail-closed on an unrecognised target role.
+ *
+ * The rule is stated here in full rather than delegated to {@link canRemoveMember}: the two are
+ * equal today (its test pins that equivalence as current truth), but "may I retitle you" and "may I
+ * revoke you" are different questions, and one gaining a condition must not silently change the
+ * other.
+ */
+export function canEditAnyMemberRole(actorRole: Role, targetRole: Role): boolean {
+  if (!canAdministerAccount(actorRole, "manage-members") || !isAccountRole(targetRole)) return false;
+  return targetRole !== "owner";
+}
+
+/** Whether the actor may change the target's role to `nextRole`. Promotion to Owner is never allowed here. Pure. */
+export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole: Role): boolean {
+  // Standing over this target first, then the destination-specific rule: promoting anyone to Owner
+  // is likewise reserved to the ownership transfer.
+  if (!canEditAnyMemberRole(actorRole, targetRole) || !isAccountRole(nextRole)) return false;
+  return nextRole !== "owner";
+}
+
+/** Whether the actor may remove the target. An Owner cannot be removed. Pure. */
+export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {
+  return isAccountRole(targetRole) && canAdministerAccount(actorRole, "manage-members") && targetRole !== "owner";
+}
+
+/**
+ * May `actor` move `target`'s membership between lifecycle states (disable / archive / restore)?
+ *
+ * Deliberately the same authority as removal, minus self-service: suspending a membership denies
+ * account entry exactly as removal does, so it must not be reachable by anyone who could not also
+ * remove the target. The Owner exclusion inside {@link canRemoveMember} is load-bearing beyond
+ * policy taste, the physical single-active-Owner index and the boot assertion both key on
+ * `role = 'owner' AND status = 'active'`, so disabling an Owner would leave a member-bearing
+ * account ownerless and fail the next boot.
+ *
+ * Self-operation is refused rather than merely discouraged: an administrator who disabled their own
+ * membership would immediately lose the authority needed to reverse it, and for a sole Admin that
+ * is an unrecoverable lockout no in-app path could undo.
+ */
+export function canChangeMemberStatus(actorRole: Role, targetRole: Role, isSelf: boolean): boolean {
+  if (isSelf) return false;
+  return canRemoveMember(actorRole, targetRole);
+}
+
+/**
+ * Whether `actorRole` may run identity security operations (password reset, session revocation and
+ * similar) against a member holding `targetRole` in one workspace. Requires admin tier; only an
+ * Owner may act on an Owner. Fails closed on an unrecognised target role. Callers acting on an
+ * identity that spans workspaces use {@link canAdministerIdentityAcrossWorkspaces}.
+ */
+export function canAdministerIdentity(actorRole: Role, targetRole: Role): boolean {
+  if (!canAdministerAccount(actorRole, "manage-members") || !isAccountRole(targetRole)) return false;
+  return targetRole !== "owner" || actorRole === "owner";
+}
+
+/**
+ * Identity security operations affect every workspace the target can enter in this installation.
+ * The actor therefore needs sufficient standing in every target workspace. Self-operation is safe
+ * from cross-identity escalation but still requires the target to have at least one membership.
+ */
+export function canAdministerIdentityAcrossWorkspaces(
+  actorRolesByWorkspace: ReadonlyMap<string, Role>,
+  targetRolesByWorkspace: ReadonlyMap<string, Role>,
+  isSelf: boolean,
+): boolean {
+  if (targetRolesByWorkspace.size === 0) return false;
+  if (isSelf) return true;
+  for (const [workspaceId, targetRole] of targetRolesByWorkspace) {
+    const actorRole = actorRolesByWorkspace.get(workspaceId);
+    if (actorRole === undefined || !canAdministerIdentity(actorRole, targetRole)) return false;
+  }
+  return true;
+}
+
+interface IdentityAdminActionInput {
+  action: IdentityAdminAction;
+  actorRolesByWorkspace: ReadonlyMap<string, Role>;
+  targetRolesByWorkspace: ReadonlyMap<string, Role>;
+  isSelf: boolean;
+}
+
+function evaluateIdentityAdminAction({
+  action,
+  actorRolesByWorkspace,
+  targetRolesByWorkspace,
+  isSelf,
+}: IdentityAdminActionInput): boolean {
+  // All supported operations alter identity-global security state and therefore intentionally use
+  // the same all-workspaces standing rule. Keep the action check so an unknown future operation is
+  // denied until its policy is explicitly classified.
+  if (!IDENTITY_ADMIN_ACTIONS.has(action)) return false;
+  return canAdministerIdentityAcrossWorkspaces(actorRolesByWorkspace, targetRolesByWorkspace, isSelf);
+}
+
+/**
+ * Keeps identity administration decisions consistent with actor, target, and self-service
+ * restrictions.
+ */
+const canPerformIdentityAdminAction = function canPerformIdentityAdminAction(
+  ...[action, actorRolesByWorkspace, targetRolesByWorkspace, isSelf]: [
+    action: IdentityAdminAction,
+    actorRolesByWorkspace: ReadonlyMap<string, Role>,
+    targetRolesByWorkspace: ReadonlyMap<string, Role>,
+    isSelf: boolean,
+  ]
+): boolean {
+  return evaluateIdentityAdminAction({ action, actorRolesByWorkspace, targetRolesByWorkspace, isSelf });
+};
+
+// Function `length` is configurable by ECMAScript; retain the published four-argument runtime
+// contract while the rest-tuple implementation keeps the compatibility wrapper lint-clean.
+Object.defineProperty(canPerformIdentityAdminAction, "length", { value: 4 });
+
+export { canPerformIdentityAdminAction };

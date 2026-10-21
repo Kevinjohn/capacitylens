@@ -1,6 +1,6 @@
 import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
-import { WEEK_SNAP_IDLE_MS } from "../apps/frontend/src/lib/schedulerConfig";
+import { WEEK_SNAP_IDLE_MS } from "../src/lib/schedulerConfig";
 
 // Freeze browser Date inside the June seed window so scheduler tests remain independent of the wall clock.
 // Keep timers native because Firefox clock emulation can run pending scroll frames during Strict Mode layout replay.
@@ -204,30 +204,27 @@ export async function waitForAppLanding(page: Page, landedOn: Locator): Promise<
   }
 }
 
-// The seeded demo is multi-company, so it shows the full-screen account picker on every load. The
-// server-backed one-company fixture selects its company from the server summary and opens directly.
-// Most core specs want the seeded company, so they navigate through `openApp` instead of `goto('/')`.
+// The seeded demo is multi-company, so it shows the full-screen account picker on every load. A
+// server-backed login with exactly one valid company may skip it on a browser reload, but
+// activeAccountId itself remains unpersisted. Almost every core spec wants the seeded company, so
+// they navigate through `openApp` instead of `goto('/')`.
 /** Opens a seeded company at the requested path and dismisses optional non-blocking orientation after the app shell mounts. */
 export async function openApp(page: Page, company = "Wayne Enterprises", path = "/"): Promise<void> {
   // Must precede goto so the app reads the frozen date on its first render.
   await freezeBrowserDate(page);
   await page.goto(path);
-  // A persisted demo sign-in flag can bypass its gate. A one-company server fixture can instead
-  // mount the app directly after resolving the server summary.
+  // A persisted demo sign-in flag can bypass this gate, so wait for either sign-in or the company picker.
   const signIn = page.getByTestId("fake-sign-in");
   const companyButton = page.getByRole("button", { name: company, exact: true });
-  const appMain = page.locator("#main");
-  await signIn.or(companyButton).or(appMain).first().waitFor();
-  if (await signIn.isVisible()) {
-    await signIn.click();
-    await companyButton.or(appMain).first().waitFor();
-  }
-  if (await companyButton.isVisible()) {
-    // The demo picker lists seeded companies. Picking one leaves a deep-link URL intact.
-    await companyButton.click();
-  }
+  await signIn.or(companyButton).first().waitFor();
+  if (await signIn.isVisible()) await signIn.click();
+  // The picker lists the seeded companies; the open button's accessible name is
+  // exactly the company name (the Delete button is "Delete <company>").
+  // Picking an account leaves the URL intact, so a deep link like `/resources`
+  // still lands on that route once the tenant gate clears.
+  await companyButton.click();
   // Wait for the mounted app shell before dismissing its optional non-blocking orientation.
-  await waitForAppLanding(page, appMain);
+  await waitForAppLanding(page, page.locator("#main"));
 }
 
 /** Opens the new-company form without submitting it, so specs can inspect its initial fields. */

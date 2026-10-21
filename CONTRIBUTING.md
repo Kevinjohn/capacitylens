@@ -32,42 +32,6 @@ pnpm run dev
 `pnpm run dev:demo` starts the temporary in-memory demo without SQLite or authentication. The
 workspace contains the web app, the pure `@capacitylens/shared` domain package, and the server.
 
-## Beta transfer contract
-
-The beta-native document has `format: "capacitylens-beta"`, `schemaVersion: 1` and
-`completeness: "full" | "redacted"`. Its version is independent of database and legacy export
-versions. `data` contains exactly one account and all scoped tables, preserving IDs, timestamps
-and supported company settings. It excludes identity, sessions, memberships, roles, admission
-records and device preferences. Only a full-completeness document can be prepared for import.
-
-Shared preparation strictly validates fields and references, including account scope and current
-member-to-person links. It rejects invalid data instead of repairing or remapping it. Redacted
-exports preserve the server-projected confidential values and cannot be restored as a full
-replacement.
-
-The public entry point is `@capacitylens/shared/data/betaTransfer`: `buildBetaExport`,
-`serializeBetaExport`, `parseBetaExport` and `prepareBetaImport`. Preparation receives explicit
-server-owned `{ accountId, memberResourceLinks }` context and returns `{ data, imported }`, where
-`imported` includes the account row. Export callers must supply an authorized, confidentially
-projected dataset; the completeness marker grants no authority.
-
-This is a preparation-only contract. The beta preview validates data and passes the prepared result
-to its caller; it does not write to the server. Settings still uses the legacy importer and
-exporter. Before activation, the writer must recheck authority and privileged proof, the expected
-company revision and current member links inside its transaction. It must reject IDs already owned
-by another company, preserve member/resource associations and durable planning mutation identities,
-and replace planning rows and supported settings atomically. A changed replacement advances the
-company revision and audit once; an unchanged replacement does neither. Do not pass prepared beta
-data to the legacy remapping writer.
-
-Before activation, import replacement, anonymisation and privacy scrubbing must invalidate affected
-server-side restoration groups in the same transaction as the data change. Retained before-images
-must not restore replaced or scrubbed information after commit. Real SQLite acceptance must prove
-that committed invalidation refuses restoration and that a failed transaction rolls back both the
-data change and invalidation. Invalidation must preserve durable planning mutation commitment
-identities. Coordinate this integration with the existing backend transaction and import/export
-owners; do not add a competing writer.
-
 ## Before opening a pull request
 
 Use the Node version in `.nvmrc`:
@@ -78,24 +42,33 @@ pnpm run e2e
 ```
 
 A prose-only change needs formatting and a content and link review instead; rebuild the
-documentation when its sources change. Run the focused checks for changed behavior and preserve
-the security, data-integrity and migration invariants in [DECISIONS.md](DECISIONS.md).
+documentation when its sources change. The
+[development guide](docs-src/reference/development.md#checks) lists when to add the account
+boundary check, migration rehearsal and mutation testing.
 
-Authentication and account changes require focused backend tests for the affected authority and
-failure paths. Provider checks use controlled responses; live-provider checks need an authorized
-test registration and must be reported separately. Migration changes must preserve every released
-migration checksum and exercise `app:upgrade`, backup and rollback refusal behavior.
+Authentication, account, invitation, membership, authorization, session and erasure changes must
+also run the portable account boundary check. For changes to Google or Microsoft integration, use
+controlled provider responses in the focused tests; any live-provider check must use an authorized
+test registration and must be reported separately from deterministic evidence:
+
+```bash
+pnpm run test:account-conformance
+```
+
+Run `pnpm run rehearse:migrations` whenever a change touches a database migration, persisted
+authentication shape or Better Auth version. Account-security changes also follow
+[account-security versioning](docs-src/reference/development.md#account-security-versioning).
 
 ## Formatting
 
 Prettier owns whitespace, quoting and line breaks. The project uses `printWidth: 120`, except for
-the vendored shadcn primitives in `apps/frontend/src/components/ui/`, which retain the upstream 80-column width
+the vendored shadcn primitives in `src/components/ui/`, which retain the upstream 80-column width
 so registry diffs show substantive changes instead of reflow noise. Everything else is stock. Run
 `pnpm run format` before committing — `pnpm run gate` fails on unformatted files.
 
-Use clear names, small result shapes and explicit module boundaries. Style is not reviewable: if
-Prettier produced it, it is correct. Reach for `// prettier-ignore` only when a hand-aligned block
-genuinely reads better, and say why in the patch.
+Names, parameters and result shapes follow `docs-src/reference/conventions.md`; the review
+checks them. Style is not reviewable: if Prettier produced it, it is correct. Reach for `// prettier-ignore`
+only when a hand-aligned block genuinely reads better, and say why in the patch.
 
 Run the applicable cross-browser suite for interaction or layout changes:
 
@@ -108,7 +81,7 @@ pnpm run e2e:all
 
 These conditions are local-development guidance for choosing extra checks before opening a pull
 request. Pull requests run static analysis and CodeQL; documentation changes also run the docs
-build. The full application/backend gate, native packages and Chromium/Firefox/WebKit
+build. The full gate, account-conformance checks, migration rehearsal and Chromium/Firefox/WebKit
 E2E suites run on `main` pushes, schedules or manual dispatch. Check the workflow files for the
 current triggers and dispatch any required pre-merge evidence explicitly.
 
@@ -118,21 +91,18 @@ sanitisation so the compile-time exhaustiveness checks can protect them.
 
 ## Engineering standard
 
-Write comments to explain why rather than restating what the code does; exported APIs need TSDoc.
-
-When changing a data path, preserve the product and security invariants in [DECISIONS.md](DECISIONS.md).
-In brief:
+Read [DEFENSIVE-CODING.md](DEFENSIVE-CODING.md) before changing a data path. In brief:
 
 - Surface errors; never silently swallow them.
 - Keep account reads scoped and let the server enforce membership on every write.
-- Put environment-independent domain rules in `packages/shared/`; do not duplicate them in UI/server code.
+- Put environment-independent domain rules in `shared/`; do not duplicate them in UI/server code.
 - Preserve the three distinct workload signals and their time windows.
 - Add tests that fail without the change.
 - Never commit secrets, production data, generated output or personal deployment notes.
 
-Authentication changes need explicit threat-oriented tests. Google is the
-supported company provider; Microsoft is deferred and GitHub is retired. Provider changes must
-remain secure when configuration is missing, partial or malicious.
+Authentication and offline-cache changes need explicit threat-oriented tests. GitHub remains an
+experimental provider, while Google and Microsoft are the supported company providers. Provider
+changes must remain secure when configuration is missing, partial or malicious.
 
 ## Pull requests
 

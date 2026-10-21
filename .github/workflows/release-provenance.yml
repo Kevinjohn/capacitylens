@@ -44,22 +44,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
-        env:
-          NODE_ENV: production
-          CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1"
-          HOST: 127.0.0.1
-          PORT: "0"
-          LOG_LEVEL: error
-          APP_KEY: capacitylens-test-key-0123456789abcdef
-          APP_URL: http://127.0.0.1
-          SESSION_DRIVER: memory
       - name: Package the web build
-        run: |
-          if [ -d apps/frontend/dist ]; then
-            tar -czf capacitylens-web.tar.gz -C apps/frontend dist
-          else
-            tar -czf capacitylens-web.tar.gz dist
-          fi
+        run: tar -czf capacitylens-web.tar.gz dist
       - name: Generate the release SBOM
         uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
         with:
@@ -85,11 +71,7 @@ jobs:
       - name: Package the runnable server archive
         if: steps.archive.outputs.enabled == 'true'
         run: |
-          # Historical release tags retain their original server build command.
-          # The current workspace build already compiles the Adonis backend.
-          if [ ! -f apps/backend/package.json ]; then
-            pnpm --filter capacitylens-server run build:runtime
-          fi
+          pnpm --filter capacitylens-server run build:runtime
           pnpm run package:managed-release
           pnpm run package:release-archive
       - name: List the release assets

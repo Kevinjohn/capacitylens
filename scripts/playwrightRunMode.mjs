@@ -1,8 +1,17 @@
 const enabled = (environment, name) => environment[name] === "1";
 
-/** The reset and direct API calls follow the claimed local lane. */
-export function serverTestApiOrigin(laneApiPort) {
-  return `http://localhost:${laneApiPort}`;
+/**
+ * The reset and direct API calls follow the server selected by this Playwright run.
+ * @throws When a rehearsal URL is invalid or uses a disallowed protocol or credentials.
+ */
+export function serverTestApiOrigin(laneApiPort, environment = process.env) {
+  const rehearsalUrl = environment.CAPACITYLENS_REHEARSAL_URL;
+  if (!rehearsalUrl) return `http://localhost:${laneApiPort}`;
+  const url = new URL(rehearsalUrl);
+  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) {
+    throw new Error("CAPACITYLENS_REHEARSAL_URL must be an HTTP(S) URL without credentials.");
+  }
+  return url.origin;
 }
 
 /**
@@ -43,17 +52,23 @@ export function presetEnvironment(environment, preset) {
 /**
  * Resolve projects and supporting servers from one flag interpretation.
  * Returns a frozen result without changing the supplied inputs.
- * @throws When both single-engine flags are set.
+ * @throws When both single-engine flags are set or rehearsal is combined with a single-engine mode.
  */
 export function resolvePlaywrightRunMode(environment, argv, selectsOnlyExplicitCoreSpecs) {
   const webkitOnly = enabled(environment, "CAPACITYLENS_WEBKIT_ONLY");
   const firefoxOnly = enabled(environment, "CAPACITYLENS_FIREFOX_ONLY");
   if (webkitOnly && firefoxOnly) throw new Error("WebKit-only and Firefox-only modes are mutually exclusive.");
 
+  const rehearsal = Boolean(environment.CAPACITYLENS_REHEARSAL_URL);
+  if (rehearsal && (webkitOnly || firefoxOnly)) {
+    throw new Error("Rehearsal mode cannot be combined with a single-browser core mode.");
+  }
+
   const explicitCoreOnly = selectsOnlyExplicitCoreSpecs(argv);
   const viteOnly = enabled(environment, "CAPACITYLENS_VITE_ONLY") || webkitOnly || firefoxOnly || explicitCoreOnly;
   const projects = [];
-  if (webkitOnly) projects.push("webkit");
+  if (rehearsal) projects.push("rehearsal");
+  else if (webkitOnly) projects.push("webkit");
   else if (firefoxOnly) projects.push("firefox");
   else {
     projects.push("chromium");
@@ -64,6 +79,6 @@ export function resolvePlaywrightRunMode(environment, argv, selectsOnlyExplicitC
 
   return Object.freeze({
     projects: Object.freeze(projects),
-    serverProfile: viteOnly ? "vite" : "standard",
+    serverProfile: rehearsal ? "rehearsal" : viteOnly ? "vite" : "standard",
   });
 }

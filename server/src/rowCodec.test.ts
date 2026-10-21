@@ -1,0 +1,88 @@
+import { describe, expect, it } from "vitest";
+import { resolveTable } from "./db/introspection";
+import { fromRow, toRow } from "./rowCodec";
+
+const accountSpec = resolveTable("accounts");
+
+describe("rowCodec", () => {
+  it("encodes JSON columns and collapses absent optionals to SQL null", () => {
+    const cells = toRow(accountSpec, {
+      id: "a1",
+      name: "Studio",
+      color: "#fff",
+      weekStartsOn: 0,
+      disciplinesEnabled: false,
+      createdAt: "created",
+      updatedAt: "updated",
+    });
+    const byName = Object.fromEntries(accountSpec.columns.map((column, index) => [column.name, cells[index]]));
+    expect(byName.weekStartsOn).toBe("0");
+    expect(byName.disciplinesEnabled).toBe("false");
+    expect(byName.timezone).toBeNull();
+  });
+
+  it("decodes JSON, omits optional nulls, and retains required nulls for validation", () => {
+    expect(
+      fromRow(accountSpec, {
+        id: "a1",
+        name: null,
+        color: "#fff",
+        weekStartsOn: "1",
+        timezone: null,
+        createdAt: "created",
+        updatedAt: "updated",
+      }),
+    ).toMatchObject({ id: "a1", name: null, weekStartsOn: 1 });
+    expect(
+      fromRow(accountSpec, {
+        id: "a1",
+        name: "Studio",
+        color: "#fff",
+        timezone: null,
+        createdAt: "c",
+        updatedAt: "u",
+      }),
+    ).not.toHaveProperty("timezone");
+  });
+
+  it("identifies corrupt JSON by table, column and row without exposing cell contents", () => {
+    let caught: unknown;
+    try {
+      fromRow(accountSpec, {
+        id: "a-broken",
+        name: "Studio",
+        color: "#fff",
+        weekStartsOn: "SENTINEL_CORRUPT_CELL",
+        createdAt: "c",
+        updatedAt: "u",
+      });
+    } catch (error) {
+      // Capture the corrupt-cell error so assertions verify the damaged location is reported without the cell value.
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).message).toBe("Corrupt JSON in accounts.weekStartsOn (id=a-broken)");
+    expect((caught as Error).message).not.toContain("SENTINEL_CORRUPT_CELL");
+    expect((caught as Error).cause).toBeUndefined();
+  });
+});
+
+describe("rowCodec round trips", () => {
+  it("round-trips a closure without inventing resource or note fields", () => {
+    const closures = resolveTable("closures");
+    const databaseRow = {
+      id: "closure1",
+      accountId: "a1",
+      name: "Christmas shutdown",
+      startDate: "2026-12-24",
+      endDate: "2026-12-25",
+      createdAt: "created",
+      updatedAt: "updated",
+    };
+    expect(fromRow(closures, databaseRow)).toEqual(databaseRow);
+    expect(Object.keys(toRow(closures, databaseRow))).toHaveLength(closures.columns.length);
+    expect(fromRow(closures, databaseRow)).not.toHaveProperty("resourceId");
+    expect(fromRow(closures, databaseRow)).not.toHaveProperty("note");
+  });
+});

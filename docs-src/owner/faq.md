@@ -26,21 +26,18 @@ If the link is lost, revoke it under **Outstanding invites** and create a new on
 
 ## Does an Admin invitation transfer ownership?
 
-No. An invitation gives someone the role in the invitation, but cannot transfer ownership. Only the
-current Owner can choose an active, unrestricted Admin in **Manage ownership** and confirm the
-transfer. You become Admin and the selected Admin becomes Owner immediately, without a separate
-consent step. There is only ever one Owner; give other managers the Admin role.
+No. Ownership changes only through **Manage ownership**, after the nominee agrees and you confirm.
+There is only ever one Owner; give other managers the Admin role.
 [Transfer ownership](/owner/responsibilities#transfer-ownership)
 
 ## Why is there no Admin to choose as Next Owner?
 
-Only an active, unrestricted Admin can be selected. Invite them as Admin first, then return once
-they accept.
+Only an active Admin can be nominated. Invite them as Admin first, then return once they accept.
 
-## What happens after I confirm the transfer?
+## What happens if an ownership transfer ends?
 
-The selected Admin becomes Owner and you become Admin immediately. There is no pending request for
-them to accept.
+Nothing changes: you remain the Owner. **Manage ownership** shows whether it was declined,
+cancelled, replaced, expired after seven days, or ended because a participant's membership changed.
 
 <span id="can-i-change-the-week-start-timezone-or-language"></span>
 
@@ -57,8 +54,9 @@ Viewer; send an addressed invitation for any other role.
 
 ## Why can't I find Delete company?
 
-The app does not provide a company chooser or deletion action. A standard installation holds one
-company: export a copy, then ask the installer to retire the installation and its data.
+**Delete** is in the company chooser. **Switch company** opens it, and appears only when you can
+access two or more companies. A standard installation holds one company: export a copy, then ask
+the installer to retire the installation and its data.
 [Delete the company](/owner/responsibilities#delete-the-company)
 
 ## Why am I asked to confirm my sign-in?

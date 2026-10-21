@@ -1,0 +1,210 @@
+import { restrictIdentifiedDatabasePermissions } from "./db/filePermissions";
+import { existsSync } from "node:fs";
+import { createHash, randomUUID } from "node:crypto";
+import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
+import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
+import { openDbConnection, planDatabaseMigrations } from "./db";
+import type { Db } from "./db";
+import {
+  DEFAULT_ACCOUNT_APPLICATION,
+  RESET_LINK_TTL_SECONDS,
+  createAuthFromEnvironment,
+  listUserIdsByEmail,
+  mintPasswordResetToken,
+  planAuthSchemaMigrations,
+  revokeResetTokensForUser,
+} from "./auth";
+import type { Auth } from "./auth";
+import { assertAccountControlPlaneCurrent, listSoleOwnerAccountIds } from "./accounts/sqliteAccountAdminPort";
+import { assertAuditOutboxCurrent, enqueueAudit } from "./auditOutbox";
+import { resolveAccountEnvironment } from "./accountConfig";
+
+/**
+ * Reports whether the owner reset completed and includes the principal when one was recovered.
+ */
+export interface OwnerRecoveryResult {
+  email: string;
+  userId: string;
+  accountIds: string[];
+  ceremonyId: string;
+  link: string;
+  expiresAt: string;
+  auditId: string;
+}
+
+/**
+ * Supplies the database, account, and credential update needed for owner recovery.
+ */
+export interface OwnerRecoveryInput {
+  databasePath: string;
+  email: string;
+  confirmServerStopped: boolean;
+  /** Injectable for tests; the script shell passes process.env. */
+  env?: Record<string, string | undefined>;
+}
+
+interface RecoveryContext {
+  email: string;
+  env: Record<string, string | undefined> & { CAPACITYLENS_PUBLIC_URL: string };
+}
+
+function prepareRecoveryContext(input: OwnerRecoveryInput): RecoveryContext {
+  if (!input.confirmServerStopped) {
+    throw new Error(
+      "Refusing without --confirm-server-stopped. Stop the CapacityLens server first; the exclusive " +
+        "database lock enforces this, but the flag records operator intent.",
+    );
+  }
+  if (input.databasePath === ":memory:" || !existsSync(input.databasePath)) {
+    throw new Error("The recovery database must be an existing on-disk CapacityLens database.");
+  }
+  const email = normalizeAccountEmail(input.email);
+  if (!isAccountEmail(email)) throw new Error("The target email is not a valid account address.");
+
+  const { env } = resolveAccountEnvironment({ ...(input.env ?? process.env) });
+  if (env.CAPACITYLENS_MODE !== "password-only" && env.CAPACITYLENS_MODE !== "password-and-sso") {
+    throw new Error(
+      "CAPACITYLENS_MODE must be password-only or password-and-sso: sso-only installations have no local credential to reset " +
+        "and off installations have no credential model.",
+    );
+  }
+  if (!env.CAPACITYLENS_PUBLIC_URL) {
+    throw new Error("CAPACITYLENS_PUBLIC_URL must be set; the reset link cannot be built without it.");
+  }
+  return { email, env: env as RecoveryContext["env"] };
+}
+
+function assertRecoverySchemasCurrent(db: Db): void {
+  const migrationPlan = planDatabaseMigrations(db);
+  if (migrationPlan.migrations.length > 0) {
+    throw new Error(
+      `Database schema v${migrationPlan.fromVersion} is not current (expected v${migrationPlan.toVersion}); ` +
+        "start this release normally to complete its backed-up migration before recovery.",
+    );
+  }
+  assertAccountControlPlaneCurrent(db);
+  assertAuditOutboxCurrent(db);
+}
+
+async function requireCurrentAuth(db: Db, env: Record<string, string | undefined>): Promise<Auth> {
+  // The Auth instance uses the exclusively locked connection; a second connection would deadlock.
+  const { auth } = createAuthFromEnvironment(db, env, { deferDatabaseSetup: true });
+  if (!auth) throw new Error("Better Auth did not initialize for password mode.");
+  const authPlan = await planAuthSchemaMigrations(auth);
+  if (authPlan.pending || authPlan.problems.length > 0) {
+    throw new Error(
+      `Better Auth schema is not current (pending table change(s): ${authPlan.tables.join(", ")}; ` +
+        `${authPlan.problems.join(" ")}); start this release normally before recovery.`,
+    );
+  }
+  return auth;
+}
+
+function requireSoleOwner(db: Db, email: string): { userId: string; accountIds: string[] } {
+  const matches = listUserIdsByEmail(db, email, 2);
+  if (matches.length !== 1) {
+    throw new Error(
+      matches.length === 0
+        ? "No identity matches that address."
+        : "More than one identity matches that address; recovery requires an unambiguous target.",
+    );
+  }
+  const userId = matches[0];
+  if (!userId) throw new Error("No identity matches that address.");
+  const accountIds = listSoleOwnerAccountIds(db, userId);
+  if (accountIds.length === 0) {
+    throw new Error(
+      "That identity is not the sole active Owner of any workspace; use the in-product " +
+        "admin-issued reset instead.",
+    );
+  }
+  return { userId, accountIds };
+}
+
+interface RecordRecoveryInput {
+  db: Db;
+  context: RecoveryContext;
+  target: { userId: string; accountIds: string[] };
+  token: string;
+}
+
+function recordRecovery({ db, context, target, token }: RecordRecoveryInput): OwnerRecoveryResult {
+  const applicationId = DEFAULT_ACCOUNT_APPLICATION.applicationId;
+  const ceremonyId = createHash("sha256").update(`${applicationId}-reset-ceremony\0`).update(token).digest("base64url");
+  const link = `${new URL(context.env.CAPACITYLENS_PUBLIC_URL).origin}/reset-password/${encodeURIComponent(token)}`;
+  const expiresAt = new Date(Date.now() + RESET_LINK_TTL_SECONDS * 1000).toISOString();
+  const event: AccountAuditEvent = {
+    id: randomUUID(),
+    occurredAt: new Date().toISOString(),
+    applicationId,
+    workspaceId: null,
+    // No in-product actor exists for this ceremony. That absence is the auditable fact.
+    actorPrincipalId: null,
+    targetPrincipalId: target.userId,
+    commandId: null,
+    action: "identity.owner_recovery_issued",
+    outcome: "success",
+    // The digest, never the token: the audit trail must not itself be a credential.
+    changedFields: ["credential", `ceremony:${ceremonyId}`],
+  };
+  const auditId = enqueueAudit(db, event, event.id);
+  return { ...target, email: context.email, ceremonyId, link, expiresAt, auditId };
+}
+
+/**
+ * Recovers the sole active owner’s password through the ordinary reset ceremony while the server is stopped.
+ * When that owner cannot sign in, no other in-product principal can reset the identity.
+ * Recovery retains token expiry, single-use consumption, password policy, session revocation and durable audit without writing a credential directly.
+ */
+export async function resetOwnerPassword(input: OwnerRecoveryInput): Promise<OwnerRecoveryResult> {
+  // Resolve the account configuration exactly the way server startup does, so refusals name the
+  // same keys.
+  const context = prepareRecoveryContext(input);
+
+  // Not openDb(): a stale database must refuse below rather than silently migrate outside the
+  // production pre-migration backup ceremony.
+  const db = openDbConnection(input.databasePath);
+  try {
+    acquireExclusiveDatabaseLock(db);
+    assertRecoverySchemasCurrent(db);
+    const auth = await requireCurrentAuth(db, context.env);
+    const target = requireSoleOwner(db, context.email);
+    restrictIdentifiedDatabasePermissions(db);
+    const token = await mintPasswordResetToken(auth, context.email);
+    if (token === null) {
+      throw new Error("Better Auth matched no credential identity for that address.");
+    }
+
+    // Everything after the mint fails closed: a token we cannot audit or deliver must not survive.
+    try {
+      return recordRecovery({ db, context, target, token });
+    } catch (cause) {
+      revokeResetTokensForUser(db, target.userId);
+      throw new Error("Recovery failed after minting; the reset ceremony has been revoked.", { cause });
+    }
+  } finally {
+    db.close();
+  }
+}
+
+/** The --confirm-server-stopped flag made real: take SQLite's exclusive lock and keep it for the
+ * whole ceremony. A live server's open transactions make acquisition fail (busy_timeout 0 = no
+ * silent waiting); once held, a starting server cannot write mid-ceremony either. */
+export function acquireExclusiveDatabaseLock(db: Db): void {
+  db.exec("PRAGMA busy_timeout = 0;");
+  db.exec("PRAGMA locking_mode = EXCLUSIVE;");
+  try {
+    // BEGIN EXCLUSIVE forces lock acquisition now; the COMMIT keeps it because locking_mode is
+    // EXCLUSIVE (locks persist until the connection closes), leaving autocommit free for the
+    // ceremony's own writes.
+    db.exec("BEGIN EXCLUSIVE");
+    db.exec("COMMIT");
+  } catch (cause) {
+    // Surface exclusive-access failure with its cause because recovery cannot safely run beside another database user.
+    throw new Error(
+      "Another process holds this database — stop the CapacityLens server and retry. Recovery only " +
+        "runs with exclusive database access.",
+      { cause },
+    );
+  }
+}

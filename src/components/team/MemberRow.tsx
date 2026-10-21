@@ -1,0 +1,367 @@
+import type { Dispatch, ReactNode, SetStateAction } from "react";
+import { m } from "@/i18n";
+import { can, canChangeMemberStatus, canEditAnyMemberRole, canRemoveMember } from "@capacitylens/shared/domain/access";
+import type { Role } from "@capacitylens/shared/domain/access";
+import type { TeamMember } from "@/account/teamAccessClient";
+import { resolveRoleLabel } from "@/lib/accessCopy";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Eye, Pencil } from "lucide-react";
+import type { MemberRoleEdit } from "./MemberConfirmations";
+import { resolveMemberLabel } from "./memberConfirmationCopy";
+import type { MemberConfirmationAction } from "./memberConfirmationCopy";
+import { MemberResourceDialog, MemberResourceLink } from "./MemberResourceLink";
+import { MemberActionsDialog } from "./MemberActionsDialog";
+
+// Share affordance policy across active and inactive rows so grouping cannot change the actions offered. The server independently authorizes each operation.
+
+// eslint-disable-next-line complexity
+function buildMemberAffordances(
+  myRole: Role | undefined,
+  member: TeamMember,
+): {
+  mayMasquerade: boolean;
+  mayTouch: boolean;
+  mayRemove: boolean;
+  mayChangeStatus: boolean;
+  mayReset: boolean;
+  hasMenu: boolean;
+} {
+  // Role editing requires an active, unrestricted membership on both client and server.
+  const mayTouch =
+    member.status === "active" &&
+    !member.accessDisabled &&
+    member.membershipPresent !== false &&
+    !!myRole &&
+    canEditAnyMemberRole(myRole, member.role);
+  // Inactive memberships can be removed without reinstatement.
+  const mayRemove = member.membershipPresent !== false && !!myRole && canRemoveMember(myRole, member.role);
+  const mayChangeStatus = !!myRole && canChangeMemberStatus(myRole, member.role, member.isSelf);
+  // The server decision includes auth mode, cross-account and self protections.
+  const mayReset = member.mayResetPassword;
+  return {
+    mayMasquerade:
+      member.status === "active" && !member.accessDisabled && !member.isSelf && !!myRole && can(myRole, "masquerade"),
+    mayTouch,
+    mayRemove,
+    mayChangeStatus,
+    mayReset,
+    hasMenu: mayReset || member.mayRevokeSessions || mayChangeStatus || mayRemove,
+  };
+}
+
+// Use ordinary buttons inside the dialog to avoid nesting another menu and focus model.
+function MemberMenuItem({
+  label,
+  ariaLabel,
+  testId,
+  danger = false,
+  onSelect,
+}: {
+  label: string;
+  ariaLabel: string;
+  testId: string;
+  danger?: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      variant={danger ? "danger-soft" : "outline"}
+      size="default"
+      aria-label={ariaLabel}
+      data-testid={testId}
+      className="w-full justify-start"
+      onClick={onSelect}
+    >
+      {label}
+    </Button>
+  );
+}
+
+interface MemberRowActions {
+  busy: boolean;
+  chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
+  setRoleEdit: Dispatch<SetStateAction<MemberRoleEdit | null>>;
+}
+
+function MemberIdentity({ member }: { member: TeamMember }) {
+  const trimmedName = member.name?.trim();
+  let name = member.userId;
+  if (trimmedName) name = trimmedName;
+
+  const statusLabels = [
+    ...(member.membershipPresent === false ? [m.settings_member_status_removed()] : []),
+    ...(member.status === "archived" ? [m.settings_member_status_archived()] : []),
+    ...(member.accessDisabled ? [m.settings_member_status_disabled()] : []),
+  ];
+
+  return (
+    <td className="py-2 px-4">
+      <div className="flex flex-col items-start gap-1">
+        <span className="text-ink">
+          {name}
+          {member.isSelf && <span className="ml-1 text-xs text-muted-foreground">{m.settings_member_you()}</span>}
+        </span>
+        <div className="flex items-center gap-2">
+          {statusLabels.map((label) => (
+            <Badge key={label} variant="outline" data-testid="member-status">
+              {label}
+            </Badge>
+          ))}
+        </div>
+      </div>
+    </td>
+  );
+}
+
+function MemberPrimaryActions({
+  member,
+  memberLabel,
+  mayMasquerade,
+  mayTouch,
+  busy,
+  chooseMemberAction,
+  setRoleEdit,
+  resourceLink,
+  settingsMenu,
+}: MemberRowActions & {
+  member: TeamMember;
+  memberLabel: string;
+  mayMasquerade: boolean;
+  mayTouch: boolean;
+  resourceLink: ReactNode;
+  settingsMenu: ReactNode;
+}) {
+  return (
+    <td className="w-auto py-2 px-4 text-right whitespace-nowrap">
+      <div className="flex justify-end gap-1">
+        {mayMasquerade && (
+          <Button
+            size="icon-sm"
+            variant="outline"
+            title={m.settings_masquerade_aria({ member: memberLabel })}
+            aria-label={m.settings_masquerade_aria({ member: memberLabel })}
+            data-testid="member-masquerade"
+            disabled={busy}
+            onClick={() => chooseMemberAction("masquerade", member)}
+          >
+            <Eye />
+          </Button>
+        )}
+        {mayTouch && (
+          <Button
+            size="icon-sm"
+            variant="outline"
+            title={m.settings_member_edit_aria({ member: memberLabel })}
+            aria-label={m.settings_member_edit_aria({ member: memberLabel })}
+            data-testid="member-edit"
+            disabled={busy}
+            onClick={() => setRoleEdit({ member: member, nextRole: member.role })}
+          >
+            <Pencil />
+          </Button>
+        )}
+        {resourceLink}
+        {settingsMenu}
+      </div>
+    </td>
+  );
+}
+
+function MemberStatusMenuItems({
+  member,
+  memberLabel,
+  chooseMemberAction,
+}: {
+  member: TeamMember;
+  memberLabel: string;
+  chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
+}) {
+  if (member.membershipPresent === false) {
+    if (!member.accessDisabled) return null;
+  }
+  const restricted = member.accessDisabled;
+  return (
+    <>
+      {restricted ? (
+        <MemberMenuItem
+          testId="member-enable"
+          label={m.settings_member_enable()}
+          ariaLabel={m.settings_member_enable_aria({ member: memberLabel })}
+          onSelect={() => chooseMemberAction("enable", member)}
+        />
+      ) : (
+        <MemberMenuItem
+          testId="member-disable"
+          label={m.settings_member_disable()}
+          ariaLabel={m.settings_member_disable_aria({ member: memberLabel })}
+          onSelect={() => chooseMemberAction("disable", member)}
+        />
+      )}
+      {member.membershipPresent !== false &&
+        (member.status === "active" ? (
+          <MemberMenuItem
+            testId="member-archive"
+            label={m.settings_member_archive()}
+            ariaLabel={m.settings_member_archive_aria({ member: memberLabel })}
+            onSelect={() => chooseMemberAction("archive", member)}
+          />
+        ) : (
+          <MemberMenuItem
+            testId="member-restore"
+            label={m.settings_member_restore()}
+            ariaLabel={m.settings_member_restore_aria({ member: memberLabel })}
+            onSelect={() => chooseMemberAction("restore", member)}
+          />
+        ))}
+    </>
+  );
+}
+
+function MemberSettingsMenuItems({
+  member,
+  memberLabel,
+  affordances,
+  chooseMemberAction,
+}: {
+  member: TeamMember;
+  memberLabel: string;
+  affordances: ReturnType<typeof buildMemberAffordances>;
+  chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
+}) {
+  return (
+    <>
+      {affordances.mayReset && (
+        <MemberMenuItem
+          testId="member-reset-password"
+          label={m.settings_member_reset_password()}
+          ariaLabel={m.settings_member_reset_password_aria({ member: memberLabel })}
+          onSelect={() => chooseMemberAction("resetPassword", member)}
+        />
+      )}
+      {member.mayRevokeSessions && (
+        <MemberMenuItem
+          testId="member-revoke-sessions"
+          label={m.settings_member_revoke_sessions()}
+          ariaLabel={m.settings_member_revoke_sessions_aria({ member: memberLabel })}
+          onSelect={() => chooseMemberAction("revokeSessions", member)}
+        />
+      )}
+      {affordances.mayChangeStatus && (
+        <MemberStatusMenuItems member={member} memberLabel={memberLabel} chooseMemberAction={chooseMemberAction} />
+      )}
+      {affordances.mayRemove && (
+        <MemberMenuItem
+          testId="member-remove"
+          label={m.settings_member_remove()}
+          ariaLabel={m.settings_member_remove_aria({ member: memberLabel })}
+          danger
+          onSelect={() => chooseMemberAction("remove", member)}
+        />
+      )}
+    </>
+  );
+}
+
+/** Shows one member's role, sign-in state, and permitted management actions. */
+// eslint-disable-next-line max-lines-per-function -- the row keeps the table cells and shared dialog wiring together.
+export function MemberRow({
+  member: member,
+  myRole,
+  busy,
+  openMenuFor,
+  setOpenMenuFor,
+  setRoleEdit,
+  chooseMemberAction,
+  linkedResourceIds,
+  resourceCandidates,
+  workspaceId,
+  reload,
+}: {
+  member: TeamMember;
+  myRole: Role | undefined;
+  busy: boolean;
+  openMenuFor: string | null;
+  setOpenMenuFor(value: string | null): void;
+  setRoleEdit: Dispatch<SetStateAction<MemberRoleEdit | null>>;
+  chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
+  linkedResourceIds: ReadonlySet<string>;
+  resourceCandidates: readonly { resourceId: string; label: string }[];
+  workspaceId: string | null;
+  reload(): void;
+}) {
+  const affordances = buildMemberAffordances(myRole, member);
+  const memberLabel = resolveMemberLabel(member);
+  return (
+    <tr
+      className="border-b transition-colors last:border-b-0 hover:bg-accent/30 focus-within:bg-accent/30"
+      data-testid="member-row"
+    >
+      <MemberIdentity member={member} />
+      <td className="py-2 px-4 text-sm text-ink" data-testid="member-role">
+        {member.role === "owner" ? m.settings_member_sole_owner_protected() : resolveRoleLabel(member.role)}
+      </td>
+      <td className="max-w-52 py-2 px-4 text-xs text-muted-foreground" data-testid="member-email">
+        <span className="block truncate" title={member.email ?? undefined}>
+          {member.email ?? m.settings_member_email_missing()}
+        </span>
+      </td>
+      <MemberResourceLink
+        member={member}
+        myRole={myRole}
+        linkedResourceIds={linkedResourceIds}
+        resourceCandidates={resourceCandidates}
+        workspaceId={workspaceId}
+        reload={reload}
+      />
+      <MemberPrimaryActions
+        member={member}
+        memberLabel={memberLabel}
+        mayMasquerade={affordances.mayMasquerade}
+        mayTouch={affordances.mayTouch}
+        busy={busy}
+        chooseMemberAction={chooseMemberAction}
+        setRoleEdit={setRoleEdit}
+        resourceLink={
+          <MemberResourceDialog
+            member={member}
+            myRole={myRole}
+            linkedResourceIds={linkedResourceIds}
+            resourceCandidates={resourceCandidates}
+            workspaceId={workspaceId}
+            reload={reload}
+            busy={busy}
+          />
+        }
+        settingsMenu={
+          <MemberActionsDialog
+            memberLabel={memberLabel}
+            hasExistingActions={affordances.hasMenu}
+            busy={busy}
+            open={openMenuFor === member.userId}
+            onOpenChange={(open) => setOpenMenuFor(open ? member.userId : null)}
+          >
+            {affordances.mayTouch && (
+              <MemberMenuItem
+                testId="member-edit"
+                label={m.settings_member_edit_aria({ member: memberLabel })}
+                ariaLabel={m.settings_member_edit_aria({ member: memberLabel })}
+                onSelect={() => {
+                  setOpenMenuFor(null);
+                  setRoleEdit({ member, nextRole: member.role });
+                }}
+              />
+            )}
+            <MemberSettingsMenuItems
+              member={member}
+              memberLabel={memberLabel}
+              affordances={affordances}
+              chooseMemberAction={chooseMemberAction}
+            />
+          </MemberActionsDialog>
+        }
+      />
+    </tr>
+  );
+}

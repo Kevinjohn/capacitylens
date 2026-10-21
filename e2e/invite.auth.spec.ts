@@ -5,7 +5,7 @@ import { waitForAppLanding } from "./browserTestSupport";
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // Invite acceptance uses the password server on this run’s auth API lane.
-// A new user has no membership, so each isolated scenario creates the first company with its Owner.
+// A new user has no membership, so fixture company creation uses the operator bootstrap token.
 const STAMP = Date.now();
 const OWNER = `owner-${STAMP}@capacitylens.dev`;
 const JOINER = `joiner-${STAMP}@capacitylens.dev`;
@@ -14,7 +14,7 @@ const NEW_JOINER = `new-joiner-${STAMP}@capacitylens.dev`;
 function registerSignedUserOpensValidInviteTest() {
   test("a signed-in user opens a valid invite link and joins; reusing the token is 409", async ({ page, request }) => {
     test.setTimeout(60_000);
-    // Owner A: sign up (auto-signed-in → session cookie), create the first company, mint an invite. The
+    // Owner A: sign up (auto-signed-in → session cookie), bootstrap an org, mint an invite. The
     // explicit `cookie` header (not the shared jar) carries A's session on each call. B's sign-up
     // below is independent of this chain (it only needs its own email), so start it in parallel.
     const joinerPromise = signUpUser(JOINER);

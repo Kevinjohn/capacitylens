@@ -4,16 +4,15 @@ import { ports } from "../scripts/ports.mjs";
 import { serverTestApiOrigin } from "../scripts/playwrightRunMode.mjs";
 
 // Database-backed specs reset server state between tests, then exercise the app through
-// real UI flows. Their normal app fixture contains one company; server tests seed legacy
-// multi-company data directly when they need tenant-isolation cases.
+// real UI flows. This keeps each assertion tied to the SQLite API and its rehydrated state.
 
-/** Resolves the server API origin for the claimed local lane. */
+/** Resolves the server API origin for lane tests or the rehearsal same-origin stack. */
 export const API = serverTestApiOrigin(ports().dbApi);
 
 type ResetServerOptions = { request: APIRequestContext; withSeed?: boolean };
-/** Wipes the server data and optionally restores one supported-company fixture. */
+/** Wipes the server database and optionally restores demo seed data. */
 export async function resetServer({ request, withSeed = true }: ResetServerOptions): Promise<void> {
-  const res = await request.post(`${API}/api/test/reset`, { data: { seed: withSeed ? "single" : false } });
+  const res = await request.post(`${API}/api/test/reset`, { data: { seed: withSeed } });
   expect(res.ok()).toBeTruthy();
 }
 

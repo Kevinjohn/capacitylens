@@ -1,28 +1,28 @@
-# US-SET-08 — Device preferences
+# US-SET-08 — Device data and offline snapshots
 
-**Area:** Device data · **Persona:** User · **Linked coverage:** `apps/frontend/src/data/clearLocalStorage.test.ts`
+**Area:** Device data · **Persona:** User · **Linked coverage:** `src/data/clearLocalStorage.test.ts` and offline cache cleanup tests
 
-**Documentation:** [Settings](../../docs-src/using/settings.md#my-display)
+**Documentation:** [Settings](../../docs-src/using/settings.md)
 
 ## Goal
 
-Keep browser-owned preferences separate from company scheduling data.
+Keep browser-owned preferences and optional offline snapshots separate from company data. Settings
+does not currently expose a control to wipe all CapacityLens data from this browser.
 
 ## Why
 
-Display preferences belong to this browser. The server owns the company schedule; a failed request
-must never substitute a saved browser copy or queue writes.
+Offline snapshots clear when a user turns off offline access or signs out. Ordinary display
+preferences remain saved in the browser.
 
 ## How (end-to-end)
 
-1. Change a display preference such as theme or allocation labels.
-2. Reload and confirm the preference remains while scheduling data is read from the server.
-3. If the server cannot be reached, use the visible retry control after reconnecting.
+**Precondition:** Offline access is enabled on this browser.
+
+1. Turn off **Make this device available offline** or sign out to clear the cached company snapshot.
+2. Confirm ordinary display preferences remain saved in this browser.
 
 ## Acceptance criteria
 
-- Ordinary display preferences remain saved in this browser and stay outside company exports.
-- Scheduling records and identity snapshots are never saved in IndexedDB.
-- A failed server read or save remains visible and never falls back to browser persistence.
-- The demo remains in memory and resets on reload.
-- Settings does not display the Device data section or a clear-all action.
+- ✅ Signing out clears the current user's offline snapshots; turning off offline access clears its
+  cached snapshot.
+- ✅ Settings does not display the Device data section or a clear-all action.

@@ -1,0 +1,204 @@
+import type { Role } from "@capacitylens/shared/account/types";
+import { parseISOTimestamp } from "@capacitylens/shared/lib/integrity";
+import type { Db } from "../db";
+import { isKnownRole } from "./members.model";
+import {
+  INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION,
+  removeInvitationPersonProposal,
+} from "./invitationPersonProposals";
+import {
+  INVITATION_RETENTION_INDEXES_V24_SQL,
+  USED_INVITATION_RETENTION_LIMIT,
+  USED_INVITATION_RETENTION_MS,
+} from "./retentionV24";
+
+/** One row of {@link listInvitesForAccount}, an account's outstanding-invite summary for the
+ * member-management UI. Deliberately has no `token` field: the bearer token is a write-once secret
+ * (returned to the creator at mint time and never again), so a read path must never carry it. The
+ * non-secret {@link Invite.id} is what list/revoke key on. */
+export interface InviteSummary {
+  id: string;
+  accountId: string;
+  role: Role;
+  preauthEmail: string | null;
+  expiresAt: string;
+  usedAt: string | null;
+  createdAt: string;
+  proposedResourceId?: string;
+  proposedResourceLabel?: string;
+}
+
+/** Interpret invitation expiry consistently for admission, preview, redemption and pruning.
+ * Malformed stored values fail closed as expired. */
+export function inviteIsExpired(expiresAt: string, now = Date.now()): boolean {
+  const parsed = parseISOTimestamp(expiresAt);
+  return parsed === null || now >= parsed;
+}
+
+function compareIds(left: string, right: string): number {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
+/**
+ * List an account's invites for the member-management UI, ordered newest-first by
+ * `createdAt`. Critical: this never selects or returns the token digest. The token is a write-once
+ * bearer secret (handed to the creator at mint time and nowhere else); returning it on this read path
+ * would hand out live, role-bearing links to anyone who can list invites. list/revoke key on the
+ * non-secret `id` instead.
+ *
+ * Loud role-integrity throw (mirrors the other control-table readers): a stored role that is not a
+ * known {@link Role} is corruption, fail rather than hand back a mistyped role.
+ *
+ * @param db         The open SQLite handle.
+ * @param accountId  The account whose invites to list.
+ * @returns The account's invite summaries (no token), newest first (possibly empty).
+ */
+export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[] {
+  const schemaVersion = (db.prepare("PRAGMA user_version").get() as { user_version?: unknown }).user_version;
+  const hasProposalSchema =
+    typeof schemaVersion === "number" && schemaVersion >= INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION;
+  const rows = db
+    .prepare(
+      // Note: tokenHash is intentionally absent from this SELECT. It must never leave on a read path.
+      // Used invites are listed (not filtered out): the member-management UI shows them with a "used"
+      // badge (MembersSection's `usedAt ? …used()` branch) so an admin can confirm an invite was
+      // consumed. Dead expired-unused links are removed separately by pruneInvites, not hidden here.
+      `SELECT invitation.id, invitation.accountId, invitation.role, invitation.preauthEmail,
+              invitation.expiresAt, invitation.usedAt, invitation.createdAt,
+              ${hasProposalSchema ? "proposal.resourceId" : "NULL"} AS proposedResourceId,
+              ${hasProposalSchema ? "proposal.accountId" : "NULL"} AS proposalAccountId,
+              ${hasProposalSchema ? "CASE WHEN resource.id IS NULL THEN NULL ELSE COALESCE(resource.name, resource.role) END" : "NULL"}
+                AS proposedResourceLabel
+         FROM invites AS invitation
+         ${hasProposalSchema ? "LEFT JOIN invitation_person_proposals AS proposal ON proposal.invitationId = invitation.id" : ""}
+         ${hasProposalSchema ? "LEFT JOIN resources AS resource ON resource.accountId = invitation.accountId AND resource.id = proposal.resourceId" : ""}
+        WHERE invitation.accountId = ?`,
+    )
+    .all(accountId) as Array<{
+    id: string;
+    accountId: string;
+    role: string;
+    preauthEmail: string | null;
+    expiresAt: string;
+    usedAt: string | null;
+    createdAt: string;
+    proposedResourceId: string | null;
+    proposalAccountId: string | null;
+    proposedResourceLabel: string | null;
+  }>;
+  const invitations = rows.map((r) => {
+    if (!isKnownRole(r.role)) {
+      throw new Error(
+        `listInvitesForAccount: stored role ${JSON.stringify(r.role)} for invite ${r.id} is not a known role — control table corrupted.`,
+      );
+    }
+    if (r.proposalAccountId !== null && r.proposalAccountId !== r.accountId) {
+      throw new Error(`listInvitesForAccount: proposal ${r.id} has a corrupt account scope.`);
+    }
+    return {
+      id: r.id,
+      accountId: r.accountId,
+      role: r.role,
+      preauthEmail: r.preauthEmail ?? null,
+      expiresAt: r.expiresAt,
+      usedAt: r.usedAt ?? null,
+      createdAt: r.createdAt,
+      ...(r.proposedResourceId === null ? {} : { proposedResourceId: r.proposedResourceId }),
+      ...(r.proposedResourceLabel === null ? {} : { proposedResourceLabel: r.proposedResourceLabel }),
+    };
+  });
+  return invitations.sort((a, b) => {
+    const aInstant = parseISOTimestamp(a.createdAt) ?? Number.NEGATIVE_INFINITY;
+    const bInstant = parseISOTimestamp(b.createdAt) ?? Number.NEGATIVE_INFINITY;
+    if (aInstant !== bInstant) return bInstant - aInstant;
+    return compareIds(a.id, b.id);
+  });
+}
+
+/**
+ * Revoke (delete) one outstanding invite by its non-secret `id`, the member-management revoke write.
+ * Idempotent: deleting an absent id is a no-op. The `accountId = ?` predicate is the
+ * cross-tenant guard: a revoke can only ever delete an invite of the named account, so an admin of
+ * one account cannot revoke another account's invite even with its id.
+ *
+ * @param db         The open SQLite handle.
+ * @param accountId  The account the invite must belong to (the cross-tenant guard).
+ * @param id         The non-secret invite id to revoke.
+ */
+export function revokeInvite(db: Db, accountId: string, id: string): number {
+  const result = Number(db.prepare(`DELETE FROM invites WHERE id = ? AND accountId = ?`).run(id, accountId).changes);
+  if (result > 0) removeInvitationPersonProposal(db, id);
+  return result;
+}
+
+/** Remove dead unused links and bound used operational history. This is a write-oriented
+ * maintenance primitive: callers must provide their own mutation transaction/coordination and must
+ * not invoke it from a declared read. When accountId is supplied, every write remains scoped to the
+ * workspace whose mutation lock the caller holds. */
+export function pruneInvites(db: Db, now = Date.now(), accountId?: string): number {
+  const accountClause = accountId === undefined ? "" : " AND accountId = ?";
+  const parameters = accountId === undefined ? [] : [accountId];
+  const candidates = db
+    .prepare(`SELECT tokenHash, id, expiresAt FROM invites WHERE usedAt IS NULL${accountClause}`)
+    .all(...parameters) as Array<{
+    tokenHash: string;
+    id: string;
+    expiresAt: string;
+  }>;
+  const removeUnused = db.prepare(`DELETE FROM invites WHERE tokenHash = ? AND usedAt IS NULL`);
+  let deleted = 0;
+  for (const candidate of candidates) {
+    if (inviteIsExpired(candidate.expiresAt, now)) {
+      const removed = Number(removeUnused.run(candidate.tokenHash).changes);
+      if (removed > 0) {
+        removeInvitationPersonProposal(db, candidate.id);
+      }
+      deleted += removed;
+    }
+  }
+
+  return deleted + pruneUsedInvitationHistory(db, now, accountId);
+}
+
+// The frozen v24 repair must prune used history only, without deleting expired unused bearers.
+function pruneUsedInvitationHistory(db: Db, now = Date.now(), accountId?: string): number {
+  const accountClause = accountId === undefined ? "" : " AND accountId = ?";
+  const parameters = accountId === undefined ? [] : [accountId];
+  const used = db
+    .prepare(`SELECT tokenHash, id, accountId, usedAt FROM invites WHERE usedAt IS NOT NULL${accountClause}`)
+    .all(...parameters) as Array<{ tokenHash: string; id: string; accountId: string; usedAt: string }>;
+  const cutoff = now - USED_INVITATION_RETENTION_MS;
+  const retainedByAccount = new Map<string, Array<{ tokenHash: string; instant: number; id: string }>>();
+  const removeUsed = db.prepare(`DELETE FROM invites WHERE tokenHash = ? AND usedAt IS NOT NULL`);
+  let deleted = 0;
+  for (const row of used) {
+    const instant = parseISOTimestamp(row.usedAt);
+    if (instant === null || instant < cutoff) {
+      const removed = Number(removeUsed.run(row.tokenHash).changes);
+      if (removed > 0) removeInvitationPersonProposal(db, row.id);
+      deleted += removed;
+      continue;
+    }
+    const retained = retainedByAccount.get(row.accountId) ?? [];
+    retained.push({ tokenHash: row.tokenHash, instant, id: row.id });
+    retainedByAccount.set(row.accountId, retained);
+  }
+  for (const retained of retainedByAccount.values()) {
+    retained.sort((left, right) => right.instant - left.instant || left.id.localeCompare(right.id));
+    for (const row of retained.slice(USED_INVITATION_RETENTION_LIMIT)) {
+      const removed = Number(removeUsed.run(row.tokenHash).changes);
+      if (removed > 0) removeInvitationPersonProposal(db, row.id);
+      deleted += removed;
+    }
+  }
+  return deleted;
+}
+
+/** One-time v24 repair for pre-existing used history plus its supporting lookup indexes. */
+export function migrateUsedInvitationHistoryV24(db: Db, now = Date.now()): number {
+  const deleted = pruneUsedInvitationHistory(db, now);
+  db.exec(INVITATION_RETENTION_INDEXES_V24_SQL);
+  return deleted;
+}

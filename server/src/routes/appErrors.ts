@@ -1,0 +1,76 @@
+import type { FastifyReply, FastifyRequest } from "fastify";
+import { ValidationError } from "../validate";
+import { REPLY_ERRORS } from "./replyErrors";
+
+// SQLite extended constraint codes that describe caller-supplied row data. Deliberately exclude
+// TRIGGER (1811), FUNCTION (1043), VTAB (2323), COMMIT_HOOK (531) and other internal constraint
+// sources: those are server/storage failures and must remain logged 500s.
+const SQLITE_CALLER_DATA_CONSTRAINT_CODES = new Set([
+  // SQLite's extended code for CHECK constraint failure.
+  275,
+  // SQLite's extended code for foreign key constraint failure.
+  787,
+  // SQLite's extended code for NOT NULL constraint failure.
+  1299,
+  // SQLite's extended code for primary key constraint failure.
+  1555,
+  // SQLite's extended code for unique constraint failure.
+  2067,
+  // SQLite's extended code for row ID constraint failure.
+  2579,
+  // SQLite's extended code for data type constraint failure.
+  3091,
+]);
+
+// Require a recognized SQLite row-data constraint code so internal trigger failures cannot be concealed as caller faults.
+function isSqliteConstraintError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const sqlite = error as Error & { code?: unknown; errcode?: unknown };
+  return (
+    sqlite.code === "ERR_SQLITE_ERROR" &&
+    typeof sqlite.errcode === "number" &&
+    Number.isInteger(sqlite.errcode) &&
+    SQLITE_CALLER_DATA_CONSTRAINT_CODES.has(sqlite.errcode)
+  );
+}
+
+/** Maps validated caller faults to 400 and unexpected server or database failures to 500. */
+export function resolveErrorStatus(error: unknown): number {
+  if (error instanceof ValidationError) return 400;
+  if (isSqliteConstraintError(error)) return 400;
+  return 500;
+}
+
+interface ResolveRequestClientIpInput {
+  request: Pick<FastifyRequest, "headers" | "ip">;
+  trustProxyHeaders: boolean;
+}
+
+/** Resolve the client identity consistently for rate limiting and security telemetry. */
+export function resolveRequestClientIp({ request, trustProxyHeaders }: ResolveRequestClientIpInput): string {
+  if (trustProxyHeaders) {
+    const forwarded = request.headers["x-forwarded-for"];
+    const first = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return request.ip;
+}
+
+/** Sends a redacted client error and logs unexpected server failures. */
+export function fail(reply: FastifyReply, error: unknown, logError: (e: unknown) => void = console.error) {
+  const status = resolveErrorStatus(error);
+  // A 500 is an unexpected server/db bug: log the real error server-side but return a
+  // generic body so we never leak internals (stack-ish messages, SQL, paths).
+  if (status === 500) {
+    logError(error);
+    return reply.code(500).send({ error: REPLY_ERRORS.internalServerError });
+  }
+  // 400s: a curated ValidationError message is safe and useful (it's a friendly sentence we
+  // authored). A raw DB-constraint message (e.g. "NOT NULL constraint failed: clients.color")
+  // leaks schema internals, genericise it, mirroring the 500 redaction one tier down.
+  const message = error instanceof ValidationError ? error.message : REPLY_ERRORS.constraintViolation;
+  return reply.code(status).send({
+    error: message,
+    ...(error instanceof ValidationError && error.code ? { code: error.code } : {}),
+  });
+}

@@ -45,7 +45,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-NAV-11](navigation/US-NAV-11-fake-sign-in.md)              | Trusted-local fake sign-in                                     | `e2e/navigation.spec.ts`                                                                                             |
 | [US-NAV-12](navigation/US-NAV-12-product-orientation.md)       | Non-blocking, reusable product orientation                     | `ProductOrientation.test.tsx` + `AppShell.productOrientation.test.tsx` + `e2e/fake-signin.spec.ts`                   |
 | [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Setup milestones, progress, dismissal and role-based tour      | `e2e/getting-started.spec.ts` + `e2e/getting-started.db.spec.ts` + auth E2E + `GettingStarted.test.tsx`              |
-| [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Set up and open the installation company                       | `src/components/accounts/AccountPicker.test.tsx` + `e2e/onboarding.spec.ts` + `e2e/onboarding.db.spec.ts`            |
+| [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Company picker and company-creation choices                    | `src/components/accounts/AccountPicker.test.tsx` + `e2e/onboarding.spec.ts` + `e2e/onboarding.db.spec.ts`            |
 | [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Blue identity, green positive actions, red destructive actions | `e2e/navigation.spec.ts` + `src/components/common/ui.test.tsx` + `src/lib/designTokens.test.ts` + `e2e/a11y.spec.ts` |
 | [US-NAV-16](navigation/US-NAV-16-help-and-role-tour.md)        | Find help and start the role-based tour                        | `HelpView.test.tsx` + navigation, mobile and role-auth E2E                                                           |
 
@@ -204,7 +204,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-SET-05](settings/US-SET-05-minimise-weekends.md)      | Minimise weekends on the schedule               | `e2e/minimise-weekends.spec.ts`                        |
 | [US-SET-06](settings/US-SET-06-show-placeholders.md)      | Show placeholders on the schedule               | `e2e/placeholders.spec.ts`                             |
 | [US-SET-07](settings/US-SET-07-show-external.md)          | Show external / 3rd parties                     | `e2e/external.spec.ts`                                 |
-| [US-SET-08](settings/US-SET-08-clear-local-storage.md)    | Device preferences                              | device preference and network failure tests            |
+| [US-SET-08](settings/US-SET-08-clear-local-storage.md)    | Device data and offline snapshots               | storage and offline cache tests                        |
 | [US-SET-09](settings/US-SET-09-snap-to-week-start.md)     | Snap the schedule's left edge to the week start | `e2e/snap-week.spec.ts`                                |
 | [US-SET-10](settings/US-SET-10-member-management.md)      | Member management (invite / role / revoke)      | `e2e/members.auth.spec.ts` + `e2e/invite.auth.spec.ts` |
 | [US-SET-11](settings/US-SET-11-viewer-readonly.md)        | Viewer read-only mode                           | `e2e/viewer.auth.spec.ts`                              |

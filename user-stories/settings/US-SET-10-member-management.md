@@ -9,7 +9,7 @@ people (a link addressed to one email), change a member's role, Disable or Enabl
 Access, archive or remove a membership, and list/revoke outstanding invites. An Admin manages members but
 cannot do owner-only operations. Sign-in tracking remains a server capability, but its controls and
 status column are unavailable in this UI. Ownership transfer is not part of this story: it has no per-row control
-(since #175) and has its own single-confirmation flow and section — see
+(since #175) and now has its own three-step ceremony and section — see
 [US-SET-18](US-SET-18-ownership-transfer.md).
 
 **Guide:** [Invite teammates](../../docs-src/admin/invite-teammates.md) and
@@ -24,7 +24,7 @@ command or carry a Resource or invitation selection.
 On an auth-enabled, server-backed deploy, access to a company is a real membership (a role per login),
 so the people who run a company need a place to grant, adjust, and revoke that access without touching
 the database. Team & access is visible to every role so a Viewer/Editor can understand their own
-limits; management controls remain Owner/Admin-only. Ownership moves only through its own explicit confirmation
+limits; management controls remain Owner/Admin-only. Ownership moves only through its own consent ceremony
 (US-SET-18), and the database prevents a second active Owner. Disable Access is an explicit company
 restriction that survives membership removal. It follows identity recreation at the same proven
 address only when both identities have durable mailbox proof; a legacy verified flag or addressed
@@ -128,7 +128,7 @@ the non-blocking product orientation if it is open.
    row keeps a more-actions button holding only the self-service **Reset password** and **Revoke sessions**: nobody
    can disable an Owner, or themselves. See US-SET-13 for the reset-link flow itself.
 9. **Ownership transfer** is not reachable from the member table at all. Its own **Company ownership**
-   section below opens the single-confirmation transfer modal —
+   section below opens the three-step ceremony in a modal the nominated Admin must agree to —
    see [US-SET-18](US-SET-18-ownership-transfer.md).
 10. Team & access does not render **Record member sign-ins** or a **Signed in** column, even when
     the stored server setting is enabled. The server API, storage, and audit behavior remain
@@ -187,15 +187,13 @@ the non-blocking product orientation if it is open.
   - the **Owner** option is absent for everyone (role select and invite-role picker);
   - the **Owner row** shows no ordinary role control or Remove action for anyone;
   - no row carries a transfer-ownership control for anyone (`data-testid="member-make-owner"` is
-    absent everywhere); ownership moves only through the confirmation flow in US-SET-18, which re-reads both
+    absent everywhere); ownership moves only through the ceremony in US-SET-18, which re-reads both
     membership projections afterwards so the former Owner's role badge and affordances reflect the
     demotion.
 - With [account email configured](../../docs-src/self-hosting/configuration.md#account-email),
   an addressed invitation is emailed once. Successful delivery shows **Invitation emailed to
   {address}** above the copyable link. Delivery failure leaves the invitation usable and the
-  copy-link flow available. Reusing the same secret-bearing command returns **409**
-  `IDEMPOTENCY_CONFLICT`; it does not replay the invitation link or send another email. If the
-  one-time link was not received, refresh the invitation list and revoke or replace it. The **Email** field
+  copy-link flow available. Replaying creation does not send another email. The **Email** field
   remains required in every server-auth mode, with no explanatory helper copy. Success and recovery
   instructions stay inline with the one-time link.
 - Recipients can choose **Sign in** or **Create account** with equally prominent controls. Only the
@@ -205,15 +203,18 @@ the non-blocking product orientation if it is open.
   role consequences and expiry remain fully readable throughout. Addressed
   invitations show a recipient hint containing only the part before `@` followed by `@…`; recipients
   enter the full email address themselves, and the domain stays hidden in the preview.
-- A new principal joins through an addressed invitation; an existing password principal accepts an
-  invitation or joins under the current policy with trusted email proof. The invitation and joining
-  pages currently offer password sign-in only; they do not offer Google, Microsoft or GitHub. Sign-in
-  never silently accepts an invitation.
+- New Google, GitHub or Microsoft identities can join only when the company's current policy admits
+  their verified email or an unused invitation addresses it. Microsoft may require a one-time mailbox
+  proof in the same browser before onboarding; returning identities with durable proof do not repeat it.
+  Provider sign-in does not silently accept an invitation.
+  In company-sign-in-only mode, the recipient must use a configured company provider; password
+  and GitHub sessions cannot accept it. Existing accounts connect providers explicitly without
+  creating another person or changing their memberships.
 - The invite token is shown **once** at creation (`/invite/<token>`), is stored only as a one-way
   hash, and the invites list carries no token. Accepted (used) invites remain listed (marked _used_)
   for admin visibility; an expired, unaccepted link is pruned.
 - The server is the backstop regardless of the UI: any generic Owner assignment or Owner invite is
-  **400**; touching or removing the Owner outside an ownership transfer is **403**;
+  **400**; touching or removing the Owner outside the ownership-transfer ceremony is **403**;
   revoking another account's invite is a no-op; and reading another
   account's members is **403** (no cross-tenant member leak).
 - API routes: `GET /api/accounts/:accountId/members` (returns

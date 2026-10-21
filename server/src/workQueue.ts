@@ -1,0 +1,135 @@
+/**
+ * Signals that a work queue has reached its capacity.
+ */
+export class WorkQueueFullError extends Error {
+  constructor(
+    message: string,
+    readonly reason: "full" | "wait_timeout" = "full",
+  ) {
+    super(message);
+    this.name = "WorkQueueFullError";
+  }
+}
+
+type WaitingWork = {
+  work: () => Promise<unknown>;
+  resolve: (value: unknown) => void;
+  reject: (reason?: unknown) => void;
+  signal?: AbortSignal;
+  abort?: () => void;
+  waitTimer?: ReturnType<typeof setTimeout>;
+};
+
+/**
+ * Configures the capacity and cancellation behavior of a work queue.
+ */
+export interface WorkQueueOptions {
+  /** Maximum time work may remain queued before it is shed. Omit for no queue deadline. */
+  maxWaitMs?: number;
+  /** Operational signal for capacity shedding; called exactly once per full/expired rejection. */
+  onSaturated?: (reason: WorkQueueFullError["reason"]) => void;
+}
+
+/**
+ * Returns the reason attached to an aborted signal, if one is available.
+ */
+export function readAbortReason(signal: AbortSignal): unknown {
+  return signal.reason ?? new DOMException("The queued work was cancelled.", "AbortError");
+}
+
+interface BoundedWorkQueueInput {
+  maxActive: number;
+  maxQueued: number;
+  fullMessage: string;
+  options?: WorkQueueOptions | undefined;
+}
+
+/**
+ * A small fail-closed in-process concurrency/queue bound for memory-expensive operations.
+ *
+ * Work must always settle by itself (for example, network work must have its own abort deadline).
+ * This queue deliberately does not evict active work: releasing a slot while the underlying work
+ * is still running would exceed `maxActive` and defeat the resource bound it exists to enforce.
+ */
+export class BoundedWorkQueue {
+  private active = 0;
+  private readonly waiting: WaitingWork[] = [];
+  readonly maxActive: number;
+  readonly maxQueued: number;
+  private readonly fullMessage: string;
+  private readonly options: WorkQueueOptions;
+
+  constructor({ maxActive, maxQueued, fullMessage, options = {} }: BoundedWorkQueueInput) {
+    this.maxActive = maxActive;
+    this.maxQueued = maxQueued;
+    this.fullMessage = fullMessage;
+    this.options = options;
+
+    if (!Number.isSafeInteger(maxActive) || maxActive < 1) throw new RangeError("maxActive must be positive.");
+    if (!Number.isSafeInteger(maxQueued) || maxQueued < 0) throw new RangeError("maxQueued must be non-negative.");
+    if (options.maxWaitMs !== undefined && (!Number.isSafeInteger(options.maxWaitMs) || options.maxWaitMs < 1))
+      throw new RangeError("maxWaitMs must be a positive safe integer.");
+  }
+
+  private createSaturationError(reason: WorkQueueFullError["reason"]): WorkQueueFullError {
+    this.options.onSaturated?.(reason);
+    return new WorkQueueFullError(this.fullMessage, reason);
+  }
+
+  // False means another path already withdrew the item; abort and timeout callers must then perform no rejection or cleanup.
+  private removeFromWaiting(item: WaitingWork): boolean {
+    const index = this.waiting.indexOf(item);
+    if (index < 0) return false;
+    this.waiting.splice(index, 1);
+    return true;
+  }
+
+  run<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+    if (signal?.aborted) return Promise.reject(readAbortReason(signal));
+    if (this.active < this.maxActive) {
+      this.active += 1;
+      return this.execute(work);
+    }
+    if (this.waiting.length >= this.maxQueued) {
+      return Promise.reject(this.createSaturationError("full"));
+    }
+    return new Promise<T>((resolve, reject) => {
+      const waiting: WaitingWork = {
+        work,
+        resolve: (value) => resolve(value as T),
+        reject,
+        ...(signal === undefined ? {} : { signal }),
+      };
+      if (signal) {
+        waiting.abort = () => {
+          if (!this.removeFromWaiting(waiting)) return;
+          if (waiting.waitTimer) clearTimeout(waiting.waitTimer);
+          reject(readAbortReason(signal));
+        };
+        signal.addEventListener("abort", waiting.abort, { once: true });
+      }
+      if (this.options.maxWaitMs !== undefined) {
+        waiting.waitTimer = setTimeout(() => {
+          if (!this.removeFromWaiting(waiting)) return;
+          if (waiting.signal && waiting.abort) waiting.signal.removeEventListener("abort", waiting.abort);
+          reject(this.createSaturationError("wait_timeout"));
+        }, this.options.maxWaitMs);
+        waiting.waitTimer.unref();
+      }
+      this.waiting.push(waiting);
+    });
+  }
+
+  private async execute<T>(work: () => Promise<T>): Promise<T> {
+    try {
+      return await work();
+    } finally {
+      const next = this.waiting.shift();
+      if (next) {
+        if (next.waitTimer) clearTimeout(next.waitTimer);
+        if (next.signal && next.abort) next.signal.removeEventListener("abort", next.abort);
+        void this.execute(next.work).then(next.resolve, next.reject);
+      } else this.active -= 1;
+    }
+  }
+}

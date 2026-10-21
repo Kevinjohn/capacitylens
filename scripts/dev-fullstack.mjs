@@ -22,7 +22,7 @@ const WEB_PORT = lanePorts.web;
 if (await portInUse(API_PORT)) {
   console.error(
     `dev: port ${API_PORT} is already in use — the API can't start. Stop whatever holds it ` +
-      `(another \`pnpm run dev\`, a stray CapacityLens backend), or set CAPACITYLENS_DEV_API_PORT ` +
+      `(another \`pnpm run dev\`, a stray capacitylens-server), or set CAPACITYLENS_DEV_API_PORT ` +
       `to a free port. Not starting the web server to avoid a half-up stack.`,
   );
   process.exit(1);
@@ -77,9 +77,11 @@ function start(label, args, env) {
   return child;
 }
 
-start("api", ["--filter", "@capacitylens/backend", "run", "dev"], {
+// Demo seeding creates two companies, so local development also enables multi-account creation.
+start("api", ["--filter", "capacitylens-server", "run", "dev"], {
   PORT: String(API_PORT),
   CAPACITYLENS_SEED_DEMO: "1",
+  CAPACITYLENS_MULTI_ACCOUNT: "1",
 });
 start("web", ["run", "dev:web"], { CAPACITYLENS_DEV_API_PORT: String(API_PORT) });
 

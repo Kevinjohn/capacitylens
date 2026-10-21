@@ -11,13 +11,3 @@ runs:
         cache: pnpm
     - run: pnpm install --frozen-lockfile
       shell: bash
-    - run: pnpm --filter @capacitylens/shared build && pnpm --dir apps/backend codegen
-      shell: bash
-      env:
-        NODE_ENV: test
-        HOST: 127.0.0.1
-        PORT: "0"
-        LOG_LEVEL: error
-        APP_KEY: capacitylens-build-key-0123456789abcdef
-        APP_URL: http://127.0.0.1
-        SESSION_DRIVER: memory

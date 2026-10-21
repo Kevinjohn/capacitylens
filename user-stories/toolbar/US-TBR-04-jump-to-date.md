@@ -4,11 +4,11 @@
 > picker.** DECISION (#173): people rarely look far ahead, and a month list is probably the
 > better affordance for that need — that redesign is deferred, so rather than delete the control
 > the toolbar simply stops rendering it (`SHOW_JUMP_TO_DATE` in
-> `apps/frontend/src/components/scheduler/SchedulerToolbar.tsx`). The component itself
-> (`apps/frontend/src/components/scheduler/JumpToDateInput.tsx`) and the `goToDate` store action are unchanged
+> `src/components/scheduler/SchedulerToolbar.tsx`). The component itself
+> (`src/components/scheduler/JumpToDateInput.tsx`) and the `goToDate` store action are unchanged
 > and stay one flip away from returning.
 
-**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "does not expose the jump-to-date picker" · **Coverage:** `apps/frontend/src/components/scheduler/JumpToDateInput.test.tsx` (component: shows the current focus date, moves the grid to a valid date, rejects a malformed date) + the `goToDate` tests in `apps/frontend/src/store/useStore.test.ts` (week-start snap behaviour, including the non-Monday `weekStartsOn` regression case).
+**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "does not expose the jump-to-date picker" · **Coverage:** `src/components/scheduler/JumpToDateInput.test.tsx` (component: shows the current focus date, moves the grid to a valid date, rejects a malformed date) + the `goToDate` tests in `src/store/useStore.test.ts` (week-start snap behaviour, including the non-Monday `weekStartsOn` regression case).
 
 ## Goal
 
