@@ -15,7 +15,14 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 const STAMP = Date.now();
 let scenarioNumber = 0;
 
-type Allocation = { id: string; startDate: string; endDate: string; resourceId: string; activityId: string };
+type Allocation = {
+  id: string;
+  startDate: string;
+  endDate: string;
+  resourceId: string;
+  activityId: string;
+  seriesId?: string | null;
+};
 
 async function seedEntity(
   request: APIRequestContext,
@@ -465,6 +472,80 @@ test("each scheduler gesture is one typed write with Undo and Redo, and reload c
   expect(await stored()).toHaveLength(4);
   await expect(page.getByTestId("undo-button")).toBeDisabled();
   await expect(page.getByTestId("redo-button")).toBeDisabled();
+});
+
+test("a weekly repeat persists all 14 occurrences as one series through one typed write", async ({ page, request }) => {
+  const { owner, accountId, ownerEmail, resourceId, projectId, activityId } = await createScenario(request);
+  const now = new Date().toISOString();
+  await seedEntity(request, owner.cookie, "allocations", `scheduler-baseline-${accountId}`, {
+    accountId,
+    createdAt: now,
+    updatedAt: now,
+    resourceId,
+    activityId,
+    startDate: "2026-06-01",
+    endDate: "2026-06-02",
+    hoursPerDay: 8,
+    status: "confirmed",
+  });
+  const stored = () => persistedAllocations(request, owner.cookie, accountId);
+  const baseline = await stored();
+  expect(baseline).toHaveLength(1);
+  await signIn(page, ownerEmail);
+  const requests = recordRequests(page);
+  const added = (allocations: Allocation[]) => allocations.filter(({ id }) => !baseline.some((row) => row.id === id));
+  const wednesdays = [
+    "2026-06-10",
+    "2026-06-17",
+    "2026-06-24",
+    "2026-07-01",
+    "2026-07-08",
+    "2026-07-15",
+    "2026-07-22",
+    "2026-07-29",
+    "2026-08-05",
+    "2026-08-12",
+    "2026-08-19",
+    "2026-08-26",
+    "2026-09-02",
+    "2026-09-09",
+  ];
+  const expectRepeatPersisted = async () => {
+    const allocations = await stored();
+    expect(allocations.filter(({ id }) => baseline.some((row) => row.id === id))).toEqual(baseline);
+    const repeated = added(allocations).sort((a, b) => a.id.localeCompare(b.id));
+    expect(repeated.map(({ startDate, endDate }) => [startDate, endDate]).sort()).toEqual(
+      wednesdays.map((date) => [date, date]),
+    );
+    const seriesId = repeated[0]?.seriesId;
+    expect(seriesId).toEqual(expect.stringMatching(/./));
+    expect(repeated.every((row) => row.seriesId === seriesId)).toBe(true);
+    return repeated;
+  };
+
+  await expectOneTypedWrite(
+    page,
+    accountId,
+    requests,
+    async () => {
+      await page.getByRole("button", { name: "Add allocation for Bruce Wayne" }).click();
+      const dialog = page.getByRole("dialog", { name: "New allocation" });
+      await selectShadOption(dialog.getByLabel("Project", { exact: true }), projectId);
+      await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), activityId);
+      await dialog.getByLabel("Start Date").fill("2026-06-10");
+      await dialog.getByLabel("Days of work").fill("1");
+      await selectShadOption(dialog.getByRole("combobox", { name: "Repeat" }), "weekly");
+      await dialog.getByLabel("Repeat until").fill("2026-09-10");
+      await dialog.getByRole("button", { name: "Save" }).click();
+    },
+    async () => {
+      await expect.poll(async () => added(await stored()).length).toBe(14);
+    },
+  );
+  const repeated = await expectRepeatPersisted();
+
+  await reloadScheduler(page);
+  expect(await expectRepeatPersisted()).toEqual(repeated);
 });
 
 test("a stale-revision scheduler write shows server state without a toast or history entry", async ({
