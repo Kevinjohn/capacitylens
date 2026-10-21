@@ -81,6 +81,9 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- A beta-native JSON transfer contract and frontend preview. The versioned format validates a
+  complete single-account dataset and rejects malformed or cross-scope data; the existing Settings
+  import/export controls remain on the legacy writer until backend replacement is integrated (#1520).
 - A role-based schedule tour that begins with the caller's role, includes lower-role guidance, and
   disables its Getting started launcher while permissions are unresolved or an offline snapshot is read-only (#969).
 - A shared Help page above Account in the sidebar and command palette. Every role can start its

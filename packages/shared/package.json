@@ -108,6 +108,11 @@
       "types": "./src/data/transfer.ts",
       "default": "./dist/data/transfer.js"
     },
+    "./data/betaTransfer": {
+      "development": "./src/data/betaTransfer.ts",
+      "types": "./src/data/betaTransfer.ts",
+      "default": "./dist/data/betaTransfer.js"
+    },
     "./domain/access": {
       "development": "./src/domain/access.ts",
       "types": "./src/domain/access.ts",
