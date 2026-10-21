@@ -1,9 +1,9 @@
 # US-SET-16 — Copy privacy-safe diagnostics
 
 **Area:** Settings · **Persona:** An Owner or Admin reporting a problem · **Coverage:**
-`src/data/buildInfo.test.ts` + `src/components/diagnostics/DiagnosticsView.test.tsx` +
-`src/router.test.tsx` + `src/components/CommandPalette.test.tsx` + `e2e/a11y.spec.ts` +
-`server/src/app.health.test.ts`
+`apps/frontend/src/data/buildInfo.test.ts` + `apps/frontend/src/components/diagnostics/DiagnosticsView.test.tsx` +
+`apps/frontend/src/router.test.tsx` + `apps/frontend/src/components/CommandPalette.test.tsx` + `e2e/a11y.spec.ts` +
+`apps/backend/tests/functional/backup_diagnostics.spec.ts`
 
 **Documentation:** [Diagnostics](../../docs-src/admin/diagnostics.md)
 
@@ -45,7 +45,8 @@ open the app in a build with `VITE_CAPACITYLENS_DEMO=1`.
   The save counters are this browser session's running totals.
 - Unknown, offline, shallow-health, deep-health, missing-backup and error cases stay explicitly
   labelled and never fall back to a browser schema constant as the server schema. Demo mode keeps
-  client facts and marks server values unavailable.
+  client facts and marks server values unavailable. The native backend leaves backup status
+  unavailable; recovery checks use service logs and completed snapshots rather than a health latch.
 - Secret-like unknown fields, malformed types, raw errors, private paths/hostnames, names, email
   addresses and identifiers are ignored. A browser value outside its expected shape is reported
   as **Unknown**.

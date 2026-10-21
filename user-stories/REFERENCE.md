@@ -4,15 +4,26 @@ This file pins the exact, current facts every user story and test script depends
 routes, control labels, `data-testid`s, the first-run seed data, and shared conventions.
 If the app changes, update this file first, then the affected stories.
 
+Operator procedures live in the [self-hosting guides](../docs-src/self-hosting/index.md); see
+[backups and restore](../docs-src/self-hosting/backups-and-restore.md),
+[upgrades](../docs-src/self-hosting/upgrades.md), and
+[monitoring](../docs-src/self-hosting/monitoring.md). The native Adonis application is in
+`apps/backend/` and the shared domain package is in `packages/shared/`.
+
+With the service stopped, operator recovery uses `node ace.js owner:reset-password <email>
+--confirm-server-stopped` from `apps/backend/`. It prints a single-use recovery link after
+committing its private audit. Installation reset uses `node ace.js app:reset
+<new-database-path> --confirm-server-stopped`, preserving the old database and a verified snapshot
+before creating an empty database at a new path.
+
 All member linking and invitations are managed in **Team & access**. Owners and Admins open the
 member's actions there to link, change, or remove an eligible person Resource; the Resources page
 does not provide a separate team-link workflow.
 
 **Disable Access** is a company restriction separate from archiving or removing membership. It
 denies current requests and later invitations. It also follows a recreated identity at the same
-address when both identities have durable mailbox proof from a verified provider sign-in or a
-completed mailbox ceremony. This includes a verified GitHub address in mixed mode; a legacy
-email-verified flag or addressed invitation is not proof.
+address when both identities have durable mailbox proof from a verified Google sign-in or a
+completed mailbox ceremony; a legacy email-verified flag or addressed invitation is not proof.
 **Enable Access** clears the restriction; a removed or archived person still needs the
 ordinary invitation or restore path. Removed restrictions remain visible to administrators in
 the inactive member directory. Owner and self protections apply to both actions.
@@ -43,13 +54,12 @@ accept responses never include it.
    has **no** popup: click the single preview account to continue. It is shown only
    when real auth is off (the default) and is skipped once "signed in" (the choice persists
    device-globally; "Sign out" on the picker or Account page returns to it).
-4. Then the **company picker**. The active company remains session-only and is never persisted.
-   On a browser reload, a login with exactly one valid company opens that company automatically and
-   keeps the requested route; first entry, an explicit **Switch company**, and every multi-company
-   login still show the picker. Pick **Wayne Enterprises** to see the seeded data these stories
-   describe. (A second seeded company, _Stark Industries_, is near-empty, so this demo remains on
-   the multi-company picker after a reload.) While "signed in", the picker shows
-   _"Signed in as Bruce Wayne"_ with a **Sign out** link. **`New company`**
+4. Production opens the sole company returned by the server and keeps the requested route. The
+   active company id remains session-only and is never persisted. If an installation contains
+   multiple stored companies, the server returns an actionable conflict and the UI offers no
+   selection controls. The temporary in-memory demo retains its fictional two-company picker and
+   switch action. While signed in, its picker shows _"Signed in as Bruce Wayne"_ with a **Sign out**
+   link. **`New company`**
    (`data-testid="new-company-button"`) opens an inline create form that captures the company
    name and the three **frozen-after-creation** fields: **Week starts on** (segmented
    Monday/Sunday, default Monday), **Timezone** (a searchable combobox that detects and preselects
@@ -60,66 +70,24 @@ accept responses never include it.
    server-backed deploy the form also shows a **Start with example data** checkbox, ticked when it
    is the user's first company and unticked otherwise; the in-memory demo does not offer it. These three are set ONCE here and are then **disabled** in
    Settings; the server rejects a later change with **409**.
-   When there are no companies and the caller may create one, the picker presents only two next
-   steps: **New company** or **Ask an admin for an invite**. A caller without create permission sees
-   only the invite step. With one or more companies already listed, the subtitle says
-   _"Choose a company to plan, or create another one."_
-   If the app is asked to select an unknown company while another company is active, it returns to
-   this picker, clears the leaving company's dirty-form, drag and screen-reader announcement state,
-   keeps the prior-company breadcrumb, shows the company-not-found notification, and rejects scoped
-   edits until a real company is selected. If a refresh or account switch publishes a slice that no
-   longer contains the selected company, CapacityLens returns atomically to this picker, clears the
-   same transient state and the prior-company breadcrumb, shows the company-not-found notification,
-   and rejects scoped edits until a real company is selected.
-   If switching companies fails before a slice can be loaded, the previous company's data stays
-   hidden behind the recovery stage (`data-testid="account-load-recovery"`). **Retry** loads the
-   selected company again; **Choose another company** returns to the picker.
-   A single-company reload attempt is consumed once, so a missing or deleted company cannot be
-   repeatedly reactivated. An unavailable membership, empty company list, or invite handoff also
-   remains at its safe entry boundary rather than being mistaken for a valid single company.
-   Only the newest complete company-directory response may treat a missing company as revoked
-   access. A superseded response cannot close the current company, and a partially malformed
-   directory may publish its valid rows with a warning but cannot claim that a dropped membership
-   was removed.
-   **Single-company-per-instance policy + caller standing:** a server-backed deploy defaults to
-   ONE company (`CAPACITYLENS_MULTI_ACCOUNT` unset) — once an account already exists,
-   `GET /api/auth/me` reports `canCreateAccount: false` and the **`New company`** button is
-   HIDDEN entirely (not merely disabled). Under auth-on the flag ALSO requires the caller's
-   standing (the same predicate `POST /api/orgs` enforces): only a user who is owner/admin of
-   SOME account — or any user on a zero-account instance — may create, so an editor-only or
-   membership-less login never sees the button (its empty picker says "ask an admin for an
-   invite" instead of "create your first one"). In SSO-only mode the current session must also come
-   from a configured company provider. An existing GitHub session is rejected in provider-required
-   mode; it cannot provision an Owner membership. A direct `POST /api/accounts` still 403s
-   regardless, so this is UX only. The
-   button stays visible whenever the fact is unavailable or doesn't apply: the demo build (no
-   server, no cap), a zero-account instance (the bootstrap exemption — you must be able to create
-   the FIRST company), an older server that predates these fields, or a deploy with
-   `CAPACITYLENS_MULTI_ACCOUNT=1` set (the auth-backed stories' server runs this way, so its
-   picker always shows the button). In a server deploy the create goes through `POST /api/orgs`
-   (atomic: company + built-in Internal client + your Owner membership); a server refusal (the
-   cap, org-create gate, or stale-session step-up) surfaces as the form's inline error. When an
-   existing Owner/Admin membership authorises another company, the server requires a fresh session
-   because creation grants a new Owner role. In an authenticated deploy,
-   every listed company shows the caller's membership role — **Owner**, **Admin**, **Editor** or
-   **Viewer** (`data-testid="company-role"`) — before it is opened. The in-memory demo instead says
-   **Demo access** and an auth-off persisted server says **Open access**; neither invents an Owner
-   membership. When an authenticated user switches companies, local writes fail closed as Viewer
-   until the role resolved for that exact company replaces the prior company's authority. Each
-   listed company also shows a **Delete** button (`Delete <name>`,
-   type-the-name-to-confirm dialog) only to its Owner; Admin/Editor/Viewer get no company-delete
-   affordance. In that dialog the destructive button remains keyboard-focusable while the typed
-   name does not match, exposes `aria-disabled="true"`, and is described by the confirmation hint;
-   activation is ignored until the exact company name is entered.
-   Company deletion is atomic and fail-closed: if a corrupt stored relationship would cascade a
-   delete or unbind into another company, both companies remain intact and the picker surfaces the
-   server refusal for operator repair. A completed authenticated deletion retains its anonymized
-   command receipt briefly: if the response is lost, retrying the same command returns success even
-   though that company's membership is already gone. A post-delete `403` from an older/mixed server
-   is treated as an unknown outcome, so the browser retains the command and refreshes the company
-   list without an offline-cache fallback instead of converting uncertainty into a new destructive
-   ceremony. The picker consumes that same erasure outcome classification rather than independently
-   reclassifying the response status.
+   When there is no company, the supported first-company setup or invitation path remains available.
+   Production does not offer company selection, switching, ordinary additional-company creation or
+   in-app company deletion. The server summary supplies the sole installation company; scoped APIs
+   still authorize every requested id from the caller's server-side membership. If the summary
+   detects multiple stored companies, the app asks the administrator to resolve the installation.
+   The in-memory demo retains its picker, temporary company creation and switching.
+   Company deletion remains an administrative API capability but is not offered in the production
+   UI. When an authorized deletion is used, it is atomic and fail-closed: if a corrupt stored
+   relationship would cascade a delete or unbind into another company, both companies remain
+   intact and the server refuses the operation for operator repair. A completed authenticated
+   deletion retains its anonymized command receipt briefly. If the response is lost, the same
+   authenticated principal can retry the command and receive success even though the deleted
+   company's membership is gone. Deleting the principal's last company also removes that principal
+   and invalidates its session, so the receipt cannot be replayed without a surviving authenticated session. A post-delete `403` from an
+   older/mixed server is treated as an unknown outcome, so the browser retains the command and
+   refreshes the company list from the server instead of converting uncertainty
+   into a new destructive ceremony. The picker consumes that same erasure outcome classification
+   rather than independently reclassifying the response status.
    After a confirmed deletion completes, the picker announces that the named company was
    permanently deleted.
 5. The application opens with a non-blocking **How CapacityLens works** region
@@ -135,6 +103,8 @@ accept responses never include it.
    **Schedule the first piece of work**. Completion comes from active, coherent company data,
    including imports. Internal work remains available but does not skip the client or project steps.
    The completed 5/5 bar remains visible until permanently dismissed.
+   View-as member hides Getting started and does not request its company dismissal state until the
+   projection has fully ended; ordinary Editor guidance then returns.
    **Show me around** (`data-testid="getting-started-tour"`) runs a role-based driver.js
    spotlight tour from the current Owner, Admin or Editor section through the lower roles. Owners
    see eight server-backed stops, Admins seven and Editors five; the Editor tour ends with two
@@ -145,8 +115,7 @@ accept responses never include it.
    include the Admin example-data stop, while the in-memory demo omits it. Starting on another page
    returns to Schedule first.
    Next/Back/Done buttons, Escape bails, and the highlighted controls remain inert during the tour.
-   The button is disabled while permissions are unresolved or unavailable, while an offline snapshot
-   is read-only, and while the tour is running. If that code cannot load or start, the
+   The button is disabled while permissions are unresolved or unavailable and while the tour is running. If that code cannot load or start, the
    card remains usable and a persistent error says **The tour could not start. Check your connection
    and try again.** An Owner or Admin can permanently **Dismiss** Getting started for everyone in
    the current company. Before 5/5, confirmation asks **Do you really want to hide this forever?**
@@ -241,14 +210,18 @@ If the import may have committed but the reload cannot prove the resulting state
 blocked behind an explicit reload action; parked pre-import edits are never replayed over the
 replacement. File reads and confirmations remain bound to the company that was active when the file
 was selected, and export/import actions suppress duplicate in-flight requests.
+The separate beta preview validates a `capacitylens-beta` version `1` document before offering
+**Continue**. It preserves entity IDs and supported company settings and reports invalid fields or
+current member links before passing prepared data to its caller. It does not execute a replacement;
+the existing Settings flow remains in place pending backend integration. See the
+[beta transfer contract](../docs-src/using/settings.md#beta-transfer-contract).
 The footer puts **Help** immediately above the account block, with the same small button and tooltip
 in expanded, collapsed and mobile navigation. The account block stays at the very **bottom** of the
 sidebar, below a divider beneath the administration group. It contains exactly one avatar-led
-**Account** destination. In real
-authentication, the active company name, role badge and **Switch company** control are shown only
-when two or more companies are accessible; with one accessible company they are hidden. Auth-off
-and demo builds retain their company context and switching exception. (Keeping the context at the
-bottom keeps the logo + collapse toggle as the first item in both the open menu and collapsed rail.)
+**Account** destination. Production shows the active company name and role badge without a
+**Switch company** control. The temporary demo retains company switching. (Keeping the context at
+the bottom keeps the logo + collapse toggle as the first item in both the open menu and collapsed
+rail.)
 **Account** opens the signed-in person's identity and security page from every main app page. In
 its identity row, the avatar has its own unlabeled visible column, followed by Name, Email and
 Actions. The row scrolls horizontally on narrow screens. Long email
@@ -325,21 +298,19 @@ success for the rebase never hides the independent loss.
 
 ## Seed data (first run)
 
-> This auto-seed is **DEMO-BUILD-ONLY** going forward (single-company-per-instance policy). A
+> This auto-seed is **DEMO-BUILD-ONLY** going forward (one-company server policy). A
 > real, server-backed instance (the default deploy) no longer auto-seeds from the client side —
 > `bootstrap()` (src/main.tsx) only passes a seed dataset in the demo build
 > (`VITE_CAPACITYLENS_DEMO=1`); a fresh server-backed instance lands on the empty
-> create-your-company picker instead of a fabricated "Wayne Enterprises" (a pre-seeded two-company
-> instance would otherwise trip its own single-company cap on first boot). The two-company seed
-> described below happens only in: the demo build (`pnpm run dev:demo`, what these stories run
-> against), local dev tooling that opts in explicitly, and the db-backed E2E server's explicit
-> `POST /api/test/reset {seed:true}` (used by `e2e/serverTestState.ts`'s `resetServer()` — exempt from
-> the single-company cap so tests can still exercise a two-company picker). The reset route exists
+> create-your-company setup instead of a fabricated "Wayne Enterprises". The two-company seed
+> described below happens in the demo build (`pnpm run dev:demo`, what these stories run against)
+> and in backend tenant-isolation tests. The database-backed E2E server resets to a single-company
+> fixture so its user journeys match production. The reset route exists
 > only in trusted-local/auth-off mode; an auth-enabled server refuses it even when the development
 > flag is set because a browser session carries no installation-wide erasure authority.
 
-- **Accounts (companies):** **Wayne Enterprises** (holds everything below — pick this one) and
-  _Stark Industries_ (a second tenant with one Design discipline and no work).
+- **Accounts (companies):** **Wayne Enterprises** holds the demo data below; _Stark Industries_ is
+  a second fictional tenant used by the temporary demo picker and tenant-isolation tests.
 - **Disciplines:** Design (order 0), Development (1), Copywriting (2).
 - **Resources:**
   - _Bruce Wayne_ — Designer, Design, permanent, 8h, Mon–Fri.
@@ -472,9 +443,9 @@ The **create / "Add"**
 affordances carry a leading **`+`** glyph before the label (decorative, `aria-hidden`; the
 accessible name stays the label text). List pages and sections have an add button per entity: `Add resource`,
 `Add discipline`, `Add client`, `Add project`, `Add activity`, `Add time off`, `Add closure`,
-`Add external party` (plus the company picker's `New company`).
-Resolved Viewers do not see resource or section-level create affordances; the company picker's
-separately authorised `New company` action follows its account-creation capability instead.
+`Add external party` (plus the temporary demo picker's `New company`).
+Resolved Viewers do not see resource or section-level create affordances; the temporary demo picker's
+`New company` action follows its account-creation capability instead.
 Each list row has an **icon-only** `Edit <name>` (pencil) button and, where supported, an icon-only
 destructive action. Time-off rows include the resource and complete date range in both action names
 (`Edit <name> time off from <start> to <end>` / `Delete …`) so repeated entries for one person remain
@@ -628,6 +599,9 @@ Switching modes is announced in the scheduler's polite live region. In Time-off 
 omit work-allocation counts, and each eligible non-external resource row exposes a keyboard
 **Add time off for <name>** button that opens the same prefilled time-off form as drawing the lane.
 External rows expose no time-off creation action.
+Saved local edits remain undoable after a background refresh that contains only their own
+acknowledged revisions. A genuine remote row change, addition or deletion clears history so
+Undo cannot overwrite or resurrect another writer’s work.
 Undo/redo run
 from BOTH the toolbar **Undo**/**Redo** buttons (above) AND the global Cmd/Ctrl undo/redo shortcuts.
 The expanded filter row starts with `Search people…`, which matches accent-insensitively across the
@@ -672,10 +646,8 @@ neighbouring columns supply the calendar context, so their one cross-year week m
 Weekday forms (`Mon 8th Jun` / `Mon Jun 8th`) always keep the ordinal.
 
 Server instants use the viewer's browser locale and local time zone instead. This includes session
-creation and expiry, password-reset expiry, invitation expiry in the Team & access member panel and
-on the invitee's Accept invite page, ownership-transfer deadlines and ownership outcome dates. The
-offline read-only banner's last-updated timestamp also uses the viewer's browser locale and local
-time zone. The exception also covers instants displayed as a compact date without a time: the
+creation and expiry, password-reset expiry, and invitation expiry in the Team & access member panel
+and on the invitee's Accept invite page. The exception also covers instants displayed as a compact date without a time: the
 browser time zone selects the local day, while the browser locale selects its date order. Existing
 date-and-time and date-only shapes stay intact, and local conversion never slices an ISO timestamp.
 Machine dates in inputs, exports and URLs are unchanged.
@@ -870,14 +842,6 @@ leaves no trace.
 **Clear device data.** The destructive clear action and its underlying device-data behavior remain
 implemented, but Settings no longer exposes a control for it.
 
-**Offline cache health (Settings → Offline access).** When offline access remains opted in but a
-snapshot write fails, Settings keeps the switch on and shows that recent snapshots could not be
-saved on this device. The warning clears after a successful snapshot write or after offline access
-is disabled; it does not claim that already cached data was deleted. Offline shell installation is
-available in production builds. Vite development/demo servers reject enablement with a clear
-message because their on-demand module graph cannot provide a complete, immutable shell for safe
-offline promotion.
-
 **Build stamp + feedback link (Diagnostics, flag-gated).** When the build sets
 `VITE_CAPACITYLENS_BUILD_SHA`, **Diagnostics → Build details** includes a muted one-line stamp containing the
 stamp (`data-testid="build-stamp"`) reading `build <sha> · server` (a server backend is
@@ -909,7 +873,9 @@ viewport, time zone and language. A browser value outside its expected shape rea
 The page is present in demo mode too, with server values unavailable. A missing or unavailable
 value is shown as **Unknown** or **unavailable**; a `null` schema means that value was unavailable
 or invalid, not zero or a browser fallback, while an unknown backup timestamp does not assert that
-no backup exists. Browser constants are never presented as the server's database schema. The report
+no backup exists. The native backend leaves backup status unavailable: operators verify service logs
+and completed snapshots separately from database readiness. Browser constants are never presented
+as the server's database schema. The report
 contains no names, emails, identifiers, paths, hostnames, secrets, invite or session values, raw
 errors or arbitrary response fields. The button reports a generic success or clipboard failure
 message.
@@ -942,26 +908,27 @@ local mode, no login screen exists, Account has no credential controls, and loca
 auth request at all. The server's reported `authMode` is the single source of truth — there is no
 client-side auth flag.
 
-**External provider action labels (login, invitation acceptance and reauthentication).** Provider
+The product auth client uses `POST /api/auth/sign-in`, `POST /api/auth/sign-up` and
+`POST /api/auth/sign-out`. Password recovery uses `POST /api/auth/request-reset` and
+`POST /api/auth/reset-password`; a signed-in password change uses
+`POST /api/auth/change-password`. Provider redirects start through
+`POST /api/auth/provider-start`. These requests retain the existing form outcomes,
+setup-token header and flat error responses.
+
+**Google sign-in action (login, invitation acceptance and reauthentication).** Provider
 reauthentication explains before redirect that returning does not complete the original action;
-the person must submit it again. The
-configured Google provider uses the
-exact branded action **Sign in with Google** and the
-recognisable Google mark on the sign-in wall, the invite acceptance sign-in form and the
-reauthentication dialog. The action stays visibly busy/disabled during hand-off. Other external
-providers use their branded accessible action, including **Sign in with Microsoft**.
-Provider presentation is server-owned and is never inferred from a user-editable provider label.
-On an ordinary sign-in screen, every configured provider appears once in the server-supplied order
-in one vertical stack above the password form. Google keeps its sharp, undistorted artwork without
-an outer wrapper shadow; Microsoft and other providers retain their branded, accessible actions.
-When providers and password sign-in are both available, the localized **or use your password**
-separator appears once between the stack and form. Provider-only sign-in has no password separator,
-and password-only sign-in has no empty provider area. First-owner setup keeps its separate field
-order and provider bootstrap flow, including Microsoft's mailbox-proof requirements. SSO-only still
-omits password controls.
+the person must submit it again. The configured Google provider uses the exact branded action
+**Sign in with Google** and recognisable Google mark on the sign-in wall, invite acceptance sign-in
+form and reauthentication dialog. The action stays visibly busy/disabled during hand-off. Provider
+presentation is server-owned and is never inferred from a user-editable provider label.
+When Google and password sign-in are both available, the Google action appears above the password
+form with the localized **or use your password** separator. Google-only sign-in has no password
+form or separator; password-only sign-in has no provider area.
+First-owner Google setup requires the allowlisted address while no user exists; its callback creates
+a sign-in identity but no company. SSO-only omits password controls.
 
 See [Passwords and company sign-in](../docs-src/company-login/index.md#passwords-and-company-sign-in)
-for the sign-in layout and [Set up Google or Microsoft sign-in](../docs-src/company-login/set-up-company-login.md)
+for the sign-in layout and [Set up Google sign-in](../docs-src/company-login/set-up-company-login.md)
 for provider setup.
 
 Identity display-name and label limits count Unicode code points, so an astral CJK character is one
@@ -974,32 +941,18 @@ row and supply their current password in the dialog. The **Security** section
 (`data-testid="security-section"`) appears when a configured company-provider connection is
 available. Session tokens are never displayed after their one-time use.
 CapacityLens has no local authenticator or recovery-code controls. A company that requires MFA
-sets and manages it with its Google or Microsoft provider; enabling company sign-in alone does
-not enable MFA.
+sets and manages it with Google; enabling company sign-in alone does not enable MFA.
 
 On a mixed deployment, Account's Security section shows **Company sign-in**
-(`data-testid="sso-connection"`) for each configured company provider. **Connect _provider_**
-requires a fresh session and connects the provider to that same principal. Named Google and Microsoft
-connections require a verified local email and matching proof of the provider address; Microsoft may
-ask for the one-time mailbox verification below. A conflicting identity is rejected without merging
-accounts. A successful callback shows **Connected to _provider_**. The same verified provider identity
-is used for subsequent sign-in. GitHub retains its existing experimental sign-in behavior.
+(`data-testid="sso-connection"`) when Google can be connected. **Connect Google** requires a fresh
+session, a verified local email and proof that the Google address matches it. A conflicting identity
+is rejected without merging accounts. A successful callback shows **Connected to Google**. The same
+Google subject is used for subsequent sign-in, even if its profile email later changes.
 
-If the session is stale, **Connect _provider_** opens **Confirm it's you**. Cancelling does not start a
+If the session is stale, **Connect Google** opens **Confirm it's you**. Cancelling does not start a
 provider connection; success continues the request once, and another freshness refusal directs the
 person to sign out and back in. An unverified local email directs the person to ask the server
 operator for sign-in email correction through the guarded repair route, then sign in again.
-
-**Microsoft mailbox verification (`/verify-microsoft`, with an optional trailing slash).** This is a
-public entry before auth or company-data hydration. If the first connection needs email proof, the
-person opens the emailed link in the browser that started the request and chooses **Confirm and
-continue**. The secret fragment is removed from the address bar and retained only in memory. After
-confirmation, **Continue to Microsoft** can resume an approved request without the email token.
-The flow checks the same Microsoft identity and the still-valid invitation or local session before
-creating its connection. Expired, replaced and consumed proofs cannot be reused. Delivery failures
-are shown honestly; **Resend verification email**, retry and cancellation provide recovery. Ordinary
-returning sign-in uses the established identity and does not repeat this mailbox check. See
-[Set up company login](../docs-src/company-login/set-up-company-login.md).
 
 **First-run Owner setup (password-capable mode, zero users).** When the server reports `needsSetup: true`
 on the 401 (password-only or password-and-sso with an **empty** user table — sign-up is open for exactly one
@@ -1020,12 +973,11 @@ zero-users (it boots with the `--create-owner-admin-admin` bootstrap credential 
 production now mints a one-time generated password; see `BOOTSTRAP_ADMIN` in `e2e/authTestSupport.ts`),
 so the setup form
 itself is covered by unit tests, not a spec. Spec `e2e/login.auth.spec.ts`.
-On a mixed deployment, every configured external provider remains available below
-the setup form. Google uses the branded **Sign in with Google** action; other providers use
-their branded sign-in action. Named Google/Microsoft bootstrap uses
-`CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS`. Microsoft asks for the intended email before starting
-and proves it during first connection; provider-required setup does not ask for a password. The
-operator does not need a temporary password identity.
+On a mixed deployment, the configured Google action remains available alongside the setup form.
+The first Google identity must use an address in `CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS` while no
+user exists. The callback creates the sign-in identity but no company or membership; the Owner then
+sets up the company. Later new Google identities require an unused invitation addressed to their
+verified Google email. Provider-required setup does not ask for a password.
 
 **Invite accept route (`/invite/:token`; server mode).** A single-use, expiring invite link
 carries a pre-set Admin, Editor or Viewer role for one company; Owner is never invitational.
@@ -1039,9 +991,10 @@ Merely opening or previewing the URL never changes membership. Permission and ex
 consequences wrap in full. Expiry uses the viewer's local date and time without seconds; the year
 appears when it differs from the current year. An addressed invite can be accepted with an existing password sign-in, or used to create a
 password account where invitation signup is allowed. The invitation stays bound to its exact
-address and company. Eligible providers return to `/invite/:token` after sign-in, then explicitly accept the
-invitation under the current policy. A new or restored member receives
-the invitation role; an already-active member keeps the current role. The server rechecks the
+address and company. An existing Google identity, or a new identity admitted through this addressed
+invitation, returns to `/invite/:token` after sign-in; the person must explicitly accept the
+invitation under the current policy. A new or restored member receives the invitation role; an
+already-active member keeps the current role. The server rechecks the
 address, current policy, invitation, access restrictions and session at acceptance. Completion
 refreshes the authenticated company list and activates the joined company without persisting
 `activeAccountId` or treating the URL as membership proof.
@@ -1213,12 +1166,11 @@ presented before the member directory, matching the action-first pattern of the 
   (`data-testid="joining-policy-link"`) and choose **Copy joining link**
   (`data-testid="joining-policy-copy-link"`) to share `/join/:accountId`.
   `/join/:accountId` is a public company-bound entry outside the app's account picker. It shows
-  the company's name and available sign-in methods. Eligible Google, Microsoft and GitHub
-  choices appear above the existing-password option in mixed mode; GitHub remains unavailable
-  in company-sign-in-only mode. Microsoft uses its same-browser mailbox ceremony when needed.
-  A person with an existing password account signs in, then chooses **Join company**. The server admits only a currently proven email that meets the
-  live policy. A password identity without trusted email proof gets recovery guidance to use an
-  eligible verified provider or an addressed invitation, or choose **Email me a verification link**
+  the company's name and offers Google and, when enabled, password sign-in. An existing Google
+  identity or password identity signs in, then chooses **Join company**. The server rechecks the
+  live policy and current email proof at completion. A new Google identity still needs an unused
+  addressed invitation; an open or domain joining policy does not create one. A password identity
+  without trusted email proof can use an addressed invitation or choose **Email me a verification link**
   (`data-testid="joining-verify-email"`); successful delivery shows an inbox status
   (`data-testid="joining-verify-email-status"`). Open/domain policy joining does not
   create a new password account. On completion the normal authenticated company list verifies
@@ -1241,14 +1193,13 @@ The Owner row carries no pencil for anyone, and no gear for anyone but the Owner
 own row still offers the self-service Reset password and Revoke sessions): each company has exactly
 one Owner, ownership is changed only by explicit transfer, and the Owner can be neither demoted,
 removed nor disabled.
-Ownership transfer has no control in the member table at all: its own **Company ownership** section
-opens the three-step ceremony in a modal (see below), and the swap itself is a single transaction that demotes
-before it promotes. No generic
-role-change or invite endpoint can assign Owner, even for the current Owner. A partial unique SQLite
-index prevents multiple active owners for an account, and the server prevents removing/demoting the
-Owner outside the ceremony. The server remains the backstop: bypassing the UI cannot grant a second
-Owner, take part in somebody else's ceremony, revoke another account's invite or read another
-account's member list.
+Ownership transfer has no control in the member table: the Owner-only **Company ownership** card
+opens **Manage ownership** in a modal. The Owner chooses an active, unrestricted Admin in **Next
+Owner** and confirms **Transfer ownership** once. The confirmation explains that the selected Admin
+becomes Owner and the caller becomes Admin. The change takes effect immediately and atomically; the
+nominee does not separately consent, and there is no pending request or expiry. No generic role-change
+or invite endpoint can assign Owner. The server keeps exactly one active Owner and refuses transfer
+from anyone who is not the current Owner or to someone who is not an eligible Admin.
 
 The API routes: `GET /api/accounts/:accountId/members` (gated manageMembers; returns
 `{members, signInTrackingEnabled}` and each member carries `status` plus nullable
@@ -1275,29 +1226,20 @@ write-once) mints the reset link. The management UI is
 story `user-stories/settings/US-SET-10-member-management.md`;
 spec `e2e/members.auth.spec.ts`.
 
-**Company ownership (Team & access; server mode, auth on).** A compact entry point sits below member
-management as `src/components/team/OwnershipTransferCard.tsx`
-(`data-testid="ownership-transfer-card"`), driven by `src/components/team/useOwnershipTransfer.ts`
-and `src/account/ownershipTransferAccess.ts`. **Manage ownership**
-(`data-testid="ownership-transfer-open"`) opens the ceremony in a modal. Ownership moves in three acts — the Owner nominates,
-the nominated Admin agrees, the same Owner confirms — and nothing changes until all three have
-happened. Controls: **Next Owner** (`ownership-transfer-nominee`, active Admins only), **Start
-transfer** (`ownership-transfer-start`), **Nominate someone else instead**
-(`ownership-transfer-replace`), **Cancel the transfer** (`ownership-transfer-cancel`), **Confirm the
-transfer** (`ownership-transfer-complete`), **Agree to become Owner**
-(`ownership-transfer-accept`), **Decline** (`ownership-transfer-decline`), **Withdraw my agreement**
-(`ownership-transfer-withdraw`); the live status line is `ownership-transfer-state` and the
-explanation of a request that already ended is `ownership-transfer-outcome`. The entry point renders for
-participants only — a non-participant reads an empty projection, so hiding is presentation, not
-authorisation. Routes: `GET /api/accounts/:accountId/ownership-transfer`
-(`{live, latestOutcome}`, both nullable; refused under masquerade),
-`POST …/ownership-transfer {toUserId, expectedRequestId?, expectedRevision?}` (201),
-`POST …/ownership-transfer/:requestId/accept|withdraw|decline|complete`, and
-`DELETE …/ownership-transfer/:requestId` (cancel). Every command carries `expectedRevision`; a
-request the server has already ended answers **409** `{code: "OWNERSHIP_TRANSFER_TERMINAL", state,
-reason}`, which the client reads as a committed outcome rather than an error. A request expires
-seven days after it was made, and ends by itself when either participant's membership changes.
-Story `user-stories/settings/US-SET-18-ownership-transfer.md`;
+**Company ownership (Team & access; server mode, auth on).** The Owner-only
+`ownership-transfer-card` sits below member management. **Manage ownership**
+(`ownership-transfer-open`) opens its modal. **Next Owner** (`ownership-transfer-nominee`) lists active,
+unrestricted Admins. The Owner selects one and confirms **Transfer ownership**; the confirmation says
+the selected Admin becomes Owner and the caller becomes Admin. Submit uses
+`ownership-transfer-complete`. It immediately swaps the roles in one transaction; the nominee does
+not authenticate or consent, and no pending request, deadline, or nominee control is shown. The card
+and open test IDs remain `ownership-transfer-card` and `ownership-transfer-open`.
+
+The only transfer route is `POST /api/accounts/:accountId/ownership-transfer` with
+`{toUserId}`. A new transfer requires the current Owner and returns **200**
+`{fromUserId, toUserId}` after commit. Replaying the same command returns that semantic receipt,
+including after the caller is demoted; a changed command payload or scope conflicts. A new command
+requires a current Owner. Story `user-stories/settings/US-SET-18-ownership-transfer.md`;
 spec `e2e/ownership-transfer.auth.spec.ts`.
 
 `POST /api/accounts/:accountId/members/:userId/revoke-sessions` uses the same cross-account
@@ -1314,7 +1256,8 @@ authority on redeem (`POST /api/auth/reset-password`). Success shows _"Password 
 with your new password."_ (`data-testid="reset-success"`) with a **Go to sign in** link (a full page
 load onto the login wall); the member's previous sessions are revoked. An invalid / already-used /
 expired token shows _"This reset link is invalid, already used, or expired. Ask your admin for a
-new one."_ — the token is single-use. If the server does not mount password reset, the page says
+new one."_ — the token is single-use. The native endpoint returns **400** with
+`code: "INVALID_TOKEN"` for invalid, consumed and expired proofs. If the server does not mount password reset, the page says
 that reset is unavailable on this instance and directs the visitor to their administrator instead
 of suggesting another attempt. In local/demo mode the page shows a short "server mode only"
 note and makes no request. The page is `src/auth/ResetPassword.tsx`; spec
@@ -1349,14 +1292,7 @@ to **viewer**, the whole app goes **read-only**:
   desync local state. Account-setting writes additionally require their target to be the active
   company; a stale missing target is a no-op, while an existing foreign target is rejected. **Online
   default-editable invariant:** in auth off (the default everywhere) or local mode the live role is
-  `null` → fully editable. An opted-in cached offline snapshot is the deliberate exception: it is
-  labelled **Offline · View only**, projects Viewer capabilities, and never enables mutations
-  regardless of the live authentication posture. It is eligible when a request is unreachable,
-  including when a stalled connection reaches its client deadline, provided the verified snapshot is
-  still within its seven-day lifetime and was saved for both this web deployment and its configured
-  API origin. Repointing the same frontend origin at another backend invalidates the prior backend's
-  identity, company directory and snapshots. CapacityLens never enables cached writes or queues
-  changes for later.
+  `null` → fully editable. CapacityLens requires a server connection and never queues changes for later.
   The provider is `src/auth/PermissionProvider.tsx` (the hooks `useRole`/`useCanEdit` in
   `src/auth/permissionContext.ts`, off the pure `can`); story `user-stories/settings/US-SET-11-viewer-readonly.md`;
   spec `e2e/viewer.auth.spec.ts`.
@@ -1449,15 +1385,14 @@ header tier), `capacity-overview-totals-cell`, `capacity-totals-committed`, `cap
 shown for the few seconds of POST + re-hydrate; not dismissable, locks all editing/switching),
 `fake-sign-in` (the demo sign-in's account row — auth-off deploys only),
 `account-load-recovery` (failed selected-company hydration; replaces the application shell until
-Retry succeeds or another company is chosen),
+Retry succeeds; the demo also offers a return to its picker),
 `product-orientation` (the non-blocking **How CapacityLens works** region),
 `getting-started-progress` (the company-wide 0–5 bar), `getting-started` (the toggleable checklist
 card), `getting-started-tour` (its **Show me around** button — runs the role-based driver.js tour),
 `getting-started-dismiss` (the Owner/Admin **Dismiss** button; saves company-wide dismissal),
 `create-language` (company-create form's read-only Language row — **English**; frozen, P1.14),
-`new-company-button` (the company picker's **New company** button; HIDDEN — not merely disabled —
-whenever `GET /api/auth/me` reports `canCreateAccount: false`: the single-company cap is reached,
-or under auth-on the caller lacks owner/admin standing on any account),
+`new-company-button` (the temporary demo picker's **New company** button; production only shows
+first-company setup when no installation company exists),
 `settings-example-data` and `add-example-data` (Settings → Example data row and its button; shown only
 to an Owner or Admin of an empty company on a server-backed deploy),
 `archived-resources-section`, `archived-clients-section`, `archived-projects-section` and
@@ -1783,8 +1718,8 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   empty company as though loading had completed. Lazy public-auth and storage-recovery screens also
   retain a visible `Loading…` status while their code loads.
 - Unreadable browser data opens a dedicated recovery screen rather than the server connection retry.
-  It can request a raw-copy download before a confirmed reset; reset attempts clear both local
-  CapacityLens keys and offline snapshots, report partial failures precisely, and only reload once
+  It can request a raw-copy download before a confirmed reset; reset attempts clear local
+  CapacityLens preference keys, surface failures, and only reload once
   the unreadable local data is gone.
 - Failed SSO hand-off, reauthentication and invitation acceptance remain visible
   and actionable. A successful invitation keeps the newly selected company active while its account

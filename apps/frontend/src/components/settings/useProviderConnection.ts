@@ -1,0 +1,168 @@
+import { useEffect, useRef, useState } from "react";
+import { accountClient } from "@/account/accountClient";
+import type { AuthProviderInfo } from "@/auth/authContext";
+import { m } from "@/i18n";
+import { buildExternalSignInErrorUrl } from "@/auth/externalSignInError";
+
+function isGoogleProviderDescriptor(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+  const provider = value as Record<string, unknown>;
+  return (
+    provider.id === "google" &&
+    provider.label === "Google" &&
+    provider.kind === "social" &&
+    provider.experimental === false &&
+    provider.brand === "google"
+  );
+}
+
+function readIdentityProviderStatus(body: unknown): { connected: boolean } {
+  if (!body || typeof body !== "object") throw new Error("Invalid identity-provider status response.");
+  const status = body as { provider?: unknown; connected?: unknown; verified?: unknown };
+  if (
+    !isGoogleProviderDescriptor(status.provider) ||
+    typeof status.connected !== "boolean" ||
+    typeof status.verified !== "boolean"
+  ) {
+    throw new Error("Invalid identity-provider status response.");
+  }
+  if (status.connected && !status.verified) throw new Error("Identity-provider connection is not verified.");
+  return { connected: status.connected };
+}
+
+function readIdentityLinkResult(
+  body: unknown,
+): { url?: unknown; code?: unknown; reauthenticationAttempted?: unknown } | null {
+  return body && typeof body === "object" ? body : null;
+}
+
+function isAlreadyLinked(result: { code?: unknown } | null): boolean {
+  return result?.code === "PROVIDER_ALREADY_LINKED" || result?.code === "MULTIPLE_PROVIDER_LINKS";
+}
+
+function readIdentityLinkFailure(
+  response: Response,
+  result: { code?: unknown; reauthenticationAttempted?: unknown } | null,
+): string | null {
+  if (response.status !== 403) return null;
+  if (result?.code === "LOCAL_EMAIL_NOT_VERIFIED") return m.settings_sso_local_email_not_verified();
+  if (result?.code === "SESSION_NOT_FRESH") {
+    return result.reauthenticationAttempted === true ? m.reauth_still_not_fresh() : m.settings_sso_reauth_cancelled();
+  }
+  return null;
+}
+
+async function readConnectionStatus(providerId: "google"): Promise<boolean> {
+  const response = await accountClient.readIdentityProvider(providerId);
+  if (!response.ok) throw new Error("Identity-provider status request failed.");
+  return readIdentityProviderStatus(await response.json().catch(() => null)).connected;
+}
+
+function buildIdentityLinkCallback(providerId: "google"): string {
+  const callback = new URL(window.location.href);
+  callback.searchParams.set("capacitylensIdentityProvider", providerId);
+  return callback.toString();
+}
+
+function buildIdentityLinkErrorCallback(callbackURL: string): string {
+  return buildExternalSignInErrorUrl(callbackURL);
+}
+
+function clearIdentityLinkParams(url: URL) {
+  if (
+    !url.searchParams.has("capacitylensIdentityProvider") &&
+    !url.searchParams.has("capacitylensSsoLinked") &&
+    !url.searchParams.has("capacitylensSsoLinkFailed")
+  )
+    return;
+  url.searchParams.delete("capacitylensIdentityProvider");
+  url.searchParams.delete("capacitylensSsoLinked");
+  url.searchParams.delete("capacitylensSsoLinkFailed");
+  window.history.replaceState(window.history.state, "", url);
+}
+
+function readIdentityCallbackStatus(
+  url: URL,
+  providerId: "google",
+  failedCallbackProvider: { current: string | null },
+) {
+  const returnedProvider = url.searchParams.get("capacitylensIdentityProvider");
+  const isProviderReturn = returnedProvider === null || returnedProvider === providerId;
+  const linkFailed =
+    failedCallbackProvider.current === providerId ||
+    (isProviderReturn && url.searchParams.has("capacitylensSsoLinkFailed"));
+  if (linkFailed) failedCallbackProvider.current = providerId;
+  return { isProviderReturn, linkFailed };
+}
+
+type UseProviderConnectionOptions = {
+  provider: AuthProviderInfo | undefined;
+  busy: boolean;
+  setBusy: (busy: boolean) => void;
+};
+/** Tracks provider link status and the active connection request. */
+export function useProviderConnection({ provider, busy, setBusy }: UseProviderConnectionOptions) {
+  const [connected, setConnected] = useState<boolean | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const generation = useRef(0);
+  const failedCallbackProvider = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!provider) return;
+    const requestGeneration = ++generation.current;
+    const url = new URL(window.location.href);
+    const { isProviderReturn, linkFailed } = readIdentityCallbackStatus(url, provider.id, failedCallbackProvider);
+    void readConnectionStatus(provider.id)
+      .then((connected) => {
+        if (requestGeneration !== generation.current) return;
+        setConnected(connected);
+        setError(linkFailed ? m.settings_sso_connect_error() : null);
+      })
+      .catch((cause: unknown) => {
+        console.error("SecuritySection: identity-provider status failed", cause);
+        if (requestGeneration === generation.current) setError(m.settings_sso_status_error());
+      });
+    if (isProviderReturn) clearIdentityLinkParams(url);
+    return () => {
+      generation.current += 1;
+    };
+  }, [provider]);
+
+  const connect = async () => {
+    if (!provider || busy) return;
+    failedCallbackProvider.current = null;
+    generation.current += 1;
+    setBusy(true);
+    setError(null);
+    try {
+      const callbackURL = buildIdentityLinkCallback(provider.id);
+      const response = await accountClient.linkIdentityProvider(
+        callbackURL,
+        provider.id,
+        buildIdentityLinkErrorCallback(callbackURL),
+      );
+      const result = readIdentityLinkResult(await response.json().catch(() => null));
+      if (response.status === 409 && isAlreadyLinked(result)) {
+        setConnected(true);
+        setError(result?.code === "MULTIPLE_PROVIDER_LINKS" ? m.settings_sso_status_error() : null);
+        setBusy(false);
+        return;
+      }
+      const failure = readIdentityLinkFailure(response, result);
+      if (failure) {
+        setError(failure);
+        setBusy(false);
+        return;
+      }
+      if (!response.ok || typeof result?.url !== "string") throw new Error("Invalid identity-link response.");
+      window.location.assign(result.url);
+    } catch (cause) {
+      // Log provider-link transport failures and restore the security form without exposing raw provider internals.
+      console.error("SecuritySection: identity-provider link failed", cause);
+      setError(m.settings_sso_connect_error());
+      setBusy(false);
+    }
+  };
+
+  return { connected, error, connect };
+}

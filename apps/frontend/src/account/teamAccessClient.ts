@@ -1,0 +1,351 @@
+// Account administration decodes untrusted responses here so Team and access controllers consume semantic outcomes.
+import type { InvitationRole, JoiningPolicySettings, MembershipStatus } from "@capacitylens/shared/account/types";
+import { isAccountRole, isJoiningPolicy, isMembershipStatus } from "@capacitylens/shared/account/types";
+import { parseApprovedDomains } from "@capacitylens/shared/account/approvedDomains";
+import type { Role } from "@capacitylens/shared/domain/access";
+import { accountClient } from "./accountClient";
+import { hasDuplicateIdentity } from "@/lib/hasDuplicateIdentity";
+import { isNullableString, isTimestamp, readCommandResult, readResult } from "./accessResult";
+import type { TeamAccessResult } from "./accessResult";
+import { ownershipTransferAccess } from "./ownershipTransferAccess";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
+import type { TeamMember, TeamDirectory, TeamInvitation, OneTimeToken } from "./teamAccessTypes";
+
+export { resolveRejectionMessage, type TeamAccessResult } from "./accessResult";
+export type { TeamMember, TeamDirectory, TeamInvitation, OneTimeToken } from "./teamAccessTypes";
+export type { OwnershipTransferReceipt } from "./ownershipTransferAccess";
+
+const isOptionalBoolean = (value: unknown): value is boolean | undefined =>
+  value === undefined || typeof value === "boolean";
+
+const isOptionalNullableBoolean = (value: unknown): value is boolean | null | undefined =>
+  value === undefined || value === null || typeof value === "boolean";
+
+function hasValidMemberIdentity(
+  row: Record<string, unknown>,
+): row is Record<string, unknown> & Pick<TeamMember, "userId" | "role" | "status" | "createdAt"> {
+  return (
+    typeof row.userId === "string" &&
+    row.userId.length > 0 &&
+    isAccountRole(row.role) &&
+    isMembershipStatus(row.status) &&
+    isTimestamp(row.createdAt)
+  );
+}
+
+function hasValidMemberAccess(
+  row: Record<string, unknown>,
+): row is Record<string, unknown> & Pick<TeamMember, "isSelf"> {
+  return (
+    typeof row.isSelf === "boolean" &&
+    isOptionalNullableBoolean(row.signInConfirmed) &&
+    isOptionalBoolean(row.accessDisabled) &&
+    isOptionalBoolean(row.membershipPresent) &&
+    isOptionalBoolean(row.mayResetPassword) &&
+    isOptionalBoolean(row.mayRevokeSessions)
+  );
+}
+
+function parseMember(row: unknown): TeamMember | null {
+  if (!isRecord(row)) return null;
+  if (!hasValidMemberIdentity(row)) return null;
+  if (!hasValidMemberAccess(row)) return null;
+  if (!isNullableString(row.name) || !isNullableString(row.email)) return null;
+  const resourceLink = parseMemberResourceLink(row.resourceLink);
+  if (resourceLink === undefined) return null;
+  const resourceLinkException = parseMemberResourceLinkException(row.resourceLinkException);
+  if (resourceLinkException === undefined) return null;
+  return {
+    userId: row.userId,
+    role: row.role,
+    status: row.status,
+    createdAt: row.createdAt,
+    name: row.name,
+    email: row.email,
+    signInConfirmed: typeof row.signInConfirmed === "boolean" ? row.signInConfirmed : null,
+    isSelf: row.isSelf,
+    mayResetPassword: row.mayResetPassword === true,
+    mayRevokeSessions: row.mayRevokeSessions === true,
+    accessDisabled: row.accessDisabled === true,
+    membershipPresent: row.membershipPresent !== false,
+    resourceLink,
+    resourceLinkException,
+  };
+}
+
+function parseMemberResourceLinkException(value: unknown): TeamMember["resourceLinkException"] | undefined {
+  if (value === undefined || value === null) return null;
+  if (!isRecord(value)) return undefined;
+  if (
+    (value.proposedResourceId !== null && typeof value.proposedResourceId !== "string") ||
+    (value.reason !== "resource_unavailable" &&
+      value.reason !== "resource_already_linked" &&
+      value.reason !== "member_already_linked")
+  )
+    return undefined;
+  return { proposedResourceId: value.proposedResourceId, reason: value.reason };
+}
+
+function parseMemberResourceStatus(value: unknown): "active" | "disabled" | "archived" | null | undefined {
+  if (value === undefined || value === null) return null;
+  if (value === "active" || value === "disabled" || value === "archived") return value;
+  return undefined;
+}
+
+function parseMemberResourceLink(value: unknown): TeamMember["resourceLink"] | undefined {
+  if (value === undefined || value === null) return null;
+  if (!isRecord(value) || typeof value.resourceId !== "string" || value.resourceId.length === 0) return undefined;
+  if (typeof value.revision !== "string" || value.revision.length === 0) return undefined;
+  if (value.resourceName !== undefined && value.resourceName !== null && typeof value.resourceName !== "string")
+    return undefined;
+  const resourceStatus = parseMemberResourceStatus(value.resourceStatus);
+  if (resourceStatus === undefined) return undefined;
+  return {
+    resourceId: value.resourceId,
+    revision: value.revision,
+    resourceName: typeof value.resourceName === "string" ? value.resourceName : null,
+    resourceStatus,
+  };
+}
+
+function parseResourceCandidate(value: unknown): { resourceId: string; label: string } | null {
+  if (!isRecord(value)) return null;
+  if (typeof value.resourceId !== "string" || value.resourceId.length === 0) return null;
+  if (typeof value.label !== "string" || value.label.length === 0) return null;
+  return { resourceId: value.resourceId, label: value.label };
+}
+
+function parseDirectoryMembers(rows: readonly unknown[]): TeamMember[] | null {
+  const members: TeamMember[] = [];
+  for (const row of rows) {
+    const member = parseMember(row);
+    if (member === null) {
+      console.warn("teamAccessClient: dropped an unsupported member-directory row");
+      continue;
+    }
+    members.push(member);
+  }
+  return rows.length > 0 && members.length === 0 ? null : members;
+}
+
+function parseResourceCandidates(rows: readonly unknown[]): { resourceId: string; label: string }[] {
+  return rows.flatMap((candidate) => {
+    const parsed = parseResourceCandidate(candidate);
+    return parsed === null ? [] : [parsed];
+  });
+}
+
+function parseMembers(value: unknown): TeamDirectory | null {
+  if (!isRecord(value) || !Array.isArray(value.members)) return null;
+  if (value.signInTrackingEnabled !== undefined && typeof value.signInTrackingEnabled !== "boolean") return null;
+  if (value.resourceCandidates !== undefined && !Array.isArray(value.resourceCandidates)) return null;
+  const signInTrackingEnabled = value.signInTrackingEnabled === true;
+  const members = parseDirectoryMembers(value.members);
+  if (members === null) return null;
+  const resourceCandidates = parseResourceCandidates(value.resourceCandidates ?? []);
+  return hasDuplicateIdentity(members, (member) => member.userId) ||
+    hasDuplicateIdentity(resourceCandidates, (candidate) => candidate.resourceId)
+    ? null
+    : { members, signInTrackingEnabled, resourceCandidates };
+}
+
+function hasValidInvitationIdentity(
+  row: Record<string, unknown>,
+): row is Record<string, unknown> & Pick<TeamInvitation, "id" | "role"> {
+  return typeof row.id === "string" && row.id.length > 0 && isAccountRole(row.role) && row.role !== "owner";
+}
+
+function hasValidInvitationDates(
+  row: Record<string, unknown>,
+): row is Record<string, unknown> & Pick<TeamInvitation, "expiresAt" | "usedAt" | "createdAt"> {
+  return isTimestamp(row.expiresAt) && (row.usedAt === null || isTimestamp(row.usedAt)) && isTimestamp(row.createdAt);
+}
+
+function isOptionalNonEmptyString(value: unknown): boolean {
+  return value === undefined || (typeof value === "string" && value.length > 0);
+}
+
+function parseInvitation(row: unknown): TeamInvitation | null {
+  if (!isRecord(row)) return null;
+  if (!hasValidInvitationIdentity(row)) return null;
+  if (!hasValidInvitationDates(row)) return null;
+  if (!(row.preauthEmail === undefined || row.preauthEmail === null || typeof row.preauthEmail === "string"))
+    return null;
+  if (!isOptionalNonEmptyString(row.proposedResourceId) || !isOptionalNonEmptyString(row.proposedResourceLabel))
+    return null;
+  return {
+    id: row.id,
+    role: row.role,
+    preauthEmail: typeof row.preauthEmail === "string" ? row.preauthEmail : null,
+    expiresAt: row.expiresAt,
+    usedAt: row.usedAt,
+    createdAt: row.createdAt,
+    ...(typeof row.proposedResourceId === "string" ? { proposedResourceId: row.proposedResourceId } : {}),
+    ...(typeof row.proposedResourceLabel === "string" ? { proposedResourceLabel: row.proposedResourceLabel } : {}),
+  };
+}
+
+function parseInvitations(value: unknown): TeamInvitation[] | null {
+  if (!isRecord(value) || !Array.isArray(value.invites)) return null;
+  const invitations: TeamInvitation[] = [];
+  for (const row of value.invites) {
+    const invitation = parseInvitation(row);
+    if (invitation === null) {
+      console.warn("teamAccessClient: dropped an unsupported invitation-directory row");
+      continue;
+    }
+    invitations.push(invitation);
+  }
+  if (value.invites.length > 0 && invitations.length === 0) return null;
+  return hasDuplicateIdentity(invitations, (invitation) => invitation.id) ? null : invitations;
+}
+
+function hasUnsafeTokenCharacter(token: string): boolean {
+  return Array.from(token).some((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return /\s/u.test(character) || codePoint <= 0x1f || codePoint === 0x7f;
+  });
+}
+
+function hasValidOptionalTokenFields(
+  value: Record<string, unknown>,
+): value is Record<string, unknown> & Pick<OneTimeToken, "id" | "expiresAt"> {
+  const hasValidId = value.id === undefined || (typeof value.id === "string" && value.id.length > 0);
+  const hasValidExpiry = value.expiresAt === undefined || isTimestamp(value.expiresAt);
+  return hasValidId && hasValidExpiry;
+}
+
+function parseToken(value: unknown): OneTimeToken | null {
+  if (!isRecord(value) || typeof value.token !== "string") return null;
+  // Keep the token alphabet opaque, but reject unsafe URL segments or skewed bodies.
+  if (value.token.length === 0 || value.token.length > 4_096) return null;
+  if (value.token !== value.token.trim() || hasUnsafeTokenCharacter(value.token)) {
+    return null;
+  }
+  if (!hasValidOptionalTokenFields(value)) return null;
+  return {
+    ...(typeof value.id === "string" ? { id: value.id } : {}),
+    token: value.token,
+    ...(typeof value.emailed === "boolean" ? { emailed: value.emailed } : {}),
+    ...(typeof value.expiresAt === "string" ? { expiresAt: value.expiresAt } : {}),
+  };
+}
+
+const noContent = (): true => true;
+
+function parseJoiningPolicy(value: unknown): JoiningPolicySettings | null {
+  if (!isRecord(value) || !isJoiningPolicy(value.policy)) return null;
+  const approvedDomains = parseApprovedDomains(value.approvedDomains);
+  if (approvedDomains === null) return null;
+  return { policy: value.policy, approvedDomains };
+}
+
+type SetMemberSignInTrackingOptions = { workspaceId: string; enabled: boolean };
+/** Provides typed request methods for team and access administration. */
+export const teamAccessClient = {
+  ...ownershipTransferAccess,
+
+  async listMembers(workspaceId: string, signal?: AbortSignal): Promise<TeamAccessResult<TeamDirectory>> {
+    return readResult(await accountClient.listMembers(workspaceId, signal), parseMembers);
+  },
+
+  async setMemberSignInTracking({
+    workspaceId,
+    enabled,
+  }: SetMemberSignInTrackingOptions): Promise<TeamAccessResult<boolean>> {
+    return readResult(await accountClient.setMemberSignInTracking({ workspaceId, enabled }), (body) =>
+      isRecord(body) && typeof body.enabled === "boolean" ? body.enabled : null,
+    );
+  },
+
+  async listInvitations(workspaceId: string, signal?: AbortSignal): Promise<TeamAccessResult<TeamInvitation[]>> {
+    return readResult(await accountClient.listInvitations(workspaceId, signal), parseInvitations);
+  },
+
+  async readJoiningPolicy(workspaceId: string): Promise<TeamAccessResult<JoiningPolicySettings>> {
+    return readResult(await accountClient.readJoiningPolicy(workspaceId), parseJoiningPolicy);
+  },
+
+  async setJoiningPolicy(
+    workspaceId: string,
+    settings: JoiningPolicySettings,
+  ): Promise<TeamAccessResult<JoiningPolicySettings>> {
+    return readCommandResult(await accountClient.setJoiningPolicy(workspaceId, settings), parseJoiningPolicy);
+  },
+
+  async changeMemberRole(workspaceId: string, principalId: string, role: Role): Promise<TeamAccessResult<true>> {
+    return readCommandResult(
+      await accountClient.changeMemberRole({ workspaceId: workspaceId, principalId: principalId, role: role }),
+      noContent,
+    );
+  },
+
+  async changeMemberStatus(
+    workspaceId: string,
+    principalId: string,
+    status: MembershipStatus,
+  ): Promise<TeamAccessResult<true>> {
+    return readCommandResult(
+      await accountClient.changeMemberStatus({ workspaceId: workspaceId, principalId: principalId, status: status }),
+      noContent,
+    );
+  },
+
+  async enableMemberAccess(workspaceId: string, principalId: string): Promise<TeamAccessResult<true>> {
+    return readCommandResult(await accountClient.enableMemberAccess(workspaceId, principalId), noContent);
+  },
+
+  async removeMember(workspaceId: string, principalId: string): Promise<TeamAccessResult<true>> {
+    return readCommandResult(await accountClient.removeMember(workspaceId, principalId), noContent);
+  },
+
+  async setMemberResourceLink(input: {
+    workspaceId: string;
+    principalId: string;
+    resourceId: string;
+    expectedRevision: string | null;
+  }) {
+    return readCommandResult(await accountClient.setMemberResourceLink(input), (body) =>
+      isRecord(body) && typeof body.resourceId === "string" && typeof body.revision === "string"
+        ? { resourceId: body.resourceId, revision: body.revision }
+        : null,
+    );
+  },
+
+  async clearMemberResourceLink(workspaceId: string, principalId: string, expectedRevision: string) {
+    return readCommandResult(
+      await accountClient.clearMemberResourceLink({ workspaceId, principalId, expectedRevision }),
+      noContent,
+      204,
+    );
+  },
+
+  async dismissMemberResourceLinkException(workspaceId: string, principalId: string) {
+    return readCommandResult(
+      await accountClient.dismissMemberResourceLinkException(workspaceId, principalId),
+      noContent,
+      204,
+    );
+  },
+
+  async issuePasswordReset(workspaceId: string, principalId: string): Promise<TeamAccessResult<OneTimeToken>> {
+    return readCommandResult(await accountClient.issuePasswordReset(workspaceId, principalId), parseToken, 201);
+  },
+
+  async revokeMemberSessions(workspaceId: string, principalId: string): Promise<TeamAccessResult<true>> {
+    return readCommandResult(await accountClient.revokeMemberSessions(workspaceId, principalId), noContent, 204);
+  },
+
+  async createInvitation(input: {
+    accountId: string;
+    role: InvitationRole;
+    preauthEmail?: string;
+    proposedResourceId?: string;
+  }): Promise<TeamAccessResult<OneTimeToken>> {
+    return readCommandResult(await accountClient.createInvitation(input), parseToken, 201);
+  },
+
+  async revokeInvitation(workspaceId: string, invitationId: string): Promise<TeamAccessResult<true>> {
+    return readCommandResult(await accountClient.revokeInvitation(workspaceId, invitationId), noContent);
+  },
+};

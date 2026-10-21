@@ -1,6 +1,6 @@
 # US-RES-10 — The resource list display
 
-**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "groups Studio before Supplementary only while someone is Supplementary" · **Unit:** `src/components/resources/ResourceList.test.tsx` (engagement sections, favourite ordering and empty state)
+**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "groups Studio before Supplementary only while someone is Supplementary" · **Unit:** `apps/frontend/src/components/resources/ResourceList.test.tsx` (engagement sections, favourite ordering and empty state)
 
 ## Goal
 

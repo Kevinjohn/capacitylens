@@ -28,8 +28,8 @@ function registerInitialStateFailurePreventsEditingTest() {
 
     stateFailure.release();
     await page.getByRole("button", { name: "Try again" }).click();
-    await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();
     await waitForAppLanding(page, page.locator("#main"));
+    await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
 
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Can’t reach the server" })).toHaveCount(0);

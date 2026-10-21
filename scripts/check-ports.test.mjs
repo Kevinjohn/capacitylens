@@ -28,6 +28,15 @@ test("prose about a port is not code, so comments never fail the check", () => {
   assert.ok(!stripComments(content).includes("5173"));
 });
 
+test("single-quoted lane imports are accepted", () => {
+  assert.deepEqual(
+    evaluatePortUsage([
+      { path: "x.mjs", content: "import { ports } from './ports.mjs';\nconst port = ports().web;\n" },
+    ]),
+    [],
+  );
+});
+
 test("a URL's scheme is not a comment, so a hardcoded origin is still caught", () => {
   const content = 'import { ports } from "./ports.mjs";\nconst api = "http://localhost:8787";\n';
   assert.deepEqual(evaluatePortUsage([{ path: "x.ts", content }]), [

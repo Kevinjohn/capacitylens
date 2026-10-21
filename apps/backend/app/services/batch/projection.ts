@@ -1,0 +1,358 @@
+import { APP_DATA_KEYS, SCOPED_KEYS } from '@capacitylens/shared/types/entities'
+import type { Allocation, AppData, AppDataKey } from '@capacitylens/shared/types/entities'
+import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays'
+import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations'
+import { withoutAllocationAttribution } from '@capacitylens/shared/lib/integrity'
+import { createServerRevision } from '#services/batch/revision'
+
+interface RewrittenAllocationRevision {
+  id: string
+  createdAt: string
+  updatedAt: string
+}
+
+type ProjectionRow = Record<string, unknown> & { id: string }
+type DeleteAction = 'cascade' | 'set-null'
+
+interface RelatedRowsInput {
+  parent: AppDataKey
+  child: AppDataKey
+  field: string
+  parentId: string
+}
+
+interface ReconcileAllocationAttributionForActivityInput {
+  activityId: string
+  attributionAllowed: boolean
+}
+
+interface Relationship {
+  parent: AppDataKey
+  child: AppDataKey
+  field: string
+  onDelete: DeleteAction
+}
+
+interface RelationshipIndex {
+  relationship: Relationship
+  childrenByParent: Map<string, Set<string>>
+}
+
+// Mirrors every AppData foreign key in server/src/tables.ts. Keeping accountId edges here makes an
+// account delete proportional to that account's rows; the more specific edges preserve CASCADE and
+// SET NULL behavior for same-batch validation after a parent delete.
+const RELATIONSHIPS: Relationship[] = [
+  ...SCOPED_KEYS.map((child) => ({
+    parent: 'accounts' as const,
+    child,
+    field: 'accountId',
+    onDelete: 'cascade' as const,
+  })),
+  { parent: 'clients', child: 'projects', field: 'clientId', onDelete: 'cascade' },
+  { parent: 'projects', child: 'phases', field: 'projectId', onDelete: 'cascade' },
+  { parent: 'projects', child: 'activities', field: 'projectId', onDelete: 'cascade' },
+  { parent: 'projects', child: 'resources', field: 'projectId', onDelete: 'set-null' },
+  { parent: 'projects', child: 'allocations', field: 'projectId', onDelete: 'set-null' },
+  { parent: 'phases', child: 'activities', field: 'phaseId', onDelete: 'set-null' },
+  { parent: 'disciplines', child: 'resources', field: 'disciplineId', onDelete: 'set-null' },
+  { parent: 'resources', child: 'allocations', field: 'resourceId', onDelete: 'cascade' },
+  { parent: 'resources', child: 'timeOff', field: 'resourceId', onDelete: 'cascade' },
+  { parent: 'activities', child: 'allocations', field: 'activityId', onDelete: 'cascade' },
+]
+
+const resolveRows = (data: AppData, table: AppDataKey): ProjectionRow[] =>
+  data[table] as unknown as ProjectionRow[]
+
+/**
+ * Provides a mutable, transaction-local AppData projection for POST /api/batch.
+ * Mutates the supplied AppData and its arrays in place; callers must provide an isolated transaction snapshot.
+ * Indexes keep updates and cascades proportional to affected rows. Row order is not preserved because
+ * validation treats tables as unordered sets and the projection is never serialized.
+ */
+export class BatchStateProjection implements ValidationDataLookup {
+  private readonly attributionClearedActivityIds = new Set<string>()
+  private readonly attributionRewrites = new Map<string, RewrittenAllocationRevision>()
+  private readonly builtinClientIdsByAccount = new Map<string, Set<string>>()
+  readonly data: AppData
+  private readonly rowIndexes: Record<AppDataKey, Map<string, number>>
+  private readonly relationshipIndexes: RelationshipIndex[]
+
+  constructor(data: AppData) {
+    this.data = data
+    this.rowIndexes = Object.fromEntries(
+      APP_DATA_KEYS.map((table) => [
+        table,
+        new Map(resolveRows(data, table).map((row, index) => [row.id, index] as const)),
+      ])
+    ) as Record<AppDataKey, Map<string, number>>
+    this.relationshipIndexes = RELATIONSHIPS.map((relationship) => ({
+      relationship,
+      childrenByParent: new Map(),
+    }))
+    for (const client of resolveRows(data, 'clients')) this.addBuiltinClient(client)
+    for (const relationshipIndex of this.relationshipIndexes) {
+      for (const row of resolveRows(data, relationshipIndex.relationship.child)) {
+        this.addRelationship(relationshipIndex, row)
+      }
+    }
+  }
+
+  upsert(table: AppDataKey, row: Record<string, unknown>): void {
+    // Reject malformed rows at this boundary so callers cannot corrupt the projection indexes.
+    if (typeof row.id !== 'string') throw new Error('Batch projection rows require a string id.')
+    if (table === 'allocations') this.attributionRewrites.delete(row.id)
+    const next =
+      table === 'allocations' &&
+      typeof row.activityId === 'string' &&
+      this.attributionClearedActivityIds.has(row.activityId)
+        ? (withoutAllocationAttribution(row) as ProjectionRow)
+        : (row as ProjectionRow)
+    this.upsertProjectedRow(table, next)
+  }
+
+  clearAllocationAttribution(revisions: readonly RewrittenAllocationRevision[]): void {
+    for (const revision of revisions) {
+      const allocation = this.row('allocations', revision.id)
+      if (!allocation || allocation.projectId === null || allocation.projectId === undefined)
+        continue
+      this.upsertProjectedRow(
+        'allocations',
+        withoutAllocationAttribution(allocation, revision.updatedAt)
+      )
+    }
+  }
+
+  /** Restore the attribution invariant now and retain only rewrites still present at commit. */
+  reconcileAllocationAttributionForActivity({
+    activityId,
+    attributionAllowed,
+  }: ReconcileAllocationAttributionForActivityInput): void {
+    if (attributionAllowed) {
+      this.attributionClearedActivityIds.delete(activityId)
+      return
+    }
+
+    this.attributionClearedActivityIds.add(activityId)
+    const relationship = this.resolveRelationshipIndex('activities', 'allocations', 'activityId')
+    for (const allocationId of relationship?.childrenByParent.get(activityId) ?? []) {
+      const allocation = this.row('allocations', allocationId)
+      if (!allocation || allocation.projectId === null || allocation.projectId === undefined)
+        continue
+      const updatedAt = createServerRevision(allocation.updatedAt)
+      this.upsertProjectedRow('allocations', withoutAllocationAttribution(allocation, updatedAt))
+      this.attributionRewrites.set(allocationId, {
+        id: allocationId,
+        createdAt: allocation.createdAt as string,
+        updatedAt,
+      })
+    }
+  }
+
+  listRewrittenAllocationRevisions(): readonly RewrittenAllocationRevision[] {
+    return [...this.attributionRewrites.values()]
+  }
+
+  hasPendingAllocationAttributionRewrite(allocationId: string): boolean {
+    return this.attributionRewrites.has(allocationId)
+  }
+
+  delete(table: AppDataKey, id: string): void {
+    if (!this.rowIndexes[table].has(id)) return
+
+    for (const relationshipIndex of this.relationshipIndexes) {
+      const { relationship, childrenByParent } = relationshipIndex
+      if (relationship.parent !== table) continue
+      const childIds = [...(childrenByParent.get(id) ?? [])]
+      for (const childId of childIds) {
+        if (relationship.onDelete === 'cascade') {
+          this.delete(relationship.child, childId)
+        } else {
+          this.clearReference(relationship.child, childId, relationship.field)
+        }
+      }
+    }
+
+    this.removeRow(table, id)
+  }
+
+  /** Mirror replaceGeneratedBuiltin's reparent-before-delete database sequence. */
+  replaceGeneratedBuiltin(generatedId: string, row: Record<string, unknown>): void {
+    // Reject malformed rows before reparenting can mutate the projection.
+    if (typeof row.id !== 'string') throw new Error('Batch projection rows require a string id.')
+    const projectRelationship = this.resolveRelationshipIndex('clients', 'projects', 'clientId')
+    const projectIds = [...(projectRelationship?.childrenByParent.get(generatedId) ?? [])]
+    for (const projectId of projectIds) {
+      const project = this.row('projects', projectId)
+      if (project)
+        this.upsert('projects', {
+          ...project,
+          clientId: row.id,
+          updatedAt: createServerRevision(project.updatedAt),
+        })
+    }
+    this.delete('clients', generatedId)
+    this.upsert('clients', row)
+  }
+
+  row(table: AppDataKey, id: string): ProjectionRow | undefined {
+    const index = this.rowIndexes[table].get(id)
+    return index === undefined ? undefined : resolveRows(this.data, table)[index]
+  }
+
+  hasOtherBuiltinClient(accountId: string, clientId: string, excludedId?: string): boolean {
+    return [...(this.builtinClientIdsByAccount.get(accountId) ?? [])].some(
+      (id) => id !== clientId && id !== excludedId
+    )
+  }
+
+  resourceHasLoadedAllocation(accountId: string, resourceId: string): boolean {
+    return this.allocationsForResource(accountId, resourceId).some((row) => row.hoursPerDay !== 0)
+  }
+
+  resourceHasTimeOff(accountId: string, resourceId: string): boolean {
+    return this.relatedRows({
+      parent: 'resources',
+      child: 'timeOff',
+      field: 'resourceId',
+      parentId: resourceId,
+    }).some((row) => row.accountId === accountId)
+  }
+
+  accountWorkingDays(accountId: string) {
+    const account = this.row('accounts', accountId)
+    return normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn === 0 ? 0 : 1)
+  }
+
+  allocationsForResource(accountId: string, resourceId: string): readonly Allocation[] {
+    return this.relatedRows({
+      parent: 'resources',
+      child: 'allocations',
+      field: 'resourceId',
+      parentId: resourceId,
+    }).filter((row) => row.accountId === accountId) as unknown as Allocation[]
+  }
+
+  allocationsForActivity(accountId: string, activityId: string): readonly Allocation[] {
+    return this.relatedRows({
+      parent: 'activities',
+      child: 'allocations',
+      field: 'activityId',
+      parentId: activityId,
+    }).filter((row) => row.accountId === accountId) as unknown as Allocation[]
+  }
+
+  private relatedRows({ parent, child, field, parentId }: RelatedRowsInput): ProjectionRow[] {
+    const relationship = this.resolveRelationshipIndex(parent, child, field)
+    if (!relationship) return []
+    return [...(relationship.childrenByParent.get(parentId) ?? [])].flatMap((id) => {
+      const row = this.row(child, id)
+      return row ? [row] : []
+    })
+  }
+
+  private resolveRelationshipIndex(
+    parent: AppDataKey,
+    child: AppDataKey,
+    field: string
+  ): RelationshipIndex | undefined {
+    return this.relationshipIndexes.find(
+      ({ relationship }) =>
+        relationship.parent === parent &&
+        relationship.child === child &&
+        relationship.field === field
+    )
+  }
+
+  private clearReference(table: AppDataKey, id: string, field: string): void {
+    const existing = this.row(table, id)
+    if (!existing) return
+    const updated = { ...existing }
+    updated[field] = null
+    this.upsert(table, updated)
+  }
+
+  private removeRow(table: AppDataKey, id: string): void {
+    const indexes = this.rowIndexes[table]
+    const index = indexes.get(id)
+    if (index === undefined) return
+    const rows = resolveRows(this.data, table)
+    const removed = rows[index]
+    if (!removed) throw new Error(`Missing indexed ${table} row ${id}.`)
+    if (table === 'allocations') this.attributionRewrites.delete(id)
+    if (table === 'clients') this.removeBuiltinClient(removed)
+    this.removeChildRelationships(table, removed)
+    const last = rows.pop()
+    if (!last) throw new Error(`Missing final ${table} row while removing ${id}.`)
+    indexes.delete(id)
+    if (index < rows.length) {
+      rows[index] = last
+      indexes.set(last.id, index)
+    }
+  }
+
+  private addChildRelationships(table: AppDataKey, row: ProjectionRow): void {
+    for (const relationshipIndex of this.relationshipIndexes) {
+      if (relationshipIndex.relationship.child === table) {
+        this.addRelationship(relationshipIndex, row)
+      }
+    }
+  }
+
+  private upsertProjectedRow(table: AppDataKey, row: Record<string, unknown>): void {
+    const rows = resolveRows(this.data, table)
+    const next = row as ProjectionRow
+    const index = this.rowIndexes[table].get(next.id)
+    if (index === undefined) {
+      this.rowIndexes[table].set(next.id, rows.length)
+      rows.push(next)
+    } else {
+      const existing = rows[index]
+      if (!existing) throw new Error(`Missing indexed ${table} row ${next.id}.`)
+      if (table === 'clients') this.removeBuiltinClient(existing)
+      this.removeChildRelationships(table, existing)
+      rows[index] = next
+    }
+    if (table === 'clients') this.addBuiltinClient(next)
+    this.addChildRelationships(table, next)
+  }
+
+  private addBuiltinClient(row: ProjectionRow): void {
+    if (row.builtin !== true || typeof row.accountId !== 'string') return
+    let ids = this.builtinClientIdsByAccount.get(row.accountId)
+    if (!ids) {
+      ids = new Set()
+      this.builtinClientIdsByAccount.set(row.accountId, ids)
+    }
+    ids.add(row.id)
+  }
+
+  private removeBuiltinClient(row: ProjectionRow): void {
+    if (row.builtin !== true || typeof row.accountId !== 'string') return
+    const ids = this.builtinClientIdsByAccount.get(row.accountId)
+    ids?.delete(row.id)
+    if (ids?.size === 0) this.builtinClientIdsByAccount.delete(row.accountId)
+  }
+
+  private removeChildRelationships(table: AppDataKey, row: ProjectionRow): void {
+    for (const relationshipIndex of this.relationshipIndexes) {
+      const { relationship, childrenByParent } = relationshipIndex
+      if (relationship.child !== table) continue
+      const parentId = row[relationship.field]
+      if (typeof parentId !== 'string') continue
+      const childIds = childrenByParent.get(parentId)
+      childIds?.delete(row.id)
+      if (childIds?.size === 0) childrenByParent.delete(parentId)
+    }
+  }
+
+  private addRelationship(relationshipIndex: RelationshipIndex, row: ProjectionRow): void {
+    const parentId = row[relationshipIndex.relationship.field]
+    if (typeof parentId !== 'string') return
+    let childIds = relationshipIndex.childrenByParent.get(parentId)
+    if (!childIds) {
+      childIds = new Set()
+      relationshipIndex.childrenByParent.set(parentId, childIds)
+    }
+    childIds.add(row.id)
+  }
+}

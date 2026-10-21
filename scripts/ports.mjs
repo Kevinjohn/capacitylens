@@ -27,17 +27,11 @@ const BASES = Object.freeze({
   authWeb: 5373,
   dbApi: 8787,
   authApi: 8887,
+  testHttp: 8987,
   preview: 4173,
   docsDev: 5900,
   docsPreview: 5910,
 });
-
-// The local access lab keeps a fixed, exclusive pair of ports outside the lane system.
-/** Fixed loopback endpoints for the exclusive access lab, outside the ordinary lane allocator. */
-export const ACCESS_LAB_FIXED_PORTS = Object.freeze({ web: 5473, api: 8897 });
-
-/** Repository-relative lock path for the exclusive fixed-port access lab. */
-export const FIXED_PORTS_LOCK_FILE = "server/.fixed-ports.lock";
 
 /** Return an integer lane from 0 to `LANE_CEILING - 1`, or throw `RangeError`. */
 export function assertLane(lane) {

@@ -1,9 +1,11 @@
 # US-DAT-07 — Export, import and upgrade private names safely
 
 **Area:** Data management / privacy · **Persona:** Account owner and account administrator ·
-**Coverage:** `server/src/app.authz.test.ts` → owner-only import + redacted re-import tests;
-`src/components/ImportExport.test.tsx`; `shared/src/lib/sanitizeImport.test.ts`; migration criterion
-`DAT-PRIV-01` → `shared/src/data/migrate.test.ts`
+**Coverage:** `apps/backend/tests/functional/auth/native_authorization.spec.ts` → owner-only import + redacted re-import tests;
+`apps/frontend/src/components/ImportExport.test.tsx`; `packages/shared/src/lib/sanitizeImport.test.ts`; migration criterion
+`DAT-PRIV-01` → `packages/shared/src/data/migrate.test.ts`
+
+**Documentation:** [Settings — Import and export](../../docs-src/using/settings.md#import-and-export)
 
 ## Goal
 
@@ -52,3 +54,12 @@ US-PRI-01. Have both the owner and an admin available.
   hand-edited file attempts to set it.
 - ✅ **DAT-PRIV-07 — Redacted-restore interlock.** A non-owner's redacted export can never be accepted as a server slice replacement, preventing
   quoted projections or fallback values from destroying the owner-confidential database identities.
+- ✅ **Beta projection.** Beta exports preserve the server's confidential projection. A `redacted`
+  document cannot be prepared as a full replacement, and preparation never reconstructs
+  confidential names from projected values.
+
+These beta rules apply to shared preparation only. The current Settings controls still use the
+legacy importer/exporter; backend writer replacement and privileged-auth proof are outside this
+slice. See the [accepted replacement map for issue
+#1482](https://github.com/Kevinjohn/capacitylens/issues/1482#issuecomment-6276475651) and
+[implementation issue #1520](https://github.com/Kevinjohn/capacitylens/issues/1520).

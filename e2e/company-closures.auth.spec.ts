@@ -29,9 +29,9 @@ async function putEntity(
   id: string,
   data: Record<string, unknown>,
 ) {
-  const response = await request.put(`${AUTH_API}/api/${entity}/${id}`, {
+  const response = await request.post(`${AUTH_API}/api/batch`, {
     headers: { cookie, "content-type": "application/json" },
-    data: { id, ...data },
+    data: { ops: [{ method: "PUT", table: entity, id, row: { id, ...data } }] },
   });
   expect(response.status(), `seed ${entity}/${id}`).toBe(200);
 }
@@ -43,7 +43,7 @@ async function signInAsEditor(page: Page) {
   await page.getByLabel("Email").fill(EDITOR);
   await page.getByLabel("Password").fill(AUTH_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.getByRole("button", { name: ORG, exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
   await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
 }
 

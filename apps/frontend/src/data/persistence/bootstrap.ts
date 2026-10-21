@@ -1,0 +1,126 @@
+import type { StoreApi } from "zustand";
+import type { AppData } from "@capacitylens/shared/types/entities";
+import type { StoreState } from "@/store/useStore";
+import type { PersistenceAdapter } from "@/data/PersistenceAdapter";
+import { emptyAppData, isEmpty } from "@capacitylens/shared/types/entities";
+import { LoadError } from "@/data/PersistenceAdapter";
+import { attachPersistence } from "./attachPersistence";
+
+interface BootstrapOptions {
+  debounceMs?: number;
+  /** Seed an empty adapter snapshot without the unscoped read, after a live authenticated /me check. */
+  initialLoad?: "empty";
+  /** Load the server-confirmed account projection during a validated active masquerade. */
+  initialAccountId?: string;
+  /** Skip the metadata existence probe when the active masquerade status already proves the account exists. */
+  skipExistingCheck?: boolean;
+  /** Used only on a genuine first run (nothing ever persisted). */
+  seedIfEmpty?: AppData;
+  /** Called when a persistence write fails (e.g. storage quota exceeded, or the
+   * server is unreachable). */
+  onError?: (error: unknown) => void;
+  /** Called after a persistence write succeeds, lets the caller clear a prior
+   * error state once saving recovers (e.g. the server comes back). */
+  onSuccess?: () => void;
+  /** True when a backend is in use, server mode (the default; false only in the demo build,
+   * VITE_CAPACITYLENS_DEMO=1). Enables the per-account switch
+   * orchestrator: a tenant pick hydrates that account's slice via `loadAll(accountId)` and
+   * re-seeds the diff snapshot atomically. The demo build (false) leaves the orchestrator inert, `data`
+   * already holds all accounts, so a switch is a pure view change. */
+  serverMode?: boolean;
+}
+
+function recordLoadFailure(store: StoreApi<StoreState>, error: unknown): () => void {
+  store.getState().replaceAll(emptyAppData());
+  store.getState().setHydrated(true);
+  if (error instanceof LoadError && error.kind === "unavailable") store.getState().setConnectionError(true);
+  else store.getState().setLoadError(true);
+  return () => {};
+}
+
+async function resolveExisting(adapter: PersistenceAdapter, loaded: AppData): Promise<boolean> {
+  try {
+    return adapter.hasExisting ? await adapter.hasExisting() : !isEmpty(loaded);
+  } catch (error) {
+    // This is non-fatal and must not raise the persistence banner after a successful data load.
+    console.warn("bootstrap: hasExisting() failed; inferring existence from loaded data", error);
+    return !isEmpty(loaded);
+  }
+}
+
+async function saveInitialSeed(
+  adapter: PersistenceAdapter,
+  initial: AppData,
+  onError?: (error: unknown) => void,
+): Promise<void> {
+  try {
+    await adapter.saveAll(initial);
+  } catch (error) {
+    // Report the failed seed write through the supplied persistence surface and continue attaching later writes.
+    onError?.(error);
+  }
+}
+
+function reconcileMasqueradeAccountSummary(
+  store: StoreApi<StoreState>,
+  data: AppData,
+  accountId: string | undefined,
+): void {
+  if (!accountId) return;
+  const masquerade = store.getState().masquerade;
+  if (masquerade.kind === "inactive" || masquerade.state?.accountId !== accountId) return;
+
+  const account = data.accounts.find((candidate) => candidate.id === accountId);
+  store.getState().setAccountSummaries({
+    list: account ? [{ id: account.id, name: account.name, role: masquerade.state.effectiveRole }] : [],
+    complete: account !== undefined,
+  });
+}
+
+/** Loads persisted data and attaches the store to its persistence adapter. */
+export async function bootstrap(
+  store: StoreApi<StoreState>,
+  adapter: PersistenceAdapter,
+  options: BootstrapOptions = {},
+): Promise<() => void> {
+  let loaded: AppData;
+  try {
+    loaded =
+      options.initialLoad === "empty"
+        ? await adapter.loadAll(undefined, { skipRemoteRead: true })
+        : await adapter.loadAll(options.initialAccountId);
+  } catch (error) {
+    // Stored data couldn't be loaded. Render an empty dataset, but deliberately
+    // attach no persistence and run no seed-save. The next mutation must not
+    // overwrite recoverable data. Route to the recovery UI that fits the failure:
+    //   - 'unavailable' (a remote/server load failed): a retry screen. Clearing
+    //     local storage would do nothing for a server-backed app that's merely down.
+    //   - 'corrupt' (local bytes present but unreadable) or any other throw: the
+    //     StorageRecovery reset/import/export screen.
+    return recordLoadFailure(store, error);
+  }
+  // Seed only when nothing was ever stored, never resurrect data the user cleared.
+  // hasExisting (e.g. the server's /api/meta) decides only whether to seed. If it throws
+  // after a successful load, don't discard the loaded data or skip attaching persistence
+  // (which would brick saving and show a misleading banner), fall back to inferring
+  // existence from the loaded data itself, so we still skip seeding when there's data.
+  const existed = options.skipExistingCheck ? true : await resolveExisting(adapter, loaded);
+  const seed = options.seedIfEmpty;
+  const seedNeeded = !existed && seed !== undefined;
+  const initial = seedNeeded ? seed : loaded;
+
+  store.getState().replaceAll(initial);
+  reconcileMasqueradeAccountSummary(store, initial, options.initialAccountId);
+  store.getState().setHydrated(true);
+  // Seed-write failure must be surfaced without disabling later persistence writes.
+  if (seedNeeded) await saveInitialSeed(adapter, initial, options.onError);
+
+  return attachPersistence({
+    store: store,
+    adapter: adapter,
+    debounceMs: options.debounceMs ?? 300,
+    ...(options.onError ? { onError: options.onError } : {}),
+    ...(options.onSuccess ? { onSuccess: options.onSuccess } : {}),
+    ...(options.serverMode === undefined ? {} : { serverMode: options.serverMode }),
+  });
+}

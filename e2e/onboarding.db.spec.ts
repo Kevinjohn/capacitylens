@@ -23,7 +23,7 @@ test.describe("database-backed onboarding lock (P1.14)", () => {
       ["timezone", "UTC", "Europe/London"],
     ] as const;
     for (const [field, initial, target] of changes) {
-      // The demo seed deliberately models legacy accounts with these optional fields absent.
+      // The demo seed deliberately models legacy accounts with these nullable settings unset.
       // Missing frozen fields may be initialized once; only a subsequent change is forbidden.
       const initialized = await request.patch(`${API}/api/accounts/${account.id}`, {
         data: { [field]: initial },
@@ -46,7 +46,7 @@ test.describe("database-backed onboarding lock (P1.14)", () => {
     const after = await serverState(request);
     const updatedAccount = requireStateRows(after, "accounts")[0];
     if (updatedAccount === undefined) throw new Error("Server state must retain the seeded account");
-    expect(updatedAccount.language).toBeUndefined();
+    expect(updatedAccount.language).toBeNull();
     expect(updatedAccount).toMatchObject({
       weekStartsOn: 1,
       timezone: "UTC",
@@ -54,33 +54,23 @@ test.describe("database-backed onboarding lock (P1.14)", () => {
   });
 });
 
-// With CAPACITYLENS_MULTI_ACCOUNT unset, start:e2e enforces a one-company limit. resetServer seeds
-// the test data while bypassing the create-time gate, so the test starts at the cap. The direct API
-// assertion below verifies the server's 403; hiding the New company button is only a UI cue.
-test.describe("single-company-per-instance policy (client-side affordance + server backstop)", () => {
+// The E2E fixture contains one company. Production selects it from the server summary and exposes
+// no company picker or switching controls.
+test.describe("single-company production entry", () => {
   test.beforeEach(async ({ request }) => {
     await resetServer({ request: request, withSeed: true });
   });
 
-  test("the account picker lists both seeded companies but hides the New company button", async ({ page }) => {
+  test("the server-selected company opens directly without a picker or switch control", async ({ page }) => {
     await page.goto("/");
-    const signIn = page.getByTestId("fake-sign-in");
-    const wayneEnterprises = page.getByRole("button", {
-      name: "Wayne Enterprises",
-      exact: true,
-    });
-    await signIn.or(wayneEnterprises).first().waitFor();
-    if (await signIn.isVisible()) await signIn.click();
-
-    await expect(wayneEnterprises).toBeVisible();
-    await expect(page.getByRole("button", { name: "Stark Industries", exact: true })).toBeVisible();
-    // GET /api/auth/me reports canCreateAccount: false once ≥1 account exists and
-    // CAPACITYLENS_MULTI_ACCOUNT is unset, the button is hidden entirely, not merely disabled.
+    await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Wayne Enterprises", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Switch company/i })).toHaveCount(0);
     await expect(page.getByTestId("new-company-button")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "New company" })).toHaveCount(0);
   });
 
-  test("a direct API create beyond the cap is rejected 403 with the exact policy message", async ({ request }) => {
+  test("ordinary additional company creation is rejected", async ({ request }) => {
     const res = await request.post(`${API}/api/accounts`, {
       data: {
         id: `e2e-cap-check-${Date.now()}`,
@@ -91,14 +81,13 @@ test.describe("single-company-per-instance policy (client-side affordance + serv
       },
     });
     expect(res.status()).toBe(403);
-    expect(await res.json()).toMatchObject({
+    expect(await res.json()).toEqual({
       code: "FORBIDDEN",
-      error: "This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.",
-      retryable: false,
+      error: "This installation already has a company.",
     });
 
     const after = await serverState(request);
-    expect(requireStateRows(after, "accounts")).toHaveLength(2);
+    expect(requireStateRows(after, "accounts")).toHaveLength(1);
   });
 });
 

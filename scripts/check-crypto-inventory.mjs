@@ -24,7 +24,7 @@ const excluded =
   /(?:^|\/)(?:node_modules|reports|coverage|dist|src\/paraglide)(?:\/|$)|^docs\/|(?:\.test|\.spec)\.[cm]?[jt]sx?$|^scripts\/check-crypto-inventory\.mjs$|^docs-src\/security\/crypto-inventory\.json$/;
 const eligible = /(?:\.[cm]?[jt]sx?|\.sh|\.conf|\.ya?ml|\.json|\.sql|\.py)$/;
 const markers = [
-  /(?:from|require\()['"]node:crypto/,
+  /(?:\bfrom\s+|\b(?:require|import)\s*\(\s*)['"]node:crypto/,
   /from\s+['"]jose['"]/,
   /\bcrypto\.(?:subtle|randomUUID|getRandomValues)\s*\(?/,
   /\b(?:AES-GCM|scrypt|timingSafeEqual|createHash|createHmac|randomBytes)\b/,

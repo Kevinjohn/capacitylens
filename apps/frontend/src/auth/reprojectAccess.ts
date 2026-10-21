@@ -1,0 +1,15 @@
+import { refreshActiveAccountSlice } from "@/data/persist";
+import { useStore } from "@/store/useStore";
+import { refreshAccountSummaries } from "./useAccountSummaries";
+
+/** Reload every actor-dependent read model while server writes remain suspended. */
+export async function reprojectAccess(accountId: string, includeAccountSummaries = true): Promise<boolean> {
+  useStore.getState().invalidateMemberships();
+  if (includeAccountSummaries) {
+    const summaries = await refreshAccountSummaries({
+      preserveActiveAccountIfMissing: true,
+    });
+    if (summaries === null) return false;
+  }
+  return (await refreshActiveAccountSlice(accountId)).kind === "reloaded";
+}

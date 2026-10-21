@@ -1,418 +1,46 @@
 # CapacityLens repository guidance
 
-## Proportionality: smallest complete change
+Read this file with [DECISIONS.md](DECISIONS.md) and the official AdonisJS documentation for framework conventions and APIs. This file records only repository-specific requirements.
 
-CapacityLens is a small hobby project for small agencies. Optimise every task for the smallest
-complete, readable and maintainable change that meets the agreed success and quality criteria.
-This governs discretionary scope, architecture and process throughout the instructions below;
-it does not waive security, data integrity, released compatibility or required checks.
+## Scope and architecture
 
-- Use the accepted plan and current requirements as the boundary. Do not re-plan settled work or
-  implement future scale, hypothetical deployments, speculative migrations or optional features.
-  Supporting work must serve an agreed outcome or address a demonstrated risk in the changed path.
-- Prefer existing patterns, library capabilities and a direct implementation. Add an abstraction,
-  configuration option, fallback, dependency or recovery mechanism only when the current task
-  needs it. Explain the concrete need briefly; do not create a separate justification document.
-  Smallest means least ongoing complexity, not compressed code or omitted error handling.
-- Default to one implementation owner and one cohesive PR. Use additional workers only for
-  independent work whose benefit exceeds the handoff cost, or for a required independent review.
-  Do not create extra planning, review or delivery stages merely because tools or skills offer them.
-- Test observable outcomes, relevant failure paths and preserved invariants. Reuse existing
-  coverage where it proves the requirement. Avoid tests that merely mirror implementation or
-  duplicate the same guarantee without exercising a distinct boundary.
-- Before repeating an expensive suite or review, identify the change, failure or new evidence
-  that invalidated the previous result. Repeat only the affected checks unless shared behaviour
-  requires broader coverage. Required local and CI checks still apply; do not add discretionary
-  reruns for reassurance or merely because another worker takes over.
-- Report optional improvements separately; do not implement them or open follow-up issues unless
-  requested. Stop extending the change once acceptance criteria and required quality checks pass:
-  complete the authorised delivery and report any remaining limitations.
-- If new evidence materially expands the expected work, report what grew, why it is necessary and
-  the smallest viable way forward before taking on that expansion. Continue unaffected authorised
-  work. Do not silently trade a small task for a larger project or impose arbitrary time cutoffs.
+- Make the smallest complete change within the accepted issue or plan. Keep unrelated cleanup and speculative features out.
+- CapacityLens is a week-granularity scheduler for small agencies. Budgets, timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
+- The AdonisJS backend lives in `apps/backend`, the SPA in `apps/frontend`, and `packages/shared` is the pure domain and wire-contract package. Keep backend code out of shared.
+- SQLite is the supported product database. One application process owns one database file and a pool of one connection; do not add a second writer, PostgreSQL support or nested package transactions.
+- Keep network and mail work outside database transactions. Use explicit transaction handles for product writes and preserve the operation's authorization, audit and failure ordering.
+- Every scoped row carries its company id. The server independently authorizes every tenant read and write; client scoping is not authorization.
+- Over-capacity means allocated is greater than available. Normal allocations use working days unless the explicit override applies. Visible utilisation follows the visible window; `overSoon` stays fixed at 14 days.
+- Activity kind is required; only project activities carry project or phase ids. Colours use preset swatches, and a person's colour derives from discipline.
+- Ordinary writes reject invalid supplied input; imports sanitize and repair atomically. Demo mode is temporary and in-memory. Scheduling data is never persisted in the browser; failed requests remain visible and retryable.
 
-## GitHub and execution access
+## Identity, security and data
 
-GitHub access is available on the user's machine. A failure in one sandbox or tool does not
-establish that GitHub, CI, credentials, Git writes or a supported runtime are unavailable.
+- Google is the supported company identity provider. Microsoft is deferred and GitHub is retired. Do not claim live-provider acceptance from deterministic tests.
+- New external principals need verified email and an unused pre-authorized invitation, except the configured first-provider bootstrap. Never merge identities by email. Company invitations and membership remain product-owned.
+- Sessions have a twelve-hour absolute lifetime and thirty-minute inactivity expiry. Freshness is required only for ownership transfer, another member's password reset or session revocation, company deletion, import/purge, and external identity link/repair.
+- Password and session authority is identity-global across every company the principal can enter. Never weaken server authorization because the UI hides an action or render bearer session tokens. Never persist, log or replay password-reset or invitation bearers; show newly issued links only in their authorized flow.
+- Password mode uses the bounded scrypt policy and production breached-password screening. Password reset is a verified ceremony, not an administrative password setter.
+- Keep one Owner per company. Ownership transfer is explicit and transactional. Masquerade is a read-only data projection; explicit end and sign-out are its only allowed mutations.
+- Secret-bearing command repeats return an idempotency conflict; never replay or store a bearer. Completed non-secret command results may replay, with payload mismatch rejected.
+- Surface data-path errors. Never add empty catches or silently replace API failures with browser persistence.
+- Export schema and database schema versions are independent. Released migrations are immutable and checksum-pinned; add schema changes through forward migrations and retain required privacy, erasure and backup behavior.
 
-- Use `gh` first for repository, push, pull-request and workflow operations. Attempt the actual
-  needed operation; do not make a separate authentication ritual a prerequisite.
-- If that route fails because of DNS, sandboxing, credentials or permissions, discover the
-  authorised execution surfaces exposed by the current harness. Retry through available host
-  execution, or use connected GitHub tools when they provide the operation. Do this before
-  telling the user that access is blocked.
-- Do not assume a particular terminal, browser or harness. Discover capabilities using the
-  current tool inventory, including deferred tools when available. One missing terminal,
-  connector or browser is not evidence that all alternatives are missing.
-- Use browser/computer control only when CLI and connected tools cannot perform the operation.
-  When operating a terminal UI, use an actual shell pane, never an agent/chat input.
-- Do not ask the user to log in, run commands or repair the environment based only on a sandbox
-  failure. Only report a blocker after checking the relevant available authorised alternatives.
-  State the exact operation and concrete failures, not a blanket claim of no GitHub access.
-- Do not repeat an unchanged failed route or bypass an explicit permission restriction.
-  Distinguish an unavailable route, an authentication failure and a rejected action.
-- Apply the same checks to CI: inability to dispatch or inspect a run through one route does
-  not mean CI is unavailable. Verify the run and commit actually being inspected. A missing PR
-  workflow, pending run, intentional skip and failed check are different states.
+## Frontend and documentation
 
-## Working workflow
+- Give icon-only buttons accessible names. Use native `title` for simple hover hints; use the local Radix tooltip only for styled, delayed or keyboard-accessible rich content. Use the shared z-index tokens for global layers.
+- Local UI primitives are source-owned. Before updating one from shadcn, inspect the dry-run diff and preserve documented local behavior.
+- Keep `DECISIONS.md` authoritative for product rules and framework departures. User-facing documentation is sourced from `docs-src/`; regenerate committed `docs/` after changing its inputs. Update affected stories and their guide links when user-visible behavior changes.
+- Use fictional DC/Marvel identities in demo data, examples and tests; never use a real customer or colleague's name.
+- Do not publish AI/provider/model attribution or credentials in repository content, screenshots, commits or pull requests.
 
-- Complete the requested outcome with the simplest maintainable change and proportionate
-  verification. Keep optional improvements separate from required work; do not add speculative
-  enforcement, abstractions or process stages.
-- For a new repository change, fetch `origin/main` with `git fetch origin main --prune`, then create
-  a unique `feature/<short-description>` branch and sibling worktree from it. Never reuse or clean
-  another task's branch/path. Report branch, path and base revision before editing.
-- Resume an existing task in its assigned worktree. Keep every edit and command scoped to that
-  worktree using the harness's supported working-directory mechanism. Start another session only
-  if the current harness cannot safely target it. Do not implement in the primary checkout.
-  These rules concern repository changes, not personal files outside the repository.
-- Keep one cohesive task per branch/PR. Link an existing issue when applicable. Group inseparable
-  issues and explain the relationship.
-- Record every new implementation, design or investigation plan as a GitHub issue. The issue body
-  is the canonical plan; keep later decisions and material revisions in the issue or its comments.
-  Do not create or extend repository Markdown files to hold plans or ideation.
-  Existing checked-in planning records may be consulted for context but must not receive new plan
-  content; move future decisions and revisions to the corresponding GitHub issue.
-- A request to complete implementation authorises the normal signed commit, push and GitHub pull
-  request flow. A request to create, open, prepare or deliver a pull request means creating the
-  actual pull request on GitHub, not merely drafting its text, and never authorises merging it.
-  Reviews and questions remain read-only unless implementation is requested. Do not ask again for
-  already-authorised steps; ask only for unresolved consequential choices or scope changes.
-- Never merge a pull request without separate, explicit authorisation for that specific pull
-  request. General requests to implement, finish, ship, deliver or create pull requests are not
-  merge authorisation. Leave every newly created pull request open unless the user subsequently
-  directs its merge.
-- Review the complete branch diff before submission. Fix correctness, security, regression and
-  required-standard findings within scope. Report every finding, including optional improvements;
-  cosmetic suggestions do not block delivery or automatically authorise another PR.
-- Use a short approach for simple work. Require independent design review for consequential
-  architecture or contract decisions, not merely because a checklist was written.
-- When parallel work is authorised, use cohesive packets with explicit ownership and acceptance
-  criteria. Check dependencies as well as file overlap: disjoint files alone do not prove independence.
-  Keep every intermediate merge valid. Independent changes may share validation on a recorded
-  integrated tree when that evidence covers their guarantees; changed guarantees need fresh checks.
-- Repeat review/checks when changes or new evidence invalidate prior results. For long work,
-  identify useful delivery milestones and report implemented, verified and shipped work separately.
-- Keep unrelated cleanup out of the diff. Later simplification requires its own scope and must
-  preserve shared types, entities and public contracts unless their change is explicitly authorised.
+## Working and delivery rules
 
-### GitHub bug-issue batches
-
-Use this workflow when triaging and delivering a checklist of open GitHub issues reported as bugs.
-
-1. **Triage before implementation.** Reproduce or inspect each issue, confirm its current status,
-   classify its severity and distinguish bugs from maintenance, questions and release-verification
-   items. Bring titles, labels and open/closed state into line with that evidence, and leave a concise
-   status comment when it will prevent duplicate investigation. Keep presumed fixes open until the
-   required deployed environment can be tested. Do not expose customer or tester data. Do not
-   speculate on a code change when the available evidence does not identify the failing condition;
-   request the smallest redacted reproduction data needed instead.
-2. **Order by risk and dependency.** Identify dependencies and overlapping files or guarantees,
-   then separate the batch into: independent quick fixes; ordered changes that share a subsystem or
-   validation lane; and investigation-only issues. Give each implementation task a cohesive scope,
-   expected files, acceptance test, affected story/documentation decision, known invariants and
-   merge predecessor.
-3. **Route high-priority work deliberately.** P1 implementation uses the designated senior
-   implementation role. Its independent review in step 4 covers architecture, correctness and
-   severity together; do not add a second review for the same scope. P2 work may use the normal
-   implementation role. Reviewers must be independent of the implementation they assess.
-4. **Test and review in a fixed sequence.** During implementation, add or update the focused test
-   that proves the reported failure and run the applicable focused checks. Once the change is
-   complete, run formatting, type-checking and linting before review. Every P1 and P2 change then
-   receives an independent code review before any E2E suite. Resolve blocking findings, rerun the
-   affected static checks and repeat review when the correction invalidates earlier evidence.
-5. **Control expensive validation.** After review passes, run the checks required by the Green gate.
-   Run only one E2E suite at a time across worktrees and stagger other resource-intensive suites to
-   avoid contention. Treat an environment or contention failure as a hypothesis and obtain an
-   isolated supported-runtime result before discounting it.
-6. **Publish small, ordered pull requests.** Keep one cohesive issue or inseparable issue group per
-   branch and pull request. State the merge predecessor explicitly, including `none` for independent
-   work. Before pushing, inspect the complete diff, commit metadata and public text. Open ready PRs
-   only after their required review and local evidence pass. Leave them open until the user explicitly
-   authorises the merge of each specific pull request.
-7. **Report live state.** Take a fresh GitHub snapshot before the handoff. Distinguish implemented,
-   locally verified, CI-verified and merged work; list the current merge order, investigations still
-   awaiting evidence and fixes awaiting deployment verification.
-
-## Product boundary
-
-CapacityLens is a deliberately small, week-granularity agency capacity scheduler. Budgets,
-timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
-
-## Architecture
-
-- `shared/` is the pure domain core imported by app and server.
-- `src/store/useStore.ts` orchestrates state, ids, timestamps and undo/redo.
-- `src/components/scheduler/` builds the week-grid view-model.
-- `server/` is the default SQLite API. `VITE_CAPACITYLENS_DEMO=1` selects the temporary in-memory
-  demo; it must never persist scheduling data.
-- Scoped reads go through `useScopedData` / `scopedTables()`. The server independently authorizes
-  every tenant operation from session membership.
-- When locating unfamiliar behaviour, consult the relevant “Task navigation” entry in
-  `docs-src/reference/development.md`; task briefs should name that entry and the exact paths needed.
-
-## Naming and module contracts
-
-- Follow the naming, import-path and ownership tables in
-  `docs-src/reference/development.md` → “Name modules and keep their contracts small”.
-- Inside a module, follow `docs-src/reference/conventions.md` for function verbs, variable
-  names, parameter style and result shapes. Existing differences are tracked debt; record them,
-  do not fix them in an unrelated change.
-- Match principal component/type exports with PascalCase filenames, hooks/utilities with
-  camelCase filenames, and executable scripts with kebab-case filenames. Cohesive collections
-  name their capability; preserve documented primitive, tool and public-contract exceptions.
-- Give extracted modules explicit inputs containing only consumed capabilities. Keep orchestration
-  visible and local helpers local; smaller files must reduce the reading context for a behavior.
-- Preserve existing account/workspace/provider vocabulary and semantic ID aliases at their owning
-  contracts. Naming changes never alter wire fields, stable identifiers or released migrations.
-- Write comments in the voice set by `DEFENSIVE-CODING.md` §7: why not what, TSDoc on exports,
-  no banners, history or plan references.
-
-## Load-bearing invariants
-
-- Every scoped entity carries `accountId`; `activeAccountId` is never persisted.
-- Over-capacity means `allocated > available`, not equal. Ordinary allocations consume only the
-  resource's working weekdays unless `ignoreWeekends` is set.
-- Visible utilisation uses the currently visible zoom window. `overSoon` uses a fixed forward
-  14-day window. Do not merge these signals.
-- Use “Utilisation”, never “Load”, in the schedule UI.
-- Activity `kind` is required. Only `project` activities may carry `projectId`/`phaseId`.
-- Colours come from preset swatches; a person's colour derives from discipline.
-- Invented people in seed data, demo logins, fixtures, tests and docs use comic-book character real
-  names — DC for the first account (`a-studio`, Wayne Enterprises), Marvel for the second (`a-loft`,
-  Stark Industries) — so no name can be mistaken for a real customer or colleague. Clients, projects
-  and partner studios follow the same universes. Ids, emails and test-ids are stable identifiers and
-  do not change when a display name does. `Northwind Identity`, the fictional identity provider in
-  `docs-src/company-login/`, is deliberately outside this scheme.
-- Forms and ordinary server writes reject invalid supplied input; imports sanitise and repair. Server imports are atomic.
-- Device preferences are not account data; the date format is the deliberate exception, because a
-  company reads one convention (see `DECISIONS.md`). Offline snapshots are opt-in, seven-day and
-  read-only; never add queued offline writes.
-- Surface errors. No empty catches on a data path. Follow `DEFENSIVE-CODING.md`.
-- New fields flow through shared types → full fixtures → server columns → explicit SQLite migration
-  → sanitisation. Keep `EXPORT_SCHEMA_VERSION` and `DB_SCHEMA_VERSION` independent; retain every
-  shipped migration and released database fixture. Never alter a released migration definition:
-  the database ledger validates its name and SHA-256 checksum. Schema-affecting Better Auth upgrades
-  also bump `DB_SCHEMA_VERSION`, even when the library owns the DDL.
-  A migration adding a table or column also needs an anonymisation decision in the rehearsal
-  script ledger; index-only migrations are exempt.
-
-## Authentication
-
-- Password authentication and named Google/Microsoft company providers are implemented. GitHub
-  remains experimental in mixed mode. `hosted-sso-only` requires mode `sso-only` and complete Google
-  and/or tenant-specific Microsoft configuration; it forbids password, GitHub and open signup.
-  Removed configuration names (generic OIDC settings, `hosted-oidc-only`, earlier account-setting
-  prefixes) are simply unknown: no alias, refusal or migration code remains for them.
-  Deterministic checks are not evidence of live-provider validation.
-- Production password mode defaults to breached-password screening; fixed twelve-hour sessions and
-  fresh administrative actions remain mandatory. The fresh-session gate applies only to:
-  transferring company ownership, resetting another member's password, revoking another member's
-  sessions, deleting a company, import/purge, and SSO identity link/repair. Other administrative
-  actions need only the actor's role. Data export
-  is served under the `read` action, which the freshness check short-circuits; it is not gated.
-- New external principals require verified email plus an unused pre-authorised invitation. The
-  first named-provider identity uses `CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS`. Explicit
-  named-provider linking requires a fresh,
-  verified local principal and proof of the matching address without another invitation. Microsoft
-  may establish mailbox proof through its single-use, same-browser email ceremony. Returning
-  Microsoft sign-in uses stable `oid` and the stored proven email; never merge by email or repeat
-  mailbox proof for an established identity.
-- Password mode may include providers; `sso-only` mode removes password sign-in.
-- Never weaken server authorization because the UI hides an action.
-- Password/session reset authority is identity-global: enforce it across every account the target
-  can enter, and never render bearer session tokens.
-
-## Frontend conventions
-
-- Browser baseline is "Baseline widely available" as of Q3 2026. The verified matrix is Chromium by
-  default, with WebKit/Firefox behind the `CAPACITYLENS_WEBKIT`/`CAPACITYLENS_FIREFOX` flags in
-  `playwright.config.ts`. `color-mix(in oklab)`, `:has()`, `@container`, `svh`/`dvh` units,
-  `field-sizing` and `text-wrap: balance` are already in use and considered safe. CSS anchor
-  positioning (`anchor-name`/`position-anchor`) is not yet Baseline across that matrix; use Radix
-  positioning instead.
-- Give every icon-only button an accessible name, such as `aria-label`, independently of its hint.
-  Simple hover hints use the native `title=` attribute by default. Reserve the
-  Radix-based `Tooltip` in `ui/tooltip.tsx` for cases needing styled, delayed, or keyboard-accessible
-  rich content (e.g. the collapsed sidebar rail in `AppSidebar`). This split is deliberate.
-- The checked-in `src/components/ui/*` primitives are source-owned and may deliberately differ from
-  the current shadcn registry in tokens, composition or exported surface. Every local deviation must
-  carry an adjacent comment explaining why. Before re-pulling any installed primitive with
-  `pnpm dlx shadcn add`, use the CLI dry-run/diff workflow and re-merge local behavior; never
-  overwrite blindly. In particular, `button.tsx` adds `danger-soft`, custom icon sizes and retints
-  `default`; `badge.tsx` carries AA-tuned `danger`/`warn` variants; and `dialog.tsx`,
-  `alert-dialog.tsx`, `tooltip.tsx`, `toggle-group.tsx` and `alert.tsx` carry deliberate local
-  behavior or variants documented beside the extension.
-- Use the z-index tokens in `src/index.css` rather than ad hoc `z-[N]` values for global layers.
-
-## Documentation
-
-- `DECISIONS.md` holds standing decisions.
-- `README.md` is public/product-facing; implementation details belong in `docs-src/reference/development.md`.
-- User-facing docs are Markdown sources under `docs-src/`, built with VitePress plus
-  `scripts/docs-standalone.mjs` into standalone static HTML committed at `docs/`
-  (`pnpm run docs:dev` / `docs:build`), validated in CI by `.github/workflows/docs.yml`.
-  After changes to documentation sources, embedded assets or build inputs, run `pnpm run docs:build`
-  and commit regenerated `docs/`. Follow `docs-src/STYLE.md` for user-facing documentation.
-  Other prose, such as this file or task notes, needs formatting and content/link review; rebuild
-  the documentation only if it consumes those files.
-- The operator set lives in `docs-src/self-hosting/` (install, configuration, TLS, backups,
-  upgrades, monitoring, incidents) and `docs-src/company-login/` (provider setup and sign-in modes).
-- Update `user-stories/REFERENCE.md` first for user-visible route, label, test-id or seed changes.
-- Add user-visible changes under `CHANGELOG.md` → `Unreleased`.
-- Authorised issue, pull-request and documentation work includes permission to publish reviewed
-  project screenshots to GitHub, both as attachments and as committed documentation assets.
-  Do not request separate upload approval for those screenshots. Use fictional/demo data or
-  appropriately redacted examples, and exclude live credentials and private customer information.
-  This permission does not authorise unrelated uploads or change an explicit instruction to leave
-  pull requests unmerged.
-- Documentation screenshots have no capture harness. Capture manually against the demo
-  (`VITE_CAPACITYLENS_DEMO=1 pnpm exec vite --port 5199 --strictPort`) — never a lane port such as
-  5173, which a concurrent E2E run may be using.
-  Keep throwaway capture scripts in a scratch directory and out of the commit.
-- Capture screenshots only after every UI change in the batch has landed, and open every changed
-  image before merging: a stale capture is a valid image of UI that no longer exists, and no test
-  can detect it. To identify potentially stale assets, compare each image's
-  last-modifying commit against the merge commit of each UI change with
-  `git merge-base --is-ancestor`, then inspect the affected captures; ancestry alone cannot prove
-  visual correctness. Shared chrome and layout changes invalidate every capture that
-  contains them, so the stale set is usually far larger than it looks.
-
-### Stories and documentation checkpoint
-
-Use this lightweight workflow for user-facing changes:
-
-- When understanding an issue, identify the existing story in `user-stories/` that covers
-  the user's problem. Update it when expected behaviour changes; add a story for a new
-  capability. Stories describe lasting user needs, not individual issues or implementation steps.
-- Keep stories focused on the user need and observable outcomes, including relevant defaults
-  and access restrictions. Use those outcomes to guide tests, with technical edge cases covered
-  separately. Follow existing story conventions rather than introducing another template.
-- Give each affected story a link to the documentation page or section that explains how to
-  accomplish it. Several stories can share a page; prefer updating an existing guide when it fits.
-- Before finishing, compare the story and documentation with the implemented behaviour,
-  including affected screenshots. Update them together and mention deliberate omissions briefly
-  in the delivery summary.
-- Apply judgment: purely visual fixes and internal changes may need no story update, although
-  affected documentation or screenshots may still need refreshing. No new story per issue,
-  separate tracking document, or repository-wide backfill is required.
-
-## Docker
-
-- Do not build or run Docker images, test in Docker, or change or maintain Dockerfiles, Compose
-  configurations, Docker tests or Docker workflows unless the user explicitly requests that
-  Docker work. This applies during releases too: a release request alone is not Docker
-  authorisation. Use native local development and validation by default; existing Docker support
-  does not make Docker work part of routine changes.
-
-## Validation environment
-
-- Run focused tests during implementation. Select submission checks using “Green gate” below.
-- Local servers left by earlier or concurrent runs can hold a port lane. Run
-  `pnpm run lanes --stop-orphans` before the full suites and when finishing a task that started
-  servers; it stops only unclaimed listeners from this repository's worktrees.
-- Type-check with `pnpm run typecheck`, never a bare `tsc` at the repository root, which reads no
-  files and exits 0 whatever the tree contains — `docs-src/reference/development.md` explains why.
-  It covers the shared, application, Node and end-to-end projects, but not `server/`, which
-  `pnpm run gate:server` type-checks.
-- Before running Node or pnpm commands, activate the version selected by `.nvmrc` in that
-  worktree and verify `node --version`; do not use the machine default. Include this requirement
-  in delegated briefs and reapply it when switching shells or execution tools.
-- Server scripts stop on Node below 24 and name the fix. Direct invocations skip that check, such
-  as `pnpm --filter capacitylens-server exec vitest` and root `test:account-conformance`; under an
-  older Node they fail with `db.setAuthorizer is not a function`. Restricted environments may also
-  produce EPERM errors; use the `.nvmrc` version for valid gate evidence.
-- Treat failures seen only in unsupported runtimes or restricted filesystems as
-  environment-specific until they are reproduced in the supported validation environment.
-
-## Known pitfalls
-
-Check these constraints before making related changes; violating them commonly causes avoidable
-validation failures.
-
-- Bumping `DB_SCHEMA_VERSION` (or adding a migration/fixture) requires extending the released
-  version pins in `server/src/backup.test.ts` and adding new migration checksum pins in
-  `server/src/db.migrate.test.ts` (checksums of released migrations must never change).
-- Within a migration, create SQLite triggers only after every table and column they reference
-  exists; trigger creation order relative to DDL matters.
-- After editing `messages/en.json`, run `pnpm run paraglide:compile` before a direct `tsc`
-  invocation, or type-checking will fail on stale generated messages. The `test`, `build`, `lint`
-  and `typecheck` scripts compile them first, and Vitest compiles them through the Vite plugin.
-- Merging `origin/main` into a feature branch across a release boundary can silently move that
-  branch's `[Unreleased]` changelog entry into the newly dated section. The release moved the
-  heading above the entry, so Git auto-resolves it without a conflict and the result stays valid
-  Markdown, which no test rejects. After any such merge, read the head of `CHANGELOG.md` and
-  confirm the branch's own entry is still under `Unreleased`. Releasing once per batch rather than
-  once per change avoids most of these boundaries entirely.
-- `docs-src/security/crypto-inventory.json` pins every file that imports `node:crypto`, by path.
-  Moving or splitting such a file (for example extracting a route module) fails
-  `pnpm run gate:server` at the crypto-inventory step until the entry follows the code. After
-  editing the ledger, run `pnpm run docs:build`: the standalone docs embed a copy under `docs/`.
-- A version bump must update both the new `[x.y.z]:` comparison link and the `[Unreleased]:` link.
-  Only `pnpm run gate:server` asserts this; the app-side suite passes with a stale link.
-- The full validation suites compete for the same machine. Run them concurrently only in
-  combinations that do not starve each other. Failures in untouched files can still be regressions
-  through changed dependencies. Treat contention as a hypothesis; obtain evidence or rerun in
-  isolation before discounting a failure. Concurrent runs share the machine through port lanes:
-  `pnpm run e2e`, `gate`, `gate:server`, `test`, `dev` and the documentation servers claim a lane
-  (and a CPU share) through `scripts/with-lane.mjs`, so up to ten worktrees can run at once without
-  colliding or oversubscribing. `pnpm run dev:access` is the exception:
-  it keeps fixed ports and is single-flight machine-wide. Never hardcode a port in a file that
-  binds or addresses one — `pnpm run policy:ports` names the files that must derive theirs.
-
-## Green gate
-
-- Prose-only changes require formatting and content/link review. Run the documentation build when
-  its inputs change (see “Documentation”). Application suites are not required for prose alone.
-- Other changes default to `pnpm run gate:all` and `pnpm run e2e` before
-  submission on Node >= 24. Cross-browser and mutation checks are documented in
-  `docs-src/reference/development.md`; keep E2E specs browser-agnostic.
-
-## Git and GitHub flow
-
-- Commit each logical change with `git commit -s`; every feature commit requires a matching DCO
-  `Signed-off-by` trailer. Generated merge commits are exempt.
-- After the review gate passes, push the feature branch and open a ready-for-review pull request into
-  `main`. Link its issue with a closing keyword when applicable. Never push task commits directly to
-  `main`.
-- Creating or opening a pull request always means publishing it on GitHub and leaving it open. It
-  does not include merging, even when the implementation and checks are complete.
-- Merge only after the user gives separate, explicit authorisation for the specific pull request.
-  Once authorised, use a normal merge commit and delete the remote feature branch with
-  `gh pr merge <number> --merge --delete-branch`. Respect dependency order and land one pull request
-  at a time unless independent changes materially benefit from parallel validation.
-- Never squash, rebase or rewrite branch history unless the user explicitly requests it for that
-  operation.
-- After each merge, verify the pull request, merge commit, linked issue and remote branch deletion,
-  fast-forward local `main` when safe, then remove the task's isolated worktree and local branch.
-  First inspect both worktrees for uncommitted/unrelated work; preserve it and never force cleanup.
-  If local changes prevent updating main, report the exact overlap without stashing or discarding them.
-
-## Version and CI policy
-
-- Read the checked-in workflow triggers when selecting CI. CodeQL runs on pull requests; the
-  main gate and E2E workflows run on main pushes or manual dispatch (and their configured schedules
-  or tags). Do not infer missing access from the absence of automatic PR checks.
-- Dispatch relevant workflows before merge when required by the task or risk.
-  `gh workflow run gate.yml --ref <branch>` runs only the gate workflow;
-  E2E, security and other workflows are separate.
-  For a request for full GitHub CI, inventory and dispatch the applicable workflows, honour explicit
-  exclusions, and verify their results against the intended commit. Never describe one green
-  workflow or an intentional skip as full CI success.
-- Treat a requested version bump as a release task, not merely as a description of the change.
-- One release covers a batch. When several small changes are being landed together, land every
-  functional pull request first and take a single version bump at the end. A release per change
-  multiplies the whole release flow by the number of changes for no user-visible gain, and each
-  release moves the changelog heading underneath every branch still in flight.
-- After the functional change lands, create a separate version-only branch and worktree. Update the
-  root and server package versions, move only the release's eligible changelog entries into the new
-  dated section, leave unrelated entries under `Unreleased`, and update comparison links.
-- A patch-version-only pull request skips CI by default: do not dispatch a workflow, and put
-  `[skip ci]` in the release PR title so it is included in the normal merge commit message. Do not
-  use `[skip ci]` on the preceding functional change.
-- For a minor-version release, ask whether GitHub CI should run only if the user has not already
-  specified. For a major-version release, run the applicable full GitHub CI and wait for success.
-- Tagging and publishing a merged release follow `docs-src/reference/development.md` → "Publish a
-  release".
+- Make repository changes only in the assigned worktree, never the primary checkout. For new tasks, fetch `origin/main` and create a unique feature branch and sibling worktree from it; resume existing work only in its assigned worktree.
+- Record new implementation, design or investigation plans in a GitHub issue; do not add repository Markdown plans. Keep settled scope and existing plans authoritative.
+- Use the Node version in `.nvmrc` and `pnpm` for JavaScript package operations. Do not use npm, npx or yarn.
+- Run focused checks while implementing; the default submission gate is `pnpm run gate:all` plus `pnpm run e2e`, unless the accepted scope defines a narrower required gate. Do not add fixed file-size, test-size, coverage-floor or naming-ratchet requirements. Do not run Docker for routine work.
+- Commit each feature change with `git commit -s`. Never push task commits to `main`; publish a ready pull request only after review and required checks.
+- A pull request stays open until the user explicitly authorizes merging that specific pull request. Preserve unrelated work; never rewrite history without explicit authorization.
+- Do not build or run Docker images or alter Dockerfiles, Compose, Docker workflows or Docker tests unless the task explicitly authorizes that Docker work.
+- Before public delivery, inspect all outgoing text and metadata for privacy, secrets and the public naming restrictions in the global instructions.

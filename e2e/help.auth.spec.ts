@@ -26,7 +26,7 @@ test("every company role can open Help; a Viewer can start the read-only tour", 
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Password").fill(AUTH_PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();
-    await page.getByRole("button", { name: COMPANY, exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
     await waitForAppLanding(page, page.getByRole("heading", { name: "Help" }));
 
     await expect(page.getByRole("link", { name: "Help", exact: true })).toBeVisible();

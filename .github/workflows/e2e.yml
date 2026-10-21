@@ -2,6 +2,7 @@ name: e2e
 
 on:
   workflow_dispatch:
+  workflow_call:
   push:
     branches: [main]
     tags: ["v*"]
@@ -9,7 +10,7 @@ on:
     - cron: "47 6 3 * *"
 
 concurrency:
-  group: e2e-${{ github.ref }}
+  group: e2e-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:

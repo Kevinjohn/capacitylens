@@ -1,0 +1,438 @@
+import { beforeEach, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { StrictMode, useState } from "react";
+import { AuthContext } from "@/auth/authContext";
+import type { AuthContextValue } from "@/auth/authContext";
+import { m } from "@/i18n";
+import { SecuritySection } from "./SecuritySection";
+import { completeReauth, isReauthPending } from "@/auth/reauthCoordinator";
+
+const changePassword = vi.fn();
+const readIdentityProvider = vi.fn();
+const googleProvider = { id: "google", label: "Google", kind: "social", experimental: false, brand: "google" };
+const providerStatus = (connected: boolean) => ({ provider: googleProvider, connected, verified: connected });
+vi.mock("@/auth/authClient", () => ({
+  authClient: { changePassword: (...args: unknown[]) => changePassword(...args) },
+}));
+vi.mock("@/account/accountClient", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/account/accountClient")>();
+  return {
+    ...original,
+    accountClient: {
+      ...original.accountClient,
+      readIdentityProvider: (...args: unknown[]) => readIdentityProvider(...args),
+    },
+  };
+});
+
+beforeEach(() => {
+  changePassword.mockReset();
+  readIdentityProvider
+    .mockReset()
+    .mockImplementation(() => Promise.resolve(new Response(JSON.stringify(providerStatus(true)), { status: 200 })));
+});
+
+const passwordAuth: AuthContextValue = {
+  authMode: "password-only",
+  user: { id: "u1", email: "diana@example.test" },
+  providers: [],
+  canCreateAccount: false,
+  refreshAuth: async () => {},
+  signOut: async () => {},
+};
+
+type RenderSecurityOptions = { overrides?: Partial<AuthContextValue>; passwordOpen?: boolean };
+function renderSecurity({ overrides = {}, passwordOpen = false }: RenderSecurityOptions = {}) {
+  const auth: AuthContextValue = { ...passwordAuth, ...overrides };
+  return render(
+    <AuthContext.Provider value={auth}>
+      <SecuritySection passwordOpen={passwordOpen} />
+    </AuthContext.Provider>,
+  );
+}
+
+it("keeps password controls hidden until the password dialog is opened", () => {
+  renderSecurity({});
+  expect(screen.queryByLabelText(m.settings_security_current_password())).not.toBeInTheDocument();
+});
+
+it("changes a password through the dialog and revokes other sessions", async () => {
+  changePassword.mockResolvedValue({ data: { status: true }, error: null });
+  renderSecurity({ overrides: {}, passwordOpen: true });
+  fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
+    target: { value: "current-password" },
+  });
+  fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
+    target: { value: "a-strong-new-password" },
+  });
+  fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
+    target: { value: "a-strong-new-password" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: m.settings_security_change_password() }));
+  await waitFor(() =>
+    expect(changePassword).toHaveBeenCalledWith({
+      currentPassword: "current-password",
+      newPassword: "a-strong-new-password",
+      revokeOtherSessions: true,
+    }),
+  );
+  expect(await screen.findByRole("status")).toHaveTextContent(m.settings_security_password_changed());
+});
+
+it.each(["p".repeat(257), "𠀀".repeat(129)])(
+  "rejects an oversized current password without altering or sending it",
+  async (value) => {
+    renderSecurity({ passwordOpen: true });
+    const current = screen.getByLabelText(m.settings_security_current_password());
+    fireEvent.change(current, { target: { value } });
+    expect(current).toHaveValue(value);
+    fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
+      target: { value: "a-strong-new-password" },
+    });
+    fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
+      target: { value: "a-strong-new-password" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: m.settings_security_change_password() }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_password_input_too_long());
+    expect(changePassword).not.toHaveBeenCalled();
+  },
+);
+
+it("accepts an exact 128-code-point astral new password without changing its bytes", async () => {
+  changePassword.mockResolvedValue({ data: { status: true }, error: null });
+  renderSecurity({ passwordOpen: true });
+  const next = "𠀀".repeat(128);
+  fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
+    target: { value: "current-password" },
+  });
+  fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), { target: { value: next } });
+  fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), { target: { value: next } });
+  fireEvent.click(screen.getByRole("button", { name: m.settings_security_change_password() }));
+  await waitFor(() => expect(changePassword).toHaveBeenCalledWith(expect.objectContaining({ newPassword: next })));
+});
+
+it("keeps password mismatch validation in the dialog", async () => {
+  renderSecurity({ overrides: {}, passwordOpen: true });
+  fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
+    target: { value: "current-password" },
+  });
+  fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
+    target: { value: "a-strong-new-password" },
+  });
+  fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
+    target: { value: "different-password" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: m.settings_security_change_password() }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_security_err_password_mismatch());
+  expect(changePassword).not.toHaveBeenCalled();
+});
+
+it("clears password values and errors when the dialog closes", async () => {
+  function Harness() {
+    const [open, setOpen] = useState(true);
+    return (
+      <>
+        <button onClick={() => setOpen(true)}>Open password dialog</button>
+        <SecuritySection passwordOpen={open} onPasswordOpenChange={setOpen} />
+      </>
+    );
+  }
+  render(
+    <AuthContext.Provider value={passwordAuth}>
+      <Harness />
+    </AuthContext.Provider>,
+  );
+  fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
+    target: { value: "current-password" },
+  });
+  fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
+    target: { value: "a-strong-new-password" },
+  });
+  fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
+    target: { value: "different-password" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: m.settings_security_change_password() }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_security_err_password_mismatch());
+  fireEvent.click(screen.getByRole("button", { name: m.form_cancel() }));
+  fireEvent.click(screen.getByRole("button", { name: "Open password dialog" }));
+  expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue("");
+  expect(screen.getByLabelText(m.settings_security_new_password())).toHaveValue("");
+  expect(screen.getByLabelText(m.settings_security_confirm_password())).toHaveValue("");
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+it("does not restore stale values or feedback after a pending password request finishes", async () => {
+  let finish: ((value: unknown) => void) | undefined;
+  changePassword.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  function Harness() {
+    const [open, setOpen] = useState(true);
+    return (
+      <>
+        <button onClick={() => setOpen(true)}>Open password dialog</button>
+        <SecuritySection passwordOpen={open} onPasswordOpenChange={setOpen} />
+      </>
+    );
+  }
+  render(
+    <AuthContext.Provider value={passwordAuth}>
+      <Harness />
+    </AuthContext.Provider>,
+  );
+  fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
+    target: { value: "current-password" },
+  });
+  fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
+    target: { value: "a-strong-new-password" },
+  });
+  fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
+    target: { value: "a-strong-new-password" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: m.settings_security_change_password() }));
+  await waitFor(() => expect(changePassword).toHaveBeenCalledOnce());
+  fireEvent.click(screen.getByRole("button", { name: m.form_cancel() }));
+  fireEvent.click(screen.getByRole("button", { name: "Open password dialog" }));
+  expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue("");
+  const finishRequest = finish;
+  if (!finishRequest) throw new Error("Password request was not started");
+  await act(async () => finishRequest({ data: { status: true }, error: null }));
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue("");
+});
+
+it("does not mount a password dialog for a federated identity in password mode", () => {
+  renderSecurity({ overrides: { reauthMethod: "provider" }, passwordOpen: true });
+  expect(screen.queryByRole("dialog", { name: m.settings_security_change_password() })).not.toBeInTheDocument();
+});
+
+it("preserves Google identity-link status without password controls", async () => {
+  renderSecurity({
+    overrides: {
+      authMode: "sso-only",
+      providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+    },
+  });
+  expect(await screen.findByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
+  expect(screen.queryByLabelText(m.settings_security_current_password())).not.toBeInTheDocument();
+});
+
+it("shows only the supported Google connection and ignores retired provider metadata", async () => {
+  readIdentityProvider.mockResolvedValue(Response.json(providerStatus(true)));
+  renderSecurity({
+    overrides: {
+      providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+    },
+  });
+  expect(await screen.findByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
+});
+
+it("keeps a Google callback error on its connection", async () => {
+  window.history.replaceState(
+    null,
+    "",
+    "/account?capacitylensIdentityProvider=google&capacitylensSsoLinkFailed=attempt",
+  );
+  renderSecurity({
+    overrides: {
+      providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+    },
+  });
+  expect(await screen.findAllByText(m.settings_sso_connect_error())).toHaveLength(1);
+  expect(screen.getByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
+  expect(window.location.search).toBe("");
+});
+
+it("preserves a provider callback error through StrictMode replay and provider refresh", async () => {
+  window.history.replaceState(
+    null,
+    "",
+    "/account?capacitylensIdentityProvider=google&capacitylensSsoLinkFailed=attempt",
+  );
+  const auth: AuthContextValue = {
+    ...passwordAuth,
+    providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+  };
+  const view = render(
+    <StrictMode>
+      <AuthContext.Provider value={auth}>
+        <SecuritySection />
+      </AuthContext.Provider>
+    </StrictMode>,
+  );
+
+  expect(await screen.findByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
+  expect(await screen.findByText(m.settings_sso_connect_error())).toBeInTheDocument();
+
+  view.rerender(
+    <StrictMode>
+      <AuthContext.Provider
+        value={{
+          ...auth,
+          providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+        }}
+      >
+        <SecuritySection />
+      </AuthContext.Provider>
+    </StrictMode>,
+  );
+
+  await waitFor(() => expect(readIdentityProvider).toHaveBeenCalledTimes(3));
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(await screen.findByText(m.settings_sso_connect_error())).toBeInTheDocument();
+  expect(window.location.search).toBe("");
+});
+
+it("does not restore a callback error after an already-linked retry and provider refresh", async () => {
+  window.history.replaceState(
+    null,
+    "",
+    "/account?capacitylensIdentityProvider=google&capacitylensSsoLinkFailed=attempt",
+  );
+  const auth: AuthContextValue = {
+    ...passwordAuth,
+    providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+  };
+  const fetchMock = vi.fn().mockResolvedValue(Response.json({ code: "PROVIDER_ALREADY_LINKED" }, { status: 409 }));
+  vi.stubGlobal("fetch", fetchMock);
+  const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+  let finishPendingStatus: ((response: Response) => void) | undefined;
+  readIdentityProvider.mockResolvedValueOnce(Response.json(providerStatus(false)));
+  readIdentityProvider.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finishPendingStatus = resolve;
+      }),
+  );
+
+  const view = render(
+    <AuthContext.Provider value={auth}>
+      <SecuritySection />
+    </AuthContext.Provider>,
+  );
+  try {
+    expect(await screen.findByText(m.settings_sso_connect_error())).toBeInTheDocument();
+    view.rerender(
+      <AuthContext.Provider
+        value={{
+          ...auth,
+          providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+        }}
+      >
+        <SecuritySection />
+      </AuthContext.Provider>,
+    );
+    await waitFor(() => expect(readIdentityProvider).toHaveBeenCalledTimes(2));
+
+    fireEvent.click(screen.getByRole("button", { name: m.settings_sso_connect_button({ provider: "Google" }) }));
+    expect(await screen.findByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
+    expect(screen.queryByText(m.settings_sso_connect_error())).not.toBeInTheDocument();
+
+    const finishStatus = finishPendingStatus;
+    if (!finishStatus) throw new Error("Provider status refresh was not started");
+    await act(async () => finishStatus(Response.json(providerStatus(false))));
+    expect(screen.getByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
+    expect(screen.queryByText(m.settings_sso_connect_error())).not.toBeInTheDocument();
+
+    readIdentityProvider.mockResolvedValue(Response.json(providerStatus(true)));
+    view.rerender(
+      <AuthContext.Provider
+        value={{
+          ...auth,
+          providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+        }}
+      >
+        <SecuritySection />
+      </AuthContext.Provider>,
+    );
+    await waitFor(() => expect(readIdentityProvider).toHaveBeenCalledTimes(3));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(screen.getByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
+    expect(screen.queryByText(m.settings_sso_connect_error())).not.toBeInTheDocument();
+  } finally {
+    errorLog.mockRestore();
+    vi.unstubAllGlobals();
+  }
+});
+
+it("dispatches Google connection through the shared identity route and supplies a safe failure callback", async () => {
+  const fetchMock = vi.fn().mockResolvedValue(Response.json({ code: "PROVIDER_UNAVAILABLE" }, { status: 502 }));
+  vi.stubGlobal("fetch", fetchMock);
+  const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+  window.history.replaceState(null, "", "/account");
+  readIdentityProvider.mockResolvedValue(Response.json(providerStatus(false)));
+  try {
+    renderSecurity({
+      overrides: {
+        providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+      },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: m.settings_sso_connect_button({ provider: "Google" }) }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toContain("/api/identity/link-provider");
+    expect(init.credentials).toBe("include");
+    const body = JSON.parse(String(init.body)) as { providerId: string; callbackURL: string; errorCallbackURL: string };
+    expect(body.providerId).toBe("google");
+    expect(new URL(body.callbackURL).searchParams.get("capacitylensIdentityProvider")).toBe("google");
+    expect(new URL(body.errorCallbackURL).searchParams.get("externalSignInError")).toBe("1");
+    expect(await screen.findByText(m.settings_sso_connect_error())).toBeInTheDocument();
+  } finally {
+    errorLog.mockRestore();
+    vi.unstubAllGlobals();
+  }
+});
+
+it.each([
+  ["LOCAL_EMAIL_NOT_VERIFIED", m.settings_sso_local_email_not_verified()],
+  ["SESSION_NOT_FRESH", m.settings_sso_reauth_cancelled()],
+])("shows the supported recovery for %s", async (code, message) => {
+  const fetchMock = vi.fn().mockResolvedValue(Response.json({ code }, { status: 403 }));
+  vi.stubGlobal("fetch", fetchMock);
+  readIdentityProvider.mockResolvedValue(Response.json(providerStatus(false)));
+  try {
+    renderSecurity({
+      overrides: { providers: [{ id: "google", label: "Google", kind: "social", experimental: false }] },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: m.settings_sso_connect_button({ provider: "Google" }) }));
+    if (code === "SESSION_NOT_FRESH") {
+      await waitFor(() => expect(isReauthPending()).toBe(true));
+      act(() => completeReauth({ reauthenticated: false }));
+    }
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: m.settings_sso_connect_button({ provider: "Google" }) })).toBeEnabled();
+  } finally {
+    if (isReauthPending()) completeReauth({ reauthenticated: false });
+    vi.unstubAllGlobals();
+  }
+});
+
+it("shows sign-in recovery when step-up succeeds but the provider link is still refused as stale", async () => {
+  const fetchMock = vi.fn().mockResolvedValue(Response.json({ code: "SESSION_NOT_FRESH" }, { status: 403 }));
+  vi.stubGlobal("fetch", fetchMock);
+  readIdentityProvider.mockResolvedValue(Response.json(providerStatus(false)));
+  try {
+    renderSecurity({
+      overrides: { providers: [{ id: "google", label: "Google", kind: "social", experimental: false }] },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: m.settings_sso_connect_button({ provider: "Google" }) }));
+    await waitFor(() => expect(isReauthPending()).toBe(true));
+    act(() => completeReauth({ reauthenticated: true }));
+    expect(await screen.findByText(m.reauth_still_not_fresh())).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(isReauthPending()).toBe(false);
+  } finally {
+    if (isReauthPending()) completeReauth({ reauthenticated: false });
+    vi.unstubAllGlobals();
+  }
+});

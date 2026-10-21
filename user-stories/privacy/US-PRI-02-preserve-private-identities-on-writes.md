@@ -1,8 +1,8 @@
 # US-PRI-02 — Preserve private identities across every server write path
 
 **Area:** Privacy / server integrity · **Persona:** Account owner and permitted non-owner editor ·
-**Coverage:** `server/src/app.authz.test.ts` → "private client/project names — owner-only server
-projection" + `server/src/db.accountStore.test.ts`
+**Coverage:** `apps/backend/tests/functional/auth/native_authorization.spec.ts` → "private client/project names — owner-only server
+projection" + `apps/backend/tests/unit/state_transformer.spec.ts`
 
 ## Goal
 

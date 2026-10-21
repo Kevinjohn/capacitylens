@@ -14,7 +14,7 @@ import { waitForAppLanding, selectShadOption } from "./browserTestSupport";
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // This spec exercises owner and admin member management against the password-mode auth server. Owner A
-// bootstraps an org and seeds admin B plus editor C in the disposable database. As B, it changes C's
+// creates the first company and seeds admin B plus editor C in the disposable database. As B, it changes C's
 // role, creates and revokes an invite, and verifies that owners cannot be assigned, changed, removed,
 // or read across accounts through ordinary member endpoints. Owner A then disables and restores C from
 // the gear menu. Ownership transfer remains covered by e2e/ownership-transfer.auth.spec.ts.
@@ -42,13 +42,12 @@ async function setupMembersApi(request: APIRequestContext) {
     data: { role: "editor" },
   });
   expect(touchOwner.status()).toBe(403);
-  // An Admin cannot start the ownership ceremony: it belongs to the Owner, and the nominee's own
-  // consent belongs to the nominee. The ceremony itself is covered by ownership-transfer.auth.spec.
-  const adminNominate = await request.post(`${API}/api/accounts/${accountId}/ownership-transfer`, {
+  // Only the current Owner can confirm the atomic handover, covered by ownership-transfer.auth.spec.
+  const adminTransfer = await request.post(`${API}/api/accounts/${accountId}/ownership-transfer`, {
     headers: { cookie: admin.cookie },
     data: { toUserId: editor.userId },
   });
-  expect(adminNominate.status()).toBe(403);
+  expect(adminTransfer.status()).toBe(403);
   const selfRemove = await request.delete(`${API}/api/accounts/${accountId}/members/${owner.userId}`, {
     headers: { cookie: owner.cookie },
   });
@@ -94,7 +93,7 @@ async function manageAdminMembers(
   await page.getByLabel("Email").fill(ADMIN);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.getByRole("button", { name: `Members Studio ${STAMP}`, exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "How CapacityLens works" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
   await page.getByRole("button", { name: "Got it" }).click();
@@ -163,7 +162,7 @@ async function manageOwnerMembers(
   await ownerPage.getByLabel("Email").fill(OWNER);
   await ownerPage.getByLabel("Password").fill(PASSWORD);
   await ownerPage.getByRole("button", { name: "Sign in" }).click();
-  await ownerPage.getByRole("button", { name: `Members Studio ${STAMP}`, exact: true }).click();
+  await expect(ownerPage.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
   await waitForAppLanding(ownerPage, ownerPage.locator("#main"));
   await ownerPage.getByRole("link", { name: "Team & access" }).click();
   await expect(ownerPage.getByTestId("current-access")).toContainText("Owner");

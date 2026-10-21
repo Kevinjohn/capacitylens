@@ -72,11 +72,11 @@ This is the short, present-tense record of decisions that constrain future work.
 
 - SQLite-backed server persistence is the default. Missing API access is an error, never a silent
   browser-storage fallback.
-- Portable JSON/export versions and physical SQLite versions are separate contracts. SQLite uses
-  an immutable, one-way migration list and `PRAGMA user_version`; a database-side history ledger
-  records each version, name, SHA-256 definition checksum and application timestamp. Missing or
-  altered history refuses startup. Every released older database fixture remains upgrade-tested
-  indefinitely.
+- Portable JSON/export versions and physical SQLite versions are separate contracts. SQLite
+  migrations are append-only from the Adonis baseline; released definitions are SHA-256 pinned in
+  `database/released.json`, and boot refuses a database containing a migration unknown to the
+  running build. Each migration file rolls back as one unit, and the pre-upgrade online backup is
+  the recovery point. Never edit a released migration definition.
 - New builds upgrade older databases. Older builds never write a newer database: they refuse it.
   Rollback means the old image plus the verified pre-migration snapshot, never a down migration.
 - SQLite upgrades are coordinated single-server restarts. CapacityLens does not promise mixed-version
@@ -84,6 +84,10 @@ This is the short, present-tense record of decisions that constrain future work.
 - Every schema-bearing release is rehearsed on released fixtures and an anonymised online snapshot
   of a representative long-lived installation. The rehearsal covers success, rollback-snapshot
   restoration, injected disk exhaustion, forced process termination and idempotent reopen.
+- Native SQLite backups run online at web-service startup and every 24 hours. Count-based retention
+  keeps the configured N completed managed snapshots; pre-upgrade snapshots remain separate.
+  Backup failures are logged or returned by the operator command, without a process-lifetime
+  health latch. Database readiness is independent of recovery verification.
 - The demo adapter is in-memory and resets on refresh.
 - Every scoped entity carries `accountId`; the active account is transient and never persisted.
 - Server session + membership is the security boundary. Client scoping is defense in depth and UI
@@ -97,16 +101,36 @@ This is the short, present-tense record of decisions that constrain future work.
   projections maintain id and reverse-foreign-key indexes as operations advance, so upserts,
   deletes and cascades do not rebuild unaffected arrays; whole-installation state is never used as
   a shortcut.
+- Planning reads resolve current product authority, one integer company revision and the complete
+  confidentially projected company slice inside one Lucid transaction. Typed mutations compare the
+  captured `baseRevision` inside their write transaction; a mismatch returns 409 without replay.
+  Every changed planning or product-authority transaction advances the company revision once.
+  Admission configuration and pending invitation-only edits do not advance it without a planning
+  projection or current membership/access change.
+  No-change typed operations return 400 without an audit entry, marker or revision advance.
+- Committed typed activity updates supplying `kind` require a canonical refetch and clear page-local
+  history, including same-kind inputs that change another field. A kind change can discard dependent
+  allocation attribution that an ordinary inverse cannot recover. Kind-omitting edits retain their
+  normal patch response; full Undo-preserving activation remains gated on its accepted dependencies.
+- A durable planning mutation marker is unique per company and mutation UUID, belongs to its actor,
+  and commits with the data, revision and audit entry. Lookup returns only committed revision or
+  unknown; an absent marker cannot prove failure. Reusing a committed identity returns 409, never
+  a stored response. Company erasure removes its markers with its other product data.
+- Existing state, batch, import and lifecycle callers coexist temporarily with typed resource
+  operations and participate in the same company revision discipline. Typed operations do not pass
+  through the arbitrary-table batch engine. Session-bound delete restoration and cleanup remain
+  unavailable until the supported public session contract is verified.
 - Browser account-command retry identities survive transport failures, HTTP 408 and server
   failures, concurrent execution and unreadable or unrecognised 409 responses. Success or a
   successfully decoded known terminal caller/policy rejection may close the retry ceremony;
   ambiguous responses never do.
   A page-local memory copy is authoritative while the page lives, with session storage extending
   the same identity across reloads when browser policy permits it.
-- Each local audit-log generation is hard-bounded by the configured rotation size. Rotation occurs
-  before the next complete JSONL line would cross that bound; a single entry larger than the bound
-  is rejected, leaves its durable outbox row queued and marks audit health degraded rather than
-  consuming unbounded space or truncating security evidence.
+- The retired server's local JSONL audit mirror was hard-bounded by its configured rotation size;
+  an oversized entry stayed queued in that server's durable outbox and degraded audit health rather
+  than consuming unbounded space or truncating security evidence. In the Adonis application,
+  `AuditEntry` is written inside the mutation's Lucid transaction. Post-commit logging is diagnostic
+  only; the retired outbox and delivery recovery are not current mechanisms.
 - A scheduled SQLite snapshot is file-synced and its published directory entry is synced before
   retention may remove an older recovery point. Retention metadata is synced again after deletes;
   a failure at that second barrier warns but does not deny an already-durable new snapshot, because
@@ -118,7 +142,9 @@ This is the short, present-tense record of decisions that constrain future work.
   feature-visibility settings. Editors are already trusted to shape the shared schedule, so these
   reversible account settings do not introduce a separate Admin-only `configureAccount` tier.
   Identity, membership, privacy, lifecycle, whole-slice import and company-erasure operations keep
-  their existing stricter Admin/Owner gates; creation-time calendar and language fields stay frozen.
+  their existing stricter Admin/Owner gates. Typed settings operations may change time zone and week
+  start; language is not an editable setting. The retained legacy settings transport keeps its
+  calendar-field restrictions until its callers move to typed operations.
   The compatibility path that adopts a legacy id for the server-managed Internal client and
   reparents its projects is an ordinary Admin/Owner operation; it does not require a fresh
   session (2026-09-11).
@@ -167,10 +193,9 @@ This is the short, present-tense record of decisions that constrain future work.
   format is deliberately NOT among them: a company reads one convention, so it is an account setting
   (editor and up), present in export and undoable like any other account change. It governs planning
   calendar dates and ranges. Server instants — session creation and expiry, password-reset expiry,
-  invitation expiry in the Team & access member panel and on the invitee's Accept invite page,
-  ownership-transfer deadlines and ownership outcome dates — instead use the viewer's browser locale
-  and local time zone, including when an instant is displayed as a date only. The offline read-only
-  banner's last-updated timestamp also uses the viewer's browser locale and local time zone. Existing
+  invitation expiry in the Team & access member panel and on the invitee's Accept invite page —
+  instead use the viewer's browser locale and local time zone, including when an instant is displayed
+  as a date only. Existing
   date-and-time and compact date-only shapes remain distinct; never recover a local date by slicing
   the stored UTC timestamp.
 - Client/project privacy is opt-in and owner-managed. Real names and raw code names remain stored;
@@ -183,12 +208,11 @@ This is the short, present-tense record of decisions that constrain future work.
   open the page and see the aggregated view; it does not narrow the data every member already
   receives via the scoped state.
 
-## Offline
+## Browser data
 
-- Offline reading is explicit per-device opt-in, expires after seven days and stores snapshots in
-  IndexedDB encrypted with a non-extractable per-browser AES-GCM key.
-- Offline state is always viewer/read-only. The app never queues offline mutations.
-- Sign-out and the device-data control erase cached identity/account snapshots.
+- Scheduling records and identity snapshots are never persisted in the browser. Server failures
+  remain visible and retryable; there is no persistent fallback or queued write journal.
+- Ordinary device preferences remain in localStorage. The demo stays volatile and in-memory.
 
 ## Authentication and security
 
@@ -197,42 +221,35 @@ This is the short, present-tense record of decisions that constrain future work.
 - Each authenticated company has exactly one Owner. Owner is not an invite or ordinary role-change
   option; ownership moves only through an explicit atomic transfer to an existing member, with the
   former Owner becoming Admin.
-- Sole-Owner credential recovery (2026-08-05) is an operator CLI (`reset:owner-password`), not a
-  product feature. It drives the ordinary reset ceremony against a stopped
-  server, enforced by an exclusive SQLite lock, and refuses unless the target is the sole active
-  Owner — the one state no in-product actor can recover. In-app policy is unchanged: Admins still
-  cannot administer an Owner, and a credential reset never moves ownership. Origin: Delivery Diary
-  divergence report; ruling recorded in `to-my-siblings/_sole-owner-recovery-playbook-2026-08-05.md`.
+- Sole-Owner credential recovery is an operator command, not a product feature. It uses the ordinary
+  recovery ceremony, an exclusive database lock and an audit event, and refuses unless the target
+  is the sole active Owner. Admins cannot administer an Owner, and credential recovery never moves
+  ownership.
 - App members and scheduled Resources are separate records. Adding a Resource never grants access,
   and inviting a member never creates a schedulable person.
 - Team & access is a first-class destination visible to every role so members can understand their
   own access; only Owner/Admin receive directory, invitation and access-management controls.
-- Identity masquerade is explicitly an **identity masquerade, read projection**. It substitutes the
-  target member only for actor-dependent reads in the selected company; it never grants write
-  capability or claims to become that person's login. The registry is session-keyed and in memory,
-  rather than stored in a table or cookie: the supported topology is one process, and restart loss
-  fails closed. A method-based root guard plus a Better Auth proxy guard enforce read-only access.
-  Starting requires an Owner/Admin role but not a fresh session (per the 2026-09-11 freshness
-  decision below), cannot replace an existing projection, and ends before an account switch.
-  Start/end audits use explicit, account-switch, sign-out, expiry, revocation and caller/target
-  invalidation reasons; the start event carries the session expiry so
-  a restart-lost projection remains bounded in the ledger.
-- The account layer is an embedded repository-local boundary: neutral contracts, `IdentityPort`,
-  `AccountAdminPort` and an orchestration-only `AccountFlows` coordinator. It permanently shares the
-  product process, SQLite file and checksummed product migration ledger unless a separately approved
-  future trigger changes topology.
+- Masquerade is a session-keyed, in-memory read projection within one company, not another login or
+  write authority. Only an Owner or Admin may start it; no fresh session is required, and an active
+  projection cannot be replaced. Every unsafe method and account, membership or authentication
+  route is refused. Explicit end, account switch, sign-out, expiry, revocation or caller/target
+  invalidation ends it; restart loss fails closed. Start and end are audited, and the projection is
+  bounded by the session expiry.
+- Native Adonis authentication, sessions, Bouncer, Ally and Mail own their framework capabilities.
+  The account-kit owns password/recovery primitives where their contracts preserve product
+  guarantees. Company invitations, membership and admission remain product-owned and transactional.
 - Each installation owns its local principals, sessions and memberships and never shares account
   records with another installation. Federated correlation uses the exact provider
   and provider-owned stable identifier, never email; local deprovisioning cannot delete an upstream
   provider identity.
-- Email/password and named Google/Microsoft company providers are implemented for self-hosting.
-  GitHub retains its experimental mixed-mode behavior. Generic OIDC support and the
+- Email/password and Google company sign-in are supported for self-hosting. Microsoft is not a
+  current sign-in option, and GitHub sign-in is retired. Generic OIDC support and the
   `hosted-oidc-only` profile were removed; their names are now unknown configuration, so
   `hosted-oidc-only` is an invalid profile like any other unrecognised value.
   Deterministic and library evidence never substitutes for live-provider checks.
 - Named profiles are `self-hosted-password`, `self-hosted-mixed`, `self-hosted-sso-only` and
-  `hosted-sso-only`. Hosted SSO requires `mode=sso-only`, complete Google and/or tenant-specific
-  Microsoft configuration, and refuses passwords, GitHub, open signup or incomplete provider
+  `hosted-sso-only`. Hosted SSO requires `mode=sso-only`, complete Google configuration, and
+  refuses passwords, open signup or incomplete provider
   settings. Its shared conformance capability is `companyProviderRequired`; it has an independent
   contract version. A future product grouping layer must use the public named-provider boundary,
   never account internals.
@@ -243,44 +260,37 @@ This is the short, present-tense record of decisions that constrain future work.
   a live invitation; initial SSO ownership requires an operator email allow-list.
 - External-identity admission and explicit linking are distinct. Creating a new local principal
   requires verified control of an email plus a live pre-authorised invitation (or the first-principal
-  bootstrap allow-list). Named Google/Microsoft bootstrap uses
-  `CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS`. An already-admitted principal may explicitly attach
-  a company provider without a second invitation, through their own fresh session and matching
-  verified email. Named-provider linking also requires the local address to be verified.
-- Microsoft uses the configured work/school tenant and provider-owned `oid`, not `sub`. When native
-  claims do not adequately prove the intended email, an operator-configured SMTP transport sends a
-  15-minute, single-use verification link. Confirmation is bound to the initiating browser,
-  purpose, principal or invitation and the same Microsoft identity. The final provider callback
-  rechecks live authorization before creating a binding. Stored challenges are hashed and return
-  URLs encrypted; verification state is removed by anonymisation. This is not passwordless login.
-  Returning sign-in preserves the established proven email even when profile claims change; it
-  does not repeat verification or merge identities by email. No deployed social-user conversion is
-  required under the operator's confirmed alpha deployment context.
+  bootstrap allow-list). Google bootstrap uses `CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS`; later new
+  Google identities need an unused invitation addressed to the verified Google email. An
+  already-admitted principal may explicitly link Google without a second invitation, through their
+  own fresh session and matching verified email. Linking also requires the local address to be
+  verified. Google identities use Google's stable identifier and are never merged by email.
+- A Google callback that creates a principal does not create company membership or consume an
+  invitation. The user must explicitly accept the addressed invitation or complete a company join;
+  the server rechecks current authorization and company policy at completion.
+- Repeated invitation or password-reset issuance with the same command id returns
+  `409 IDEMPOTENCY_CONFLICT`. Secret bearers are never replayed or stored in command results;
+  completed non-secret results may replay, and a payload mismatch is refused.
 - Self-hosted provider-required access uses `self-hosted-sso-only` and requires a configured Google
-  or Microsoft company-provider session, including for invitation acceptance. GitHub and password
-  sessions cannot satisfy that requirement. Existing password credentials remain available if an
-  operator returns the installation to `mode=password-only`; that restores the password entrance but
-  does not reset credentials or change provider connections. The in-app readiness panel is retired;
-  the read-only `cutover:preflight` and guarded stopped-server `cutover:repair` operator commands
-  remain available for named-provider preparation and recovery. Preflight checks the full configured
-  Google/Microsoft provider set against the same provider-required conditions as startup. Operators
-  and teams verify provider access directly before changing mode.
+  session, including for invitation acceptance. Password sessions cannot satisfy that requirement.
+  Existing password credentials remain available if an operator returns the installation to
+  `mode=password-only`; that restores the password entrance but does not reset credentials or
+  change provider connections. Operators and teams verify Google access directly before changing
+  mode; deterministic checks do not establish live-provider acceptance.
 - The named-provider replacement supersedes the earlier generic OIDC and staged-cutover decisions
   below. Those dated entries preserve implementation history, not current configuration or
   operator procedure. No identity conversion or deleted-staging migration is required.
-- The earlier generic-OIDC email-claim policy below is historical and superseded. Current named
-  Google/Microsoft admission and linking use their provider-specific verified-email evidence and
-  the explicit Microsoft mailbox-proof flow described above; identities are never merged by email.
-- CapacityLens cannot infer an upstream multi-factor policy from a provider link, so operator
-  enforcement and testing at the IdP is required; this responsibility also applies to experimental
-  named providers used in mixed mode.
+- The earlier generic-OIDC email-claim policy below is historical and superseded. Google admission
+  and linking require verified-email evidence; identities are never merged by email.
+- CapacityLens cannot infer an upstream multi-factor policy from a Google link, so operator
+  enforcement and testing at Google is required.
 - Secure-cookie behavior follows the public `CAPACITYLENS_PUBLIC_URL`, including behind a TLS
   proxy. Legacy account environment names were removed before beta with no migration window; they
   are now unknown and ignored like any other unrecognised variable.
 - Password mode defaults to breached-password screening. Password sign-in offers no
   authenticator-code step to enable or require. Local MFA implementation was removed
-  (2026-10-09). Google and Microsoft providers own any MFA policy, enrolment and recovery;
-  enabling company sign-in alone does not enable MFA, and a federated session does not prove
+  (2026-10-09). Google owns any MFA policy, enrolment and recovery; enabling company sign-in alone
+  does not enable MFA, and a federated session does not prove
   that an upstream MFA challenge occurred. Sessions have a fixed twelve-hour lifetime; privileged actions
   require a session no older than fifteen minutes. The client answers the freshness refusal with an
   in-place "confirm it's you" re-authentication dialog that mints a fresh session and retries,
@@ -290,8 +300,8 @@ This is the short, present-tense record of decisions that constrain future work.
   company, import/purge and SSO identity link/repair (2026-09-11). Every other administrative read
   or action — invite create, invite revoke, role change, status change, member removal, the
   sign-in-tracking toggle, masquerade start and internal-client adoption — needs only the actor's
-  role, not a fresh session. Ownership transfer's own confirmation ceremony is
-  tracked separately as issue #780 and is unchanged by this decision.
+  role, not a fresh session. The transfer's explicit Owner confirmation is separate from this
+  freshness decision.
 - Cross-site writes are gated by Fetch Metadata and Origin, with two deliberate exemptions: an
   Origin on the credentialed CORS allow-list always passes (the allow-list is the operator's
   explicit cross-site contract), and an Origin whose host:port matches the request Host and
@@ -333,13 +343,45 @@ This is the short, present-tense record of decisions that constrain future work.
   (e.g. the rate limiter), so a value the runtime would silently ignore refuses startup instead.
 - Encrypted persistent storage and logically separate security-log forwarding are recommended
   deployment hardening that operators provide; CapacityLens has no setting or warning for them.
-- The packaged production proxy/API hop uses a private per-install CA and verified TLS 1.2/1.3.
-  Bare-metal deployments may instead use HTTP only across a same-host loopback proxy hop.
-- CSP violations enter the bounded, data-minimised security stream. Socket, scrypt and HIBP work
-  limits are finite and fail closed under overload.
-- Better Auth telemetry is disabled. CapacityLens ships no product analytics. Optional SMTP
-  delivers addressed invitations, password resets and Microsoft mailbox proof only.
-- Errors on data paths are surfaced, not swallowed. See `DEFENSIVE-CODING.md`.
+- TLS terminates at the packaged edge or the operator's trusted external proxy. Internal TLS
+  generation and renewal are retired; bare-metal HTTP is limited to a same-host loopback proxy hop.
+- Adonis Shield owns HSTS, `nosniff` and frame protection. HSTS is enabled only when HTTPS is
+  explicitly enabled and the configured public URL uses HTTPS. The application CSP has one
+  middleware owner; the Origin / Sec-Fetch-Site guard remains active, without a CSP report route.
+- Socket, scrypt and HIBP work limits are finite and fail closed under overload.
+- CapacityLens ships no product analytics. Optional mail delivers addressed invitations and
+  password resets.
+- Errors on data paths are surfaced, not swallowed.
+
+## AdonisJS framework departures
+
+The AdonisJS documentation is the structural reference. These product choices deliberately differ
+from framework defaults; other departures require an explicit decision.
+
+1. `packages/shared` is imported by the backend and SPA. It contains pure domain rules and wire
+   types, never backend code.
+2. Adonis BodyParser owns request parsing and its supported defaults, except a 5 MB JSON limit so
+   a whole company export can be imported. Compiled Vine validators
+   validate supplied values and strip unknown object properties by default. Empty strings are not
+   silently converted to null. Ordinary validation errors use the flat `{ error, code? }` contract
+   with status 400.
+3. Product models fail closed without an explicit tenant scope. Bulk updates and deletes use a
+   scoped helper because model hooks do not cover them.
+4. Product sessions record authentication and last-activity times. Middleware enforces absolute and
+   inactive expiry independently of the session store's sliding age; freshness uses authentication
+   time.
+5. Validation and domain errors use the flat `{ error, code? }` contract. Structured admission
+   decisions may accompany that object when the future Account Kit integration provides one.
+6. Product timestamps are ISO strings on the wire and in columns. The company planning revision is
+   an integer; retained legacy row receipts use timestamp strings. Columns
+   use snake_case, explicit transformers own camelCase wire fields, and empty optional values are
+   null.
+7. Product environment variables use the `CAPACITYLENS_` prefix; framework variables retain
+   framework names.
+8. The Adonis backend serves the SPA from `public/` with product security headers and a history
+   fallback rather than relying on a separate static-file proxy.
+9. Off mode uses the validated product guard. SQLite has a pool of one connection, configured when
+   it is created. Network and mail work stays outside transactions.
 
 ## Installation
 
@@ -358,32 +400,15 @@ This is the short, present-tense record of decisions that constrain future work.
 
 ## Continuous integration
 
-- `0.51.1-alpha.1` is a recorded release-process deviation: commit `a114c30` combined the version
-  and changelog update with the round-10 e2e refactor instead of landing it from a later,
-  version-only branch. The published history remains unchanged. A 2026-08-16 audit confirmed that
-  the tag workflows select `refs/tags/v*`, check out the tagged tree and build or attest that tree;
-  no release tooling assumes that the tagged commit changes only version files. The next release
-  returns to the required functional-branch-then-version-branch sequence.
-- Coverage thresholds and the main-entry bundle limits are standing regression boundaries, not
-  automatic high-water-mark ratchets. Maintainers own them. A feature that reaches a boundary must
-  first add focused tests, remove dead code or preserve lazy-loading/code-splitting as applicable.
-  Changing a boundary requires an intentional review containing before/after measurements and the
-  product reason the added tested behavior or first-load cost is worth accepting; never edit a
-  number solely to make a red gate green. Periodic tightening is allowed when sustained headroom
-  makes the stricter boundary representative rather than flaky.
-- Aggregate coverage floors are supplemented by an exact-file zero-coverage gate. Every measured
-  hand-written module with executable lines must cover at least one line unless its full path is in
-  the reviewed legacy-debt list; directory and glob exceptions are forbidden.
-- Local green gates remain the developer source of truth. The public repository's workflows run
-  automatically for pull requests, `main`, release tags and their documented scheduled canaries;
-  `workflow_dispatch` supports deliberate reruns.
-- Server test-process exit is part of the test result. Ordinary server test files run in fresh,
-  bounded Vitest processes distributed across four CI shards; account-flow conformance,
-  credential-onboarding crash durability and migration rehearsal retain their dedicated process
-  boundaries. A log containing only passing assertions is not green until the owning process exits.
-  Do not restore cross-file worker reuse or raise outer job timeouts to hide a leaked SQLite handle,
-  Fastify instance, timer, listener, compiler helper or child process. Fix the owner or give an
-  intentionally process-heavy suite an explicit, required isolation boundary.
+- Keep formatting, type checking, plain lint, dependency security checks, product builds and
+  meaningful unit, functional and browser tests. Coverage reports may help identify gaps, but no
+  aggregate floor, per-file floor or suppression ratchet is required.
+- Use framework conventions and the checks that protect current product behavior. Avoid fixed file
+  or test-size limits and custom structural rules; add a focused check only when experience shows
+  that it protects a concrete invariant.
+- Local commands and CI workflows should validate the same relevant behavior. Test results include
+  successful process completion; investigate hangs or leaked resources when they occur without
+  prescribing historical worker or shard layouts.
 - CodeQL runs in the public-repository security workflow. Private-repository runner/upload
   limitations are no longer part of the active CI policy.
 - Dependabot continues its monthly root-workspace updates independently of the runner policy.
@@ -394,47 +419,23 @@ This is the short, present-tense record of decisions that constrain future work.
   needed for a representative change: implementation, explicit consumed inputs and focused tests.
   Shorter files alone are not evidence of improved modularity. Preserve visible orchestration,
   state-owner invariants, transaction order and failure propagation.
-- Principal filenames match their named exports; cohesive collections name the capability they
-  own. Component/type names use PascalCase, hooks/utilities use camelCase, and executable scripts
-  use kebab-case. The detailed naming, import and ownership tables live in
-  `docs-src/reference/development.md`, and the in-module conventions (function verbs, variable
-  names, parameter style, result shapes) in `docs-src/reference/conventions.md`; root guidance
-  stays short.
+- Modules and names should make their behavior and ownership clear. Follow the framework and
+  language conventions used by the surrounding code.
 - Existing product account names, portable workspace/principal aliases and vendor provider-account
   names describe different contracts. Keep those distinctions and existing semantic aliases;
   do not introduce branded IDs or rename public fields as part of structural cleanup.
-- Compatibility exceptions are explicit: source-owned primitives retain registry filenames,
-  tools retain required entry names, and shipped migrations/fixtures remain immutable. Other
-  existing naming differences are tracked migration debt. Enforcement must baseline exact paths
-  and reject new unclassified debt; documenting a convention does not itself make lint enforce it.
-- The existing `eslint-suppressions.json` file/rule counts only shrink: each change prunes what it
-  can, never increases an existing count, and new code meets the rules. A newly introduced rule
-  may have one reviewed initial baseline with classified residual findings; that baseline then only
-  shrinks.
-- A new verb, abbreviation or result shape enters `docs-src/reference/conventions.md` in the same
-  pull request as its first use, with a tree example, and is reviewed like code.
-- Debt a batch declines to fix is recorded on the closing issue or pull request, never dropped.
-  For historical context, the last revision of the conventions audit ledger is
-  [`3b455884`](https://github.com/Kevinjohn/capacitylens/blob/3b455884/tasks/conventions-audit.md),
-  linked from issue #638 for the untouched deviations it recorded.
+- Compatibility exceptions remain where a public contract, dependency or shipped data format
+  requires them. They are documented at the owning boundary.
 
-## Structural checks kept after the 2026-09 tooling removal
+### Production mail dependency compatibility
 
-The structural-measurement tooling added in PRs #593–#613 was removed on 2026-09-05; these checks were kept for the reasons below.
+Production deployment omits optional dependencies, keeping the assembler and its unpatched braces
+transitive dependency out of shipped runtimes. Development tooling still contains that advisory;
+this is not a claim that every workspace dependency is patched. The production audit uses the same
+optional-free graph and retains its high-severity failure threshold.
 
-| Check                                                                                                        | Why it earns its place                                                                                                                                                                                                                                                                                                                                                                                                             |
-| ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scripts/check-file-sizes.mjs`, its test and `file-size-exceptions.json`, restored verbatim from `34a1702a`  | A 400-line cap on production files is the most direct mechanical guard for "one implementation fits in one read". One permanent exception (the shadcn sidebar). Its informational print of approximate top-level function spans over 150 lines is 25 lines, has no dependencies, enforces nothing and predates the previous run; it stays because it is the cheapest possible signal on function length, not a measurement system. |
-| Test-file extension of `scripts/check-file-sizes.mjs`, its test and `file-size-exceptions.json`              | An 800-line test ceiling catches drift after the #827 test split while preserving one shared exception mechanism. Five deliberately structural test ledgers are permanent; other current over-limit tests have fixed temporary maxima and become stale/removable once their files reach 800 lines or fewer.                                                                                                                        |
-| `scripts/dependencyScanner.mjs`, `scripts/check-import-cycles.mjs`, `policy:dependencies:test` in both gates | A runtime import cycle is the usual way two "small" files become unreadable together. The scanner fixed a real gap (dynamic imports were invisible) and now runs in the app and server gates.                                                                                                                                                                                                                                      |
-| `server/src/tables/columns.ts` compile-time column guards and their negative fixtures                        | Before the change a missing column typed as `never` compiled; now the schema list and the table specs must agree or the build fails. Product correctness, not measurement.                                                                                                                                                                                                                                                         |
-| `server/src/accounts/conformance/architecture.test.ts`                                                       | Enforces the ownership boundaries of the account and auth code: which directories may depend on which, with a short list of named adapter and `Db` type edges allowed. This is the "one behaviour in one place" invariant for the most security-sensitive subsystem.                                                                                                                                                               |
-| `scripts/run-gate.mjs`, `scripts/gateCommands.mjs`, their test and `scripts/__tests__/gate-command.mjs`      | Replaces a 600-character `&&` chain in `package.json` with a readable ordered list; the test proves a failing step stops the rest. 86 lines, no new dependencies (it spawns through the existing `pnpmSpawn.mjs`).                                                                                                                                                                                                                 |
-| `scripts/check-dependabot.mjs`, its test and the `yaml` devDependency                                        | The same validation existed at `34a1702a` as a Ruby step in `gate.yml`; PR #606 moved it into the gate so it also runs locally. Deleting it would remove a baseline check. The `dependabot.yml` it validates encodes the patch-only update policy.                                                                                                                                                                                 |
-| `scripts/check-sonner-csp.test.mjs` and `scripts/__tests__/sonner-import.mjs`                                | Guards the CSP-compatible stylesheet patch on the Sonner dependency so a routine update cannot silently drop it.                                                                                                                                                                                                                                                                                                                   |
-| The environment split in `eslint.config.js` (browser / worker / Node / shared production / shared test)      | `shared/` is imported by both the browser app and the Node server, so a Node or DOM global there is a runtime failure on one side. The split makes it a lint error.                                                                                                                                                                                                                                                                |
-| `scripts/check-shared-environment.test.mjs` (trimmed)                                                        | Proves the shared production compiler graph contains no Node types or test files, and that the production lint rejects platform globals. This is the executable form of the boundary above.                                                                                                                                                                                                                                        |
-| `scripts/check-server-script-lint.test.mjs` (trimmed)                                                        | Proves, with synthetic probes through the real configuration, that the typed promise rules (`no-floating-promises`, `no-misused-promises`) apply to operator scripts. ESLint does the enforcing; this test catches the configuration silently dropping it. An unawaited promise in a reset or backup script is the kind of defect that otherwise surfaces only in production.                                                      |
-| `scripts/check-script-environments.test.mjs` (trimmed)                                                       | Proves browser scripts reject Node globals and Node tooling rejects browser globals through the real configuration.                                                                                                                                                                                                                                                                                                                |
-| `scripts/check-lint-coverage.test.mjs` (trimmed to one test)                                                 | Its test "real new production and test files reject both promise defects in each typed package" writes real files into app, server and shared, then proves both promise rules reject them. None of the other suites exercises the app and server typed-lint configuration that way. The four other tests in the file enumerate the inventory or assert gate ownership and go.                                                      |
-| `scripts/check-health.mjs`, `tlsRenewalVerifier.ts` and their tests                                          | Extracted from inline Dockerfile and workflow JavaScript so they can be unit-tested. The Dockerfile depends on the first. Not touched by this plan.                                                                                                                                                                                                                                                                                |
+The exact `@adonisjs/mail>nodemailer` override to 10.1.1 is a reviewed major-version exception for
+the mail security fixes. CapacityLens configures SMTP only. Authenticated TLS delivery, attachment
+encoding, authentication and recipient refusal, and pooled connection closure are verified through
+the public Adonis SMTP adapter. Nodemailer 10 is incompatible with the unused Postmark transport's
+internal MIME import; Postmark is unsupported and must be reassessed before enabling that transport.

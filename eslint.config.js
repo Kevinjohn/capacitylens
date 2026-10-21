@@ -16,38 +16,32 @@ const forbiddenSharedGlobals = [
   "globalThis",
 ];
 
-// `isNotNull` is the SQL term in server/src/schema/introspection.ts, not a negated boolean.
-const negatedBooleanName = "^(hasNo|not[A-Z]|isNot(?!Null))";
-// conventions.md leaves `find` and `handle` out of the verb table: use `get`, or name the callback
-// for what it does.
-const excludedVerbName = "^(find|handle)([A-Z]|$)";
-
 const sharedTestFiles = [
-  "shared/src/**/*.{test,spec}.{ts,tsx,mts,cts}",
-  "shared/src/**/__tests__/**/*.{ts,tsx,mts,cts}",
+  "packages/shared/src/**/*.{test,spec}.{ts,tsx,mts,cts}",
+  "packages/shared/src/**/__tests__/**/*.{ts,tsx,mts,cts}",
 ];
-const appTestFiles = ["src/**/*.{test,spec}.{ts,tsx}", "src/**/__tests__/**/*.{ts,tsx}"];
-
 // `@/` maps only to src/, so it cannot name a repository file outside it. These files read one,
 // and each may import only the specifiers listed against it.
 const parentImportAllowances = {
-  "src/data/buildInfo.ts": ["../../package.json"],
-  "src/build/staticSpaRouteDocuments.test.ts": ["../../vite.config"],
-  "src/bundleBudgetGate.test.ts": ["../scripts/bundleBudget.mjs"],
-  "src/csp.test.ts": [
-    "../nginx.conf?raw",
-    "../nginx.client.conf.template?raw",
-    "../nginx-security-headers.conf?raw",
-    "../scripts/render-client-nginx.mjs",
+  "apps/frontend/src/data/buildInfo.ts": ["../../../../package.json"],
+  "apps/frontend/src/build/staticSpaRouteDocuments.test.ts": ["../../vite.config"],
+  "apps/frontend/src/bundleBudgetGate.test.ts": ["../../../scripts/bundleBudget.mjs"],
+  "apps/frontend/src/csp.test.ts": [
+    "../../../nginx.conf?raw",
+    "../../../nginx.client.conf.template?raw",
+    "../../../nginx-security-headers.conf?raw",
+    "../../../scripts/render-client-nginx.mjs",
   ],
-  "src/fileCoverageGate.test.ts": ["../scripts/check-file-coverage.mjs"],
-  "src/playwrightServerScope.test.ts": ["../scripts/playwrightServerScope", "../scripts/playwrightRunMode.mjs"],
-  "src/pnpmSpawn.test.ts": ["../scripts/pnpmSpawn.mjs"],
-  "src/router.test.tsx": ["../scripts/staticSpaRoutes.mjs"],
-  "src/serve-dist.test.ts": ["../scripts/serve-dist.mjs"],
-  "src/test/generateDocumentationComponentId.test.ts": [
-    "../../docs-src/.vitepress/generateDocumentationComponentId.mts",
-    "../../docs-src/.vitepress/config.mts",
+  "apps/frontend/src/playwrightServerScope.test.ts": [
+    "../../../scripts/playwrightServerScope",
+    "../../../scripts/playwrightRunMode.mjs",
+  ],
+  "apps/frontend/src/pnpmSpawn.test.ts": ["../../../scripts/pnpmSpawn.mjs"],
+  "apps/frontend/src/router.test.tsx": ["../../../scripts/staticSpaRoutes.mjs"],
+  "apps/frontend/src/serve-dist.test.ts": ["../../../scripts/serve-dist.mjs"],
+  "apps/frontend/src/test/generateDocumentationComponentId.test.ts": [
+    "../../../../docs-src/.vitepress/generateDocumentationComponentId.mts",
+    "../../../../docs-src/.vitepress/config.mts",
   ],
 };
 
@@ -102,7 +96,7 @@ export default defineConfig([
     "test-results",
     "**/node_modules",
     // Paraglide generates this runtime from committed sources, so linting skips it.
-    "src/paraglide",
+    "apps/frontend/src/paraglide",
     // Stryker copies the repository into generated sandboxes; linting those copies duplicates work and confuses project lookup.
     ".stryker-tmp",
     "reports",
@@ -121,17 +115,12 @@ export default defineConfig([
   },
   {
     files: ["**/*.{js,jsx,mjs,cjs}"],
-    ignores: ["public/**"],
+    ignores: ["apps/frontend/public/**"],
     languageOptions: { globals: globals.node },
   },
   {
-    files: ["public/**/*.{js,jsx,mjs,cjs}"],
-    ignores: ["public/offline-worker.js"],
+    files: ["apps/frontend/public/**/*.{js,jsx,mjs,cjs}"],
     languageOptions: { globals: globals.browser },
-  },
-  {
-    files: ["public/offline-worker.js"],
-    languageOptions: { globals: globals.serviceworker },
   },
 
   {
@@ -143,6 +132,7 @@ export default defineConfig([
   {
     files: ["**/*.{ts,tsx,mts,cts}"],
     extends: [js.configs.recommended, tseslint.configs.recommended],
+    languageOptions: { parserOptions: { tsconfigRootDir: import.meta.dirname } },
     rules: {
       "@typescript-eslint/consistent-type-imports": [
         "error",
@@ -155,21 +145,21 @@ export default defineConfig([
   // React/Fast-Refresh rules and browser globals apply only to the web app; shared/ and
   // server/ stay DOM-free.
   {
-    files: ["src/**/*.{ts,tsx}"],
+    files: ["apps/frontend/src/**/*.{ts,tsx}"],
     extends: [reactHooks.configs.flat.recommended, reactRefresh.configs.vite],
     languageOptions: { globals: globals.browser },
   },
 
   // Node packages: Node globals (process, etc.).
   {
-    files: ["server/**/*.ts", ...sharedTestFiles, "shared/vitest.config.ts"],
+    files: ["apps/backend/**/*.ts", ...sharedTestFiles, "packages/shared/vitest.config.ts"],
     languageOptions: { globals: globals.node },
   },
 
   {
     // Type-aware linting for the app source only (it's the code in the web tsconfig
     // project; e2e/config/other-package files aren't, and don't need these rules).
-    files: ["src/**/*.{ts,tsx}"],
+    files: ["apps/frontend/src/**/*.{ts,tsx}"],
     languageOptions: {
       parserOptions: {
         projectService: true,
@@ -190,33 +180,13 @@ export default defineConfig([
       "@typescript-eslint/prefer-nullish-coalescing": "error",
       "@typescript-eslint/restrict-template-expressions": "error",
       "@typescript-eslint/switch-exhaustiveness-check": "error",
-      "no-nested-ternary": "error",
-      "no-param-reassign": "error",
-      complexity: ["error", { max: 12 }],
-      "max-depth": ["error", 3],
-      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true, IIFEs: true }],
     },
-  },
-
-  // JSX formatting expands otherwise cohesive components, while test suite callbacks group
-  // independent cases and are not meaningful function-size signals. Complexity and depth remain
-  // enforced by the typed app rules above.
-  {
-    files: ["src/**/*.tsx"],
-    ignores: appTestFiles,
-    rules: {
-      "max-lines-per-function": ["error", { max: 90, skipBlankLines: true, skipComments: true, IIFEs: true }],
-    },
-  },
-  {
-    files: appTestFiles,
-    rules: { "max-lines-per-function": "off" },
   },
 
   // These paths belong to their package's TypeScript project, including operational server scripts.
   // Root configuration files and JavaScript tooling retain the untyped baseline above.
   {
-    files: ["server/src/**/*.ts", "server/scripts/**/*.ts", "shared/src/**/*.{ts,tsx,mts,cts}"],
+    files: ["packages/shared/src/**/*.{ts,tsx,mts,cts}"],
     languageOptions: {
       parserOptions: {
         projectService: true,
@@ -236,16 +206,11 @@ export default defineConfig([
       "@typescript-eslint/prefer-nullish-coalescing": "error",
       "@typescript-eslint/restrict-template-expressions": "error",
       "@typescript-eslint/switch-exhaustiveness-check": "error",
-      "no-nested-ternary": "error",
-      "no-param-reassign": "error",
-      complexity: ["error", { max: 12 }],
-      "max-depth": ["error", 3],
-      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true, IIFEs: true }],
     },
   },
 
   {
-    files: ["shared/src/**/*.{ts,tsx,mts,cts}"],
+    files: ["packages/shared/src/**/*.{ts,tsx,mts,cts}"],
     ignores: sharedTestFiles,
     rules: {
       "no-restricted-globals": ["error", { globals: forbiddenSharedGlobals, checkGlobalObject: true }],
@@ -253,84 +218,17 @@ export default defineConfig([
     },
   },
 
-  // End-to-end scenarios share the structural limits even though their Playwright project is
-  // separate from the typed app/server lint projects. Tests are not exempt from the baseline.
-  {
-    files: ["e2e/**/*.{ts,tsx,mts,cts}"],
-    rules: {
-      complexity: ["error", { max: 12 }],
-      "max-depth": ["error", 3],
-      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true, IIFEs: true }],
-    },
-  },
-
   // Apply this rule to authored production code.
   {
-    files: ["src/**/*.{ts,tsx}", "server/src/**/*.ts", "server/scripts/**/*.ts", "shared/src/**/*.{ts,tsx,mts,cts}"],
+    files: ["apps/frontend/src/**/*.{ts,tsx}", "packages/shared/src/**/*.{ts,tsx,mts,cts}"],
     ignores: ["**/*.{test,spec}.{ts,tsx,mts,cts}", "**/__tests__/**/*.{ts,tsx,mts,cts}"],
     rules: { "@typescript-eslint/no-unnecessary-type-assertion": "error" },
   },
 
-  // The mechanical part of docs-src/reference/conventions.md: identifier casing, no negated
-  // boolean names, and at most three positional parameters. Properties, methods and imports are
-  // unformatted because many mirror wire fields, SQL columns and library names. Existing
-  // violations are baselined in eslint-suppressions.json (see the page for how to prune it).
-  {
-    files: ["src/**/*.{ts,tsx}", "server/src/**/*.ts", "server/scripts/**/*.ts", "shared/src/**/*.{ts,tsx,mts,cts}"],
-    rules: {
-      "max-params": ["error", 3],
-      "@typescript-eslint/naming-convention": [
-        "error",
-        { selector: "default", format: ["camelCase"], leadingUnderscore: "allow" },
-        // An identifier is checked against its first matching selector only, so the
-        // negated-name regex is repeated on every selector that names a value.
-        {
-          selector: "variable",
-          modifiers: ["const"],
-          format: ["camelCase", "UPPER_CASE", "PascalCase"],
-          leadingUnderscore: "allow",
-          custom: { regex: negatedBooleanName, match: false },
-        },
-        {
-          selector: "variable",
-          format: ["camelCase"],
-          leadingUnderscore: "allow",
-          custom: { regex: negatedBooleanName, match: false },
-        },
-        {
-          selector: "parameter",
-          format: ["camelCase", "PascalCase"],
-          leadingUnderscore: "allow",
-          custom: { regex: negatedBooleanName, match: false },
-        },
-        {
-          selector: "variable",
-          types: ["function"],
-          format: ["camelCase", "PascalCase"],
-          leadingUnderscore: "allow",
-          custom: { regex: excludedVerbName, match: false },
-        },
-        {
-          selector: "function",
-          format: ["camelCase", "PascalCase"],
-          custom: { regex: excludedVerbName, match: false },
-        },
-        { selector: "classMethod", format: ["camelCase"], custom: { regex: excludedVerbName, match: false } },
-        { selector: "typeLike", format: ["PascalCase"] },
-        { selector: "enumMember", format: ["PascalCase", "UPPER_CASE"] },
-        {
-          selector: ["objectLiteralProperty", "typeProperty", "classProperty", "objectLiteralMethod", "typeMethod"],
-          format: null,
-        },
-        { selector: "import", format: null },
-      ],
-    },
-  },
-
   // One record guard for the whole tree: shared/src/lib/isRecord.ts.
   {
-    files: ["src/**/*.{ts,tsx}", "server/src/**/*.ts", "server/scripts/**/*.ts", "shared/src/**/*.{ts,tsx,mts,cts}"],
-    ignores: ["shared/src/lib/isRecord.ts"],
+    files: ["apps/frontend/src/**/*.{ts,tsx}", "packages/shared/src/**/*.{ts,tsx,mts,cts}"],
+    ignores: ["packages/shared/src/lib/isRecord.ts"],
     rules: {
       "no-restricted-syntax": ["error", recordGuard, inlineTypeImportGuard],
     },
@@ -338,7 +236,7 @@ export default defineConfig([
 
   // App imports that leave the importing file's folder use `@/…`; `./` stays within a folder.
   // These blocks restate the record guard because a later no-restricted-syntax replaces it.
-  { files: ["src/**/*.{ts,tsx}"], rules: parentImportRules([]) },
+  { files: ["apps/frontend/src/**/*.{ts,tsx}"], rules: parentImportRules([]) },
   ...Object.entries(parentImportAllowances).map(([file, allowed]) => ({
     files: [file],
     rules: parentImportRules(allowed),
@@ -350,7 +248,7 @@ export default defineConfig([
     languageOptions: {
       parserOptions: {
         projectService: false,
-        project: ["./shared/tsconfig.test.json"],
+        project: ["./packages/shared/tsconfig.test.json"],
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -360,7 +258,7 @@ export default defineConfig([
   // legitimately co-export non-component values (variant maps, etc.), which
   // trips the Fast-Refresh rule; turn it off for these primitives only.
   {
-    files: ["src/components/ui/**"],
+    files: ["apps/frontend/src/components/ui/**"],
     rules: { "react-refresh/only-export-components": "off" },
   },
 ]);

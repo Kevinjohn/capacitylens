@@ -20,8 +20,8 @@ join, imports data, transfers ownership or deletes the company.
 ![Team & access identifying the Editor role and its restrictions](../screenshots/flows/editor_access_current.jpg)
 
 Open **Team & access** near the bottom of the menu and check your role. If it says Viewer, ask an
-Owner or Admin for Editor access. If you belong to several companies, use **Switch company** to
-choose the plan you mean to change; your role can differ in each.
+Owner or Admin for Editor access. If the installation reports more than one stored company, ask
+the installer to resolve it before continuing.
 
 Signing in alone doesn't make you a member: follow [Join your team](/using/join-your-team) with
 the address you were invited on. Being on the schedule doesn't give someone a sign-in, either.
@@ -117,10 +117,3 @@ was saved. [Day-to-day FAQ](/using/faq) covers connection messages.
 ### Why do I see a code name instead of a client's name?
 
 Only the Owner sees confidential real names, whatever your role. Use the code name.
-
-<span id="i-am-using-an-offline-snapshot"></span>
-
-### Can I make changes from an offline snapshot?
-
-The snapshot is read-only, even for an Editor. Edits are never queued for later. Reconnect before
-changing work. [Offline access](/using/settings#offline-access) explains the seven-day limit.

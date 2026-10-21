@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "migrations": [
+    {
+      "name": "database/migrations/202610120001_create_capacitylens_baseline",
+      "sha256": "8d6b80a9a4f2b4d647a0d6f89076b3193b4aa7fa4ea7f74ce45d86f90bda67c9"
+    },
+    {
+      "name": "database/migrations/202610120002_create_tenant_integrity_triggers",
+      "sha256": "9ac8a935b12227aa76cb20d527e2a8174df0dea86f260772c287a0dc0892af37"
+    },
+    {
+      "name": "database/migrations/202610120003_create_sync_ordering",
+      "sha256": "8112a3b0d26cd59fcfb460f34e8debcfc4b5313181f4112a48ee533dae429ab5"
+    },
+    {
+      "name": "database/migrations/202610130001_create_data_controls",
+      "sha256": "2d325d14c79ca3894f9466ae3575904c0d6ef37f16e75fbf050ab3ef2fd6fb8e"
+    },
+    {
+      "name": "database/migrations/202610130002_retain_company_deletion_audit",
+      "sha256": "3767010e37d86952b068dfb94b202f331055996d85afdf1868969f40c38ba4fb"
+    },
+    {
+      "name": "database/migrations/202610150001_create_native_auth_storage",
+      "sha256": "4d0ee3e11ffcb630f35230d8f6d68d2ffc8414a2ebfb7a542a8781c876201daf"
+    },
+    {
+      "name": "database/migrations/202610150002_add_masquerade_projection_storage",
+      "sha256": "e6c065bdb8acead0391bd535c399e0123173f6150455acd431e15834a2aef928"
+    },
+    {
+      "name": "database/migrations/202610160001_align_account_kit_tokens",
+      "sha256": "b1a8691ce800ef46539b0b0d81ff5895d6cb9bdb1eaabb0ea865d6de9d685bc6"
+    },
+    {
+      "name": "database/migrations/202610190001_create_login_link_tokens",
+      "sha256": "d5d4237038220cb325b6386bd9fa5f639417e216e741624bb65f45ff9a18a11b"
+    },
+    {
+      "name": "database/migrations/202610200001_create_planning_revision",
+      "sha256": "cb7505df4d90ed56066cc818cb49d79a5cb76e382804573925a111332adba816"
+    }
+  ]
+}

@@ -18,9 +18,8 @@ company settings needs the Editor role or above.
 
 ![Team & access showing the Viewer role and its limits](../screenshots/flows/viewer_access_current.jpg)
 
-Open **Team & access** near the bottom of the menu to see your company and role. If you belong to
-several companies, use **Switch company** to choose one. Ask an Owner or Admin if a company is
-missing or you need a different role.
+Open **Team & access** near the bottom of the menu to see your company and role. If you need a
+different role or cannot access the company, ask an Owner or Admin.
 
 Signing in alone doesn't admit you to a company: you need the invitation or joining link.
 [Join your team](/using/join-your-team) covers both.
@@ -88,8 +87,8 @@ plan if it is still missing.
 Your company decides who opens Overview. Diagnostics is for Owners and Admins only. Ask an Admin to
 check capacity or collect a support report.
 
-### What if the page can't load or shows an offline banner?
+### What if the page can't load?
 
-Use the retry or recovery control offered. An offline snapshot is read-only, expires after seven
-days and may be older than the live plan. Reconnect before relying on a recent change.
+Reconnect and use the retry or recovery control offered. The company schedule needs a server
+connection; CapacityLens never substitutes a saved browser snapshot.
 [Day-to-day FAQ](/using/faq) covers more interruptions.

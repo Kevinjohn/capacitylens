@@ -1,0 +1,1131 @@
+{
+  "sourceRevision": "3cd9d94aeb5e11cc1ac8a3eddb038042862dfd9b",
+  "responses": [
+    {
+      "method": "POST",
+      "path": "/api/test/reset",
+      "status": 200,
+      "headers": {
+        "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "access-control-expose-headers": "x-capacitylens-audit-warning",
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "content-length": "11"
+      },
+      "body": {
+        "ok": true
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/accounts",
+      "status": 409,
+      "headers": {
+        "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "access-control-expose-headers": "x-capacitylens-audit-warning",
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "content-length": "118"
+      },
+      "body": {
+        "error": "This installation has more than one company. Contact the administrator to resolve it."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/state",
+      "status": 200,
+      "headers": {
+        "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "access-control-expose-headers": "x-capacitylens-audit-warning",
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "content-length": "9126"
+      },
+      "body": {
+        "accounts": [
+          {
+            "id": "a-studio",
+            "name": "Wayne Enterprises",
+            "color": "#2d75da",
+            "workingDays": [1, 2, 3, 4, 5],
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "a-loft",
+            "name": "Stark Industries",
+            "color": "#2d75da",
+            "workingDays": [1, 2, 3, 4, 5],
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "disciplines": [
+          {
+            "id": "d-design",
+            "accountId": "a-studio",
+            "name": "Design",
+            "color": "#2d75da",
+            "sortOrder": 0,
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "d-dev",
+            "accountId": "a-studio",
+            "name": "Development",
+            "color": "#3ace6b",
+            "sortOrder": 1,
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "d-copy",
+            "accountId": "a-studio",
+            "name": "Copywriting",
+            "color": "#ed841b",
+            "sortOrder": 2,
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "d-loft-design",
+            "accountId": "a-loft",
+            "name": "Design",
+            "color": "#2d75da",
+            "sortOrder": 0,
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "resources": [
+          {
+            "id": "r-tyler",
+            "accountId": "a-studio",
+            "kind": "person",
+            "name": "Bruce Wayne",
+            "role": "Designer",
+            "disciplineId": "d-design",
+            "employmentType": "permanent",
+            "engagement": "studio",
+            "workingHoursPerDay": 8,
+            "workingDays": [1, 2, 3, 4, 5],
+            "halfDays": [],
+            "color": "#2d75da",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "r-pam",
+            "accountId": "a-studio",
+            "kind": "person",
+            "name": "Diana Prince",
+            "role": "PR & Brand",
+            "disciplineId": "d-copy",
+            "employmentType": "permanent",
+            "engagement": "studio",
+            "workingHoursPerDay": 8,
+            "workingDays": [1, 2, 3, 4, 5],
+            "halfDays": [],
+            "color": "#ed841b",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "r-nike",
+            "accountId": "a-studio",
+            "kind": "person",
+            "name": "Clark Kent",
+            "role": "Web Developer",
+            "disciplineId": "d-dev",
+            "employmentType": "permanent",
+            "engagement": "studio",
+            "workingHoursPerDay": 8,
+            "workingDays": [1, 2, 3, 4, 5],
+            "halfDays": [],
+            "color": "#3ace6b",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "r-alex",
+            "accountId": "a-studio",
+            "kind": "person",
+            "name": "Barry Allen",
+            "role": "Front End (freelance)",
+            "disciplineId": "d-dev",
+            "employmentType": "freelancer",
+            "engagement": "studio",
+            "workingHoursPerDay": 8,
+            "workingDays": [1, 2, 3],
+            "halfDays": [],
+            "color": "#2d75da",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "r-ph-designer",
+            "accountId": "a-studio",
+            "kind": "placeholder",
+            "role": "Senior Designer",
+            "disciplineId": "d-design",
+            "employmentType": "permanent",
+            "engagement": "studio",
+            "workingHoursPerDay": 8,
+            "workingDays": [1, 2, 3, 4, 5],
+            "halfDays": [],
+            "projectId": "p-acme",
+            "color": "#2d75da",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "r-ext-northstar",
+            "accountId": "a-studio",
+            "kind": "external",
+            "name": "Kord Industries",
+            "role": "Partner studio",
+            "employmentType": "permanent",
+            "engagement": "studio",
+            "workingHoursPerDay": 8,
+            "workingDays": [1, 2, 3, 4, 5],
+            "halfDays": [],
+            "color": "#9ca3af",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "r-jo",
+            "accountId": "a-loft",
+            "kind": "person",
+            "name": "Steve Rogers",
+            "role": "Product Designer",
+            "disciplineId": "d-loft-design",
+            "employmentType": "permanent",
+            "engagement": "studio",
+            "workingHoursPerDay": 8,
+            "workingDays": [1, 2, 3, 4, 5],
+            "halfDays": [],
+            "color": "#2d75da",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "clients": [
+          {
+            "id": "c-internal-studio",
+            "accountId": "a-studio",
+            "name": "Internal",
+            "color": "#2d75da",
+            "builtin": true,
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "c-internal-loft",
+            "accountId": "a-loft",
+            "name": "Internal",
+            "color": "#2d75da",
+            "builtin": true,
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "c-acme",
+            "accountId": "a-studio",
+            "name": "Queen Consolidated",
+            "color": "#e02727",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "c-globex",
+            "accountId": "a-studio",
+            "name": "LexCorp",
+            "color": "#2d75da",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "c-loft-northwind",
+            "accountId": "a-loft",
+            "name": "Rand Corporation",
+            "color": "#34c7d4",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "projects": [
+          {
+            "id": "p-acme",
+            "accountId": "a-studio",
+            "name": "Project Watchtower",
+            "clientId": "c-acme",
+            "color": "#da2d92",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "p-brand",
+            "accountId": "a-studio",
+            "name": "Metropolis Rebrand",
+            "clientId": "c-globex",
+            "color": "#34c7d4",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "p-loft-app",
+            "accountId": "a-loft",
+            "name": "Rand Mobile App",
+            "clientId": "c-loft-northwind",
+            "color": "#2d75da",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "phases": [
+          {
+            "id": "ph-disc",
+            "accountId": "a-studio",
+            "name": "Discovery",
+            "projectId": "p-acme",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "ph-build",
+            "accountId": "a-studio",
+            "name": "Build",
+            "projectId": "p-acme",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "activities": [
+          {
+            "id": "t-wires",
+            "accountId": "a-studio",
+            "name": "Wireframes",
+            "kind": "project",
+            "projectId": "p-acme",
+            "phaseId": "ph-disc",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "t-visual",
+            "accountId": "a-studio",
+            "name": "Visual Design",
+            "kind": "project",
+            "projectId": "p-acme",
+            "phaseId": "ph-build",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "t-cms",
+            "accountId": "a-studio",
+            "name": "CMS Review",
+            "kind": "project",
+            "projectId": "p-acme",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "t-brand",
+            "accountId": "a-studio",
+            "name": "Brand System",
+            "kind": "project",
+            "projectId": "p-brand",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "t-admin",
+            "accountId": "a-studio",
+            "name": "Admin / Internal",
+            "kind": "internal",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "t-design",
+            "accountId": "a-studio",
+            "name": "Design",
+            "kind": "repeatable",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "t-workshop",
+            "accountId": "a-studio",
+            "name": "Workshop",
+            "kind": "repeatable",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "t-loft-screens",
+            "accountId": "a-loft",
+            "name": "App Screens",
+            "kind": "project",
+            "projectId": "p-loft-app",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "allocations": [
+          {
+            "id": "a-tyler-1",
+            "accountId": "a-studio",
+            "resourceId": "r-tyler",
+            "activityId": "t-wires",
+            "startDate": "2026-06-01",
+            "endDate": "2026-06-04",
+            "hoursPerDay": 8,
+            "status": "confirmed",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "a-tyler-2",
+            "accountId": "a-studio",
+            "resourceId": "r-tyler",
+            "activityId": "t-visual",
+            "startDate": "2026-06-03",
+            "endDate": "2026-06-08",
+            "hoursPerDay": 4,
+            "status": "tentative",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "a-nike-1",
+            "accountId": "a-studio",
+            "resourceId": "r-nike",
+            "activityId": "t-cms",
+            "startDate": "2026-06-01",
+            "endDate": "2026-06-05",
+            "hoursPerDay": 8,
+            "status": "confirmed",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "a-alex-1",
+            "accountId": "a-studio",
+            "resourceId": "r-alex",
+            "activityId": "t-cms",
+            "startDate": "2026-06-01",
+            "endDate": "2026-06-03",
+            "hoursPerDay": 8,
+            "status": "confirmed",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "a-ph-1",
+            "accountId": "a-studio",
+            "resourceId": "r-ph-designer",
+            "activityId": "t-visual",
+            "startDate": "2026-06-02",
+            "endDate": "2026-06-05",
+            "hoursPerDay": 8,
+            "status": "confirmed",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "a-ext-1",
+            "accountId": "a-studio",
+            "resourceId": "r-ext-northstar",
+            "activityId": "t-visual",
+            "startDate": "2026-06-02",
+            "endDate": "2026-06-09",
+            "hoursPerDay": 0,
+            "status": "confirmed",
+            "ignoreWeekends": true,
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "a-pam-1",
+            "accountId": "a-studio",
+            "resourceId": "r-pam",
+            "activityId": "t-brand",
+            "startDate": "2026-06-01",
+            "endDate": "2026-06-09",
+            "hoursPerDay": 6,
+            "status": "confirmed",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "a-alex-design",
+            "accountId": "a-studio",
+            "resourceId": "r-alex",
+            "activityId": "t-design",
+            "startDate": "2026-06-08",
+            "endDate": "2026-06-10",
+            "hoursPerDay": 8,
+            "status": "confirmed",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "a-jo-1",
+            "accountId": "a-loft",
+            "resourceId": "r-jo",
+            "activityId": "t-loft-screens",
+            "startDate": "2026-06-01",
+            "endDate": "2026-06-05",
+            "hoursPerDay": 8,
+            "status": "confirmed",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "timeOff": [
+          {
+            "id": "to-tyler",
+            "accountId": "a-studio",
+            "resourceId": "r-tyler",
+            "startDate": "2026-06-10",
+            "endDate": "2026-06-12",
+            "type": "holiday",
+            "note": "Long weekend",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "closures": []
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/state?accountId=a-studio",
+      "status": 200,
+      "headers": {
+        "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "access-control-expose-headers": "x-capacitylens-audit-warning",
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "content-length": "7480"
+      },
+      "body": {
+        "accounts": [
+          {
+            "id": "a-studio",
+            "name": "Wayne Enterprises",
+            "color": "#2d75da",
+            "workingDays": [1, 2, 3, 4, 5],
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "disciplines": [
+          {
+            "id": "d-design",
+            "accountId": "a-studio",
+            "name": "Design",
+            "color": "#2d75da",
+            "sortOrder": 0,
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "d-dev",
+            "accountId": "a-studio",
+            "name": "Development",
+            "color": "#3ace6b",
+            "sortOrder": 1,
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "d-copy",
+            "accountId": "a-studio",
+            "name": "Copywriting",
+            "color": "#ed841b",
+            "sortOrder": 2,
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "resources": [
+          {
+            "id": "r-tyler",
+            "accountId": "a-studio",
+            "kind": "person",
+            "name": "Bruce Wayne",
+            "role": "Designer",
+            "disciplineId": "d-design",
+            "employmentType": "permanent",
+            "engagement": "studio",
+            "workingHoursPerDay": 8,
+            "workingDays": [1, 2, 3, 4, 5],
+            "halfDays": [],
+            "color": "#2d75da",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "r-pam",
+            "accountId": "a-studio",
+            "kind": "person",
+            "name": "Diana Prince",
+            "role": "PR & Brand",
+            "disciplineId": "d-copy",
+            "employmentType": "permanent",
+            "engagement": "studio",
+            "workingHoursPerDay": 8,
+            "workingDays": [1, 2, 3, 4, 5],
+            "halfDays": [],
+            "color": "#ed841b",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "r-nike",
+            "accountId": "a-studio",
+            "kind": "person",
+            "name": "Clark Kent",
+            "role": "Web Developer",
+            "disciplineId": "d-dev",
+            "employmentType": "permanent",
+            "engagement": "studio",
+            "workingHoursPerDay": 8,
+            "workingDays": [1, 2, 3, 4, 5],
+            "halfDays": [],
+            "color": "#3ace6b",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "r-alex",
+            "accountId": "a-studio",
+            "kind": "person",
+            "name": "Barry Allen",
+            "role": "Front End (freelance)",
+            "disciplineId": "d-dev",
+            "employmentType": "freelancer",
+            "engagement": "studio",
+            "workingHoursPerDay": 8,
+            "workingDays": [1, 2, 3],
+            "halfDays": [],
+            "color": "#2d75da",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "r-ph-designer",
+            "accountId": "a-studio",
+            "kind": "placeholder",
+            "role": "Senior Designer",
+            "disciplineId": "d-design",
+            "employmentType": "permanent",
+            "engagement": "studio",
+            "workingHoursPerDay": 8,
+            "workingDays": [1, 2, 3, 4, 5],
+            "halfDays": [],
+            "projectId": "p-acme",
+            "color": "#2d75da",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "r-ext-northstar",
+            "accountId": "a-studio",
+            "kind": "external",
+            "name": "Kord Industries",
+            "role": "Partner studio",
+            "employmentType": "permanent",
+            "engagement": "studio",
+            "workingHoursPerDay": 8,
+            "workingDays": [1, 2, 3, 4, 5],
+            "halfDays": [],
+            "color": "#9ca3af",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "clients": [
+          {
+            "id": "c-internal-studio",
+            "accountId": "a-studio",
+            "name": "Internal",
+            "color": "#2d75da",
+            "builtin": true,
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "c-acme",
+            "accountId": "a-studio",
+            "name": "Queen Consolidated",
+            "color": "#e02727",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "c-globex",
+            "accountId": "a-studio",
+            "name": "LexCorp",
+            "color": "#2d75da",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "projects": [
+          {
+            "id": "p-acme",
+            "accountId": "a-studio",
+            "name": "Project Watchtower",
+            "clientId": "c-acme",
+            "color": "#da2d92",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "p-brand",
+            "accountId": "a-studio",
+            "name": "Metropolis Rebrand",
+            "clientId": "c-globex",
+            "color": "#34c7d4",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "phases": [
+          {
+            "id": "ph-disc",
+            "accountId": "a-studio",
+            "name": "Discovery",
+            "projectId": "p-acme",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "ph-build",
+            "accountId": "a-studio",
+            "name": "Build",
+            "projectId": "p-acme",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "activities": [
+          {
+            "id": "t-wires",
+            "accountId": "a-studio",
+            "name": "Wireframes",
+            "kind": "project",
+            "projectId": "p-acme",
+            "phaseId": "ph-disc",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "t-visual",
+            "accountId": "a-studio",
+            "name": "Visual Design",
+            "kind": "project",
+            "projectId": "p-acme",
+            "phaseId": "ph-build",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "t-cms",
+            "accountId": "a-studio",
+            "name": "CMS Review",
+            "kind": "project",
+            "projectId": "p-acme",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "t-brand",
+            "accountId": "a-studio",
+            "name": "Brand System",
+            "kind": "project",
+            "projectId": "p-brand",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "t-admin",
+            "accountId": "a-studio",
+            "name": "Admin / Internal",
+            "kind": "internal",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "t-design",
+            "accountId": "a-studio",
+            "name": "Design",
+            "kind": "repeatable",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "t-workshop",
+            "accountId": "a-studio",
+            "name": "Workshop",
+            "kind": "repeatable",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "allocations": [
+          {
+            "id": "a-tyler-1",
+            "accountId": "a-studio",
+            "resourceId": "r-tyler",
+            "activityId": "t-wires",
+            "startDate": "2026-06-01",
+            "endDate": "2026-06-04",
+            "hoursPerDay": 8,
+            "status": "confirmed",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "a-tyler-2",
+            "accountId": "a-studio",
+            "resourceId": "r-tyler",
+            "activityId": "t-visual",
+            "startDate": "2026-06-03",
+            "endDate": "2026-06-08",
+            "hoursPerDay": 4,
+            "status": "tentative",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "a-nike-1",
+            "accountId": "a-studio",
+            "resourceId": "r-nike",
+            "activityId": "t-cms",
+            "startDate": "2026-06-01",
+            "endDate": "2026-06-05",
+            "hoursPerDay": 8,
+            "status": "confirmed",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "a-alex-1",
+            "accountId": "a-studio",
+            "resourceId": "r-alex",
+            "activityId": "t-cms",
+            "startDate": "2026-06-01",
+            "endDate": "2026-06-03",
+            "hoursPerDay": 8,
+            "status": "confirmed",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "a-ph-1",
+            "accountId": "a-studio",
+            "resourceId": "r-ph-designer",
+            "activityId": "t-visual",
+            "startDate": "2026-06-02",
+            "endDate": "2026-06-05",
+            "hoursPerDay": 8,
+            "status": "confirmed",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "a-ext-1",
+            "accountId": "a-studio",
+            "resourceId": "r-ext-northstar",
+            "activityId": "t-visual",
+            "startDate": "2026-06-02",
+            "endDate": "2026-06-09",
+            "hoursPerDay": 0,
+            "status": "confirmed",
+            "ignoreWeekends": true,
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "a-pam-1",
+            "accountId": "a-studio",
+            "resourceId": "r-pam",
+            "activityId": "t-brand",
+            "startDate": "2026-06-01",
+            "endDate": "2026-06-09",
+            "hoursPerDay": 6,
+            "status": "confirmed",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "a-alex-design",
+            "accountId": "a-studio",
+            "resourceId": "r-alex",
+            "activityId": "t-design",
+            "startDate": "2026-06-08",
+            "endDate": "2026-06-10",
+            "hoursPerDay": 8,
+            "status": "confirmed",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "timeOff": [
+          {
+            "id": "to-tyler",
+            "accountId": "a-studio",
+            "resourceId": "r-tyler",
+            "startDate": "2026-06-10",
+            "endDate": "2026-06-12",
+            "type": "holiday",
+            "note": "Long weekend",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "closures": []
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/state?accountId=a-loft",
+      "status": 200,
+      "headers": {
+        "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "access-control-expose-headers": "x-capacitylens-audit-warning",
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "content-length": "1785"
+      },
+      "body": {
+        "accounts": [
+          {
+            "id": "a-loft",
+            "name": "Stark Industries",
+            "color": "#2d75da",
+            "workingDays": [1, 2, 3, 4, 5],
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "disciplines": [
+          {
+            "id": "d-loft-design",
+            "accountId": "a-loft",
+            "name": "Design",
+            "color": "#2d75da",
+            "sortOrder": 0,
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "resources": [
+          {
+            "id": "r-jo",
+            "accountId": "a-loft",
+            "kind": "person",
+            "name": "Steve Rogers",
+            "role": "Product Designer",
+            "disciplineId": "d-loft-design",
+            "employmentType": "permanent",
+            "engagement": "studio",
+            "workingHoursPerDay": 8,
+            "workingDays": [1, 2, 3, 4, 5],
+            "halfDays": [],
+            "color": "#2d75da",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "clients": [
+          {
+            "id": "c-internal-loft",
+            "accountId": "a-loft",
+            "name": "Internal",
+            "color": "#2d75da",
+            "builtin": true,
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          },
+          {
+            "id": "c-loft-northwind",
+            "accountId": "a-loft",
+            "name": "Rand Corporation",
+            "color": "#34c7d4",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "projects": [
+          {
+            "id": "p-loft-app",
+            "accountId": "a-loft",
+            "name": "Rand Mobile App",
+            "clientId": "c-loft-northwind",
+            "color": "#2d75da",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "phases": [],
+        "activities": [
+          {
+            "id": "t-loft-screens",
+            "accountId": "a-loft",
+            "name": "App Screens",
+            "kind": "project",
+            "projectId": "p-loft-app",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "allocations": [
+          {
+            "id": "a-jo-1",
+            "accountId": "a-loft",
+            "resourceId": "r-jo",
+            "activityId": "t-loft-screens",
+            "startDate": "2026-06-01",
+            "endDate": "2026-06-05",
+            "hoursPerDay": 8,
+            "status": "confirmed",
+            "createdAt": "2026-05-01T00:00:00.000Z",
+            "updatedAt": "2026-05-01T00:00:00.000Z"
+          }
+        ],
+        "timeOff": [],
+        "closures": []
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/meta",
+      "status": 200,
+      "headers": {
+        "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "access-control-expose-headers": "x-capacitylens-audit-warning",
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "content-length": "16"
+      },
+      "body": {
+        "hasData": true
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/diagnostics",
+      "status": 200,
+      "headers": {
+        "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "access-control-expose-headers": "x-capacitylens-audit-warning",
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "content-length": "157"
+      },
+      "body": {
+        "server": {
+          "connectivity": "ok",
+          "database": {
+            "status": "ok",
+            "schemaVersion": 52
+          },
+          "persistence": "unknown",
+          "backup": {
+            "status": "unavailable",
+            "lastSuccessAt": null
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/health",
+      "status": 200,
+      "headers": {
+        "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "access-control-expose-headers": "x-capacitylens-audit-warning",
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "content-length": "11"
+      },
+      "body": {
+        "ok": true
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200,
+      "headers": {
+        "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store"
+      },
+      "body": {
+        "authMode": "off",
+        "user": {
+          "id": "demo",
+          "name": "Demo",
+          "email": "demo@capacitylens.local",
+          "emailVerified": true,
+          "image": null
+        },
+        "providers": [],
+        "canCreateAccount": false
+      }
+    }
+  ]
+}

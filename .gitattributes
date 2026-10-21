@@ -1,1 +1,3 @@
 * text=auto
+# pnpm patches preserve whitespace from removed upstream source lines.
+patches/react-remove-scroll-bar@2.3.8.patch whitespace=-blank-at-eol

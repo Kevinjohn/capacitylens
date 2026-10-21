@@ -1,98 +1,32 @@
-# US-NAV-14 — Company picker gives one clear next step (empty and populated states)
+# US-NAV-14 — Set up and open the installation company
 
-**Area:** Navigation & shell · **Persona:** New owner or invited teammate · **Linked automated coverage:** `src/components/accounts/AccountPicker.test.tsx` (empty-state copy, permission branch, visible membership roles, multi-company copy and no onboarding colour choice), `src/components/AppShell.test.tsx` (single-company reload gate boundaries), `src/components/accounts/AccountPicker.onboarding.test.tsx` (example-data checkbox), `src/components/settings/SettingsDataSection.test.tsx` (Settings example-data action), `server/src/routes/exampleDataRoutes.test.ts` (role and empty-company enforcement), `e2e/onboarding.spec.ts` (create flow), `e2e/onboarding.db.spec.ts` (server permission/cap enforcement), `e2e/navigation.db.spec.ts` (real reload, route preservation and explicit switch)
+**Area:** Navigation & shell · **Persona:** New company Owner or teammate · **Linked automated coverage:** `apps/frontend/src/components/accounts/AccountPicker.test.tsx`, `apps/backend/tests/functional/company_contract_corrections.spec.ts`, `e2e/onboarding.db.spec.ts`, `e2e/scheduler-persistence.auth.spec.ts`
+
+**Documentation:** [Create your company](../../docs-src/owner/create-your-company.md)
 
 ## Goal
 
-Choose an existing company, start a new company, or ask for an invite without the picker making
-contradictory promises about what is possible.
+Set up the installation's first company, then go straight to its schedule without choosing a company each time.
 
 ## Why
 
-The first screen is a decision point, not a status report. When there are no companies, the user
-needs exactly the next steps available to them. When companies already exist, the copy must explain
-that they can plan in one of them or create another when their role and deployment policy allow it.
-Company creation should capture only decisions that matter to the calendar; the default company
-colour is automatic, so onboarding does not create an unnecessary design task.
+Small agencies need a direct path from installation setup to planning. Keeping the production company decision on the server avoids confusing company-switching controls while preserving company-scoped authorization for every request. The in-memory demo remains a separate, temporary way to explore multiple fictional companies.
 
 ## How (end-to-end)
 
-**Empty picker, caller may create:**
-
-1. Start from a clean device state and complete the demo sign-in if it appears.
-2. With no companies, confirm its mandatory create form appears automatically under an accessible
-   **Set up your company** page name. The page name is not repeated as a visible heading. There is
-   no preliminary choice or Cancel action.
-3. Confirm the form asks for **Company name**, week start, a searchable timezone combobox
-   preselected to the browser's IANA zone, and a Language select containing only **English**; it
-   does **not** ask the user to choose a company colour or repeat fixed-settings guidance.
-4. Create the company and confirm it becomes active and opens the schedule.
-
-**Empty picker, caller cannot create:**
-
-5. On an auth-backed empty instance, sign in as a caller without create permission. Confirm the
-   invite step remains, while **New company** is absent and the copy does not promise creation.
-
-**Populated picker:**
-
-6. Return to a picker with at least one company. Confirm the subtitle reads
-   **“Choose a company to plan, or create another one.”** only when another company may be created;
-   otherwise it reads **“Choose a company to plan.”**
-7. In an authenticated deploy, confirm every company shows the caller's membership role — **Owner**,
-   **Admin**, **Editor** or **Viewer** — before it is opened. The demo instead says **Demo access**;
-   an auth-off persisted server says **Open access**.
-8. On first entry, keep the picker visible. Open the only valid company, navigate to another route,
-   then reload: confirm the same route resumes without another choice. Use **Switch company** and
-   confirm that explicit action keeps the picker visible.
-9. If the selected company cannot be loaded, confirm its recovery screen hides the previous
-   company's data and offers **Retry** or **Choose another company**. See [Settings](../../docs-src/using/settings.md#your-personal-account).
-
-**Example data (server-backed deploys):**
-
-10. On the create form for a first company, confirm **Start with example data** is ticked. Create
-    the company and confirm the schedule opens with two people, a project and bookings across this
-    week and next. Tick or untick the box and confirm a later company's form starts unticked.
-11. In an empty company, open **Settings, Example data** as an Owner or Admin and choose **Add
-    example data**; the same set appears and the row disappears. Confirm the row is absent once the
-    company has any person, client, project or allocation, and for an Editor or Viewer. See
-    [Set up your company](../../docs-src/owner/index.md).
+1. On an empty server installation, complete the supported first-Owner setup and open **Set up your company**.
+2. Enter the company name, week start, timezone and language. On a server deployment, choose whether to add example data.
+3. Create the company and confirm it opens on Schedule.
+4. Reload the page and sign in again if prompted. The server's company summary opens the same company and preserves the requested route.
+5. Confirm the production interface has no company picker or switch-company action. If the server reports more than one stored company, the app explains that an administrator must resolve the installation; it never offers a choice.
+6. In the in-memory demo, sign in and use its picker to switch between the fictional companies. Demo data remains temporary.
 
 ## Acceptance criteria
 
-- ✅ The empty, create-allowed state exposes **Set up your company** as its accessible page name and
-  shows the mandatory company-create form immediately, without repeating that name as a visible
-  heading or offering a preliminary **New company** choice or Cancel action.
-- ✅ The empty, create-forbidden state shows only the invite step and says the user should ask an
-  admin; it does not render a disabled or hidden-behind-copy create promise.
-- ✅ The populated state uses **“Choose a company to plan, or create another one.”** only when
-  `canCreateAccount` is true; at the single-company cap it uses **“Choose a company to plan.”** and
-  hides **New company**.
-- ✅ Every populated company row shows its honest access posture (`data-testid="company-role"`): a
-  membership role only in authenticated mode, **Demo access** in the in-memory demo, or **Open
-  access** on an auth-off persisted server.
-- ✅ The create form captures Company name, Week starts on, Timezone and a one-option Language
-  select (English) with concise labels and controls; redundant per-field explanations are omitted
-  while validation and error messaging remain available. The shared settings are submitted with the
-  same defaults as before.
-  The three calendar choices cannot be changed later, then the form activates the created company
-  and lands on Schedule.
-- ✅ When first-company creation is the caller's only next step, the form appears immediately, has
-  no **New company** subheading or Cancel action, and keeps the outer **Set up your company** heading
-  as the valid hierarchy. Creating another company still begins from **New company**, keeps that
-  card heading, and can be cancelled.
-- ✅ The timezone combobox is keyboard accessible, searchable by IANA identifier or friendly name,
-  keeps the detected local and common zones first, and returns focus to its trigger after selection.
-- ✅ The create form has no company-colour control; the account receives the default preset
-  automatically.
-- ✅ A server-side permission/cap refusal remains enforced even if the UI affordance is bypassed.
-- ✅ A browser reload auto-opens exactly one valid company without persisting `activeAccountId` or
-  navigating away from the requested route.
-- ✅ First entry, explicit switching, multiple companies, no companies, unavailable membership and
-  invite handoff continue through their existing safe picker/handoff boundaries.
-- ✅ Example data is optional and added as ordinary rows (two people, a client, a project, one phase,
-  bookings across this week and next, one time-off entry). Only an Owner or Admin can add it, only to
-  a company with no people, clients, projects or allocations; the server enforces both, and a
-  second attempt is refused. If adding fails after the company was created, the error is shown and
-  the company stays usable with the Settings action still available. Keeping the box ticked also completes the Getting Started checklist, an accepted consequence of adding the rows.
-- ✅ A failed company load shows recovery instead of another company's data; Retry keeps the
-  selection, while Choose another company returns to the picker.
+- ✅ First-company setup remains available through the existing supported setup path and creates the company, built-in Internal client and Owner membership atomically.
+- ✅ Once a company exists, ordinary company creation is refused by both company routes and generic batch writes.
+- ✅ Production asks the server for the installation company. Exactly one accessible company opens automatically; zero companies retain the supported setup or invite entry; multiple stored companies fail closed with an actionable error and no company list.
+- ✅ Production never renders company selection, switching or additional-company creation controls, including during loading and recovery states.
+- ✅ The active company id remains session-only. Existing account-scoped APIs continue to authorize requested ids from server-side membership; an id alone grants no authority.
+- ✅ The demo keeps its volatile multi-company picker and switching behavior.
+- ✅ Member and resource links continue to attach members to scheduled resources within their company.

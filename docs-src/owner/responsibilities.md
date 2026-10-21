@@ -43,33 +43,14 @@ that meets the policy, or an invitation to their email.
 
 ## Transfer ownership
 
-Nothing changes until all three steps are complete.
+Only the current Owner can transfer ownership. In **Team & access → Company ownership**, select
+**Manage ownership**, then choose an active, unrestricted Admin from **Next Owner**. Select
+**Transfer ownership** and review the confirmation: the selected Admin becomes Owner and you become
+Admin. Confirm with a recent sign-in.
 
-<div class="steps">
-
-1. ![Team & access showing Company ownership, Next Owner and Start transfer](../screenshots/flows/owner_transfer_nomination.jpg)
-
-   **Nominate an Admin.** In **Team & access → Company ownership**, select **Manage ownership**,
-   choose an active Admin in **Next Owner** and select **Start transfer**.
-
-2. ![Nominated Admin seeing Agree to become Owner and Decline](../screenshots/flows/admin_transfer_response.jpg)
-
-   **They agree.** The nominee opens **Manage ownership** and selects **Agree to become Owner** or
-   **Decline**. Only they can agree.
-
-3. **You confirm.** Return to **Manage ownership** and select **Confirm the transfer**. You become
-   an Admin; they become the Owner.
-
-</div>
-
-Until you confirm, you can **Cancel the transfer** or nominate another Admin, and the nominee can
-withdraw their agreement. The request expires after seven days, and ends if either person's
-membership changes. **Manage ownership** shows whether a request was declined, cancelled, replaced,
-expired or invalidated. If it cannot load, select **Try again**.
-
-Both people need a recent sign-in confirmation for their step; viewing the request does not. Only
-the two people involved see the request. If your access cannot refresh after the transfer, follow
-the recovery message before continuing.
+The change takes effect immediately. The selected Admin does not separately sign in to accept or
+consent. Choose carefully: once confirmed, they hold the Owner role and you no longer do. The member
+list and your available company actions refresh to match the new roles.
 
 ## Replace the schedule with an import
 
@@ -83,17 +64,8 @@ destination and file before you confirm. It needs a recent sign-in.
 Deleting the company permanently removes it and all its data for everyone. There is no undo.
 :::
 
-![Delete company confirmation offering Export first and exact-name confirmation](../screenshots/flows/owner_delete_company_confirmation.jpg)
-
-1. Open the company chooser with **Switch company** and select the delete icon on the company's
-   row.
-2. Select **Export first** if you need a copy.
-3. Type the exact company name to enable **Delete**, then select it. Cancel the dialog if you are
-   unsure or need to verify the export.
-
-Deleting needs a recent sign-in. **Switch company** appears only when you can access two or more
-companies. A standard installation holds one company, so there is no **Delete** in the app: export
-a copy, then ask the installer to retire the installation and its data.
+The app does not provide a company chooser or deletion action. Export a copy, then ask the
+installer to retire the installation and its data.
 
 To take away one person's access instead, use [Stop access](/admin/invite-teammates#stop-access).
 

@@ -1,42 +1,48 @@
 # US-INS-01 — Install CapacityLens for one agency
 
-**Area:** Installation · **Persona:** Technical person at a small agency, or a managed host's site owner · **Coverage:** the gate's `release-package-smoke` job (unpacks the release archive, starts it and checks deep health, the web app and the bundled recovery tool), `server/src/cli/init.test.ts`, `server/src/routes/staticWeb.test.ts` and `server/src/boot/productionDefaults.test.ts`; manual for a managed host and a Linux host
+**Area:** Installation · **Persona:** Technical person at a small agency, or a managed host's site owner · **Coverage:** the gate's `packaged` job (Standalone native package; unpacks the native release archive, starts the Adonis service and checks health and the web app), `apps/backend/tests/unit/upgrade_command.spec.ts`, `apps/backend/tests/functional/state/static_fallback.spec.ts` and `apps/backend/tests/unit/native_auth_configuration.spec.ts`; manual for a managed host and a Linux host
 
 **Documentation:** [Install CapacityLens](../../docs-src/self-hosting/install.md)
 
 ## Goal
 
-Run CapacityLens on a host the agency controls, from one downloaded archive, in five steps: two
-values to choose and one command per step.
+Run CapacityLens on a host the agency controls, from one downloaded archive, with private
+configuration, a checked database and an HTTPS address.
 
 ## Why
 
-A small agency has no operations team. If installing means building from source, choosing between
-routes or reading a configuration reference, the person asked to do it gives up or runs a
-half-configured service. An install that is five steps long, the same on every host, and refuses to
-start while a required value is missing is one a generalist can finish and trust.
+A small agency has no operations team. The person installing the service needs a documented
+archive-based procedure that names the required settings and checks the database before anyone
+uses it.
 
 ## How (end-to-end)
 
 **Precondition:** a Linux host with Node 24 on the system path, and a hostname pointing at it.
 
-1. Download the release archive and unpack it.
-2. Pick a folder for the data. The database file is created there on first start.
-3. Run `init` with the public address and the database file. It generates the session secret and
-   the setup token, and prints the environment file or writes it with `--out`, readable only by
-   its owner and never over an existing file.
-4. Start the server: as a background process on a managed host, or as the systemd service from the
-   archive on a Linux host, with HTTPS in front of it.
-5. Open the address. The first-owner screen appears. Enter the setup token from step 3 and create
-   the Owner, then the company.
+1. Download the archive for the host's operating system and architecture, verify its checksum,
+   and unpack it.
+2. Create a dedicated service user and persistent database and backup directories outside the
+   release folder.
+3. Copy the example environment file to a private location. Run `node ace.js generate:key --show`
+   from `backend/` for `APP_KEY`; set the public HTTPS origins, database path and independent
+   random `CAPACITYLENS_SECRET` and `CAPACITYLENS_SETUP_TOKEN` values as the installation guide
+   describes. Keep open access disabled.
+4. Load that environment and run `node ace.js app:upgrade` as the service user from `backend/`.
+   This creates a fresh database or checks and upgrades an existing one. Start the service with
+   the same environment and an HTTPS reverse proxy, then check `/health/ready`.
+5. Open the address, enter the setup token and create the first identity and company. Remove the
+   setup token from the environment and restart the service after setup.
 
 ## Acceptance criteria
 
 - ✅ Nothing is built and no Docker is needed: the archive holds the web app, the server and
   everything it needs.
-- ✅ With any of the three values empty, the server refuses to start and names the missing one.
-- ✅ Once started, `/api/health` reports `"ok":true`, `"db":true`, `"audit":"ok"` and a backup status
-  of `"ok"` (`"pending"` for a moment after the first start).
+- ✅ Missing or invalid required configuration refuses startup and names the setting to correct.
+- ✅ Once started, `/health/live` reports `"ok":true` and `/health/ready` checks the database and
+  accepted migrations. Backup success is checked independently in logs and completed snapshots.
+- ✅ When configured, online snapshots run at startup and every 24 hours. Retention keeps the
+  configured number of completed managed snapshots, excluding upgrade snapshots and unrelated files.
+  A snapshot taken during normal use restores the expected data on an isolated database path.
 - ✅ The address serves the web app and the API from one origin, so a single proxy line in front of
   it is enough.
 - ✅ Sign-in defaults to email and password under production settings without being configured.
