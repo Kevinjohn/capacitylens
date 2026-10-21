@@ -39,17 +39,17 @@
   },
   "dependencies": {
     "@capacitylens/shared": "workspace:*",
-    "@fastify/helmet": "^13.1.1",
-    "@fastify/rate-limit": "^11.2.0",
-    "@fastify/static": "^10.1.5",
-    "better-auth": "1.7.7",
-    "fastify": "^5.12.5",
-    "nodemailer": "^10.0.13"
+    "@fastify/helmet": "^13.1.2",
+    "@fastify/rate-limit": "^11.2.1",
+    "@fastify/static": "^10.1.6",
+    "better-auth": "1.7.10",
+    "fastify": "^5.12.7",
+    "nodemailer": "^10.0.16"
   },
   "devDependencies": {
     "@types/node": "^24.13.6",
     "@types/nodemailer": "^8.0.2",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^4.1.12",
     "esbuild": "0.28.2",
     "tsx": "4.23.15",
     "typescript": "~6.0.2"
