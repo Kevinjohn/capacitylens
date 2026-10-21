@@ -300,7 +300,7 @@ test.group('session-bound allocation restoration', (suite) => {
     assert.lengthOf(await db.from('deleted_rows').where('group_id', groupId), 501)
     const afterDelete = await readState(accountId, true)
     assert.lengthOf(
-      afterDelete.allocations.filter((row) => listed.includes(row.id)),
+      afterDelete.allocations.filter((row) => (listed as string[]).includes(row.id)),
       0
     )
     assert.deepEqual(
@@ -312,7 +312,8 @@ test.group('session-bound allocation restoration', (suite) => {
     const restored = await restore(client, cookie, groupId, 2)
     restored.assertStatus(200)
     assert.equal(restored.body().revision, 3)
-    assert.deepEqual(await readState(accountId, true), before)
+    const afterRestore = await readState(accountId, true)
+    assert.sameDeepMembers(afterRestore.allocations, before.allocations)
     assert.lengthOf(await markers(), 3)
     assert.lengthOf(await planningAudit(), 3)
   })

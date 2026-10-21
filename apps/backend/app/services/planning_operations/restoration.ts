@@ -30,14 +30,16 @@ export async function deleteAllocations(
     created_at: new Date().toISOString(),
     consumed_at: null,
   })
-  await trx.table('deleted_rows').multiInsert(
-    rows.map((row) => ({
-      group_id: groupId,
-      entity: 'allocations',
-      row_id: row.id,
-      payload_json: JSON.stringify(row),
-    }))
-  )
+  // Knex emits one compound SELECT term per row; SQLite allows at most 500 per statement.
+  for (let start = 0; start < rows.length; start += 500)
+    await trx.table('deleted_rows').multiInsert(
+      rows.slice(start, start + 500).map((row) => ({
+        group_id: groupId,
+        entity: 'allocations',
+        row_id: row.id,
+        payload_json: JSON.stringify(row),
+      }))
+    )
   await trx.from('allocations').where('account_id', accountId).whereIn('id', ids).delete()
   return groupId
 }
