@@ -1,6 +1,8 @@
 import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
 import testUtils from '@adonisjs/core/services/test_utils'
+import app from '@adonisjs/core/services/app'
+import { defineConfig } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
 import { hashPassword } from '#services/password_service'
@@ -9,7 +11,6 @@ type Cleanup = (callback: () => void) => void
 type MutableKey =
   | 'CAPACITYLENS_MODE'
   | 'CAPACITYLENS_RATE_LIMIT'
-  | 'CAPACITYLENS_TRUST_PROXY_HEADERS'
   | 'CAPACITYLENS_SECRET'
   | 'CAPACITYLENS_PUBLIC_URL'
 
@@ -20,8 +21,15 @@ function captureEnvironment(cleanup: Cleanup, keys: MutableKey[]) {
   })
 }
 
-function setEnvironment(key: MutableKey, value: string | boolean) {
+function setEnvironment(key: MutableKey, value: string) {
   env.set(key, value)
+}
+
+/** Proxy trust is read once at boot, so tests switch the booted server's setting directly. */
+const httpConfig = () => app.config.get<ReturnType<typeof defineConfig>>('app.http')
+
+function trustProxyHeaders(trusted: boolean) {
+  httpConfig().trustProxy = trusted ? defineConfig({}).trustProxy : () => false
 }
 
 async function requestMetadata(client: ApiClient, forwardedIp?: string) {
@@ -49,6 +57,10 @@ test.group('native auth and API rate limits', (group) => {
   group.setup(() => testUtils.db().migrate())
   group.each.setup(async () => {
     await db.from('rate_limits').delete()
+    const bootedTrust = httpConfig().trustProxy
+    return () => {
+      httpConfig().trustProxy = bootedTrust
+    }
   })
 
   test('configured API limit returns JSON 429 while health stays exempt', async ({
@@ -96,20 +108,16 @@ test.group('native auth and API rate limits', (group) => {
     assert,
     cleanup,
   }) => {
-    captureEnvironment(cleanup, [
-      'CAPACITYLENS_MODE',
-      'CAPACITYLENS_RATE_LIMIT',
-      'CAPACITYLENS_TRUST_PROXY_HEADERS',
-    ])
+    captureEnvironment(cleanup, ['CAPACITYLENS_MODE', 'CAPACITYLENS_RATE_LIMIT'])
     setEnvironment('CAPACITYLENS_MODE', 'off')
     setEnvironment('CAPACITYLENS_RATE_LIMIT', '2')
-    setEnvironment('CAPACITYLENS_TRUST_PROXY_HEADERS', false)
+    trustProxyHeaders(false)
     assert.equal(await responseStatus(requestMetadata(client, '203.0.113.41')), 200)
     assert.equal(await responseStatus(requestMetadata(client, '203.0.113.42')), 200)
     assert.equal(await responseStatus(requestMetadata(client, '203.0.113.43')), 429)
 
     await db.from('rate_limits').delete()
-    setEnvironment('CAPACITYLENS_TRUST_PROXY_HEADERS', true)
+    trustProxyHeaders(true)
     assert.equal(await responseStatus(requestMetadata(client, '203.0.113.41')), 200)
     assert.equal(await responseStatus(requestMetadata(client, '203.0.113.42')), 200)
     assert.equal(await responseStatus(requestMetadata(client, '203.0.113.41')), 200)
@@ -124,13 +132,12 @@ test.group('native auth and API rate limits', (group) => {
     captureEnvironment(cleanup, [
       'CAPACITYLENS_MODE',
       'CAPACITYLENS_RATE_LIMIT',
-      'CAPACITYLENS_TRUST_PROXY_HEADERS',
       'CAPACITYLENS_SECRET',
       'CAPACITYLENS_PUBLIC_URL',
     ])
     setEnvironment('CAPACITYLENS_MODE', 'password-only')
     setEnvironment('CAPACITYLENS_RATE_LIMIT', '0')
-    setEnvironment('CAPACITYLENS_TRUST_PROXY_HEADERS', true)
+    trustProxyHeaders(true)
     setEnvironment('CAPACITYLENS_SECRET', 'n'.repeat(32))
     setEnvironment('CAPACITYLENS_PUBLIC_URL', 'https://capacity.example.test')
 

@@ -63,10 +63,11 @@ completed files separately from database readiness; see [Backups and restore](/s
 ## Network and logging
 
 Set `CAPACITYLENS_TRUST_PROXY_HEADERS=1` only when the application listener is reachable solely
-through a trusted proxy that overwrites forwarded headers. Keep `APP_URL` and
-`CAPACITYLENS_PUBLIC_URL` aligned with the browser-visible address. Set `CAPACITYLENS_HTTPS=1` to make
-the application send an HSTS header; it sends none when unset. The supplied nginx file adds HSTS
-itself, and the Caddy example does not. `CAPACITYLENS_CORS_ORIGIN` is
+through a trusted proxy on the same host that overwrites forwarded headers. The application then
+trusts forwarded client address and scheme headers from loopback connections only. Keep `APP_URL`
+and `CAPACITYLENS_PUBLIC_URL` aligned with the browser-visible address. An HTTPS public URL makes
+the application send a host-only one-year HSTS header and mark its cookies `Secure`; an HTTP public
+URL sends no HSTS and uses plain cookies. The supplied nginx file also adds HSTS itself. `CAPACITYLENS_CORS_ORIGIN` is
 only needed when the browser app and API use different origins.
 
 `CAPACITYLENS_LOG=1` enables routine request-completion logs. Sensitive request/response values are

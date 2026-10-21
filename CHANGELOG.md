@@ -55,6 +55,12 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- The server sends host-only one-year HSTS and `Secure` `__Host-` session cookies whenever
+  `CAPACITYLENS_PUBLIC_URL` is HTTPS; `CAPACITYLENS_HTTPS` is removed. With
+  `CAPACITYLENS_TRUST_PROXY_HEADERS` set, forwarded client address and scheme headers are trusted
+  from loopback connections only, and rate limits key on the nearest untrusted address; otherwise
+  no forwarded header is trusted.
+
 - Native SQLite snapshots run at startup and every 24 hours, retaining the configured number of
   completed managed backups. Manual snapshots use the same retention; pre-upgrade recovery
   snapshots remain separate. Removed interval configuration and the backup health latch.

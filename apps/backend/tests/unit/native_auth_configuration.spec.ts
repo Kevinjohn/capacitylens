@@ -8,7 +8,6 @@ import {
 import ConfigurationProvider from '#providers/configuration_provider'
 import env from '#start/env'
 import { authMode, passwordEnabled } from '#services/auth/mode'
-import { isTrustedUnsafeOrigin } from '#services/cors_policy'
 import { assertPasswordAllowed } from '#services/password_screening'
 import { createHash } from 'node:crypto'
 
@@ -240,26 +239,6 @@ test('production boot refuses reset while non-production boot keeps the test fla
   setEnvironment('CAPACITYLENS_AUDIT', 'off')
   const development = new ConfigurationProvider({ inProduction: false } as never)
   await assert.doesNotReject(() => development.boot())
-})
-
-test('proxy protocol headers affect origin checks only when proxy trust is enabled', ({
-  assert,
-}) => {
-  const request = {
-    origin: 'http://capacity.example.test',
-    host: 'capacity.example.test',
-    protocol: 'https',
-    forwardedProtocol: 'http',
-  }
-  assert.isFalse(isTrustedUnsafeOrigin({ ...request, trustProxy: false }))
-  assert.isTrue(isTrustedUnsafeOrigin({ ...request, trustProxy: true }))
-  assert.isFalse(
-    isTrustedUnsafeOrigin({
-      ...request,
-      host: 'attacker.example.test',
-      trustProxy: true,
-    })
-  )
 })
 
 test('production screens passwords by default and only skips screening after explicit opt-out', async ({
