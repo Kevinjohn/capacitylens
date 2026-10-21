@@ -364,7 +364,7 @@ test.group('session-bound allocation restoration', (suite) => {
       data.allocations.find((row) => row.id === kept)
     )
     assert.deepEqual(await otherAccounts(), othersBefore)
-  }).timeout(60_000)
+  })
 
   test('stale delete and restore revisions return 409 without effects', async ({
     client,
