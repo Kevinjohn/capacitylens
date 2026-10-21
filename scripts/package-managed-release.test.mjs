@@ -2,15 +2,12 @@ import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { arch, platform } from "node:process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import YAML from "yaml";
 
 import {
   addReleaseFiles,
   assertDeploySucceeded,
-  carryBuildPolicy,
   inspectArchiveTree,
   inspectManagedRelease,
   packageManagedRelease,
@@ -24,116 +21,54 @@ const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 
 async function makeRelease(packages = []) {
   const root = await mkdtemp(join(tmpdir(), "capacitylens-release-test-"));
-  await mkdir(join(root, "backend", "public", "assets"), { recursive: true });
-  await mkdir(join(root, "backend", "bin"), { recursive: true });
-  await mkdir(join(root, "backend", "database", "migrations"), { recursive: true });
-  await mkdir(join(root, "backend", "node_modules", ".pnpm"), { recursive: true });
-  await mkdir(join(root, "backend", "node_modules", "@capacitylens", "shared", "dist"), { recursive: true });
-  await mkdir(join(root, "backend", "node_modules", "better-sqlite3", "prebuilds"), { recursive: true });
-  for (const file of [
-    ["public", "index.html"],
-    ["public", "assets", "app.js"],
-    ["bin", "server.js"],
-    ["ace.js"],
-    ["database", "released.json"],
-    ["database", "migrations", "1_initial.js"],
-    ["pnpm-workspace.yaml"],
-    ["node_modules", "@capacitylens", "shared", "dist", "brand.js"],
-    ["node_modules", "better-sqlite3", "prebuilds", `${platform}-${arch}.node`],
-  ]) {
-    await writeFile(join(root, "backend", ...file), "fixture");
+  await mkdir(join(root, "dist"), { recursive: true });
+  await mkdir(join(root, "server", "dist"), { recursive: true });
+  await mkdir(join(root, "server", "node_modules", ".pnpm"), { recursive: true });
+  await mkdir(join(root, "server", "scripts"), { recursive: true });
+  await writeFile(join(root, "dist", "index.html"), "<!doctype html>");
+  for (const file of ["index.mjs", "importWorker.mjs", "reset-owner-password.mjs"]) {
+    await writeFile(join(root, "server", "dist", file), "export {};");
   }
-  await writeFile(
-    join(root, "backend", "database", "released.json"),
-    JSON.stringify({ version: 1, migrations: [{ name: "database/migrations/1_initial", sha256: "abc" }] }),
-  );
+  await writeFile(join(root, "server", "scripts", "check-node.mjs"), "export {};");
   await addReleaseFiles(root, { repositoryRoot, version: "1.2.3", revision: "abc123" });
-  for (const name of packages) {
-    await mkdir(join(root, "backend", "node_modules", ".pnpm", name), { recursive: true });
-  }
+  await Promise.all(
+    packages.map((name) => mkdir(join(root, "server", "node_modules", ".pnpm", name), { recursive: true })),
+  );
   return root;
 }
 
 test("accepts the complete production runtime", async (context) => {
-  const root = await makeRelease(["@adonisjs+core@7.5.2", "better-sqlite3@13.0.3"]);
+  const root = await makeRelease(["better-auth@1.6.30", "fastify@5.12.3"]);
   context.after(() => rm(root, { recursive: true, force: true }));
   const result = await inspectManagedRelease(root, await readDevelopmentPackages(repositoryRoot));
   assert.equal(result.packageCount, 2);
 });
 
-test("carries only the committed approved policy when legacy deploy emits no workspace file", async (context) => {
-  const root = await mkdtemp(join(tmpdir(), "capacitylens-policy-test-"));
+test("rejects development tooling in the production runtime", async (context) => {
+  const root = await makeRelease(["better-auth@1.6.30", "simple-git-hooks@2.14.0"]);
   context.after(() => rm(root, { recursive: true, force: true }));
-  const backend = join(root, "backend");
-  await mkdir(backend);
-  const policy = { "@swc/core": true, "better-sqlite3": true, esbuild: true, "simple-git-hooks": false };
-  await writeFile(
-    join(root, "pnpm-workspace.yaml"),
-    YAML.stringify({
-      packages: ["apps/*"],
-      patchedDependencies: { "sonner@2": "../../outside.patch" },
-      allowBuilds: policy,
-    }),
-  );
-  await carryBuildPolicy(backend, root);
-  const carried = await readFile(join(backend, "pnpm-workspace.yaml"), "utf8");
-  assert.deepEqual(YAML.parse(carried), { allowBuilds: policy });
-  assert.doesNotMatch(carried, /outside|packages:|patchedDependencies:/);
-});
-
-test("refuses missing or invalid committed build-script approvals", async (context) => {
-  const root = await mkdtemp(join(tmpdir(), "capacitylens-invalid-policy-test-"));
-  context.after(() => rm(root, { recursive: true, force: true }));
-  const backend = join(root, "backend");
-  await mkdir(backend);
-  for (const allowBuilds of [undefined, null, {}, [], "esbuild", { esbuild: "true" }]) {
-    await writeFile(join(root, "pnpm-workspace.yaml"), YAML.stringify({ allowBuilds }));
-    await assert.rejects(() => carryBuildPolicy(backend, root), /Committed build-script policy/);
-    await assert.rejects(() => readFile(join(backend, "pnpm-workspace.yaml")), { code: "ENOENT" });
-  }
-});
-
-test("rejects a direct development-tool link in the production runtime", async (context) => {
-  const root = await makeRelease(["@adonisjs+core@7.5.2", "simple-git-hooks@2.14.0"]);
-  context.after(() => rm(root, { recursive: true, force: true }));
-  await symlink(".pnpm/simple-git-hooks@2.14.0", join(root, "backend", "node_modules", "simple-git-hooks"));
   const forbidden = await readDevelopmentPackages(repositoryRoot);
   await assert.rejects(() => inspectManagedRelease(root, forbidden), /simple-git-hooks/);
 });
 
-test("allows transitively installed tooling required by the framework runtime", async (context) => {
+test("rejects transitive tooling from a forbidden scope", async (context) => {
   const root = await makeRelease(["@vitest+runner@4.1.11"]);
   context.after(() => rm(root, { recursive: true, force: true }));
-  await inspectManagedRelease(root, ["@vitest/"]);
+  await assert.rejects(() => inspectManagedRelease(root, ["@vitest/"]), /@vitest\//);
 });
 
-test("rejects a direct scoped development-tool link", async (context) => {
+test("rejects a scoped development package by its store name", async (context) => {
   const root = await makeRelease(["@vitejs+plugin-react@5.0.0"]);
   context.after(() => rm(root, { recursive: true, force: true }));
-  await mkdir(join(root, "backend", "node_modules", "@vitejs"));
-  await symlink(
-    "../.pnpm/@vitejs+plugin-react@5.0.0",
-    join(root, "backend", "node_modules", "@vitejs", "plugin-react"),
-  );
   await assert.rejects(() => inspectManagedRelease(root, ["@vitejs/plugin-react"]), /@vitejs\/plugin-react/);
-});
-
-test("rejects generated test code and application source maps", async (context) => {
-  const root = await makeRelease();
-  context.after(() => rm(root, { recursive: true, force: true }));
-  await mkdir(join(root, "backend", "tests"));
-  await assert.rejects(() => inspectManagedRelease(root, []), /compiled tests/);
-  await rm(join(root, "backend", "tests"), { recursive: true });
-  await writeFile(join(root, "backend", "bin", "server.js.map"), "source map");
-  await assert.rejects(() => inspectManagedRelease(root, []), /source map/);
 });
 
 test("forbids the repository's development dependencies but not server runtime dependencies", async () => {
   const forbidden = await readDevelopmentPackages(repositoryRoot);
   for (const tool of [
     "vitest",
-    "typescript",
-    "@adonisjs/assembler",
+    "tsx",
+    "esbuild",
     "simple-git-hooks",
     "@playwright/test",
     "@types/",
@@ -142,7 +77,7 @@ test("forbids the repository's development dependencies but not server runtime d
   ]) {
     assert.ok(forbidden.includes(tool), tool);
   }
-  for (const runtime of ["@adonisjs/core", "@adonisjs/lucid", "better-sqlite3", "@capacitylens/shared"]) {
+  for (const runtime of ["fastify", "better-auth", "nodemailer", "date-fns", "@fastify/"]) {
     assert.ok(!forbidden.includes(runtime), runtime);
   }
 });
@@ -150,44 +85,25 @@ test("forbids the repository's development dependencies but not server runtime d
 test("does not forbid a development dependency the server also needs at runtime", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "capacitylens-manifest-test-"));
   context.after(() => rm(root, { recursive: true, force: true }));
-  await mkdir(join(root, "apps", "backend"), { recursive: true });
-  await mkdir(join(root, "packages", "shared"), { recursive: true });
+  await mkdir(join(root, "server"));
+  await mkdir(join(root, "shared"));
   await writeFile(
     join(root, "package.json"),
     JSON.stringify({ devDependencies: { yaml: "1", vite: "1", "@fastify/type-provider": "1" } }),
   );
   await writeFile(
-    join(root, "apps", "backend", "package.json"),
+    join(root, "server", "package.json"),
     JSON.stringify({ dependencies: { yaml: "1", "@fastify/helmet": "1" }, devDependencies: { tsx: "1" } }),
   );
-  await writeFile(
-    join(root, "packages", "shared", "package.json"),
-    JSON.stringify({ devDependencies: { "fast-check": "1" } }),
-  );
+  await writeFile(join(root, "shared", "package.json"), JSON.stringify({ devDependencies: { "fast-check": "1" } }));
   assert.deepEqual(await readDevelopmentPackages(root), ["@fastify/type-provider", "fast-check", "tsx", "vite"]);
 });
 
-test("rejects an artifact without the executable migration manifest", async (context) => {
+test("rejects an artifact without the import worker", async (context) => {
   const root = await makeRelease();
   context.after(() => rm(root, { recursive: true, force: true }));
-  await writeFile(join(root, "backend", "database", "released.json"), "");
-  await assert.rejects(() => inspectManagedRelease(root, []), /released\.json/);
-});
-
-test("rejects an artifact missing its frontend, compiled shared runtime, or SQLite addon", async (context) => {
-  const root = await makeRelease();
-  context.after(() => rm(root, { recursive: true, force: true }));
-  for (const [file, label] of [
-    ["backend/public/index.html", /index\.html/],
-    ["backend/node_modules/@capacitylens/shared/dist/brand.js", /shared/],
-    [`backend/node_modules/better-sqlite3/prebuilds/${platform}-${arch}.node`, /native addon/],
-  ]) {
-    const path = join(root, file);
-    const contents = await readFile(path);
-    await writeFile(path, "");
-    await assert.rejects(() => inspectManagedRelease(root, []), label);
-    await writeFile(path, contents);
-  }
+  await writeFile(join(root, "server", "dist", "importWorker.mjs"), "");
+  await assert.rejects(() => inspectManagedRelease(root, []), /importWorker\.mjs/);
 });
 
 test("rejects every output path except the dedicated production directory", async () => {
@@ -290,47 +206,35 @@ test("adds the operator files, the exact version to the guide and the source rev
   for (const file of shipped) assert.ok(released.includes(file), file);
   assert.equal(await readFile(join(root, "VERSION"), "utf8"), "version=1.2.3\nrevision=abc123\n");
   const guide = await readFile(join(root, "INSTALL.md"), "utf8");
-  assert.match(guide, /capacitylens-1\.2\.3\.tar\.gz/);
+  assert.match(guide, /releases\/download\/v1\.2\.3\/capacitylens-1\.2\.3\.tar\.gz/);
   assert.doesNotMatch(guide, /X\.Y\.Z/);
-  assert.match(guide, /--uid=capacitylens/);
-  assert.match(guide, /EnvironmentFile=\/etc\/capacitylens\.env/);
-  assert.match(guide, /ace\.js app:upgrade/);
-  assert.match(guide, /\/opt\/capacitylens\/current\/backend/);
-  assert.match(guide, /supports password authentication and native database sessions/);
+  // An isolated site's files are unreadable to the platform's default background-process user.
+  assert.match(guide, /Background process \(daemon\):\*\* user: the site's user/);
 });
 
-test("ships an environment example that refuses open production access by default", async () => {
+test("ships an environment example whose only blanks are the three values to fill in", async () => {
   const example = await readFile(join(repositoryRoot, "packaging", "release", "capacitylens.env.example"), "utf8");
   const settings = example.split("\n").filter((line) => line !== "" && !line.startsWith("#"));
   assert.deepEqual(settings, [
     "NODE_ENV=production",
-    "HOST=127.0.0.1",
-    "PORT=8787",
-    "LOG_LEVEL=info",
-    "APP_URL=https://capacity.example.com",
-    "APP_KEY=",
-    "SESSION_DRIVER=database",
-    "CAPACITYLENS_MODE=password-only",
+    "CAPACITYLENS_PUBLIC_URL=",
     "CAPACITYLENS_SECRET=",
-    "CAPACITYLENS_PUBLIC_URL=https://capacity.example.com",
     "CAPACITYLENS_SETUP_TOKEN=",
-    "CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=0",
-    "CAPACITYLENS_AUDIT=on",
-    "CAPACITYLENS_TRUST_PROXY_HEADERS=1",
     "CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db",
-    "CAPACITYLENS_BACKUP_DIR=/var/lib/capacitylens/backups",
-    "CAPACITYLENS_BACKUP_KEEP=48",
   ]);
+  assert.match(example, /^# CAPACITYLENS_MODE=password-only$/m);
+  assert.doesNotMatch(example, /openssl/);
 });
 
 test("ships a service unit that runs the release with the system Node and the root-only environment", async () => {
   const unit = await readFile(join(repositoryRoot, "packaging", "release", "capacitylens.service"), "utf8");
   for (const line of [
     "User=capacitylens",
-    "WorkingDirectory=/opt/capacitylens/current/backend",
+    "WorkingDirectory=/opt/capacitylens/current/server",
     "EnvironmentFile=/etc/capacitylens.env",
     "Environment=NODE_ENV=production",
-    "ExecStart=/usr/bin/env node /opt/capacitylens/current/backend/bin/server.js",
+    "ExecStartPre=/usr/bin/env node /opt/capacitylens/current/server/scripts/check-node.mjs",
+    "ExecStart=/usr/bin/env node /opt/capacitylens/current/server/dist/index.mjs",
     "TimeoutStopSec=30",
     "Restart=on-failure",
   ]) {
@@ -362,12 +266,10 @@ test("keeps the shipped nginx site's headers and log suppression in step with th
   const silenced = (conf) => [...conf.matchAll(/location\s+(~[^{]*)\{\s*access_log off;/g)].map((match) => match[1]);
   assert.equal(silenced(edge).length, 3);
   assert.deepEqual(silenced(site), silenced(edge));
+  const guide = await readFile(join(repositoryRoot, "packaging", "release", "INSTALL.md"), "utf8");
+  const managedHostSite = guide.match(/```nginx\n([\s\S]*?)```/)?.[1] ?? "";
+  assert.deepEqual(silenced(managedHostSite), silenced(site));
   assert.match(site, /client_max_body_size 6m;/);
-  assert.match(site, /root \/opt\/capacitylens\/current\/backend\/public;/);
-  const health = site.match(/location \^~ \/health\/ \{([^}]*)\}/)?.[1];
-  assert.ok(health, "Native health routes must be proxied to the backend.");
-  assert.match(health, /proxy_pass http:\/\/127\.0\.0\.1:8787;/);
-  assert.doesNotMatch(health, /try_files|add_header/);
   assert.match(site, /proxy_read_timeout 130s;/);
   assert.match(site, /return 301 https:\/\/\$host\$request_uri;/);
 });

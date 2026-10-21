@@ -21,6 +21,6 @@ for (const mode of ["import", "require"]) {
 }
 
 test("the application builds the matching upstream Sonner stylesheet", () => {
-  const appCss = readFileSync(new URL("../apps/frontend/src/index.css", import.meta.url), "utf8");
+  const appCss = readFileSync(new URL("../src/index.css", import.meta.url), "utf8");
   assert.ok(appCss.includes('@import "sonner/dist/styles.css";'));
 });

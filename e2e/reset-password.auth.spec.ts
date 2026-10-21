@@ -38,8 +38,7 @@ test("admin mints a reset link in Team & access; the locked-out member sets a ne
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
 
-  await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "How CapacityLens works" })).toBeVisible();
+  await page.getByRole("button", { name: `Reset Studio ${STAMP}`, exact: true }).click();
   await page.getByRole("button", { name: "Got it" }).click();
 
   await page.getByRole("link", { name: "Team & access" }).click();
@@ -70,10 +69,9 @@ test("admin mints a reset link in Team & access; the locked-out member sets a ne
   await page.getByLabel("Email").fill(MEMBER);
   await page.getByLabel("Password").fill(NEW_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
+  await expect(page.getByRole("button", { name: `Reset Studio ${STAMP}`, exact: true })).toBeVisible();
 
-  const oldSignIn = await request.post(`${API}/api/auth/sign-in`, {
+  const oldSignIn = await request.post(`${API}/api/auth/sign-in/email`, {
     data: { email: MEMBER, password: PASSWORD },
   });
   expect(oldSignIn.status()).toBe(401);

@@ -1,7 +1,7 @@
 # US-PRJ-05 — Mark a project private with a code name
 
 **Area:** Projects · **Persona:** Account owner · **Coverage:**
-`apps/frontend/src/components/projects/ProjectForm.test.tsx` + `packages/shared/src/domain/privateNames.test.ts` (manual
+`src/components/projects/ProjectForm.test.tsx` + `shared/src/domain/privateNames.test.ts` (manual
 end-to-end until a dedicated project privacy E2E is added)
 
 ## Goal

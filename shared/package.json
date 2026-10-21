@@ -1,0 +1,68 @@
+{
+  "name": "@capacitylens/shared",
+  "version": "0.35.0-alpha.1",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    "./account/audit": "./src/account/audit.ts",
+    "./account/approvedDomains": "./src/account/approvedDomains.ts",
+    "./account/conformance": "./src/account/conformance.ts",
+    "./account/errors": "./src/account/errors.ts",
+    "./account/ownershipTransfer": "./src/account/ownershipTransfer.ts",
+    "./account/ownershipTransferPolicy": "./src/account/ownershipTransferPolicy.ts",
+    "./account/policy": "./src/account/policy.ts",
+    "./account/ports": "./src/account/ports.ts",
+    "./account/sessionPolicy": "./src/account/sessionPolicy.ts",
+    "./account/ssoCutover": "./src/account/ssoCutover.ts",
+    "./account/types": "./src/account/types.ts",
+    "./account/validation": "./src/account/validation.ts",
+    "./api/replyMessages": "./src/api/replyMessages.ts",
+    "./brand": "./src/brand.ts",
+    "./data/exampleCompany": "./src/data/exampleCompany.ts",
+    "./data/fixtures": "./src/data/fixtures.ts",
+    "./data/internalClient": "./src/data/internalClient.ts",
+    "./data/migrate": "./src/data/migrate.ts",
+    "./data/strictJson": "./src/data/strictJson.ts",
+    "./data/seed": "./src/data/seed.ts",
+    "./data/transfer": "./src/data/transfer.ts",
+    "./domain/access": "./src/domain/access.ts",
+    "./domain/errors": "./src/domain/errors.ts",
+    "./domain/lifecycle": "./src/domain/lifecycle.ts",
+    "./domain/masquerade": "./src/domain/masquerade.ts",
+    "./domain/mutations": "./src/domain/mutations.ts",
+    "./domain/password": "./src/domain/password.ts",
+    "./domain/privateNames": "./src/domain/privateNames.ts",
+    "./domain/resourceAvatarUrl": "./src/domain/resourceAvatarUrl.ts",
+    "./domain/tenancy": "./src/domain/tenancy.ts",
+    "./lib/color": "./src/lib/color.ts",
+    "./lib/accountWorkingDays": "./src/lib/accountWorkingDays.ts",
+    "./lib/dateMath": "./src/lib/dateMath.ts",
+    "./lib/effectiveWorkingWeek": "./src/lib/effectiveWorkingWeek.ts",
+    "./lib/id": "./src/lib/id.ts",
+    "./lib/integrity": "./src/lib/integrity.ts",
+    "./lib/isRecord": "./src/lib/isRecord.ts",
+    "./lib/repeatingDates": "./src/lib/repeatingDates.ts",
+    "./lib/sanitizeImport": "./src/lib/sanitizeImport.ts",
+    "./lib/schedulingDays": "./src/lib/schedulingDays.ts",
+    "./lib/strings": "./src/lib/strings.ts",
+    "./types/entities": "./src/types/entities.ts"
+  },
+  "dependencies": {
+    "date-fns": "^4.3.0",
+    "tr46": "6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "fast-check": "^4.10.2",
+    "vite": "^8.3.1",
+    "vitest": "^4.1.11"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "type-check": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json"
+  }
+}

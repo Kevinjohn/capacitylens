@@ -13,20 +13,20 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // The password server on this run’s auth API lane must enforce the same viewer restrictions as the UI.
 
-// Shared auth setup comes from authTestSupport.
+// Shared auth setup, including BOOTSTRAP_TOKEN, comes from authTestSupport.
 const STAMP = Date.now();
 const OWNER = `v-owner-${STAMP}@capacitylens.dev`;
 const VIEWER = `v-viewer-${STAMP}@capacitylens.dev`;
 const EDITOR = `v-editor-${STAMP}@capacitylens.dev`;
 const VIEWER_AVATAR_URL = "https://images.example/viewer-person.png";
 
-async function signInAndOpen(page: import("@playwright/test").Page, email: string) {
+async function signInAndOpen(page: import("@playwright/test").Page, email: string, org: string) {
   await page.goto("/");
   await page.getByRole("heading", { name: "Sign in" }).waitFor();
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
+  await page.getByRole("button", { name: org, exact: true }).click();
   // The intro is once-per-device; on the second sign-in it won't reappear. Wait for either the intro
   // or the app (Schedule heading) to settle the race, then dismiss the intro if present.
   await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
@@ -35,24 +35,15 @@ async function signInAndOpen(page: import("@playwright/test").Page, email: strin
 
 async function assertViewerWriteRejected(request: APIRequestContext, accountId: string, cookie: string) {
   const newClientId = `new-client-${STAMP}`;
-  const directWrite = await request.post(`${API}/api/batch`, {
+  const directWrite = await request.put(`${API}/api/clients/${newClientId}`, {
     headers: { cookie, "content-type": "application/json" },
     data: {
-      ops: [
-        {
-          method: "PUT",
-          table: "clients",
-          id: newClientId,
-          row: {
-            id: newClientId,
-            accountId,
-            name: "Should be rejected",
-            color: "#76a5e7",
-            createdAt: "2026-01-01T00:00:00.000Z",
-            updatedAt: "2026-01-01T00:00:00.000Z",
-          },
-        },
-      ],
+      id: newClientId,
+      accountId,
+      name: "Should be rejected",
+      color: "#76a5e7",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
     },
   });
   expect(directWrite.status()).toBe(403);
@@ -65,53 +56,35 @@ async function seedViewerScenario(request: APIRequestContext) {
   const accountId = await bootstrapOrg(request, owner.cookie, `Viewer Studio ${STAMP}`);
   const seededAt = new Date().toISOString();
   const clientId = `viewer-client-${STAMP}`;
-  const clientWrite = await request.post(`${API}/api/batch`, {
+  const clientWrite = await request.put(`${API}/api/clients/${clientId}`, {
     headers: { cookie: owner.cookie, "content-type": "application/json" },
     data: {
-      ops: [
-        {
-          method: "PUT",
-          table: "clients",
-          id: clientId,
-          row: {
-            id: clientId,
-            accountId,
-            name: "Viewer-visible client",
-            color: "#76a5e7",
-            createdAt: seededAt,
-            updatedAt: seededAt,
-          },
-        },
-      ],
+      id: clientId,
+      accountId,
+      name: "Viewer-visible client",
+      color: "#76a5e7",
+      createdAt: seededAt,
+      updatedAt: seededAt,
     },
   });
   expect(clientWrite.status()).toBe(200);
   const resourceId = `viewer-resource-${STAMP}`;
-  const resourceWrite = await request.post(`${API}/api/batch`, {
+  const resourceWrite = await request.put(`${API}/api/resources/${resourceId}`, {
     headers: { cookie: owner.cookie, "content-type": "application/json" },
     data: {
-      ops: [
-        {
-          method: "PUT",
-          table: "resources",
-          id: resourceId,
-          row: {
-            id: resourceId,
-            accountId,
-            kind: "person",
-            name: "Viewer-visible person",
-            avatarUrl: VIEWER_AVATAR_URL,
-            role: "Designer",
-            employmentType: "permanent",
-            engagement: "studio" as const,
-            workingHoursPerDay: 8,
-            workingDays: [1, 2, 3, 4, 5],
-            color: "#76a5e7",
-            createdAt: seededAt,
-            updatedAt: seededAt,
-          },
-        },
-      ],
+      id: resourceId,
+      accountId,
+      kind: "person",
+      name: "Viewer-visible person",
+      avatarUrl: VIEWER_AVATAR_URL,
+      role: "Designer",
+      employmentType: "permanent",
+      engagement: "studio" as const,
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      color: "#76a5e7",
+      createdAt: seededAt,
+      updatedAt: seededAt,
     },
   });
   expect(resourceWrite.status()).toBe(200);
@@ -126,7 +99,7 @@ async function seedViewerScenario(request: APIRequestContext) {
 }
 
 // This end-to-end permission contrast intentionally keeps both roles in one session.
-
+/* eslint-disable max-lines-per-function -- one journey contrasts viewer and editor permissions. */
 test("a viewer sees no edit affordances; an editor does; a direct viewer write is 403", async ({
   page,
   request,
@@ -143,7 +116,7 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
     }),
   );
 
-  await signInAndOpen(page, VIEWER);
+  await signInAndOpen(page, VIEWER, `Viewer Studio ${STAMP}`);
 
   // Team & access remains available so a Viewer can understand the role without being shown the
   // company context, directory or management controls.
@@ -195,7 +168,7 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
   await expect(page.getByTestId("allocation-bar")).toHaveCount(0);
 
   await context.clearCookies();
-  await signInAndOpen(page, EDITOR);
+  await signInAndOpen(page, EDITOR, `Viewer Studio ${STAMP}`);
 
   await expect(page.getByTestId("getting-started")).toBeVisible();
   await expect(page.getByRole("link", { name: "Invite your team" })).toHaveCount(0);
@@ -215,3 +188,4 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
   await expect(page.getByRole("radiogroup", { name: "Draw mode" })).toBeVisible();
   await expect(page.getByTestId("undo-button")).toBeVisible();
 });
+/* eslint-enable max-lines-per-function */

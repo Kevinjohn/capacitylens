@@ -1,0 +1,21 @@
+// Share the strict parser between production posture and runtime configuration so a malformed value cannot mean different limits.
+
+/** Defines the maximum accepted requests per minute in programmatic and environment configuration. */
+export const MAX_RATE_LIMIT = 1_000_000;
+
+/** Normalize a programmatic rate limit with the same bounds used by the environment parser. */
+export function normalizeRateLimit(value: number): number {
+  return Number.isSafeInteger(value) && value > 0 && value <= MAX_RATE_LIMIT ? value : 0;
+}
+
+/** Fail-closed parse of CAPACITYLENS_RATE_LIMIT: only a positive integer turns the limiter on;
+ * unset, '0', negative, or any non-numeric junk ⇒ 0 = off (a typo must not guess a limit).
+ * Deliberately stricter than Number(): the digits-only regex rejects ' 100 ' (whitespace),
+ * '1e3' (exponent) and '12.5' (decimal) that Number() would silently coerce, and the
+ * MAX_RATE_LIMIT cap rejects an absurd '2000000'. Each of those maps to 0 (off), never to a
+ * surprising limit. This is the same value the production guard checks, so "off" cannot mean one
+ * thing to the guard and another to the limiter. */
+export function parseRateLimit(raw: string | undefined): number {
+  if (!raw || !/^\d+$/.test(raw)) return 0;
+  return normalizeRateLimit(Number(raw));
+}

@@ -1,0 +1,113 @@
+import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
+import type { ScopedEntityKey } from "@capacitylens/shared/types/entities";
+/**
+ * One audit line. All fields are operational metadata, never tenant data.
+ *
+ * `changedFields` is field names only (e.g. `['accountId','note','startDate']`), never their
+ * values. Never construct one of these by spreading a row/body; build `changedFields` with
+ * `Object.keys(...)` so a value can't leak into the audit trail (the primary privacy invariant).
+ */
+export interface AuditRecord {
+  /** ISO-8601 event timestamp assigned by the server; it is not a measured SQLite commit time. */
+  ts: string;
+  /** The acting principal ID, or the demo principal in off mode. */
+  userId: string;
+  /** The tenant the mutation targeted. */
+  accountId: string;
+  /** The kind of mutation. The lifecycle quartet is distinct from the generic CRUD verbs:
+   * `archive`/`unarchive` flip the `archivedAt` tombstone, `softDelete` sets `deletedAt` (and, for a
+   * resource, scrubs the PII `name`), and `purge` is the hard cascade row-delete of a ≥30-day-old
+   * tombstone. They stay distinct from `delete` (the generic by-id row delete) so the audit trail
+   * tells a reversible soft-delete apart from an irreversible purge. changedFields stay field names
+   * only (e.g. `['archivedAt']`, `['deletedAt','name','allocations.note']`), never values (the
+   * no-PII invariant). */
+  action:
+    | "create"
+    | "update"
+    | "patch"
+    | "delete"
+    | "batch"
+    | "import"
+    /** Example rows added to an empty company; `changedFields` names the tables that received rows. */
+    | "exampleData"
+    | "archive"
+    | "unarchive"
+    | "softDelete"
+    | "purge"
+    | "memberRole"
+    | "memberStatus"
+    | "memberAccessEnabled"
+    | "memberSignInTrackingChange"
+    | "memberRemove"
+    | "ownershipTransfer"
+    /** A step of the ownership transfer consent ceremony that did not move ownership: a nomination,
+     * the nominee's consent or its withdrawal, a decline, a cancellation. `ownershipTransfer` stays
+     * reserved for completion, the moment the roles actually change hands. */
+    | "ownershipTransferRequest"
+    | "inviteCreate"
+    | "inviteAccept"
+    | "inviteRevoke"
+    | "passwordResetIssue"
+    | "sessionsRevoke"
+    | "memberResourceLink"
+    | "memberResourceChange"
+    | "memberResourceUnlink";
+  /** The entity/table touched (e.g. 'timeOff', 'clients'), or 'account' for an import slice. */
+  entity: string;
+  /** The affected row id (the import record uses the accountId as its id). */
+  id: string;
+  /** Field names that changed, Object.keys of the wire body/row. Never values. */
+  changedFields: string[];
+  /** Counts only, never values: rows removed from each scoped table by an irreversible purge. */
+  cascadeCounts?: Partial<Record<ScopedEntityKey, number>>;
+}
+
+/** Stable delivery id added by the SQLite audit outbox. A recovered delivery may be replayed after
+ * its JSONL append reached durable storage but before the outbox row was deleted; fileAuditSink
+ * uses this id to make that replay a no-op instead of duplicating the line. */
+export interface AuditDeliveryMetadata {
+  auditId?: string;
+}
+
+/** An audit record accepted by the sink, optionally tagged for outbox deduplication. */
+export type AuditEntry = (AuditRecord | AccountAuditEvent) & AuditDeliveryMetadata;
+
+/**
+ * Provides synchronous audit delivery that reports failure without throwing into a committed request.
+ * A failed delivery returns false and latches degraded health so the outbox can retry.
+ * Implementations may log redacted diagnostics; they must never log raw record values.
+ */
+export interface AuditSink {
+  /** Write one line. Never throws; returns false on failure (and latches `degraded`). */
+  append(record: AuditEntry): boolean;
+  /** Write a committed batch with one durability flush when supported. */
+  appendMany?(records: readonly AuditEntry[]): boolean;
+  /** Latched true once any append failed, the soft signal deep-health surfaces. */
+  readonly degraded: boolean;
+}
+
+/** fileAuditSink's rotation knob. */
+export interface FileAuditSinkOptions {
+  /** Rotate before the next complete line would exceed this size, in bytes. A single larger line
+   * is rejected and degrades the sink. Default 64 MiB (see DEFAULT_MAX_BYTES), an unbounded
+   * JSONL append-forever log eventually fills the disk, which then fails SQLite writes too. */
+  maxBytes?: number;
+  /** Test seam for the one-time existing-file permission pin. */
+  pinPermissions?: (file: string, mode: number) => void;
+  /** Test seam for file and directory durability flushes. */
+  syncFile?: (fd: number) => void;
+  /** Test seam for the bounded recovery reader. */
+  recoveryScanBytes?: number;
+}
+
+/** Default maximum JSONL generation size before rotation at 64 MiB. */
+export const DEFAULT_MAX_BYTES = 64 * 1024 * 1024;
+/** Upper bound of 1 TiB accepted for an operator-configured audit generation size. */
+export const MAX_AUDIT_BYTES = 1024 * 1024 * 1024 * 1024;
+// One outbox page contains 500 compact metadata-only records. A 16 MiB tail therefore leaves
+// substantial headroom while bounding restart allocation and parsing independently of the
+// operator's generation-size setting (which may be as high as 1 TiB).
+/** Maximum JSONL tail scanned to recover recently delivered outbox IDs. */
+export const AUDIT_RECOVERY_SCAN_BYTES = 16 * 1024 * 1024;
+/** Maximum delivery IDs retained while scanning the bounded recovery tail. */
+export const MAX_RECOVERY_DELIVERY_IDS = 10_000;

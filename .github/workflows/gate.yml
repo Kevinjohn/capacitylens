@@ -1,9 +1,8 @@
 name: gate
 
-# Main pull requests receive static analysis and CodeQL; the protected Adonis fork also calls this gate.
+# Pull requests receive static analysis and CodeQL. Run expensive gates on main or manual dispatch to avoid redundant full-suite runs.
 on:
   workflow_dispatch:
-  workflow_call:
   push:
     branches: [main]
     tags: ["v*"]
@@ -14,7 +13,7 @@ on:
     - cron: "17 6 3 * *"
 
 concurrency:
-  group: gate-${{ github.workflow }}-${{ github.ref }}
+  group: gate-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -63,107 +62,283 @@ jobs:
           node scripts/check-dco.mjs "$BASE_SHA" "$HEAD_SHA"
 
   application:
-    name: Application and tooling
+    name: Application typecheck · lint · unit · build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm run gate
+      - name: Upload test coverage to Codecov
+        if: env.CODECOV_TOKEN != ''
         env:
-          NODE_ENV: test
-          HOST: 127.0.0.1
-          PORT: "0"
-          LOG_LEVEL: error
-          APP_KEY: capacitylens-build-key-0123456789abcdef
-          APP_URL: http://127.0.0.1
-          SESSION_DRIVER: memory
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
+        with:
+          files: ./coverage/lcov.info
+          flags: unit
+          # Coverage thresholds are enforced by `pnpm run gate`; reporting availability is not a
+          # code-quality signal and must not make this required job depend on Codecov uptime.
+          fail_ci_if_error: false
+          token: ${{ env.CODECOV_TOKEN }}
 
-  backend:
-    name: Backend
+  server-static:
+    name: Server typecheck · lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup
-      - run: pnpm --dir apps/backend typecheck
-        env:
-          NODE_ENV: test
-          HOST: 127.0.0.1
-          PORT: "0"
-          LOG_LEVEL: error
-          APP_KEY: capacitylens-build-key-0123456789abcdef
-          APP_URL: http://127.0.0.1
-          SESSION_DRIVER: memory
-      - run: pnpm --dir apps/backend lint
-      - name: Build application before backend tests
-        run: pnpm run build
-        env:
-          NODE_ENV: production
-          CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1"
-          HOST: 127.0.0.1
-          PORT: "0"
-          LOG_LEVEL: error
-          APP_KEY: capacitylens-test-key-0123456789abcdef
-          APP_URL: http://127.0.0.1
-          SESSION_DRIVER: memory
-      - run: pnpm --dir apps/backend test
+      - name: Check cryptographic implementation inventory
+        run: pnpm run security:crypto-inventory
+      - name: Check dependency graph and scanner regressions
+        run: pnpm run policy:import-cycles && pnpm run policy:dependencies:test
+      - name: Type-check server
+        run: pnpm --filter capacitylens-server type-check
+      - name: Lint server and shared packages
+        run: pnpm exec eslint server shared --max-warnings 0
 
-  packaged:
-    name: Standalone native package (${{ matrix.target }})
+  server-unit:
+    name: Server unit shard ${{ matrix.shard }}/4
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runner: ubuntu-24.04
-            target: Linux x64
-            platform: linux
-            architecture: x64
-          - runner: macos-15
-            target: macOS arm64
-            platform: darwin
-            architecture: arm64
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 25
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
         with:
-          version: 11.4.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24.21.0
-          cache: pnpm
-      - name: Verify native target
-        env:
-          EXPECTED_PLATFORM: ${{ matrix.platform }}
-          EXPECTED_ARCHITECTURE: ${{ matrix.architecture }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Run server unit shard
         run: >-
-          node --input-type=module -e
-          "import assert from 'node:assert/strict';
-          assert.equal(process.platform, process.env.EXPECTED_PLATFORM);
-          assert.equal(process.arch, process.env.EXPECTED_ARCHITECTURE);
-          console.log(process.version, process.platform, process.arch);"
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+          timeout --signal=TERM --kill-after=30s 4m
+          pnpm --filter capacitylens-server test:unit-shard --
+          ${{ matrix.shard }}/4
+
+  server-process-durability:
+    name: Credential onboarding crash durability
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Run crash durability regression in isolation
+        run: >-
+          timeout --signal=TERM --kill-after=30s 4m
+          pnpm --filter capacitylens-server test:credential-durability
+
+  server-coverage:
+    name: Server coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm --filter capacitylens-server test:coverage
+      - name: Upload test coverage to Codecov
+        if: env.CODECOV_TOKEN != ''
         env:
-          NODE_ENV: production
-          CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1"
-          HOST: 127.0.0.1
-          PORT: "0"
-          LOG_LEVEL: error
-          APP_KEY: capacitylens-test-key-0123456789abcdef
-          APP_URL: http://127.0.0.1
-          SESSION_DRIVER: memory
-      - run: pnpm run package:managed-release:test
-      - run: pnpm run policy:packaged-smoke:test
-      - run: pnpm run package:managed-release
-      - run: pnpm run package:release-archive
-      - name: Extract and smoke test outside the repository
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
+        with:
+          files: ./server/coverage/lcov.info
+          flags: server
+          # Coverage thresholds are enforced by `pnpm run gate`; reporting availability is not a
+          # code-quality signal and must not make this required job depend on Codecov uptime.
+          fail_ci_if_error: false
+          token: ${{ env.CODECOV_TOKEN }}
+
+  server:
+    name: Server typecheck · lint · unit
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [server-static, server-unit, server-process-durability, server-coverage]
+    steps:
+      - name: Require every server check and unit shard
+        env:
+          COVERAGE_RESULT: ${{ needs.server-coverage.result }}
+          DURABILITY_RESULT: ${{ needs.server-process-durability.result }}
+          STATIC_RESULT: ${{ needs.server-static.result }}
+          UNIT_RESULT: ${{ needs.server-unit.result }}
+        run: |
+          test "$COVERAGE_RESULT" = success
+          test "$DURABILITY_RESULT" = success
+          test "$STATIC_RESULT" = success
+          test "$UNIT_RESULT" = success
+
+  account-conformance:
+    name: Account boundary · ports · policies · architecture
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm run test:account-conformance
+
+  migration-rehearsal:
+    name: Released database migration rehearsal
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Rehearse the released database migration
+        run: timeout --signal=TERM --kill-after=30s 7m pnpm run rehearse:migrations
+      - name: Run migration regression tests in isolation
+        run: timeout --signal=TERM --kill-after=30s 7m pnpm --filter capacitylens-server test:migrations
+
+  production-audit:
+    name: Production dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm run gate:deps
+
+  release-package-smoke:
+    name: Release package smoke
+    # Proves the release archive works as INSTALL.md describes: unpack it, fill in the three empty
+    # lines of the shipped environment example, start it with Node's own env-file loader, and get
+    # both the web app and the API from one process.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Build the web app and the server runtime
+        run: pnpm run build && pnpm --filter capacitylens-server run build:runtime
+      - name: Package the release archive
+        run: pnpm run package:managed-release && pnpm run package:release-archive
+      - name: Check the shipped nginx site file
         run: |
           set -euo pipefail
-          package_version="$(node --input-type=module -e "import fs from 'node:fs'; console.log(JSON.parse(fs.readFileSync('package.json', 'utf8')).version)")"
-          package_scratch="$(mktemp -d)"
-          trap 'rm -rf "$package_scratch"' EXIT
-          archive_name="capacitylens-$package_version.tar.gz"
-          (cd release && shasum -a 256 --check "$archive_name.sha256")
-          tar -xzf "release/$archive_name" -C "$package_scratch"
-          pnpm run smoke:packaged-server "$package_scratch/capacitylens-$package_version/backend"
+          site="$(mktemp -d)"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=capacity.example.com \
+            -keyout "$site/key.pem" -out "$site/cert.pem" 2>/dev/null
+          sed -e "s|/etc/letsencrypt/live/capacity.example.com/fullchain.pem|$site/cert.pem|" \
+            -e "s|/etc/letsencrypt/live/capacity.example.com/privkey.pem|$site/key.pem|" \
+            production/capacitylens.nginx.conf > "$site/site.conf"
+          printf 'events {}\nhttp {\n    include %s;\n}\n' "$site/site.conf" > "$site/nginx.conf"
+          sudo nginx -t -c "$site/nginx.conf"
+      - name: Run the extracted archive with the shipped environment file
+        run: |
+          set -euo pipefail
+          repository="$PWD"
+          name="capacitylens-$(node -p 'require("./package.json").version')"
+          work="$(mktemp -d)"
+          (cd release && sha256sum -c "$name.tar.gz.sha256")
+          # One top-level folder, every member owned by root, so `sudo tar -x` hands nothing to a
+          # local account that shares the build machine's uid.
+          outside="$(tar -tzf "release/$name.tar.gz" | grep -cv "^$name/" || true)"
+          test "$outside" = 0
+          owners="$(tar --numeric-owner -tvzf "release/$name.tar.gz" | tr -s ' ' | cut -d ' ' -f 2 | sort -u)"
+          test "$owners" = 0/0
+          tar -xzf "release/$name.tar.gz" -C "$work"
+          release="$work/$name"
+          db=/var/lib/capacitylens/capacitylens.db
+          sudo install -d -o "$(id -u)" -g "$(id -g)" -m 0700 "$(dirname "$db")"
+
+          if (cd "$release/server" && CAPACITYLENS_DB="$work/unedited.db" \
+            node --env-file=../capacitylens.env.example dist/index.mjs) >"$work/unedited.log" 2>&1; then
+            echo "The unedited environment example started" >&2
+            exit 1
+          fi
+          grep -q "CAPACITYLENS_SECRET is required" "$work/unedited.log"
+
+          secret="$(openssl rand -base64 48)"
+          token="$(openssl rand -base64 48)"
+          port="$((20000 + RANDOM % 20000))"
+          env_file="$work/capacitylens.env"
+          # The single-quoted $0 below is awk's record, not a shell expansion.
+          # shellcheck disable=SC2016
+          awk -v url="http://127.0.0.1:$port" -v secret="$secret" -v token="$token" '
+            $0 == "CAPACITYLENS_PUBLIC_URL=" { $0 = $0 url; filled++ }
+            $0 == "CAPACITYLENS_SECRET=" { $0 = $0 secret; filled++ }
+            $0 == "CAPACITYLENS_SETUP_TOKEN=" { $0 = $0 token; filled++ }
+            { print }
+            END { if (filled != 3) exit 1 }
+          ' "$release/capacitylens.env.example" >"$env_file"
+
+          if (cd "$release/server" && CAPACITYLENS_WEB_DIR="$work/missing" \
+            node --env-file="$env_file" dist/index.mjs) >"$work/web-dir.log" 2>&1; then
+            echo "A missing CAPACITYLENS_WEB_DIR started" >&2
+            exit 1
+          fi
+          grep -qF "CAPACITYLENS_WEB_DIR=$work/missing has no index.html" "$work/web-dir.log"
+
+          wait_for_health() {
+            local pid="$1" url="$2" log="$3" check="$4"
+            for _ in $(seq 1 60); do
+              if ! kill -0 "$pid" 2>/dev/null; then
+                cat "$log" >&2
+                return 1
+              fi
+              if node -e "$check" "$(curl -fsS "$url" 2>/dev/null || true)" 2>/dev/null; then return 0; fi
+              sleep 1
+            done
+            echo "No healthy answer from $url" >&2
+            cat "$log" >&2
+            return 1
+          }
+          cd "$release/server"
+          PORT="$port" node --env-file="$env_file" dist/index.mjs >"$work/server.log" 2>&1 &
+          server=$!
+          wait_for_health "$server" "http://127.0.0.1:$port/api/health" "$work/server.log" '
+            const health = JSON.parse(process.argv[1]);
+            process.exit(health.ok === true && health.db === true && health.audit === "ok" &&
+              health.backup?.status === "ok" ? 0 : 1);
+          '
+          curl -fsS -D "$work/root.headers" -o "$work/root.html" "http://127.0.0.1:$port/"
+          grep -qi '^content-type: text/html' "$work/root.headers"
+          grep -qi "^content-security-policy: default-src 'self'" "$work/root.headers"
+          grep -q '<div id="root"' "$work/root.html"
+          kill -TERM "$server"
+          wait "$server"
+
+          # The bundled recovery tool loads, reads the same environment file and reaches its
+          # identity lookup against the stopped server's database.
+          if node --env-file="$env_file" dist/reset-owner-password.mjs "$db" nobody@example.com \
+            --confirm-server-stopped >"$work/recovery.log" 2>&1; then
+            echo "Recovery unexpectedly issued a link" >&2
+            exit 1
+          fi
+          grep -q "No identity matches that address." "$work/recovery.log"
+
+          # A source checkout has no release marker, so its server never serves the web app.
+          cd "$repository/server"
+          PORT="$port" CAPACITYLENS_DB="$work/checkout.db" \
+            node --env-file="$env_file" dist/index.mjs >"$work/checkout.log" 2>&1 &
+          checkout=$!
+          wait_for_health "$checkout" "http://127.0.0.1:$port/api/health" "$work/checkout.log" '
+            process.exit(JSON.parse(process.argv[1]).ok === true ? 0 : 1);
+          '
+          status="$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$port/")"
+          kill -TERM "$checkout"
+          wait "$checkout"
+          test "$status" = 404
+
+          for value in "$secret" "$token"; do
+            if grep -qF -- "$value" "$work"/*.log; then
+              echo "A generated secret appeared in the captured output" >&2
+              exit 1
+            fi
+          done

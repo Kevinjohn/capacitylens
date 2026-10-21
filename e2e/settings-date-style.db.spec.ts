@@ -30,9 +30,9 @@ test.describe("Settings — date format is account data", () => {
       .toBe(true);
 
     await page.reload();
-    // The single-company server summary restores the company and the current Settings route.
-    await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /Switch company/i })).toHaveCount(0);
+    // Re-pick the company after reload (activeAccountId is never persisted) and re-open Settings.
+    await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("radio", { name: "Sep 9", exact: true })).toHaveAttribute("aria-checked", "true");
   });
 });

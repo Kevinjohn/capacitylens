@@ -1,6 +1,6 @@
 # US-TOF-05 — Scan current and future time off by resource
 
-**Area:** Time off · **Persona:** Studio manager · **Linked automated coverage:** `apps/frontend/src/components/timeoff/timeOffView.test.ts` (grouping and ordering), `apps/frontend/src/components/timeoff/TimeOffList.test.tsx` and `apps/frontend/src/components/timeoff/CompanyClosureSection.test.tsx` (mounted company-week rollover, account settings, placeholders, lifecycle and permissions), `e2e/timeoff.spec.ts` → "groups current and future entries by resource"
+**Area:** Time off · **Persona:** Studio manager · **Linked automated coverage:** `src/components/timeoff/timeOffView.test.ts` (grouping and ordering), `src/components/timeoff/TimeOffList.test.tsx` and `src/components/timeoff/CompanyClosureSection.test.tsx` (mounted company-week rollover, account settings, placeholders, lifecycle and permissions), `e2e/timeoff.spec.ts` → "groups current and future entries by resource"
 
 ## Goal
 

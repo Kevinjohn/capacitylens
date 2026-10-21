@@ -1,6 +1,7 @@
 # Patch-only, monthly. Minor and major updates are not opened automatically: on a
 # solo-maintainer repo their churn costs more validation time than they return, and
-# runtime dependencies are reviewed against current advisories. Advisories are caught independently by `gate:deps` (the
+# the security-relevant runtime dependencies here (Better Auth, jose) ship fixes in
+# the patch stream. Advisories are caught independently by `gate:deps` (the
 # production-audit job in gate.yml), which runs on every merge to main — so a real
 # vulnerability surfaces there even when no Dependabot PR is raised for it.
 #

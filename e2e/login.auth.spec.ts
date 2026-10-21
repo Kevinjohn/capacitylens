@@ -14,7 +14,8 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 // This spec exercises the password-mode login wall; the core demo project uses cosmetic sign-in.
 
 // Shared auth helpers come from authTestSupport. A fresh user has no membership, so GET /api/accounts
-// returns no companies. The first-company route provisions a company for the signed-in owner.
+// returns no companies. The org-bootstrap test provisions this login's company through POST /api/orgs
+// using BOOTSTRAP_TOKEN. The account_members table is server-only and cannot be pre-seeded by shared fixtures.
 const EMAIL = "tester@capacitylens.dev";
 const ORG_NAME = `Login Studio ${Date.now()}`;
 
@@ -22,7 +23,7 @@ const ORG_NAME = `Login Studio ${Date.now()}`;
 // USER_ALREADY_EXISTS (422) when rerun against a reused server. It uses the request cookie jar because
 // this test does not need the returned session; the shared signUpUser helper requires a fresh signup.
 async function seedUser(request: APIRequestContext, email = EMAIL) {
-  const res = await request.post(`${API}/api/auth/sign-up`, {
+  const res = await request.post(`${API}/api/auth/sign-up/email`, {
     data: { email, password: PASSWORD, name: "Tester" },
   });
   if (!res.ok()) expect(res.status()).toBe(422);
@@ -61,8 +62,9 @@ function registerSigningRevealsAppSigningOutTest() {
     page,
     request,
   }) => {
-    // A fresh per-run user guarantees the sign-up cookie (no 422 on a reused DB); /api/orgs
-    // creates the first company and makes the caller its Owner.
+    // bootstrap this login its own org so the picker (now sourced from the login's memberships
+    // via GET /api/accounts) has something to list. A fresh per-run user guarantees the sign-up cookie
+    // (no 422 on a reused DB); /api/orgs makes the caller the org's Owner.
     const { email, cookie } = await signUpUser(`login-${Date.now()}@capacitylens.dev`);
     await bootstrapOrg(request, cookie, ORG_NAME);
 
@@ -76,11 +78,13 @@ function registerSigningRevealsAppSigningOutTest() {
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Password").fill(PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page.getByRole("heading", { name: "Choose a company" })).toBeVisible();
     expect(unscopedStateReads).toEqual([]);
 
-    // The server selects this login's only company and the active account hydrates its slice via
-    // GET /api/state?accountId= without showing a company picker.
-    await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
+    // The boot flow resumes: the picker lists only this login's memberships → pick our org →
+    // the active account hydrates its slice via GET /api/state?accountId= → app.
+    // Match the full company name; without exact matching, this could also match a Delete control.
+    await page.getByRole("button", { name: ORG_NAME, exact: true }).click();
     await expect(page.getByRole("heading", { name: "How CapacityLens works" })).toBeVisible();
     await page.getByRole("button", { name: "Got it" }).click();
     await expect(page.getByRole("link", { name: "Settings", exact: true })).toBeVisible();
@@ -132,13 +136,15 @@ function registerCreateOwnerAdminAdminBootstrapTest() {
   });
 }
 
-function registerLoginWithoutMembershipTests() {
-  test("a login with NO memberships sees no company data (tenant isolation — no cross-tenant leak)", async ({
+function registerLoginMembershipsSeesEMPTYPickerTests() {
+  test("a login with NO memberships sees an EMPTY picker (tenant isolation — no cross-tenant leak)", async ({
     page,
     request,
   }, testInfo) => {
-    // A user with no account memberships sees no company data. Company creation requires the owner
-    // or admin role enforced by POST /api/orgs, so the empty state tells them to request an invitation.
+    // A user with no account memberships sees no companies. The picker is scoped to the caller's
+    // memberships, and account creation requires the owner or admin role enforced by POST /api/orgs.
+    // This user therefore sees no "New company" action while accounts exist. The empty state tells
+    // them to request an invitation.
     const isolationSuffix = `${Date.now()}-${testInfo.workerIndex}`;
     const controlOrgName = `Isolation Control ${isolationSuffix}`;
     const controlOwner = await signUpUser(`isolation-owner-${isolationSuffix}@capacitylens.dev`);
@@ -152,7 +158,6 @@ function registerLoginWithoutMembershipTests() {
     await page.getByRole("button", { name: "Sign in" }).click();
 
     await expect(page.getByRole("heading", { name: "Start planning" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
     await expect(page.getByText("Ask an admin for an invite to join a company.")).toBeVisible();
     await expect(page.getByRole("button", { name: controlOrgName, exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "New company" })).toHaveCount(0);
@@ -163,5 +168,5 @@ test.describe("login screen (CAPACITYLENS_MODE=password)", () => {
   registerUnauthenticatedVisitShowsLoginScreenTest();
   registerSigningRevealsAppSigningOutTest();
   registerCreateOwnerAdminAdminBootstrapTest();
-  registerLoginWithoutMembershipTests();
+  registerLoginMembershipsSeesEMPTYPickerTests();
 });

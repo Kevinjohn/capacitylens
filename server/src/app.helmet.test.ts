@@ -1,0 +1,115 @@
+import { describe, it, expect } from "vitest";
+import type { FastifyInstance } from "fastify";
+import { createApp } from "./app";
+import { openDb } from "./db";
+
+// The API emits restrictive security headers by default. Enable HSTS only when the browser-facing
+// deployment uses HTTPS, including HTTPS terminated by a reverse proxy.
+
+const health = (app: FastifyInstance) => app.inject({ method: "GET", url: "/api/health" });
+
+describe("baseline security headers (helmet, on by default)", () => {
+  it("sets nosniff", async () => {
+    const app = createApp(openDb(":memory:"));
+    expect((await health(app)).headers["x-content-type-options"]).toBe("nosniff");
+  });
+
+  it("emits a CSP carrying frame-ancestors none and connect-src self", async () => {
+    const app = createApp(openDb(":memory:"));
+    const csp = (await health(app)).headers["content-security-policy"];
+    expect(typeof csp).toBe("string");
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("connect-src 'self'");
+    expect(csp).toContain("img-src 'self' data: https:");
+  });
+
+  it("keeps the CSP to the minimal set plus reporting — no helmet defaults merged in", async () => {
+    // useDefaults:false means we emit exactly our API and reporting directives. Lock out the defaults
+    // that would otherwise ship unintentionally: 'unsafe-inline' (from helmet's style-src) and
+    // upgrade-insecure-requests. A future helmet bump that flipped the merge back on fails here.
+    const app = createApp(openDb(":memory:"));
+    const csp = (await health(app)).headers["content-security-policy"];
+    expect(csp).not.toContain("upgrade-insecure-requests");
+    expect(csp).not.toContain("unsafe-inline");
+
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("connect-src 'self'");
+    expect(csp).toContain("report-uri /api/security/csp-report");
+    expect(csp).toContain("report-to csp-endpoint");
+    expect((await health(app)).headers["reporting-endpoints"]).toBe('csp-endpoint="/api/security/csp-report"');
+  });
+
+  it("keeps the cross-origin contract: CORP same-origin, COEP off", async () => {
+    // The cross-origin client→server flow (CORS-mode fetch) depends on COEP staying off,
+    // enabling Cross-Origin-Embedder-Policy could break it. CORP same-origin is helmet's
+    // default and harmless here (JSON-only API). Pin both so a helmet bump can't regress them.
+    const headers = (await health(createApp(openDb(":memory:")))).headers;
+    expect(headers["cross-origin-resource-policy"]).toBe("same-origin");
+    expect(headers["cross-origin-embedder-policy"]).toBeUndefined();
+  });
+
+  it("sets a strict Referrer-Policy", async () => {
+    const app = createApp(openDb(":memory:"));
+    expect((await health(app)).headers["referrer-policy"]).toBe("no-referrer");
+  });
+
+  it("sets X-Frame-Options: DENY for legacy browsers", async () => {
+    const app = createApp(openDb(":memory:"));
+    expect((await health(app)).headers["x-frame-options"]).toBe("DENY");
+  });
+});
+
+describe("P2.7 privacy posture — CSP forbids browser egress (connect-src is self only)", () => {
+  // Programmatic egress stays forbidden. Explicit person avatar images are the documented exception
+  // under img-src; they cannot widen fetch/XHR destinations governed by connect-src.
+  // SSO sign-in is a top-level redirect (a navigation to accounts.google.com /
+  // login.microsoftonline.com / github.com), not a connect-src fetch, and the token exchange is
+  // server-to-server: so connect-src legitimately stays 'self'. These assertions are the
+  // no-widening guard: if anyone ever adds an external origin (an IdP, an analytics endpoint, a
+  // wildcard) to connect-src or default-src, this test fails. Pairs with the dependency-denylist
+  // half in src/test/privacy-posture.test.ts to form the full no-egress proof. See docs-src/security/privacy.md.
+
+  const directive = (csp: string, name: string): string | undefined =>
+    csp
+      .split(";")
+      .map((s) => s.trim())
+      .find((seg) => seg === name || seg.startsWith(`${name} `));
+
+  it("pins connect-src to exactly 'self' — no IdP/analytics/wildcard egress origin", async () => {
+    const csp = (await health(createApp(openDb(":memory:")))).headers["content-security-policy"];
+    expect(typeof csp).toBe("string");
+    const connect = directive(csp as string, "connect-src");
+
+    expect(connect).toBe("connect-src 'self'");
+
+    expect(connect).not.toContain("http");
+    expect(connect).not.toContain("https://");
+    expect(connect).not.toContain("*");
+    expect(connect).not.toContain("accounts.google.com");
+    expect(connect).not.toContain("login.microsoftonline.com");
+    expect(connect).not.toContain("github.com");
+  });
+
+  it("pins default-src to exactly 'self' — no external host or wildcard fallback", async () => {
+    const csp = (await health(createApp(openDb(":memory:")))).headers["content-security-policy"];
+    const def = directive(csp as string, "default-src");
+    expect(def).toBe("default-src 'self'");
+    expect(def).not.toContain("*");
+    expect(def).not.toContain("http");
+  });
+});
+
+describe("HSTS — off by default, on behind the HTTPS flag", () => {
+  it("omits Strict-Transport-Security by default (HTTP behind a TLS proxy)", async () => {
+    const app = createApp(openDb(":memory:"));
+    expect((await health(app)).headers["strict-transport-security"]).toBeUndefined();
+  });
+
+  it("emits Strict-Transport-Security only when https: true", async () => {
+    const app = createApp(openDb(":memory:"), { https: true });
+    const hsts = (await health(app)).headers["strict-transport-security"];
+    expect(typeof hsts).toBe("string");
+    expect(hsts).toContain("max-age=63072000");
+    expect(hsts).not.toContain("includeSubDomains");
+  });
+});

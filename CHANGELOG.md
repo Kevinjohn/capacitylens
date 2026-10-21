@@ -7,82 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
-### Added
-
-- Typed allocation-group creation and catalogue/resource archive and unarchive operations preserve
-  stable IDs and commit one revision per action. Existing deletion and Undo paths remain active
-  while their complete replacement is unfinished.
-
-- Transactional company planning snapshots and typed resource operations with one company revision,
-  stale-edit refusal, atomic audit recording and actor-scoped mutation commitment lookup. Existing
-  callers share the revision during transition; session-bound deletion restoration remains gated.
-
-### Removed
-
-- Production company selection, switching, multi-company configuration and ordinary additional-company creation. Server-backed installations now select their sole company; the in-memory demo retains its temporary company picker.
-- Optional offline scheduling snapshots, browser snapshot encryption and the offline application shell. The company schedule requires a server connection; display preferences and the temporary demo remain available.
-
-- Retired the legacy server workspace and switched validation, native packaging and Docker deployment to the current application.
-
 ### Fixed
-
-- Concurrent manual and scheduled backup retention preserves the newest completed recovery point.
-  Manual backup failures also report errors cleaning up temporary files.
-
-- Preserve planning drafts through admission-only configuration and pending invitation changes,
-  and identify invalidated view-as authority as planning context loss.
-- Reject phase moves that would invalidate linked activities, and audit dependent attribution
-  repairs atomically with their company revision.
-- Clear typed planning history for activity-kind edits whose dependent attribution cannot be
-  recovered by an ordinary inverse.
-- Preserve Undo and Redo after background refreshes acknowledge this browser’s saved schedule edits (#1502).
-- Hide company onboarding during view-as member so read-only navigation does not show a forbidden-request error (#1503).
-- Explain when a password-reset link is invalid, used or expired instead of suggesting another attempt (#1505).
-
-- Keep password resets and password changes compatible with the updated account-kit, preserving existing credentials and recovery links during the storage upgrade.
-
-- The native archive uses password authentication and database sessions, with open production
-  access disabled in the installation example.
-- Dialogs keep body scroll locked under the strict production CSP using static application CSS and
-  measured inline style attributes, with the previous scrollbar compensation restored on close.
 
 - Invalid account-access, checklist and masquerade responses now show the existing error feedback instead of accepting malformed fields (#1449).
 
 ### Changed
-
-- Native SQLite snapshots run at startup and every 24 hours, retaining the configured number of
-  completed managed backups. Manual snapshots use the same retention; pre-upgrade recovery
-  snapshots remain separate. Removed interval configuration and the backup health latch.
-- Prepared a nonpersisted planning cache controller with generated typed requests and real-server
-  checks for revision ordering, acknowledgement, uncertainty and typed history. Request timeouts
-  retain their original mutation for commitment lookup; obsolete contexts suppress completion
-  results, and activity-kind updates clear incomplete typed history. Canonical reads require explicit
-  server write authority, typed history keeps at most 50 entries, and pure non-delete command builders
-  prepare field-preserving typed requests. The schedule retains its current persistence, deletion
-  and Undo path; complete typed Undo and session-bound restoration remain unfinished. This milestone
-  uses the existing real authentication; later identity-link integration is separate.
-
-- Use Adonis BodyParser and compiled Vine validation for requests, with flat 400 errors and no CSP report endpoint.
-
-- Updated the account credential integration while preserving existing password-reset links, password policies, and stopped-server Owner recovery.
-
-- Native operator commands provide verified online backups, backup-before-upgrade, audited
-  sole-Owner recovery links and a guarded snapshot/archive reset into a new database path.
-  Readiness refuses unknown migration histories; backup outcomes are checked through logs and snapshots.
-
-- The AdonisJS fork uses native password sign-in and fixed-lifetime sessions, with credential
-  changes, audit and session revocation committed together.
-
-- Google is the available company sign-in provider. A new Google identity needs the first-user
-  allowlist or an invitation addressed to its verified email; returning from Google does not join a
-  company or accept an invitation until the person completes that action.
-
-- Reusing a one-time invitation command returns a conflict instead of replaying its bearer link;
-  refresh the invitation list and replace the link if the original response was lost.
-
-- Ownership transfers now take effect when the Owner confirms a handover to an active, unrestricted
-  Admin. The selected Admin becomes Owner and the caller becomes Admin; the nominee does not
-  separately consent.
 
 - Body text, buttons, fields and menus use 13px type instead of 14px, for a denser desktop
   layout. Line heights and control sizes are unchanged.
@@ -97,17 +26,11 @@ new features and **patch** versions carry fixes.
 
 ### Documentation
 
-- Replaced retired framework and repository-policy references with the native Adonis operator
-  guides. Installation, backup, upgrade, reset, monitoring and external TLS instructions now use
-  the current packaged commands and paths; Docker mechanics remain deferred pending image work.
-- Rewrote the documentation front door and README around four roles, each with a short step-by-step quick start with thumbnail screenshots, plus a one-page quick start for the person doing the whole setup. Every user guide was edited for length and one consistent voice, and the managed-host guide is now a single page. Statements that contradicted the app or each other were corrected, and upgrades include verified-snapshot rollback for Linux and managed hosts; Docker rollback remains deferred pending image work.
+- Rewrote the documentation front door and README around four roles, each with a short step-by-step quick start with thumbnail screenshots, plus a one-page quick start for the person doing the whole setup. Every user guide was edited for length and one consistent voice, and the managed-host guide is now a single page. Statements that contradicted the app or each other were corrected, and upgrades now include a working rollback for Docker Compose, Linux and managed hosts.
 - Added complete Editor and Viewer starting routes, expanded Owner, Admin, joining, Account and discipline journeys, and added current screenshots for role-specific controls. Corrected operator guidance for MFA, provider linking, backups and monitoring.
 
 ### Added
 
-- A beta-native JSON transfer contract and frontend preview. The versioned format validates a
-  complete single-account dataset and rejects malformed or cross-scope data; the existing Settings
-  import/export controls remain on the legacy writer until backend replacement is integrated (#1520).
 - A role-based schedule tour that begins with the caller's role, includes lower-role guidance, and
   disables its Getting started launcher while permissions are unresolved or an offline snapshot is read-only (#969).
 - A shared Help page above Account in the sidebar and command palette. Every role can start its
