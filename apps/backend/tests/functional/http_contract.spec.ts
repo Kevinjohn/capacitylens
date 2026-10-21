@@ -133,6 +133,17 @@ async function withServer(
 const limitedRead = (server: Booted, forwardedFor: string) =>
   server.send('GET', '/api/meta', { 'x-forwarded-for': forwardedFor }).then(({ status }) => status)
 
+// An http page origin matches its own host only while the request protocol stays http, so a
+// forwarded https protocol turns this unsafe request into a cross-origin refusal.
+const plainOriginReset = (server: Booted, forwardedProto?: string) =>
+  server
+    .send('POST', '/api/test/reset', {
+      origin: 'http://capacity.example.test',
+      host: 'capacity.example.test',
+      ...(forwardedProto ? { 'x-forwarded-proto': forwardedProto } : {}),
+    })
+    .then(({ status }) => status)
+
 const sessionCookie = (reply: Reply) =>
   ([] as string[])
     .concat(reply.headers['set-cookie'] ?? [])
@@ -193,6 +204,47 @@ test.group('HTTP proxy, transport and cookie contract', (group) => {
           429,
           'both requests are keyed by the peer 10.0.0.9'
         )
+      }
+    )
+  })
+
+  test('trusted proxy headers: the origin guard uses a loopback proxy forwarded protocol', async ({
+    assert,
+  }) => {
+    await withServer(
+      { CAPACITYLENS_TRUST_PROXY_HEADERS: 'true', CAPACITYLENS_ALLOW_RESET: 'true' },
+      {},
+      async (server) => {
+        assert.equal(await plainOriginReset(server), 200)
+        assert.equal(
+          await plainOriginReset(server, 'https'),
+          403,
+          'the forwarded https protocol no longer matches the http origin'
+        )
+      }
+    )
+  })
+
+  test('untrusted proxy headers: the origin guard ignores a forwarded protocol', async ({
+    assert,
+  }) => {
+    await withServer(
+      { CAPACITYLENS_TRUST_PROXY_HEADERS: 'false', CAPACITYLENS_ALLOW_RESET: 'true' },
+      {},
+      async (server) => {
+        assert.equal(await plainOriginReset(server, 'https'), 200)
+      }
+    )
+  })
+
+  test('trusted proxy headers: a non-loopback peer cannot supply a forwarded protocol', async ({
+    assert,
+  }) => {
+    await withServer(
+      { CAPACITYLENS_TRUST_PROXY_HEADERS: 'true', CAPACITYLENS_ALLOW_RESET: 'true' },
+      { peer: '10.0.0.9' },
+      async (server) => {
+        assert.equal(await plainOriginReset(server, 'https'), 200)
       }
     )
   })
