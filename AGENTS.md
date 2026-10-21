@@ -12,19 +12,18 @@ Read this file with [DECISIONS.md](DECISIONS.md) and the official AdonisJS docum
 - Every scoped row carries its company id. The server independently authorizes every tenant read and write; client scoping is not authorization.
 - Over-capacity means allocated is greater than available. Normal allocations use working days unless the explicit override applies. Visible utilisation follows the visible window; `overSoon` stays fixed at 14 days.
 - Activity kind is required; only project activities carry project or phase ids. Colours use preset swatches, and a person's colour derives from discipline.
-- Ordinary writes reject invalid supplied input; imports sanitize and repair atomically. Demo mode is temporary and in-memory. Scheduling data is never persisted in the browser; failed requests remain visible and retryable.
+- Ordinary writes reject invalid supplied input; nothing is repaired on the way in. Import accepts only this product's own export, atomically, and rejects anything else. Demo mode is temporary and in-memory. Scheduling data is never persisted in the browser; failed requests remain visible and retryable.
 
 ## Identity, security and data
 
-- Google is the supported company identity provider. Microsoft is deferred and GitHub is retired. Do not claim live-provider acceptance from deterministic tests.
-- New external principals need verified email and an unused pre-authorized invitation, except the configured first-provider bootstrap. Never merge identities by email. Company invitations and membership remain product-owned.
-- Sessions have a twelve-hour absolute lifetime and thirty-minute inactivity expiry. Freshness is required only for ownership transfer, another member's password reset or session revocation, company deletion, import/purge, and external identity link/repair.
-- Password and session authority is identity-global across every company the principal can enter. Never weaken server authorization because the UI hides an action or render bearer session tokens. Never persist, log or replay password-reset or invitation bearers; show newly issued links only in their authorized flow.
-- Password mode uses the bounded scrypt policy and production breached-password screening. Password reset is a verified ceremony, not an administrative password setter.
-- Keep one Owner per company. Ownership transfer is explicit and transactional. Masquerade is a read-only data projection; explicit end and sign-out are its only allowed mutations.
-- Secret-bearing command repeats return an idempotency conflict; never replay or store a bearer. Completed non-secret command results may replay, with payload mismatch rejected.
+- Account Kit owns accounts, sessions, social sign-in (Ally) and admission. CapacityLens owns company membership, roles, the member/resource link, Bouncer policies and every screen that renders a kit outcome. Do not re-implement a kit capability in the product.
+- Admission is three independent cumulative checks (domain, invitation, approval) configured in `config/admission.ts`. A person who is authenticated but not admitted reaches only the limited surface. Enforcement is on the next request; nothing is pushed to the browser.
+- Google is the supported company identity provider. Microsoft and GitHub are not supported. Do not claim live-provider acceptance from deterministic tests. Identities are never merged by email; a verified provider email matching an unused invitation records invitation evidence at creation.
+- Sessions use the kit's idle expiry. Sensitive actions (ownership transfer, company deletion, import, anonymisation) re-prove the password per action. There is no time-based freshness window, no breach screening and no custom hashing.
+- The first Owner is bootstrapped through the kit's operator commands, never an environment variable. Keep one Owner per company; ownership transfer is one atomic transaction. View-as-member is a read-only projection; every write under it is refused server-side.
+- Never weaken server authorization because the UI hides an action. Never persist, log or replay password-reset or invitation bearers.
 - Surface data-path errors. Never add empty catches or silently replace API failures with browser persistence.
-- Export schema and database schema versions are independent. Released migrations are immutable and checksum-pinned; add schema changes through forward migrations and retain required privacy, erasure and backup behavior.
+- Migrations are append-only from the beta baseline and run through Lucid; `app:upgrade` backs up before migrating. There is no checksum ledger and no fixture compatibility suite. Retain the privacy, anonymisation and backup behaviour recorded in `DECISIONS.md`.
 
 ## Frontend and documentation
 
