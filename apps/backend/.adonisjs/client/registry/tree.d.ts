@@ -10,9 +10,12 @@ export interface ApiDefinition {
         create: typeof routes['api.planning.allocation.create']
         update: typeof routes['api.planning.allocation.update']
         createGroup: typeof routes['api.planning.allocation.createGroup']
+        delete: typeof routes['api.planning.allocation.delete']
+        deleteGroup: typeof routes['api.planning.allocation.deleteGroup']
         duplicate: typeof routes['api.planning.allocation.duplicate']
         repeat: typeof routes['api.planning.allocation.repeat']
       }
+      restoreGroup: typeof routes['api.planning.restoreGroup']
       resource: {
         create: typeof routes['api.planning.resource.create']
         update: typeof routes['api.planning.resource.update']

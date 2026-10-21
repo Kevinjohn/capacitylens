@@ -405,6 +405,40 @@ export class CompanySettingSchema extends BaseModel {
   declare value: unknown | null
 }
 
+export class DeletedGroupSchema extends BaseModel {
+  static $columns = ['accountId', 'actorId', 'consumedAt', 'createdAt', 'groupId', 'mutationId', 'sessionId'] as const
+  $columns = DeletedGroupSchema.$columns
+  @column()
+  declare accountId: string
+  @column()
+  declare actorId: string
+  @column()
+  declare consumedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  @column()
+  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column({ isPrimary: true })
+  declare groupId: string
+  @column()
+  declare mutationId: string
+  @column()
+  declare sessionId: string
+}
+
+export class DeletedRowSchema extends BaseModel {
+  static $columns = ['entity', 'groupId', 'id', 'payloadJson', 'rowId'] as const
+  $columns = DeletedRowSchema.$columns
+  @column()
+  declare entity: string
+  @column()
+  declare groupId: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare payloadJson: string
+  @column()
+  declare rowId: string
+}
+
 export class DisciplineSchema extends BaseModel {
   static $columns = ['accountId', 'color', 'createdAt', 'id', 'name', 'sortOrder', 'updatedAt'] as const
   $columns = DisciplineSchema.$columns

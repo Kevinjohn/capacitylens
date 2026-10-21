@@ -20,6 +20,18 @@ router
   ])
   .as('api.planning.allocation.createGroup')
 router
+  .post('/api/accounts/:accountId/allocations/:id/delete', [PlanningController, 'allocationDelete'])
+  .as('api.planning.allocation.delete')
+router
+  .post('/api/accounts/:accountId/allocations/delete-group', [
+    PlanningController,
+    'allocationDeleteGroup',
+  ])
+  .as('api.planning.allocation.deleteGroup')
+router
+  .post('/api/accounts/:accountId/planning/restore-group', [PlanningController, 'restoreGroup'])
+  .as('api.planning.restoreGroup')
+router
   .post('/api/accounts/:accountId/resources', [PlanningController, 'resourceCreate'])
   .as('api.planning.resource.create')
 router

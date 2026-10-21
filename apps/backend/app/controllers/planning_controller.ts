@@ -17,6 +17,7 @@ import {
   timeOffMutationValidator,
   closureMutationValidator,
   settingsMutationValidator,
+  planningMutationValidator,
   planningMutationErrorCodes,
   StalePlanningRevisionError,
 } from '#validators/planning_operations'
@@ -176,6 +177,36 @@ export default class PlanningController {
     try {
       const input = await ctx.request.validateUsing(allocationMutationValidator)
       return await this.execute(ctx, input, 'allocation.createGroup')
+    } catch (error) {
+      const failure = refusal(error)
+      return ctx.response.status(failure.status).send(failure.body)
+    }
+  }
+
+  async allocationDelete(ctx: HttpContext) {
+    try {
+      const input = await ctx.request.validateUsing(allocationMutationValidator)
+      return await this.execute(ctx, input, 'allocation.delete')
+    } catch (error) {
+      const failure = refusal(error)
+      return ctx.response.status(failure.status).send(failure.body)
+    }
+  }
+
+  async allocationDeleteGroup(ctx: HttpContext) {
+    try {
+      const input = await ctx.request.validateUsing(allocationMutationValidator)
+      return await this.execute(ctx, input, 'allocation.deleteGroup')
+    } catch (error) {
+      const failure = refusal(error)
+      return ctx.response.status(failure.status).send(failure.body)
+    }
+  }
+
+  async restoreGroup(ctx: HttpContext) {
+    try {
+      const input = await ctx.request.validateUsing(planningMutationValidator)
+      return await this.execute(ctx, input, 'planning.restoreGroup')
     } catch (error) {
       const failure = refusal(error)
       return ctx.response.status(failure.status).send(failure.body)

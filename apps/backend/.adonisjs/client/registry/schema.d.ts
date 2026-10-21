@@ -67,6 +67,42 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationCreateGroup']>>>
     }
   }
+  'api.planning.allocation.delete': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/allocations/:id/delete'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDelete']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDelete']>>>
+    }
+  }
+  'api.planning.allocation.deleteGroup': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/allocations/delete-group'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      paramsTuple: [ParamValue]
+      params: { accountId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').allocationMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDeleteGroup']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDeleteGroup']>>>
+    }
+  }
+  'api.planning.restoreGroup': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/planning/restore-group'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').planningMutationValidator)>>
+      paramsTuple: [ParamValue]
+      params: { accountId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').planningMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['restoreGroup']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['restoreGroup']>>>
+    }
+  }
   'api.planning.resource.create': {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/resources'

@@ -18,6 +18,7 @@ import {
   PlanningOperationError,
 } from '#services/planning_operations/execute'
 import { writeAudit } from '#services/audit'
+import { unconsumedGroupId } from '#services/planning_operations/restoration'
 import {
   assertPlanningBaseRevision,
   mutationLookupValidator,
@@ -175,7 +176,14 @@ export function mutatePlanning(
       input.mutationId
     )
     const before = await readStateWithClient(trx, accountId, true)
-    await executePlanningIntent(trx, accountId, input.intent, capabilities, structuredClone(before))
+    const restoration = await executePlanningIntent(
+      trx,
+      accountId,
+      input.intent,
+      capabilities,
+      structuredClone(before),
+      { actorId: authority.actorId, sessionId: ctx.session.sessionId, mutationId: input.mutationId }
+    )
     const after = await readStateWithClient(trx, accountId, true)
     if (semanticState(before) === semanticState(after))
       throw new PlanningOperationError(
@@ -211,7 +219,7 @@ export function mutatePlanning(
       status: 'committed',
       mutationId: input.mutationId,
       revision,
-      restoration: { consumedGroupId: null, replacementGroupId: null },
+      restoration,
       projection: requiresRefetch(input.intent)
         ? { mode: 'refetch', history: 'clear' }
         : { mode: 'patch', history: 'retain', changed },
@@ -232,9 +240,18 @@ export function lookupPlanningMutation(
       .where({ account_id: accountId, actor_id: authority.actorId, mutation_id: mutationId })
       .select('revision')
       .first()
-    return marker
-      ? { status: 'committed', mutationId, revision: Number(marker.revision) }
-      : { status: 'unknown', mutationId }
+    if (!marker) return { status: 'unknown', mutationId }
+    const restorationGroupId = await unconsumedGroupId(trx, accountId, {
+      actorId: authority.actorId,
+      sessionId: ctx.session.sessionId,
+      mutationId,
+    })
+    return {
+      status: 'committed',
+      mutationId,
+      revision: Number(marker.revision),
+      ...(restorationGroupId ? { restorationGroupId } : {}),
+    }
   })
 }
 

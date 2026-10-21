@@ -151,7 +151,11 @@ export async function invalidateUserSessions(
   if (input.preserveSessionId) query = query.whereNot('session_id', input.preserveSessionId)
   const rows = await query.select('session_id')
   const ids = rows.map((row) => String(row.session_id))
-  if (ids.length) await trx.from('user_session_index').whereIn('session_id', ids).delete()
+  if (ids.length) {
+    await trx.from('user_session_index').whereIn('session_id', ids).delete()
+    // Restoration groups are bound to the invalidated session; their saved rows cascade.
+    await trx.from('deleted_groups').whereIn('session_id', ids).delete()
+  }
   return ids
 }
 

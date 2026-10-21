@@ -36,6 +36,24 @@ const routes = {
     tokens: [{"old":"/api/accounts/:accountId/allocations/create-group","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/allocations/create-group","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/allocations/create-group","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/allocations/create-group","type":0,"val":"allocations","end":""},{"old":"/api/accounts/:accountId/allocations/create-group","type":0,"val":"create-group","end":""}],
     types: placeholder as Registry['api.planning.allocation.createGroup']['types'],
   },
+  'api.planning.allocation.delete': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/allocations/:id/delete',
+    tokens: [{"old":"/api/accounts/:accountId/allocations/:id/delete","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/allocations/:id/delete","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/allocations/:id/delete","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/allocations/:id/delete","type":0,"val":"allocations","end":""},{"old":"/api/accounts/:accountId/allocations/:id/delete","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/allocations/:id/delete","type":0,"val":"delete","end":""}],
+    types: placeholder as Registry['api.planning.allocation.delete']['types'],
+  },
+  'api.planning.allocation.deleteGroup': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/allocations/delete-group',
+    tokens: [{"old":"/api/accounts/:accountId/allocations/delete-group","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/allocations/delete-group","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/allocations/delete-group","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/allocations/delete-group","type":0,"val":"allocations","end":""},{"old":"/api/accounts/:accountId/allocations/delete-group","type":0,"val":"delete-group","end":""}],
+    types: placeholder as Registry['api.planning.allocation.deleteGroup']['types'],
+  },
+  'api.planning.restoreGroup': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/planning/restore-group',
+    tokens: [{"old":"/api/accounts/:accountId/planning/restore-group","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/planning/restore-group","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/planning/restore-group","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/planning/restore-group","type":0,"val":"planning","end":""},{"old":"/api/accounts/:accountId/planning/restore-group","type":0,"val":"restore-group","end":""}],
+    types: placeholder as Registry['api.planning.restoreGroup']['types'],
+  },
   'api.planning.resource.create': {
     methods: ["POST"],
     pattern: '/api/accounts/:accountId/resources',

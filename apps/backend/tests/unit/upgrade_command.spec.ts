@@ -93,12 +93,12 @@ test('native upgrade initializes a fresh database without a snapshot', ({
     const dbPath = join(root, 'live.db')
     const result = ace(appRoot, dbPath, 'app:upgrade')
     assert.equal(result.status, 0, result.output)
-    assert.lengthOf(journal(dbPath), 1)
+    assert.lengthOf(journal(dbPath), 2)
     assert.isFalse(result.output.includes('Pre-upgrade backup written'))
     const repeated = ace(appRoot, dbPath, 'app:upgrade')
     assert.equal(repeated.status, 0, repeated.output)
     assert.match(repeated.output, /Already up to date/)
-    assert.lengthOf(journal(dbPath), 1)
+    assert.lengthOf(journal(dbPath), 2)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
@@ -123,19 +123,19 @@ test('native upgrade backs up an existing database before migrating and refuses 
     const blocked = ace(scratch, dbPath, 'app:upgrade', blockedDir)
     assert.notEqual(blocked.status, 0, blocked.output)
     assert.isNotNull(blocked.status, blocked.output)
-    assert.lengthOf(journal(dbPath), 1)
+    assert.lengthOf(journal(dbPath), 2)
     assert.notInclude(tables(dbPath), 'upgrade_added')
 
     const upgrade = ace(scratch, dbPath, 'app:upgrade')
     assert.equal(upgrade.status, 0, upgrade.output)
     assert.match(upgrade.output, /Pre-upgrade backup written/)
-    assert.lengthOf(journal(dbPath), 2)
+    assert.lengthOf(journal(dbPath), 3)
     assert.include(tables(dbPath), 'upgrade_added')
     const backups = join(root, 'live.db.backups')
     const [snapshot, ...others] = preMigrationSnapshots(backups)
     assert.isDefined(snapshot)
     assert.lengthOf(others, 0)
-    assert.lengthOf(journal(join(backups, snapshot!)), 1)
+    assert.lengthOf(journal(join(backups, snapshot!)), 2)
     assert.notInclude(tables(join(backups, snapshot!)), 'upgrade_added')
   } finally {
     rmSync(root, { recursive: true, force: true })
@@ -181,12 +181,12 @@ test('a failing later migration rolls back its own DDL after an earlier file com
 
     const upgrade = ace(scratch, dbPath, 'app:upgrade')
     assert.notEqual(upgrade.status, 0, upgrade.output)
-    assert.lengthOf(journal(dbPath), 2)
+    assert.lengthOf(journal(dbPath), 3)
     assert.include(tables(dbPath), 'upgrade_committed')
     assert.notInclude(tables(dbPath), 'upgrade_rolled_back')
     const [snapshot] = preMigrationSnapshots(join(root, 'live.db.backups'))
     assert.isDefined(snapshot)
-    assert.lengthOf(journal(join(root, 'live.db.backups', snapshot!)), 1)
+    assert.lengthOf(journal(join(root, 'live.db.backups', snapshot!)), 2)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

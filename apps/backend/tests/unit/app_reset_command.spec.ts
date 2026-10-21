@@ -56,7 +56,7 @@ test('app reset archives all account, joining and credential state and initializ
       'planning_mutations',
     ])
       assert.equal(tableCount(fresh, table), 0, table)
-    assert.equal(tableCount(fresh, 'adonis_schema'), 1)
+    assert.equal(tableCount(fresh, 'adonis_schema'), 2)
     fresh.close()
   } finally {
     f.cleanup()

@@ -21,7 +21,11 @@ const owner: BatchCapabilities = {
 async function execute(intent: PlanningIntent) {
   await db.transaction(async (trx) => {
     const data = await readStateWithClient(trx, 'a-studio', true)
-    await executePlanningIntent(trx, 'a-studio', intent, owner, data)
+    await executePlanningIntent(trx, 'a-studio', intent, owner, data, {
+      actorId: 'u-bruce',
+      sessionId: 'session-bruce',
+      mutationId: randomUUID(),
+    })
   })
 }
 

@@ -181,12 +181,29 @@ async function sendOperation(
       break;
     }
     case "allocation.delete":
+      return requireReply(
+        await apiClient.request("api.planning.allocation.delete", {
+          params: { ...params, id: intent.id },
+          body: { ...execution, intent },
+          signal,
+        }),
+      );
     case "allocation.deleteGroup":
+      return requireReply(
+        await apiClient.request("api.planning.allocation.deleteGroup", {
+          params,
+          body: { ...execution, intent },
+          signal,
+        }),
+      );
+    case "planning.restoreGroup":
+      return requireReply(
+        await apiClient.request("api.planning.restoreGroup", { params, body: { ...execution, intent }, signal }),
+      );
     case "timeOff.delete":
     case "timeOff.deleteGroup":
     case "catalogue.delete":
     case "closure.delete":
-    case "planning.restoreGroup":
       throw new PlanningControllerError(
         "Session-bound planning restoration is not available.",
         "restoration_unavailable",

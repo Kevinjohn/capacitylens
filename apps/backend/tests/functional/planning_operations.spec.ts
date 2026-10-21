@@ -26,7 +26,11 @@ async function executePlanningIntent(
   capabilities: BatchCapabilities
 ) {
   const data = await readStateWithClient(trx, accountId, true)
-  return applyPlanningIntent(trx, accountId, intent, capabilities, data)
+  return applyPlanningIntent(trx, accountId, intent, capabilities, data, {
+    actorId: 'u-bruce',
+    sessionId: 'session-bruce',
+    mutationId: randomUUID(),
+  })
 }
 
 test.group('typed planning writers', (group) => {
