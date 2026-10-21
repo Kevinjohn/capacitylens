@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import { request as httpRequest } from 'node:http'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import { replaceWithSeed } from '#services/state_repository'
 
 function postRawJson(body: Buffer): Promise<{ statusCode: number | undefined; body: string }> {
@@ -34,7 +34,7 @@ function postRawJson(body: Buffer): Promise<{ statusCode: number | undefined; bo
 }
 
 test.group('M1 framework JSON parsing', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(() => replaceWithSeed())
 
   test('passes malformed UTF-8 through the framework parser to route validation', async ({

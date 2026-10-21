@@ -112,13 +112,9 @@ export default defineConfig({
   | the production build.
   |
   */
-  metaFiles: [
-    { pattern: 'public/**', reloadServer: false },
-    { pattern: 'database/released.json', reloadServer: false },
-  ],
+  metaFiles: [{ pattern: 'public/**', reloadServer: false }],
 
   hooks: {
-    buildFinished: [() => import('./hooks/released_migrations.js')],
     init: [
       indexEntities({
         transformers: { enabled: true },

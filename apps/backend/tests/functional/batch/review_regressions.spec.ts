@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import { request as httpRequest } from 'node:http'
 import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
@@ -47,7 +47,7 @@ function postRaw(
 }
 
 test.group('M2a review regressions', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('removes the CSP report endpoint', async ({ client, assert }) => {
     const response = await client

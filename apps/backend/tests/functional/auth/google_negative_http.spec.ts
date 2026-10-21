@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
 import { GoogleDriver } from '@adonisjs/ally/drivers/google'
@@ -96,7 +96,7 @@ async function callback(
 }
 
 test.group('Google denial and rollback boundaries', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.setup(() => {
     const previous = {
       mode: env.get('CAPACITYLENS_MODE'),

@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
 import { resetPassword } from '#services/credentials/operations'
@@ -14,7 +14,7 @@ function withSession<
 }
 
 test.group('new company recovery authority', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
     await db.from('audit_entries').delete()
     await db.from('command_results').delete()

@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
 import { resetState } from '#services/state_repository'
@@ -21,7 +21,7 @@ const withSession = <
   })
 
 test.group('joining policy and current proof', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
     await resetState(false)
     await db.from('user_session_index').delete()

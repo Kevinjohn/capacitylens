@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import type { BatchRevision } from '#services/batch/types'
 import { batch, readStudioState, resetSeed, studioSeed } from './ordering_helpers.js'
@@ -13,7 +13,7 @@ function revisions(response: { body(): unknown }) {
 }
 
 test.group('M2a ordered batch behavior', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('accepts the exact same-session successor row hash and advances revisions monotonically', async ({
     client,

@@ -1,13 +1,13 @@
 import { test } from '@japa/runner'
 import app from '@adonisjs/core/services/app'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import { readdir } from 'node:fs/promises'
 
 const strictPolicy =
   "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'"
 
 test.group('M1 static fallback', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   test('serves the shell only for SPA routes', async ({ client, assert }) => {
     for (const path of ['/', '/schedule/week/2026-10-05', '/invite/abc', '/reset-password/abc']) {
       const response = await client.get(path)

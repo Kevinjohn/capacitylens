@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import mail from '@adonisjs/mail/services/main'
 import logger from '@adonisjs/core/services/logger'
@@ -15,7 +15,7 @@ function withSession<
 }
 
 test.group('Credential HTTP contract', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('public request is gated by mode and mail configuration', async ({
     client,

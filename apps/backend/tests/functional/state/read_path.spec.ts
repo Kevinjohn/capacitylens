@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import { readFile } from 'node:fs/promises'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import { replaceWithSeed } from '#services/state_repository'
 import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities'
 import { fillNullableFields } from '@capacitylens/shared/types/nullableFields'
@@ -18,7 +18,7 @@ const fixture = JSON.parse(
 }
 
 test.group('M1 read path', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(() => replaceWithSeed())
   for (const expected of fixture.responses) {
     test(`${expected.method} ${expected.path} matches the main response`, async ({

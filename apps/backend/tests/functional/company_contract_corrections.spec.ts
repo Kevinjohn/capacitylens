@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
 import { readState } from '#services/state_repository'
@@ -8,7 +8,7 @@ import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color'
 const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
   request.header('sec-fetch-site', 'same-origin')
 test.group('M2b company route compatibility', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('company summary fails closed when the installation contains multiple legacy companies', async ({
     client,

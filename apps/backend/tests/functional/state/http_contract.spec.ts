@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import { replaceWithSeed } from '#services/state_repository'
 import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
@@ -15,7 +15,7 @@ const securityHeaders = [
 ]
 
 test.group('M1 HTTP contract', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(() => replaceWithSeed())
 
   test('validates state queries and scopes the account read', async ({ client, assert }) => {

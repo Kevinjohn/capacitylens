@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import { LoggerFactory } from '@adonisjs/logger/factories'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import Account from '#models/account'
 import logger from '@adonisjs/core/services/logger'
@@ -40,7 +40,7 @@ async function captureLogs<T>(
 const originalLoggingSetting = env.get('CAPACITYLENS_LOG')
 
 test.group('general HTTP logging privacy', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.setup(() => env.set('CAPACITYLENS_LOG', '1'))
   group.teardown(() => {
     env.set('CAPACITYLENS_LOG', originalLoggingSetting ?? '')

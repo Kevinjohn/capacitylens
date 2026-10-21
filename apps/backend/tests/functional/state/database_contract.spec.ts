@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import { seed } from '@capacitylens/shared/data/seed'
 import { readState, replaceWithSeed, checkDatabase } from '#services/state_repository'
 import { assertSchemaIntegrity } from '#services/schema_integrity'
@@ -38,7 +38,7 @@ async function rowCount(table: string, where: Record<string, string>) {
 }
 
 test.group('M1 database contract', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
     await db.from('account_member_resources').delete()
     await replaceWithSeed()

@@ -1,7 +1,6 @@
 import type { ApplicationService } from '@adonisjs/core/types'
 import env from '#start/env'
 import db from '@adonisjs/lucid/services/db'
-import { assertReleasedMigrations } from '#services/released_migrations'
 import { assertSchemaIntegrity } from '#services/schema_integrity'
 import { authMode, googleEnabled, passwordEnabled } from '#services/auth/mode'
 import { hashPassword } from '#services/password_service'
@@ -157,14 +156,13 @@ export default class ConfigurationProvider {
         ? process.argv.slice(2).find((argument) => !argument.startsWith('-'))
         : undefined
     if (command === 'owner:reset-password' || command === 'app:reset') return
-    const migrations = await assertReleasedMigrations({ allowPending: environment !== 'web' })
     if (command === 'app:upgrade' || command === 'db:backup' || command?.startsWith('migration:'))
       return
     const rows = await db
       .from('sqlite_master')
       .where({ type: 'table', name: 'accounts' })
       .select('name')
-    if (migrations.pending === 0 || rows.length > 0) {
+    if (rows.length > 0) {
       await assertSchemaIntegrity()
       await this.bootstrapCredential()
     }

@@ -1,4 +1,3 @@
-import { assertReleasedMigrations } from '#services/released_migrations'
 import db from '@adonisjs/lucid/services/db'
 import type { AppData } from '@capacitylens/shared/types/entities'
 import { seed } from '@capacitylens/shared/data/seed'
@@ -200,7 +199,6 @@ function filterCompanyRows<T extends { accountId: string }>(rows: T[], accountId
 export const replaceWithSeed = () => resetState(true)
 
 export async function checkDatabase() {
-  await assertReleasedMigrations()
   await db.rawQuery('select 1')
   await assertSchemaIntegrity()
 }

@@ -3,7 +3,6 @@ import { dirname, join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import app from '@adonisjs/core/services/app'
 import { operatorDatabasePath, withOperatorDatabase } from './operator_database.js'
-import { assertReleasedMigrations } from '#services/released_migrations'
 import { assertSchemaIntegrity } from '#services/schema_integrity'
 import { durableSnapshotPublisher, writeOneShotSnapshot } from '#services/backup/snapshot'
 
@@ -39,7 +38,6 @@ export async function resetInstallation(input: {
   let stage = 'source validation'
   try {
     await withOperatorDatabase(async (connection) => {
-      await assertReleasedMigrations()
       await assertSchemaIntegrity()
       // wx reserves the destination against concurrent operators; an unsuccessful reset leaves it visible.
       closeSync(openSync(databasePath, 'wx', 0o600))

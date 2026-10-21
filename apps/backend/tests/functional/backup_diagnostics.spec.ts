@@ -1,9 +1,8 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
-import db from '@adonisjs/lucid/services/db'
+import { freshDatabase } from '../helpers/fresh_database.js'
 
 test.group('Backup diagnostics', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('readiness reports database health without a backup latch', async ({ client, assert }) => {
     const response = await client.get('/health/ready')
@@ -24,27 +23,5 @@ test.group('Backup diagnostics', (group) => {
       status: 'unavailable',
       lastSuccessAt: null,
     })
-  })
-
-  test('unknown recorded migrations fail readiness while liveness remains available', async ({
-    client,
-    assert,
-  }) => {
-    await db
-      .table('adonis_schema')
-      .insert({ name: 'database/migrations/999999999999_unknown', batch: 999 })
-    try {
-      const ready = await client.get('/health/ready')
-      const diagnostics = await client.get('/api/diagnostics')
-      const live = await client.get('/health/live')
-      assert.equal(ready.status(), 503)
-      assert.equal(diagnostics.status(), 503)
-      assert.equal(live.status(), 200)
-    } finally {
-      await db
-        .from('adonis_schema')
-        .where('name', 'database/migrations/999999999999_unknown')
-        .delete()
-    }
   })
 })

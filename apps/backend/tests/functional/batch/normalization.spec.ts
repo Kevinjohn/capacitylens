@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import { seed } from '@capacitylens/shared/data/seed'
 import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities'
 
@@ -26,7 +26,7 @@ const trusted = <T extends { header(name: string, value: string): T }>(request: 
   request.header('sec-fetch-site', 'same-origin')
 
 test.group('M2a ordinary-write normalization', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('public clients and projects store privacy as absence after a full-row update', async ({
     client,

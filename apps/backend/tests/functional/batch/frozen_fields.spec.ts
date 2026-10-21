@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import { seed } from '@capacitylens/shared/data/seed'
 import type { AppData } from '@capacitylens/shared/types/entities'
 
@@ -35,7 +35,7 @@ async function freezeSeededAccount(client: ApiClient) {
 }
 
 test.group('M2a batch frozen account fields', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('sets missing frozen values once, permits unchanged full-row sync, and rejects changes with the canonical message', async ({
     client,

@@ -7,7 +7,6 @@ import type { Trx } from 'adonisjs-account-kit/types'
 import { PostCommitError } from 'adonisjs-account-kit/errors'
 import env from '#start/env'
 import { usersAdapter } from '#services/account_kit/users_adapter'
-import { assertReleasedMigrations } from '#services/released_migrations'
 import { assertSchemaIntegrity } from '#services/schema_integrity'
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
 import { operatorDatabasePath, withOperatorDatabase } from './operator_database.js'
@@ -43,7 +42,6 @@ export async function recoverOwner(input: { email: string; confirmServerStopped:
   const origin = env.get('CAPACITYLENS_PUBLIC_URL')
   if (!origin) throw new Error('CAPACITYLENS_PUBLIC_URL is required')
   return withOperatorDatabase(async () => {
-    await assertReleasedMigrations()
     await assertSchemaIntegrity()
     const identities = await db.from('users').select('id', 'email')
     const matches = identities.filter((row) => normalizeAccountEmail(String(row.email)) === email)

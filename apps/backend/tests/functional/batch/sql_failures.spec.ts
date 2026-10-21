@@ -1,5 +1,6 @@
 import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import HttpExceptionHandler from '#exceptions/handler'
 import { applyBatch } from '#services/batch/service'
@@ -24,7 +25,7 @@ async function classify(error: unknown) {
 }
 
 test.group('M2a SQL failure and audit contracts', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(() => replaceWithSeed())
 
   test('maps real NOT NULL, primary-key, unique and foreign-key row constraints to a safe 400', async ({

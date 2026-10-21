@@ -1,6 +1,6 @@
 /* eslint-disable @unicorn/no-await-expression-member -- Keep each HTTP result beside its assertion. */
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import env from '#start/env'
 import { GoogleDriver } from '@adonisjs/ally/drivers/google'
 import db from '@adonisjs/lucid/services/db'
@@ -55,7 +55,7 @@ async function withGoogleHttp(profile: Record<string, unknown>, work: () => Prom
 }
 
 test.group('Google browser entry', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.setup(() => {
     const previous = {
       mode: env.get('CAPACITYLENS_MODE'),
