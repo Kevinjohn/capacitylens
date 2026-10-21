@@ -90,6 +90,20 @@ it("reads the planning revision again after acknowledging a legacy write", async
   }
 });
 
+it("reads the planning snapshot again alongside every legacy reload", async () => {
+  const server = await attachAcknowledgingServer();
+  const refreshPlanning = useStore.getState().refreshPlanning;
+  const spy = vi.fn(refreshPlanning);
+  useStore.setState({ refreshPlanning: spy });
+  try {
+    await refreshActiveAccountSlice("a2");
+    expect(spy).toHaveBeenCalled();
+  } finally {
+    useStore.setState({ refreshPlanning });
+    server.detach();
+  }
+});
+
 it("does not publish an old receipt to a detached persistence owner", async () => {
   const server = await attachAcknowledgingServer({ holdFirst: true });
   useStore.getState().updateResource("r1", { name: "Pepper Potts" });

@@ -4,6 +4,7 @@ import { render, screen, waitFor, fireEvent, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { PermissionContext } from "@/auth/permissionContext";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
+import { PlanningControllerError } from "@/data/planning/planningCacheController";
 import { SchedulerToolbar } from "./SchedulerToolbar";
 import { buildEmptyFilters, useStore } from "@/store/useStore";
 import { DEFAULT_ACCOUNT_ID, makeResourceDraft, resetStoreWithAccount } from "@/test/fixtures";
@@ -466,6 +467,36 @@ describe("SchedulerToolbar history errors", () => {
       );
     } finally {
       useStore.setState({ [action]: original });
+    }
+  });
+
+  it("does not toast a stale-revision Undo because the refetched schedule already shows it", async () => {
+    const user = userEvent.setup();
+    const resource = requireCreated(useStore.getState().addResource(makeResourceDraft()));
+    const activity = requireCreated(useStore.getState().addActivity({ name: "Operations", kind: "internal" }));
+    requireCreated(
+      await useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: activity.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-01",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
+    const undo = vi.fn(() =>
+      Promise.reject(new PlanningControllerError("The schedule changed.", "stale_revision", 409)),
+    );
+    const original = useStore.getState().undoPlanning;
+    useStore.setState({ undoPlanning: undo });
+    try {
+      render(<SchedulerToolbar />);
+      await user.click(screen.getByRole("button", { name: "Undo" }));
+      await waitFor(() => expect(undo).toHaveBeenCalledOnce());
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(useStore.getState().notice).toBeNull();
+    } finally {
+      useStore.setState({ undoPlanning: original });
     }
   });
 });

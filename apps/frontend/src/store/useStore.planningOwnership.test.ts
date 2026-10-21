@@ -1,0 +1,137 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { AppData } from "@capacitylens/shared/types/entities";
+import { PlanningControllerError, readPlanningProblem } from "@/data/planning/planningCacheController";
+import { attachPersistence } from "@/data/persist";
+import { useStore } from "@/store/useStore";
+import { makeAccount, makeResourceDraft, resetStoreWithAccount } from "@/test/fixtures";
+import { requireCreated } from "@/test/requireCreated";
+
+// Lets a test make the planning transport fail like the server would, over the demo transport.
+const failure = vi.hoisted(() => ({ read: null as Error | null, execute: null as Error | null }));
+
+vi.mock("@/data/planning/volatilePlanningTransport", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/data/planning/volatilePlanningTransport")>();
+  return {
+    ...actual,
+    createStorePlanningTransport: (readData: () => AppData) => {
+      const transport = actual.createVolatilePlanningTransport(readData);
+      return {
+        ...transport,
+        read: (...args: Parameters<typeof transport.read>) =>
+          failure.read ? Promise.reject(failure.read) : transport.read(...args),
+        execute: (...args: Parameters<typeof transport.execute>) =>
+          failure.execute ? Promise.reject(failure.execute) : transport.execute(...args),
+      };
+    },
+  };
+});
+
+async function seedTypedAllocation() {
+  const resource = requireCreated(useStore.getState().addResource(makeResourceDraft()));
+  const activity = requireCreated(useStore.getState().addActivity({ name: "Operations", kind: "internal" }));
+  return requireCreated(
+    await useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: activity.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+      hoursPerDay: 8,
+      status: "confirmed",
+    }),
+  );
+}
+
+beforeEach(async () => {
+  failure.read = null;
+  failure.execute = null;
+  await resetStoreWithAccount();
+});
+
+afterEach(() => {
+  failure.read = null;
+  failure.execute = null;
+});
+
+describe("planning authority publication", () => {
+  it("clears the cache and both histories together when authentication is lost, without legacy deletes", async () => {
+    await seedTypedAllocation();
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: { loadAll: async () => useStore.getState().data, saveAll },
+      debounceMs: 0,
+    });
+    try {
+      useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" });
+      await vi.waitFor(() => expect(saveAll).toHaveBeenCalledTimes(1));
+      expect(useStore.getState().past.length).toBeGreaterThan(0);
+      expect(useStore.getState().planning.history.past).toHaveLength(1);
+
+      failure.read = new PlanningControllerError("Sign in again.", "unauthenticated", 401);
+      await useStore.getState().refreshPlanning();
+
+      const state = useStore.getState();
+      expect(state.data.allocations).toEqual([]);
+      expect(state.data.clients).toEqual([]);
+      expect(state.data.resources).toEqual([]);
+      expect(state.past).toEqual([]);
+      expect(state.future).toEqual([]);
+      expect(state.planning.history.past).toEqual([]);
+      expect(state.planning.context).toBeNull();
+      expect(state.activeAccountId).toBeNull();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(saveAll).toHaveBeenCalledTimes(1);
+    } finally {
+      detach();
+    }
+  });
+
+  it("keeps rows and history and shows a refusal when a change loses company membership", async () => {
+    const allocation = await seedTypedAllocation();
+    const data = useStore.getState().data;
+    const legacyPast = useStore.getState().past;
+    failure.execute = new PlanningControllerError(
+      "You no longer belong to this company.",
+      "account_membership_lost",
+      403,
+    );
+
+    await expect(useStore.getState().updateAllocation(allocation.id, { endDate: "2026-06-03" })).rejects.toThrow(
+      "You no longer belong to this company.",
+    );
+
+    const state = useStore.getState();
+    expect(state.data).toBe(data);
+    expect(state.past).toBe(legacyPast);
+    expect(state.planning.history.past).toHaveLength(1);
+    expect(state.planning.context).not.toBeNull();
+    expect(state.activeAccountId).not.toBeNull();
+    expect(readPlanningProblem(state.planning)).toBe("refused");
+  });
+});
+
+describe("planning ownership of allocations", () => {
+  it("opens the planning context for a company as soon as it becomes active", async () => {
+    useStore.getState().replaceAll({
+      ...useStore.getState().data,
+      accounts: [...useStore.getState().data.accounts, makeAccount({ id: "a2" })],
+    });
+
+    useStore.getState().setActiveAccount("a2");
+
+    expect(useStore.getState().planning.context?.companyId).toBe("a2");
+    await vi.waitFor(() => expect(useStore.getState().planning.status).toBe("ready"));
+  });
+
+  it("keeps typed allocations when legacy Undo reverts a catalogue change", async () => {
+    const allocation = await seedTypedAllocation();
+    useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" });
+    await useStore.getState().updateAllocation(allocation.id, { endDate: "2026-06-05" });
+    const moved = useStore.getState().data.allocations;
+
+    useStore.getState().undo();
+
+    expect(useStore.getState().data.clients).toEqual([]);
+    expect(useStore.getState().data.allocations).toBe(moved);
+  });
+});

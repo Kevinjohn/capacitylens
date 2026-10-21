@@ -1,6 +1,7 @@
 import { afterEach, describe, it, expect, beforeEach, vi } from "vitest";
 import type { Mock } from "vitest";
 import { screen, act, fireEvent, waitFor, within } from "@testing-library/react";
+import { PlanningControllerError } from "@/data/planning/planningCacheController";
 import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { AppShell } from "./AppShell";
 import { useStore } from "@/store/useStore";
@@ -1162,6 +1163,20 @@ describe("AppShell hydration gate", () => {
   });
 });
 
+describe("AppShell planning problems", () => {
+  it.each([
+    ["refused", new PlanningControllerError("Refused.", "account_membership_lost", 403), m.app_planning_refused()],
+    ["error", new Error("Network down"), m.app_planning_unavailable()],
+  ] as const)("shows a visible alert for a %s planning state", (status, error, text) => {
+    useStore.getState().setHydrated(true);
+    renderAppShell({});
+
+    act(() => useStore.setState((state) => ({ planning: { ...state.planning, status, error } })));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(text);
+  });
+});
+
 describe("AppShell undo/redo keyboard", () => {
   // The shortcuts drive the planning controller's typed history, never the legacy snapshot stack.
   function withPlanningHistorySpies(run: (spies: { undo: Mock; redo: Mock }) => void) {
@@ -1205,6 +1220,36 @@ describe("AppShell undo/redo keyboard", () => {
       });
       expect(spies.redo).toHaveBeenCalledOnce();
     });
+  });
+
+  it("surfaces a rejected shortcut as an error notice unless planning state already shows it", async () => {
+    useStore.getState().setHydrated(true);
+    renderAppShell({});
+    const { undoPlanning } = useStore.getState();
+    try {
+      // Swap the action inside act so the shortcut listener re-binds before the key press.
+      act(() => useStore.setState({ undoPlanning: () => Promise.reject(new Error("History is corrupt")) }));
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
+      });
+      await waitFor(() => expect(useStore.getState().notice).toEqual({ message: "History is corrupt", tone: "error" }));
+
+      act(() => useStore.getState().setNotice(null));
+      // A stale revision is shown by refetching server state, so it must not also raise a toast.
+      act(() =>
+        useStore.setState({
+          undoPlanning: () =>
+            Promise.reject(new PlanningControllerError("The schedule changed.", "stale_revision", 409)),
+        }),
+      );
+      await act(async () => {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(useStore.getState().notice).toBeNull();
+    } finally {
+      useStore.setState({ undoPlanning });
+    }
   });
 
   it("ignores undo and redo while a clean modal has focus on a non-text control", () => {

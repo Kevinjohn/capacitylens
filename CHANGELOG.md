@@ -13,7 +13,7 @@ new features and **patch** versions carry fixes.
   the complete rows as a restoration group bound to the deleting company, person and session;
   restoring it reinserts them unchanged, once, with one revision and audit entry per action.
   Commitment lookup returns the unconsumed group to its own session, and revoking a person's
-  sessions removes their groups. The schedule does not use these routes yet.
+  sessions removes their groups.
 
 - Typed allocation-group creation and catalogue/resource archive and unarchive operations preserve
   stable IDs and commit one revision per action. Existing deletion and Undo paths remain active
@@ -65,6 +65,12 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- The schedule saves every booking change as one typed planning request: create, move, resize,
+  reassign, duplicate, repeat and delete. Toolbar and keyboard Undo and Redo replay those booking
+  changes through typed inverses, and Undo of a deletion restores the saved rows. Other changes no
+  longer send bookings in the general batch. A stale edit shows the server's schedule without a
+  toast, a refused change keeps the schedule and shows a refusal, and a lost sign-in clears the
+  schedule and its history together. The demo keeps booking changes in page memory only.
 - Native SQLite snapshots run at startup and every 24 hours, retaining the configured number of
   completed managed backups. Manual snapshots use the same retention; pre-upgrade recovery
   snapshots remain separate. Removed interval configuration and the backup health latch.
@@ -73,9 +79,8 @@ new features and **patch** versions carry fixes.
   retain their original mutation for commitment lookup; obsolete contexts suppress completion
   results, and activity-kind updates clear incomplete typed history. Canonical reads require explicit
   server write authority, typed history keeps at most 50 entries, and pure non-delete command builders
-  prepare field-preserving typed requests. The schedule retains its current persistence, deletion
-  and Undo path; complete typed Undo and session-bound restoration remain unfinished. This milestone
-  uses the existing real authentication; later identity-link integration is separate.
+  prepare field-preserving typed requests. This milestone uses the existing real authentication;
+  later identity-link integration is separate.
 
 - Use Adonis BodyParser and compiled Vine validation for requests, with flat 400 errors and no CSP report endpoint.
 

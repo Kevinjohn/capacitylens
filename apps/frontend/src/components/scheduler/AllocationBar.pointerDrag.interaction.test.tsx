@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { screen, fireEvent, act } from "@testing-library/react";
 import { AllocationBar } from "./AllocationBar";
 import { PermissionContext } from "@/auth/permissionContext";
+import { PlanningControllerError } from "@/data/planning/planningCacheController";
 import { useStore } from "@/store/useStore";
 import type { Allocation, Weekday } from "@capacitylens/shared/types/entities";
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, makeResourceDraft } from "@/test/fixtures";
@@ -34,6 +35,25 @@ function registerBasicPointerTests() {
     const moved = getStoredAllocation(a.id);
     expect(moved.startDate).toBe("2026-06-02");
     expect(moved.endDate).toBe("2026-06-04");
+  });
+
+  it("leaves a stale-revision drag to the refetched schedule without a toast", async () => {
+    const a = await seedAllocation();
+    const original = useStore.getState().updateAllocation;
+    useStore.setState({
+      updateAllocation: () =>
+        Promise.reject(new PlanningControllerError("The schedule changed.", "stale_revision", 409)),
+    });
+    try {
+      render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+      fireEvent.pointerDown(screen.getByTestId("allocation-bar"), { clientX: 50, button: 0 });
+      document.dispatchEvent(new MouseEvent("pointermove", { clientX: 98, bubbles: true }));
+      document.dispatchEvent(new MouseEvent("pointerup", { clientX: 98, bubbles: true }));
+      await settlePlanning();
+      expect(useStore.getState().notice).toBeNull();
+    } finally {
+      useStore.setState({ updateAllocation: original });
+    }
   });
 
   it("does not report a successful move when permission drops to Viewer mid-drag", async () => {

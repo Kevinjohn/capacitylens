@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { m } from "@/i18n";
 import { AllocationBar } from "./AllocationBar";
 import { PermissionContext } from "@/auth/permissionContext";
+import { PlanningControllerError } from "@/data/planning/planningCacheController";
 import { useStore } from "@/store/useStore";
 import { resetStoreWithAccount } from "@/test/fixtures";
 import { buildVisibleRange } from "@/store/selectors";
@@ -275,6 +276,23 @@ function registerKeyboardMovementTests() {
     await settlePlanning();
     moved = getStoredAllocation(a.id);
     expect([moved.startDate, moved.endDate]).toEqual(["2026-06-02", "2026-06-05"]);
+  });
+
+  it("leaves a stale-revision keyboard move to the refetched schedule without a toast", async () => {
+    const allocation = await seedAllocation();
+    const original = useStore.getState().updateAllocation;
+    useStore.setState({
+      updateAllocation: () =>
+        Promise.reject(new PlanningControllerError("The schedule changed.", "stale_revision", 409)),
+    });
+    try {
+      render(<AllocationBar bar={barFor(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+      fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
+      await settlePlanning();
+      expect(useStore.getState().notice).toBeNull();
+    } finally {
+      useStore.setState({ updateAllocation: original });
+    }
   });
 
   it("rejects and announces a keyboard move beyond the person's availability", async () => {
