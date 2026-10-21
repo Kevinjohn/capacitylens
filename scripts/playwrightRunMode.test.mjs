@@ -21,9 +21,7 @@ test("ordinary server tests reset only their claimed lane despite an inherited A
       },
     });
     assert.equal(API, "http://localhost:8790");
-    assert.deepEqual(requests, [
-      { url: "http://localhost:8790/api/test/reset", options: { data: { seed: "single" } } },
-    ]);
+    assert.deepEqual(requests, [{ url: "http://localhost:8790/api/test/reset", options: { data: { seed: true } } }]);
   } finally {
     if (previousLane === undefined) delete process.env.CAPACITYLENS_PORT_LANE;
     else process.env.CAPACITYLENS_PORT_LANE = previousLane;
@@ -34,9 +32,16 @@ test("ordinary server tests reset only their claimed lane despite an inherited A
   }
 });
 
-test("the retired rehearsal override cannot redirect lane API traffic", () => {
+test("an explicit rehearsal URL selects its same-origin disposable API", () => {
   assert.equal(
-    serverTestApiOrigin(8787, { CAPACITYLENS_REHEARSAL_URL: "https://example.test" }),
-    "http://localhost:8787",
+    serverTestApiOrigin(8787, {
+      CAPACITYLENS_REHEARSAL_URL: "https://rehearsal.example.test:9443",
+      VITE_CAPACITYLENS_API: "http://localhost:9000",
+    }),
+    "https://rehearsal.example.test:9443",
+  );
+  assert.throws(
+    () => serverTestApiOrigin(8787, { CAPACITYLENS_REHEARSAL_URL: "file:///tmp/rehearsal" }),
+    /must be an HTTP\(S\) URL/,
   );
 });

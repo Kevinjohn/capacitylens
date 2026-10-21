@@ -1,0 +1,198 @@
+import { AccountContractError } from "@capacitylens/shared/account/errors";
+import type { AccountAuditPort } from "@capacitylens/shared/account/ports";
+import type { CreatedInvitation } from "@capacitylens/shared/account/types";
+import type { Db } from "../db";
+import { tx } from "../txn";
+import type { SynchronousCallback } from "../txn";
+import { createAccountAuditWriter, recordTerminalOutcome } from "./accountFlowRuntime";
+import { createAuthority } from "./adminPort/authority";
+import type { AdminPortContext, MutationOptions, SsoCutoverAccountAdminPort } from "./adminPort/contracts";
+import { createCutover } from "./adminPort/cutover";
+import { createInvitationClaims } from "./adminPort/invitationClaims";
+import { createInvitations } from "./adminPort/invitations";
+import { createJoiningPolicyAdministration } from "./adminPort/joiningPolicy";
+import { createMembership } from "./adminPort/membership";
+import { createOwnershipTransferOperations } from "./adminPort/ownershipTransfer";
+import { beginCommand, completeCommand, markAccountCommandReplay, terminateCommand } from "./commands";
+import type { KeyedOperationLock } from "./KeyedOperationLock";
+import { WriteOnceSecretReplay } from "./WriteOnceSecretReplay";
+export { ACCOUNT_POLICY_VERSION, MAX_INVITATION_TTL_MS } from "./adminPort/contracts";
+
+export type { LocalAccountAdminPort, SsoCutoverAccountAdminPort, SsoCutoverWorkspaceFact } from "./adminPort/contracts";
+export {
+  assertAccountControlPlaneCurrent,
+  assertAccountControlPlaneSchemaCurrent,
+  listSoleOwnerAccountIds,
+} from "./adminPort/cutover";
+export { hasLivePreauthorizedInvitation } from "./adminPort/invitations";
+
+const MAX_SECRET_REPLAYS = 256;
+
+interface CreateSqliteAccountAdminPortInput {
+  applicationId: string;
+  db: Db;
+  lock: KeyedOperationLock;
+  trustedLocal?: boolean;
+  audit?: AccountAuditPort;
+  /** Test seam; production uses the bounded default. */
+  writeOnceReplayCapacity?: number;
+}
+
+interface MutationDependencies {
+  applicationId: string;
+  db: Db;
+  lock: KeyedOperationLock;
+  audit: ReturnType<typeof createAccountAuditWriter>;
+}
+
+function buildCommandScope<Execute extends () => unknown>(
+  dependencies: Pick<MutationDependencies, "applicationId">,
+  options: MutationOptions<Execute>,
+) {
+  return {
+    applicationId: dependencies.applicationId,
+    operation: options.actorPrincipalId ? `${options.operation}:actor:${options.actorPrincipalId}` : options.operation,
+    actorPrincipalId: options.actorPrincipalId,
+    targetPrincipalId: options.targetPrincipalId ?? null,
+    workspaceId: options.workspaceId ?? null,
+  };
+}
+
+function writeMutationAudit<Execute extends () => unknown>(
+  dependencies: Pick<MutationDependencies, "audit">,
+  options: MutationOptions<Execute>,
+  result: { outcome: "success"; value: ReturnType<Execute> } | { outcome: "denied" | "failed" },
+): void {
+  if (!options.audit) return;
+  const { outcome } = result;
+  const event =
+    result.outcome === "success" ? (options.audit.successAction?.(result.value) ?? options.audit) : options.audit;
+  dependencies.audit({
+    action: event.action,
+    ...("eventKey" in event ? { eventKey: event.eventKey } : {}),
+    outcome,
+    ...(options.workspaceId === undefined ? {} : { workspaceId: options.workspaceId }),
+    actorPrincipalId: options.actorPrincipalId,
+    ...(options.targetPrincipalId === undefined ? {} : { targetPrincipalId: options.targetPrincipalId }),
+    command: options.command,
+    ...(outcome === "success" ? { changedFields: options.audit.changedFields } : {}),
+  });
+}
+
+function isDeniedMutation(error: unknown): boolean {
+  if (!(error instanceof AccountContractError)) return false;
+  return ["FORBIDDEN", "NOT_MEMBER", "SESSION_NOT_FRESH"].includes(error.failure.code);
+}
+
+interface RecordFailedMutationInput<Execute extends () => unknown> {
+  dependencies: Pick<MutationDependencies, "db" | "audit">;
+  options: MutationOptions<Execute>;
+  scope: ReturnType<typeof buildCommandScope>;
+  error: unknown;
+}
+
+function recordFailedMutation<Execute extends () => unknown>({
+  dependencies,
+  options,
+  scope,
+  error,
+}: RecordFailedMutationInput<Execute>): void {
+  recordTerminalOutcome(
+    error,
+    () => {
+      tx(
+        dependencies.db,
+        () => {
+          terminateCommand({
+            db: dependencies.db,
+            scope,
+            command: options.command,
+            status: "compensated",
+            failureCode: error instanceof AccountContractError ? error.failure.code : "CONFLICT",
+          });
+          writeMutationAudit(dependencies, options, { outcome: isDeniedMutation(error) ? "denied" : "failed" });
+        },
+        "immediate",
+      );
+    },
+    "Account command failed and its compensation outcome could not be recorded.",
+  );
+}
+
+function executeMutation<Execute extends () => unknown>(
+  dependencies: Pick<MutationDependencies, "db" | "audit">,
+  options: MutationOptions<Execute>,
+  scope: ReturnType<typeof buildCommandScope>,
+): ReturnType<Execute> {
+  const transaction = (() => {
+    const result = options.execute() as ReturnType<Execute>;
+    completeCommand({
+      db: dependencies.db,
+      scope,
+      command: options.command,
+      result: options.persistResult ? options.persistResult(result) : result,
+    });
+    writeMutationAudit(dependencies, options, { outcome: "success", value: result });
+    return result;
+  }) as SynchronousCallback<() => ReturnType<Execute>>;
+  return tx(dependencies.db, transaction, "immediate");
+}
+
+async function runLockedMutation<Execute extends () => unknown>(
+  dependencies: MutationDependencies,
+  options: MutationOptions<Execute>,
+): Promise<ReturnType<Execute>> {
+  const scope = buildCommandScope(dependencies, options);
+  const begun = beginCommand<unknown>({
+    db: dependencies.db,
+    scope,
+    command: options.command,
+    canonicalPayload: options.payload,
+  });
+  if (begun.kind === "replay") {
+    options.replayGuard?.();
+    const result = options.replayResult
+      ? options.replayResult(begun.result, begun.record.commandId)
+      : (begun.result as ReturnType<Execute>);
+    return markAccountCommandReplay(result);
+  }
+  let result: ReturnType<Execute>;
+  try {
+    result = executeMutation(dependencies, options, scope);
+  } catch (error) {
+    // Release rollback reservations and record the durable failure before surfacing the mutation error.
+    options.afterRollback?.();
+    recordFailedMutation({ dependencies, options, scope, error });
+    throw error;
+  }
+  options.afterCommit?.(result);
+  return result;
+}
+
+function createRunMutation(dependencies: MutationDependencies): AdminPortContext["runMutation"] {
+  return async function runMutation<Execute extends () => unknown>(options: MutationOptions<Execute>) {
+    return dependencies.lock.withKeys(options.lockKeys, () => runLockedMutation(dependencies, options));
+  };
+}
+
+/**
+ * Composes account administration operations backed by SQLite and the supplied trust policy.
+ */
+export function createSqliteAccountAdminPort(input: CreateSqliteAccountAdminPortInput): SsoCutoverAccountAdminPort {
+  const { applicationId, db, lock, trustedLocal = false } = input;
+  const audit = createAccountAuditWriter(applicationId, input.audit);
+  const invitationSecretReplay = new WriteOnceSecretReplay<CreatedInvitation>(
+    input.writeOnceReplayCapacity ?? MAX_SECRET_REPLAYS,
+  );
+  const runMutation = createRunMutation({ applicationId, db, lock, audit });
+  const context = { applicationId, audit, db, trustedLocal, invitationSecretReplay, runMutation };
+  return {
+    ...createAuthority(context),
+    ...createCutover(context),
+    ...createMembership(context),
+    ...createOwnershipTransferOperations(context),
+    ...createInvitations(context),
+    ...createJoiningPolicyAdministration(context),
+    ...createInvitationClaims(context),
+  };
+}

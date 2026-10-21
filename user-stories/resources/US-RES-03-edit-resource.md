@@ -1,6 +1,6 @@
 # US-RES-03 — Edit a resource's fields
 
-**Area:** Resources · **Persona:** Studio manager · **Coverage:** component (`apps/frontend/src/components/resources/ResourceForm.test.tsx`) + store availability coverage · **Linked E2E:** `e2e/resources.spec.ts` → "edits a resource and the change persists" (base flow; no availability-date assertions)
+**Area:** Resources · **Persona:** Studio manager · **Coverage:** component (`src/components/resources/ResourceForm.test.tsx`) + store availability coverage · **Linked E2E:** `e2e/resources.spec.ts` → "edits a resource and the change persists" (base flow; no availability-date assertions)
 
 **Documentation:** [Resources — set availability dates](../../docs-src/using/resources.md#set-availability-dates)
 

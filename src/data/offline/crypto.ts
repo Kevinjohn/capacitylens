@@ -1,0 +1,197 @@
+import {
+  DEVICE_KEY_ID,
+  KEY_STORE_NAME,
+  WRITE_BOUNDARY_ID,
+  OFFLINE_WRITE_BOUNDARY_STORAGE_KEY,
+  STORE_NAME,
+  MAX_AGE_MS,
+} from "./constants";
+import { awaitRequest, awaitTx, openOfflineDb } from "./idb";
+import { cacheGeneration, advanceCacheGeneration } from "./state";
+import type { CachedRecord, EncryptedRecord, WriteBoundary } from "./types";
+
+/** Returns Web Crypto when available or explains why encrypted offline access cannot start. */
+export function assertWebCrypto(): Crypto {
+  const availableCrypto: unknown = Reflect.get(globalThis, "crypto");
+  if (!hasSubtleCrypto(availableCrypto)) {
+    throw new Error("Web Crypto is unavailable; encrypted offline access cannot be enabled.");
+  }
+  return globalThis.crypto;
+}
+
+function hasSubtleCrypto(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false;
+  const subtle: unknown = Reflect.get(value, "subtle");
+  return subtle !== undefined && subtle !== null;
+}
+
+async function readDeviceKey(db: IDBDatabase): Promise<CryptoKey | null> {
+  const request = db.transaction(KEY_STORE_NAME, "readonly").objectStore(KEY_STORE_NAME).get(DEVICE_KEY_ID);
+  const value = (await awaitRequest(request, "The offline encryption key could not be read.")) as
+    { id?: unknown; value?: unknown } | undefined;
+  const candidate = value?.value as Partial<CryptoKey> | undefined;
+  return value?.id === DEVICE_KEY_ID && candidate?.type === "secret" && candidate.algorithm?.name === "AES-GCM"
+    ? (candidate as CryptoKey)
+    : null;
+}
+
+/** Loads or creates the persisted non-extractable device encryption key. */
+export async function readOrCreateDeviceKey(db: IDBDatabase): Promise<CryptoKey> {
+  const existing = await readDeviceKey(db);
+  if (existing) return existing;
+  const generated = await assertWebCrypto().subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
+    "encrypt",
+    "decrypt",
+  ]);
+  try {
+    const tx = db.transaction(KEY_STORE_NAME, "readwrite");
+    tx.objectStore(KEY_STORE_NAME).add({
+      id: DEVICE_KEY_ID,
+      value: generated,
+    });
+    await awaitTx(
+      tx,
+      "The offline encryption key could not be stored.",
+      "The offline encryption key write was aborted.",
+    );
+    return generated;
+  } catch (cause) {
+    // Another tab may have won the create race, or this browser may be unable to persist a
+    // CryptoKey. Use the persisted winner, never an unrecorded key; otherwise preserve the cause.
+    const winner = await readDeviceKey(db);
+    if (winner) return winner;
+    console.warn("capacitylens: offline encryption key persistence failed", cause);
+    throw new Error("The offline encryption key could not be established.", { cause });
+  }
+}
+
+function readStoredWriteBoundaryToken(): string | null {
+  try {
+    return localStorage.getItem(OFFLINE_WRITE_BOUNDARY_STORAGE_KEY);
+  } catch (error) {
+    // An unreadable write boundary cannot safely authorize cache writes; warn and reject the write claim.
+    console.warn("offlineCache: the offline write boundary could not be read; rejecting cache writes", error);
+    return null;
+  }
+}
+
+function createWriteBoundaryToken(): string {
+  try {
+    return assertWebCrypto().randomUUID();
+  } catch {
+    // Cleanup must remain available even if Web Crypto disappears after offline access was enabled.
+    // This is an ordering nonce, not a secret; Date + random + the local counter makes accidental
+    // equality across browser contexts vanishingly unlikely.
+    return `${Date.now()}:${Math.random()}:${cacheGeneration}`;
+  }
+}
+
+type WriteBoundaryAdvanceResult =
+  { kind: "stored"; token: string } | { kind: "storageFailed"; token: string; storageError: unknown };
+
+/** Advances the cache-write boundary so earlier in-flight writes can be rejected. */
+export function advanceWriteBoundary(): WriteBoundaryAdvanceResult {
+  advanceCacheGeneration();
+  const token = createWriteBoundaryToken();
+  try {
+    localStorage.setItem(OFFLINE_WRITE_BOUNDARY_STORAGE_KEY, token);
+    return { kind: "stored", token };
+  } catch (error) {
+    // The durable IndexedDB token below still rejects every earlier writer. Report the preference
+    // storage failure after data cleanup so callers can surface it without sacrificing deletion.
+    return { kind: "storageFailed", token, storageError: error };
+  }
+}
+
+async function readDurableWriteBoundary(store: IDBObjectStore): Promise<string | null> {
+  const value = (await awaitRequest(store.get(WRITE_BOUNDARY_ID), "The offline write boundary could not be read.")) as
+    { id?: unknown; token?: unknown } | undefined;
+  return value?.id === WRITE_BOUNDARY_ID && typeof value.token === "string" ? value.token : null;
+}
+
+/** Initialises the durable cache-write boundary in IndexedDB. */
+export async function initialiseWriteBoundary(db: IDBDatabase): Promise<void> {
+  const tx = db.transaction(KEY_STORE_NAME, "readwrite");
+  const store = tx.objectStore(KEY_STORE_NAME);
+  const durableToken = await readDurableWriteBoundary(store);
+  const token = durableToken ?? readStoredWriteBoundaryToken() ?? createWriteBoundaryToken();
+  if (durableToken === null) store.put({ id: WRITE_BOUNDARY_ID, token });
+  await awaitTx(
+    tx,
+    "The offline write boundary could not be established.",
+    "The offline write boundary update was aborted.",
+  );
+  localStorage.setItem(OFFLINE_WRITE_BOUNDARY_STORAGE_KEY, token);
+}
+
+/** Builds authenticated metadata bound to a cache record key and save time. */
+export function buildAssociatedData(key: string, savedAt: number): Uint8Array<ArrayBuffer> {
+  return new TextEncoder().encode(`${key}:${savedAt}:capacitylens-offline-v1`);
+}
+
+/** Capture when a write is accepted, not when it leaves the queue: cleanup in between must discard it. */
+export function readWriteBoundary(): WriteBoundary {
+  return { generation: cacheGeneration, token: readStoredWriteBoundaryToken() };
+}
+
+/** Encrypts and stores a cache record with its authenticated key and timestamp. */
+export async function writeEncryptedRecord<T>(
+  record: CachedRecord<T>,
+  writeBoundary: WriteBoundary,
+): Promise<"stored" | "discarded"> {
+  const db = await openOfflineDb();
+  try {
+    const encryptionKey = await readOrCreateDeviceKey(db);
+    const initializationVector: Uint8Array<ArrayBuffer> = assertWebCrypto().getRandomValues(new Uint8Array(12));
+    const plaintext = new TextEncoder().encode(JSON.stringify(record.value));
+    const ciphertext = await assertWebCrypto().subtle.encrypt(
+      {
+        name: "AES-GCM",
+        iv: initializationVector,
+        additionalData: buildAssociatedData(record.key, record.savedAt),
+        tagLength: 128,
+      },
+      encryptionKey,
+      plaintext,
+    );
+    const encrypted: EncryptedRecord = {
+      key: record.key,
+      savedAt: record.savedAt,
+      version: 1,
+      iv: initializationVector.buffer.slice(
+        initializationVector.byteOffset,
+        initializationVector.byteOffset + initializationVector.byteLength,
+      ),
+      ciphertext,
+    };
+    if (writeBoundary.generation !== cacheGeneration) return "discarded";
+    const age = Date.now() - encrypted.savedAt;
+    if (!Number.isFinite(age) || age < 0 || age > MAX_AGE_MS) return "discarded";
+    // Read the durable cross-tab boundary and write the record in one transaction. If cleanup's
+    // transaction wins, this sees its new token and refuses the stale write. If this transaction
+    // wins, cleanup necessarily runs after it and deletes the record.
+    const tx = db.transaction([KEY_STORE_NAME, STORE_NAME], "readwrite");
+    const boundaryRequest = tx.objectStore(KEY_STORE_NAME).get(WRITE_BOUNDARY_ID);
+    const outcome = { stored: false };
+    boundaryRequest.onsuccess = () => {
+      const value = boundaryRequest.result as { id?: unknown; token?: unknown } | undefined;
+      const durableToken = value?.id === WRITE_BOUNDARY_ID && typeof value.token === "string" ? value.token : null;
+      if (durableToken === writeBoundary.token) {
+        tx.objectStore(STORE_NAME).put(encrypted);
+        outcome.stored = true;
+      }
+    };
+    // The boundary read must reject the write even when the transaction itself still settles.
+    const boundaryFailure = new Promise<never>((_, reject) => {
+      boundaryRequest.onerror = () =>
+        reject(boundaryRequest.error ?? new Error("The offline write boundary could not be read."));
+    });
+    await Promise.race([
+      awaitTx(tx, "The offline cache could not be updated.", "The offline cache update was aborted."),
+      boundaryFailure,
+    ]);
+    return outcome.stored ? "stored" : "discarded";
+  } finally {
+    db.close();
+  }
+}

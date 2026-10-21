@@ -2,7 +2,7 @@
 
 **Area:** Team & access · **Persona:** Company Owner, Admin, and prospective member ·
 **Automated coverage:** `JoiningPolicySection.test.tsx`, `joiningAdmission.test.ts`,
-`joiningProofRoutes.test.ts`, and Google provider admission and joining tests
+`joiningProofRoutes.test.ts`, `joiningProviderRoutes.test.ts`, and `microsoftProof.test.ts`
 
 ## Goal
 
@@ -32,12 +32,11 @@ establish company membership.
 2. As Admin, open the same page. Read the policy and approved domains, with guidance to speak to
    the Owner about changes. No editing controls appear. Either Owner or Admin can copy and share
    this company's **Joining link** from the section.
-3. Open `/join/:accountId` as a prospective member. The page names the company. An existing Google
-   identity or password account signs in, then chooses **Join company** to finish. An existing
-   password identity without current trusted email proof can verify its address by an emailed link
-   to join through an open or approved-domain policy when email delivery is enabled. A new Google
-   identity needs an unused invitation addressed to its verified Google email; an open or
-   domain-only policy does not create a new sign-in identity.
+3. Open `/join/:accountId` as a prospective member. The page names the company. Choose
+   an eligible provider, or sign in with an existing password account. Choose **Join company** to
+   finish. An existing password identity without
+   current trusted email proof can verify their address by an emailed link to join through an
+   open or approved-domain policy when email delivery is enabled.
 4. Check the company list after joining. The new membership is Viewer unless an addressed,
    unconsumed invitation grants another role. An existing active membership keeps its current role.
 
@@ -50,15 +49,13 @@ establish company membership.
   **Open registration** admits a verified address without an invitation. Invitation-only requires
   an addressed invitation. Domain-only rejects an outside-domain invitation both when issued and
   when accepted.
-- The joining page offers Google and, when enabled, the existing password path. A Google callback
-  does not itself create company membership. The person must explicitly choose **Join company**;
-  completion rechecks the live company policy, verified address, invitation where required, access
-  restrictions and authenticated identity.
-- Open and domain policy joining accepts an existing password or Google identity with current
-  durable address proof; company joining does not create a new provider identity. A new Google
-  identity can be admitted through an unused addressed invitation, but invitation acceptance is a
-  separate explicit action. An identity without current email proof must establish it before
-  joining under an open or domain policy.
+- All four policies work with eligible hosted company providers. Company-sign-in-only excludes
+  passwords and experimental GitHub. A new credential or provider identity alone grants no company
+  membership; joining requires the company-bound completion step.
+- Open and domain policy joining accepts an existing identity with durable address proof;
+  it does not create a new password credential. An addressed invitation can still create a
+  password identity where the current policy permits. A returning verified provider identity
+  may use its durable address proof; an identity without proof must establish it before joining.
 - A policy change, revoked or consumed invitation, changed address, disabled access, or lost
   authentication before completion refuses admission without creating a membership. Concurrent
   completions grant at most one membership and consume an invitation at most once.

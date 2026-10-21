@@ -1,0 +1,32 @@
+import { assertSupportedNodeVersion } from "./check-node.mjs";
+import { applyProductionDefaults } from "../src/boot/productionDefaults";
+import { resetOwnerPassword } from "../src/resetOwnerPassword";
+
+// This is a narrowly scoped operator recovery tool, not an alternate application startup path. All
+// guards and the ceremony itself live in src/resetOwnerPassword.ts so they stay testable; this
+// shell only parses argv and prints the single-line JSON result. The printed link is the secret:
+// deliver it to the Owner over a channel you trust. It is single-use and expires in 24 hours.
+// pnpm forwards the argument separator itself with `pnpm run <script> -- <args>`; tolerate it.
+assertSupportedNodeVersion();
+
+const args = process.argv.slice(2).filter((arg, index) => !(index === 0 && arg === "--"));
+const [databasePath, email, confirmFlag, ...extra] = args;
+if (
+  !databasePath ||
+  !email ||
+  (confirmFlag !== undefined && confirmFlag !== "--confirm-server-stopped") ||
+  extra.length > 0
+) {
+  console.error("Usage: reset-owner-password <database> <email> --confirm-server-stopped");
+  process.exitCode = 2;
+} else {
+  // Read the server's own environment file the way the server does: under NODE_ENV=production an
+  // unset sign-in mode means password-only, so the five-line release environment works unchanged.
+  applyProductionDefaults(process.env);
+  const result = await resetOwnerPassword({
+    databasePath,
+    email,
+    confirmServerStopped: confirmFlag === "--confirm-server-stopped",
+  });
+  console.log(JSON.stringify(result));
+}

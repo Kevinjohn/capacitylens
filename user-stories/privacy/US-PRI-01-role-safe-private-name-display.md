@@ -1,8 +1,8 @@
 # US-PRI-01 — Show private names according to account role
 
 **Area:** Privacy / whole app · **Persona:** Account owner and agency member · **Coverage:**
-`apps/backend/tests/functional/auth/native_authorization.spec.ts` → "private client/project names — owner-only server projection";
-`apps/backend/tests/unit/state_transformer.spec.ts`; client/project/list/archived component tests (manual
+`server/src/app.authz.test.ts` → "private client/project names — owner-only server projection";
+`server/src/db.accountStore.test.ts`; client/project/list/archived component tests (manual
 cross-surface pass until a dedicated auth-backed E2E is added)
 
 ## Goal
@@ -53,3 +53,5 @@ activity and allocation under the project. The account also has an admin, editor
   compound label; making one private never implicitly changes the other.
 - ✅ **PRI-DISPLAY-06 — Public/scope invariants.** Public clients/projects and every non-client/project entity are unchanged. The built-in
   **Internal** client always remains public and continues to display as **Internal**.
+- ✅ **PRI-DISPLAY-07 — Offline parity.** A non-owner offline snapshot contains the same projected labels returned by the server; it does
+  not recreate or cache the removed real names/raw code names. An owner's snapshot may contain them.

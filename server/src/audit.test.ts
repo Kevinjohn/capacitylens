@@ -1,0 +1,977 @@
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { chmodSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify";
+import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
+import { createApp } from "./app";
+import { openDb, upsertRow } from "./db";
+import type { Db } from "./db";
+import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
+import {
+  createCompositeAuditSink,
+  createFileAuditSink,
+  createNoopAuditSink,
+  parseAuditConfig,
+  createStreamAuditSink,
+} from "./audit";
+import type { AuditRecord, AuditSink } from "./audit";
+
+// The CAPACITYLENS_AUDIT flag (opts.audit): an append-only JSONL line per AppData mutation,
+// {ts,userId,accountId,action,entity,id,changedFields}. The primary invariant proven here: changedFields
+// are field names only; a tenant value (a time-off note, a name) never reaches a line. Plus the
+// fail-never contract (append never throws; the request still 2xx; a uniform warning header; deep-
+// health latches degraded; one redacted error line) and the default-deploy byte-identity (noop sink
+// → no file, no warning header).
+
+const TS = "2026-01-01T00:00:00.000Z";
+const meta = () => ({ createdAt: TS, updatedAt: TS });
+const account = (id: string) => ({ id, name: "Studio", color: "#5c34d4", ...meta() });
+const client = (id: string, accountId: string) => ({ id, accountId, name: "Ferris", color: "#5c34d4", ...meta() });
+const project = (id: string, accountId: string, clientId: string) => ({
+  id,
+  accountId,
+  name: "Web",
+  clientId,
+  color: "#5c34d4",
+  ...meta(),
+});
+const person = (id: string, accountId: string) => ({
+  id,
+  accountId,
+  kind: "person",
+  name: "Bruce Wayne",
+  role: "Designer",
+  employmentType: "permanent",
+  engagement: "studio" as const,
+  workingHoursPerDay: 8,
+  workingDays: [1, 2, 3, 4, 5],
+  halfDays: [],
+  color: "#5c34d4",
+  ...meta(),
+});
+
+interface TimeOffInput {
+  id: string;
+  accountId: string;
+  resourceId: string;
+  o?: Record<string, unknown> | undefined;
+}
+
+const timeOff = ({ id, accountId, resourceId, o = {} }: TimeOffInput) => ({
+  id,
+  accountId,
+  resourceId,
+  startDate: "2026-03-01",
+  endDate: "2026-03-05",
+  type: "sick",
+  ...meta(),
+  ...o,
+});
+
+const call = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> =>
+  app.inject(opts) as unknown as Promise<LightMyRequestResponse>;
+const body = (payload: unknown) => payload as NonNullable<InjectOptions["payload"]>;
+const post = (app: FastifyInstance, entity: string, payload: unknown) =>
+  call(app, { method: "POST", url: `/api/${entity}`, payload: body(payload) });
+
+function requiredAt<T>(values: readonly T[], index: number): T {
+  const value = values[index];
+  if (value === undefined) throw new Error(`Expected value at index ${index}.`);
+  return value;
+}
+
+interface ErrorResponse {
+  error: string;
+  imported?: number;
+}
+
+function readErrorResponse(response: LightMyRequestResponse): ErrorResponse {
+  const value: unknown = response.json();
+  if (typeof value !== "object" || value === null || !("error" in value) || typeof value.error !== "string") {
+    throw new Error("Expected an error response with a string error.");
+  }
+  if ("imported" in value && typeof value.imported === "number") {
+    return { error: value.error, imported: value.imported };
+  }
+  return { error: value.error };
+}
+
+function requireRecord(records: readonly AuditRecord[], action: string): AuditRecord {
+  return requiredAt(
+    records.filter((record) => record.action === action),
+    0,
+  );
+}
+
+function fileApp(): { app: FastifyInstance; file: string; lines: () => AuditRecord[]; log: ReturnType<typeof vi.fn> } {
+  const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-test-"));
+  const file = join(dir, "audit.jsonl");
+  const log = vi.fn();
+  const app = createApp(openDb(":memory:"), {
+    allowReset: true,
+    optimisticConcurrency: false,
+    audit: createFileAuditSink(file, log),
+  });
+  const lines = () =>
+    existsSync(file)
+      ? readFileSync(file, "utf8")
+          .split("\n")
+          .filter(Boolean)
+          .map((l) => JSON.parse(l) as AuditRecord)
+      : [];
+  return { app, file, lines, log };
+}
+
+async function scaffold(app: FastifyInstance) {
+  await post(app, "accounts", account("a1"));
+  await post(app, "clients", client("c1", "a1"));
+  await post(app, "projects", project("p1", "a1", "c1"));
+  await post(app, "resources", person("r1", "a1"));
+}
+
+afterEach(() => vi.restoreAllMocks());
+
+describe("AuditRecord shape (1)", () => {
+  it("POST writes normalized account correlation plus the compatible product mutation record", async () => {
+    const { app, lines } = fileApp();
+    const res = await post(app, "accounts", account("a1"));
+    expect(res.statusCode).toBe(201);
+    const recs = lines();
+    expect(recs).toHaveLength(2);
+    const accountEvent = recs.find(
+      (record) => (record as { action: string }).action === "workspace.provisioned",
+    ) as unknown as AccountAuditEvent;
+    expect(accountEvent).toMatchObject({
+      applicationId: "capacitylens",
+      workspaceId: "a1",
+      actorPrincipalId: "demo",
+      targetPrincipalId: "demo",
+      action: "workspace.provisioned",
+      outcome: "success",
+      changedFields: ["workspace", "membership"],
+    });
+    const rec = requireRecord(recs, "create");
+    expect(rec.action).toBe("create");
+    expect(rec.entity).toBe("accounts");
+    expect(rec.id).toBe("a1");
+    expect(rec.accountId).toBe("a1");
+    expect(rec.userId).toBe("demo");
+    expect(typeof rec.ts).toBe("string");
+    expect(Date.parse(rec.ts)).not.toBeNaN();
+    expect(rec.changedFields).toEqual(expect.arrayContaining(["id", "name", "color", "createdAt", "updatedAt"]));
+  });
+
+  it("creates the audit trail with owner-only permissions", async () => {
+    const { app, file } = fileApp();
+    expect((await post(app, "accounts", account("a1"))).statusCode).toBe(201);
+    expect(statSync(file).mode & 0o777).toBe(0o600);
+  });
+
+  it("repairs an existing audit trail before appending", () => {
+    const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-permissions-"));
+    const file = join(dir, "audit.jsonl");
+    const priorFile = `${file}.1`;
+    writeFileSync(file, "", { mode: 0o666 });
+    writeFileSync(priorFile, "", { mode: 0o666 });
+    chmodSync(file, 0o666);
+    chmodSync(priorFile, 0o666);
+    const sink = createFileAuditSink(file, vi.fn());
+
+    expect(
+      sink.append({
+        ts: TS,
+        userId: "demo",
+        accountId: "a1",
+        action: "create",
+        entity: "accounts",
+        id: "a1",
+        changedFields: [],
+      }),
+    ).toBe(true);
+    expect(statSync(file).mode & 0o777).toBe(0o600);
+    expect(statSync(priorFile).mode & 0o777).toBe(0o600);
+  });
+});
+
+describe("idempotent control-plane audit semantics", () => {
+  it("does not append inviteRevoke for an already-absent invite", async () => {
+    const { app, lines } = fileApp();
+    expect((await post(app, "accounts", account("a1"))).statusCode).toBe(201);
+    const before = lines().length;
+    const res = await call(app, { method: "DELETE", url: "/api/accounts/a1/invites/missing" });
+    expect(res.statusCode).toBe(204);
+    expect(
+      lines()
+        .slice(before)
+        .filter((record) => record.action === "inviteRevoke"),
+    ).toHaveLength(0);
+  });
+
+  it("does not append a second mutation event when an invitation command is replayed", async () => {
+    const { app, lines } = fileApp();
+    expect((await post(app, "accounts", account("a1"))).statusCode).toBe(201);
+    const request: InjectOptions = {
+      method: "POST",
+      url: "/api/invites",
+      headers: {
+        "idempotency-key": "audit-idempotency-0001",
+        "x-account-command-id": "audit-command-0000001",
+      },
+      payload: { accountId: "a1", role: "viewer" },
+    };
+
+    expect((await call(app, request)).statusCode).toBe(201);
+    expect((await call(app, request)).statusCode).toBe(201);
+
+    expect(lines().filter((record) => record.action === "inviteCreate")).toHaveLength(1);
+    expect(
+      lines().filter((record) => (record as unknown as { action: string }).action === "invitation.created"),
+    ).toHaveLength(1);
+  });
+});
+
+describe("NO PII (2) — the #1 invariant", () => {
+  it("a timeOff note logs the field NAME but never the value", async () => {
+    const { app, file, lines } = fileApp();
+    await scaffold(app);
+    const createIdx = lines().length;
+    const SECRET = "SECRET_NOTE_TEXT";
+    expect(
+      (await post(app, "timeOff", timeOff({ id: "to1", accountId: "a1", resourceId: "r1", o: { note: SECRET } })))
+        .statusCode,
+    ).toBe(201);
+    const SECRET2 = "ANOTHER_SECRET_VALUE";
+    const put = await call(app, {
+      method: "PUT",
+      url: "/api/timeOff/to1",
+      payload: body(timeOff({ id: "to1", accountId: "a1", resourceId: "r1", o: { note: SECRET2 } })),
+    });
+    expect(put.statusCode).toBe(200);
+
+    const raw = readFileSync(file, "utf8");
+    expect(raw).toContain("note");
+    expect(raw).not.toContain(SECRET);
+    expect(raw).not.toContain(SECRET2);
+    // Belt-and-braces: no other field value leaks, the only string values that could appear are
+    // the structural ids/dates we intend (a1/to1/r1/the date). Assert the human-typed value class
+    // (the note, the resource role 'Designer') is absent.
+    expect(raw).not.toContain("Designer");
+    const recs = lines();
+    const created = requiredAt(recs, createIdx);
+    expect(created.entity).toBe("timeOff");
+    expect(created.changedFields).toContain("note");
+    expect(created.changedFields).not.toContain(SECRET);
+  });
+});
+
+describe("NO resource PII in the audit log (2b) — P2.3 acceptance", () => {
+  it("a resource's name VALUE never reaches the audit file, but 'name' IS in changedFields", async () => {
+    const { app, file, lines } = fileApp();
+    // A name unique enough to grep for unambiguously across the whole raw file.
+    const SENTINEL = "ZZSENTINELPERSON_DELETE_ME";
+    await post(app, "accounts", account("a1"));
+    const createIdx = lines().length;
+    expect((await post(app, "resources", { ...person("r1", "a1"), name: SENTINEL })).statusCode).toBe(201);
+    const patch = await call(app, {
+      method: "PATCH",
+      url: "/api/resources/r1",
+      payload: body({ role: "Lead Designer" }),
+    });
+    expect(patch.statusCode).toBe(200);
+
+    const raw = readFileSync(file, "utf8");
+    expect(raw).not.toContain(SENTINEL);
+
+    // Assert a positive audit record first so the secrecy check cannot pass because no event was written.
+    const rec = requiredAt(lines(), createIdx);
+    expect(rec.entity).toBe("resources");
+    expect(rec.id).toBe("r1");
+    expect(rec.changedFields).toContain("name");
+    expect(rec.changedFields).not.toContain(SENTINEL);
+  });
+});
+
+describe("generic-write changedFields = requested fields the funnel applied (3)", () => {
+  it("records an applied PATCH key, not the merged row", async () => {
+    const { app, lines } = fileApp();
+    await scaffold(app);
+    const before = lines().length;
+    const res = await call(app, {
+      method: "PATCH",
+      url: "/api/resources/r1",
+      payload: body({ role: "Lead Designer" }),
+    });
+    expect(res.statusCode).toBe(200);
+    const rec = requiredAt(lines(), before);
+    expect(rec.action).toBe("patch");
+    expect(rec.changedFields).toEqual(["role"]);
+  });
+
+  it("rejects changed lifecycle fields without writing a PATCH audit effect", async () => {
+    const { app, lines } = fileApp();
+    await scaffold(app);
+    const before = lines().length;
+
+    const res = await call(app, {
+      method: "PATCH",
+      url: "/api/resources/r1",
+      payload: body({ role: "Designer", archivedAt: TS, deletedAt: TS }),
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(lines()).toHaveLength(before);
+  });
+
+  it("uses the applied set for a valid PUT", async () => {
+    const { app, lines } = fileApp();
+    await scaffold(app);
+    const before = lines().length;
+
+    const res = await call(app, {
+      method: "PUT",
+      url: "/api/resources/r1",
+      payload: body({ ...person("r1", "a1"), role: "Lead Designer" }),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).not.toHaveProperty("archivedAt");
+    expect(requiredAt(lines(), before).changedFields).toContain("role");
+    expect(requiredAt(lines(), before).changedFields).not.toContain("archivedAt");
+  });
+
+  it("rejects an all-unknown patch without writing an empty audit record", async () => {
+    const { app, lines } = fileApp();
+    await scaffold(app);
+    const before = lines().length;
+
+    const res = await call(app, {
+      method: "PATCH",
+      url: "/api/resources/r1",
+      payload: body({ typoedRole: "Lead Designer" }),
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(readErrorResponse(res).error).toContain("no recognized fields");
+    expect(lines()).toHaveLength(before);
+  });
+});
+
+describe("parseAuditConfig + default deploy (4)", () => {
+  it("is ON by default and OFF only on =off", () => {
+    expect(parseAuditConfig({}, "/data/capacitylens.db").enabled).toBe(true);
+    expect(parseAuditConfig({ CAPACITYLENS_AUDIT: "anything" }, "/data/capacitylens.db").enabled).toBe(true);
+    expect(parseAuditConfig({ CAPACITYLENS_AUDIT: "off" }, "/data/capacitylens.db").enabled).toBe(false);
+  });
+
+  it("defaults the file beside the DB; :memory: falls back to CWD-relative; env overrides", () => {
+    expect(parseAuditConfig({}, "/data/capacitylens.db").file).toBe("/data/capacitylens-audit.jsonl");
+    expect(parseAuditConfig({ CAPACITYLENS_AUDIT_FILE: "" }, "/data/capacitylens.db").file).toBe(
+      "/data/capacitylens-audit.jsonl",
+    );
+    expect(parseAuditConfig({}, ":memory:").file).toBe("capacitylens-audit.jsonl");
+    expect(parseAuditConfig({ CAPACITYLENS_AUDIT_FILE: "/var/x.jsonl" }, "/data/db").file).toBe("/var/x.jsonl");
+  });
+
+  it("factory with NO opts.audit (noop) writes no file and sets no warning header", async () => {
+    const app = createApp(openDb(":memory:"), { allowReset: true });
+    const res = await post(app, "accounts", account("a1"));
+    expect(res.statusCode).toBe(201);
+    expect(res.headers["x-capacitylens-audit-warning"]).toBeUndefined();
+  });
+});
+
+function brokenSink(): AuditSink {
+  let degraded = false;
+  return {
+    append() {
+      degraded = true;
+      return false;
+    },
+    get degraded() {
+      return degraded;
+    },
+  };
+}
+
+async function assertBrokenSinkKeepsMutationAvailable() {
+  const sink = brokenSink();
+  const app = createApp(openDb(":memory:"), { allowReset: true, healthDeep: true, audit: sink });
+  const res = await post(app, "accounts", account("a1"));
+  expect(res.statusCode).toBe(201);
+  expect(res.headers["x-capacitylens-audit-warning"]).toBe("true");
+
+  const health = await call(app, { method: "GET", url: "/api/health" });
+  expect(health.statusCode).toBe(200);
+  expect(health.json()).toEqual({ ok: true, db: true, audit: "degraded", auditPending: 2 });
+}
+
+async function assertAppendFailureIsRedacted() {
+  const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-fail-"));
+  // A directory path used as a file → appendFileSync throws → the sink catches it.
+  const log = vi.fn();
+  const sink = createFileAuditSink(dir, log);
+  expect(() =>
+    sink.append({
+      ts: TS,
+      userId: "demo",
+      accountId: "a1",
+      action: "create",
+      entity: "accounts",
+      id: "a1",
+      changedFields: ["note"],
+    }),
+  ).not.toThrow();
+  expect(
+    sink.append({
+      ts: TS,
+      userId: "demo",
+      accountId: "a1",
+      action: "create",
+      entity: "accounts",
+      id: "a2",
+      changedFields: ["note"],
+    }),
+  ).toBe(false);
+  expect(sink.degraded).toBe(true);
+  expect(log).toHaveBeenCalledTimes(1);
+  const msg = requiredAt(requiredAt(log.mock.calls, 0), 0) as string;
+  expect(msg).toContain("audit write FAILED");
+  expect(msg).not.toContain("note");
+  expect(msg).not.toContain("a1");
+  expect(msg).not.toContain("a2");
+}
+
+function assertPermissionPinningFailureIsVisible() {
+  const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-chmod-fail-"));
+  const file = join(dir, "audit.jsonl");
+  writeFileSync(file, "");
+  const log = vi.fn();
+  const pinPermissions = vi.fn(() => {
+    throw new Error("operation not permitted");
+  });
+  const sink = createFileAuditSink(file, log, { pinPermissions });
+  const first: AuditRecord = {
+    ts: TS,
+    userId: "demo",
+    accountId: "a1",
+    action: "create",
+    entity: "accounts",
+    id: "a1",
+    changedFields: [],
+  };
+  const second = { ...first, id: "a2" };
+
+  expect(sink.append(first)).toBe(false);
+  expect(sink.append(second)).toBe(false);
+  expect(sink.degraded).toBe(true);
+  expect(pinPermissions).toHaveBeenCalledTimes(2);
+  expect(log).toHaveBeenCalledOnce();
+  expect(log).toHaveBeenCalledWith(expect.stringMatching(/audit write FAILED.*permission pin failed/i));
+  expect(readFileSync(file, "utf8")).toBe("");
+}
+
+describe("failure contract (5)", () => {
+  it("still 2xx, sets the warning header, latches deep-health degraded", assertBrokenSinkKeepsMutationAvailable);
+  it("append never throws and logs EXACTLY ONE redacted (no-PII) error line", assertAppendFailureIsRedacted);
+  it("refuses to append to an existing trail when permission pinning fails", assertPermissionPinningFailureIsVisible);
+});
+
+async function assertBatchWritesOneLinePerOperation() {
+  const { app, lines } = fileApp();
+  await scaffold(app);
+  const before = lines().length;
+  const res = await call(app, {
+    method: "POST",
+    url: "/api/batch",
+    payload: body({
+      ops: [
+        {
+          method: "PUT",
+          table: "disciplines",
+          id: "d2",
+          row: { id: "d2", accountId: "a1", name: "Design", color: "#5c34d4", sortOrder: 0, ...meta() },
+        },
+        { method: "DELETE", table: "disciplines", id: "d2", accountId: "a1" },
+      ],
+    }),
+  });
+  expect(res.statusCode).toBe(200);
+  const fresh = lines().slice(before);
+  expect(fresh).toHaveLength(2);
+  const created = requiredAt(fresh, 0);
+  expect(created).toMatchObject({ action: "create", entity: "disciplines", id: "d2" });
+  expect(created.changedFields).toContain("name");
+  expect(requiredAt(fresh, 1)).toMatchObject({
+    action: "delete",
+    entity: "disciplines",
+    id: "d2",
+    changedFields: [],
+  });
+}
+
+async function assertBatchRecordsAppliedFields() {
+  const { app, lines } = fileApp();
+  await scaffold(app);
+  const before = lines().length;
+
+  const res = await call(app, {
+    method: "POST",
+    url: "/api/batch",
+    payload: body({
+      ops: [
+        {
+          method: "PUT",
+          table: "resources",
+          id: "r1",
+          row: { ...person("r1", "a1"), role: "Lead Designer" },
+        },
+      ],
+    }),
+  });
+
+  expect(res.statusCode).toBe(200);
+  const record = requiredAt(lines(), before);
+  expect(record).toMatchObject({ action: "update", entity: "resources", id: "r1" });
+  expect(record.changedFields).toContain("role");
+  expect(record.changedFields).not.toContain("archivedAt");
+}
+
+function arrangeConcurrentDisciplineInsert(db: Db): () => boolean {
+  const originalWithKeys = KeyedOperationLock.prototype.withKeys;
+  let insertedByLockWinner = false;
+  vi.spyOn(KeyedOperationLock.prototype, "withKeys").mockImplementation(function (
+    this: KeyedOperationLock,
+    keys,
+    operation,
+  ) {
+    return originalWithKeys.call(this, keys, () => {
+      if (!insertedByLockWinner && keys.includes("application:capacitylens:workspace-provisioning")) {
+        insertedByLockWinner = true;
+        upsertRow(db, "disciplines", {
+          id: "d-race",
+          accountId: "a1",
+          name: "Concurrent value",
+          color: "#5c34d4",
+          sortOrder: 0,
+          ...meta(),
+        });
+      }
+      return operation();
+    });
+  });
+  return () => insertedByLockWinner;
+}
+
+async function assertBatchClassifiesUpsertAfterLockWait() {
+  const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-lock-test-"));
+  const file = join(dir, "audit.jsonl");
+  const db = openDb(":memory:");
+  const app = createApp(db, {
+    allowReset: true,
+    optimisticConcurrency: false,
+    audit: createFileAuditSink(file, vi.fn()),
+  });
+  await scaffold(app);
+  const lines = () =>
+    readFileSync(file, "utf8")
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as AuditRecord);
+  const before = lines().length;
+  const wasInsertedByLockWinner = arrangeConcurrentDisciplineInsert(db);
+
+  const res = await call(app, {
+    method: "POST",
+    url: "/api/batch",
+    payload: body({
+      ops: [
+        { method: "PUT", table: "accounts", id: "a1", row: account("a1") },
+        {
+          method: "PUT",
+          table: "disciplines",
+          id: "d-race",
+          row: {
+            id: "d-race",
+            accountId: "a1",
+            name: "Batch value",
+            color: "#5c34d4",
+            sortOrder: 0,
+            ...meta(),
+          },
+        },
+      ],
+    }),
+  });
+
+  expect(res.statusCode).toBe(200);
+  expect(wasInsertedByLockWinner()).toBe(true);
+  expect(
+    lines()
+      .slice(before)
+      .find((record) => record.id === "d-race"),
+  ).toMatchObject({ action: "update", entity: "disciplines" });
+}
+
+describe("batch → one line per op (6)", () => {
+  it("logs one audit line for each committed op", assertBatchWritesOneLinePerOperation);
+  it("records only requested fields that a batch PUT actually applies", assertBatchRecordsAppliedFields);
+  it(
+    "classifies an upsert from the state observed after the provisioning lock wait",
+    assertBatchClassifiesUpsertAfterLockWait,
+  );
+});
+
+async function assertImportWritesOneLine() {
+  const { app, lines } = fileApp();
+  await post(app, "accounts", account("a1"));
+  const before = lines().length;
+  const file = {
+    schemaVersion: 3,
+    data: {
+      accounts: [],
+      clients: [client("ic1", "x")],
+      disciplines: [],
+      projects: [],
+      phases: [],
+      resources: [],
+      activities: [],
+      allocations: [],
+      timeOff: [],
+    },
+  };
+  const res = await call(app, { method: "POST", url: "/api/import", payload: body({ accountId: "a1", data: file }) });
+  expect(res.statusCode).toBe(200);
+  const fresh = lines().slice(before);
+  expect(fresh).toHaveLength(1);
+  expect(fresh[0]).toMatchObject({
+    action: "import",
+    entity: "account",
+    id: "a1",
+    accountId: "a1",
+    changedFields: [],
+  });
+}
+
+async function assertEmptyImportWritesNoLine() {
+  const { app, lines } = fileApp();
+  await post(app, "accounts", account("a1"));
+  const before = lines().length;
+  // Every record drops in remap (an allocation with dangling refs) → imported = 0 → the server
+  // refuses the replace explicitly; the audit must not claim an import ran.
+  const file = {
+    schemaVersion: 3,
+    data: {
+      accounts: [],
+      clients: [],
+      disciplines: [],
+      projects: [],
+      phases: [],
+      resources: [],
+      activities: [],
+      allocations: [
+        {
+          id: "dangling",
+          accountId: "x",
+          resourceId: "nope",
+          activityId: "nope",
+          startDate: "2026-01-05",
+          endDate: "2026-01-09",
+          hoursPerDay: 4,
+          createdAt: "t",
+          updatedAt: "t",
+        },
+      ],
+      timeOff: [],
+    },
+  };
+  const res = await call(app, { method: "POST", url: "/api/import", payload: body({ accountId: "a1", data: file }) });
+  expect(res.statusCode).toBe(400);
+  const response = readErrorResponse(res);
+  expect(response.imported).toBe(0);
+  expect(res.json()).toMatchObject({
+    error: "The import contained no usable records, so the company data was left unchanged.",
+    skipped: 1,
+  });
+  expect(lines().slice(before)).toHaveLength(0);
+}
+
+describe("import → one import line (7)", () => {
+  it("logs a single import record with changedFields = []", assertImportWritesOneLine);
+  it(
+    "a REFUSED zero-record import writes NO audit line (nothing was replaced — no false record)",
+    assertEmptyImportWritesNoLine,
+  );
+});
+
+describe("rolled-back batch → ZERO new audit lines (8) — proves transaction-coupled audit", () => {
+  it("a constraint-violating batch is 400 and writes NO audit line", async () => {
+    const { app, lines } = fileApp();
+    await scaffold(app);
+    const before = lines().length;
+    // A project referencing a non-existent client → FK constraint failure → tx rolls back → 400.
+    const res = await call(app, {
+      method: "POST",
+      url: "/api/batch",
+      payload: body({
+        ops: [{ method: "PUT", table: "projects", id: "p9", row: project("p9", "a1", "ghost-client") }],
+      }),
+    });
+    expect(res.statusCode).toBe(400);
+    // Both product writes and audit outbox inserts share the batch transaction, so both roll back.
+    expect(lines().slice(before)).toHaveLength(0);
+  });
+});
+
+describe("noopAuditSink", () => {
+  it("append always succeeds and degraded is always false", () => {
+    const sink = createNoopAuditSink();
+    expect(
+      sink.append({
+        ts: TS,
+        userId: "demo",
+        accountId: "a1",
+        action: "create",
+        entity: "accounts",
+        id: "a1",
+        changedFields: [],
+      }),
+    ).toBe(true);
+    expect(sink.degraded).toBe(false);
+  });
+});
+
+describe("central audit forwarding", () => {
+  const record: AuditRecord = {
+    ts: TS,
+    userId: "user-1",
+    accountId: "account-1",
+    action: "sessionsRevoke",
+    entity: "identity",
+    id: "user-2",
+    changedFields: ["sessions"],
+  };
+
+  it("emits a typed one-line JSON envelope suitable for an external collector", () => {
+    const lines: string[] = [];
+    const sink = createStreamAuditSink((line) => lines.push(line));
+    expect(sink.append(record)).toBe(true);
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(requiredAt(lines, 0))).toEqual({ type: "capacitylens.audit", ...record });
+    expect(requiredAt(lines, 0)).not.toContain("\n");
+    expect(sink.degraded).toBe(false);
+  });
+
+  it("latches a stream failure and makes a composite destination fail closed visibly", () => {
+    const healthy = createNoopAuditSink();
+    const failed = createStreamAuditSink(() => {
+      throw new Error("collector unavailable");
+    });
+    const composite = createCompositeAuditSink(healthy, failed);
+    expect(() => composite.append(record)).not.toThrow();
+    expect(composite.append(record)).toBe(false);
+    expect(composite.degraded).toBe(true);
+  });
+});
+
+const rotationRecord = (id: string): AuditRecord => ({
+  ts: TS,
+  userId: "demo",
+  accountId: "a1",
+  action: "create",
+  entity: "accounts",
+  id,
+  changedFields: ["name"],
+});
+
+function assertBatchAppend() {
+  const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-batch-"));
+  const file = join(dir, "audit.jsonl");
+  const sink = createFileAuditSink(file, vi.fn());
+
+  expect(sink.appendMany?.([rotationRecord("r1"), rotationRecord("r2")])).toBe(true);
+  expect(readFileSync(file, "utf8").trim().split("\n")).toHaveLength(2);
+}
+
+function assertRotationKeepsFreshGeneration() {
+  const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-rotate-"));
+  const file = join(dir, "audit.jsonl");
+  const log = vi.fn();
+  // maxBytes pinned to the size of exactly one line (every id here is 2 chars, so every line is
+  // the same length). The second append is therefore always the one that finds the cap reached.
+  const lineBytes = Buffer.byteLength(JSON.stringify(rotationRecord("r1")) + "\n", "utf8");
+  const sink = createFileAuditSink(file, log, { maxBytes: lineBytes });
+
+  expect(sink.append(rotationRecord("r1"))).toBe(true);
+  expect(existsSync(`${file}.1`)).toBe(false);
+
+  expect(sink.append(rotationRecord("r2"))).toBe(true);
+  expect(readFileSync(`${file}.1`, "utf8")).toBe(JSON.stringify(rotationRecord("r1")) + "\n");
+  expect(readFileSync(file, "utf8")).toBe(JSON.stringify(rotationRecord("r2")) + "\n");
+
+  // The fresh file is now also at the cap, so a third append rotates again, proving appends
+  // keep landing in a genuinely fresh file each cycle, not erroring or wedging on a second rotation.
+  expect(sink.append(rotationRecord("r3"))).toBe(true);
+  expect(readFileSync(`${file}.1`, "utf8")).toBe(JSON.stringify(rotationRecord("r2")) + "\n");
+  expect(readFileSync(file, "utf8")).toBe(JSON.stringify(rotationRecord("r3")) + "\n");
+  expect(log).toHaveBeenCalledTimes(2);
+  expect(log).toHaveBeenLastCalledWith(expect.stringContaining("audit log rotated"));
+  expect(sink.degraded).toBe(false);
+}
+
+function assertRotationForgetsOverwrittenDeliveryIds() {
+  const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-id-window-"));
+  const file = join(dir, "audit.jsonl");
+  const delivered = (auditId: string) => ({ ...rotationRecord("r1"), auditId });
+  const lineBytes = Buffer.byteLength(JSON.stringify(delivered("audit-a")) + "\n", "utf8");
+  const sink = createFileAuditSink(file, vi.fn(), { maxBytes: lineBytes });
+
+  expect(sink.append(delivered("audit-a"))).toBe(true);
+  expect(sink.append(delivered("audit-b"))).toBe(true);
+  expect(sink.append(delivered("audit-c"))).toBe(true);
+  // audit-a is now in neither retained generation, so it must not remain in the in-memory
+  // idempotency window and suppress a legitimate later delivery that reuses that opaque id.
+  expect(sink.append(delivered("audit-a"))).toBe(true);
+  expect(readFileSync(file, "utf8")).toBe(JSON.stringify(delivered("audit-a")) + "\n");
+}
+
+function assertRotationReconstructsBoundedTail() {
+  const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-bounded-recovery-"));
+  const file = join(dir, "audit.jsonl");
+  const old = { ...rotationRecord("old"), auditId: "audit-old", changedFields: ["x".repeat(512)] };
+  const recent = { ...rotationRecord("recent"), auditId: "audit-recent" };
+  const existing = `${JSON.stringify(old)}\n${JSON.stringify(recent)}\n`;
+  writeFileSync(file, existing);
+  const sink = createFileAuditSink(file, vi.fn(), {
+    maxBytes: Buffer.byteLength(existing) + 1024,
+    recoveryScanBytes: 256,
+  });
+
+  expect(sink.append(recent)).toBe(true);
+  expect(readFileSync(file, "utf8")).toBe(existing);
+  expect(sink.append({ ...rotationRecord("old"), auditId: "audit-old" })).toBe(true);
+  expect(readFileSync(file, "utf8").trim().split("\n")).toHaveLength(3);
+}
+
+function assertRotationPreventsActiveOverflow() {
+  const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-rotate-"));
+  const file = join(dir, "audit.jsonl");
+  const lineBytes = Buffer.byteLength(JSON.stringify(rotationRecord("r1")) + "\n", "utf8");
+  const maxBytes = lineBytes * 2 - 1;
+  const sink = createFileAuditSink(file, vi.fn(), { maxBytes });
+
+  expect(sink.append(rotationRecord("r1"))).toBe(true);
+  expect(existsSync(`${file}.1`)).toBe(false);
+  expect(sink.append(rotationRecord("r2"))).toBe(true);
+
+  expect(readFileSync(`${file}.1`, "utf8")).toBe(JSON.stringify(rotationRecord("r1")) + "\n");
+  expect(readFileSync(file, "utf8")).toBe(JSON.stringify(rotationRecord("r2")) + "\n");
+  expect(statSync(file).size).toBeLessThanOrEqual(maxBytes);
+  expect(statSync(`${file}.1`).size).toBeLessThanOrEqual(maxBytes);
+}
+
+function assertOversizedRecordFailsClosed() {
+  const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-rotate-"));
+  const file = join(dir, "audit.jsonl");
+  const log = vi.fn();
+  const lineBytes = Buffer.byteLength(JSON.stringify(rotationRecord("r1")) + "\n", "utf8");
+  const sink = createFileAuditSink(file, log, { maxBytes: lineBytes - 1 });
+
+  expect(sink.append(rotationRecord("r1"))).toBe(false);
+  expect(sink.append(rotationRecord("r2"))).toBe(false);
+  expect(existsSync(file)).toBe(false);
+  expect(existsSync(`${file}.1`)).toBe(false);
+  expect(sink.degraded).toBe(true);
+  expect(log).toHaveBeenCalledTimes(1);
+  expect(requiredAt(requiredAt(log.mock.calls, 0), 0)).toContain("exceeding maxBytes");
+  expect(requiredAt(requiredAt(log.mock.calls, 0), 0)).not.toContain("r1");
+}
+
+function assertExistingOverCapDegrades() {
+  const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-rotate-"));
+  const file = join(dir, "audit.jsonl");
+  const firstLine = JSON.stringify(rotationRecord("r1")) + "\n";
+  const original = firstLine + JSON.stringify(rotationRecord("r2")) + "\n";
+  writeFileSync(file, original);
+  const log = vi.fn();
+  const sink = createFileAuditSink(file, log, { maxBytes: Buffer.byteLength(firstLine, "utf8") });
+
+  expect(sink.append(rotationRecord("r3"))).toBe(false);
+  expect(readFileSync(file, "utf8")).toBe(original);
+  expect(existsSync(`${file}.1`)).toBe(false);
+  expect(sink.degraded).toBe(true);
+  expect(requiredAt(requiredAt(log.mock.calls, 0), 0)).toContain("Existing audit generation");
+  expect(requiredAt(requiredAt(log.mock.calls, 0), 0)).not.toContain("r3");
+}
+
+function assertPriorRotationIsReplaced() {
+  const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-rotate-"));
+  const file = join(dir, "audit.jsonl");
+  writeFileSync(`${file}.1`, "STALE_UNRELATED_CONTENT_FROM_A_PRIOR_GENERATION");
+  const log = vi.fn();
+  const lineBytes = Buffer.byteLength(JSON.stringify(rotationRecord("r1")) + "\n", "utf8");
+  const sink = createFileAuditSink(file, log, { maxBytes: lineBytes });
+
+  sink.append(rotationRecord("r1"));
+  sink.append(rotationRecord("r2"));
+  const rotated = readFileSync(`${file}.1`, "utf8");
+  expect(rotated).not.toContain("STALE_UNRELATED_CONTENT_FROM_A_PRIOR_GENERATION");
+  expect(rotated).toBe(JSON.stringify(rotationRecord("r1")) + "\n");
+}
+
+function assertDefaultRotationLimitDoesNotRotate() {
+  const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-rotate-"));
+  const file = join(dir, "audit.jsonl");
+  const sink = createFileAuditSink(file, vi.fn());
+  for (let i = 0; i < 50; i++) sink.append(rotationRecord(`r${i}`));
+  expect(existsSync(`${file}.1`)).toBe(false);
+}
+
+function assertRotationRenameFailureDegrades() {
+  const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-rotate-fail-"));
+  const file = join(dir, "audit.jsonl");
+  const log = vi.fn();
+  const lineBytes = Buffer.byteLength(JSON.stringify(rotationRecord("r1")) + "\n", "utf8");
+  const sink = createFileAuditSink(file, log, { maxBytes: lineBytes });
+  expect(sink.append(rotationRecord("r1"))).toBe(true);
+
+  // Pre-create a directory at the rotation destination, so renameSync(file, `${file}.1`) fails
+  // with EISDIR (you cannot rename a file onto an existing directory), a real fs failure, the
+  // same "no mocking" style the append-failure test above uses (directory-as-file for appendFileSync).
+  mkdirSync(`${file}.1`);
+
+  expect(() => sink.append(rotationRecord("r2"))).not.toThrow();
+  expect(sink.append(rotationRecord("r2"))).toBe(false);
+  expect(sink.degraded).toBe(true);
+  expect(log).toHaveBeenCalledTimes(1);
+  const msg = requiredAt(requiredAt(log.mock.calls, 0), 0) as string;
+  expect(msg).toContain("audit write FAILED");
+}
+
+describe("size-based rotation (9) — hard-bounds two generations to 2x maxBytes", () => {
+  it("appends a multi-record batch through one file operation", assertBatchAppend);
+  it(
+    "rotates the PREVIOUS generation into .1 once the file reaches maxBytes, and keeps appending to a fresh file",
+    assertRotationKeepsFreshGeneration,
+  );
+  it(
+    "forgets delivery ids after their retained generation is overwritten",
+    assertRotationForgetsOverwrittenDeliveryIds,
+  );
+  it(
+    "reconstructs replay ids from a bounded tail instead of materializing the generation",
+    assertRotationReconstructsBoundedTail,
+  );
+  it("rotates before an append would make the active generation exceed maxBytes", assertRotationPreventsActiveOverflow);
+  it(
+    "rejects repeated records larger than maxBytes without writing either generation",
+    assertOversizedRecordFailsClosed,
+  );
+  it(
+    "preserves and degrades on a pre-existing over-cap generation instead of rotating it",
+    assertExistingOverCapDegrades,
+  );
+  it("replaces a pre-existing .1 that predates this sink (not merged, not appended to)", assertPriorRotationIsReplaced);
+  it("defaults maxBytes to 64 MiB — an ordinary run of appends never rotates", assertDefaultRotationLimitDoesNotRotate);
+  it("a rename failure (rotation) degrades the sink instead of throwing", assertRotationRenameFailureDegrades);
+});

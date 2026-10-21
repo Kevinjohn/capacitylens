@@ -3,7 +3,7 @@ import {
   AUTH_API as API,
   AUTH_PASSWORD as PASSWORD,
   bootstrapOrg,
-  seedFixtureGoogleEmailProof,
+  seedFixtureEmailProof,
   seedFixtureLegacyEmailFlag,
   signUpUser,
 } from "./authTestSupport";
@@ -37,7 +37,7 @@ test("an existing proven password identity joins an open company as Viewer, whil
   await signUpUser(UNPROVEN);
   seedFixtureLegacyEmailFlag(UNPROVEN);
   const proven = await signUpUser(PROVEN);
-  seedFixtureGoogleEmailProof(PROVEN);
+  seedFixtureEmailProof(PROVEN);
   const before = await request.get(`${API}/api/accounts`, { headers: { cookie: proven.cookie } });
   expect(await before.json()).not.toContainEqual(expect.objectContaining({ id: accountId }));
 

@@ -1,0 +1,222 @@
+import { describe, it, expect } from "vitest";
+import type { LightMyRequestResponse } from "fastify";
+import { createApp } from "./app";
+import { openDb, insertAll } from "./db";
+import type { Db } from "./db";
+import { upsertMember } from "./controlTables";
+import { call, signUp } from "./testHelpers/passwordAuth";
+import { appWithAuth } from "./fixtures/appWithAuth";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData } from "@capacitylens/shared/types/entities";
+import type { AuditRecord, AuditSink } from "./audit";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
+
+// Scoped state reads enforce account membership; trusted-local mode also permits the whole-dataset read.
+
+const TS = "2026-01-01T00:00:00.000Z";
+const meta = () => ({ createdAt: TS, updatedAt: TS });
+
+const account = (id: string) => ({ id, name: `Studio ${id}`, color: "#3b82f6", ...meta() });
+const client = (id: string, accountId: string) => ({
+  id,
+  accountId,
+  name: accountId === "a2" ? "Oscorp" : "Ferris",
+  color: "#3b82f6",
+  ...meta(),
+});
+const project = (id: string, accountId: string, clientId: string) => ({
+  id,
+  accountId,
+  name: "Web",
+  clientId,
+  color: "#3b82f6",
+  ...meta(),
+});
+
+function seedTwo(db: Db): void {
+  const data: AppData = {
+    ...emptyAppData(),
+    accounts: [account("a1"), account("a2")],
+    clients: [client("c1", "a1"), client("c2", "a2")],
+    projects: [project("p1", "a1", "c1"), project("p2", "a2", "c2")],
+  };
+  insertAll(db, data);
+}
+
+interface StateIds {
+  accountIds: string[];
+  clientIds: string[];
+  projectIds: string[];
+}
+
+function readIds(value: Record<string, unknown>, key: string): string[] {
+  const rows = value[key];
+  if (!Array.isArray(rows)) throw new Error(`Expected ${key} to be an array.`);
+  return rows.map((row: unknown) => {
+    if (!isRecord(row) || typeof row.id !== "string") {
+      throw new Error(`Expected every ${key} row to have a string id.`);
+    }
+    return row.id;
+  });
+}
+
+function readStateIds(response: LightMyRequestResponse): StateIds {
+  const value: unknown = JSON.parse(response.payload);
+  if (!isRecord(value)) {
+    throw new Error("Expected state response to be an object.");
+  }
+  return {
+    accountIds: readIds(value, "accounts"),
+    clientIds: readIds(value, "clients"),
+    projectIds: readIds(value, "projects"),
+  };
+}
+
+describe("OFF mode — GET /api/accounts + GET /api/state?accountId=", () => {
+  it("GET /api/accounts returns ALL seeded accounts as {id,name,role:owner} (no membership gate)", async () => {
+    const db = openDb(":memory:");
+    seedTwo(db);
+    const app = createApp(db);
+    const res = await call(app, { method: "GET", url: "/api/accounts" });
+    expect(res.statusCode).toBe(200);
+    // Off mode tags every account with the trusted-local full-access sentinel role 'owner',
+    // so the wire shape matches auth-on's AccountSummary and the client's pure `can` keeps off editable.
+    expect(res.json()).toEqual([
+      { id: "a1", name: "Studio a1", role: "owner" },
+      { id: "a2", name: "Studio a2", role: "owner" },
+    ]);
+  });
+
+  it("GET /api/state?accountId=a1 returns ONLY a1; ?accountId=a2 returns ONLY a2", async () => {
+    const db = openDb(":memory:");
+    seedTwo(db);
+    const app = createApp(db);
+
+    const s1 = readStateIds(await call(app, { method: "GET", url: "/api/state?accountId=a1" }));
+    expect(s1.accountIds).toEqual(["a1"]);
+    expect(s1.clientIds).toEqual(["c1"]);
+    expect(s1.projectIds).toEqual(["p1"]);
+
+    const s2 = readStateIds(await call(app, { method: "GET", url: "/api/state?accountId=a2" }));
+    expect(s2.accountIds).toEqual(["a2"]);
+    expect(s2.clientIds).toEqual(["c2"]);
+  });
+
+  it("no-arg GET /api/state STILL returns the WHOLE tree (backward-compat)", async () => {
+    const db = openDb(":memory:");
+    seedTwo(db);
+    const app = createApp(db);
+    const whole = readStateIds(await call(app, { method: "GET", url: "/api/state" }));
+    expect(whole.accountIds.sort()).toEqual(["a1", "a2"]);
+    expect(whole.clientIds).toHaveLength(2);
+    expect(whole.projectIds).toHaveLength(2);
+  });
+
+  it("rejects an empty ?accountId= with 400", async () => {
+    const db = openDb(":memory:");
+    seedTwo(db);
+    const app = createApp(db);
+    const res = await call(app, { method: "GET", url: "/api/state?accountId=" });
+    expect(res.statusCode).toBe(400);
+  });
+});
+
+describe("auth-on (password) — membership-existence guard", () => {
+  it("a member reads their account slice (200); a non-member is 403; /api/accounts lists only memberships", async () => {
+    const { app, db } = await appWithAuth();
+
+    seedTwo(db);
+    const { cookie, userId } = await signUp(app, "member@capacitylens.dev");
+
+    upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
+
+    const ok = await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie } });
+    expect(ok.statusCode).toBe(200);
+    expect(readStateIds(ok).accountIds).toEqual(["a1"]);
+
+    const denied = await call(app, { method: "GET", url: "/api/state?accountId=a2", headers: { cookie } });
+    expect(denied.statusCode).toBe(403);
+
+    const accts = await call(app, { method: "GET", url: "/api/accounts", headers: { cookie } });
+    expect(accts.statusCode).toBe(200);
+    expect(accts.json()).toEqual([{ id: "a1", name: "Studio a1", role: "editor" }]);
+  });
+
+  it("a session-less request is still 401 (the requireUser gate is upstream of the slice guard)", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    expect((await call(app, { method: "GET", url: "/api/state?accountId=a1" })).statusCode).toBe(401);
+    expect((await call(app, { method: "GET", url: "/api/accounts" })).statusCode).toBe(401);
+  });
+});
+
+describe("PATCH /api/accounts/:id foreign-accountId parity with PUT", () => {
+  it("rejects an asserted foreign accountId like PUT does, instead of silently dropping it", async () => {
+    const db = openDb(":memory:");
+    seedTwo(db);
+    const app = createApp(db, { multiAccount: true });
+
+    const put = await app.inject({
+      method: "PUT",
+      url: "/api/accounts/a2",
+      payload: { ...account("a2"), accountId: "a1" },
+    });
+
+    expect(put.statusCode).toBe(404);
+
+    const patch = await app.inject({
+      method: "PATCH",
+      url: "/api/accounts/a2",
+      payload: { name: "Renamed", accountId: "a1" },
+    });
+
+    expect(patch.statusCode).toBe(404);
+    const row = db.prepare(`SELECT name FROM accounts WHERE id = 'a2'`).get() as { name: string };
+
+    expect(row.name).toBe("Studio a2");
+
+    const plain = await app.inject({
+      method: "PATCH",
+      url: "/api/accounts/a2",
+      payload: { name: "Renamed" },
+    });
+    expect(plain.statusCode).toBe(200);
+
+    await app.close();
+    db.close();
+  });
+});
+
+describe("audit attribution for account mutations", () => {
+  it("attributes account-mutation audit records to the mutated account id, never a caller-supplied value", async () => {
+    const db = openDb(":memory:");
+    seedTwo(db);
+    const captured: AuditRecord[] = [];
+    const capturingSink: AuditSink = {
+      append: (record) => {
+        if ("accountId" in record) captured.push(record);
+        return true;
+      },
+      degraded: false,
+    };
+    const app = createApp(db, { multiAccount: true, audit: capturingSink });
+
+    // A rejected foreign assertion must produce no audit record attributed to the asserted tenant:
+    await app.inject({
+      method: "PUT",
+      url: "/api/accounts/a2",
+      payload: { ...account("a2"), accountId: "a1" },
+    });
+    expect(captured.every((r) => r.accountId !== "a1" || r.id === "a1")).toBe(true);
+
+    // An accepted mutation of a2 (no assertion) is attributed to a2:
+    await app.inject({ method: "PATCH", url: "/api/accounts/a2", payload: { name: "Renamed" } });
+    const last = captured[captured.length - 1];
+    if (!last) throw new Error("Expected the accepted account mutation to be audited.");
+    expect(last.accountId).toBe("a2");
+    expect(last.action).toBe("patch");
+
+    await app.close();
+    db.close();
+  });
+});

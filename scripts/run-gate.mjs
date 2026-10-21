@@ -7,15 +7,11 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 function main() {
   try {
     const [mode, ...extra] = process.argv.slice(2);
-    if (extra.length) throw new Error("Expected app, backend, or all with no extra arguments.");
+    if (extra.length) throw new Error("Expected app, server, or all with no extra arguments.");
     for (const args of gateCommands(mode)) {
       const label = `gate (${mode}): pnpm ${args.join(" ")}`;
       console.log(label);
-      const env =
-        args[0] === "run" && args[1] === "build"
-          ? { ...process.env, NODE_ENV: "production", CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1" }
-          : process.env;
-      const result = spawnPnpmSync(args, { cwd: root, stdio: "inherit", env });
+      const result = spawnPnpmSync(args, { cwd: root, stdio: "inherit" });
       const status = reportSpawnFailureAndResolveExitStatus(label, result);
       if (status !== 0) {
         process.exitCode = status;

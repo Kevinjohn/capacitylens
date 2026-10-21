@@ -1,0 +1,165 @@
+import type { ServerOptions as HttpsServerOptions } from "node:https";
+import Fastify from "fastify";
+import type { FastifyInstance } from "fastify";
+import type { Auth, AccountMode, SessionUser } from "./auth";
+import type { ActorContext, ApplicationSession, BoundApplication } from "@capacitylens/shared/account/types";
+import type { Db } from "./db";
+import type { AuditSink } from "./audit";
+import type { runImportWorker } from "./runImportWorker";
+import { BODY_LIMIT, REQUEST_TIMEOUT_MS, CONNECTION_TIMEOUT_MS } from "./routes/appLimits";
+import { createRequestLoggerOptions } from "./routes/appLogging";
+import { resolveAppConfig } from "./routes/appConfig";
+import { createAppRuntime } from "./routes/appRuntime";
+import { installRootHooks } from "./routes/appRootHooks";
+import { installSessionResolution } from "./routes/appSessionResolution";
+import { createAuthorization } from "./routes/appAuthorization";
+import { registerApiRoutes } from "./routes/appRouteTree";
+import { registerStaticWeb } from "./routes/staticWeb";
+export { MAX_BATCH_OPS } from "./routes/batchRoutes";
+export { MAX_RATE_LIMIT, parseRateLimit } from "./rateLimit";
+export { resolveErrorStatus, resolveRequestClientIp } from "./routes/appErrors";
+export { createRequestLoggerOptions } from "./routes/appLogging";
+export { MAX_SERVER_CONNECTIONS } from "./routes/appLimits";
+
+// The identity requireUser attaches to every gated request. Session/identity
+// plumbing only; accountId stays client-asserted, and ownsRow is still the tenant guard.
+declare module "fastify" {
+  interface FastifyRequest {
+    user: SessionUser | null;
+    accountActor: ActorContext | null;
+    authenticationUserId: string | null;
+    authenticationProviderId: string | null;
+    session: ApplicationSession | null;
+  }
+}
+
+export { DEFAULT_CORS } from "./routes/appConfig";
+
+/** Configures the server application and its optional integration seams. */
+export interface AppOptions {
+  /** Stable identity and display branding for this product installation's account boundary. */
+  application?: BoundApplication;
+  /** Optional internal HTTPS identity for a reverse-proxy/service hop. The default Compose
+   * topology provisions and verifies it; a trusted same-host loopback proxy may omit it. */
+  internalTls?: Pick<HttpsServerOptions, "key" | "cert" | "minVersion">;
+  /** Parsed once from the configured internal certificate; deep health projects its remaining
+   * validity without rereading tenant data or certificate files on every public probe. */
+  internalTlsExpiresAt?: string;
+  /** SHA-256 of the exact certificate bytes loaded into the live HTTPS context. */
+  internalTlsFingerprintSha256?: string;
+  /** Gate POST /api/test/reset, only enabled for auth-off tests / explicit local dev opt-in. */
+  allowReset?: boolean;
+  /** Enables structured request logging and routes server errors through the request logger. */
+  log?: boolean;
+  /** Test seam: where the JSON log lines go when `log` is on (default stdout). */
+  logStream?: { write(msg: string): void };
+  /** Structured security-event destination. The entrypoint emits JSONL to stdout for forwarding;
+   * tests/factory consumers default to a no-op. Must never throw into a request. */
+  securityLog?: (event: Record<string, unknown>) => void;
+  /** Enables a constant-work database health read; failures return 503 instead of reporting healthy. */
+  healthDeep?: boolean;
+  /** Optional scheduled-backup health provider. Present only when backups are configured; kept as
+   * a callback because the entrypoint starts the scheduler after Fastify construction. */
+  backupHealth?: () => Readonly<{
+    degraded: boolean;
+    lastSuccessAt: string | null;
+  }>;
+  /** CAPACITYLENS_RATE_LIMIT=<n>: n requests/minute per IP across /api/* (a guard against an
+   * accidental client loop hammering the single-writer SQLite file and remote resource
+   * exhaustion). Health is exempt so liveness probes cannot be starved by application traffic.
+   * 0 / omitted ⇒ the plugin is not registered at all. Any other value must be an integer in the
+   * shared supported range; invalid programmatic configuration is rejected at construction. */
+  rateLimit?: number;
+  /** Trust the immediate reverse proxy's sanitized forwarding headers. This keys rate limits on
+   * X-Forwarded-For and reconstructs the browser-visible scheme for the CSRF same-origin check
+   * from X-Forwarded-Proto. Set only when the API is unreachable directly and the proxy overwrites
+   * both headers; on a directly exposed host either header is client-spoofable. */
+  trustProxyHeaders?: boolean;
+  /** CAPACITYLENS_MODE: 'off' (the default) means Better Auth does not exist here.
+   * The only auth surface is GET /api/auth/me reporting the demo identity, and
+   * requireUser attaches that identity and continues, so no request that succeeds
+   * today may fail. 'password'/'sso' mount opts.auth's handler at /api/auth/* and
+   * 401 every other /api/* route (except /api/health) without a valid session. */
+  authMode?: AccountMode;
+  /** The Better Auth instance, required exactly when authMode ≠ 'off'. */
+  auth?: Auth | null;
+  /** Company joining provider state, supplied by the entrypoint after auth configuration. */
+  joiningProof?: {
+    secret: string;
+    publicUrl: URL;
+  };
+  /** Resolved registration posture used by the SSO cutover verifier. */
+  allowOpenSignup?: boolean;
+  /** CORS allow-list: a comma-separated list of explicit origins. Wildcards are rejected because
+   * the browser client always uses cookie credentials. Defaults to the localhost allow-list when
+   * omitted, so the factory is safe even if a caller forgets to pass it. The
+   * entrypoint (index.ts) passes the CAPACITYLENS_CORS_ORIGIN override. */
+  corsOrigin?: string;
+  /** PUT rejects a write whose row is older than the stored row (updatedAt compare) with 409.
+   * Enabled by default because membership makes every server deployment multi-writer. Pass false
+   * only as an explicit legacy escape hatch. Ordered browser-sync batches still enforce their
+   * revision preconditions so overlapping requests cannot overwrite a newer sequence. */
+  optimisticConcurrency?: boolean;
+  /** CAPACITYLENS_MULTI_ACCOUNT=1: allow more than one company (`accounts` row) to exist on this
+   * instance. Default false: CapacityLens is deliberately single-company-per-instance (see
+   * AGENTS.md's product boundary); once the `accounts` table holds ≥1 row, every vector that
+   * would create a new one (POST /api/accounts, a PUT/batch-PUT whose id has no existing row,
+   * POST /api/orgs) is refused with a 403 naming this flag (see accountCreateCapped /
+   * SINGLE_COMPANY_CAP_MESSAGE), regardless of authMode, even 'off', which is otherwise
+   * trusted-local allow-all: this is a deployment-shape policy, not an authz rule, so it gets no
+   * off-mode bypass. It also does not bypass for the bootstrap token below. That decides who may
+   * create an account, not whether one may exist. UPDATE/PATCH/DELETE of an existing account are
+   * never affected: the cap is create-time only, so a genuinely multi-company instance (this flag
+   * on, or a DB seeded before the cap existed) keeps serving normally. */
+  multiAccount?: boolean;
+  /** Enables constrained company creation via x-capacitylens-bootstrap-token on POST /api/orgs.
+   * Unset or empty tokens never authorize creation. The single-company cap still applies.
+   * Token comparison requires matching non-empty byte sequences and uses timingSafeEqual.
+   */
+  bootstrapToken?: string;
+  /** Enables host-only HSTS for the browser-facing HTTPS origin.
+   * The entrypoint derives this from CAPACITYLENS_HTTPS or an HTTPS public URL.
+   * Enable only when clients can use HTTPS; omit it for a plain HTTP deployment.
+   */
+  https?: boolean;
+  /** CAPACITYLENS_AUDIT: the append-only JSONL audit sink. On-by-default is decided at
+   * the index.ts layer (which builds a fileAuditSink from env, or a noop when =off); this factory
+   * defaults to noopAuditSink() so tests and the default local/no-server deploy are byte-identical
+   * unless a real sink is explicitly injected. Never pass a row/body into the sink, only typed
+   * product or normalized account entries whose changedFields are field names (the no-PII
+   * invariant). */
+  audit?: AuditSink;
+  /** Test seam for deterministically pausing import preparation around concurrent writes. The
+   * production default always uses the worker-thread implementation. */
+  importWorker?: typeof runImportWorker;
+  /** Directory holding the built web app. When given, the server also serves it (assets, SPA
+   * fallback and the web security headers, mirroring the packaged nginx edge). Omitted = API only. */
+  webDir?: string;
+}
+
+/** Creates the Fastify application with server routes and injected dependencies. */
+export function createApp(db: Db, options: AppOptions = {}): FastifyInstance {
+  const config = resolveAppConfig(options);
+  const runtime = createAppRuntime(db, config, options);
+  const app = Fastify({
+    ...(options.internalTls ? { https: options.internalTls } : {}),
+    bodyLimit: BODY_LIMIT,
+    requestTimeout: REQUEST_TIMEOUT_MS,
+    connectionTimeout: CONNECTION_TIMEOUT_MS,
+    // Redaction must remain enabled for both logging destinations so headers, invite tokens and URL queries cannot expose secrets.
+    logger: config.logOn ? createRequestLoggerOptions(options.logStream) : false,
+  });
+  const rootHelpers = installRootHooks({ app, db, runtime, config, options });
+  const sessionResolution = installSessionResolution({
+    app,
+    runtime,
+    config,
+    options,
+    securityEvent: rootHelpers.securityEvent,
+  });
+  const authorization = createAuthorization({ app, runtime, config, options, rootHelpers });
+  registerApiRoutes({ app, db, runtime, config, options, rootHelpers, sessionResolution, authorization });
+  // Registered last so every API route wins over the web app's catch-all.
+  if (options.webDir) registerStaticWeb(app, { webDir: options.webDir });
+  return app;
+}

@@ -1,6 +1,6 @@
 # US-DIS-04 — Disciplines use a predictable order on each surface
 
-**Area:** Disciplines · **Persona:** Studio manager · **Linked E2E:** `e2e/alphabetical-management-lists.spec.ts` + `e2e/disciplines.spec.ts` · **Unit:** `apps/frontend/src/components/disciplines/DisciplineList.test.tsx` + `apps/frontend/src/store/selectors.extra.test.ts`
+**Area:** Disciplines · **Persona:** Studio manager · **Linked E2E:** `e2e/alphabetical-management-lists.spec.ts` + `e2e/disciplines.spec.ts` · **Unit:** `src/components/disciplines/DisciplineList.test.tsx` + `src/store/selectors.extra.test.ts`
 
 ## Goal
 

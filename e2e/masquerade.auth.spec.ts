@@ -21,7 +21,7 @@ test.describe("member masquerade", () => {
     await page.getByLabel("Email").fill(OWNER_EMAIL);
     await page.getByLabel("Password").fill(AUTH_PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();
-    await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
+    await page.getByRole("button", { name: COMPANY, exact: true }).click();
     await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
 
     await page.getByRole("link", { name: "Team & access" }).click();

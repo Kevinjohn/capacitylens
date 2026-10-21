@@ -1,8 +1,7 @@
 /**
  * Names a service port assigned to each lane.
  */
-export type LanePortName =
-  "web" | "dbWeb" | "authWeb" | "dbApi" | "authApi" | "testHttp" | "preview" | "docsDev" | "docsPreview";
+export type LanePortName = "web" | "dbWeb" | "authWeb" | "dbApi" | "authApi" | "preview" | "docsDev" | "docsPreview";
 
 /**
  * Number of concurrent port lanes.
@@ -16,6 +15,15 @@ export const LANE_ENVIRONMENT_KEY: string;
  * Environment variable containing the run's worker share.
  */
 export const SHARE_ENVIRONMENT_KEY: string;
+/**
+ * Repository path of the fixed access-lab port lock.
+ */
+export const FIXED_PORTS_LOCK_FILE: string;
+/**
+ * Fixed loopback ports reserved for the access lab.
+ */
+export const ACCESS_LAB_FIXED_PORTS: Readonly<Record<"web" | "api", number>>;
+
 /**
  * Validates and returns a lane number.
  * @throws When the lane is outside the supported range.

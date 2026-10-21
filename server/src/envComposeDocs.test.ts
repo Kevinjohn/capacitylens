@@ -1,0 +1,157 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+
+const envExample = readFileSync(fileURLToPath(new URL("../../.env.example", import.meta.url)), "utf8");
+const compose = readFileSync(fileURLToPath(new URL("../../docker-compose.yml", import.meta.url)), "utf8");
+const dockerfile = readFileSync(fileURLToPath(new URL("../../Dockerfile", import.meta.url)), "utf8");
+const managedHost = readFileSync(
+  fileURLToPath(new URL("../../docs-src/self-hosting/managed-vps/index.md", import.meta.url)),
+  "utf8",
+);
+const bareMetalInstall = readFileSync(
+  fileURLToPath(new URL("../../docs-src/self-hosting/install-without-docker.md", import.meta.url)),
+  "utf8",
+);
+const developmentGuide = readFileSync(
+  fileURLToPath(new URL("../../docs-src/reference/development.md", import.meta.url)),
+  "utf8",
+);
+const nginxConf = readFileSync(fileURLToPath(new URL("../../nginx.conf", import.meta.url)), "utf8");
+const clientNginxConf = readFileSync(
+  fileURLToPath(new URL("../../nginx.client.conf.template", import.meta.url)),
+  "utf8",
+);
+const dockerIgnore = readFileSync(fileURLToPath(new URL("../../.dockerignore", import.meta.url)), "utf8");
+const appSource = readFileSync(fileURLToPath(new URL("./routes/appLogging.ts", import.meta.url)), "utf8");
+
+// Compare token-bearing invitation sub-actions across edge and application redaction patterns.
+const inviteActionsAt = (source: string, anchor: RegExp): string[] => {
+  const alternation = source.match(anchor);
+  const actions = alternation?.[1];
+  return actions ? [...new Set(actions.split("|").map((value) => value.trim()))].sort() : [];
+};
+
+const registerNamedProviderComposeTest = (): void => {
+  it("passes company-provider and mail settings through Compose unchanged", () => {
+    const apiService = compose.split("\n  api:\n")[1]?.split("\n  web:\n")[0];
+    expect(apiService).toBeDefined();
+    const apiLines = apiService?.split("\n").map((line) => line.trim());
+    for (const name of [
+      "CAPACITYLENS_GOOGLE_CLIENT_ID",
+      "CAPACITYLENS_GOOGLE_CLIENT_SECRET",
+      "CAPACITYLENS_MICROSOFT_CLIENT_ID",
+      "CAPACITYLENS_MICROSOFT_CLIENT_SECRET",
+      "CAPACITYLENS_MICROSOFT_TENANT_ID",
+      "CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS",
+      "CAPACITYLENS_MAIL_HOST",
+      "CAPACITYLENS_MAIL_PORT",
+      "CAPACITYLENS_MAIL_USER",
+      "CAPACITYLENS_MAIL_PASSWORD",
+      "CAPACITYLENS_MAIL_FROM",
+    ]) {
+      expect(apiLines).toContain(`${name}: ${"${"}${name}:-}`);
+    }
+  });
+
+  it("keeps the CORS allow-list explicitly empty so Compose stays fail-closed", () => {
+    expect(compose).toMatch(/^\s+CAPACITYLENS_CORS_ORIGIN: \$\{CAPACITYLENS_CORS_ORIGIN:-\}$/m);
+  });
+};
+
+describe("Compose TLS initializer", () => {
+  it("lets only the one-shot TLS initializer read the existing API key on repeat starts", () => {
+    const initializer = compose.split("\n  internal-tls:\n")[1]?.split("\n  api:\n")[0];
+    expect(initializer).toMatch(/cap_drop:\s*\n\s*- ALL/);
+    expect(initializer).toMatch(/cap_add:\s*\n\s*- CHOWN\s*\n\s*- DAC_READ_SEARCH\s*\n\s*- FOWNER/);
+    expect(compose.split("\n  api:\n")[1]?.split("\n  web:\n")[0]).not.toMatch(/DAC_READ_SEARCH/);
+    expect(compose.split("\n  web:\n")[1]?.split("\n  web-client:\n")[0]).not.toMatch(/DAC_READ_SEARCH/);
+  });
+});
+
+describe("Compose exceptions in the environment register", () => {
+  it("documents runtime values that Compose pins to its private network and durable volume", () => {
+    expect(envExample).toMatch(/Compose pins this to 8787[\s\S]*?PORT=8787/);
+    expect(envExample).toMatch(
+      /Compose pins this to \/data\/capacitylens\.db[\s\S]*?CAPACITYLENS_DB=\/data\/capacitylens\.db/,
+    );
+    expect(compose).toMatch(/PORT:\s*"8787"/);
+    expect(compose).toMatch(/CAPACITYLENS_DB:\s*\/data\/capacitylens\.db/);
+  });
+
+  it("documents development-only values outside the operator register and the production container", () => {
+    expect(developmentGuide).toContain(
+      "Compose does not pass `CAPACITYLENS_ALLOW_RESET` or `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD`",
+    );
+    for (const name of ["CAPACITYLENS_ALLOW_RESET", "CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD"]) {
+      expect(envExample).not.toContain(name);
+      expect(developmentGuide).toContain(`| \`${name}\` |`);
+      expect(compose).not.toMatch(new RegExp(`^\\s+${name}:`, "m"));
+    }
+  });
+
+  registerNamedProviderComposeTest();
+
+  it("keeps production mode out of Vite-loaded env files and sets it on the API process", () => {
+    expect(envExample).toMatch(/Set NODE_ENV on the API process for bare-metal runs/);
+    expect(envExample).not.toMatch(/^NODE_ENV=/m);
+    expect(compose).not.toMatch(/^\s+NODE_ENV:/m);
+    expect(dockerfile).toMatch(/^ENV NODE_ENV=production$/m);
+    // The managed daemon loads the init-generated .env, whose NODE_ENV=production line no Vite build reads.
+    expect(managedHost).toContain("node --env-file=../.env server/dist/index.mjs");
+    expect(bareMetalInstall).toMatch(/^\s+Environment=NODE_ENV=production$/m);
+    expect(managedHost).toMatch(/Keep `NODE_ENV=production` on the API process/);
+  });
+
+  it("builds the API runtime ahead of time instead of transforming TypeScript at startup", () => {
+    expect(dockerfile).toContain("pnpm --filter capacitylens-server run build:runtime");
+    expect(dockerfile).toContain("exec node dist/index.mjs");
+    expect(dockerfile).not.toContain("exec node_modules/.bin/tsx");
+  });
+
+  it("documents the web image as the default Dockerfile target", () => {
+    const stages = [...dockerfile.matchAll(/^FROM\s+\S+(?:\s+AS\s+(\S+))?$/gim)];
+    expect(stages.at(-1)?.[1]).toBe("web");
+    expect(dockerfile).toMatch(/web image as the Dockerfile's final\/default target/i);
+    expect(dockerfile).toMatch(/select the\s+#?\s*`api` target explicitly/i);
+  });
+
+  it("suppresses the nginx access log for exactly the invite bearers the app redacts", () => {
+    // The invite token rides in the request path (preview, accept, signup). Its capability must be
+    // kept out of logs at every hop, so nginx's `access_log off` location and the app's log-redaction
+    // regex must cover the identical action set, coupling them here means a future token-scoped
+    // invite route that lands in one list but not the other fails this test instead of leaking.
+    const nginxActions = inviteActionsAt(
+      nginxConf,
+      /location\s+~\s+\^\/api\/invites\/\[\^\/\]\+\/\(([^)]+)\)\$\s*\{[^}]*access_log\s+off;/,
+    );
+    const appActions = inviteActionsAt(appSource, /INVITE_OPERATION_URL_RE\s*=[^\n]*\(\?:([^)]+)\)/);
+    expect(nginxActions, "nginx invite access_log-off actions").toContain("preview");
+    expect(appActions, "app INVITE_OPERATION_URL_RE actions").not.toHaveLength(0);
+    expect(nginxActions).toEqual(appActions);
+  });
+
+  it("keeps private local reference material out of the Docker build context", () => {
+    const ignoredLines = dockerIgnore.split("\n").map((line) => line.trim());
+    for (const path of ["/_input/", "/to-my-siblings/"]) {
+      expect(ignoredLines, path).toContain(path);
+    }
+  });
+});
+
+describe("Packaged nginx client address", () => {
+  it("keeps directory-route redirects relative on both web targets", () => {
+    for (const config of [nginxConf, clientNginxConf]) {
+      expect(config).toMatch(/^\s*absolute_redirect off;/m);
+    }
+  });
+
+  it("takes the client address from the edge's X-Forwarded-For only for a private-network peer", () => {
+    // The API keys per-client limits on the address this nginx forwards. Behind the host's public
+    // proxy that is the edge's client; trusting a public peer would let any client choose its own.
+    const trusted = [...nginxConf.matchAll(/^\s*set_real_ip_from\s+(\S+);/gm)].map((match) => match[1]);
+    expect(trusted).toEqual(["127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]);
+    expect(nginxConf).toMatch(/^\s*real_ip_header X-Forwarded-For;/m);
+    expect(nginxConf).not.toMatch(/real_ip_recursive\s+on/);
+  });
+});

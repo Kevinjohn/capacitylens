@@ -1,53 +1,101 @@
-# US-SET-18 — Hand the company to another Admin
+# US-SET-18 — Hand the company to someone else (ownership transfer ceremony)
 
-**Area:** Team & access · **Persona:** Company Owner ·
-**Linked E2E:** `e2e/ownership-transfer.auth.spec.ts` → Owner confirms a transfer and the two roles
-swap immediately
+**Area:** Team & access · **Persona:** Studio owner handing over + the Admin taking over ·
+**Linked E2E:** `e2e/ownership-transfer.auth.spec.ts` → "an owner nominates an admin, the admin
+agrees, the owner confirms, and the two roles swap"
 
 ## Goal
 
-Let the current Owner transfer company ownership to an eligible Admin in one confirmed action.
+Let an Owner hand their company to an Admin who has agreed to take it, in three deliberate steps —
+the Owner nominates, the nominated Admin agrees, the same Owner confirms — with either side able to
+stop it at any point before the last step, and with both sides able to see what happened to a
+request that ended while they were away.
 
-**Guide:** [Owner responsibilities → Transfer ownership](../../docs-src/owner/responsibilities.md#transfer-ownership)
+**Guide:** [Roles and permissions → Hand the company to someone
+else](../../docs-src/getting-started/roles-and-permissions.md#hand-the-company-to-someone-else)
 
 ## Why
 
-Ownership carries authority to delete the company or replace its data. The Owner makes this decision
-and the interface must state its immediate effect: the selected Admin becomes Owner and the current
-Owner becomes Admin. The nominated Admin does not separately authenticate or consent to the change.
+Ownership is the only role that can delete the company or replace its whole dataset, so handing it
+over is the most consequential thing anybody does in Team & access — and the person receiving it
+takes on that exposure. A single call that promotes someone the moment the Owner clicks is a
+one-sided decision about somebody else's responsibility: the recipient learns they now own a company
+by discovering that they do. It is also unrecoverable by the person who gave it away, because the
+step down to Admin removes the authority needed to take it back.
+
+Three deliberate acts by two people fix both. The nominee's agreement is theirs alone to give — no
+other Admin, and not the Owner who asked, can give it for them — and the Owner's second act is a
+confirmation made with the answer in hand rather than a click made in hope. Because the ceremony
+spans sessions and days, the request is durable, it expires on its own, and it ends by itself when
+the people it names stop being the right people: consent given for one arrangement never survives
+into a different one.
 
 ## How (end-to-end)
 
-**Precondition:** Server mode with authentication on. Bruce Wayne is the current Owner and Selina
-Kyle is an active, unrestricted Admin in the same company. Bruce has completed the fresh
-authentication check required for this action.
+**Precondition:** Server mode with authentication on. Owner A (Bruce Wayne) and active Admin B
+(Selina Kyle) are members of the same company. Both have a recent sign-in confirmation, as with
+every sensitive action.
 
-1. Bruce opens **Team & access → Company ownership**. The Owner-only card
-   (`data-testid="ownership-transfer-card"`) has a **Manage ownership** button
-   (`data-testid="ownership-transfer-open"`) that opens the existing modal.
-2. Bruce selects Selina in **Next Owner** (`data-testid="ownership-transfer-nominee"`). The list
-   contains active, unrestricted Admins of this company.
-3. Bruce selects **Transfer ownership**. The confirmation says Selina will become Owner and Bruce
-   will become Admin. On confirmation, both roles change immediately in one transaction. The final
-   submit retains `data-testid="ownership-transfer-complete"`.
-4. The company member list and Bruce's available company access refresh to reflect the new roles.
-   If the response is uncertain, retrying the same command returns its original result; it does not
-   perform another transfer.
+1. As **A**, open **Team & access**. Below member management sits **Company ownership**
+   (`data-testid="ownership-transfer-card"`), explaining that ownership moves in three steps and
+   that nothing changes until all three have happened. A selects **Manage ownership**
+   (`data-testid="ownership-transfer-open"`) to open the ceremony in a modal.
+   Opening the modal reads the current request, including a nominee's answer received while A was
+   away. If that read fails, **Try again** reads it again without closing the modal.
+2. In the modal, A picks B from **Next Owner** (`data-testid="ownership-transfer-nominee"`) and chooses **Start
+   transfer** (`data-testid="ownership-transfer-start"`). Only **active Admins** are offered.
+3. The modal now shows the live request (`data-testid="ownership-transfer-state"`): waiting for B to
+   agree, and the date the request expires. A keeps **Cancel the transfer**
+   (`data-testid="ownership-transfer-cancel"`) and can nominate somebody else instead
+   (`data-testid="ownership-transfer-replace"`), which replaces the standing request rather than
+   opening a second one. **Confirm the transfer** is not offered yet.
+4. As **B**, the same Company ownership modal offers **Agree to become Owner**
+   (`data-testid="ownership-transfer-accept"`) and **Decline**
+   (`data-testid="ownership-transfer-decline"`) — and none of A's controls.
+5. B agrees. B's side now offers only **Withdraw my agreement**
+   (`data-testid="ownership-transfer-withdraw"`); A's side gains **Confirm the transfer**
+   (`data-testid="ownership-transfer-complete"`).
+6. A confirms. B becomes the **Owner** and A becomes an **Admin** in one server call; the member
+   list, A's own role badge and A's affordances all reflect the demotion immediately.
+7. Anyone who is neither participant sees no Company ownership entry point at all, at any point.
 
 ## Acceptance criteria
 
-- Only the current Owner can start a new transfer, and the selected person must be a different,
-  active, unrestricted Admin in the same company.
-- The one confirmation clearly states that the selected Admin becomes Owner and the caller becomes
-  Admin. Both role changes commit atomically, with exactly one active Owner before and after.
-- There is no nominee consent, pending request, expiry, or recovery ceremony. The Owner's
-  confirmation is the authorization for this immediate handover.
-- The card is available only to the Owner. The server refuses unauthorized, stale-owner,
-  masquerading, ineligible-target and malformed requests without changing either role.
-- `POST /api/accounts/:accountId/ownership-transfer` accepts `{toUserId}` and returns **200**
-  `{fromUserId, toUserId}` after commit. A repeated command with the same scope and payload returns
-  the original result even after the caller becomes Admin; a new command requires the current Owner.
-  Reusing command identity with a different scope or target returns **409**.
-- Only the **Manage ownership** entry and the existing card, open, nominee and final-submit test IDs
-  remain: `ownership-transfer-card`, `ownership-transfer-open`, `ownership-transfer-nominee`, and
-  `ownership-transfer-complete`.
+- Ownership moves only through this ceremony. It is never granted by an invite, a role change or
+  any single call, and the company always has exactly one Owner — including at every intermediate
+  step, because completion demotes before it promotes.
+- Each step has exactly one authorised person, by identity and not by tier:
+  - **nominate**, **cancel** and **confirm** belong to the Owner who started the request;
+  - **agree**, **withdraw** and **decline** belong to the nominated Admin and to nobody else. No
+    other Admin can agree on their behalf, and neither can the Owner who asked — that consent is
+    the point of the ceremony.
+- Only an **active Admin** of the same company may be nominated. A self-nomination, a non-member, a
+  member of another company and a member in any other role are all refused.
+- A request expires **seven days** after it was made, whether or not the nominee has agreed;
+  agreeing does not extend it. Past that deadline both participants are told the request expired
+  rather than being offered controls that can only fail, and the next nomination commits the expiry
+  instead of being blocked by it.
+- A request ends by itself when the people it names stop being the right people: the nominee ceasing
+  to be an active Admin, the initiator ceasing to be the Owner, a role change, a status change or a
+  removal touching either participant. The request ends; the company keeps the Owner it had.
+- Both participants — and nobody else — can read the request. A viewer who is not a participant
+  reads an empty projection, so hiding the entry point is presentation, never the authorisation mechanism.
+- A participant who was away when a request ended opens the modal and sees **how** it ended
+  (declined, cancelled, replaced, expired, or ended because the people changed) rather than an empty state.
+- After a possibly committed confirmation, the caller's role and accessible company data refresh.
+  If that refresh fails, the interface closes the company view and shows its access-recovery notice.
+- Every step requires a fresh administrative assurance; **seeing** the request does not, so a
+  participant who signed in hours ago can still read the nomination they are being asked to approve.
+  Neither reading nor acting is available while viewing the company as somebody else (masquerade).
+- A step submitted against a request that has since moved is refused rather than applied: each
+  command carries the workflow revision it was authorised against. Revisions increase strictly;
+  if a stored revision is corrupted or can no longer advance safely, the server refuses the whole
+  change without partially ending the request.
+- API routes: `GET /api/accounts/:accountId/ownership-transfer` (both participants; `{live,
+latestOutcome}`, each nullable), `POST …/ownership-transfer {toUserId, expectedRequestId?,
+expectedRevision?}` (**201**; naming the standing request is what makes replacement atomic — both
+  fields or neither),
+  `POST …/ownership-transfer/:requestId/accept|withdraw|decline|complete`, and
+  `DELETE …/ownership-transfer/:requestId` (cancel). A request the server has already ended answers
+  **409** with `code: "OWNERSHIP_TRANSFER_TERMINAL"` plus the state and reason — a committed
+  outcome the interface explains, not an error the user can act on.

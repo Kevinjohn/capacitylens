@@ -1,7 +1,7 @@
 import { test, expect } from "./fixtures";
 import type { Locator, Page } from "./fixtures";
 import { openNewCompany, selectShadOption } from "./browserTestSupport";
-import { TOUR_ANCHORS } from "../apps/frontend/src/lib/tourAnchors";
+import { TOUR_ANCHORS } from "../src/lib/tourAnchors";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 

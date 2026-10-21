@@ -23,8 +23,8 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
    **Projects**, **Activities**, **Time off**, then — below a divider, pinned to the bottom of the
    list as the administration group — **Team & access**, **Settings** and, for Owners, Admins and
    sign-in-off sessions, **Diagnostics**. At the very bottom sits
-   one avatar-led **Account** row. Production shows the server-selected company and role without a
-   switch action; the temporary demo retains its company picker and switch.
+   one avatar-led **Account** row. Real auth shows the company name, role and **Switch company** only
+   when two or more companies are accessible; auth-off/demo retains the company context and switch.
 2. Click **Overview**. The URL is `/overview` and its four-week table renders.
 3. Click **Schedule**. The URL is `/` and the timeline grid (`scheduler-grid`) renders.
 4. Click **Resources**. The URL is `/resources` and the Resource list shows
@@ -68,6 +68,7 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
   **Company details** heading on Settings).
 - ✅ Navigating away and back (e.g. Resources → Schedule) re-renders each screen
   without a blank page or console error.
-- ✅ Loading or reloading a valid destination URL serves the application shell rather than an HTTP 404. The server-selected company opens at the originally requested destination. Production has no picker; the demo retains its picker for switching companies.
+- ✅ Loading or reloading a valid destination URL serves the application shell rather than an HTTP 404. A reload with exactly one valid company opens it automatically at the originally requested
+  destination. First entry, explicit **Switch company**, and multi-company reloads keep the picker.
 - ✅ An unknown extensionless URL reaches the application's **Page not found** screen, while missing
   asset and API paths remain real HTTP errors rather than receiving the application shell.

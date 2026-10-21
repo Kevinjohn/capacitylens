@@ -1,0 +1,1206 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { StrictMode } from "react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { InviteAccept } from "./InviteAccept";
+import { AuthContext } from "@/auth/authContext";
+import type { AuthContextValue } from "@/auth/authContext";
+import { useStore } from "@/store/useStore";
+import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "@/test/fixtures";
+import { m } from "@/i18n";
+import { APP_NAME } from "@capacitylens/shared/brand";
+import { EXTERNAL_NAVIGATION_TIMEOUT_MS } from "./externalSignIn";
+import { formatInviteExpiry } from "./inviteExpiry";
+
+const authClientMock = vi.hoisted(() => ({
+  signInEmail: vi.fn(async (): Promise<{ error: { message?: string } | null }> => ({ error: null })),
+  signInSocial: vi.fn(async (input?: { fetchOptions?: { signal?: AbortSignal } }) => {
+    void input;
+    return { error: null };
+  }),
+}));
+const handoffMock = vi.hoisted(() => ({
+  replaceWithJoinedAccount: vi.fn(),
+  replaceWithAccountPicker: vi.fn(),
+}));
+const reloadMock = vi.hoisted(() => ({ reloadPage: vi.fn() }));
+const apiConfigMock = vi.hoisted(() => ({
+  isServerConfigured: vi.fn(() => true),
+}));
+
+vi.mock("@/auth/authClient", () => ({
+  authClient: {
+    signIn: {
+      email: authClientMock.signInEmail,
+      social: authClientMock.signInSocial,
+    },
+  },
+}));
+
+vi.mock("@/data/apiConfig", () => ({
+  API_BASE: "http://api.test",
+  isServerConfigured: apiConfigMock.isServerConfigured,
+}));
+
+vi.mock("@/lib/joinedAccountHandoff", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/joinedAccountHandoff")>()),
+  replaceWithJoinedAccount: handoffMock.replaceWithJoinedAccount,
+  replaceWithAccountPicker: handoffMock.replaceWithAccountPicker,
+}));
+
+vi.mock("@/lib/reloadPage", () => reloadMock);
+
+beforeEach(() => {
+  window.history.replaceState({}, "", "/");
+  vi.clearAllMocks();
+  apiConfigMock.isServerConfigured.mockReturnValue(true);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+const previewResponse = (role = "editor"): Response =>
+  ({
+    ok: true,
+    status: 200,
+    headers: new Headers(),
+    json: async () => ({
+      accountName: "Wayne Enterprises",
+      role,
+      expiresAt: "2999-01-01T00:00:00.000Z",
+    }),
+  }) as Response;
+
+const signedInAuth: AuthContextValue = {
+  authMode: "password-only",
+  user: { id: "user-1", name: "Alex", email: "alex@example.com" },
+  canCreateAccount: true,
+  multiAccount: true,
+  refreshAuth: async () => {},
+  signOut: async () => {},
+};
+
+type ProviderSignInCall = { fetchOptions?: { signal?: AbortSignal } };
+
+function readProviderSignInCall(input: unknown): ProviderSignInCall | undefined {
+  if (!input || typeof input !== "object") return undefined;
+  const fetchOptions = "fetchOptions" in input ? input.fetchOptions : undefined;
+  if (!fetchOptions || typeof fetchOptions !== "object") return {};
+  const signal = "signal" in fetchOptions ? fetchOptions.signal : undefined;
+  return signal instanceof AbortSignal ? { fetchOptions: { signal } } : {};
+}
+
+type RenderInviteOptions = { auth?: AuthContextValue | undefined; strict?: boolean; path?: string };
+function renderInvite({ auth, strict = false, path = "/invite/secret-token" }: RenderInviteOptions) {
+  const content = (
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path="/invite/:token" element={<InviteAccept />} />
+        <Route path="/" element={<div data-testid="app-route">App</div>} />
+      </Routes>
+    </MemoryRouter>
+  );
+  const wrapped = auth ? <AuthContext.Provider value={auth}>{content}</AuthContext.Provider> : content;
+  return render(strict ? <StrictMode>{wrapped}</StrictMode> : wrapped);
+}
+
+async function fillInviteCredentials(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("tab", { name: "Create account" }));
+  await user.type(screen.getByLabelText("Name"), "New Person");
+  await user.type(screen.getByLabelText("Email"), "new@example.com");
+  await user.type(screen.getByLabelText("Password"), "invite-password-123");
+}
+
+function registerInviteAcceptTest(register: () => void) {
+  describe("InviteAccept preview and acceptance", register);
+}
+
+registerInviteAcceptTest(() =>
+  it("identifies the signed-in account and offers to switch without losing the invite route", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    const signOut = vi.fn(async () => {});
+    const user = userEvent.setup();
+
+    renderInvite({ auth: { ...signedInAuth, signOut } });
+
+    expect(await screen.findByText("Signed in as alex@example.com.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Use a different account" }));
+    expect(signOut).toHaveBeenCalledOnce();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("turns an invitation identity mismatch into a recoverable account switch", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse();
+      if (url.endsWith("/accept") && init?.method === "POST") {
+        return Response.json(
+          { code: "INVITATION_EMAIL_MISMATCH", error: "This invite is reserved for a different identity." },
+          { status: 403 },
+        );
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const signOut = vi.fn(async () => {});
+    const user = userEvent.setup();
+
+    renderInvite({ auth: { ...signedInAuth, signOut } });
+    await user.click(await screen.findByRole("button", { name: "Accept invite" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("reserved for a different identity");
+    await user.click(screen.getByRole("button", { name: "Use a different account" }));
+    expect(signOut).toHaveBeenCalledOnce();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("explains that invites require a server in the in-memory demo without fetching", () => {
+    apiConfigMock.isServerConfigured.mockReturnValue(false);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderInvite({});
+
+    expect(screen.getByText(m.invite_local_mode({ app: APP_NAME }))).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("restarts a cancelled preview effect under React Strict Mode", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+
+    renderInvite({ auth: undefined, strict: true });
+
+    expect(await screen.findByTestId("invite-preview")).toHaveTextContent("Wayne Enterprises");
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("previews the company and asks an unauthenticated invitee to sign in without consuming the invite", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(previewResponse());
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderInvite({});
+
+    const preview = await screen.findByTestId("invite-preview");
+    expect(preview).toHaveTextContent("Wayne Enterprises");
+    expect(preview).toHaveTextContent("Editor");
+    expect(preview).toHaveTextContent("Invitation role");
+    expect(preview).toHaveTextContent(/keeps your existing role/i);
+    expect(preview).toHaveTextContent(/Can edit scheduling data/);
+    expect(await screen.findByRole("button", { name: "Sign in" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://api.test/api/invites/secret-token/preview",
+      expect.objectContaining({ credentials: "include" }),
+    );
+    expect(fetchMock.mock.calls.some(([, init]) => (init as RequestInit | undefined)?.method === "POST")).toBe(false);
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("separates sign-in and account-creation credentials into equally prominent tabs", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    const user = userEvent.setup();
+
+    renderInvite({});
+    await screen.findByTestId("invite-preview");
+
+    const tablist = screen.getByRole("tablist");
+    expect(tablist).toHaveClass("grid-cols-2");
+    const signInTab = screen.getByRole("tab", { name: "Sign in" });
+    const createAccountTab = screen.getByRole("tab", { name: "Create account" });
+    expect(signInTab).toHaveAttribute("aria-selected", "true");
+    expect(document.getElementById(signInTab.getAttribute("aria-controls") ?? "missing")).toBeInTheDocument();
+    expect(document.getElementById(createAccountTab.getAttribute("aria-controls") ?? "missing")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Password")).toHaveAttribute("autocomplete", "current-password");
+
+    screen.getByRole("tab", { name: "Sign in" }).focus();
+    await user.keyboard("{ArrowRight}");
+
+    expect(screen.getByRole("tab", { name: "Create account" })).toHaveFocus();
+    expect(screen.queryByRole("button", { name: "Sign in" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Name")).toHaveAttribute("autocomplete", "name");
+    expect(screen.getByLabelText("Password")).toHaveAttribute("autocomplete", "new-password");
+    expect(screen.getByRole("button", { name: "Create account and accept" })).toBeInTheDocument();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("keeps the active credential journey fixed while authentication is in flight", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    authClientMock.signInEmail.mockImplementationOnce(() => new Promise(() => {}));
+    const user = userEvent.setup();
+
+    renderInvite({});
+    await screen.findByTestId("invite-preview");
+    await user.type(screen.getByLabelText("Email"), "barbara.gordon@example.com");
+    await user.type(screen.getByLabelText("Password"), "invite-password-123");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(screen.getByRole("tab", { name: "Sign in" })).toBeDisabled();
+    expect(screen.getByRole("tab", { name: "Create account" })).toBeDisabled();
+    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("keeps the role explanation untruncated and places the role badge on its own row", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+
+    renderInvite({});
+
+    const preview = await screen.findByTestId("invite-preview");
+    expect(preview.querySelectorAll("[data-slot='item-description']")).not.toHaveLength(0);
+    for (const description of preview.querySelectorAll("[data-slot='item-description']")) {
+      expect(description).toHaveClass("line-clamp-none");
+    }
+    expect(screen.getByText("Invitation role").parentElement).toHaveAttribute("data-testid", "invite-role");
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it.each([
+    [true, "selina.kyle@…", "This invite is for selina.kyle@…. Only the intended email address can accept it."],
+    [
+      true,
+      `${"a".repeat(252)}@…`,
+      `This invite is for ${"a".repeat(252)}@…. Only the intended email address can accept it.`,
+    ],
+    [true, undefined, m.invite_email_bound_no_hint()],
+    [false, null, m.invite_email_unbound()],
+    [undefined, undefined, m.invite_email_bound_unknown()],
+  ])(
+    "explains the invitation identity boundary without exposing an address (%s)",
+    async (emailBound, emailHint, expected) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ...previewResponse(),
+          json: async () => ({
+            accountName: "Wayne Enterprises",
+            role: "editor",
+            expiresAt: "2999-01-01T00:00:00.000Z",
+            ...(emailBound === undefined ? {} : { emailBound }),
+            ...(emailHint === undefined ? {} : { emailHint }),
+          }),
+        }),
+      );
+
+      renderInvite({});
+
+      expect(await screen.findByTestId("invite-preview")).toHaveTextContent(expected);
+      expect(document.body).not.toHaveTextContent("capacitylens.dev");
+      expect(document.body).not.toHaveTextContent("selina.kyle@example.com");
+    },
+  ),
+);
+
+registerInviteAcceptTest(() =>
+  it("renders an unusual masked local part as text rather than markup", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ...previewResponse(),
+        json: async () => ({
+          accountName: "Wayne Enterprises",
+          role: "editor",
+          expiresAt: "2999-01-01T00:00:00.000Z",
+          emailBound: true,
+          emailHint: "<img>@…",
+        }),
+      }),
+    );
+
+    renderInvite({});
+
+    expect(await screen.findByTestId("invite-preview")).toHaveTextContent("<img>@…");
+    expect(document.querySelector("img")).not.toBeInTheDocument();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("rejects a preview with a malformed identity-boundary flag", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ...previewResponse(),
+        json: async () => ({
+          accountName: "Wayne Enterprises",
+          role: "editor",
+          expiresAt: "2999-01-01T00:00:00.000Z",
+          emailBound: "yes",
+        }),
+      }),
+    );
+
+    renderInvite({});
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.invite_err_preview_invalid());
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it.each([
+    { emailBound: true, emailHint: "selina.kyle@example.com" },
+    { emailBound: true, emailHint: "@…" },
+    { emailBound: false, emailHint: "selina.kyle@…" },
+    { emailHint: "selina.kyle@…" },
+    { emailBound: true, emailHint: 42 },
+  ])("rejects malformed or inconsistent masked email metadata %#", async (metadata) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ...previewResponse(),
+        json: async () => ({
+          accountName: "Wayne Enterprises",
+          role: "editor",
+          expiresAt: "2999-01-01T00:00:00.000Z",
+          ...metadata,
+        }),
+      }),
+    );
+
+    renderInvite({});
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.invite_err_preview_invalid());
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it.each([
+    { expiresAt: "2026-09-10T14:05:37.000Z", month: /Sep/, day: /10/, time: /(?:14:05|02:05 PM)/ },
+    { expiresAt: "2027-01-02T09:07:59.000Z", month: /Jan/, day: /2/, time: /(?:09:07|9:07 AM)/ },
+  ])(
+    "formats expiry $expiresAt without seconds and includes the year only when needed",
+    ({ expiresAt, month, day, time }) => {
+      const formatted = formatInviteExpiry(expiresAt, new Date("2026-09-01T12:00:00.000Z"));
+
+      expect(formatted).toMatch(month);
+      expect(formatted).toMatch(day);
+      expect(formatted).toMatch(time);
+      expect(formatted).not.toMatch(/14:05:37|09:07:59/);
+      if (expiresAt.startsWith("2026")) expect(formatted).not.toContain("2026");
+      if (expiresAt.startsWith("2027")) expect(formatted).toContain("2027");
+    },
+  ),
+);
+
+registerInviteAcceptTest(() =>
+  it("strips an external sign-in error marker and surfaces stable SSO failure copy", async () => {
+    window.history.replaceState({}, "", "/invite/secret-token?externalSignInError=1&error=provider-secret");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+
+    renderInvite({
+      auth: {
+        ...signedInAuth,
+        authMode: "sso-only",
+        user: null,
+        providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
+      },
+      strict: false,
+      path: "/invite/secret-token?externalSignInError=1&error=provider-secret",
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_sso_failed());
+    expect(screen.getByRole("alert")).not.toHaveTextContent("provider-secret");
+    await vi.waitFor(() => expect(window.location.search).toBe(""));
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it.each([
+    [404, () => m.invite_err_not_found()],
+    [409, () => m.invite_err_used()],
+    [410, () => m.invite_err_expired()],
+  ])("maps a bodyless %i preview response to its invite outcome", async (status, message) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status })));
+
+    renderInvite({});
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(message());
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("marks only the credential field that failed account validation as invalid", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    const user = userEvent.setup();
+    renderInvite({});
+
+    await screen.findByTestId("invite-preview");
+    await user.click(screen.getByRole("tab", { name: "Create account" }));
+    const name = screen.getByLabelText("Name");
+    const email = screen.getByLabelText("Email");
+    const password = screen.getByLabelText("Password");
+    const create = screen.getByRole("button", {
+      name: "Create account and accept",
+    });
+
+    await user.click(create);
+    const nameError = screen.getByText("Enter a valid name.");
+    expect(name).toHaveAttribute("aria-invalid", "true");
+    expect(name).toHaveAttribute("aria-describedby", nameError.id);
+    expect(email).not.toHaveAttribute("aria-invalid");
+    expect(password).not.toHaveAttribute("aria-invalid");
+
+    await user.type(name, "New Person");
+    await user.click(create);
+    const emailError = screen.getByText("Enter a valid email address.");
+    expect(email).toHaveAttribute("aria-invalid", "true");
+    expect(email).toHaveAttribute("aria-describedby", emailError.id);
+    expect(name).not.toHaveAttribute("aria-invalid");
+    expect(password).not.toHaveAttribute("aria-invalid");
+
+    await user.type(email, "new@example.com");
+    await user.click(create);
+    const passwordError = screen.getByText("Password must be 15–128 characters.");
+    expect(password).toHaveAttribute("aria-invalid", "true");
+    expect(password).toHaveAttribute("aria-describedby", passwordError.id);
+    expect(name).not.toHaveAttribute("aria-invalid");
+    expect(email).not.toHaveAttribute("aria-invalid");
+
+    await user.click(screen.getByRole("tab", { name: "Sign in" }));
+    expect(screen.queryByText("Password must be 15–128 characters.")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).not.toHaveAttribute("aria-invalid");
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("rejects a signup email containing disallowed characters", async () => {
+    // Email validation rejects disallowed characters even when the string remains below the length cap.
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    const user = userEvent.setup();
+    renderInvite({});
+
+    await screen.findByTestId("invite-preview");
+    await user.click(screen.getByRole("tab", { name: "Create account" }));
+    const name = screen.getByLabelText("Name");
+    const email = screen.getByLabelText("Email");
+    const password = screen.getByLabelText("Password");
+    const create = screen.getByRole("button", {
+      name: "Create account and accept",
+    });
+
+    await user.type(name, "New Person");
+    fireEvent.change(email, { target: { value: "a​🙂@example.com" } });
+    await user.type(password, "a-strong-enough-password");
+    await user.click(create);
+
+    const emailError = screen.getByText(m.identity_err_email());
+    expect(email).toHaveAttribute("aria-invalid", "true");
+    expect(email).toHaveAttribute("aria-describedby", emailError.id);
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("starts Google from the invite URL so the callback returns to the bearer route", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    authClientMock.signInSocial.mockImplementationOnce(() => new Promise(() => {}));
+    const user = userEvent.setup();
+    renderInvite({
+      auth: {
+        ...signedInAuth,
+        authMode: "sso-only",
+        user: null,
+        providers: [{ id: "google", label: "Google", kind: "social", brand: "google", experimental: false }],
+      },
+    });
+
+    await screen.findByTestId("invite-preview");
+    await user.click(
+      screen.getByRole("button", {
+        name: "Sign in with Google",
+      }),
+    );
+    window.dispatchEvent(new Event("pagehide"));
+    const socialCall = readProviderSignInCall(authClientMock.signInSocial.mock.calls[0]?.[0] as unknown);
+    if (!socialCall) throw new Error("Expected Google sign-in call");
+    expect(authClientMock.signInSocial).toHaveBeenCalledWith({
+      provider: "google",
+      callbackURL: window.location.href,
+      errorCallbackURL: "http://localhost:3000/?externalSignInError=1",
+      disableRedirect: true,
+      fetchOptions: { signal: expect.any(AbortSignal) as unknown as AbortSignal },
+    });
+    expect(socialCall.fetchOptions?.signal).toBeInstanceOf(AbortSignal);
+    expect(authClientMock.signInEmail).not.toHaveBeenCalled();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("preserves the invite route for social failures and recovers when success does not navigate", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    authClientMock.signInSocial.mockImplementationOnce(() => new Promise(() => {}));
+    renderInvite({
+      auth: {
+        ...signedInAuth,
+        user: null,
+        providers: [{ id: "google", label: "Google", kind: "social", experimental: true }],
+      },
+    });
+
+    await screen.findByTestId("invite-preview");
+    vi.useFakeTimers();
+    const button = screen.getByRole("button", { name: "Sign in with Google" });
+    fireEvent.click(button);
+    await act(async () => {
+      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(EXTERNAL_NAVIGATION_TIMEOUT_MS);
+    });
+    const socialCall = readProviderSignInCall(authClientMock.signInSocial.mock.calls[0]?.[0] as unknown);
+    if (!socialCall) throw new Error("Expected social sign-in call");
+    expect(authClientMock.signInSocial).toHaveBeenCalledWith({
+      provider: "google",
+      callbackURL: window.location.href,
+      errorCallbackURL: "http://localhost:3000/?externalSignInError=1",
+      disableRedirect: true,
+      fetchOptions: { signal: expect.any(AbortSignal) as unknown as AbortSignal },
+    });
+    const socialSignal = socialCall.fetchOptions?.signal;
+    expect(socialSignal).toBeInstanceOf(AbortSignal);
+    expect(socialSignal?.aborted).toBe(true);
+    expect(screen.getByRole("alert")).toHaveTextContent(m.login_failed());
+    expect(button).toBeEnabled();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("recovers provider controls when a redirect returns from the back-forward cache", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    authClientMock.signInSocial.mockImplementationOnce(() => new Promise(() => {}));
+    const user = userEvent.setup();
+    renderInvite({
+      auth: {
+        ...signedInAuth,
+        user: null,
+        providers: [{ id: "google", label: "Google", kind: "social", experimental: true }],
+      },
+    });
+
+    const button = await screen.findByRole("button", {
+      name: "Sign in with Google",
+    });
+    await user.click(button);
+    window.dispatchEvent(new Event("pagehide"));
+    const pageShow = new Event("pageshow");
+    Object.defineProperty(pageShow, "persisted", { value: true });
+    window.dispatchEvent(pageShow);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_failed());
+    expect(button).toBeEnabled();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it.each(["2026-02-30T12:00:00.000Z", "0", "2026-07-29", "2026-07-29T01:00:00+01:00"])(
+    "rejects noncanonical preview expiry %j",
+    async (expiresAt) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ...previewResponse(),
+          json: async () => ({ accountName: "Wayne Enterprises", role: "editor", expiresAt }),
+        }),
+      );
+      renderInvite({});
+      expect(await screen.findByRole("alert")).toHaveTextContent(m.invite_err_preview_invalid());
+    },
+  ),
+);
+
+registerInviteAcceptTest(() =>
+  it("starts only one signup flow for immediate repeated form submissions", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return Promise.resolve(previewResponse());
+      if (url.endsWith("/signup") && init?.method === "POST") return new Promise<Response>(() => undefined);
+      return Promise.reject(new Error(`Unexpected request: ${url}`));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite({ auth: { ...signedInAuth, user: null } });
+    await screen.findByTestId("invite-preview");
+    await fillInviteCredentials(user);
+    const create = screen.getByRole("button", { name: m.invite_create_account() });
+
+    act(() => {
+      create.click();
+      create.click();
+    });
+
+    await vi.waitFor(() => {
+      const signupCalls = fetchMock.mock.calls.filter(([input]) => String(input).endsWith("/signup"));
+      expect(signupCalls).toHaveLength(1);
+    });
+    expect(authClientMock.signInEmail).not.toHaveBeenCalled();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("hands a newly-created invitee to a fresh boot for the verified joined company", async () => {
+    resetStoreWithAccount();
+    useStore.getState().setActiveAccount(null);
+    useStore.getState().setAccountSummaries({ list: [] });
+    authClientMock.signInEmail.mockResolvedValueOnce({ error: null });
+    const refreshAuth = vi.fn(async () => {});
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse("editor");
+      if (url.endsWith("/signup") && init?.method === "POST") {
+        return {
+          ok: true,
+          status: 201,
+          headers: new Headers(),
+          json: async () => ({
+            ok: true,
+            accountId: "joined-account",
+            role: "editor",
+          }),
+        } as Response;
+      }
+      if (url.endsWith("/api/accounts")) {
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          json: async () => [{ id: "joined-account", name: "Wayne Enterprises", role: "editor" }],
+        } as Response;
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite({
+      auth: {
+        ...signedInAuth,
+        user: null,
+        refreshAuth,
+      },
+    });
+    await screen.findByTestId("invite-preview");
+    await user.click(screen.getByRole("tab", { name: "Create account" }));
+    await user.type(screen.getByLabelText("Name"), "New Person");
+    await user.type(screen.getByLabelText("Email"), "new@example.com");
+    await user.type(screen.getByLabelText("Password"), "invite-password-123");
+    await user.click(screen.getByRole("button", { name: "Create account and accept" }));
+
+    await vi.waitFor(() => expect(handoffMock.replaceWithJoinedAccount).toHaveBeenCalledWith("joined-account"));
+    expect(refreshAuth).toHaveBeenCalledTimes(1);
+    expect(useStore.getState().activeAccountId).toBe("joined-account");
+    expect(useStore.getState().accountSummaries).toEqual([
+      { id: "joined-account", name: "Wayne Enterprises", role: "editor" },
+    ]);
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("requires an explicit accept action and reports the effective role returned by the server", async () => {
+    let resolveAccept!: (response: Response) => void;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse("viewer");
+      if (url.endsWith("/accept") && init?.method === "POST") {
+        return new Promise<Response>((resolve) => {
+          resolveAccept = resolve;
+        });
+      }
+      if (url.endsWith("/api/accounts")) {
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          json: async () => [{ id: "account-1", name: "Wayne Enterprises", role: "admin" }],
+        } as Response;
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite({ auth: signedInAuth });
+
+    const accept = await screen.findByRole("button", { name: "Accept invite" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("invite-preview")).toHaveTextContent("Viewer");
+    expect(screen.getByRole("status")).toHaveTextContent(m.invite_review_prompt());
+
+    await user.click(accept);
+    const joining = screen.getByRole("status");
+    expect(joining).toHaveTextContent(m.invite_joining());
+    expect(joining).toHaveFocus();
+    resolveAccept(Response.json({ accountId: "account-1", role: "admin" }, { status: 200 }));
+
+    expect(await screen.findByText("You’ve joined Wayne Enterprises as Admin.")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: m.invite_continue() })).toHaveFocus();
+    expect(
+      fetchMock.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "POST"),
+    ).toHaveLength(1);
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it.each([
+    [true, m.invite_invalid_result_refreshed()],
+    [false, m.invite_invalid_result_refresh_failed()],
+  ])("reconciles an invalid successful accept result (accounts success: %s)", async (accountsOk, expected) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse();
+      if (url.endsWith("/accept") && init?.method === "POST") return Response.json({});
+      if (url.endsWith("/api/accounts")) {
+        return accountsOk ? Response.json([]) : Response.json({ error: "unavailable" }, { status: 500 });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite({ auth: signedInAuth });
+    await user.click(await screen.findByRole("button", { name: "Accept invite" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(expected);
+    expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith("/api/accounts"))).toBe(true);
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it.each([
+    [true, m.invite_unknown_outcome_refreshed()],
+    [false, m.invite_unknown_outcome_refresh_failed()],
+  ])("reconciles a rejected accept request and offers Retry (accounts success: %s)", async (accountsOk, expected) => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse();
+      if (url.endsWith("/accept") && init?.method === "POST") throw new TypeError("offline");
+      if (url.endsWith("/api/accounts")) {
+        return accountsOk ? Response.json([]) : Response.json({ error: "unavailable" }, { status: 500 });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite({ auth: signedInAuth });
+    await user.click(await screen.findByRole("button", { name: "Accept invite" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(expected);
+    expect(screen.getByRole("button", { name: m.invite_retry_accept() })).toBeEnabled();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("keeps a confirmed join when the follow-up company activation refresh rejects", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(useStore.getState(), "setAccountSummaries").mockImplementationOnce(() => {
+      throw new Error("directory publication failed");
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse("editor");
+      if (url.endsWith("/accept") && init?.method === "POST") {
+        return Response.json({ accountId: "joined-account", role: "editor" });
+      }
+      if (url.endsWith("/api/accounts")) {
+        return Response.json([{ id: "joined-account", name: "Wayne Enterprises", role: "editor" }]);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite({ auth: signedInAuth });
+    await user.click(await screen.findByRole("button", { name: "Accept invite" }));
+
+    expect(await screen.findByText("You’ve joined Wayne Enterprises as Editor.")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: m.invite_continue() })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: m.invite_retry_accept() })).not.toBeInTheDocument();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("explains an accept-time 401 when returning to the sign-in form", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse("editor");
+      if (url.endsWith("/accept") && init?.method === "POST") {
+        return new Response(null, { status: 401 });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite({ auth: signedInAuth });
+    await user.click(await screen.findByRole("button", { name: "Accept invite" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.invite_err_signin());
+    expect(screen.getByRole("button", { name: m.invite_sign_in_accept() })).toBeInTheDocument();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("does not switch companies after the invite route is left during activation", async () => {
+    resetStoreWithAccount();
+    let resolveAccounts!: (response: Response) => void;
+    const pendingAccounts = new Promise<Response>((resolve) => {
+      resolveAccounts = resolve;
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse("editor");
+      if (url.endsWith("/accept") && init?.method === "POST") {
+        return Response.json({ accountId: "joined-account", role: "editor" });
+      }
+      if (url.endsWith("/api/accounts")) return pendingAccounts;
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    const view = renderInvite({ auth: signedInAuth });
+    await user.click(await screen.findByRole("button", { name: "Accept invite" }));
+    await vi.waitFor(() => {
+      expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith("/api/accounts"))).toBe(true);
+    });
+
+    view.unmount();
+    useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
+    resolveAccounts(Response.json([{ id: "joined-account", name: "Wayne Enterprises", role: "editor" }]));
+
+    await vi.waitFor(() => {
+      expect(useStore.getState().accountSummaries).toEqual([
+        { id: "joined-account", name: "Wayne Enterprises", role: "editor" },
+      ]);
+    });
+    expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID);
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it.each([408, 503])("retries an HTTP %i accept outcome with the same command identity", async (status) => {
+    const acceptHeaders: Headers[] = [];
+    let acceptAttempt = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse("editor");
+      if (url.endsWith("/accept") && init?.method === "POST") {
+        acceptHeaders.push(new Headers(init.headers));
+        acceptAttempt += 1;
+        return acceptAttempt === 1
+          ? Response.json({ error: "Temporarily unavailable." }, { status })
+          : Response.json({ accountId: "account-1", role: "editor" });
+      }
+      if (url.endsWith("/api/accounts")) {
+        return Response.json(acceptAttempt > 1 ? [{ id: "account-1", name: "Wayne Enterprises", role: "editor" }] : []);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite({ auth: signedInAuth });
+    await user.click(await screen.findByRole("button", { name: "Accept invite" }));
+
+    expect(await screen.findByText((content) => content.includes(m.invite_unknown_refreshed()))).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: m.invite_retry_accept() }));
+
+    expect(await screen.findByText("You’ve joined Wayne Enterprises as Editor.")).toBeInTheDocument();
+    expect(acceptHeaders).toHaveLength(2);
+    const firstAcceptHeaders = acceptHeaders.at(0);
+    const secondAcceptHeaders = acceptHeaders.at(1);
+    if (!firstAcceptHeaders || !secondAcceptHeaders) throw new Error("Expected two accept attempts");
+    expect(secondAcceptHeaders.get("x-account-command-id")).toBe(firstAcceptHeaders.get("x-account-command-id"));
+    expect(secondAcceptHeaders.get("idempotency-key")).toBe(firstAcceptHeaders.get("idempotency-key"));
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("reports a preview transport failure as safely retryable, not as an unknown mutation outcome", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("offline"))
+      .mockResolvedValueOnce(previewResponse("editor"));
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite({ auth: signedInAuth });
+
+    expect(await screen.findByText(m.invite_err_network())).toBeInTheDocument();
+    expect(screen.queryByText(/unknown outcome/i)).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole("button", { name: m.common_try_again() }));
+    expect(await screen.findByTestId("invite-preview")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("submits the existing-user sign-in form and reloads after success", async () => {
+    authClientMock.signInEmail.mockResolvedValueOnce({ error: null });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    const user = userEvent.setup();
+
+    renderInvite({ auth: { ...signedInAuth, user: null } });
+    await screen.findByTestId("invite-preview");
+    await user.type(screen.getByLabelText("Email"), "existing@example.com");
+    await user.type(screen.getByLabelText("Password"), "existing-password-123");
+    await user.click(screen.getByRole("button", { name: m.invite_sign_in_accept() }));
+
+    await vi.waitFor(() => expect(reloadMock.reloadPage).toHaveBeenCalledOnce());
+    expect(authClientMock.signInEmail).toHaveBeenCalledWith({
+      email: "existing@example.com",
+      password: "existing-password-123",
+    });
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("surfaces an existing-user sign-in failure and re-enables the form", async () => {
+    authClientMock.signInEmail.mockResolvedValueOnce({ error: { message: "Invalid email or password." } });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    const user = userEvent.setup();
+
+    renderInvite({ auth: { ...signedInAuth, user: null } });
+    await screen.findByTestId("invite-preview");
+    await user.type(screen.getByLabelText("Email"), "existing@example.com");
+    await user.type(screen.getByLabelText("Password"), "wrong-password-123");
+    await user.click(screen.getByRole("button", { name: m.invite_sign_in_accept() }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid email or password.");
+    expect(screen.getByRole("button", { name: m.invite_sign_in_accept() })).toBeEnabled();
+    expect(reloadMock.reloadPage).not.toHaveBeenCalled();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("falls back to the account picker when post-signup account refresh fails", async () => {
+    authClientMock.signInEmail.mockResolvedValueOnce({ error: null });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse();
+      if (url.endsWith("/signup") && init?.method === "POST") {
+        return Response.json({ accountId: "joined-account", role: "editor" }, { status: 201 });
+      }
+      if (url.endsWith("/api/accounts")) return Response.json({ error: "unavailable" }, { status: 500 });
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite({ auth: { ...signedInAuth, user: null, refreshAuth: vi.fn(async () => {}) } });
+    await screen.findByTestId("invite-preview");
+    await fillInviteCredentials(user);
+    await user.click(screen.getByRole("button", { name: m.invite_create_account() }));
+
+    await vi.waitFor(() => expect(handoffMock.replaceWithAccountPicker).toHaveBeenCalledOnce());
+    expect(handoffMock.replaceWithJoinedAccount).not.toHaveBeenCalled();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("surfaces a provider request rejection and re-enables the provider button", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    authClientMock.signInSocial.mockRejectedValueOnce(new TypeError("offline"));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    renderInvite({
+      auth: {
+        ...signedInAuth,
+        authMode: "sso-only",
+        user: null,
+        providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+      },
+    });
+
+    const button = await screen.findByRole("button", {
+      name: "Sign in with Google",
+    });
+    fireEvent.click(button);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_network_error());
+    expect(button).toBeEnabled();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("rejects a successful signup response without an account result before signing in", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse();
+      if (url.endsWith("/signup") && init?.method === "POST") return Response.json({}, { status: 201 });
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite({ auth: { ...signedInAuth, user: null } });
+    await screen.findByTestId("invite-preview");
+    await fillInviteCredentials(user);
+    await user.click(screen.getByRole("button", { name: m.invite_create_account() }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.invite_signup_invalid_result());
+    expect(authClientMock.signInEmail).not.toHaveBeenCalled();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("uses the login fallback when post-signup sign-in fails without a message", async () => {
+    authClientMock.signInEmail.mockResolvedValueOnce({ error: {} });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse();
+      if (url.endsWith("/signup") && init?.method === "POST") {
+        return Response.json({ accountId: "joined-account", role: "editor" }, { status: 201 });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite({ auth: { ...signedInAuth, user: null } });
+    await screen.findByTestId("invite-preview");
+    await fillInviteCredentials(user);
+    await user.click(screen.getByRole("button", { name: m.invite_create_account() }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_failed());
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("reloads the same invite after a transport-unknown signup signs in successfully", async () => {
+    authClientMock.signInEmail.mockResolvedValueOnce({ error: null });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse("editor");
+      if (url.endsWith("/signup") && init?.method === "POST") throw new TypeError("connection closed");
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite({ auth: { ...signedInAuth, user: null } });
+    await screen.findByTestId("invite-preview");
+    await user.click(screen.getByRole("tab", { name: "Create account" }));
+    await user.type(screen.getByLabelText("Name"), "Existing Person");
+    await user.type(screen.getByLabelText("Email"), "existing@example.com");
+    await user.type(screen.getByLabelText("Password"), "invite-password-123");
+    await user.click(screen.getByRole("button", { name: "Create account and accept" }));
+
+    await vi.waitFor(() => expect(reloadMock.reloadPage).toHaveBeenCalledTimes(1));
+    expect(handoffMock.replaceWithJoinedAccount).not.toHaveBeenCalled();
+    expect(handoffMock.replaceWithAccountPicker).not.toHaveBeenCalled();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("probes sign-in recovery after a server-error signup outcome", async () => {
+    authClientMock.signInEmail.mockResolvedValueOnce({ error: null });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse("editor");
+      if (url.endsWith("/signup") && init?.method === "POST") {
+        return Response.json({ error: "Temporarily unavailable." }, { status: 503 });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite({ auth: { ...signedInAuth, user: null } });
+    await screen.findByTestId("invite-preview");
+    await user.click(screen.getByRole("tab", { name: "Create account" }));
+    await user.type(screen.getByLabelText("Name"), "Existing Person");
+    await user.type(screen.getByLabelText("Email"), "existing@example.com");
+    await user.type(screen.getByLabelText("Password"), "invite-password-123");
+    await user.click(screen.getByRole("button", { name: "Create account and accept" }));
+
+    await vi.waitFor(() => expect(reloadMock.reloadPage).toHaveBeenCalledTimes(1));
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("restores the form when both transport-unknown signup and its sign-in probe fail", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    authClientMock.signInEmail.mockRejectedValueOnce(new TypeError("still offline"));
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse("editor");
+      if (url.endsWith("/signup") && init?.method === "POST") throw new TypeError("connection closed");
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite({ auth: { ...signedInAuth, user: null } });
+    await screen.findByTestId("invite-preview");
+    await user.click(screen.getByRole("tab", { name: "Create account" }));
+    await user.type(screen.getByLabelText("Name"), "Existing Person");
+    await user.type(screen.getByLabelText("Email"), "existing@example.com");
+    await user.type(screen.getByLabelText("Password"), "invite-password-123");
+    await user.click(screen.getByRole("button", { name: "Create account and accept" }));
+
+    expect(await screen.findByText(m.invite_signup_unknown())).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create account and accept" })).toBeEnabled();
+    expect(reloadMock.reloadPage).not.toHaveBeenCalled();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("uses a new command when credential input changes after an unknown signup outcome", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    authClientMock.signInEmail.mockRejectedValueOnce(new TypeError("still offline"));
+    const signupHeaders: Headers[] = [];
+    let signupAttempt = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return previewResponse("editor");
+      if (url.endsWith("/signup") && init?.method === "POST") {
+        signupHeaders.push(new Headers(init.headers));
+        signupAttempt += 1;
+        if (signupAttempt === 1) throw new TypeError("connection closed");
+        return Response.json(
+          {
+            error: "The invitation is no longer available.",
+            code: "INVITATION_USED",
+          },
+          { status: 409 },
+        );
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite({ auth: { ...signedInAuth, user: null } });
+    await screen.findByTestId("invite-preview");
+    await user.click(screen.getByRole("tab", { name: "Create account" }));
+    await user.type(screen.getByLabelText("Name"), "Existing Person");
+    await user.type(screen.getByLabelText("Email"), "existing@example.com");
+    await user.type(screen.getByLabelText("Password"), "invite-password-123");
+    await user.click(screen.getByRole("button", { name: "Create account and accept" }));
+    await screen.findByText(m.invite_signup_unknown());
+
+    await user.clear(screen.getByLabelText("Email"));
+    await user.type(screen.getByLabelText("Email"), "corrected@example.com");
+    await user.click(screen.getByRole("button", { name: "Create account and accept" }));
+    await screen.findByText("The invitation is no longer available.");
+
+    expect(signupHeaders).toHaveLength(2);
+    const firstSignupHeaders = signupHeaders.at(0);
+    const secondSignupHeaders = signupHeaders.at(1);
+    if (!firstSignupHeaders || !secondSignupHeaders) throw new Error("Expected two signup attempts");
+    expect(secondSignupHeaders.get("x-account-command-id")).not.toBe(firstSignupHeaders.get("x-account-command-id"));
+  }),
+);

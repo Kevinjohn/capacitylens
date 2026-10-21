@@ -1,6 +1,6 @@
 # US-NAV-13 — Track five first-schedule milestones
 
-**Area:** Navigation & shell · **Persona:** New Owner, Admin or Editor setting up a company · **Linked coverage:** `e2e/getting-started.spec.ts`, `e2e/getting-started.db.spec.ts`, `e2e/members.auth.spec.ts`, `e2e/viewer.auth.spec.ts`, `apps/frontend/src/components/GettingStarted.test.tsx`, `apps/frontend/src/lib/gettingStarted.test.ts`, `apps/frontend/src/lib/tourSteps.test.ts`
+**Area:** Navigation & shell · **Persona:** New Owner, Admin or Editor setting up a company · **Linked coverage:** `e2e/getting-started.spec.ts`, `e2e/getting-started.db.spec.ts`, `e2e/members.auth.spec.ts`, `e2e/viewer.auth.spec.ts`, `src/components/GettingStarted.test.tsx`, `src/lib/gettingStarted.test.ts`, `src/lib/tourSteps.test.ts`
 
 **Documentation:** [Make your first schedule useful](../../docs-src/getting-started/quick-start.md#make-your-first-schedule-useful)
 
@@ -32,16 +32,13 @@ an Owner or Admin retire the guidance once it is no longer useful.
    role sections. Owners see eight server-backed stops, Admins seven and Editors five. Each role
    section begins with its role name, and the read-only Viewer section closes the tour. The in-memory
    demo omits the server-only example-data stop. Starting away from Schedule returns there first.
-   Pending or unavailable permissions disable the launcher; a
+   Pending or unavailable permissions and read-only offline snapshots disable the launcher; a
    running tour cannot be started twice. Viewers see neither the Getting started bar nor its tour
    launcher. Every role can open Help from the sidebar to start its role-based tour, including after
    Getting started is dismissed.
 
 ## Acceptance criteria
 
-- During view-as member, the bar and card are hidden and make no company-onboarding requests,
-  including while the projection starts or ends. Normal role-based guidance resumes only after
-  restoration finishes.
 - Only active, coherent company records count. The built-in client does not complete the client
   milestone; a project must belong to an active non-built-in client. Project Activity ancestry and
   allocation references remain validated. A zero-hour allocation counts.
@@ -54,6 +51,6 @@ an Owner or Admin retire the guidance once it is no longer useful.
   Viewer section closes those tours with two read-only stops; Viewers have no Getting started
   launcher. The demo omits only the server example-data stop. It returns to Schedule when needed.
 - Help (`/help`) is available to every role above Account in the sidebar. Its Show tour button
-  uses the same permission, in-progress and failure behavior as the Getting started action.
-- The launcher is disabled while permission status is pending or unavailable. A tour failure
-  surfaces an error and leaves the card usable.
+  uses the same permission, offline, in-progress and failure behavior as the Getting started action.
+- The launcher is disabled while permission status is pending or unavailable, or when the app is
+  showing a read-only offline snapshot. A tour failure surfaces an error and leaves the card usable.

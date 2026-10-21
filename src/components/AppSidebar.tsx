@@ -1,0 +1,355 @@
+import { EyeIcon, MoonIcon, SunIcon } from "lucide-react";
+import { matchPath, NavLink, useLocation } from "react-router-dom";
+import { useAuth } from "@/auth/authContext";
+import { usePermissionStatus, useRole } from "@/auth/permissionContext";
+import { useOfflineState } from "@/data/useOfflineState";
+import { resolveAccessLabel } from "@/lib/accessCopy";
+import { resolveAccessExperience } from "@/lib/resolveAccessExperience";
+import { FAKE_USER } from "@/lib/fakeAuth";
+import demoAvatarUrl from "@/assets/avatar-demo.svg";
+import { DEFAULT_COLORS } from "@/lib/palette";
+import { Avatar } from "./common/ui";
+import { ACCOUNT_LINK, HELP_LINK } from "@/lib/navLinks";
+import type { NavigationLinkDefinition } from "@/lib/navLinks";
+import { Badge } from "./ui/badge";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarRail,
+  SidebarSeparator,
+  SidebarTrigger,
+  useSidebar,
+} from "./ui/sidebar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { m } from "@/i18n";
+import { SCHEDULER_DENSITY } from "./scheduler/layout";
+import { useStore } from "@/store/useStore";
+import { resolveTheme, subscribeToSystemScheme } from "@/lib/theme";
+import { useSyncExternalStore } from "react";
+import type React from "react";
+import { APP_NAME } from "@capacitylens/shared/brand";
+
+interface AppSidebarProps {
+  activeAccount: { name: string } | undefined;
+
+  adminLinks: NavigationLinkDefinition[];
+  accessibleAccountCount: number;
+  demoAuthActive: boolean;
+  navLinks: NavigationLinkDefinition[];
+  onSwitchAccount: () => void;
+  open: boolean;
+}
+
+/** CapacityLens navigation composed from the standard ShadCN Sidebar primitives. */
+export function AppSidebar({
+  activeAccount,
+  adminLinks,
+  accessibleAccountCount,
+  demoAuthActive,
+  navLinks,
+  onSwitchAccount,
+  open,
+}: AppSidebarProps) {
+  const { pathname } = useLocation();
+  const { isMobile, openMobile, setOpenMobile } = useSidebar();
+  const expanded = isMobile ? openMobile : open;
+  const toggleLabel = expanded ? m.nav_collapse_menu() : m.nav_expand_menu();
+  // On mobile the sidebar is an overlay sheet; following a link must dismiss it or the destination
+  // stays hidden behind the nav. On desktop the sidebar is persistent, so this is a no-op.
+  const closeOnMobile = () => {
+    if (isMobile) setOpenMobile(false);
+  };
+
+  // Sidebar spacing flows through shared CSS variables so menu groups use one rhythm while icon-rail buttons retain square geometry.
+  const density = SCHEDULER_DENSITY;
+
+  return (
+    <Sidebar
+      collapsible="icon"
+      data-testid="app-sidebar"
+      style={
+        {
+          "--nav-menu-gap-y": `${density.navMenuGapY}px`,
+          "--nav-section-pad-y": `${density.navSectionPadY}px`,
+          "--nav-section-gap-y": `${density.navSectionGapY}px`,
+        } as React.CSSProperties
+      }
+    >
+      <SidebarHeaderContent expanded={expanded} toggleLabel={toggleLabel} />
+      <SidebarNavigation navLinks={navLinks} adminLinks={adminLinks} pathname={pathname} onNavigate={closeOnMobile} />
+      <SidebarAccountFooter
+        activeAccount={activeAccount}
+        accessibleAccountCount={accessibleAccountCount}
+        demoAuthActive={demoAuthActive}
+        onSwitchAccount={onSwitchAccount}
+        onNavigate={closeOnMobile}
+        pathname={pathname}
+      />
+
+      <SidebarRail aria-hidden="true" />
+    </Sidebar>
+  );
+}
+
+function SidebarHeaderContent({ expanded, toggleLabel }: { expanded: boolean; toggleLabel: string }) {
+  return (
+    <SidebarHeader className="flex-row items-center">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <SidebarTrigger aria-expanded={expanded} aria-label={toggleLabel} />
+        </TooltipTrigger>
+        <TooltipContent>{toggleLabel}</TooltipContent>
+      </Tooltip>
+      <div
+        data-visual-intent="brand"
+        className="truncate text-xl font-bold text-sidebar-foreground group-data-[collapsible=icon]:hidden"
+      >
+        {APP_NAME}
+      </div>
+    </SidebarHeader>
+  );
+}
+
+function SidebarNavigation({
+  navLinks,
+  adminLinks,
+  pathname,
+  onNavigate,
+}: {
+  navLinks: NavigationLinkDefinition[];
+  adminLinks: NavigationLinkDefinition[];
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  return (
+    <SidebarContent>
+      {/* One <nav> landmark around both groups. The admin group is a separate visual block
+          but the same navigation region, so screen-reader users still hear a single
+          "Navigation" landmark rather than two competing ones. `mt-auto` pushes it to the bottom of
+          the scroll area whenever the primary list is shorter than the viewport. */}
+      <nav className="flex flex-1 flex-col">
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <NavMenu links={navLinks} pathname={pathname} onNavigate={onNavigate} />
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {adminLinks.length > 0 && (
+          <SidebarGroup className="mt-auto">
+            <SidebarSeparator className="mx-0 mb-1" />
+            <SidebarGroupContent>
+              <NavMenu links={adminLinks} pathname={pathname} onNavigate={onNavigate}>
+                <ThemeToggleMenuItem />
+              </NavMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+      </nav>
+    </SidebarContent>
+  );
+}
+
+function SidebarAccountFooter({
+  activeAccount,
+  accessibleAccountCount,
+  demoAuthActive,
+  onSwitchAccount,
+  onNavigate,
+  pathname,
+}: {
+  activeAccount: AppSidebarProps["activeAccount"];
+  accessibleAccountCount: number;
+  demoAuthActive: boolean;
+  onSwitchAccount: () => void;
+  onNavigate: () => void;
+  pathname: string;
+}) {
+  const { authMode } = useAuth();
+  const showCompanyContext = activeAccount !== undefined && (authMode === "off" || accessibleAccountCount > 1);
+  return (
+    <SidebarFooter>
+      {showCompanyContext && (
+        <div className="group-data-[collapsible=icon]:hidden">
+          <SidebarSeparator className="mx-0" />
+          <div className="min-w-0 px-2">
+            <div className="truncate text-sm font-semibold" title={activeAccount.name}>
+              {activeAccount.name}
+            </div>
+            <ActiveRoleBadge />
+          </div>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="sm" onClick={onSwitchAccount}>
+                {m.nav_switch_company()}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </div>
+      )}
+      <SidebarMenu>
+        <HelpMenuItem onNavigate={onNavigate} pathname={pathname} />
+        <SessionMenuItem demoAuthActive={demoAuthActive} onNavigate={onNavigate} pathname={pathname} />
+      </SidebarMenu>
+    </SidebarFooter>
+  );
+}
+
+function HelpMenuItem({ onNavigate, pathname }: { onNavigate: () => void; pathname: string }) {
+  const HelpIcon = HELP_LINK.icon;
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild
+        size="sm"
+        isActive={matchPath({ path: HELP_LINK.to, end: true }, pathname) !== null}
+        tooltip={HELP_LINK.label()}
+      >
+        <NavLink to={HELP_LINK.to} onClick={onNavigate}>
+          <HelpIcon aria-hidden="true" focusable="false" />
+          <span>{HELP_LINK.label()}</span>
+        </NavLink>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
+// Share destination markup so primary and administration links keep matching and tour anchors consistent.
+function NavMenu({
+  links,
+  onNavigate,
+  pathname,
+  children,
+}: {
+  links: NavigationLinkDefinition[];
+  onNavigate: () => void;
+  pathname: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <SidebarMenu>
+      {links.map(({ to, label, icon: NavIcon }) => {
+        const text = label();
+        const isActive = matchPath({ path: to, end: to === "/" }, pathname) !== null;
+        return (
+          <SidebarMenuItem key={to}>
+            <SidebarMenuButton asChild isActive={isActive} tooltip={text}>
+              <NavLink to={to} end={to === "/"} data-nav={to} onClick={onNavigate}>
+                <NavIcon aria-hidden="true" focusable="false" />
+                <span>{text}</span>
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        );
+      })}
+      {children}
+    </SidebarMenu>
+  );
+}
+
+// Choose explicit light or dark here; Settings retains the separate system-following preference.
+// Derive the target from the displayed scheme so system mode toggles predictably.
+function ThemeToggleMenuItem() {
+  const theme = useStore((state) => state.theme);
+  const setTheme = useStore((state) => state.setTheme);
+  const dark = useSyncExternalStore(subscribeToSystemScheme, () => resolveTheme(theme)) === "dark";
+  const label = dark ? m.nav_switch_to_light_mode() : m.nav_switch_to_dark_mode();
+  const ThemeIcon = dark ? SunIcon : MoonIcon;
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        type="button"
+        tooltip={label}
+        aria-label={label}
+        onClick={() => setTheme(dark ? "light" : "dark")}
+      >
+        <ThemeIcon aria-hidden="true" focusable="false" />
+        <span>{label}</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
+function SessionMenuItem({
+  demoAuthActive,
+  onNavigate,
+  pathname,
+}: {
+  demoAuthActive: boolean;
+  onNavigate: () => void;
+  pathname: string;
+}) {
+  const { authMode, user } = useAuth();
+
+  let name: string = FAKE_USER.name;
+  let imageUrl: string | undefined = demoAvatarUrl;
+  if (!demoAuthActive) {
+    name = user?.name ?? user?.email ?? m.settings_signed_in_unknown();
+    imageUrl = user?.image ?? undefined;
+  }
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild
+        size="sm"
+        isActive={matchPath({ path: ACCOUNT_LINK.to, end: true }, pathname) !== null}
+        tooltip={ACCOUNT_LINK.label()}
+      >
+        <NavLink
+          to={ACCOUNT_LINK.to}
+          onClick={onNavigate}
+          {...(demoAuthActive || authMode !== "off" ? { title: m.nav_signed_in_as({ who: name }) } : {})}
+        >
+          <Avatar name={name} color={DEFAULT_COLORS.account} size={20} {...(imageUrl ? { imageUrl } : {})} />
+          <span>{ACCOUNT_LINK.label()}</span>
+        </NavLink>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
+function ActiveRoleBadge() {
+  const role = useRole();
+  const permissionStatus = usePermissionStatus();
+  const { authMode } = useAuth();
+  const offline = useOfflineState();
+  const accessExperience = resolveAccessExperience(authMode);
+  const resolvedRole = accessExperience === "authenticated" && permissionStatus === "resolved" ? role : null;
+  const label = resolveAccessLabel({
+    offlineReadOnly: offline.readOnly,
+    experience: accessExperience,
+    permissionStatus,
+    role: resolvedRole,
+  });
+  const viewOnly = offline.readOnly || resolvedRole === "viewer";
+  let roleContent: React.ReactNode = label;
+  if (offline.readOnly) {
+    roleContent = <span data-testid="view-only">{label}</span>;
+  } else if (resolvedRole === "viewer") {
+    roleContent = (
+      <>
+        {label} · <span data-testid="view-only">{m.nav_view_only()}</span>
+      </>
+    );
+  }
+
+  return (
+    <Badge
+      data-testid="active-role"
+      variant="outline"
+      className="mt-1 text-2xs text-(--chrome-sidebar-muted-ink)"
+      title={viewOnly ? m.nav_view_only_title() : undefined}
+    >
+      {viewOnly && <EyeIcon aria-hidden="true" focusable="false" />}
+      {roleContent}
+    </Badge>
+  );
+}

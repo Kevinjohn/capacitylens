@@ -1,0 +1,178 @@
+import { canSeePrivateNames, canSeeTimeOffNote } from "@capacitylens/shared/domain/access";
+import type { Role } from "@capacitylens/shared/domain/access";
+import { redactPrivateName } from "@capacitylens/shared/domain/privateNames";
+import type { Client, Project } from "@capacitylens/shared/types/entities";
+
+// Single source of role-gated field policy.
+//
+// Three independent behaviours enforce the same two field-confidentiality rules (owner/admin-only
+// time-off `note`; owner-only private client/project real names):
+//   1. Redact on read. A write/conflict/lifecycle response echo is also a read and must strip a
+//      field the caller may not see (redactWriteEcho / redactGatedEcho).
+//   2. Pin on write. A redaction-blind writer's round-trip has no key for the field the server
+//      redacted from them; without a pin, upsertRow would store NULL and silently erase data the
+//      writer never saw (sanitizeWrite → pinGatedFields).
+//   3. Include or exclude on export. The per-account read decides the
+//      readSlice `include*` flags from the caller's role (visibilityForRole).
+//
+// This catalogue supplies every path with the same table, field, and role predicates. A gated field
+// is defined once and used for redaction, write pinning, and export visibility.
+
+/** Caller-context options for {@link sanitizeWrite} and the read echo: facts about the writer/reader
+ * the row body alone cannot carry, so field-level gating runs at the single write funnel (not as
+ * per-route hacks). Owns the type here because the field-policy map is its single source of truth. */
+export interface SanitizeWriteOptions {
+  /** False when the caller cannot read time-off notes.
+   * Such writes preserve the stored note on update and cannot author it on create.
+   * Defaults to true for trusted callers; authorization boundaries must pass the resolved visibility.
+   */
+  canSeeTimeOffNote?: boolean;
+  /** Whether the writer may manage/read private client/project real-name fields. False for every
+   * authenticated role except owner; trusted-local/off mode passes true. */
+  canSeePrivateNames?: boolean;
+  /** True only for an owner/admin (or trusted-local mode) changing the account's overview access. */
+  canChangeCapacityOverviewAccess?: boolean;
+}
+
+/**
+ * Defines which account fields a role may see in a projected read.
+ */
+export interface ReadSliceFieldVisibility {
+  includeTimeOffNote: boolean;
+  includePrivateNames: boolean;
+}
+
+/** One role-gated confidentiality policy: the field list, the role predicate that decides who may
+ * see it, and the redact/pin operations the three sites reuse. */
+export interface GatedFieldPolicy {
+  /** Stable id for debugging/tests. */
+  readonly id: string;
+  /** Tables this policy governs. */
+  readonly tables: readonly string[];
+  /** The gated field name(s), the single list every site derives from. */
+  readonly fields: readonly string[];
+  /** The {@link SanitizeWriteOptions} flag that is `false` when the caller may not see these fields. */
+  readonly visKey: keyof SanitizeWriteOptions;
+  /** readSlice option driven by the same visibility decision. */
+  readonly includeKey: keyof ReadSliceFieldVisibility;
+  /** Role predicate: `true` iff `role` may see the gated field(s). */
+  readonly visibleTo: (role: Role) => boolean;
+  /** Redact the gated field(s) from a row about to be serialized to a caller who may not see them. */
+  readonly redactEcho: (row: Record<string, unknown>) => Record<string, unknown>;
+  /** Pin the gated field(s) on a write from a caller who may not see them (create vs update). */
+  readonly pin: (cleaned: Record<string, unknown>, existing: Record<string, unknown> | undefined) => void;
+}
+
+/**
+ * Maps fields to read, write-preservation, and export visibility rules.
+ */
+export const GATED_FIELD_POLICIES: readonly GatedFieldPolicy[] = [
+  {
+    id: "timeOffNote",
+    tables: ["timeOff"],
+    fields: ["note"],
+    visKey: "canSeeTimeOffNote",
+    includeKey: "includeTimeOffNote",
+    visibleTo: canSeeTimeOffNote,
+    redactEcho: (row) => {
+      const visible = { ...row };
+      delete visible.note;
+      return visible;
+    },
+    // When the writer's role cannot see the time-off `note` (readSlice redacted it from every row
+    // they ever received), their write body is note-less by construction, pin `note` to the stored
+    // value on an UPDATE, and strip it on a CREATE (existing === undefined ⇒ nothing to preserve; a
+    // note-blind writer also can't legitimately author a note they'd never be able to read back).
+    pin: (cleaned, existing) => {
+      if (typeof existing?.note === "string") cleaned.note = existing.note;
+      else delete cleaned.note;
+    },
+  },
+  {
+    id: "privateNames",
+    tables: ["clients", "projects"],
+    fields: ["name", "isPrivate", "codeName"],
+    visKey: "canSeePrivateNames",
+    includeKey: "includePrivateNames",
+    visibleTo: canSeePrivateNames,
+    redactEcho: (row) => redactPrivateName(row as unknown as Client | Project) as unknown as Record<string, unknown>,
+    // A non-owner round-trips a private row whose `name` is already the quoted code name and whose
+    // raw `codeName` was removed by the read projection; pin all three fields to disk so an unrelated
+    // colour/client edit cannot overwrite the real name. For public rows/creates, strip attempted
+    // privacy fields while still allowing the public name itself to be authored by ordinary editors.
+    pin: (cleaned, existing) => {
+      if (existing?.isPrivate === true) {
+        cleaned.name = existing.name;
+        cleaned.isPrivate = true;
+        if (typeof existing.codeName === "string") cleaned.codeName = existing.codeName;
+        else delete cleaned.codeName;
+      } else {
+        delete cleaned.isPrivate;
+        delete cleaned.codeName;
+      }
+    },
+  },
+];
+
+/** True when any gated-field policy governs `table` (drives the write funnel's no-lookup short-circuit
+ * and the read-echo/pin fast paths). */
+export function hasGatedFields(table: string): boolean {
+  return GATED_FIELD_POLICIES.some((policy) => policy.tables.includes(table));
+}
+
+/** Apply every gated-field read redaction (behaviour 1) whose policy governs `table` and whose flag
+ * is `false` on `vis`. A write response is also a read and must never bypass the state-read policy. */
+export function redactGatedEcho(
+  table: string,
+  row: Record<string, unknown>,
+  visibility: SanitizeWriteOptions,
+): Record<string, unknown> {
+  let visible = row;
+  for (const policy of GATED_FIELD_POLICIES) {
+    if (policy.tables.includes(table) && visibility[policy.visKey] === false) {
+      visible = policy.redactEcho(visible);
+    }
+  }
+  return visible;
+}
+
+interface PinGatedFieldsInput {
+  table: string;
+  cleaned: Record<string, unknown>;
+  existing: Record<string, unknown> | undefined;
+  options: SanitizeWriteOptions;
+}
+
+/** Apply every gated-field write pin (behaviour 2) whose policy governs `table` and whose flag is
+ * `false` on `options`. Mutates `cleaned` in place, mirroring sanitizeWrite's tombstone pin. */
+export function pinGatedFields({ table, cleaned, existing, options }: PinGatedFieldsInput): void {
+  for (const policy of GATED_FIELD_POLICIES) {
+    if (policy.tables.includes(table) && options[policy.visKey] === false) {
+      policy.pin(cleaned, existing);
+    }
+  }
+}
+
+/** Derive the visibility flags (behaviour 3's source of truth) from a role, or `null` for
+ * "no membership" (fail-closed: every gated field hidden). Each policy's predicate is applied to
+ * its own {@link SanitizeWriteOptions} flag, so the include/exclude decision can never disagree with
+ * the redact/pin decision. */
+export function resolveVisibilityForRole(role: Role | null): SanitizeWriteOptions {
+  const visibility: SanitizeWriteOptions = {};
+  for (const policy of GATED_FIELD_POLICIES) {
+    visibility[policy.visKey] = role !== null && policy.visibleTo(role);
+  }
+  return visibility;
+}
+
+/** Derives readSlice visibility flags from the same catalogue used for read redaction and write preservation. */
+export function buildReadSliceVisibility(visibility: SanitizeWriteOptions): ReadSliceFieldVisibility {
+  const includes: ReadSliceFieldVisibility = {
+    includeTimeOffNote: true,
+    includePrivateNames: true,
+  };
+  for (const policy of GATED_FIELD_POLICIES) {
+    includes[policy.includeKey] = visibility[policy.visKey] !== false;
+  }
+  return includes;
+}

@@ -1,0 +1,189 @@
+import { describe, it, expect, vi } from "vitest";
+import type { FastifyInstance, InjectOptions } from "fastify";
+import { createApp } from "./app";
+import { getRow, openDb } from "./db";
+import { call } from "./testHelpers/passwordAuth";
+import { deferred } from "./testHelpers/deferred";
+import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
+
+// Static account-write routes must not swallow deeper parametric routes or use scoped-entity semantics.
+
+const TS = "2026-01-01T00:00:00.000Z";
+
+function freshApp(): FastifyInstance {
+  return createApp(openDb(":memory:"), { optimisticConcurrency: false });
+}
+
+async function createAccount(app: FastifyInstance, id: string): Promise<void> {
+  const res = await call(app, {
+    method: "POST",
+    url: "/api/accounts",
+    payload: { id, name: `Studio ${id}`, color: "#5c34d4", createdAt: TS, updatedAt: TS } as NonNullable<
+      InjectOptions["payload"]
+    >,
+  });
+  expect(res.statusCode).toBe(201);
+}
+
+describe("dedicated /api/accounts routes — route precedence", () => {
+  it.each([
+    ["POST", "/api/not-a-table"],
+    ["PUT", "/api/not-a-table/row"],
+    ["PATCH", "/api/not-a-table/row"],
+    ["DELETE", "/api/not-a-table/row"],
+  ] as const)("preserves the unknown entity diagnostic for %s", async (method, url) => {
+    const response = await call(freshApp(), { method, url });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({ error: "Unknown entity: not-a-table." });
+  });
+
+  it("does not shadow the parametric lifecycle routes: POST /api/accounts/:id/archive stays a 404", async () => {
+    // `accounts` is not a lifecycle entity (no archivedAt/deletedAt tombstones), so the lifecycle
+    // handler must still match and answer its own 404. If the new static /api/accounts/:id node
+    // prevented find-my-way from backtracking to /api/:entity/:id/archive, this would become a bare
+    // 404 with no body, a silent routing regression rather than the handler's own refusal.
+    const app = freshApp();
+    await createAccount(app, "a1");
+    const res = await call(app, {
+      method: "POST",
+      url: "/api/accounts/a1/archive",
+      payload: { accountId: "a1" } as NonNullable<InjectOptions["payload"]>,
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json<{ error: string }>().error).toBe("Unknown entity: accounts.");
+  });
+
+  it("does not shadow the account administration routes registered under the same prefix", async () => {
+    // GET /api/accounts/:id/members lives in accounts/accountRoutes.ts. It shares the static
+    // `accounts` node with the new PUT/PATCH/DELETE /api/accounts/:id handlers and must stay reachable.
+    const app = freshApp();
+    await createAccount(app, "a1");
+    const res = await call(app, { method: "GET", url: "/api/accounts/a1/members" });
+    expect(res.statusCode).toBe(200);
+  });
+
+  it("keeps GET /api/accounts (the picker summary read) answering ahead of any parametric route", async () => {
+    const app = freshApp();
+    await createAccount(app, "a1");
+    expect((await call(app, { method: "GET", url: "/api/accounts" })).json()).toEqual([
+      { id: "a1", name: "Studio a1", role: "owner" },
+    ]);
+  });
+});
+
+describe("dedicated /api/accounts routes — no scoped-entity fallback", () => {
+  it("DELETE /api/accounts/:id needs no ?accountId= (the scoped-delete assertion never applies)", async () => {
+    // A scoped DELETE without ?accountId= is a 400 ("accountId is required to delete a scoped
+    // record."). An account is top-level and carries no accountId, so it must delete by id alone,
+    // this is exactly the rule that a missing special case would silently invert.
+    const app = freshApp();
+    await createAccount(app, "a1");
+    const res = await call(app, { method: "DELETE", url: "/api/accounts/a1" });
+    expect(res.statusCode).toBe(204);
+    expect((await call(app, { method: "GET", url: "/api/accounts" })).json()).toEqual([]);
+
+    const scoped = await call(app, { method: "DELETE", url: "/api/disciplines/d1" });
+    expect(scoped.statusCode).toBe(400);
+    expect(scoped.json<{ error: string }>().error).toBe("accountId is required to delete a scoped record.");
+  });
+
+  it("PATCH /api/accounts/:id enforces the frozen-field guard on the dedicated route", async () => {
+    // PATCH follows the shared frozen-field refusal. Its scoped route shape makes this vector
+    // particularly important to retain.
+    const app = freshApp();
+    const res = await call(app, {
+      method: "POST",
+      url: "/api/accounts",
+      payload: {
+        id: "a1",
+        name: "Studio",
+        color: "#5c34d4",
+        weekStartsOn: 1,
+        timezone: "Etc/GMT",
+        language: "en",
+        createdAt: TS,
+        updatedAt: TS,
+      } as NonNullable<InjectOptions["payload"]>,
+    });
+    expect(res.statusCode).toBe(201);
+
+    const frozen = await call(app, {
+      method: "PATCH",
+      url: "/api/accounts/a1",
+      payload: { weekStartsOn: 0 } as NonNullable<InjectOptions["payload"]>,
+    });
+    expect(frozen.statusCode).toBe(409);
+    expect(frozen.json<{ error: string }>().error).toContain("cannot be changed");
+
+    const renamed = await call(app, {
+      method: "PATCH",
+      url: "/api/accounts/a1",
+      payload: { name: "Renamed" } as NonNullable<InjectOptions["payload"]>,
+    });
+    expect(renamed.statusCode).toBe(200);
+    expect(renamed.json<{ name: string }>().name).toBe("Renamed");
+  });
+
+  it("PATCH /api/accounts/:id 404s an absent company rather than creating one", async () => {
+    const app = freshApp();
+    const res = await call(app, {
+      method: "PATCH",
+      url: "/api/accounts/missing",
+      payload: { name: "Ghost" } as NonNullable<InjectOptions["payload"]>,
+    });
+    expect(res.statusCode).toBe(404);
+    expect((await call(app, { method: "GET", url: "/api/accounts" })).json()).toEqual([]);
+  });
+});
+
+describe("dedicated /api/accounts routes — replay concurrency", () => {
+  it("checks staleness against the account revision current after a replay miss", async () => {
+    const db = openDb(":memory:");
+    const app = createApp(db, { optimisticConcurrency: true });
+    await createAccount(app, "a1");
+    const original = getRow(db, "accounts", "a1");
+    expect(original).toBeDefined();
+    const replayEntered = deferred();
+    const releaseReplay = deferred();
+    const commandId = "account-put-command-0001";
+    const originalWithKeys = KeyedOperationLock.prototype.withKeys;
+    const lockSpy = vi.spyOn(KeyedOperationLock.prototype, "withKeys").mockImplementation(async function (
+      this: KeyedOperationLock,
+      keys,
+      operation,
+    ) {
+      if (keys.some((key) => key.includes(commandId))) {
+        replayEntered.resolve();
+        await releaseReplay.promise;
+      }
+      return originalWithKeys.call(this, keys, operation);
+    });
+
+    try {
+      const stalePut = call(app, {
+        method: "PUT",
+        url: "/api/accounts/a1",
+        headers: {
+          "idempotency-key": "account-put-replay-0001",
+          "x-account-command-id": commandId,
+        },
+        payload: { ...original, name: "Stale replacement" } as NonNullable<InjectOptions["payload"]>,
+      });
+      await replayEntered.promise;
+      const concurrentPatch = await call(app, {
+        method: "PATCH",
+        url: "/api/accounts/a1",
+        payload: { name: "Concurrent winner" } as NonNullable<InjectOptions["payload"]>,
+      });
+      expect(concurrentPatch.statusCode).toBe(200);
+      releaseReplay.resolve();
+
+      const response = await stalePut;
+      expect(response.statusCode).toBe(409);
+      expect(getRow(db, "accounts", "a1")).toMatchObject({ name: "Concurrent winner" });
+    } finally {
+      lockSpy.mockRestore();
+      await app.close();
+    }
+  });
+});

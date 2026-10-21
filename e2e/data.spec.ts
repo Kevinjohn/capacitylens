@@ -1,5 +1,6 @@
 import { test, expect } from "./fixtures";
 import { openApp } from "./browserTestSupport";
+import { MAX_IMPORT_RECORDS } from "@capacitylens/shared/data/transfer";
 import { EXPORT_SCHEMA_VERSION } from "@capacitylens/shared/types/entities";
 
 const EMPTY_CAPACITYLENS = JSON.stringify({
@@ -217,6 +218,18 @@ const refusalCases: Array<{
         data: { clients: {} },
       }),
     message: /damaged: a data table is not a list/i,
+  },
+  {
+    name: "too many records",
+    fileName: "too-many.json",
+    body: () =>
+      JSON.stringify({
+        schemaVersion: EXPORT_SCHEMA_VERSION,
+        data: {
+          clients: Array.from({ length: MAX_IMPORT_RECORDS + 1 }, () => ({})),
+        },
+      }),
+    message: /too many records \(200,001\)/i,
   },
   {
     name: "a newer schema version",

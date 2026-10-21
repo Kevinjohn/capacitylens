@@ -1,6 +1,6 @@
 # US-NAV-07 — Recoverable error screen instead of a blank page
 
-**Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** unit (`apps/frontend/src/components/common/ErrorBoundary.test.tsx` → "shows \"Something went wrong\" and a Reload button when a child throws") + manual
+**Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** unit (`src/components/common/ErrorBoundary.test.tsx` → "shows \"Something went wrong\" and a Reload button when a child throws") + manual
 
 ## Goal
 

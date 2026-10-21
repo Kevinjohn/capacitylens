@@ -5,10 +5,6 @@ description: A point-in-time source-code security review against OWASP ASVS 5.0.
 
 # Security review — 2026-07-14 (deployment posture updated 2026-07-15)
 
-This dated review includes the former offline snapshot feature. That feature and its browser
-storage, encryption and worker support have since been removed; see [Browser privacy](/security/privacy#what-stays-in-the-browser).
-
-
 > Current state (2026-10-09): CapacityLens no longer provides local MFA. Claims below about local TOTP describe the review date. Google and Microsoft company-provider policy owns MFA; enabling company sign-in alone does not enable it.
 
 ## Executive conclusion

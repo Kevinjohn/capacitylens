@@ -19,7 +19,7 @@ async function signInAndOpen(page: import("@playwright/test").Page, email: strin
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(AUTH_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
+  await page.getByRole("button", { name: ACCOUNT, exact: true }).click();
   await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
   await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
 }
@@ -90,50 +90,32 @@ async function seedPrivateNames(
   const now = new Date().toISOString();
   const clientId = `privacy-client-${STAMP}`;
   const projectId = `privacy-project-${STAMP}`;
-  const clientWrite = await request.post(`${AUTH_API}/api/batch`, {
+  const clientWrite = await request.put(`${AUTH_API}/api/clients/${clientId}`, {
     headers: { cookie: ownerCookie, "content-type": "application/json" },
     data: {
-      ops: [
-        {
-          method: "PUT",
-          table: "clients",
-          id: clientId,
-          row: {
-            id: clientId,
-            accountId,
-            name: REAL_CLIENT,
-            color: "#76a5e7",
-            isPrivate: true,
-            codeName: "Nightwing",
-            createdAt: now,
-            updatedAt: now,
-          },
-        },
-      ],
+      id: clientId,
+      accountId,
+      name: REAL_CLIENT,
+      color: "#76a5e7",
+      isPrivate: true,
+      codeName: "Nightwing",
+      createdAt: now,
+      updatedAt: now,
     },
   });
   expect(clientWrite.status()).toBe(200);
-  const projectWrite = await request.post(`${AUTH_API}/api/batch`, {
+  const projectWrite = await request.put(`${AUTH_API}/api/projects/${projectId}`, {
     headers: { cookie: ownerCookie, "content-type": "application/json" },
     data: {
-      ops: [
-        {
-          method: "PUT",
-          table: "projects",
-          id: projectId,
-          row: {
-            id: projectId,
-            accountId,
-            clientId,
-            name: REAL_PROJECT,
-            color: "#e776b8",
-            isPrivate: true,
-            codeName: "Aurora",
-            createdAt: now,
-            updatedAt: now,
-          },
-        },
-      ],
+      id: projectId,
+      accountId,
+      clientId,
+      name: REAL_PROJECT,
+      color: "#e776b8",
+      isPrivate: true,
+      codeName: "Aurora",
+      createdAt: now,
+      updatedAt: now,
     },
   });
   expect(projectWrite.status()).toBe(200);

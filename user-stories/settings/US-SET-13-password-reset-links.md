@@ -57,15 +57,14 @@ See [Account email](../../docs-src/self-hosting/configuration.md#account-email) 
 - The minted link is **single-use** and **expires in 24 hours**; it is returned exactly once
   (`201 {token, expiresAt}`) and never stored, listed, logged, or shown again.
 - `/reset-password/:token` renders **without a session**; redeeming sets the new password via
-  the native public `POST /api/auth/reset-password` endpoint.
+  Better Auth's public `POST /api/auth/reset-password`.
 - Redeeming revokes every existing session for that member; the old password is dead immediately.
 - A used/expired/unknown token shows _"This reset link is invalid, already used, or expired. Ask
-  your admin for a new one."_ — invalid, consumed and expired proofs receive a server-side
-  **400** with `code: "INVALID_TOKEN"`; raw error details are never shown.
+  your admin for a new one."_ — reusing a consumed token is a server-side **400**.
 - The server is the backstop regardless of the UI: minting below admin tier or cross-tenant is
   **403**, an Admin targeting an Owner is **403**, a non-member target is **404**, and `sso`/OFF
   modes answer **400** (`POST /api/accounts/:accountId/members/:userId/reset-password`).
-- The public `POST /api/auth/request-reset` endpoint is available only when SMTP and
+- The public `POST /api/auth/request-password-reset` endpoint is available only when SMTP and
   password sign-in are enabled; otherwise it returns 404. The response never includes a token.
 - Registered password users receive one email. Unknown addresses and provider-only accounts
   receive no email and get the same response status and body. SMTP failures are logged without

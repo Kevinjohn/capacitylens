@@ -7,16 +7,16 @@
   "reporters": ["html", "clear-text", "progress"],
   "coverageAnalysis": "perTest",
   "mutate": [
-    "packages/shared/src/lib/**/*.ts",
-    "packages/shared/src/domain/**/*.ts",
-    "apps/frontend/src/components/scheduler/**/*.ts",
-    "!apps/frontend/src/components/scheduler/use*.ts",
-    "apps/frontend/src/lib/**/*.ts",
-    "apps/frontend/src/auth/resetPasswordFailure.ts",
+    "shared/src/lib/**/*.ts",
+    "shared/src/domain/**/*.ts",
+    "src/components/scheduler/**/*.ts",
+    "!src/components/scheduler/use*.ts",
+    "src/lib/**/*.ts",
+    "src/auth/resetPasswordFailure.ts",
     "!**/*.test.ts"
   ],
   "vitest": {
-    "configFile": "apps/frontend/vite.config.ts"
+    "configFile": "vite.config.ts"
   },
   "concurrency": 6,
   "timeoutMS": 20000,

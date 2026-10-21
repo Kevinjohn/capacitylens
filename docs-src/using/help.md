@@ -21,8 +21,9 @@ and scheduling stops; Viewers see two stops about reading the schedule.
 [Take a role-based tour](/getting-started/roles-and-permissions#take-a-role-based-tour) lists each
 role's tour.
 
-**Show tour** is disabled while your access is being checked or cannot be confirmed. If the tour
-fails to start, an error appears so you can try again.
+**Show tour** is disabled while your access is being checked, if it can't be confirmed, or while a
+read-only offline snapshot is open. If the tour fails to start, an error appears so you can try
+again.
 
 ## Open the guides
 

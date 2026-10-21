@@ -2,7 +2,7 @@
 
 **Area:** Clients · **Persona:** Account owner · **Linked E2E:** `e2e/clients.spec.ts` →
 "an owner can add a private client with a code name" · **Additional coverage:**
-`apps/frontend/src/components/clients/ClientForm.test.tsx` + `packages/shared/src/domain/privateNames.test.ts`
+`src/components/clients/ClientForm.test.tsx` + `shared/src/domain/privateNames.test.ts`
 
 ## Goal
 

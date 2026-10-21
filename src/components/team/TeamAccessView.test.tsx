@@ -1,0 +1,160 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import type { Role } from "@capacitylens/shared/domain/access";
+import { PermissionContext } from "@/auth/permissionContext";
+import { AuthContext } from "@/auth/authContext";
+import type { AuthContextValue } from "@/auth/authContext";
+import { TeamAccessView } from "./TeamAccessView";
+import { setOfflineReadState } from "@/data/offlineCache";
+
+const buildMode = vi.hoisted(() => ({ demo: false }));
+vi.mock("@/data/apiConfig", () => ({
+  isServerConfigured: () => true,
+  isDemoMode: () => buildMode.demo,
+  API_BASE: "http://api.test",
+}));
+
+vi.mock("./MembersSection", () => ({
+  MembersSection: () => <div data-testid="member-management">Member controls</div>,
+}));
+
+const auth = (authMode: AuthContextValue["authMode"]): AuthContextValue => ({
+  authMode,
+  user: authMode === "off" ? null : { id: "me", email: "me@example.com" },
+  canCreateAccount: true,
+  multiAccount: true,
+  refreshAuth: async () => {},
+  signOut: async () => {},
+});
+
+function renderView(
+  role: Role | null,
+  authMode: AuthContextValue["authMode"],
+  status: "not-applicable" | "pending" | "resolved" | "unavailable" = role ? "resolved" : "not-applicable",
+) {
+  return render(
+    <MemoryRouter>
+      <AuthContext.Provider value={auth(authMode)}>
+        <PermissionContext.Provider value={{ role, status }}>
+          <TeamAccessView />
+        </PermissionContext.Provider>
+      </AuthContext.Provider>
+    </MemoryRouter>,
+  );
+}
+
+function showCapabilities(): void {
+  fireEvent.click(screen.getByTestId("capabilities-toggle"));
+}
+
+beforeEach(() => {
+  buildMode.demo = false;
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
+});
+
+afterEach(() => {
+  setOfflineReadState({ owner: "cleanup", readOnly: false });
+});
+
+describe("TeamAccessView access presentation", () => {
+  it("labels the demo honestly and says why there is no membership directory", () => {
+    buildMode.demo = true;
+    renderView(null, "off");
+    expect(screen.getByTestId("current-access")).toHaveTextContent("Demo access");
+    expect(screen.getByText(/not a real company membership/)).toBeInTheDocument();
+    expect(screen.getByText(/people who sign in, not the resources/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("member-management")).not.toBeInTheDocument();
+  });
+
+  it("keeps the capability list collapsed until it is asked for", async () => {
+    renderView("viewer", "password-only");
+    const toggle = screen.getByTestId("capabilities-toggle");
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("View the schedule")).not.toBeInTheDocument();
+
+    showCapabilities();
+    expect(screen.getByTestId("capabilities-toggle")).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("View the schedule")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("capabilities-toggle"));
+    expect(screen.queryByText("View the schedule")).not.toBeInTheDocument();
+  });
+
+  it("distinguishes an auth-off persisted server from the in-memory demo", () => {
+    renderView(null, "off");
+
+    expect(screen.getByTestId("current-access")).toHaveTextContent("Open access");
+    expect(
+      screen.getByText(/persisted on the server, but authentication and membership roles are disabled/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Anyone who can reach this installation can view and edit/i)).toBeInTheDocument();
+  });
+
+  it("shows every Viewer capability and keeps management understandable but unavailable", () => {
+    renderView("viewer", "password-only");
+    expect(screen.getByTestId("current-access")).toHaveTextContent("Viewer");
+    showCapabilities();
+    expect(screen.getByText("View the schedule")).toBeInTheDocument();
+    expect(screen.getByText("Edit scheduling data")).toHaveClass("text-muted-foreground");
+    expect(screen.getByText("View the schedule").closest("li")).toHaveTextContent("Allowed:");
+    expect(screen.getByText("Edit scheduling data").closest("li")).toHaveTextContent("Not allowed:");
+    expect(screen.getByText(/An Owner or Admin manages invitations/)).toBeInTheDocument();
+    expect(screen.queryByTestId("member-management")).not.toBeInTheDocument();
+  });
+});
+
+describe("TeamAccessView member management", () => {
+  it("shows management controls to the single Owner", () => {
+    renderView("owner", "password-only");
+    expect(screen.getByTestId("current-access")).toHaveTextContent("single Owner");
+    expect(screen.getByTestId("member-management")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["pending", "Checking access"],
+    ["unavailable", "Access unavailable"],
+  ] as const)("does not present Viewer as authoritative while membership is %s", (status, label) => {
+    renderView("viewer", "password-only", status);
+
+    expect(screen.getByTestId("current-access")).toHaveTextContent(label);
+    expect(screen.getByTestId("current-access")).not.toHaveTextContent("Viewer");
+    expect(screen.queryByTestId("member-management")).not.toBeInTheDocument();
+  });
+
+  it("unmounts member management while a membership recheck fails closed", () => {
+    const view = renderView("owner", "password-only", "resolved");
+    const controls = screen.getByTestId("member-management");
+    expect(controls).toBeVisible();
+
+    view.rerender(
+      <MemoryRouter>
+        <AuthContext.Provider value={auth("password-only")}>
+          <PermissionContext.Provider value={{ role: "viewer", status: "pending" }}>
+            <TeamAccessView />
+          </PermissionContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    );
+
+    expect(controls).not.toBeInTheDocument();
+    expect(screen.queryByTestId("member-management")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["authenticated Owner", "owner", "password-only"],
+    ["auth-off installation", null, "off"],
+  ] as const)("projects cached data as Viewer-only for an %s", (_label, role, authMode) => {
+    setOfflineReadState({ owner: "tenant", readOnly: true, lastUpdated: Date.parse("2026-07-17T10:00:00.000Z") });
+    renderView(role, authMode);
+
+    const current = screen.getByTestId("current-access");
+    expect(current).toHaveTextContent("Offline · View only");
+    expect(current).toHaveTextContent(/cached snapshot/i);
+    showCapabilities();
+    expect(screen.getByText("View the schedule").closest("li")).toHaveTextContent("Allowed:");
+    expect(screen.getByText("Edit scheduling data").closest("li")).toHaveTextContent("Not allowed:");
+    expect(screen.getByText("Transfer ownership")).toHaveClass("text-muted-foreground");
+    expect(screen.queryByTestId("member-management")).not.toBeInTheDocument();
+  });
+});

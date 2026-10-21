@@ -1,0 +1,93 @@
+import { ACCOUNT_SESSION_ABSOLUTE_TTL_SECONDS } from "@capacitylens/shared/account/sessionPolicy";
+import type { PrincipalId } from "@capacitylens/shared/account/types";
+import type { Db } from "../../db";
+import { createCachedStatement, HOUSEKEEPING_INTERVAL_MS, lastAssuranceSweep, readStableNowIso } from "./runtime";
+
+/**
+ * Names the authentication methods recorded for a session.
+ */
+export type RecordedSessionAssurance = "password" | "mfa" | "federated";
+
+/**
+ * Contains the authentication method and provider associated with a session.
+ */
+export interface RecordedSessionAuthentication {
+  assurance: RecordedSessionAssurance;
+  providerId: string | null;
+}
+
+interface RecordSessionAssuranceInput {
+  db: Db;
+  sessionId: string;
+  principalId: PrincipalId;
+  assurance: RecordedSessionAssurance;
+  providerId?: string | null | undefined;
+  now?: string | undefined;
+}
+
+/**
+ * Records session assurance and periodically removes records older than the absolute session lifetime.
+ */
+export function recordSessionAssurance({
+  db,
+  sessionId,
+  principalId,
+  assurance,
+  providerId = null,
+  now = readStableNowIso(),
+}: RecordSessionAssuranceInput): void {
+  if ((assurance === "federated" && !providerId) || (assurance !== "federated" && providerId !== null)) {
+    throw new Error("Federated session assurance requires exactly one provider id.");
+  }
+  // Assurance rows are keyed by a non-reversible handle rather than Better Auth's bearer token,
+  // so they cannot be joined to expired sessions for cascade cleanup. Bound their lifetime to the
+  // same absolute session window whenever a new session is recorded.
+  const nowMs = Date.parse(now);
+  const lastSweep = lastAssuranceSweep.get(db);
+  if (lastSweep === undefined || nowMs - lastSweep >= HOUSEKEEPING_INTERVAL_MS) {
+    db.prepare(`DELETE FROM account_session_assurance WHERE createdAt < ?`).run(
+      new Date(nowMs - ACCOUNT_SESSION_ABSOLUTE_TTL_SECONDS * 1000).toISOString(),
+    );
+    lastAssuranceSweep.set(db, nowMs);
+  }
+  db.prepare(
+    `
+    INSERT INTO account_session_assurance (sessionId, principalId, assurance, providerId, createdAt)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(sessionId) DO UPDATE SET
+      principalId = excluded.principalId, assurance = excluded.assurance,
+      providerId = excluded.providerId, createdAt = excluded.createdAt
+  `,
+  ).run(sessionId, principalId, assurance, providerId, now);
+}
+
+// Explicit columns only (assurance, providerId): node:sqlite freezes a prepared statement's column
+// set at prepare time, so caching is safe here precisely because this SELECT never uses `*`. Cached
+// per-Db via the module-local cachedStatement (this read runs on every authenticated request via
+// verifyApplicationSession); the result is never cached, only the prepared statement.
+const sessionAuthenticationStatement = createCachedStatement(
+  `SELECT assurance, providerId FROM account_session_assurance WHERE sessionId = ?`,
+);
+
+/**
+ * Returns the recorded method and provider for the session, if available.
+ */
+export function getSessionAuthentication(db: Db, sessionId: string): RecordedSessionAuthentication | null {
+  const row = sessionAuthenticationStatement(db).get(sessionId) as
+    { assurance?: RecordedSessionAssurance; providerId?: string | null } | undefined;
+  return row?.assurance ? { assurance: row.assurance, providerId: row.providerId ?? null } : null;
+}
+
+/**
+ * Deletes the assurance record for one session.
+ */
+export function removeSessionAssurance(db: Db, sessionId: string): void {
+  db.prepare(`DELETE FROM account_session_assurance WHERE sessionId = ?`).run(sessionId);
+}
+
+/**
+ * Deletes every assurance record belonging to the principal.
+ */
+export function removePrincipalSessionAssurance(db: Db, principalId: PrincipalId): void {
+  db.prepare(`DELETE FROM account_session_assurance WHERE principalId = ?`).run(principalId);
+}
