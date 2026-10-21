@@ -140,7 +140,7 @@ function registerImportShowsConfirmationReplacesAllTest() {
 }
 
 function registerConfirmingImportReplacesDatasetRestoresTest() {
-  test("confirming an import replaces the dataset and ⌘Z restores it", async ({ page }) => {
+  test("confirming an import replaces the dataset, and ⌘Z leaves it imported", async ({ page }) => {
     await openApp(page);
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
     await importFile(page, "incoming.json", NONEMPTY_CAPACITYLENS);
@@ -150,7 +150,7 @@ function registerConfirmingImportReplacesDatasetRestoresTest() {
     await expect(page.getByText("Imported Person")).toBeVisible();
     await expect(page.getByTestId("allocation-bar").filter({ hasText: "Imported Activity" })).toBeVisible();
     await expect(page.getByText("Bruce Wayne")).toHaveCount(0);
-    await expect(page.getByText(/Imported 5 records\. Press .* to undo\./)).toBeVisible();
+    await expect(page.getByText("Imported 5 records.", { exact: true })).toBeVisible();
 
     await page.getByRole("link", { name: "Clients" }).click();
     await expect(page.getByText("Imported Client")).toBeVisible();
@@ -159,16 +159,15 @@ function registerConfirmingImportReplacesDatasetRestoresTest() {
     await page.getByRole("link", { name: "Activities" }).click();
     await expect(page.getByText("Imported Activity")).toBeVisible();
 
-    // A single undo restores the prior graph, not merely one representative resource.
+    // Undo covers bookings only, so the imported graph stays in place.
     await page.keyboard.press("Meta+z");
-    await expect(page.getByText("Brand System")).toBeVisible();
-    await expect(page.getByText("Imported Activity")).toHaveCount(0);
+    await expect(page.getByText("Imported Activity")).toBeVisible();
     await page.getByRole("link", { name: "Clients" }).click();
     await expect(page.getByRole("button", { name: "Add client" })).toBeVisible();
-    await expect(page.getByText("Queen Consolidated", { exact: true })).toBeVisible();
-    await expect(page.getByText("Imported Client")).toHaveCount(0);
+    await expect(page.getByText("Imported Client")).toBeVisible();
+    await expect(page.getByText("Queen Consolidated", { exact: true })).toHaveCount(0);
     await page.getByRole("link", { name: "Schedule" }).click();
-    await expect(page.getByText("Bruce Wayne")).toBeVisible();
+    await expect(page.getByText("Bruce Wayne")).toHaveCount(0);
   });
 }
 

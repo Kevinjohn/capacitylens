@@ -75,10 +75,10 @@ function registerEditsClientRenameReflectsProjectTest() {
 }
 
 // The row action archives the client. It leaves the active list but remains in storage, and its
-// projects keep their own active status because archiving does not cascade. Undo in the local store
-// restores the client.
+// projects keep their own active status because archiving does not cascade. Booking-only Undo
+// leaves the archive in place.
 function registerArchivingClientHidesListRestorableTests() {
-  test("archiving a client hides it from the list, restorable with undo", async ({ page }) => {
+  test("archiving a client hides it from the list, and undo leaves it archived", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
     await page
       .getByTestId("client-row")
@@ -92,7 +92,7 @@ function registerArchivingClientHidesListRestorableTests() {
     await expect(page.getByTestId("client-row").filter({ hasText: "Queen Consolidated" })).toHaveCount(0);
 
     await page.keyboard.press("Meta+z");
-    await expect(page.getByTestId("client-row").filter({ hasText: "Queen Consolidated" })).toBeVisible();
+    await expect(page.getByTestId("client-row").filter({ hasText: "Queen Consolidated" })).toHaveCount(0);
   });
 }
 

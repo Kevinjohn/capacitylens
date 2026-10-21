@@ -1,6 +1,6 @@
 # US-DAT-02 — Import a dataset from JSON (confirm before replacing)
 
-**Area:** Data management · **Persona:** Studio manager · **Linked E2E:** `e2e/data.spec.ts` → "import shows a confirmation that replaces all data; Cancel keeps the data", "confirming an import replaces the dataset and ⌘Z restores it"
+**Area:** Data management · **Persona:** Studio manager · **Linked E2E:** `e2e/data.spec.ts` → "import shows a confirmation that replaces all data; Cancel keeps the data", "confirming an import replaces the dataset, and ⌘Z leaves it imported"
 
 **Documentation:** [Settings — Import and export](../../docs-src/using/settings.md#import-and-export)
 
@@ -11,7 +11,7 @@ that summarises the file and warns that importing replaces that company's schedu
 
 ## Why
 
-Import is a full replace, not a merge — restoring a backup or loading a shared snapshot wipes the current dataset. Because that's destructive, the manager must see exactly what they're about to load and an explicit "this replaces this company's data" warning before it happens, with an undo afterwards.
+Import is a full replace, not a merge — restoring a backup or loading a shared snapshot wipes the current dataset. Because that's destructive, the manager must see exactly what they're about to load and an explicit "this replaces this company's data" warning before it happens. Undo and Redo currently cover booking changes only, so an import is not undoable.
 
 ## How (end-to-end)
 
@@ -20,7 +20,7 @@ Import is a full replace, not a merge — restoring a backup or loading a shared
 1. Open **Settings**, find **Data and support → Import and export**, expand it and click **Import JSON**
    (`data-testid="import-data"`). The OS file picker opens.
 2. Choose the `capacitylens-data.json` file. The **"Import data?"** confirmation dialog appears.
-3. Read the dialog: it names the file, states it **replaces this company's data**, lists the file's entity counts (e.g. "5 resources, 3 disciplines, 2 clients, …, 1 time-off entries"), and says "You can undo this with ⌘Z."
+3. Read the dialog: it names the file, states it **replaces this company's data**, lists the file's entity counts (e.g. "5 resources, 3 disciplines, 2 clients, …, 1 time-off entries").
 4. Click **Cancel** the first time — the dialog closes and the live data is untouched (proves Cancel is safe).
 5. Click **Import JSON** again, re-choose the file, and this time click **Replace data**.
 6. The dialog closes; a success toast appears.
@@ -35,9 +35,9 @@ Import is a full replace, not a merge — restoring a backup or loading a shared
   intact. Request-size handling follows the Adonis BodyParser default for the installed version.
   Recognized legacy record values may still be repaired or skipped during an accepted import.
 - ✅ Choosing a valid CapacityLens file opens a dialog titled **Import data?** with a **Replace data** confirm button and a **Cancel** button.
-- ✅ The dialog names the chosen file and includes the phrase **"replaces this company's data"**, the count summary (entities present in the file, in the form "N resources, N disciplines, …"; types with zero items are omitted), and the undo note "You can undo this with ⌘Z."
+- ✅ The dialog names the chosen file and includes the phrase **"replaces this company's data"**, the count summary (entities present in the file, in the form "N resources, N disciplines, …"; types with zero items are omitted), with no undo note.
 - ✅ Clicking **Cancel** leaves the current dataset completely unchanged (nothing is imported).
-- ✅ Clicking **Replace data** swaps the live dataset for the file's contents and shows a success toast reading **"Imported N records. Press ⌘Z to undo."** (the toast reports how many records were imported — adding "(K invalid records skipped)" if any were dropped — and mentions ⌘Z).
+- ✅ Clicking **Replace data** swaps the live dataset for the file's contents and shows a success toast reading **"Imported N records."** (the toast reports how many records were imported, adding "(K invalid records skipped)" if any were dropped).
 - ✅ After replacing, the lists/schedule reflect the imported data, not the prior live data.
 - ✅ The destination company's settings, including date format, and this browser's display
   preferences remain unchanged. In signed-in server deployments, import is restricted to Owners.

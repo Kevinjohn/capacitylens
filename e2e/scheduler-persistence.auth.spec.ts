@@ -118,7 +118,9 @@ async function dayWidth(page: Page) {
   });
 }
 
+// Sign-in resets the grid to scrollLeft 0, which can leave the seed-week bar outside the viewport.
 async function dragByOneDay(page: Page, target: Locator, xOffset: number) {
+  await target.scrollIntoViewIfNeeded();
   const box = await boundingBoxOrThrow(target);
   const x = box.x + box.width / 2;
   const y = box.y + box.height / 2;
@@ -216,6 +218,10 @@ async function gestureUndoRedo<T>(
 }
 
 async function dragToLane(page: Page, target: Locator, lane: Locator) {
+  // Scroll the lane first: scrolling the wide lane can move the bar, so the bar is scrolled last
+  // and both boxes are read afterwards.
+  await lane.scrollIntoViewIfNeeded();
+  await target.scrollIntoViewIfNeeded();
   const box = await boundingBoxOrThrow(target);
   const laneBox = await boundingBoxOrThrow(lane);
   const x = box.x + box.width / 2;
@@ -527,11 +533,10 @@ test("an ended session (401) clears the scheduler cache and history", async ({ p
 
   await page.context().clearCookies();
   await page.clock.setFixedTime(new Date("2026-06-03T12:00:31"));
-  const read = page.waitForResponse((response) =>
-    isPlanningRead(accountId, response.request().method(), response.url()),
-  );
+  // Match only a read issued after the cookies were cleared; a read already in flight answers 200.
+  const read = page.waitForRequest((sent) => isPlanningRead(accountId, sent.method(), sent.url()));
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-  expect((await read).status()).toBe(401);
+  expect((await (await read).response())?.status()).toBe(401);
 
   await expect(page.getByTestId("allocation-bar")).toHaveCount(0);
   await expect(page.locator('[data-testid="undo-button"]:enabled')).toHaveCount(0);

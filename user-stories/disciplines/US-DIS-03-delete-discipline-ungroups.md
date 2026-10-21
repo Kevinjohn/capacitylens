@@ -8,7 +8,7 @@ Remove a discipline the studio no longer uses, keeping its resources and moving 
 
 ## Why
 
-Reorganising the team should never cost you people. Deleting a discipline is intentionally **non-destructive**: the category disappears but everyone in it stays schedulable, just ungrouped, until reassigned. The manager needs reassurance of this before confirming, and an undo if they change their mind.
+Reorganising the team should never cost you people. Deleting a discipline is intentionally **non-destructive**: the category disappears but everyone in it stays schedulable, just ungrouped, until reassigned. The manager needs reassurance of this before confirming.
 
 ## How (end-to-end)
 
@@ -18,7 +18,7 @@ Reorganising the team should never cost you people. Deleting a discipline is int
 2. Read the dialog: it states that the discipline's resources will be **ungrouped, not deleted**.
 3. Click **Delete** to confirm. The dialog closes.
 4. Click **Schedule** in the sidebar (`/`); click **Today** to see the seed bars.
-5. Press **⌘Z** (Undo) to reverse the deletion.
+5. Press **⌘Z**. The deletion stays: Undo and Redo currently cover booking changes only.
 
 ## Acceptance criteria
 
@@ -28,4 +28,4 @@ Reorganising the team should never cost you people. Deleting a discipline is int
   appear under **Unassigned**, the band for people without a discipline, on the seeded Studio-only
   schedule (or **Studio** once the company has a Supplementary person), not removed.
 - ✅ Bruce's existing allocations and the placeholder's binding are untouched (only the grouping changed).
-- ✅ Pressing **⌘Z** restores the **Design** discipline and re-groups Bruce and the placeholder under it.
+- ✅ Pressing **⌘Z** does not restore the **Design** discipline; Bruce and the placeholder stay ungrouped.

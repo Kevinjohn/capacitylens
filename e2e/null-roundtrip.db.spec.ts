@@ -26,7 +26,7 @@ async function saveAvailability(page: Page, first: string, last: string): Promis
   await expect(dialog).toHaveCount(0);
 }
 
-test("clearing, saving, reloading and undoing availability keeps explicit null values", async ({ page, request }) => {
+test("clearing, saving and reloading availability keeps explicit null values", async ({ page, request }) => {
   await resetServer({ request, withSeed: true });
   await openApp(page, "Wayne Enterprises", "/resources");
   await saveAvailability(page, "2026-06-01", "2026-06-30");
@@ -53,8 +53,11 @@ test("clearing, saving, reloading and undoing availability keeps explicit null v
     })
     .toEqual(["2026-06-05", "2026-06-25"]);
 
+  // Undo covers bookings only, so clearing is saved explicitly.
   await page.getByRole("link", { name: "Schedule", exact: true }).click();
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+  await page.getByRole("link", { name: "Resources", exact: true }).click();
+  await saveAvailability(page, "", "");
   await expect
     .poll(async () => {
       const row = await persistedAvailability(request);

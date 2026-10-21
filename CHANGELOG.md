@@ -67,8 +67,9 @@ new features and **patch** versions carry fixes.
 
 - The schedule saves every booking change as one typed planning request: create, move, resize,
   reassign, duplicate, repeat and delete. Toolbar and keyboard Undo and Redo replay those booking
-  changes through typed inverses, and Undo of a deletion restores the saved rows. Other changes no
-  longer send bookings in the general batch. A stale edit shows the server's schedule without a
+  changes through typed inverses, and Undo of a deletion restores the saved rows. Undo and Redo
+  now cover booking changes only, and import and deletion messages no longer offer an undo shortcut.
+  Other changes no longer send bookings in the general batch. A stale edit shows the server's schedule without a
   toast, a refused change keeps the schedule and shows a refusal, and a lost sign-in clears the
   schedule and its history together. The demo keeps booking changes in page memory only.
 - Native SQLite snapshots run at startup and every 24 hours, retaining the configured number of

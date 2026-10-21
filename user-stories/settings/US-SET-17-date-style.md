@@ -52,7 +52,7 @@ seed window — see _Seed data_ in REFERENCE.md).
   the calendar context, so their one cross-year week may read `28 Dec – 3 Jan`. Screen-reader names
   that state the two dates separately, such as an allocation bar's, carry the year on the general rule.
 - Weekday forms (`Mon 8th Jun` / `Mon Jun 8th`) always keep the ordinal, whatever the preference.
-- The choice is **account data**: it is stored on the account, changing it is undoable, and every
+- The choice is **account data**: it is stored on the account, and every
   member of the company sees it. It is **not** a device preference. Settings JSON exports omit
   company settings; importing scheduling data preserves the destination company's date format.
 - Server instants use the viewer's browser locale and local time zone instead. This includes session

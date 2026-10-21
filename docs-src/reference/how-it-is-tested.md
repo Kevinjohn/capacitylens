@@ -25,8 +25,9 @@ The suites cover the frontend, backend and shared workspace packages.
 - Database-project scenarios exercise the retained legacy transport against SQLite in the fixture
   server's auth-off mode.
 - The dedicated authenticated scheduler suite signs
-  in through the real password session and verifies create, pointer move/resize, delete and
-  Undo/Redo against SQLite, including reload and acknowledgement-only refresh. Only those real
+  in through the real password session and verifies create, pointer move/resize, reassign,
+  duplicate, repeat and delete with Undo/Redo against SQLite, one typed request per gesture, reload,
+  acknowledgement-only refresh, stale-edit refusal and sign-out clearing. Only those real
   backend assertions establish authenticated scheduler-write coverage. The failure case injects
   a refused response; successful writes are never mocked.
 - Planning-controller transition tests use controlled responses to check revision ordering,
@@ -39,16 +40,15 @@ The suites cover the frontend, backend and shared workspace packages.
   updates and catalogue privacy/code-name updates also clear typed history. Pure command builders
   preserve captured fields and send explicit non-delete intents: an unchanged allocation copy uses
   source-ID duplication, while a copy with edited non-date fields uses explicit creation with a fresh
-  ID. These builders are preparation and are not wired to production forms. A separate
+  ID. Scheduler booking commands use these builders. A separate
   authenticated browser harness exercises the controller through real typed routes and SQLite:
   create, move, resize, reassign, duplicate, repeat, grouped creation, archive/unarchive, update
   Undo/Redo, stale-edit refusal, lost-response
-  commitment lookup and sign-out cache clearing. The controller is not yet connected to the
-  schedule. Server tests cover session-bound allocation deletion and restoration through the typed
+  commitment lookup and sign-out cache clearing. The schedule uses the controller for bookings,
+  and Undo and Redo cover booking changes only. Server tests cover session-bound allocation deletion and restoration through the typed
   routes: each delete saves the removed rows as a group that only the deleting session can restore,
   once, with the original row and timestamps, and invalidating that session removes its groups.
-  This coverage does not establish typed scheduler gestures or restoration from the schedule; the
-  existing authenticated scheduler tests still exercise the current persistence path. Time-off,
+  Time-off,
   closure and catalogue deletion still refuse typed restoration, and complete typed Undo remains
   unfinished; later identity-link integration is separate from this milestone, which uses the
   existing real authentication.

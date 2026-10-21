@@ -25,5 +25,5 @@ Plans move. A holiday gets shortened, or what was logged as a holiday turns out 
 - ✅ The dialog is titled **Edit time off** and pre-fills every field from the existing entry (resource, start, end, type, note).
 - ✅ After Save, Bruce's `timeoff-row` updates to **Bruce Wayne · Wed 10th Jun · 2 days** — the start date is unchanged, and shortening the end shows as a smaller day count (3 → 2). The new _Sick_ type is stored and shows on the timeline block + when you re-open the editor — it is not shown in the list row (see US-TOF-04).
 - ✅ On the Schedule (click **Today**, **Weeks visible** = **1 week**), Bruce's `timeoff-block` now spans 10–11 June (one day shorter) and carries the new type label; 12 June is no longer covered.
-- ✅ Editing back (or pressing **⌘Z**) returns the entry to its prior state — the edit is reversible.
+- ✅ Editing back returns the entry to its prior state — the edit is reversible.
 - ✅ The same validation as creating applies: a reversed range (End before Start) keeps the dialog open with "End date cannot be before the start date."

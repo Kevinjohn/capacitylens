@@ -1,11 +1,10 @@
-# US-RES-04 — Archive a resource (hide from the schedule) and undo
+# US-RES-04 — Archive a resource (hide from the schedule) and restore
 
-**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "archiving a resource hides it from the list + schedule, and undo restores it"
+**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "archiving a resource hides it from the list + schedule, and undo leaves it archived"
 
 ## Goal
 
-Remove a resource from the schedule **reversibly** — archive it (with a clear warning and one-step
-undo), so its allocations and time off are retained and it can be restored or, later, permanently
+Remove a resource from the schedule **reversibly** — archive it (with a clear warning), so its allocations and time off are retained and it can be restored or, later, permanently
 deleted from the grouped archive sections below the Resources list.
 
 ## How (end-to-end)
@@ -22,8 +21,7 @@ so the seed bars and time off are in view. **Bruce Wayne** has both allocations
 5. Click the **Archive Bruce Wayne** icon again, then click **Archive** to confirm.
 6. Go back to **Schedule** (click **Today** if needed) and observe Bruce is gone (hidden, not
    destroyed — his record + allocations + time off are retained).
-7. Undo the archive — either press **⌘Z** or click the toolbar **Undo** button (LOCAL mode) — and
-   Bruce reappears on the list and schedule.
+7. Press **⌘Z**. Bruce stays archived: Undo and Redo currently cover booking changes only.
 
 ## Why
 
@@ -41,5 +39,5 @@ are separate lifecycle steps. Settings no longer exposes the Deleted items secti
 - ✅ After confirming **Archive**, the **Bruce Wayne** row disappears from Resources, and on
   **Schedule** Bruce's row, allocation bars and time-off block are all hidden — but the records are
   **retained** (not cascade-deleted), and Bruce appears under the appropriate archive group.
-- ✅ (LOCAL mode) Pressing **⌘Z** restores Bruce (back to active) with all of his allocations and
-  time off; in server mode, **Restore** from the resource archive sections brings him back.
+- ✅ Pressing **⌘Z** leaves Bruce archived; **Restore** from the resource archive sections brings him
+  back with all of his allocations and time off.

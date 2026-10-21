@@ -599,7 +599,8 @@ Switching modes is announced in the scheduler's polite live region. In Time-off 
 omit work-allocation counts, and each eligible non-external resource row exposes a keyboard
 **Add time off for <name>** button that opens the same prefilled time-off form as drawing the lane.
 External rows expose no time-off creation action.
-Saved local edits remain undoable after a background refresh that contains only their own
+Undo and Redo act on booking (allocation) history only; other changes do not enter it.
+Saved booking changes remain undoable after a background refresh that contains only their own
 acknowledged revisions. A genuine remote row change, addition or deletion clears history so
 Undo cannot overwrite or resurrect another writer’s work.
 Undo/redo run
@@ -1620,7 +1621,7 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   and _unbinds_ (does not delete) placeholders. In either case, an All-projects allocation attributed
   to the removed project survives and becomes unattributed. Deleting an activity removes its allocations; deleting a resource removes its
   allocations + time off. Deleting a **discipline** or **phase** is _non-destructive_
-  (ungroups resources / ungroups activities). These ordinary CRUD deletes are undoable. Lifecycle
+  (ungroups resources / ungroups activities). Undo does not reverse these deletes. Lifecycle
   **soft-delete and purge** of an archived person, client or project are irreversible and clear the
   local undo/redo history so a destructive lifecycle action cannot be restored accidentally.
 - **Disciplines are optional (account-level).** Default **on**. When a company turns them off

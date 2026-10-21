@@ -117,7 +117,7 @@ function registerEditsTimeOffEntryListTest() {
 }
 
 function registerDeletesTimeOffEntryConfirmationTest() {
-  test("deletes a time-off entry after confirmation and restores it with undo", async ({ page }) => {
+  test("deletes a time-off entry after confirmation, and undo leaves it deleted", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/timeoff");
     const bruceGroup = page
       .getByTestId("timeoff-group")
@@ -143,14 +143,14 @@ function registerDeletesTimeOffEntryConfirmationTest() {
     await expect(block).toHaveCount(0);
 
     await page.keyboard.press("Meta+z");
-    await expect(block).toContainText("Holiday");
+    await expect(block).toHaveCount(0);
     await page.getByRole("link", { name: "Time off" }).click();
-    await expect(bruceGroup.getByTestId("timeoff-row")).toBeVisible();
+    await expect(bruceGroup.getByTestId("timeoff-row")).toHaveCount(0);
   });
 }
 
 function registerCreatesRepeatedTimeOffIndependentTests() {
-  test("creates repeated time off as independent entries with one undo", async ({ page }) => {
+  test("creates repeated time off as independent entries", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/timeoff");
     await page.getByRole("button", { name: "Add time off" }).click();
     const dialog = page.getByRole("dialog", { name: "Add time off" });
@@ -186,8 +186,8 @@ function registerCreatesRepeatedTimeOffIndependentTests() {
     await page.getByRole("link", { name: "Schedule" }).click();
     const bruceLane = page.locator('[data-resource-id="r-tyler"]');
     await expect.poll(() => bruceLane.getByTestId("timeoff-block").count()).toBeGreaterThan(1);
-    await page.getByRole("button", { name: "Undo" }).click();
-    await expect(bruceLane.getByTestId("timeoff-block")).toHaveCount(1);
+    // Undo covers bookings only, so the series has no Undo step.
+    await expect(page.getByTestId("undo-button")).toBeDisabled();
   });
 }
 

@@ -35,7 +35,8 @@ Select the delete icon on its row and confirm **Delete discipline?** Its people 
 not deleted, and keep their bookings. They appear in the **Unassigned** group, or the Studio and
 Supplementary bands, until you assign another discipline.
 
-Removed the wrong one? Select **Undo** in the Schedule toolbar to restore it and its grouping.
+Removed the wrong one? **Undo** covers booking changes only, so add the discipline again and
+reassign its people.
 
 ## Turn disciplines off
 

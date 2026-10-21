@@ -10,7 +10,6 @@ import { useRole } from "@/auth/permissionContext";
 import { can, canSeePrivateNames } from "@capacitylens/shared/domain/access";
 import { ConfirmDialog, Modal } from "./common/ui";
 import { m } from "@/i18n";
-import { buildUndoShortcut } from "@/lib/keyboardShortcuts";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { Button } from "./ui/button";
@@ -48,7 +47,7 @@ function buildSkippedMessage(skipped: number, variant: "why" | "note"): string {
 }
 
 function buildImportedMessage(imported: number, skipped: number): string {
-  const values = { count: imported, skipped: buildSkippedMessage(skipped, "note"), shortcut: buildUndoShortcut() };
+  const values = { count: imported, skipped: buildSkippedMessage(skipped, "note") };
   if (imported === 1) return m.data_imported_one(values);
   return m.data_imported_other(values);
 }
@@ -85,9 +84,7 @@ function ImportConfirmation({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const outro = serverMode
-    ? m.data_import_confirm_outro_server()
-    : m.data_import_confirm_outro({ shortcut: buildUndoShortcut() });
+  const outro = serverMode ? m.data_import_confirm_outro_server() : m.data_import_confirm_outro();
   return (
     <ConfirmDialog
       title={m.data_import_confirm_title()}

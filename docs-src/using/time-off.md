@@ -69,7 +69,7 @@ repeat must create between 2 and 54 entries.
 Each entry keeps the original span of calendar days, even across weekends, holidays or non-working
 days. Overlapping time off is allowed; nothing is merged or skipped.
 
-Saving creates one undoable batch. After that, every entry is independent: it has its own row,
+Saving creates every entry together. After that, every entry is independent: it has its own row,
 **Edit** and **Delete** on the Time off page, and changing one leaves the others alone. Repeat
 controls appear only when adding.
 
