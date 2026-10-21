@@ -76,37 +76,39 @@ function rejectStage(fixture: Fixture, stage: RequestStage, error: Error) {
 
 describe("planning request access boundaries", () => {
   for (const stage of ["read", "execute", "lookup"] as const) {
-    for (const loss of [
-      { status: 401, code: undefined },
-      { status: 403, code: "account_membership_lost" },
-    ]) {
-      it(`clears rows, history and pending state atomically after ${stage} reports ${loss.status}/${loss.code ?? "session"}`, async () => {
+    it(`clears rows, history and pending state atomically after ${stage} reports 401`, async () => {
+      const fixture = await setup();
+      const publications: boolean[] = [];
+      fixture.store.subscribe((state) => {
+        if (state.planning.context === null)
+          publications.push(
+            state.data.clients.length === 0 &&
+              state.planning.history.past.length === 0 &&
+              state.planning.history.future.length === 0 &&
+              state.planning.pending === null,
+          );
+      });
+      rejectStage(fixture, stage, new PlanningControllerError("Access ended", undefined, 401));
+      await startRequest(fixture, stage).catch((error: unknown) => error);
+      expect(fixture.store.getState().planning.context).toBeNull();
+      expect(fixture.store.getState().data.clients).toEqual([]);
+      expect(publications).toEqual([true]);
+    });
+
+    // K2: every 403 keeps data and history and shows the refusal; nothing finer.
+    for (const code of ["authorization_denied", "account_membership_lost"]) {
+      it(`keeps readable rows and history and shows the refusal after ${stage} reports 403/${code}`, async () => {
         const fixture = await setup();
-        const publications: boolean[] = [];
-        fixture.store.subscribe((state) => {
-          if (state.planning.context === null)
-            publications.push(
-              state.data.clients.length === 0 &&
-                state.planning.history.past.length === 0 &&
-                state.planning.history.future.length === 0 &&
-                state.planning.pending === null,
-            );
-        });
-        rejectStage(fixture, stage, new PlanningControllerError("Access ended", loss.code, loss.status));
+        const history = fixture.store.getState().planning.history;
+        rejectStage(fixture, stage, new PlanningControllerError("Action refused", code, 403));
         await startRequest(fixture, stage).catch((error: unknown) => error);
-        expect(fixture.store.getState().planning.context).toBeNull();
-        expect(fixture.store.getState().data.clients).toEqual([]);
-        expect(publications).toEqual([true]);
+        const state = fixture.store.getState();
+        expect(state.planning.context).toEqual(context);
+        expect(state.data.clients[0]?.name).toBe("Wayne Enterprises");
+        expect(state.planning.history).toEqual(history);
+        expect(state.planning.error).toMatchObject({ code, status: 403 });
       });
     }
-
-    it(`keeps readable rows for an ordinary refusal from ${stage}`, async () => {
-      const fixture = await setup();
-      rejectStage(fixture, stage, new PlanningControllerError("Action refused", "authorization_denied", 403));
-      await startRequest(fixture, stage).catch((error: unknown) => error);
-      expect(fixture.store.getState().planning.context).toEqual(context);
-      expect(fixture.store.getState().data.clients[0]?.name).toBe("Wayne Enterprises");
-    });
 
     it(`ignores a delayed ${stage} access-loss error after a new context has loaded`, async () => {
       const fixture = await setup();
