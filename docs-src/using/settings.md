@@ -164,6 +164,12 @@ refused before anything is replaced. Recognised older record values may be repai
 the skipped count is shown afterwards. The company's settings, including date format, and your
 browser preferences are not part of the file.
 
+### Beta JSON preview {#beta-transfer-contract}
+
+The beta preview checks a file without changing your data. It is not connected to Settings yet.
+The **Export JSON** and **Import JSON** controls continue to use the existing format described
+above.
+
 ### Company details {#calendar}
 
 A read-only summary of the company name, week start and time zone. Week start sets where each
