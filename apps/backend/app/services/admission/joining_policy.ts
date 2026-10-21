@@ -45,6 +45,12 @@ export async function writeJoiningPolicy(
   accountId: string,
   settings: JoiningPolicySettings
 ) {
+  const current = await readJoiningPolicy(trx, accountId)
+  if (
+    current.policy === settings.policy &&
+    JSON.stringify(current.approvedDomains) === JSON.stringify(settings.approvedDomains)
+  )
+    return false
   const now = new Date().toISOString()
   await trx
     .table('account_joining_policies')
@@ -58,6 +64,7 @@ export async function writeJoiningPolicy(
     })
     .onConflict('account_id')
     .merge(['policy', 'approved_domains', 'updated_at'])
+  return true
 }
 
 /** Evaluates one admission from current trusted mailbox evidence. */

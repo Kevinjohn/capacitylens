@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { withTransaction } from '#services/with_transaction'
+import { advancePlanningRevision } from '#services/planning_revision'
 import { assertCompanyAction } from '#services/auth/authorization'
 import {
   claimAccountCommand,
@@ -123,10 +124,11 @@ export default class MemberResourcesController {
           kind: 'semantic',
         })
         if (claim.replayed) return
-        await trx
+        const removed = await trx
           .from('member_resource_link_exceptions')
           .where({ account_id: accountId, user_id: principalId })
           .delete()
+        if (removed) await advancePlanningRevision(trx, accountId)
         await completeAccountCommand(trx, command.commandId, { ok: true })
       })
       return ctx.response.noContent()

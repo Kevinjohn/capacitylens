@@ -152,6 +152,10 @@ export class BatchStateProjection implements ValidationDataLookup {
     return [...this.attributionRewrites.values()]
   }
 
+  hasPendingAllocationAttributionRewrite(allocationId: string): boolean {
+    return this.attributionRewrites.has(allocationId)
+  }
+
   delete(table: AppDataKey, id: string): void {
     if (!this.rowIndexes[table].has(id)) return
 

@@ -4,6 +4,39 @@ type ParamValue = string | number | bigint | boolean
 
 export type ScannedRoutes = {
   ALL: {
+    'api.planning.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.lookup': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'mutationId': ParamValue} }
+    'api.planning.allocation.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.allocation.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.allocation.createGroup': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.resource.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.resource.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.timeOff.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.timeOff.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.closure.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.closure.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.client.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.client.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.client.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.client.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.project.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.project.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.project.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.project.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.activity.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.activity.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.activity.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.activity.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.phase.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.phase.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.discipline.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.discipline.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.resource.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.resource.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.allocation.duplicate': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.allocation.repeat': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.timeOff.repeat': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.settings.update': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.batch': { paramsTuple?: []; params?: {} }
     'api.import': { paramsTuple?: []; params?: {} }
     'api.state': { paramsTuple?: []; params?: {} }
@@ -61,7 +94,66 @@ export type ScannedRoutes = {
     'api.health': { paramsTuple?: []; params?: {} }
     'api.accounts.index': { paramsTuple?: []; params?: {} }
   }
+  GET: {
+    'api.planning.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.lookup': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'mutationId': ParamValue} }
+    'api.state': { paramsTuple?: []; params?: {} }
+    'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.auth.me': { paramsTuple?: []; params?: {} }
+    'api.members.index': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.invites.index': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.invites.preview': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'api.joining.policy': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.joining.metadata': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.joining.status': { paramsTuple?: []; params?: {} }
+    'api.member-resources.avatars': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.masquerade.status': { paramsTuple?: []; params?: {} }
+    'api.google.callback': { paramsTuple?: []; params?: {} }
+    'api.google.identity': { paramsTuple?: []; params?: {} }
+    'api.health': { paramsTuple?: []; params?: {} }
+    'api.accounts.index': { paramsTuple?: []; params?: {} }
+  }
+  HEAD: {
+    'api.planning.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.lookup': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'mutationId': ParamValue} }
+    'api.state': { paramsTuple?: []; params?: {} }
+    'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.auth.me': { paramsTuple?: []; params?: {} }
+    'api.members.index': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.invites.index': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.invites.preview': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'api.joining.policy': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.joining.metadata': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.joining.status': { paramsTuple?: []; params?: {} }
+    'api.member-resources.avatars': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.masquerade.status': { paramsTuple?: []; params?: {} }
+    'api.google.callback': { paramsTuple?: []; params?: {} }
+    'api.google.identity': { paramsTuple?: []; params?: {} }
+    'api.health': { paramsTuple?: []; params?: {} }
+    'api.accounts.index': { paramsTuple?: []; params?: {} }
+  }
   POST: {
+    'api.planning.allocation.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.allocation.createGroup': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.resource.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.timeOff.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.closure.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.client.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.client.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.client.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.project.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.project.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.project.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.activity.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.activity.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.activity.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.phase.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.discipline.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.planning.resource.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.resource.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.allocation.duplicate': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.allocation.repeat': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.timeOff.repeat': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.batch': { paramsTuple?: []; params?: {} }
     'api.import': { paramsTuple?: []; params?: {} }
     'api.orgs.store': { paramsTuple?: []; params?: {} }
@@ -91,41 +183,17 @@ export type ScannedRoutes = {
     'api.google.join-complete': { paramsTuple?: []; params?: {} }
     'api.lifecycle': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'entity': ParamValue,'id': ParamValue,'action': ParamValue} }
   }
-  GET: {
-    'api.state': { paramsTuple?: []; params?: {} }
-    'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.auth.me': { paramsTuple?: []; params?: {} }
-    'api.members.index': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.invites.index': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.invites.preview': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
-    'api.joining.policy': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.joining.metadata': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.joining.status': { paramsTuple?: []; params?: {} }
-    'api.member-resources.avatars': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.masquerade.status': { paramsTuple?: []; params?: {} }
-    'api.google.callback': { paramsTuple?: []; params?: {} }
-    'api.google.identity': { paramsTuple?: []; params?: {} }
-    'api.health': { paramsTuple?: []; params?: {} }
-    'api.accounts.index': { paramsTuple?: []; params?: {} }
-  }
-  HEAD: {
-    'api.state': { paramsTuple?: []; params?: {} }
-    'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.auth.me': { paramsTuple?: []; params?: {} }
-    'api.members.index': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.invites.index': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.invites.preview': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
-    'api.joining.policy': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.joining.metadata': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.joining.status': { paramsTuple?: []; params?: {} }
-    'api.member-resources.avatars': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.masquerade.status': { paramsTuple?: []; params?: {} }
-    'api.google.callback': { paramsTuple?: []; params?: {} }
-    'api.google.identity': { paramsTuple?: []; params?: {} }
-    'api.health': { paramsTuple?: []; params?: {} }
-    'api.accounts.index': { paramsTuple?: []; params?: {} }
-  }
   PATCH: {
+    'api.planning.allocation.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.resource.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.timeOff.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.closure.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.client.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.project.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.activity.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.phase.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.discipline.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.planning.settings.update': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.accounts.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'api.members.role': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
     'api.members.status': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }

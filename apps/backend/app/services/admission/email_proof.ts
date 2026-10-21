@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { conflictingAdmission, forbiddenAdmission, invalidAdmission } from './errors.js'
 import { affectedRows } from './affected_rows.js'
+import { advanceRevisionsForNewEmailProof } from '#services/planning_revision'
 
 const HOUR = 60 * 60 * 1000
 const digest = (value: string) =>
@@ -79,6 +80,7 @@ export async function consumeEmailProofIntent(
     .where({ id: intent.id, state: 'mail-sent', token_hash: digest(input.token) })
     .update({ state: 'completed', token_hash: null, updated_at: now })
   if (affectedRows(changed) !== 1) conflictingAdmission('Verification link was used.')
+  await advanceRevisionsForNewEmailProof(trx, input.userId, input.email)
   await trx
     .table('email_proofs')
     .insert({

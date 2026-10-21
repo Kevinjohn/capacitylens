@@ -1,3 +1,4 @@
+import '#start/planning_routes'
 import env from '#start/env'
 import router from '@adonisjs/core/services/router'
 import { checkDatabase, readState, resetState } from '#services/state_repository'

@@ -25,6 +25,7 @@ import {
   matchesMintedInternal,
   replaceGeneratedBuiltin,
 } from '#services/batch/internal_client'
+import { advancePlanningRevision } from '#services/planning_revision'
 
 export interface BatchResult {
   ok: true
@@ -130,6 +131,8 @@ export async function applyBatch(
   const revisions: BatchRevision[] = []
   const archives: Array<{ table: string; id: string; archived: boolean }> = []
   const mintedInternalIds = new Set<string>()
+  const changedAccountIds = new Set<string>()
+  const repairOnlyActivityIds = new Set<string>()
   let changed = 0
   for (const op of ops) {
     const existing = projection.row(op.table, op.id)
@@ -193,6 +196,44 @@ export async function applyBatch(
           ? { generatedBuiltinReplacementId: generatedReplacementId }
           : {}),
       })
+      const isSemanticNoop = Boolean(
+        existing &&
+        Object.keys(clean).every(
+          (field) =>
+            field === 'updatedAt' ||
+            JSON.stringify(clean[field]) === JSON.stringify(existing[field])
+        )
+      )
+      const allocationSupersedesPendingRepair =
+        op.table === 'allocations' && projection.hasPendingAllocationAttributionRewrite(op.id)
+      if (existing && isSemanticNoop && !allocationSupersedesPendingRepair) {
+        if (op.table === 'activities') {
+          const previousRewriteIds = new Set(
+            projection.listRewrittenAllocationRevisions().map(({ id }) => id)
+          )
+          projection.reconcileAllocationAttributionForActivity({
+            activityId: op.id,
+            attributionAllowed: allocationAttributionAllowed(clean.kind),
+          })
+          if (
+            projection
+              .listRewrittenAllocationRevisions()
+              .some(
+                ({ id }) =>
+                  !previousRewriteIds.has(id) &&
+                  projection.row('allocations', id)?.activityId === op.id
+              )
+          )
+            repairOnlyActivityIds.add(op.id)
+        }
+        revisions.push({
+          table: op.table,
+          id: op.id,
+          createdAt: String(existing.createdAt),
+          updatedAt: String(existing.updatedAt),
+        })
+        continue
+      }
       if (generatedReplacementId)
         await replaceGeneratedBuiltin(trx, projection, generatedReplacementId, clean)
       else {
@@ -233,6 +274,7 @@ export async function applyBatch(
         fields: appliedRequestedFields(op.row, existing, clean),
       })
       changed++
+      changedAccountIds.add(op.table === 'accounts' ? op.id : String(clean.accountId))
     } else if (op.method === 'ARCHIVE') {
       if (!isLifecycle(op.table))
         throw new BatchRequestError('ARCHIVE is supported only for lifecycle entities.')
@@ -278,6 +320,7 @@ export async function applyBatch(
         fields: ['archivedAt'],
       })
       changed++
+      changedAccountIds.add(op.accountId)
     } else {
       if (isLifecycle(op.table))
         throw new BatchRequestError('Use the dedicated lifecycle endpoints for lifecycle entities.')
@@ -312,6 +355,7 @@ export async function applyBatch(
         fields: [],
       })
       changed++
+      changedAccountIds.add(op.accountId ?? op.id)
     }
   }
   for (const revision of projection.listRewrittenAllocationRevisions()) {
@@ -321,9 +365,26 @@ export async function applyBatch(
       .from(TABLE_NAMES.allocations)
       .where('id', revision.id)
       .update({ ...encodeRow(TABLE_NAMES.allocations, allocation), project_id: null })
+    await writeAudit(trx, {
+      accountId: String(allocation.accountId),
+      actorId: context.actorId,
+      action: 'update',
+      entity: 'allocations',
+      entityId: revision.id,
+      fields: ['projectId'],
+    })
     revisions.push({ ...revision, table: 'allocations', rewrite: true })
+    changedAccountIds.add(String(allocation.accountId))
   }
+  const repairedNoopActivityIds = new Set<string>()
+  for (const revision of projection.listRewrittenAllocationRevisions()) {
+    const allocation = projection.row('allocations', revision.id)
+    if (allocation && repairOnlyActivityIds.has(String(allocation.activityId)))
+      repairedNoopActivityIds.add(String(allocation.activityId))
+  }
+  changed += repairedNoopActivityIds.size
   if (syncOrder) await recordSync(trx, syncOrder, ops)
+  for (const accountId of changedAccountIds) await advancePlanningRevision(trx, accountId)
   const result: BatchResult = {
     ok: true,
     applied: ops.length,

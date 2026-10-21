@@ -14,6 +14,7 @@ import { assertEligibleProposal, settleInvitationProposal } from '#services/memb
 import { writeAudit } from '#services/audit'
 import { authMode } from '#services/auth/mode'
 import { affectedRows } from './affected_rows.js'
+import { advancePlanningRevision } from '#services/planning_revision'
 
 type Trx = TransactionClientContract
 const DAY = 24 * 60 * 60 * 1000
@@ -206,6 +207,7 @@ export async function acceptInvitation(
   if (!standing || standing.status === 'archived')
     await trx.from('password_reset_tokens').where('tokenable_id', userId).delete()
   await settleInvitationProposal(trx, String(invitation.id), accountId, userId)
+  await advancePlanningRevision(trx, accountId)
   await writeAudit(trx, {
     accountId,
     actorId: userId,

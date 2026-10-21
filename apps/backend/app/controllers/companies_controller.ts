@@ -256,8 +256,7 @@ export default class CompaniesController {
       })
       const currentState = await readState(result.accountId, true)
       const current = currentState.accounts[0]
-      if (!current || (result.applied && result.applied.changed === 0))
-        throw new Error('Company write did not persist')
+      if (!current) throw new Error('Company write did not persist')
       if (result.applied?.auditWarning) response.header('x-capacitylens-audit-warning', 'true')
       return result.existed ? response.ok(current) : response.created(current)
     } catch (error) {

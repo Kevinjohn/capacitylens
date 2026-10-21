@@ -10,6 +10,7 @@ import { newId } from '@capacitylens/shared/lib/id'
 import { writeAudit } from '#services/audit'
 import { resetMemberSignIn } from '#services/membership/sign_in_tracking'
 import { hasCurrentEmailProof } from '#services/admission/joining_policy'
+import { advancePlanningRevision } from '#services/planning_revision'
 
 export class MembershipError extends Error {
   constructor(
@@ -58,6 +59,7 @@ export async function changeMemberRole(
       .where({ account_id: input.accountId, user_id: input.userId })
       .update({ role: input.role, updated_at: new Date().toISOString() })
     await burnRecovery(trx, input.userId)
+    await advancePlanningRevision(trx, input.accountId)
     await writeAudit(trx, {
       accountId: input.accountId,
       actorId: input.actorId,
@@ -122,6 +124,7 @@ export async function changeMemberStatus(
         .update({ status: input.status, updated_at: new Date().toISOString() })
     await burnRecovery(trx, input.userId)
     await resetMemberSignIn(input.accountId, input.userId, trx)
+    await advancePlanningRevision(trx, input.accountId)
     await writeAudit(trx, {
       accountId: input.accountId,
       actorId: input.actorId,
@@ -159,6 +162,7 @@ export async function removeMember(
     .where({ account_id: input.accountId, user_id: input.userId })
     .delete()
   await burnRecovery(trx, input.userId)
+  await advancePlanningRevision(trx, input.accountId)
   await writeAudit(trx, {
     accountId: input.accountId,
     actorId: input.actorId,
@@ -194,6 +198,7 @@ export async function enableMemberAccess(
     .delete()
   await burnRecovery(trx, input.userId)
   await resetMemberSignIn(input.accountId, input.userId, trx)
+  await advancePlanningRevision(trx, input.accountId)
   await writeAudit(trx, {
     accountId: input.accountId,
     actorId: input.actorId,

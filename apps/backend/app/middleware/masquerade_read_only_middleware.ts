@@ -5,6 +5,8 @@ import { activeMasquerade } from '#services/auth/masquerade'
 import { resolveCurrentActor, SessionAuthorityError } from '#services/auth/session_authority'
 
 function blockedRead(path: string) {
+  // The company planning snapshot is a projected data read, like the retained state route.
+  if (/^\/api\/accounts\/[^/]+\/planning$/.test(path)) return false
   return [
     '/api/auth',
     '/api/accounts',

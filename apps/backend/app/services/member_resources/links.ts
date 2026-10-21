@@ -1,6 +1,7 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { conflictingAdmission, forbiddenAdmission } from '#services/admission/errors'
 import { affectedRows } from '#services/admission/affected_rows'
+import { advancePlanningRevision } from '#services/planning_revision'
 
 type Trx = TransactionClientContract
 
@@ -83,6 +84,7 @@ export async function setMemberResourceLink(
     .from('member_resource_link_exceptions')
     .where({ account_id: accountId, user_id: userId })
     .delete()
+  await advancePlanningRevision(trx, accountId)
   return { resourceId, revision }
 }
 
@@ -99,6 +101,7 @@ export async function clearMemberResourceLink(
     .delete()
   if (affectedRows(changed) !== 1)
     conflictingAdmission('The member resource link changed. Refresh and retry.')
+  await advancePlanningRevision(trx, accountId)
 }
 
 async function recordException(
