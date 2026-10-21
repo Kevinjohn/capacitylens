@@ -27,8 +27,7 @@ docker compose up --build --detach --wait
 ```
 
 Compose runs `app:upgrade` as a separate, one-shot service before starting the API. It creates a
-fresh database or backs up and upgrades a recognised current database. It refuses an unknown
-migration history. Do not copy a database from the retired server into the current volume.
+fresh database, or backs up an existing database and runs pending migrations. Do not copy a database from the retired server into the current volume.
 
 Open your public address, use the setup token to create the first sign-in, and create your company.
 Check `/health/ready` through the public address before handing the service over.

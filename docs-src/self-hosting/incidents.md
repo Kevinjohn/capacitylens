@@ -13,7 +13,7 @@ account, membership, audit or migration records.
 
 Check `/health/live` and `/health/ready` separately. If liveness fails, inspect the service manager
 for startup errors and restart loops. If readiness fails, verify database path and permissions,
-released migration history, available disk space and backup-directory access. Do not expose
+schema integrity, available disk space and backup-directory access. Do not expose
 diagnostic details publicly.
 
 ## A backup failed or the disk is full
@@ -29,8 +29,8 @@ restoration, follow
 ## An upgrade failed
 
 Do not start the new release after `node ace.js app:upgrade` refuses or fails. Preserve the current
-database, the pre-upgrade snapshot and the service logs. Check whether the release accepts the
-recorded migration manifest. Do not edit the migration ledger or retry over a partial destination.
+database, the pre-upgrade snapshot and the service logs. Do not edit the migration journal
+or retry over a partial destination.
 Use [Upgrades](/self-hosting/upgrades) for rollback and recovery.
 
 ## Sole Owner password recovery

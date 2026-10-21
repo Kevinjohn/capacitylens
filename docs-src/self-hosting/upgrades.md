@@ -23,18 +23,11 @@ From the new release's `backend/` directory, with the same environment used by t
 node ace.js app:upgrade
 ```
 
-This command checks the released migration manifest. When migrations are pending on an existing
-database, it writes and verifies an online pre-upgrade snapshot before running
-`migration:run --force --no-schema-generate`. A fresh database is initialized without a pre-upgrade
-snapshot. Unknown migration history or schema drift refuses the upgrade. Do not start the new
+For an existing database, this command writes and verifies an online pre-upgrade snapshot before
+running `migration:run --force --no-schema-generate`. A fresh database is initialized without a
+pre-upgrade snapshot. Schema drift refuses the upgrade. Do not start the new
 service after a failed upgrade; retain the source database and recovery files and investigate the
 reported refusal.
-
-The credential-storage upgrade preserves outstanding password-reset links, including links issued
-by the earlier release. Stop the earlier service before upgrading: it cannot use the renamed reset
-storage. Historical email-change records are retained without enabling an email-change journey.
-The credential-cleanup migration adds an internal proof table. It preserves existing passwords and
-reset links; passwordless email-link sign-in remains unavailable.
 
 After a successful upgrade, start the service and check `/health/ready`. Keep the snapshot until the
 new release has passed sign-in, reads, writes and backup checks. Pre-upgrade snapshots are kept
@@ -42,12 +35,10 @@ separately from daily/manual retention; copy them off-host and keep the needed r
 
 ## Roll back
 
-Released migrations are append-only. Do not run down migrations to roll back an application
-release. If the database was upgraded, stop the service and restore the verified pre-upgrade
-snapshot to a separate database path, then point `CAPACITYLENS_DB` at that restored copy before
-starting the compatible earlier release. Preserve the upgraded database and all recovery files
-until the rollback is confirmed. If no migration was pending, retain the original database and
-restore the previous release link only when its manifest accepts that database.
+Migrations are forward-only; there are no down migrations. To roll back an application release,
+stop the service and restore the verified pre-upgrade snapshot to a separate database path, then
+point `CAPACITYLENS_DB` at that restored copy before starting the earlier release. Preserve the
+upgraded database and all recovery files until the rollback is confirmed.
 
 See [Backups and restore](/self-hosting/backups-and-restore) for snapshot handling and
 [Monitoring](/self-hosting/monitoring) for readiness checks.

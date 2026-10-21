@@ -50,14 +50,14 @@ Restore into a new path so the current database remains available for investigat
 2. Copy the selected verified snapshot to a new file in the persistent data directory. Do not
    copy a live SQLite database file while it is being written.
 3. Point `CAPACITYLENS_DB` at the restored copy and run `node ace.js app:upgrade` from
-   `backend/`. The command refuses unknown migration histories and checks schema integrity.
+   `backend/`. The command runs pending migrations and checks schema integrity.
 4. Start the service, check `/health/ready`, and verify the expected company and data before
    allowing normal use.
 5. Keep the original database, snapshot and prior environment settings until the restore is
    accepted.
 
 Never replace or delete the only copy of the current database before the restored copy passes
-startup checks. Do not edit migration ledgers or released database files by hand.
+startup checks. Do not edit the migration journal or database files by hand.
 
 ## Recover a sole Owner's local password
 

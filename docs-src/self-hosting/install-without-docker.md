@@ -65,8 +65,8 @@ for authentication, mail, proxy and optional settings.
 ## 4. Upgrade the database and start the service
 
 Run the upgrade as the service user with the same environment file. It initializes a fresh database;
-for an existing database with pending migrations, it writes and verifies a pre-upgrade snapshot
-before applying released migrations.
+for an existing database, it writes and verifies a pre-upgrade snapshot before running pending
+migrations.
 
 ```bash
 sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \

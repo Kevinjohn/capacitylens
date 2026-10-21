@@ -24,6 +24,10 @@ new features and **patch** versions carry fixes.
   inventory check with its machine-readable ledger. The cryptographic inventory remains a reviewed
   document.
 
+- The released-migration manifest, its checksum checks and down migrations. The schema is one
+  forward-only baseline migration; `app:upgrade` writes a timestamped pre-upgrade snapshot of any
+  existing database before running pending migrations.
+
 - Production company selection, switching, multi-company configuration and ordinary additional-company creation. Server-backed installations now select their sole company; the in-memory demo retains its temporary company picker.
 - Optional offline scheduling snapshots, browser snapshot encryption and the offline application shell. The company schedule requires a server connection; display preferences and the temporary demo remain available.
 
@@ -73,7 +77,7 @@ new features and **patch** versions carry fixes.
 
 - Native operator commands provide verified online backups, backup-before-upgrade, audited
   sole-Owner recovery links and a guarded snapshot/archive reset into a new database path.
-  Readiness refuses unknown migration histories; backup outcomes are checked through logs and snapshots.
+  Backup outcomes are checked through logs and snapshots.
 
 - The AdonisJS fork uses native password sign-in and fixed-lifetime sessions, with credential
   changes, audit and session revocation committed together.

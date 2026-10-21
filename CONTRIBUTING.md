@@ -83,8 +83,7 @@ the security, data-integrity and migration invariants in [DECISIONS.md](DECISION
 
 Authentication and account changes require focused backend tests for the affected authority and
 failure paths. Provider checks use controlled responses; live-provider checks need an authorized
-test registration and must be reported separately. Migration changes must preserve every released
-migration checksum and exercise `app:upgrade`, backup and rollback refusal behavior.
+test registration and must be reported separately.
 
 ## Formatting
 

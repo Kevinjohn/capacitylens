@@ -11,7 +11,7 @@ health endpoints for process supervision:
 | Endpoint | Meaning |
 | --- | --- |
 | `GET /health/live` | The process can answer HTTP. It does not prove the database or backups are ready. |
-| `GET /health/ready` | Checks the database and accepted migration history; returns a failing status when those checks fail. |
+| `GET /health/ready` | Checks the database and its schema integrity; returns a failing status when those checks fail. |
 
 Do not use `/api/health` as a readiness probe; it is a lightweight API response. Keep health checks
 free of credentials and do not expose diagnostic internals publicly.
@@ -19,8 +19,8 @@ free of credentials and do not expose diagnostic internals publicly.
 ## Database and backups
 
 Investigate readiness failures before restarting repeatedly. Check that the database file exists,
-its parent directory is writable by the service user, and the released migration history is
-accepted by the current release.
+its parent directory is writable by the service user, and `node ace.js app:upgrade` has run for the
+current release.
 
 Check backup success independently: inspect the service logs for failed snapshots or retention
 errors, free disk space and directory permissions, then confirm a recent completed snapshot in
