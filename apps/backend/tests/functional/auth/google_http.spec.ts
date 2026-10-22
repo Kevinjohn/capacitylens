@@ -825,6 +825,15 @@ test.group('Google browser entry', (group) => {
         ).send()
         accepted.assertStatus(302)
         assert.include(accepted.header('location'), 'capacitylensActionConfirmed=1')
+        const repeated = await browserRequest(
+          client.get(`/api/auth/callback/google?state=${secondState}&code=test-code`).redirects(0),
+          {
+            session: second.cookie('adonis-session')!.value,
+            state: second.cookie('google_oauth_state')!.value,
+          }
+        ).send()
+        repeated.assertStatus(302)
+        assert.notInclude(repeated.header('location'), 'capacitylensActionConfirmed=1')
       }
     )
     assert.isNotNull((await db.from('action_proofs').where('id', secondProof).first())?.verified_at)
@@ -833,6 +842,55 @@ test.group('Google browser entry', (group) => {
     assert.lengthOf(indexedAfter, 1)
     assert.equal(indexedAfter[0]?.session_id, indexedBefore[0]?.session_id)
     assert.equal(indexedAfter[0]?.authenticated_at, indexedBefore[0]?.authenticated_at)
+
+    const roleLost = await start()
+    roleLost.assertStatus(200)
+    const roleProof = (roleLost.body() as { proofId: string }).proofId
+    const roleState = new URL((roleLost.body() as { url: string }).url).searchParams.get('state')!
+    await db
+      .from('memberships')
+      .where({ account_id: 'a-studio', user_id: userId })
+      .update({ role: 'admin' })
+    await withGoogleHttp(
+      { sub: 'google-subject-bruce', email: 'bruce.wayne@wayne.example', email_verified: true },
+      async () => {
+        const denied = await browserRequest(
+          client.get(`/api/auth/callback/google?state=${roleState}&code=test-code`).redirects(0),
+          {
+            session: roleLost.cookie('adonis-session')!.value,
+            state: roleLost.cookie('google_oauth_state')!.value,
+          }
+        ).send()
+        denied.assertStatus(302)
+        assert.notInclude(denied.header('location'), 'capacitylensActionConfirmed=1')
+      }
+    )
+    assert.isNull((await db.from('action_proofs').where('id', roleProof).first())?.verified_at)
+
+    await db
+      .from('memberships')
+      .where({ account_id: 'a-studio', user_id: userId })
+      .update({ role: 'owner' })
+    const revoked = await start()
+    revoked.assertStatus(200)
+    const revokedProof = (revoked.body() as { proofId: string }).proofId
+    const revokedState = new URL((revoked.body() as { url: string }).url).searchParams.get('state')!
+    await db.from('user_session_index').where('user_id', userId).delete()
+    await withGoogleHttp(
+      { sub: 'google-subject-bruce', email: 'bruce.wayne@wayne.example', email_verified: true },
+      async () => {
+        const denied = await browserRequest(
+          client.get(`/api/auth/callback/google?state=${revokedState}&code=test-code`).redirects(0),
+          {
+            session: revoked.cookie('adonis-session')!.value,
+            state: revoked.cookie('google_oauth_state')!.value,
+          }
+        ).send()
+        denied.assertStatus(302)
+        assert.notInclude(denied.header('location'), 'capacitylensActionConfirmed=1')
+      }
+    )
+    assert.isNull((await db.from('action_proofs').where('id', revokedProof).first())?.verified_at)
   })
 
   test('a late callback for an earlier Google start cannot verify the newer action proof', async ({

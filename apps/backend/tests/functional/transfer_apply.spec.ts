@@ -1,9 +1,12 @@
 import { test } from '@japa/runner'
+import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import { buildBetaExport, type BetaExportDocument } from '@capacitylens/shared/data/betaTransfer'
 import { readState } from '#services/state_repository'
 import { getPlanningRevision } from '#services/planning_revision'
 import { withTransaction } from '#services/with_transaction'
+import { UNMATCHABLE_PASSWORD_HASH } from '#services/password_service'
+import { PasswordWorkQueue } from '#services/password_work_queue'
 import { asDataOwner, resetAuthenticatedData } from '../helpers/authenticated_data_fixture.js'
 import { freshDatabase } from '../helpers/fresh_database.js'
 import type { ApiClient } from '@japa/api-client'
@@ -17,6 +20,29 @@ async function document() {
 
 async function revision() {
   return withTransaction((trx) => getPlanningRevision(trx, accountId))
+}
+
+async function deleteForRestoration(client: ApiClient, cookie: string, companyId = accountId) {
+  const state = await readState(companyId, true)
+  const allocation = state.allocations[0]
+  if (!allocation) throw new Error('The restoration fixture has no allocation.')
+  const baseRevision = await withTransaction((trx) => getPlanningRevision(trx, companyId))
+  const mutationId = randomUUID()
+  const response = await asDataOwner(
+    client.post(`/api/accounts/${companyId}/allocations/${allocation.id}/delete`),
+    cookie
+  )
+    .json({
+      mutationId,
+      baseRevision,
+      intent: { operation: 'allocation.delete', id: allocation.id },
+    })
+    .send()
+  response.assertStatus(200)
+  const body = response.body() as {
+    restoration: { replacementGroupId: string }
+  }
+  return { groupId: body.restoration.replacementGroupId, mutationId, allocationId: allocation.id }
 }
 
 async function proof(client: ApiClient, cookie: string, intent: unknown, action = 'import') {
@@ -110,6 +136,102 @@ test.group('beta transfer apply', (group) => {
     assert.equal(await revision(), baseRevision + 1)
   })
 
+  test('invalidates only this company restoration while preserving other company and authority records', async ({
+    client,
+    assert,
+  }) => {
+    const { cookie, userId } = await resetAuthenticatedData(client)
+    const selectedDelete = await deleteForRestoration(client, cookie)
+    const foreignDelete = await deleteForRestoration(client, cookie, 'a-loft')
+    const now = new Date().toISOString()
+    await db.table('account_joining_policies').insert({
+      id: 'policy-transfer',
+      account_id: accountId,
+      policy: 'invitation_only',
+      approved_domains: '[]',
+      created_at: now,
+      updated_at: now,
+    })
+    await db.table('account_access_restrictions').insert({
+      id: 'restriction-transfer',
+      account_id: accountId,
+      principal_id: 'restricted-principal',
+      verified_email: null,
+      role: 'viewer',
+      created_at: now,
+    })
+    await db.table('company_join_intents').insert({
+      id: 'join-transfer',
+      nonce_hash: 'nonce-transfer',
+      browser_hash: 'browser-transfer',
+      purpose: 'policy',
+      account_id: accountId,
+      invitation_id: null,
+      email: 'diana.prince@wayne.example',
+      principal_id: null,
+      provider_id: 'google',
+      state: 'started',
+      token_hash: null,
+      delivery_generation: 0,
+      expires_at: Date.now() + 60_000,
+      sent_count: 0,
+      last_sent_at: null,
+      source_ip_hash: 'source-transfer',
+      provider_state_hash: null,
+      created_at: now,
+      updated_at: now,
+    })
+    const selected = await document()
+    selected.data.accounts[0]!.name += ' restored'
+    const foreignBefore = await readState('a-loft', true)
+    const preservedTables = [
+      'memberships',
+      'account_joining_policies',
+      'account_access_restrictions',
+      'company_join_intents',
+      'planning_mutations',
+    ] as const
+    const before = await Promise.all(preservedTables.map((table) => db.from(table).select('*')))
+    const baseRevision = await revision()
+    const actionProof = await proof(client, cookie, { baseRevision, document: selected })
+    const result = await apply(client, cookie, selected, baseRevision, actionProof)
+    result.assertStatus(200)
+    assert.deepInclude(result.body(), { changed: true, revision: baseRevision + 1 })
+    assert.isNull(await db.from('deleted_groups').where('group_id', selectedDelete.groupId).first())
+    assert.lengthOf(await db.from('deleted_rows').where('group_id', selectedDelete.groupId), 0)
+    assert.isDefined(
+      await db.from('deleted_groups').where('group_id', foreignDelete.groupId).first()
+    )
+    assert.deepEqual(await readState('a-loft', true), foreignBefore)
+    for (const [index, table] of preservedTables.entries())
+      assert.deepEqual(await db.from(table).select('*'), before[index])
+    assert.isDefined(
+      await db
+        .from('planning_mutations')
+        .where({
+          account_id: accountId,
+          mutation_id: selectedDelete.mutationId,
+          actor_id: userId,
+        })
+        .first()
+    )
+    const restore = await asDataOwner(
+      client.post(`/api/accounts/${accountId}/planning/restore-group`),
+      cookie
+    )
+      .json({
+        mutationId: randomUUID(),
+        baseRevision: baseRevision + 1,
+        intent: { operation: 'planning.restoreGroup', restorationGroupId: selectedDelete.groupId },
+      })
+      .send()
+    restore.assertStatus(403)
+    const selectedAfter = await readState(accountId, true)
+    assert.isUndefined(
+      selectedAfter.allocations.find((row) => row.id === selectedDelete.allocationId)
+    )
+  })
+
   test('wrong document, revision, company and action cannot spend the proof', async ({
     client,
     assert,
@@ -134,6 +256,36 @@ test.group('beta transfer apply', (group) => {
     assert.deepEqual(await readState(accountId, true), full.data)
     const valid = await apply(client, cookie, full, baseRevision, actionProof)
     valid.assertStatus(200)
+  })
+
+  test('accepts a beta document above one MiB through preview, proof and apply', async ({
+    client,
+    assert,
+  }) => {
+    const { cookie } = await resetAuthenticatedData(client)
+    const full = await document()
+    const template = full.data.disciplines[0]
+    if (!template) throw new Error('The large transfer fixture has no discipline.')
+    for (let index = 0; index < 7000; index++) {
+      full.data.disciplines.push({
+        ...template,
+        id: `large-discipline-${index}`,
+        name: `Gotham design discipline ${index} ${'x'.repeat(50)}`,
+      })
+    }
+    const bytes = Buffer.byteLength(JSON.stringify(full))
+    assert.isAbove(bytes, 1024 * 1024)
+    assert.isBelow(bytes, 5 * 1024 * 1024)
+    const preview = await asDataOwner(client.post('/api/transfer/preview'), cookie)
+      .json({ accountId, document: full })
+      .send()
+    preview.assertStatus(200)
+    const baseRevision = (preview.body() as { baseRevision: number }).baseRevision
+    const actionProof = await proof(client, cookie, { baseRevision, document: full })
+    const result = await apply(client, cookie, full, baseRevision, actionProof)
+    result.assertStatus(200)
+    const after = await readState(accountId, true)
+    assert.equal(after.disciplines.length, full.data.disciplines.length)
   })
 
   test('stale revision, redaction and dangling member links leave data unchanged', async ({
@@ -179,23 +331,51 @@ test.group('beta transfer apply', (group) => {
     assert.deepEqual(await readState(accountId, true), before)
   })
 
-  test('a midway insertion failure rolls back rows, audit, revision and proof consumption', async ({
+  test('a post-cleanup audit failure rolls back rows, restoration, marker and proof', async ({
     client,
     assert,
   }) => {
     const { cookie } = await resetAuthenticatedData(client)
+    const deletion = await deleteForRestoration(client, cookie)
     const full = await document()
     full.data.accounts[0]!.name += ' changed'
     const before = await readState(accountId, true)
+    const groupBefore = await db.from('deleted_groups').where('group_id', deletion.groupId).first()
+    const rowsBefore = await db.from('deleted_rows').where('group_id', deletion.groupId)
+    const markerBefore = await db
+      .from('planning_mutations')
+      .where({
+        account_id: accountId,
+        mutation_id: deletion.mutationId,
+      })
+      .first()
     const baseRevision = await revision()
     const actionProof = await proof(client, cookie, { baseRevision, document: full })
     await db.rawQuery(
-      "CREATE TRIGGER fail_transfer_insert BEFORE INSERT ON allocations BEGIN SELECT RAISE(ABORT, 'forced transfer failure'); END"
+      "CREATE TRIGGER fail_transfer_audit BEFORE INSERT ON audit_entries WHEN NEW.action = 'import' BEGIN SELECT RAISE(ABORT, 'forced transfer failure'); END"
     )
     try {
       const failed = await apply(client, cookie, full, baseRevision, actionProof)
       assert.isAtLeast(failed.status(), 500)
       assert.deepEqual(await readState(accountId, true), before)
+      assert.deepEqual(
+        await db.from('deleted_groups').where('group_id', deletion.groupId).first(),
+        groupBefore
+      )
+      assert.deepEqual(
+        await db.from('deleted_rows').where('group_id', deletion.groupId),
+        rowsBefore
+      )
+      assert.deepEqual(
+        await db
+          .from('planning_mutations')
+          .where({
+            account_id: accountId,
+            mutation_id: deletion.mutationId,
+          })
+          .first(),
+        markerBefore
+      )
       assert.equal(await revision(), baseRevision)
       assert.lengthOf(
         await db.from('audit_entries').where({ account_id: accountId, action: 'import' }),
@@ -204,7 +384,7 @@ test.group('beta transfer apply', (group) => {
       const failedProofRow = await db.from('action_proofs').where('id', actionProof).first()
       assert.isNull(failedProofRow?.consumed_at)
     } finally {
-      await db.rawQuery('DROP TRIGGER IF EXISTS fail_transfer_insert')
+      await db.rawQuery('DROP TRIGGER IF EXISTS fail_transfer_audit')
     }
     const retry = await apply(client, cookie, full, baseRevision, actionProof)
     retry.assertStatus(200)
@@ -248,6 +428,81 @@ test.group('beta transfer apply', (group) => {
     sessionDenied.assertStatus(401)
     const sessionProofRow = await db.from('action_proofs').where('id', sessionProof).first()
     assert.isNull(sessionProofRow?.consumed_at)
+    assert.equal(await revision(), baseRevision)
+  })
+
+  test('credential replacement during verification cannot mint a proof', async ({
+    client,
+    assert,
+  }) => {
+    const { cookie, userId } = await resetAuthenticatedData(client)
+    const full = await document()
+    const baseRevision = await revision()
+    const priorCredential = await db
+      .from('users')
+      .where('id', userId)
+      .select('password_hash')
+      .first()
+    if (!priorCredential?.password_hash) throw new Error('The owner fixture has no password hash.')
+    const originalRun = PasswordWorkQueue.prototype.run
+    let replaced = false
+    PasswordWorkQueue.prototype.run = async function <T>(
+      work: () => Promise<T>,
+      signal?: AbortSignal
+    ) {
+      const result = (await originalRun.call(this, work, signal)) as T
+      if (!replaced) {
+        replaced = true
+        await db
+          .from('users')
+          .where('id', userId)
+          .update({ password_hash: UNMATCHABLE_PASSWORD_HASH })
+      }
+      return result
+    }
+    try {
+      const response = await asDataOwner(client.post('/api/auth/action-proof/password'), cookie)
+        .json({ action: 'import', accountId, intent: { baseRevision, document: full }, password })
+        .send()
+      response.assertStatus(403)
+      assert.isTrue(replaced)
+      assert.lengthOf(await db.from('action_proofs').where('user_id', userId), 0)
+    } finally {
+      PasswordWorkQueue.prototype.run = originalRun
+      await db
+        .from('users')
+        .where('id', userId)
+        .update({ password_hash: priorCredential.password_hash })
+    }
+  })
+
+  test('another live session and an expired proof cannot spend the same import confirmation', async ({
+    client,
+    assert,
+  }) => {
+    const { cookie } = await resetAuthenticatedData(client)
+    const full = await document()
+    const baseRevision = await revision()
+    const actionProof = await proof(client, cookie, { baseRevision, document: full })
+    const second = await client
+      .post('/api/auth/sign-in')
+      .json({ email: 'bruce.wayne@wayne.example', password })
+      .send()
+    second.assertStatus(200)
+    const secondCookie = second.cookie('adonis-session')?.value
+    if (!secondCookie) throw new Error('The second native session was not established.')
+    const wrongSession = await apply(client, secondCookie, full, baseRevision, actionProof)
+    wrongSession.assertStatus(403)
+    const unspent = await db.from('action_proofs').where('id', actionProof).first()
+    assert.isNull(unspent?.consumed_at)
+    await db
+      .from('action_proofs')
+      .where('id', actionProof)
+      .update({
+        expires_at: new Date(Date.now() - 1000).toISOString(),
+      })
+    const expired = await apply(client, cookie, full, baseRevision, actionProof)
+    expired.assertStatus(403)
     assert.equal(await revision(), baseRevision)
   })
 
