@@ -4,8 +4,8 @@
 
 ## Goal
 
-Remove a resource from the schedule **reversibly** — archive it (with a clear warning), so its allocations and time off are retained and it can be restored or, later, permanently
-deleted from the grouped archive sections below the Resources list.
+Remove a resource from the schedule **reversibly** — archive it (with a clear warning), so its allocations and time off are retained and it can be restored
+from the grouped archive sections below the Resources list.
 
 ## How (end-to-end)
 
@@ -16,7 +16,7 @@ so the seed bars and time off are in view. **Bruce Wayne** has both allocations
 1. Note that Bruce's row shows allocation bars and a hatched time-off block in early June.
 2. Go to **Resources**; on the **Bruce Wayne** row click the **Archive Bruce Wayne** (trash) icon.
 3. A dialog titled **"Archive resource?"** appears, naming Bruce and explaining the row will be hidden
-   from the schedule and can be restored or deleted from the archive sections below the list.
+   from the schedule and can be restored from the archive sections below the list.
 4. Click **Cancel** first — the dialog closes and Bruce is still present (nothing archived).
 5. Click the **Archive Bruce Wayne** icon again, then click **Archive** to confirm.
 6. Go back to **Schedule** (click **Today** if needed) and observe Bruce is gone (hidden, not
@@ -27,8 +27,8 @@ so the seed bars and time off are in view. **Bruce Wayne** has both allocations
 
 A departing or paused team member must be removed from the schedule cleanly, but a mis-click
 shouldn't quietly destroy months of allocations and booked leave. Archiving is reversible: the data
-stays, the row simply leaves the active views. Soft-delete (which anonymises) and permanent removal
-are separate lifecycle steps. Settings no longer exposes the Deleted items section.
+stays, the row simply leaves the active views. Anonymising a person is a separate, irreversible
+action; there is no permanent deletion.
 
 ## Acceptance criteria
 
