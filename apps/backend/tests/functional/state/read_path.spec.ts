@@ -5,6 +5,7 @@ import { replaceWithSeed } from '#services/state_repository'
 import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities'
 import { fillNullableFields } from '@capacitylens/shared/types/nullableFields'
 import { resetAuthenticatedClient } from '../../helpers/authenticated_data_fixture.js'
+import db from '@adonisjs/lucid/services/db'
 
 const fixture = JSON.parse(
   await readFile(new URL('../../fixtures-main-responses.json', import.meta.url), 'utf8')
@@ -35,13 +36,19 @@ test.group('M1 read path', (group) => {
           ? await client.post(expected.path).json({ seed: true })
           : await client.get(expected.path)
       assert.equal(response.status(), expected.status)
+      const lastMigration =
+        expected.path === '/api/diagnostics'
+          ? await db.from('adonis_schema').select('name').orderBy('id', 'desc').first()
+          : null
+      if (expected.path === '/api/diagnostics') assert.isString(lastMigration?.name)
       const expectedBody =
         expected.path === '/api/diagnostics'
           ? {
-              ...(expected.body as object),
               server: {
-                ...(expected.body as { server: object }).server,
-                database: { status: 'ok', schemaVersion: 4 },
+                connectivity: 'ok',
+                database: { status: 'ok' },
+                schema: { migration: lastMigration?.name ?? null },
+                backup: { newestSnapshotAt: null },
               },
             }
           : expected.path.startsWith('/api/state')

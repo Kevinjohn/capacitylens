@@ -65,7 +65,9 @@ async function withServer(
     APP_KEY: 'capacitylens-test-key-0123456789abcdef',
     APP_URL: `http://127.0.0.1:${port}`,
     SESSION_DRIVER: 'database',
-    CAPACITYLENS_MODE: 'off',
+    CAPACITYLENS_MODE: 'password-only',
+    CAPACITYLENS_SECRET: 'capacitylens-http-contract-secret-2026',
+    CAPACITYLENS_PUBLIC_URL: `http://127.0.0.1:${port}`,
     CAPACITYLENS_DB: join(root, 'contract.db'),
     ...settings,
   }
@@ -133,8 +135,8 @@ async function withServer(
 const limitedRead = (server: Booted, forwardedFor: string) =>
   server.send('GET', '/api/meta', { 'x-forwarded-for': forwardedFor }).then(({ status }) => status)
 
-// An http page origin matches its own host only while the request protocol stays http, so a
-// forwarded https protocol turns this unsafe request into a cross-origin refusal.
+// The protected reset route yields 401 without a session after an accepted origin, while the
+// origin guard returns 403 first when a forwarded https protocol makes the origin cross-site.
 const plainOriginReset = (server: Booted, forwardedProto?: string) =>
   server
     .send('POST', '/api/test/reset', {
@@ -211,40 +213,32 @@ test.group('HTTP proxy, transport and cookie contract', (group) => {
   test('trusted proxy headers: the origin guard uses a loopback proxy forwarded protocol', async ({
     assert,
   }) => {
-    await withServer(
-      { CAPACITYLENS_TRUST_PROXY_HEADERS: 'true', CAPACITYLENS_ALLOW_RESET: 'true' },
-      {},
-      async (server) => {
-        assert.equal(await plainOriginReset(server), 200)
-        assert.equal(
-          await plainOriginReset(server, 'https'),
-          403,
-          'the forwarded https protocol no longer matches the http origin'
-        )
-      }
-    )
+    await withServer({ CAPACITYLENS_TRUST_PROXY_HEADERS: 'true' }, {}, async (server) => {
+      assert.equal(await plainOriginReset(server), 401)
+      assert.equal(
+        await plainOriginReset(server, 'https'),
+        403,
+        'the forwarded https protocol no longer matches the http origin'
+      )
+    })
   })
 
   test('untrusted proxy headers: the origin guard ignores a forwarded protocol', async ({
     assert,
   }) => {
-    await withServer(
-      { CAPACITYLENS_TRUST_PROXY_HEADERS: 'false', CAPACITYLENS_ALLOW_RESET: 'true' },
-      {},
-      async (server) => {
-        assert.equal(await plainOriginReset(server, 'https'), 200)
-      }
-    )
+    await withServer({ CAPACITYLENS_TRUST_PROXY_HEADERS: 'false' }, {}, async (server) => {
+      assert.equal(await plainOriginReset(server, 'https'), 401)
+    })
   })
 
   test('trusted proxy headers: a non-loopback peer cannot supply a forwarded protocol', async ({
     assert,
   }) => {
     await withServer(
-      { CAPACITYLENS_TRUST_PROXY_HEADERS: 'true', CAPACITYLENS_ALLOW_RESET: 'true' },
+      { CAPACITYLENS_TRUST_PROXY_HEADERS: 'true' },
       { peer: '10.0.0.9' },
       async (server) => {
-        assert.equal(await plainOriginReset(server, 'https'), 200)
+        assert.equal(await plainOriginReset(server, 'https'), 401)
       }
     )
   })
