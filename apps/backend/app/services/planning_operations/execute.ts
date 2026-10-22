@@ -311,7 +311,7 @@ export async function executePlanningIntent(
         return { consumedGroupId: null, replacementGroupId: groupId }
       }
       case 'planning.restoreGroup':
-        await restoreGroup(trx, accountId, intent.restorationGroupId, identity)
+        await restoreGroup(trx, accountId, data, intent.restorationGroupId, identity)
         return { consumedGroupId: intent.restorationGroupId, replacementGroupId: null }
       default:
         throw new PlanningOperationError(
