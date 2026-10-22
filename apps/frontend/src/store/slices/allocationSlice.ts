@@ -332,8 +332,11 @@ export function createAllocationSlice(
         }
         syncContext(companyId);
         if (!options?.fresh && activeRead?.companyId === companyId) return activeRead.promise;
-        const promise = controller
-          .refresh()
+        // A canonical read alone never settles an uncertain write; only its commitment lookup can,
+        // so every refresh trigger (focus, interval, legacy save) reconciles first.
+        const settle = get().planning.outcome?.kind === "uncertain" ? controller.reconcile() : Promise.resolve(false);
+        const promise = settle
+          .then((settled) => settled || controller.refresh())
           .then((accepted) => accepted && get().activeAccountId === companyId && contextCompanyId === companyId);
         activeRead = { companyId, promise };
         void promise.finally(() => {
