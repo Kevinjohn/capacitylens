@@ -2,12 +2,12 @@ import type { FastifyRequest } from "fastify";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { REPLY_ERRORS } from "./replyErrors";
 
-/** Returns the matching configured origin, or null when the request origin is not allowed. */
-export function resolveCorsOrigin(reqOrigin: string | undefined, allow: ReadonlySet<string>): string | null {
+/** Returns the matching configured origin, or undefined when the request origin is not allowed. */
+export function resolveCorsOrigin(reqOrigin: string | undefined, allow: ReadonlySet<string>): string | undefined {
   for (const allowedOrigin of allow) {
     if (allowedOrigin === reqOrigin) return allowedOrigin;
   }
-  return null;
+  return undefined;
 }
 
 interface IsSameRequestOriginInput {
@@ -53,13 +53,13 @@ export function isSameRequestOrigin({ req, reqOrigin, trustForwarded }: IsSameRe
 
 interface TrustedOriginInput {
   req: FastifyRequest;
-  listedOrigin: string | null;
+  listedOrigin: string | undefined;
   fetchSite: string | undefined;
   trustForwarded: boolean;
 }
 
 function resolveTrustedOrigin({ req, listedOrigin, fetchSite, trustForwarded }: TrustedOriginInput): string | null {
-  if (listedOrigin !== null) return listedOrigin;
+  if (listedOrigin !== undefined) return listedOrigin;
   const reqOrigin = req.headers.origin;
   if (reqOrigin === undefined) return null;
   if (fetchSite === "same-origin" || isSameRequestOrigin({ req, reqOrigin, trustForwarded })) return reqOrigin;
@@ -100,7 +100,7 @@ export function installOriginPolicy(input: {
       return reply.code(403).send({ error: REPLY_ERRORS.crossSiteRequest });
     }
     // Same-origin admission needs no CORS permission; only configuration grants cross-origin access.
-    if (listedOrigin !== null) {
+    if (listedOrigin !== undefined) {
       reply.header("Access-Control-Allow-Origin", listedOrigin);
       reply.header("Vary", "Origin");
       reply.header("Access-Control-Allow-Credentials", "true");
