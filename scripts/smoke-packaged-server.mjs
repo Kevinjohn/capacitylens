@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
-import { cp, mkdir, mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { copyFile, cp, mkdir, mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -374,6 +375,26 @@ async function main() {
     );
     assert.equal(state.resources.find((row) => row.id === resource.id)?.name, RESOURCE_NAME);
     assert.deepEqual(await stopServer(child), { code: 0, signal: null });
+
+    const restoredPath = join(workDir, "restored.db");
+    await copyFile(explicitPath, restoredPath, constants.COPYFILE_EXCL);
+    const restoredEnvironment = { ...environment, CAPACITYLENS_DB: restoredPath };
+    const restoreUpgrade = command(backend, restoredEnvironment, "app:upgrade");
+    assert.equal(restoreUpgrade.status, 0, restoreUpgrade.output);
+    assert.equal(inspectDatabase(restoredPath, RESOURCE_NAME).length, MIGRATION_COUNT);
+    child = startServer(backend, restoredEnvironment, (chunk) => {
+      log += chunk;
+    });
+    await assertReady(baseUrl, child);
+    const restoredSession = JSON.parse((await fetchOk(`${baseUrl}/api/auth/me`, { headers: { cookie } })).body);
+    assert.equal(restoredSession.user.email, credentials.email);
+    const restoredState = JSON.parse(
+      (await fetchOk(`${baseUrl}/api/state?accountId=${encodeURIComponent(accountId)}`, { headers: { cookie } })).body,
+    );
+    assert.equal(restoredState.resources.find((row) => row.id === resource.id)?.name, RESOURCE_NAME);
+    assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, MIGRATION_COUNT);
+    assert.equal(inspectDatabase(explicitPath, RESOURCE_NAME).length, MIGRATION_COUNT);
+    assert.deepEqual(await stopServer(child), { code: 0, signal: null });
     passed = true;
     console.log(
       JSON.stringify({
@@ -384,6 +405,7 @@ async function main() {
         databaseSession: "survived restart",
         scheduleWrite: "persisted",
         explicitBackup: "verified",
+        restoredSnapshot: "verified",
         scheduledStartupBackup: "verified",
         upgradeSnapshot: "verified",
         shutdown: "clean",
