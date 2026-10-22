@@ -123,10 +123,11 @@ describe("AppShell account gate", () => {
   });
 });
 
-describe("AccountPicker create + open + delete", () => {
+describe("AccountPicker create + open", () => {
   registerCreateAndActivateTests();
   registerCreateFormValidationTests();
   registerOpenAndEnterTests();
+  registerNoCompanyDeletionTests();
 });
 
 function registerCreateAndActivateTests() {
@@ -264,6 +265,17 @@ function registerOpenAndEnterTests() {
     expect(useStore.getState().data.accounts.map((a) => a.name)).toContain("Enter Co");
     const created = requireAccount("Enter Co");
     expect(useStore.getState().activeAccountId).toBe(created.id);
+  });
+}
+
+function registerNoCompanyDeletionTests() {
+  it("does not offer company deletion from the picker", () => {
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
+    render(<AccountPicker />);
+
+    expect(screen.getByRole("button", { name: "Wayne Enterprises" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete Wayne Enterprises" })).not.toBeInTheDocument();
+    expect(useStore.getState().data.accounts).toHaveLength(1);
   });
 }
 

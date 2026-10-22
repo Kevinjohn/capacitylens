@@ -192,8 +192,8 @@ test.group('typed allocation group and lifecycle operations', (group) => {
       operation: 'catalogue.archive',
       entity: { entity: 'clients', id: internal.id },
     })
-    assert.equal(protectedArchive.status, 400)
-    assert.equal(protectedArchive.code, 'validation_error')
+    assert.equal(protectedArchive.status, 409)
+    assert.equal(protectedArchive.code, 'conflict')
 
     await execute({ operation: 'catalogue.archive', entity: { entity: 'clients', id: client.id } })
     const archivedState = await readState('a-studio', true)
