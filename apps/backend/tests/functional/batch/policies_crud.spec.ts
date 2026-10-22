@@ -13,14 +13,13 @@ import {
 } from '#services/planning_operations/data_policy'
 import { readStateWithClient, replaceWithSeed } from '#services/state_repository'
 import { withTransaction } from '#services/with_transaction'
-import { applyLifecycle } from '#services/lifecycle'
 import { BatchStateProjection } from '#services/batch/projection'
 
 function context(role: BatchCapabilities['role']): BatchDataContext {
   const capabilities: BatchCapabilities = {
     role,
     canWrite: role !== 'viewer',
-    canPurge: role === 'owner' || role === 'admin',
+    canAnonymise: role === 'owner' || role === 'admin',
     canSeePrivateNames: canSeePrivateNames(role),
     canSeeTimeOffNote: canSeeTimeOffNote(role),
   }
@@ -259,37 +258,6 @@ test.group('M2a CRUD and field policy contracts', (group) => {
     )
     await assert.rejects(() => put('clients', original), /modified more recently/)
     assert.deepEqual(rowFor(await state(), 'clients', id), second)
-  })
-
-  test('writes one lifecycle product row without rewriting tenant siblings', async ({ assert }) => {
-    const before = await readStateWithClient(db.connection(), 'a-loft', true)
-    await db.rawQuery(
-      'CREATE TEMP TABLE m2a_lifecycle_writes (operation TEXT, table_name TEXT, row_id TEXT)'
-    )
-    const triggerNames: string[] = []
-    try {
-      for (const table of APP_DATA_KEYS.filter((key) => key !== 'accounts')) {
-        const physicalTable = table === 'timeOff' ? 'time_off' : table
-        for (const operation of ['insert', 'update', 'delete'] as const) {
-          const name = `m2a_trace_${table}_${operation}`
-          const reference = operation === 'delete' ? 'OLD' : 'NEW'
-          await db.rawQuery(
-            `CREATE TEMP TRIGGER ${name} AFTER ${operation.toUpperCase()} ON ${physicalTable} BEGIN INSERT INTO m2a_lifecycle_writes VALUES ('${operation}','${table}',${reference}.id); END`
-          )
-          triggerNames.push(name)
-        }
-      }
-      await withTransaction((trx) =>
-        applyLifecycle(trx, 'resources', 'r-tyler', 'a-studio', 'archive', context('owner'))
-      )
-      assert.deepEqual(await db.from('m2a_lifecycle_writes').select('*'), [
-        { operation: 'update', table_name: 'resources', row_id: 'r-tyler' },
-      ])
-      assert.deepEqual(await readStateWithClient(db.connection(), 'a-loft', true), before)
-    } finally {
-      for (const name of triggerNames) await db.rawQuery(`DROP TRIGGER ${name}`)
-      await db.rawQuery('DROP TABLE m2a_lifecycle_writes')
-    }
   })
 
   test('keeps indexed mutation predicates scoped to the requested company', async ({ assert }) => {

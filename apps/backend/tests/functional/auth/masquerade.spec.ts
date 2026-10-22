@@ -129,6 +129,18 @@ test.group('native read-only masquerade', (group) => {
     assert.equal(active.principal.id, ownerId)
     assert.equal(active.principal.email, 'bruce.wayne@wayne.example')
     assert.equal(active.authMode, 'password-only')
+    const anonymiseAudits = await db.from('audit_entries').where('action', 'anonymise')
+    const auditCount = anonymiseAudits.length
+    const deniedAnonymise = await asSession(
+      client
+        .post('/api/accounts/a-studio/resources/unavailable/anonymise')
+        .header('sec-fetch-site', 'same-origin'),
+      cookie
+    )
+      .json({})
+      .send()
+    deniedAnonymise.assertStatus(403)
+    assert.lengthOf(await db.from('audit_entries').where('action', 'anonymise'), auditCount)
     const read = await asSession(client.get('/api/state?accountId=a-studio'), cookie).send()
     read.assertStatus(200)
     assert.notInclude(JSON.stringify(read.body()), 'Wayne Confidential Client')

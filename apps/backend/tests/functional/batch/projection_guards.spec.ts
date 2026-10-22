@@ -80,40 +80,4 @@ test.group('M2a scoped batch projections', (group) => {
       knex.off('query', record)
     }
   })
-
-  test('writes only the targeted lifecycle row and leaves tenant siblings untouched', async ({
-    client,
-    assert,
-  }) => {
-    client = await reset(client, true)
-    const project = seed().projects.find((row) => row.id === 'p-acme')!
-    const sibling = seed().projects.find(
-      (row) => row.accountId === project.accountId && row.id !== project.id
-    )
-    const queries: string[] = []
-    const knex = db.connection().getReadClient()
-    const record = (query: { sql?: unknown }) => {
-      if (typeof query.sql === 'string') queries.push(query.sql)
-    }
-    knex.on('query', record)
-    try {
-      const response = await trusted(client.post(`/api/projects/${project.id}/archive`))
-        .json({ accountId: project.accountId })
-        .send()
-      response.assertStatus(200)
-    } finally {
-      knex.off('query', record)
-    }
-
-    const productUpdates = queries.filter((sql) => {
-      const normalized = sql.toLowerCase().replaceAll('`', '').trim()
-      return PRODUCT_TABLES.some((table) => normalized.startsWith(`update ${table} `))
-    })
-    assert.lengthOf(productUpdates, 1)
-    assert.match(productUpdates[0]!, /^update `?projects`? /i)
-    if (sibling) {
-      const storedSibling = await db.from('projects').where('id', sibling.id).first()
-      assert.isNull(storedSibling.archived_at)
-    }
-  })
 })

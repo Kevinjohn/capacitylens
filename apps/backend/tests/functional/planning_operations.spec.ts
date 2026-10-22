@@ -14,7 +14,7 @@ import type { BatchCapabilities } from '#services/planning_operations/data_polic
 const owner: BatchCapabilities = {
   role: 'owner',
   canWrite: true,
-  canPurge: true,
+  canAnonymise: true,
   canSeePrivateNames: true,
   canSeeTimeOffNote: true,
 }

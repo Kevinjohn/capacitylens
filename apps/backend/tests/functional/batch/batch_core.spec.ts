@@ -10,7 +10,6 @@ import db from '@adonisjs/lucid/services/db'
 import { withTransaction } from '#services/with_transaction'
 import { applyBatch } from '#services/batch/service'
 import { initialCompanyDataContext } from '#services/planning_operations/data_policy'
-import { applyLifecycle } from '#services/lifecycle'
 import { readState } from '#services/state_repository'
 
 const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
@@ -175,128 +174,6 @@ test.group('M2a atomic batch', (group) => {
     assert.equal(audit[0].actor_id, owner.user_id)
   })
 
-  test('supports archive, unarchive, and soft-delete lifecycle transitions', async ({
-    client,
-    assert,
-  }) => {
-    client = await reset(client, true)
-    const current = seed().projects[0]
-    const post = (action: string) =>
-      trusted(client.post(`/api/projects/${current.id}/${action}`))
-        .json({ accountId: current.accountId })
-        .send()
-    const archived = await post('archive')
-    archived.assertStatus(200)
-    assert.isString((archived.body() as { archivedAt?: unknown }).archivedAt)
-    const restored = await post('unarchive')
-    restored.assertStatus(200)
-    assert.isNull((restored.body() as { archivedAt?: unknown }).archivedAt)
-    const restoredProject = await db
-      .from('projects')
-      .where({ id: current.id, account_id: current.accountId })
-      .first()
-    assert.isNull(restoredProject.archived_at)
-    const rearchived = await post('archive')
-    rearchived.assertStatus(200)
-    const deleted = await post('delete')
-    deleted.assertStatus(200)
-    assert.isString((deleted.body() as { deletedAt?: unknown }).deletedAt)
-  })
-
-  test('rolls back a malformed tombstone repair when its audit write fails', async ({
-    client,
-    assert,
-  }) => {
-    client = await reset(client, true)
-    const current = seed().resources.find((row) => row.id === 'r-tyler')!
-    await db
-      .from('resources')
-      .where({ id: current.id, account_id: current.accountId })
-      .update({ archived_at: current.updatedAt, deleted_at: 'not-a-date' })
-    await db.rawQuery(`
-      CREATE TRIGGER fail_lifecycle_repair_audit
-      BEFORE INSERT ON audit_entries
-      BEGIN
-        SELECT RAISE(ABORT, 'audit unavailable');
-      END
-    `)
-    try {
-      const response = await trusted(client.post(`/api/resources/${current.id}/unarchive`))
-        .json({ accountId: current.accountId })
-        .send()
-      response.assertStatus(500)
-    } finally {
-      await db.rawQuery('DROP TRIGGER IF EXISTS fail_lifecycle_repair_audit')
-    }
-
-    const stored = await db
-      .from('resources')
-      .where({ id: current.id, account_id: current.accountId })
-      .first()
-    assert.equal(stored.archived_at, current.updatedAt)
-    assert.equal(stored.deleted_at, 'not-a-date')
-  })
-
-  test('purges an aged tombstone and advances surviving unbound revisions', async ({
-    client,
-    assert,
-  }) => {
-    client = await reset(client, true)
-    const futureRevision = '2099-01-01T00:00:00.000Z'
-    await db
-      .from('projects')
-      .where({ id: 'p-acme', account_id: 'a-studio' })
-      .update({ deleted_at: '2000-01-01T00:00:00.000Z' })
-    await db
-      .from('resources')
-      .where({ id: 'r-ph-designer', account_id: 'a-studio' })
-      .update({ updated_at: futureRevision })
-
-    const response = await trusted(client.post('/api/projects/p-acme/purge'))
-      .json({ accountId: 'a-studio' })
-      .send()
-    response.assertStatus(204)
-
-    const survivor = await db
-      .from('resources')
-      .where({ id: 'r-ph-designer', account_id: 'a-studio' })
-      .first()
-    assert.isNull(survivor.project_id)
-    assert.isAbove(Date.parse(survivor.updated_at), Date.parse(futureRevision))
-    const audit = await db
-      .from('audit_entries')
-      .where({ action: 'purge', entity: 'projects', entity_id: 'p-acme' })
-      .first()
-    assert.exists(audit)
-  })
-
-  test('soft-deleting a resource obfuscates it and scrubs private dependent notes', async ({
-    client,
-    assert,
-  }) => {
-    client = await reset(client, true)
-    const futureRevision = '2099-01-01T00:00:00.000Z'
-    await db
-      .from('time_off')
-      .where({ id: 'to-tyler', account_id: 'a-studio' })
-      .update({ updated_at: futureRevision })
-    const post = (action: string) =>
-      trusted(client.post(`/api/resources/r-tyler/${action}`))
-        .json({ accountId: 'a-studio' })
-        .send()
-    const archived = await post('archive')
-    archived.assertStatus(200)
-    const deleted = await post('delete')
-    deleted.assertStatus(200)
-
-    const resource = await db.from('resources').where('id', 'r-tyler').first()
-    assert.match(resource.name, /^Removed person #/)
-    assert.equal(resource.role, 'Removed resource')
-    const timeOff = await db.from('time_off').where('id', 'to-tyler').first()
-    assert.isNull(timeOff.note)
-    assert.isAbove(Date.parse(timeOff.updated_at), Date.parse(futureRevision))
-  })
-
   test('preserves omitted resource bounds and clears explicit null markers', async ({
     client,
     assert,
@@ -406,37 +283,6 @@ test.group('M2a atomic batch', (group) => {
     const stored = await db.from('disciplines').where('id', allowed.id).first()
     assert.equal(stored.name, allowed.name)
     assert.lengthOf(await db.from('audit_entries').where('actor_id', 'policy-actor'), 0)
-  })
-
-  test('uses the native policy boundary for reversible and irreversible lifecycle actions', async ({
-    client,
-    assert,
-  }) => {
-    client = await reset(client, true)
-    const base = initialCompanyDataContext('editor-actor')
-    const editorCapabilities = {
-      ...base.capabilitiesFor('a-studio'),
-      role: 'editor' as const,
-      canPurge: false,
-    }
-    const context = {
-      ...base,
-      ...editorCapabilities,
-      capabilitiesFor: () => editorCapabilities,
-    }
-    await withTransaction((trx) =>
-      applyLifecycle(trx, 'projects', 'p-acme', 'a-studio', 'archive', context)
-    )
-    await assert.rejects(
-      () =>
-        withTransaction((trx) =>
-          applyLifecycle(trx, 'projects', 'p-acme', 'a-studio', 'delete', context)
-        ),
-      /Forbidden/
-    )
-    const stored = await db.from('projects').where('id', 'p-acme').first()
-    assert.isNotNull(stored.archived_at)
-    assert.isNull(stored.deleted_at)
   })
 
   test('keeps a committed write successful when the after-commit log fails', async ({

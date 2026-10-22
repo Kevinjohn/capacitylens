@@ -20,12 +20,12 @@ export default class DataPolicy extends BasePolicy {
     return actor.id.length > 0 && target.accountId.length > 0 && target.capabilities.canWrite
   }
 
-  purge(actor: DataPolicyActor, target: DataPolicyTarget) {
+  anonymise(actor: DataPolicyActor, target: DataPolicyTarget) {
     return (
       actor.id.length > 0 &&
       target.accountId.length > 0 &&
       target.capabilities.canWrite &&
-      target.capabilities.canPurge
+      target.capabilities.canAnonymise
     )
   }
 }

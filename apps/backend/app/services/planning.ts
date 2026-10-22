@@ -79,7 +79,7 @@ async function currentAuthority(
   }
   const capabilities: BatchCapabilities = {
     ...authority,
-    canPurge: !masquerading && can(role, 'purge'),
+    canAnonymise: !masquerading && can(role, 'anonymise'),
   }
   return { authority, capabilities, bouncer }
 }
@@ -206,6 +206,8 @@ export function mutatePlanning(
       mutation_id: input.mutationId,
       actor_id: authority.actorId,
       revision,
+      restoration_group_id: restoration.replacementGroupId,
+      origin_session_id: restoration.replacementGroupId ? ctx.session.sessionId : null,
     })
     const changed = projectionChanges(
       transformState(before, accountId, authority.role),

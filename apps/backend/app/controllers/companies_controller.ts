@@ -8,7 +8,6 @@ import {
   initialCompanyDataContext,
 } from '#services/planning_operations/data_policy'
 import { withTransaction } from '#services/with_transaction'
-import { writeAudit } from '#services/audit'
 import env from '#start/env'
 import { validateEntityRow } from '#validators/entities/index'
 import { cleanText } from '@capacitylens/shared/lib/strings'
@@ -17,11 +16,7 @@ import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color'
 import { timingSafeEqual } from 'node:crypto'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import db from '@adonisjs/lucid/services/db'
-import {
-  assertCompanyAction,
-  IdentityAuthorityError,
-  restrictedCompanyIds,
-} from '#services/auth/authorization'
+import { IdentityAuthorityError, restrictedCompanyIds } from '#services/auth/authorization'
 import { resolveCurrentActor } from '#services/auth/session_authority'
 import {
   AccountCommandError,
@@ -29,7 +24,6 @@ import {
   completeAccountCommand,
   readAccountCommand,
 } from '#services/account_commands'
-import { eraseCompany } from '#services/membership/company_erasure'
 
 function objectBody(body: unknown): body is Record<string, unknown> {
   return body !== null && typeof body === 'object' && !Array.isArray(body)
@@ -280,48 +274,5 @@ export default class CompaniesController {
 
   update(ctx: HttpContext) {
     return this.write(ctx, ctx.params.id, true)
-  }
-
-  async destroy(ctx: HttpContext) {
-    const { response, params, logger } = ctx
-    const accountId = params.id
-    try {
-      const command = readAccountCommand(ctx)
-      await withTransaction(async (trx) => {
-        const actor = await resolveCurrentActor(ctx, trx)
-        const actorId = actor.userId
-        const claim = await claimAccountCommand(trx, {
-          actorId,
-          operation: 'erase-company',
-          accountId,
-          payload: { accountId },
-          command,
-          kind: 'semantic',
-          receiptSurvivesAccountDeletion: true,
-        })
-        if (claim.replayed) return
-        await assertCompanyAction(ctx, accountId, 'deleteAccount', trx, true)
-        await writeAudit(trx, {
-          accountId,
-          actorId,
-          action: 'delete',
-          entity: 'accounts',
-          entityId: accountId,
-          fields: [],
-        })
-        await eraseCompany(accountId, trx, command.commandId)
-        await completeAccountCommand(trx, command.commandId, { accountId, erased: true })
-      })
-    } catch (error) {
-      if (error instanceof AccountCommandError)
-        return response.status(error.status).send({ error: error.message, code: error.code })
-      throw error
-    }
-    try {
-      logger.info({ event: 'capacitylens.company.deleted', accountId })
-    } catch {
-      response.header('x-capacitylens-audit-warning', 'true')
-    }
-    return response.noContent()
   }
 }

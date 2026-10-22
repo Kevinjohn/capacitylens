@@ -120,6 +120,22 @@ export async function restoreGroup(
         'restoration_consumed',
         'This deletion has already been restored.'
       )
+    const origin = await trx
+      .from('planning_mutations')
+      .where({
+        account_id: accountId,
+        actor_id: identity.actorId,
+        origin_session_id: identity.sessionId,
+        restoration_group_id: groupId,
+      })
+      .select('mutation_id')
+      .first()
+    if (origin)
+      throw new PlanningOperationError(
+        409,
+        'restoration_invalidated',
+        'This deletion can no longer be restored.'
+      )
     throw new PlanningOperationError(403, 'authorization_denied', 'This action is not allowed.')
   }
   const saved = await trx

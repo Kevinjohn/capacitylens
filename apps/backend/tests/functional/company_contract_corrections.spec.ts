@@ -24,7 +24,7 @@ test.group('M2b company route compatibility', (group) => {
     })
   })
 
-  test('signed-in identity offers first-company creation and deletion revokes its session', async ({
+  test('signed-in identity offers first-company creation while retaining its session', async ({
     client,
     assert,
   }) => {
@@ -41,11 +41,9 @@ test.group('M2b company route compatibility', (group) => {
     const occupied = await client.get('/api/auth/me').send()
     occupied.assertStatus(200)
     assert.equal(occupied.body().canCreateAccount, false)
-    const deleted = await trusted(client.delete('/api/accounts/a-first')).send()
-    deleted.assertStatus(204)
-    const revoked = await client.get('/api/auth/me').send()
-    revoked.assertStatus(401)
-    assert.equal((revoked.body() as { needsSetup?: boolean }).needsSetup, true)
+    const stillSignedIn = await client.get('/api/auth/me').send()
+    stillSignedIn.assertStatus(200)
+    assert.isNotNull(await db.from('accounts').where('id', 'a-first').first())
   })
 
   test('company creation default only omitted color', async ({ client, assert }) => {

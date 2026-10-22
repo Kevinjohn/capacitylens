@@ -11,7 +11,7 @@ import { effectiveReadPrincipal } from '#services/auth/masquerade'
 export interface BatchCapabilities {
   role: 'owner' | 'admin' | 'editor' | 'viewer'
   canWrite: boolean
-  canPurge: boolean
+  canAnonymise: boolean
   canSeePrivateNames: boolean
   canSeeTimeOffNote: boolean
 }
@@ -22,7 +22,7 @@ export interface BatchDataContext extends BatchCapabilities {
   capabilitiesFor: (accountId: string) => BatchCapabilities
   authorize: (
     accountId: string,
-    action: 'write' | 'purge',
+    action: 'write' | 'anonymise',
     capabilities: BatchCapabilities
   ) => Promise<boolean>
 }
@@ -35,7 +35,7 @@ export function initialCompanyDataContext(
   const capabilities = {
     role: 'owner' as const,
     canWrite: true,
-    canPurge: true,
+    canAnonymise: true,
     canSeePrivateNames: true,
     canSeeTimeOffNote: true,
   }
@@ -80,7 +80,7 @@ export async function dataContextForActor(
     return {
       role,
       canWrite: roles.has(accountId) && can(role, 'write'),
-      canPurge: roles.has(accountId) && can(role, 'purge'),
+      canAnonymise: roles.has(accountId) && can(role, 'anonymise'),
       canSeePrivateNames: roles.has(accountId) && canSeePrivateNames(role),
       canSeeTimeOffNote: roles.has(accountId) && canSeeTimeOffNote(role),
     }

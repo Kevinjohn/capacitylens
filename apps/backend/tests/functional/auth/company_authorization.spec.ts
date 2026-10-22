@@ -66,7 +66,7 @@ test.group('authenticated company administration', (group) => {
     )
   })
 
-  test('current roles gate updates and fresh deletion while preventing additional company creation', async ({
+  test('current roles gate updates while preventing additional company creation', async ({
     client,
     assert,
     cleanup,
@@ -91,7 +91,7 @@ test.group('authenticated company administration', (group) => {
       .json({ email: 'bruce.wayne@wayne.example', password, name: 'Bruce Wayne' })
       .send()
     ownerSignup.assertStatus(201)
-    let ownerCookie = ownerSignup.cookie('adonis-session')!.value
+    const ownerCookie = ownerSignup.cookie('adonis-session')!.value
     const first = await trusted(client.post('/api/orgs'))
       .setup((request) => {
         request.withCookie('adonis-session', ownerCookie)
@@ -143,52 +143,7 @@ test.group('authenticated company administration', (group) => {
       .json({ name: 'Wayne Studio' })
       .send()
     edit.assertStatus(200)
-    const deniedDelete = await trusted(client.delete('/api/accounts/a-studio'))
-      .setup((request) => {
-        request.withCookie('adonis-session', editorCookie)
-      })
-      .send()
-    deniedDelete.assertStatus(403)
-    const ownerSignIn = await trusted(client.post('/api/auth/sign-in'))
-      .json({ email: 'bruce.wayne@wayne.example', password })
-      .send()
-    ownerSignIn.assertStatus(200)
-    ownerCookie = ownerSignIn.cookie('adonis-session')!.value
-    const signedInOwner = await trusted(client.get('/api/auth/me'))
-      .setup((request) => {
-        request.withCookie('adonis-session', ownerCookie)
-      })
-      .send()
-    assert.equal(signedInOwner.status(), 200, JSON.stringify(signedInOwner.body()))
-    const originalNow = Date.now
-    let staleDelete
-    Date.now = () => originalNow() + 16 * 60 * 1000
-    try {
-      staleDelete = await trusted(client.delete('/api/accounts/a-studio'))
-        .setup((request) => {
-          request.withCookie('adonis-session', ownerCookie)
-        })
-        .send()
-    } finally {
-      Date.now = originalNow
-    }
-    assert.equal(staleDelete.status(), 403, JSON.stringify(staleDelete.body()))
-    assert.equal((staleDelete.body() as { code?: string }).code, 'SESSION_NOT_FRESH')
     assert.isNotNull(await db.from('accounts').where('id', 'a-studio').first())
-    const refreshedOwner = await trusted(client.post('/api/auth/sign-in'))
-      .json({ email: 'bruce.wayne@wayne.example', password })
-      .send()
-    refreshedOwner.assertStatus(200)
-    ownerCookie = refreshedOwner.cookie('adonis-session')!.value
-    const deleted = await trusted(client.delete('/api/accounts/a-studio'))
-      .setup((request) => {
-        request.withCookie('adonis-session', ownerCookie)
-      })
-      .send()
-    deleted.assertStatus(204)
-    assert.isNull(await db.from('accounts').where('id', 'a-studio').first())
-    assert.lengthOf(await db.from('clients').where('account_id', 'a-studio'), 0)
-    assert.lengthOf(await db.from('memberships').where('account_id', 'a-studio'), 0)
   })
 
   test('failed Owner insert leaves no company, Internal client or audit', async ({

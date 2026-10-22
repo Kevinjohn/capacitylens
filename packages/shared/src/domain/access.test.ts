@@ -31,8 +31,7 @@ const ACTIONS = [
   "manageInvites",
   "masquerade",
   "manageMemberSignInTracking",
-  "purge",
-  "deleteAccount",
+  "anonymise",
   "transferOwnership",
   "actOnOwnershipTransfer",
 ] as const satisfies readonly Action[];
@@ -47,8 +46,7 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
     manageInvites: true,
     manageMemberSignInTracking: true,
     masquerade: true,
-    purge: true,
-    deleteAccount: true,
+    anonymise: true,
     transferOwnership: true,
     actOnOwnershipTransfer: true,
   },
@@ -60,8 +58,7 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
     manageInvites: true,
     manageMemberSignInTracking: false,
     masquerade: true,
-    purge: true,
-    deleteAccount: false,
+    anonymise: true,
     transferOwnership: false,
     actOnOwnershipTransfer: true,
   },
@@ -73,8 +70,7 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
     manageInvites: false,
     manageMemberSignInTracking: false,
     masquerade: false,
-    purge: false,
-    deleteAccount: false,
+    anonymise: false,
     transferOwnership: false,
     actOnOwnershipTransfer: false,
   },
@@ -86,8 +82,7 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
     manageInvites: false,
     manageMemberSignInTracking: false,
     masquerade: false,
-    purge: false,
-    deleteAccount: false,
+    anonymise: false,
     transferOwnership: false,
     actOnOwnershipTransfer: false,
   },
@@ -101,8 +96,8 @@ function expectEditableRolePrecondition(actor: Role, target: Role, next: Role): 
 
 describe("can(role, action) — the pure access matrix", () => {
   // Pin the action-list cardinality and reject duplicates; the EXPECTED record supplies compile-time Action coverage.
-  it("iterates exactly the Action union (11 actions, no more, no fewer)", () => {
-    expect(ACTIONS.length).toBe(11);
+  it("iterates exactly the Action union (10 actions, no more, no fewer)", () => {
+    expect(ACTIONS.length).toBe(10);
     expect(new Set(ACTIONS).size).toBe(ACTIONS.length);
   });
 
@@ -127,7 +122,6 @@ describe("CapacityLens/account-policy ownership seam", () => {
     manageMembers: "manage-members",
     manageInvites: "manage-invitations",
     masquerade: "masquerade-member",
-    deleteAccount: "erase-workspace",
     transferOwnership: "transfer-ownership",
     actOnOwnershipTransfer: "act-on-ownership-transfer",
   } as const;
