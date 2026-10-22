@@ -695,7 +695,7 @@ export class PhaseSchema extends BaseModel {
 }
 
 export class PlanningMutationSchema extends BaseModel {
-  static $columns = ['accountId', 'actorId', 'mutationId', 'revision'] as const
+  static $columns = ['accountId', 'actorId', 'mutationId', 'originSessionId', 'restorationGroupId', 'revision'] as const
   $columns = PlanningMutationSchema.$columns
   @column({ isPrimary: true })
   declare accountId: string
@@ -703,6 +703,10 @@ export class PlanningMutationSchema extends BaseModel {
   declare actorId: string
   @column()
   declare mutationId: string
+  @column()
+  declare originSessionId: string | null
+  @column()
+  declare restorationGroupId: string | null
   @column()
   declare revision: number
 }
