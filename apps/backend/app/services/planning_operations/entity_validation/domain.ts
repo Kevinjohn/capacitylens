@@ -25,7 +25,7 @@ import type {
   Resource,
   TimeOff,
 } from '@capacitylens/shared/types/entities'
-import { BatchRequestError } from '#services/batch/errors'
+import { BatchRequestError } from '#services/planning_operations/errors'
 import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations'
 
 /** Enforce relational and lifecycle rules against the transaction's evolving projection. */

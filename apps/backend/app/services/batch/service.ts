@@ -2,22 +2,22 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { archive } from '@capacitylens/shared/domain/lifecycle'
 import { encodeRow, readStateWithClient } from '#services/state_repository'
 import { writeAudit } from '#services/audit'
-import { BatchRequestError } from '#services/batch/errors'
+import { BatchRequestError } from '#services/planning_operations/errors'
 import {
   isLifecycle,
   isScoped,
   prepareEntityWrite,
   TABLE_NAMES,
-} from '#services/batch/entity_policy'
+} from '#services/planning_operations/entity_policy'
 import { isSameSessionSuccessor, isSuperseded, recordSync } from '#services/batch/sync_ordering'
 import type { BatchOp, BatchRevision, SyncOrder } from '#services/batch/types'
-import type { BatchDataContext } from '#services/batch/data_policy'
-import { createServerRevision } from '#services/batch/revision'
+import type { BatchDataContext } from '#services/planning_operations/data_policy'
+import { createServerRevision } from '#services/planning_operations/revision'
 import { BatchStateProjection } from '#services/batch/projection'
 import { allocationAttributionAllowed } from '@capacitylens/shared/lib/integrity'
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 import { redactPrivateName } from '@capacitylens/shared/domain/privateNames'
-import type { BatchCapabilities } from '#services/batch/data_policy'
+import type { BatchCapabilities } from '#services/planning_operations/data_policy'
 import { APP_DATA_KEYS, emptyAppData } from '@capacitylens/shared/types/entities'
 import type { AppData } from '@capacitylens/shared/types/entities'
 import {

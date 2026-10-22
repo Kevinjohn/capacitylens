@@ -4,7 +4,7 @@ import { Bouncer } from '@adonisjs/bouncer'
 import DataPolicy from '#policies/data_policy'
 import { activeCompanyRole } from '#services/auth/authorization'
 import { effectiveReadPrincipal, activeMasquerade } from '#services/auth/masquerade'
-import type { BatchCapabilities } from '#services/batch/data_policy'
+import type { BatchCapabilities } from '#services/planning_operations/data_policy'
 import { can, canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access'
 import type { Role } from '@capacitylens/shared/account/types'
 import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities'
@@ -127,7 +127,6 @@ function projectionChanges(before: AppData, after: AppData) {
 }
 
 function requiresRefetch(intent: PlanningMutationInput['intent']) {
-  if (intent.operation === 'settings.update') return true
   if (intent.operation === 'catalogue.update' && 'changes' in intent.entity)
     return (
       Object.hasOwn(intent.entity.changes, 'isPrivate') ||
@@ -135,6 +134,24 @@ function requiresRefetch(intent: PlanningMutationInput['intent']) {
       (intent.entity.entity === 'activities' && Object.hasOwn(intent.entity.changes, 'kind'))
     )
   return false
+}
+
+function invalidatesRestoration(
+  intent: PlanningMutationInput['intent'],
+  before: AppData,
+  after: AppData
+) {
+  if (intent.operation !== 'catalogue.update') return false
+  const { entity, id, changes } = intent.entity
+  if (entity !== 'clients' && entity !== 'projects' && entity !== 'activities') return false
+  const fields = entity === 'activities' ? ['kind'] : ['isPrivate', 'codeName']
+  const oldRow = before[entity].find((row) => row.id === id)
+  const newRow = after[entity].find((row) => row.id === id)
+  return fields.some(
+    (field) =>
+      Object.hasOwn(changes, field) &&
+      oldRow?.[field as keyof typeof oldRow] !== newRow?.[field as keyof typeof newRow]
+  )
 }
 
 /** Commits one deliberate operation, its revision, audit entry and identity as one atomic unit. */
@@ -179,6 +196,10 @@ export function mutatePlanning(
         'no_change',
         'The operation does not change planning data.'
       )
+    // Private names and activity kind can change what a saved before-image may safely reveal.
+    // A restoration group is valid only until one of those fields actually changes.
+    if (invalidatesRestoration(input.intent, before, after))
+      await trx.from('deleted_groups').where('account_id', accountId).delete()
     const revision = await advancePlanningRevision(trx, accountId)
     await trx.table('planning_mutations').insert({
       account_id: accountId,

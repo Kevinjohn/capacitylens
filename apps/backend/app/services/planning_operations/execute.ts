@@ -10,14 +10,19 @@ import {
   unarchive,
 } from '@capacitylens/shared/domain/lifecycle'
 import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities'
-import { BatchRequestError } from '#services/batch/errors'
-import { createServerRevision } from '#services/batch/revision'
+import { BatchRequestError } from '#services/planning_operations/errors'
+import { createServerRevision } from '#services/planning_operations/revision'
 import { encodeRow } from '#services/state_repository'
-import { TABLE_NAMES } from '#services/batch/entity_policy'
+import { TABLE_NAMES } from '#services/planning_operations/entity_policy'
 import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning_operations'
-import type { BatchCapabilities } from '#services/batch/data_policy'
+import type { BatchCapabilities } from '#services/planning_operations/data_policy'
 import { existingRow, PlanningOperationError, updateSettings, writeRow } from './writer.js'
-import { deleteAllocations, restoreGroup, type RestorationIdentity } from './restoration.js'
+import {
+  deleteAllocations,
+  deleteRows,
+  restoreGroup,
+  type RestorationIdentity,
+} from './restoration.js'
 export { PlanningOperationError } from './writer.js'
 
 type LifecycleTable = Extract<AppDataKey, 'clients' | 'projects' | 'resources' | 'activities'>
@@ -236,6 +241,17 @@ export async function executePlanningIntent(
           intent.operation === 'catalogue.archive' ? 'archive' : 'unarchive'
         )
         return unchanged
+      case 'catalogue.delete': {
+        const groupId = await deleteRows(
+          trx,
+          data,
+          accountId,
+          intent.entity.entity,
+          [intent.entity.id],
+          identity
+        )
+        return { consumedGroupId: null, replacementGroupId: groupId }
+      }
       case 'resource.create':
       case 'resource.update':
         await writeRow(
@@ -288,6 +304,12 @@ export async function executePlanningIntent(
         for (const entry of intent.entries)
           await writeRow(trx, data, accountId, 'timeOff', entry.id, entry, capabilities, 'create')
         return unchanged
+      case 'timeOff.delete':
+      case 'timeOff.deleteGroup': {
+        const ids = intent.operation === 'timeOff.delete' ? [intent.id] : intent.ids
+        const groupId = await deleteRows(trx, data, accountId, 'timeOff', ids, identity)
+        return { consumedGroupId: null, replacementGroupId: groupId }
+      }
       case 'closure.create':
       case 'closure.update':
         await writeRow(
@@ -301,6 +323,10 @@ export async function executePlanningIntent(
           intent.operation === 'closure.create' ? 'create' : 'update'
         )
         return unchanged
+      case 'closure.delete': {
+        const groupId = await deleteRows(trx, data, accountId, 'closures', [intent.id], identity)
+        return { consumedGroupId: null, replacementGroupId: groupId }
+      }
       case 'settings.update':
         await updateSettings(trx, data, accountId, intent.changes, capabilities)
         return unchanged

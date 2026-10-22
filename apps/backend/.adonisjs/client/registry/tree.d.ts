@@ -25,11 +25,14 @@ export interface ApiDefinition {
       timeOff: {
         create: typeof routes['api.planning.timeOff.create']
         update: typeof routes['api.planning.timeOff.update']
+        delete: typeof routes['api.planning.timeOff.delete']
+        deleteGroup: typeof routes['api.planning.timeOff.deleteGroup']
         repeat: typeof routes['api.planning.timeOff.repeat']
       }
       closure: {
         create: typeof routes['api.planning.closure.create']
         update: typeof routes['api.planning.closure.update']
+        delete: typeof routes['api.planning.closure.delete']
       }
       client: {
         create: typeof routes['api.planning.client.create']
@@ -52,10 +55,12 @@ export interface ApiDefinition {
       phase: {
         create: typeof routes['api.planning.phase.create']
         update: typeof routes['api.planning.phase.update']
+        delete: typeof routes['api.planning.phase.delete']
       }
       discipline: {
         create: typeof routes['api.planning.discipline.create']
         update: typeof routes['api.planning.discipline.update']
+        delete: typeof routes['api.planning.discipline.delete']
       }
       settings: {
         update: typeof routes['api.planning.settings.update']

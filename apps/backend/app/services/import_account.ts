@@ -4,10 +4,10 @@ import type { AppData } from '@capacitylens/shared/types/entities'
 import { APP_DATA_KEYS, SCOPED_KEYS } from '@capacitylens/shared/types/entities'
 import { remapAndValidateImport } from '@capacitylens/shared/domain/importFold'
 import { encodeRow, readState, readStateWithClient } from '#services/state_repository'
-import { TABLE_NAMES } from '#services/batch/entity_policy'
+import { TABLE_NAMES } from '#services/planning_operations/entity_policy'
 import { validateEntityRow } from '#validators/entities/index'
 import { writeAudit } from '#services/audit'
-import { BatchRequestError } from '#services/batch/errors'
+import { BatchRequestError } from '#services/planning_operations/errors'
 import { advancePlanningRevision } from '#services/planning_revision'
 
 const INSERT_ORDER = [

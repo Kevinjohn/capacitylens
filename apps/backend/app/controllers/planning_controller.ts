@@ -6,7 +6,7 @@ import {
   lookupPlanningMutation,
   validatePlanningMutationId,
 } from '#services/planning'
-import { BatchRequestError } from '#services/batch/errors'
+import { BatchRequestError } from '#services/planning_operations/errors'
 import { PlanningOperationError } from '#services/planning_operations/execute'
 import { SessionAuthorityError } from '#services/auth/session_authority'
 import { IdentityAuthorityError } from '#services/auth/authorization'
@@ -253,6 +253,26 @@ export default class PlanningController {
     }
   }
 
+  async timeOffDelete(ctx: HttpContext) {
+    try {
+      const input = await ctx.request.validateUsing(timeOffMutationValidator)
+      return await this.execute(ctx, input, 'timeOff.delete')
+    } catch (error) {
+      const failure = refusal(error)
+      return ctx.response.status(failure.status).send(failure.body)
+    }
+  }
+
+  async timeOffDeleteGroup(ctx: HttpContext) {
+    try {
+      const input = await ctx.request.validateUsing(timeOffMutationValidator)
+      return await this.execute(ctx, input, 'timeOff.deleteGroup')
+    } catch (error) {
+      const failure = refusal(error)
+      return ctx.response.status(failure.status).send(failure.body)
+    }
+  }
+
   async timeOffRepeat(ctx: HttpContext) {
     try {
       const input = await ctx.request.validateUsing(timeOffMutationValidator)
@@ -277,6 +297,16 @@ export default class PlanningController {
     try {
       const input = await ctx.request.validateUsing(closureMutationValidator)
       return await this.execute(ctx, input, 'closure.update')
+    } catch (error) {
+      const failure = refusal(error)
+      return ctx.response.status(failure.status).send(failure.body)
+    }
+  }
+
+  async closureDelete(ctx: HttpContext) {
+    try {
+      const input = await ctx.request.validateUsing(closureMutationValidator)
+      return await this.execute(ctx, input, 'closure.delete')
     } catch (error) {
       const failure = refusal(error)
       return ctx.response.status(failure.status).send(failure.body)
@@ -433,6 +463,16 @@ export default class PlanningController {
     }
   }
 
+  async phaseDelete(ctx: HttpContext) {
+    try {
+      const input = await ctx.request.validateUsing(catalogueMutationValidator)
+      return await this.execute(ctx, input, 'catalogue.delete', 'phases')
+    } catch (error) {
+      const failure = refusal(error)
+      return ctx.response.status(failure.status).send(failure.body)
+    }
+  }
+
   async disciplineCreate(ctx: HttpContext) {
     try {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
@@ -447,6 +487,16 @@ export default class PlanningController {
     try {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.update', 'disciplines')
+    } catch (error) {
+      const failure = refusal(error)
+      return ctx.response.status(failure.status).send(failure.body)
+    }
+  }
+
+  async disciplineDelete(ctx: HttpContext) {
+    try {
+      const input = await ctx.request.validateUsing(catalogueMutationValidator)
+      return await this.execute(ctx, input, 'catalogue.delete', 'disciplines')
     } catch (error) {
       const failure = refusal(error)
       return ctx.response.status(failure.status).send(failure.body)

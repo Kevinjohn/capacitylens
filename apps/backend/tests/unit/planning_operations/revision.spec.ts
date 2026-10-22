@@ -1,7 +1,7 @@
 import { test } from '@japa/runner'
-import { createServerRevision } from '#services/batch/revision'
+import { createServerRevision } from '#services/planning_operations/revision'
 
-test.group('batch server revisions', () => {
+test.group('planning operation server revisions', () => {
   const now = Date.parse('2026-07-29T12:00:00.000Z')
 
   test('advances a canonical timestamp by one millisecond when the clock is behind', ({

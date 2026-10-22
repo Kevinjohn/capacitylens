@@ -10,7 +10,7 @@ import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
 import { withTransaction } from '#services/with_transaction'
 import { applyLifecycle } from '#services/lifecycle'
-import { initialCompanyDataContext } from '#services/batch/data_policy'
+import { initialCompanyDataContext } from '#services/planning_operations/data_policy'
 import { interceptChildLoggers } from '../../helpers/logger.js'
 
 interface RawResponse {

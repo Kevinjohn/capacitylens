@@ -151,6 +151,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffUpdate']>>>
     }
   }
+  'api.planning.timeOff.delete': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/time-off/:id/delete'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffDelete']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffDelete']>>>
+    }
+  }
+  'api.planning.timeOff.deleteGroup': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/time-off/delete-group'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
+      paramsTuple: [ParamValue]
+      params: { accountId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').timeOffMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffDeleteGroup']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['timeOffDeleteGroup']>>>
+    }
+  }
   'api.planning.closure.create': {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/closures'
@@ -173,6 +197,18 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').closureMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureUpdate']>>>
+    }
+  }
+  'api.planning.closure.delete': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/closures/:id/delete'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').closureMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').closureMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureDelete']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['closureDelete']>>>
     }
   }
   'api.planning.client.create': {
@@ -343,6 +379,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseUpdate']>>>
     }
   }
+  'api.planning.phase.delete': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/phases/:id/delete'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseDelete']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['phaseDelete']>>>
+    }
+  }
   'api.planning.discipline.create': {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/disciplines'
@@ -365,6 +413,18 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineUpdate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineUpdate']>>>
+    }
+  }
+  'api.planning.discipline.delete': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/disciplines/:id/delete'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').catalogueMutationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineDelete']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['disciplineDelete']>>>
     }
   }
   'api.planning.resource.archive': {

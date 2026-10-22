@@ -3,7 +3,7 @@ import type { Allocation, AppData, AppDataKey } from '@capacitylens/shared/types
 import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays'
 import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations'
 import { withoutAllocationAttribution } from '@capacitylens/shared/lib/integrity'
-import { createServerRevision } from '#services/batch/revision'
+import { createServerRevision } from '#services/planning_operations/revision'
 
 interface RewrittenAllocationRevision {
   id: string

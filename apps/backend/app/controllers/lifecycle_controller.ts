@@ -1,9 +1,9 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { withTransaction } from '#services/with_transaction'
 import { applyLifecycle } from '#services/lifecycle'
-import { BatchRequestError } from '#services/batch/errors'
+import { BatchRequestError } from '#services/planning_operations/errors'
 import { LifecycleTransitionError } from '@capacitylens/shared/domain/lifecycle'
-import { dataContextForActor } from '#services/batch/data_policy'
+import { dataContextForActor } from '#services/planning_operations/data_policy'
 import { lifecycleValidator } from '#validators/lifecycle'
 import { assertCompanyAction } from '#services/auth/authorization'
 

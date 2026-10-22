@@ -33,9 +33,10 @@ async function send(
   url: string,
   baseRevision: number,
   intent: Record<string, unknown>,
-  mutationId: string = randomUUID()
+  mutationId: string = randomUUID(),
+  method: 'post' | 'patch' = 'post'
 ) {
-  const response = await session(client.post(url), cookie)
+  const response = await session(method === 'post' ? client.post(url) : client.patch(url), cookie)
     .json({ mutationId, baseRevision, intent })
     .send()
   // The new routes are untyped until the registry is regenerated; only these reply fields are read.
@@ -531,5 +532,297 @@ test.group('session-bound allocation restoration', (suite) => {
     assert.equal(wrongOperation.body().code, 'validation_error')
     assert.deepEqual(await readState(accountId, true), before)
     assert.lengthOf(await markers(), 1)
+  })
+})
+
+test.group('typed catalogue and time-off restoration', (suite) => {
+  suite.setup(() => freshDatabase())
+  suite.each.setup(async () => {
+    await resetPlanningFixture()
+  })
+
+  test('discipline deletion nulls resource links and restores only those links', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup)
+    const { cookie } = await signIn(client)
+    const before = await readState(accountId, true)
+    const resource = before.resources.find((row) => row.disciplineId !== null)!
+    const disciplineId = resource.disciplineId!
+    const deleted = await send(
+      client,
+      cookie,
+      `/api/accounts/${accountId}/disciplines/${disciplineId}/delete`,
+      0,
+      {
+        operation: 'catalogue.delete',
+        entity: { entity: 'disciplines', id: disciplineId },
+      }
+    )
+    deleted.assertStatus(200)
+    const afterDelete = await readState(accountId, true)
+    assert.isNull(afterDelete.resources.find((row) => row.id === resource.id)?.disciplineId)
+    await db.from('resources').where('id', resource.id).update({ role: 'Updated Gotham role' })
+    const restored = await restore(client, cookie, deleted.body().restoration.replacementGroupId, 1)
+    restored.assertStatus(200)
+    const after = await readState(accountId, true)
+    assert.equal(after.resources.find((row) => row.id === resource.id)?.disciplineId, disciplineId)
+    assert.equal(after.resources.find((row) => row.id === resource.id)?.role, 'Updated Gotham role')
+  })
+
+  test('phase deletion nulls activity links and refuses a changed project without consuming the group', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup)
+    const { cookie } = await signIn(client)
+    const before = await readState(accountId, true)
+    const activity = before.activities.find((row) => row.phaseId !== null)!
+    const phaseId = activity.phaseId!
+    const deleted = await send(
+      client,
+      cookie,
+      `/api/accounts/${accountId}/phases/${phaseId}/delete`,
+      0,
+      {
+        operation: 'catalogue.delete',
+        entity: { entity: 'phases', id: phaseId },
+      }
+    )
+    deleted.assertStatus(200)
+    const groupId = deleted.body().restoration.replacementGroupId
+    const afterDelete = await readState(accountId, true)
+    assert.isNull(afterDelete.activities.find((row) => row.id === activity.id)?.phaseId)
+    const otherProject = before.projects.find((row) => row.id !== activity.projectId)!
+    await db.from('activities').where('id', activity.id).update({ project_id: otherProject.id })
+    const refused = await restore(client, cookie, groupId, 1)
+    refused.assertStatus(409)
+    assert.isNull(await consumedAt(groupId))
+    const afterRefusal = await readState(accountId, true)
+    assert.isUndefined(afterRefusal.phases.find((row) => row.id === phaseId))
+    await db
+      .from('activities')
+      .where('id', activity.id)
+      .update({ project_id: activity.projectId, name: 'Gotham review' })
+    const restored = await restore(client, cookie, groupId, 1)
+    restored.assertStatus(200)
+    const after = await readState(accountId, true)
+    assert.equal(after.activities.find((row) => row.id === activity.id)?.phaseId, phaseId)
+    assert.equal(after.activities.find((row) => row.id === activity.id)?.name, 'Gotham review')
+  })
+
+  test('time-off subset deletion keeps other rows and restores a hidden note without exposing it', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup)
+    const { cookie } = await signIn(client, 'editor')
+    const before = await readState(accountId, true)
+    const resourceId = before.resources.find((row) => row.kind === 'person')!.id
+    const ids: string[] = [randomUUID(), randomUUID(), randomUUID()]
+    for (const id of ids)
+      await db.table('time_off').insert(
+        encodeRow('time_off', {
+          id,
+          accountId,
+          resourceId,
+          startDate: '2026-11-02',
+          endDate: '2026-11-02',
+          type: 'holiday',
+          note: 'Gotham private note',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })
+      )
+    const deleted = await send(
+      client,
+      cookie,
+      `/api/accounts/${accountId}/time-off/delete-group`,
+      0,
+      { operation: 'timeOff.deleteGroup', ids: ids.slice(0, 2) }
+    )
+    deleted.assertStatus(200)
+    assert.notInclude(deleted.text(), 'Gotham private note')
+    const afterDelete = await readState(accountId, true)
+    assert.deepEqual(
+      afterDelete.timeOff.filter((row) => ids.includes(row.id)).map((row) => row.id),
+      [ids[2]]
+    )
+    const restored = await restore(client, cookie, deleted.body().restoration.replacementGroupId, 1)
+    restored.assertStatus(200)
+    assert.notInclude(restored.text(), 'Gotham private note')
+    const afterRestore = await readState(accountId, true)
+    assert.sameMembers(
+      afterRestore.timeOff.filter((row) => ids.includes(row.id)).map((row) => row.id),
+      ids
+    )
+    assert.equal(afterRestore.timeOff.find((row) => row.id === ids[0])?.note, 'Gotham private note')
+  })
+
+  test('closure deletion restores the same stored row and consumes its handle once', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup)
+    const { cookie } = await signIn(client)
+    const id = randomUUID()
+    const created = await send(client, cookie, `/api/accounts/${accountId}/closures`, 0, {
+      operation: 'closure.create',
+      id,
+      fields: { name: 'Gotham holiday', startDate: '2026-11-02', endDate: '2026-11-02' },
+    })
+    created.assertStatus(200)
+    const afterCreate = await readState(accountId, true)
+    const closure = afterCreate.closures.find((row) => row.id === id)!
+    const deleted = await send(
+      client,
+      cookie,
+      `/api/accounts/${accountId}/closures/${id}/delete`,
+      1,
+      {
+        operation: 'closure.delete',
+        id,
+      }
+    )
+    deleted.assertStatus(200)
+    const afterDelete = await readState(accountId, true)
+    assert.isUndefined(afterDelete.closures.find((row) => row.id === id))
+    const groupId = deleted.body().restoration.replacementGroupId
+    const restored = await restore(client, cookie, groupId, 2)
+    restored.assertStatus(200)
+    const afterRestore = await readState(accountId, true)
+    assert.deepEqual(
+      afterRestore.closures.find((row) => row.id === id),
+      closure
+    )
+    const again = await restore(client, cookie, groupId, 3)
+    again.assertStatus(409)
+  })
+
+  test('only an actual private-name change clears this company’s pending groups', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup)
+    const { cookie } = await signIn(client)
+    const [allocationId] = await createAllocations(client, cookie, 1)
+    const deleted = await deleteOne(client, cookie, allocationId!, 1)
+    deleted.assertStatus(200)
+    const groupId = deleted.body().restoration.replacementGroupId
+    const before = await readState(accountId, true)
+    const target = before.projects.find((row) => !row.isPrivate)!
+    const foreignGroup = randomUUID()
+    await db.table('deleted_groups').insert({
+      group_id: foreignGroup,
+      account_id: 'a-loft',
+      actor_id: 'other-actor',
+      session_id: 'other-session',
+      mutation_id: randomUUID(),
+      created_at: new Date().toISOString(),
+      consumed_at: null,
+    })
+    const settings = await send(
+      client,
+      cookie,
+      `/api/accounts/${accountId}/settings`,
+      2,
+      {
+        operation: 'settings.update',
+        changes: { dateStyle: 'month-day' },
+      },
+      randomUUID(),
+      'patch'
+    )
+    settings.assertStatus(200)
+    assert.isDefined(await group(groupId))
+    const ordinary = await send(
+      client,
+      cookie,
+      `/api/accounts/${accountId}/projects/${target.id}`,
+      3,
+      {
+        operation: 'catalogue.update',
+        entity: {
+          entity: 'projects',
+          id: target.id,
+          changes: { name: 'Gotham review', codeName: target.codeName },
+        },
+      },
+      randomUUID(),
+      'patch'
+    )
+    ordinary.assertStatus(200)
+    assert.isDefined(await group(groupId))
+    const changed = await send(
+      client,
+      cookie,
+      `/api/accounts/${accountId}/projects/${target.id}`,
+      4,
+      {
+        operation: 'catalogue.update',
+        entity: {
+          entity: 'projects',
+          id: target.id,
+          changes: { isPrivate: true, codeName: 'Gotham confidential' },
+        },
+      },
+      randomUUID(),
+      'patch'
+    )
+    changed.assertStatus(200)
+    assert.isNull(await group(groupId))
+    assert.isDefined(await group(foreignGroup))
+  })
+
+  test('a failed privacy transaction retains its data and restoration group', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup)
+    const { cookie } = await signIn(client)
+    const [allocationId] = await createAllocations(client, cookie, 1)
+    const deleted = await deleteOne(client, cookie, allocationId!, 1)
+    deleted.assertStatus(200)
+    const groupId = deleted.body().restoration.replacementGroupId
+    const before = await readState(accountId, true)
+    const target = before.projects.find((row) => !row.isPrivate)!
+    await db.rawQuery(
+      "CREATE TRIGGER reject_privacy_commit BEFORE INSERT ON planning_mutations BEGIN SELECT RAISE(ABORT, 'test rejection'); END"
+    )
+    try {
+      const refused = await send(
+        client,
+        cookie,
+        `/api/accounts/${accountId}/projects/${target.id}`,
+        2,
+        {
+          operation: 'catalogue.update',
+          entity: {
+            entity: 'projects',
+            id: target.id,
+            changes: { isPrivate: true, codeName: 'Gotham confidential' },
+          },
+        },
+        randomUUID(),
+        'patch'
+      )
+      refused.assertStatus(500)
+      assert.isDefined(await group(groupId))
+      const afterRefusal = await readState(accountId, true)
+      assert.equal(
+        afterRefusal.projects.find((row) => row.id === target.id)?.codeName,
+        target.codeName
+      )
+      assert.equal(await currentRevision(client, cookie), 2)
+    } finally {
+      await db.rawQuery('DROP TRIGGER reject_privacy_commit')
+    }
   })
 })

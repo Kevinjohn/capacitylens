@@ -19,11 +19,11 @@ import { DomainError } from '@capacitylens/shared/domain/errors'
 import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl'
 import { fillNullableFields } from '@capacitylens/shared/types/nullableFields'
 import { validateEntityRow, requiredFields } from '#validators/entities/index'
-import { assertEntityDomain } from '#services/batch/entity_validation/domain'
-import { normalizeValidWrite } from '#services/batch/entity_validation/normalization'
-import { BatchRequestError } from '#services/batch/errors'
-import { createServerRevision } from '#services/batch/revision'
-import type { BatchCapabilities } from '#services/batch/data_policy'
+import { assertEntityDomain } from '#services/planning_operations/entity_validation/domain'
+import { normalizeValidWrite } from '#services/planning_operations/entity_validation/normalization'
+import { BatchRequestError } from '#services/planning_operations/errors'
+import { createServerRevision } from '#services/planning_operations/revision'
+import type { BatchCapabilities } from '#services/planning_operations/data_policy'
 
 export const TABLE_NAMES = {
   accounts: 'accounts',

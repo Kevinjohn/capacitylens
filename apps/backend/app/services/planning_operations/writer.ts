@@ -9,10 +9,10 @@ import {
 } from '@capacitylens/shared/lib/effectiveWorkingWeek'
 import { cleanText } from '@capacitylens/shared/lib/strings'
 import { encodeRow } from '#services/state_repository'
-import { prepareEntityWrite, TABLE_NAMES } from '#services/batch/entity_policy'
-import { createServerRevision } from '#services/batch/revision'
+import { prepareEntityWrite, TABLE_NAMES } from '#services/planning_operations/entity_policy'
+import { createServerRevision } from '#services/planning_operations/revision'
 import { validateEntityRow } from '#validators/entities/index'
-import type { BatchCapabilities } from '#services/batch/data_policy'
+import type { BatchCapabilities } from '#services/planning_operations/data_policy'
 
 /** A safe refusal whose caller must roll back the enclosing planning transaction. */
 export class PlanningOperationError extends Error {

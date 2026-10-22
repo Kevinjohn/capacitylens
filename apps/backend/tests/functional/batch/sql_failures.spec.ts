@@ -4,7 +4,7 @@ import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import HttpExceptionHandler from '#exceptions/handler'
 import { applyBatch } from '#services/batch/service'
-import { initialCompanyDataContext } from '#services/batch/data_policy'
+import { initialCompanyDataContext } from '#services/planning_operations/data_policy'
 import { readStateWithClient, replaceWithSeed } from '#services/state_repository'
 import { withTransaction } from '#services/with_transaction'
 

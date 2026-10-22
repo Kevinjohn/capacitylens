@@ -8,7 +8,7 @@ import {
   PlanningOperationError,
 } from '#services/planning_operations/execute'
 import type { PlanningIntent } from '#validators/planning_operations'
-import type { BatchCapabilities } from '#services/batch/data_policy'
+import type { BatchCapabilities } from '#services/planning_operations/data_policy'
 
 const owner: BatchCapabilities = {
   role: 'owner',

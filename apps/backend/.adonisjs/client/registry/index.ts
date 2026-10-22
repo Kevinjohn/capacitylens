@@ -78,6 +78,18 @@ const routes = {
     tokens: [{"old":"/api/accounts/:accountId/time-off/:id","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/time-off/:id","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/time-off/:id","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/time-off/:id","type":0,"val":"time-off","end":""},{"old":"/api/accounts/:accountId/time-off/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['api.planning.timeOff.update']['types'],
   },
+  'api.planning.timeOff.delete': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/time-off/:id/delete',
+    tokens: [{"old":"/api/accounts/:accountId/time-off/:id/delete","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/time-off/:id/delete","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/time-off/:id/delete","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/time-off/:id/delete","type":0,"val":"time-off","end":""},{"old":"/api/accounts/:accountId/time-off/:id/delete","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/time-off/:id/delete","type":0,"val":"delete","end":""}],
+    types: placeholder as Registry['api.planning.timeOff.delete']['types'],
+  },
+  'api.planning.timeOff.deleteGroup': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/time-off/delete-group',
+    tokens: [{"old":"/api/accounts/:accountId/time-off/delete-group","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/time-off/delete-group","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/time-off/delete-group","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/time-off/delete-group","type":0,"val":"time-off","end":""},{"old":"/api/accounts/:accountId/time-off/delete-group","type":0,"val":"delete-group","end":""}],
+    types: placeholder as Registry['api.planning.timeOff.deleteGroup']['types'],
+  },
   'api.planning.closure.create': {
     methods: ["POST"],
     pattern: '/api/accounts/:accountId/closures',
@@ -89,6 +101,12 @@ const routes = {
     pattern: '/api/accounts/:accountId/closures/:id',
     tokens: [{"old":"/api/accounts/:accountId/closures/:id","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/closures/:id","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/closures/:id","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/closures/:id","type":0,"val":"closures","end":""},{"old":"/api/accounts/:accountId/closures/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['api.planning.closure.update']['types'],
+  },
+  'api.planning.closure.delete': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/closures/:id/delete',
+    tokens: [{"old":"/api/accounts/:accountId/closures/:id/delete","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/closures/:id/delete","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/closures/:id/delete","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/closures/:id/delete","type":0,"val":"closures","end":""},{"old":"/api/accounts/:accountId/closures/:id/delete","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/closures/:id/delete","type":0,"val":"delete","end":""}],
+    types: placeholder as Registry['api.planning.closure.delete']['types'],
   },
   'api.planning.client.create': {
     methods: ["POST"],
@@ -174,6 +192,12 @@ const routes = {
     tokens: [{"old":"/api/accounts/:accountId/phases/:id","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/phases/:id","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/phases/:id","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/phases/:id","type":0,"val":"phases","end":""},{"old":"/api/accounts/:accountId/phases/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['api.planning.phase.update']['types'],
   },
+  'api.planning.phase.delete': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/phases/:id/delete',
+    tokens: [{"old":"/api/accounts/:accountId/phases/:id/delete","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/phases/:id/delete","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/phases/:id/delete","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/phases/:id/delete","type":0,"val":"phases","end":""},{"old":"/api/accounts/:accountId/phases/:id/delete","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/phases/:id/delete","type":0,"val":"delete","end":""}],
+    types: placeholder as Registry['api.planning.phase.delete']['types'],
+  },
   'api.planning.discipline.create': {
     methods: ["POST"],
     pattern: '/api/accounts/:accountId/disciplines',
@@ -185,6 +209,12 @@ const routes = {
     pattern: '/api/accounts/:accountId/disciplines/:id',
     tokens: [{"old":"/api/accounts/:accountId/disciplines/:id","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/disciplines/:id","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/disciplines/:id","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/disciplines/:id","type":0,"val":"disciplines","end":""},{"old":"/api/accounts/:accountId/disciplines/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['api.planning.discipline.update']['types'],
+  },
+  'api.planning.discipline.delete': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/disciplines/:id/delete',
+    tokens: [{"old":"/api/accounts/:accountId/disciplines/:id/delete","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/disciplines/:id/delete","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/disciplines/:id/delete","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/disciplines/:id/delete","type":0,"val":"disciplines","end":""},{"old":"/api/accounts/:accountId/disciplines/:id/delete","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/disciplines/:id/delete","type":0,"val":"delete","end":""}],
+    types: placeholder as Registry['api.planning.discipline.delete']['types'],
   },
   'api.planning.resource.archive': {
     methods: ["POST"],

@@ -9,7 +9,7 @@ import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
 import type { AppData } from '@capacitylens/shared/types/entities'
 import { applyLifecycle } from '#services/lifecycle'
-import { initialCompanyDataContext } from '#services/batch/data_policy'
+import { initialCompanyDataContext } from '#services/planning_operations/data_policy'
 import { withTransaction } from '#services/with_transaction'
 
 const TS = '2026-01-01T00:00:00.000Z'

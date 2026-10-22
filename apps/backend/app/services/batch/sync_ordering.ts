@@ -1,6 +1,6 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import type { BatchOp, SyncOrder } from '#services/batch/types'
-import { TABLE_NAMES } from '#services/batch/entity_policy'
+import { TABLE_NAMES } from '#services/planning_operations/entity_policy'
 
 async function hashRow(row: Record<string, unknown>) {
   const digest = await crypto.subtle.digest(

@@ -10,7 +10,7 @@ import {
   initialCompanyDataContext,
   type BatchDataContext,
   type BatchCapabilities,
-} from '#services/batch/data_policy'
+} from '#services/planning_operations/data_policy'
 import { readStateWithClient, replaceWithSeed } from '#services/state_repository'
 import { withTransaction } from '#services/with_transaction'
 import { applyLifecycle } from '#services/lifecycle'

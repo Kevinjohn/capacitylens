@@ -3,7 +3,7 @@ import vine from '@vinejs/vine'
 import { parseData } from '@capacitylens/shared/data/transfer'
 import { commitAccountImport, prepareAccountImport } from '#services/import_account'
 import { withTransaction } from '#services/with_transaction'
-import { BatchRequestError } from '#services/batch/errors'
+import { BatchRequestError } from '#services/planning_operations/errors'
 import { resolveCurrentActor, assertFreshSession } from '#services/auth/session_authority'
 import { activeCompanyRole } from '#services/auth/authorization'
 

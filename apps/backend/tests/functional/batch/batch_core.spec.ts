@@ -9,7 +9,7 @@ import { seed } from '@capacitylens/shared/data/seed'
 import db from '@adonisjs/lucid/services/db'
 import { withTransaction } from '#services/with_transaction'
 import { applyBatch } from '#services/batch/service'
-import { initialCompanyDataContext } from '#services/batch/data_policy'
+import { initialCompanyDataContext } from '#services/planning_operations/data_policy'
 import { applyLifecycle } from '#services/lifecycle'
 import { readState } from '#services/state_repository'
 

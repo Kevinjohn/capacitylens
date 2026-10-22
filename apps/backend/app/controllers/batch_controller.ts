@@ -2,11 +2,11 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { isBrowserSyncSessionId } from '@capacitylens/shared/account/validation'
 import { batchValidator } from '#validators/batch'
 import { applyBatch } from '#services/batch/service'
-import { BatchRequestError } from '#services/batch/errors'
-import { isTable } from '#services/batch/entity_policy'
+import { BatchRequestError } from '#services/planning_operations/errors'
+import { isTable } from '#services/planning_operations/entity_policy'
 import type { BatchOp, SyncOrder } from '#services/batch/types'
 import { withTransaction } from '#services/with_transaction'
-import { dataContextForActor } from '#services/batch/data_policy'
+import { dataContextForActor } from '#services/planning_operations/data_policy'
 
 function parseSyncOrder(request: HttpContext['request']): SyncOrder | null {
   const sessionId = request.header('x-capacitylens-sync-session')

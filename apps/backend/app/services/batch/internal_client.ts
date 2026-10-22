@@ -1,6 +1,6 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { encodeRow } from '#services/state_repository'
-import { TABLE_NAMES } from '#services/batch/entity_policy'
+import { TABLE_NAMES } from '#services/planning_operations/entity_policy'
 import type { BatchStateProjection } from '#services/batch/projection'
 
 export function matchesMintedInternal(
