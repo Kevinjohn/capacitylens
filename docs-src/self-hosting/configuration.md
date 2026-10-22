@@ -63,9 +63,8 @@ with a startup warning, and values above 10,000 clamp to 10,000 with a warning. 
 snapshots and unrelated files are excluded from scheduled/manual retention. Check backup logs and
 completed files separately from database readiness; see [Backups and restore](/self-hosting/backups-and-restore).
 
-A proxy on a separate machine or in a separate container is not supported for the first release.
-Until private-network proxy support is added, those clients may share the proxy's request-limit
-budget. Use a same-machine proxy that connects over loopback; do not widen trust to arbitrary
+A proxy on a separate machine or in a separate container is not supported: every client behind it
+would share the proxy's request-limit budget. Use a same-machine proxy that connects over loopback; do not widen trust to arbitrary
 forwarded headers.
 
 ## Network and logging
