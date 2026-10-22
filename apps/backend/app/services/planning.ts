@@ -4,7 +4,6 @@ import { Bouncer } from '@adonisjs/bouncer'
 import DataPolicy from '#policies/data_policy'
 import { activeCompanyRole } from '#services/auth/authorization'
 import { effectiveReadPrincipal, activeMasquerade } from '#services/auth/masquerade'
-import { authMode } from '#services/auth/mode'
 import type { BatchCapabilities } from '#services/batch/data_policy'
 import { can, canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access'
 import type { Role } from '@capacitylens/shared/account/types'
@@ -51,16 +50,8 @@ async function currentAuthority(
   trx: TransactionClientContract,
   accountId: string
 ) {
-  const principal =
-    authMode() === 'off'
-      ? {
-          actorId: ctx.auth.use('trustedLocal').getUserOrFail().id,
-          effectiveId: ctx.auth.use('trustedLocal').getUserOrFail().id,
-          accountId: null,
-        }
-      : await effectiveReadPrincipal(ctx, trx)
-  const role =
-    authMode() === 'off' ? 'owner' : await activeCompanyRole(principal.effectiveId, accountId, trx)
+  const principal = await effectiveReadPrincipal(ctx, trx)
+  const role = await activeCompanyRole(principal.effectiveId, accountId, trx)
   if (!role || (principal.accountId !== null && principal.accountId !== accountId))
     throw new PlanningOperationError(
       403,
@@ -77,13 +68,12 @@ async function currentAuthority(
       'account_membership_lost',
       'Company membership is unavailable.'
     )
-  const masquerading =
-    authMode() !== 'off' && (await activeMasquerade(ctx.session.sessionId, trx)) !== null
+  const masquerading = (await activeMasquerade(ctx.session.sessionId, trx)) !== null
   const authority: PlanningAuthority = {
     actorId: principal.actorId,
     effectiveActorId: principal.effectiveId,
     role,
-    canWrite: authMode() !== 'off' && !masquerading && can(role, 'write'),
+    canWrite: !masquerading && can(role, 'write'),
     canSeePrivateNames: canSeePrivateNames(role),
     canSeeTimeOffNote: canSeeTimeOffNote(role),
   }
@@ -153,8 +143,6 @@ export function mutatePlanning(
   accountId: string,
   input: PlanningMutationInput
 ): Promise<PlanningMutationSuccess> {
-  if (authMode() === 'off')
-    throw new PlanningOperationError(401, 'unauthenticated', 'Sign in to edit planning data.')
   return withTransaction(async (trx) => {
     const { authority, capabilities, bouncer } = await currentAuthority(ctx, trx, accountId)
     if (!(await bouncer.with(DataPolicy).allows('write', { accountId, capabilities })))

@@ -22,8 +22,8 @@ export class SyncState {
   loadGen = 0;
   // A seed generation change invalidates queued diffs and prevents a completed flush from replacing a newer loaded baseline. Persistence surfaces or rebases any edits affected by that change.
   seedGen = 0;
-  /** Tenant paired with the current scoped snapshot. Null means the snapshot came from the
-   * unscoped off/demo bootstrap path. A scoped save must match this tenant before diffing. */
+  /** Tenant paired with the current scoped snapshot. Null means no company was selected during
+   * bootstrap. A scoped save must match this tenant before diffing. */
   seededAccountId: string | null = null;
   // Pair a queued target with the generation of its diff baseline.
   queuedSeedGen = 0;

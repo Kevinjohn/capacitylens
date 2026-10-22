@@ -49,7 +49,7 @@ function configureAuth(cleanup: (callback: () => void) => void) {
   env.set('CAPACITYLENS_ALLOW_RESET', true)
   env.set('CAPACITYLENS_RATE_LIMIT', '0')
   cleanup(() => {
-    env.set('CAPACITYLENS_MODE', prior.mode ?? 'off')
+    env.set('CAPACITYLENS_MODE', prior.mode ?? 'password-only')
     env.set('CAPACITYLENS_SECRET', prior.secret ?? '')
     env.set('CAPACITYLENS_PUBLIC_URL', prior.publicUrl ?? '')
     env.set('CAPACITYLENS_SETUP_TOKEN', prior.setupToken ?? '')

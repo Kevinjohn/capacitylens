@@ -57,6 +57,6 @@ surfaces here.
 - ✅ In **server mode** each action POSTs the dedicated route (`POST /api/:entity/:id/{archive,
 unarchive,delete,purge} {accountId}`) and reloads the active slice; the server enforces the
   interlocks (delete-needs-archived, purge tier + 30 days, PII scrub) regardless of the UI. In
-  the **in-memory demo** the actions run against the temporary local store. An auth-off deployment
-  is still server mode and uses the API routes with its documented open-access posture.
+  the **in-memory demo** the actions run against the temporary local store. On a persisted server,
+  the signed-in member's role controls each action.
 - ✅ The built-in **Internal** client can never be archived/deleted/purged (store + server backstop).

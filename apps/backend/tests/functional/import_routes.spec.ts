@@ -1,4 +1,5 @@
 import { test } from '@japa/runner'
+import { resetAuthenticatedClient } from '../helpers/authenticated_data_fixture.js'
 import { freshDatabase } from '../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
@@ -28,7 +29,7 @@ test.group('M2b import routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     await db.table('account_joining_policies').insert({
       id: 'jp-studio',
       account_id: 'a-studio',
@@ -90,7 +91,7 @@ test.group('M2b import routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const incoming = await readState('a-studio', true)
     const template = incoming.allocations[0]!
     const allocations = Array.from({ length: 8000 }, (_, index) => ({
@@ -111,7 +112,7 @@ test.group('M2b import routes', (group) => {
   })
 
   test('damaged import returns 400 without changing company rows', async ({ client, assert }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const before = await readState('a-studio', true)
     const response = await trusted(client.post('/api/import'))
       .json({ accountId: 'a-studio', data: { accounts: 'damaged' } })
@@ -124,7 +125,7 @@ test.group('M2b import routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const before = await readState('a-studio', true)
     const missingScope = await trusted(client.post('/api/import'))
       .json({ data: { resources: before.resources } })
@@ -144,7 +145,7 @@ test.group('M2b import routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const before = await readState('a-studio', true)
     for (const data of [{ random: [] }, { schemaVersion: 999, data: before }]) {
       const result = await trusted(client.post('/api/import'))
@@ -159,7 +160,7 @@ test.group('M2b import routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const incoming = await readState('a-studio', true)
     const person = incoming.resources.find(
       (row) => row.kind === 'person' && row.deletedAt === null
@@ -188,7 +189,7 @@ test.group('M2b import routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const before = await readState('a-studio', true)
     const result = await trusted(client.post('/api/import'))
       .json({ accountId: 'a-studio', data: { accounts: before.accounts } })
@@ -202,7 +203,7 @@ test.group('M2b import routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const person = { ...seed().resources.find((row) => row.kind === 'person')! } as Record<
       string,
       unknown
@@ -223,7 +224,7 @@ test.group('M2b import routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const incoming = await readState('a-studio', true)
     incoming.closures = [{ ...FIXTURE_CLOSURE, accountId: 'a-studio' }]
     const priorTimeOffId = incoming.timeOff[0]!.id
@@ -247,7 +248,7 @@ test.group('M2b import routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const incoming = await readState('a-studio', true)
     const person = incoming.resources.find((row) => row.id === 'r-tyler')!
     person.archivedAt = '2026-10-12T00:00:00.000Z'
@@ -273,7 +274,7 @@ test.group('M2b import routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const source = seed()
     const person = {
       ...source.resources.find((row) => row.kind === 'person')!,
@@ -297,7 +298,7 @@ test.group('M2b import routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const stamp = '2026-10-13T00:00:00.000Z'
     const currentState = await readState('a-studio', true)
     const resource = currentState.resources.find((row) => row.kind === 'person')!
@@ -340,7 +341,7 @@ test.group('M2b import routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const stamp = '2026-10-13T00:00:00.000Z'
     await db.table('account_access_restrictions').insert({
       id: 'restriction-studio',
@@ -386,7 +387,7 @@ test.group('M2b import routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const prepared = await prepareAccountImport('a-studio', await readState('a-studio', true))
     const before = await readState('a-studio', true)
     await db.from('accounts').where('id', 'a-studio').update({ name: 'Wayne Studios Changed' })
@@ -407,7 +408,7 @@ test.group('M2b import routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const prepared = await prepareAccountImport('a-studio', await readState('a-studio', true))
     await db.from('accounts').where('id', 'a-loft').update({ name: 'Stark Industries Changed' })
     const result = await withTransaction((trx) => commitAccountImport(trx, prepared, 'local'))
@@ -420,7 +421,7 @@ test.group('M2b import routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const before = await readState('a-studio', true)
     const stamp = '2026-10-13T00:00:00.000Z'
     await db.table('users').insert({
@@ -472,7 +473,7 @@ test.group('M2b import routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const before = await readState('a-studio', true)
     const stamp = '2026-10-13T00:00:00.000Z'
     await db.table('users').insert({
@@ -523,7 +524,7 @@ test.group('M2b import routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const before = await readState('a-studio', true)
     const result = await trusted(client.post('/api/import'))
       .json({ accountId: 'a-studio', data: JSON.parse(serializeData(before)) })
@@ -564,7 +565,7 @@ test.group('M2b import routes', (group) => {
     assert,
     cleanup,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const incoming = await readState('a-studio', true)
     const restoreLogger = interceptChildLoggers((child) => {
       child.info = (() => {

@@ -70,6 +70,10 @@ This is the short, present-tense record of decisions that constrain future work.
 
 ## Data and tenancy
 
+- CapacityLens has two access experiences: `VITE_CAPACITYLENS_DEMO=1` is an editable, in-memory
+  demo whose scheduling data resets on reload; every persisted server requires an authenticated,
+  authorised company member. `CAPACITYLENS_MODE=off` is retired and must not enable anonymous
+  persisted access.
 - SQLite is the only product database. One process owns one database file through a pool of one
   connection. Missing API access is an error, never a silent browser-storage fallback.
 - Every scoped row carries its company id. The server authorises every tenant read and write from

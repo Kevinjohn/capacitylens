@@ -1,5 +1,5 @@
-import { expect, test } from "./fixtures";
-import type { APIRequestContext, Page } from "./fixtures";
+import { expect, test } from "./dbFixtures";
+import type { APIRequestContext, Page } from "./dbFixtures";
 import { openApp } from "./browserTestSupport";
 import { API, resetServer } from "./serverTestState";
 

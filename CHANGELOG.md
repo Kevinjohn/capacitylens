@@ -65,6 +65,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Keep the no-login demo editable with temporary in-memory scheduling data, while requiring
+  authenticated company membership for every persisted server. Retire anonymous persisted
+  `CAPACITYLENS_MODE=off` access.
 - The schedule saves every booking change as one typed planning request: create, move, resize,
   reassign, duplicate, repeat and delete. Toolbar and keyboard Undo and Redo replay those booking
   changes through typed inverses, and Undo of a deletion restores the saved rows. Undo and Redo

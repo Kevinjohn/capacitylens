@@ -1,4 +1,5 @@
 import { test } from '@japa/runner'
+import { resetAuthenticatedClient } from '../helpers/authenticated_data_fixture.js'
 import { freshDatabase } from '../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
@@ -16,7 +17,7 @@ test.group('M2b review regressions', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const before = await readState('a-studio', true)
     for (const kind of ['person', 'external'] as const) {
       const row = before.resources.find((resource) => resource.kind === kind)!
@@ -52,7 +53,7 @@ test.group('M2b review regressions', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const before = await readState('a-studio', true)
     const discipline = before.disciplines[0]!
     const person = before.resources.find((resource) => resource.kind === 'person')!
@@ -78,7 +79,7 @@ test.group('M2b review regressions', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const before = await readState('a-studio', true)
     const incoming = structuredClone(before)
     const template = incoming.disciplines[0]!
@@ -115,7 +116,7 @@ test.group('M2b review regressions', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const before = await readState('a-studio', true)
     const existing = before.accounts[0]!
     for (const path of ['/api/accounts', '/api/orgs']) {
@@ -124,7 +125,10 @@ test.group('M2b review regressions', (group) => {
         .send()
       rejected.assertStatus(403)
       assert.deepEqual(rejected.body(), {
-        error: 'This installation already has a company.',
+        error:
+          path === '/api/accounts'
+            ? 'Use /api/orgs to create a company.'
+            : 'This installation already has a company.',
         code: 'FORBIDDEN',
       })
       const after = await readState('a-studio', true)
@@ -132,16 +136,16 @@ test.group('M2b review regressions', (group) => {
     }
   })
 
-  test('accounts POST requires a string id while orgs POST can generate one', async ({
+  test('accounts POST is forbidden while orgs POST can generate an id', async ({
     client,
     assert,
   }) => {
     const template = seed().accounts[0]!
     for (const invalidId of [undefined, null, 7]) {
-      await client.post('/api/test/reset').json({ seed: false }).send()
+      client = await resetAuthenticatedClient(client, false)
       const payload = { ...template, id: invalidId }
       const rejected = await trusted(client.post('/api/accounts')).json(payload).send()
-      rejected.assertStatus(400)
+      rejected.assertStatus(403)
       const state = await readState()
       assert.lengthOf(state.accounts, 0)
     }
@@ -156,7 +160,7 @@ test.group('M2b review regressions', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const route = '/api/accounts/a-studio'
     const beforeState = await readState('a-studio', true)
     const before = beforeState.accounts[0]!
@@ -197,7 +201,7 @@ test.group('M2b review regressions', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const before = await readState('a-studio', true)
     const person = before.resources.find((row) => row.kind === 'person')!
     await db.from('resources').where('id', person.id).update({ first_available_date: '2026-12-01' })
@@ -224,7 +228,7 @@ test.group('M2b review regressions', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const before = await readState('a-studio', true)
     const person = before.resources.find((row) => row.kind === 'person')!
     const rejected = await trusted(client.post('/api/batch'))
@@ -252,7 +256,7 @@ test.group('M2b review regressions', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const before = await readState('a-studio', true)
     const clientRow = before.clients.find((row) => row.id === 'c-acme')!
     const privateName = 'Private Queen Name'
@@ -312,14 +316,14 @@ test.group('M2b review regressions', (group) => {
     assert,
     cleanup,
   }) => {
-    await client.post('/api/test/reset').json({ seed: false }).send()
+    client = await resetAuthenticatedClient(client, false)
     const restoreLogger = interceptChildLoggers((child) => {
       child.info = (() => {
         throw new Error('logger unavailable')
       }) as typeof child.info
     })
     cleanup(restoreLogger)
-    const created = await trusted(client.post('/api/accounts'))
+    const created = await trusted(client.post('/api/orgs'))
       .json({ ...seed().accounts[0]!, id: 'a-review-warning' })
       .send()
     created.assertStatus(201)

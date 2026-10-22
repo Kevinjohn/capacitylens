@@ -1,4 +1,5 @@
 import { test } from '@japa/runner'
+import { resetAuthenticatedClient } from '../helpers/authenticated_data_fixture.js'
 import { freshDatabase } from '../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
@@ -19,8 +20,8 @@ test.group('M2b deletion audit retention', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: false }).send()
-    const created = await trusted(client.post('/api/accounts'))
+    client = await resetAuthenticatedClient(client, false)
+    const created = await trusted(client.post('/api/orgs'))
       .json({ ...seed().accounts[0]!, id: 'a-audit-wayne' })
       .send()
     created.assertStatus(201)
@@ -82,14 +83,14 @@ test.group('M2b deletion audit retention', (group) => {
       1
     )
     const repeated = await trusted(client.delete('/api/accounts/a-audit-wayne')).send()
-    repeated.assertStatus(204)
+    repeated.assertStatus(401)
     assert.lengthOf(await db.from('audit_entries').where('account_id', 'a-audit-wayne'), 2)
     await db.from('audit_entries').where('account_id', 'a-audit-wayne').delete()
   })
 
   test('a failed audit insert rolls back deletion and related rows', async ({ client, assert }) => {
-    await client.post('/api/test/reset').json({ seed: false }).send()
-    const created = await trusted(client.post('/api/accounts'))
+    client = await resetAuthenticatedClient(client, false)
+    const created = await trusted(client.post('/api/orgs'))
       .json({ ...seed().accounts[0]!, id: 'a-audit-fail' })
       .send()
     created.assertStatus(201)

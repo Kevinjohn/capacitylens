@@ -17,8 +17,7 @@ import { useAuthContextValue } from "./useAuthContextValue";
 
 // Auth boundary. In the demo build (VITE_CAPACITYLENS_DEMO=1) this is a
 // pure pass-through that performs no fetch at all. In server mode (the default) it asks
-// GET /api/auth/me once at boot: authMode 'off' (the default deploy) renders the app
-// without a sign-in; a 401 replaces everything with the LoginScreen. The screen is a
+// GET /api/auth/me once at boot; a 401 replaces everything with the LoginScreen. The screen is a
 // lazy chunk so interactive auth forms never load unless a login is actually shown.
 
 const LoginScreen = lazy(() => import("./LoginScreen").then((screenModule) => ({ default: screenModule.LoginScreen })));

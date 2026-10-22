@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import type { ApiClient } from '@japa/api-client'
 import { test } from '@japa/runner'
+import { resetAuthenticatedClient } from '../helpers/authenticated_data_fixture.js'
 import { freshDatabase } from '../helpers/fresh_database.js'
 import {
   FIXTURE_ACCOUNT,
@@ -26,8 +27,7 @@ type FixtureRow = { id: string }
 type FixtureWrite = { table: string; row: FixtureRow }
 
 async function resetEmpty(client: ApiClient) {
-  const response = await client.post('/api/test/reset').json({ seed: false }).send()
-  response.assertStatus(200)
+  return await resetAuthenticatedClient(client, false)
 }
 
 function put(table: string, fixture: FixtureRow): FixtureWrite {
@@ -50,7 +50,7 @@ async function write(client: ApiClient, fixtures: FixtureWrite[]) {
     const payload = { ...account.row } as Record<string, unknown>
     delete payload.createdAt
     delete payload.updatedAt
-    const created = await trusted(client.post('/api/accounts')).json(payload).send()
+    const created = await trusted(client.post('/api/orgs')).json(payload).send()
     created.assertStatus(201)
   }
   const writes = fixtures.filter(({ table }) => table !== 'accounts')
@@ -105,7 +105,7 @@ test.group('M2b full-fixture HTTP persistence', (group) => {
   test('account: every field round-trips, including optional scheduling mode', async ({
     client,
   }) => {
-    await resetEmpty(client)
+    client = await resetEmpty(client)
     await write(client, [put('accounts', FIXTURE_ACCOUNT)])
     assertFixture(row(await state(client), 'accounts', FIXTURE_ACCOUNT.id), FIXTURE_ACCOUNT)
   })
@@ -113,14 +113,14 @@ test.group('M2b full-fixture HTTP persistence', (group) => {
   test('ordinary client: every field round-trips with lifecycle timestamps omitted on create', async ({
     client,
   }) => {
-    await resetEmpty(client)
+    client = await resetEmpty(client)
     const expected = stripLifecycle(FIXTURE_CLIENT)
     await write(client, [put('accounts', FIXTURE_ACCOUNT), put('clients', expected)])
     assertFixture(row(await state(client), 'clients', expected.id), expected)
   })
 
   test('discipline: every field round-trips, including optional color', async ({ client }) => {
-    await resetEmpty(client)
+    client = await resetEmpty(client)
     await write(client, [put('accounts', FIXTURE_ACCOUNT), put('disciplines', FIXTURE_DISCIPLINE)])
     assertFixture(
       row(await state(client), 'disciplines', FIXTURE_DISCIPLINE.id),
@@ -131,7 +131,7 @@ test.group('M2b full-fixture HTTP persistence', (group) => {
   test('project: every field round-trips with lifecycle timestamps omitted on create', async ({
     client,
   }) => {
-    await resetEmpty(client)
+    client = await resetEmpty(client)
     const expected = stripLifecycle(FIXTURE_PROJECT)
     await write(client, [
       put('accounts', FIXTURE_ACCOUNT),
@@ -142,7 +142,7 @@ test.group('M2b full-fixture HTTP persistence', (group) => {
   })
 
   test('phase: every field round-trips', async ({ client }) => {
-    await resetEmpty(client)
+    client = await resetEmpty(client)
     await write(client, [...dependencies()])
     assertFixture(row(await state(client), 'phases', FIXTURE_PHASE.id), FIXTURE_PHASE)
   })
@@ -150,7 +150,7 @@ test.group('M2b full-fixture HTTP persistence', (group) => {
   test('placeholder resource: every field round-trips with optional fields and JSON weekdays', async ({
     client,
   }) => {
-    await resetEmpty(client)
+    client = await resetEmpty(client)
     const expected = stripLifecycle(FIXTURE_RESOURCE)
     await write(client, [...dependencies().slice(0, 4), put('resources', expected)])
     assertFixture(row(await state(client), 'resources', expected.id), expected)
@@ -159,7 +159,7 @@ test.group('M2b full-fixture HTTP persistence', (group) => {
   test('supplementary engagement persists independently of permanent employment', async ({
     client,
   }) => {
-    await resetEmpty(client)
+    client = await resetEmpty(client)
     const supplementary = {
       ...FIXTURE_RESOURCE_PERSON,
       id: 'fix-r-supplementary',
@@ -180,7 +180,7 @@ test.group('M2b full-fixture HTTP persistence', (group) => {
   test('person resource: every field round-trips with availability boundaries', async ({
     client,
   }) => {
-    await resetEmpty(client)
+    client = await resetEmpty(client)
     const expected = stripLifecycle(FIXTURE_RESOURCE_PERSON)
     await write(client, [...dependencies().slice(0, 4), put('resources', expected)])
     assertFixture(row(await state(client), 'resources', expected.id), expected)
@@ -189,7 +189,7 @@ test.group('M2b full-fixture HTTP persistence', (group) => {
   test('external resource: kind and company name round-trip without discipline or project binding', async ({
     client,
   }) => {
-    await resetEmpty(client)
+    client = await resetEmpty(client)
     await write(client, [
       ...dependencies().slice(0, 4),
       put('resources', FIXTURE_RESOURCE_EXTERNAL),
@@ -203,7 +203,7 @@ test.group('M2b full-fixture HTTP persistence', (group) => {
   test('project activity: every field round-trips, including project and phase attribution', async ({
     client,
   }) => {
-    await resetEmpty(client)
+    client = await resetEmpty(client)
     await write(client, [...dependencies(), put('activities', FIXTURE_ACTIVITY)])
     assertFixture(row(await state(client), 'activities', FIXTURE_ACTIVITY.id), FIXTURE_ACTIVITY)
   })
@@ -211,7 +211,7 @@ test.group('M2b full-fixture HTTP persistence', (group) => {
   test('internal and repeatable activities round-trip without project or phase attribution', async ({
     client,
   }) => {
-    await resetEmpty(client)
+    client = await resetEmpty(client)
     await write(client, [
       ...dependencies(),
       put('activities', FIXTURE_ACTIVITY_INTERNAL),
@@ -232,7 +232,7 @@ test.group('M2b full-fixture HTTP persistence', (group) => {
   test('allocations round-trip both without and with optional project attribution', async ({
     client,
   }) => {
-    await resetEmpty(client)
+    client = await resetEmpty(client)
     await write(client, [
       ...dependencies(),
       put('resources', stripLifecycle(FIXTURE_RESOURCE)),
@@ -251,7 +251,7 @@ test.group('M2b full-fixture HTTP persistence', (group) => {
   })
 
   test('time off: every field round-trips, including optional note', async ({ client }) => {
-    await resetEmpty(client)
+    client = await resetEmpty(client)
     await write(client, [
       ...dependencies().slice(0, 4),
       put('resources', stripLifecycle(FIXTURE_RESOURCE)),

@@ -4,7 +4,7 @@ import { freshDatabase } from '../../helpers/fresh_database.js'
 import { seed } from '@capacitylens/shared/data/seed'
 import type { BatchRevision } from '#services/batch/types'
 import { encodeRow } from '#services/state_repository'
-import { batch, readStudioState, resetSeed } from './ordering_helpers.js'
+import { batch, readStudioState, resetSeedClient } from './ordering_helpers.js'
 
 type ActivityKind = 'project' | 'internal' | 'repeatable'
 const LATEST_TEST_REVISION = '2099-12-31T23:59:59.999Z'
@@ -116,7 +116,7 @@ test.group('M2a batch projection attribution', (group) => {
     client,
     assert,
   }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const { activity, allocation } = attributableFixture()
     const setup = await batch(client, [
       { method: 'PUT', table: 'allocations', id: allocation.id, row: allocation },
@@ -148,7 +148,7 @@ test.group('M2a batch projection attribution', (group) => {
     client,
     assert,
   }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const data = seed()
     const activity = data.activities.find((row) => row.id === 't-design')!
     const allocation = {
@@ -198,7 +198,7 @@ test.group('M2a batch projection attribution', (group) => {
     client,
     assert,
   }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const { activity, allocation } = attributableFixture()
     const setup = await batch(client, [
       { method: 'PUT', table: 'allocations', id: allocation.id, row: allocation },
@@ -230,7 +230,7 @@ test.group('M2a batch projection attribution', (group) => {
     client,
     assert,
   }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const data = seed()
     const activity = data.activities.find((row) => row.id === 't-admin')!
     const allocation = data.allocations.find((row) => row.id === 'a-alex-design')!
@@ -274,7 +274,7 @@ test.group('M2a batch projection attribution', (group) => {
     client,
     assert,
   }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const data = seed()
     const activity = data.activities.find((row) => row.id === 't-admin')!
     const allocation = data.allocations.find((row) => row.id === 'a-alex-design')!
@@ -325,7 +325,7 @@ test.group('M2a batch projection attribution', (group) => {
     client,
     assert,
   }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const data = seed()
     const activity = data.activities.find((row) => row.id === 't-design')!
     const resource = data.resources.find((row) => row.id === 'r-ph-designer')!
@@ -358,7 +358,7 @@ test.group('M2a batch projection attribution', (group) => {
     client,
     assert,
   }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const data = seed()
     const activity = data.activities.find((row) => row.id === 't-design')!
     const resource = data.resources.find((row) => row.id === 'r-ph-designer')!
@@ -397,7 +397,7 @@ test.group('M2a batch projection attribution', (group) => {
     client,
     assert,
   }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const before = seed()
     const discipline = before.disciplines.find((row) => row.id === 'd-design')!
     const resource = before.resources.find((row) => row.id === 'r-tyler')!
@@ -428,7 +428,7 @@ test.group('M2a batch projection attribution', (group) => {
     test: testCase,
   }) => {
     testCase.timeout(120_000)
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const initial = attributableFixture()
     const failures: string[] = []
     const sequences = enumerateSequences()

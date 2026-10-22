@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect } from "./dbFixtures";
 import { waitForAppLanding } from "./browserTestSupport";
 import { API, resetServer } from "./serverTestState";
 

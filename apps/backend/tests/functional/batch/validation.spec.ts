@@ -1,4 +1,8 @@
 import { test } from '@japa/runner'
+import {
+  authenticatedDataClient,
+  resetAuthenticatedData,
+} from '../../helpers/authenticated_data_fixture.js'
 import type { ApiClient } from '@japa/api-client'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath'
@@ -8,8 +12,8 @@ import { seed } from '@capacitylens/shared/data/seed'
 import { externalCapacityDefaults, type AppData } from '@capacitylens/shared/types/entities'
 
 async function reset(client: ApiClient) {
-  const response = await client.post('/api/test/reset').json({ seed: true }).send()
-  response.assertStatus(200)
+  const session = await resetAuthenticatedData(client, true)
+  return authenticatedDataClient(client, session.cookie)
 }
 
 async function state(client: ApiClient) {
@@ -46,7 +50,7 @@ test.group('M2a batch entity validation', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const before = await state(client)
     const timeOff = { ...seed().timeOff[0]! } as Record<string, unknown>
     delete timeOff.resourceId
@@ -155,7 +159,7 @@ test.group('M2a batch entity validation', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const response = await put(client, 'closures', {
       id: 'closure-with-unknown-resource',
       accountId: 'a-studio',
@@ -176,7 +180,7 @@ test.group('M2a batch entity validation', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const before = await state(client)
     const startDate = '2026-01-01'
     const overLimit = addDaysISO(startDate, MAX_SPAN_DAYS)
@@ -248,7 +252,7 @@ test.group('M2a batch entity validation', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const person = seed().resources.find((row) => row.id === 'r-tyler')!
     const bounded = {
       ...person,
@@ -283,7 +287,7 @@ test.group('M2a batch entity validation', (group) => {
   })
 
   test('accepts a closure without any resource reference', async ({ client, assert }) => {
-    await reset(client)
+    client = await reset(client)
     const closure = {
       id: 'resource-free-closure',
       accountId: 'a-studio',
@@ -305,7 +309,7 @@ test.group('M2a batch entity validation', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const before = await state(client)
     const placeholder = before.resources.find((row) => row.id === 'r-ph-designer')!
     const invalidPlaceholder = await put(client, 'resources', {
@@ -350,7 +354,7 @@ test.group('M2a batch entity validation', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const before = await state(client)
     const wrongProject = newAllocation('wrong-placeholder-project', {
       resourceId: 'r-ph-designer',
@@ -410,7 +414,7 @@ test.group('M2a batch entity validation', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const before = await state(client)
     const person = seed().resources.find((row) => row.id === 'r-tyler')!
     const external = {

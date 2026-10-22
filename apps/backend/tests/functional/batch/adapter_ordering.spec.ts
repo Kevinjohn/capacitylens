@@ -64,7 +64,7 @@ test.group('M2a ServerSyncAdapter and SQLite ordering', (group) => {
     arrivalOrder: ArrivalOrder,
     edit: (base: AppData) => { ordinary: AppData; teardown: AppData }
   ) {
-    await resetSeed(client)
+    const { cookie, cookieHeader } = await resetSeed(client)
     const baseUrl = process.env.APP_URL
     if (!baseUrl) throw new Error('APP_URL must be supplied by the active Japa port lane.')
     const parsedBaseUrl = new URL(baseUrl)
@@ -82,6 +82,7 @@ test.group('M2a ServerSyncAdapter and SQLite ordering', (group) => {
       const original = input instanceof Request ? input : new Request(input, init)
       const headers = new Headers(original.headers)
       headers.set('sec-fetch-site', 'same-origin')
+      headers.set('cookie', cookieHeader)
       const request = new Request(original, { headers })
       if (holdFirst && new URL(request.url).pathname === '/api/batch') {
         holdFirst = false
@@ -112,7 +113,7 @@ test.group('M2a ServerSyncAdapter and SQLite ordering', (group) => {
     if (!releaseFirst) throw new Error('The first batch request was not intercepted.')
     releaseFirst()
     await Promise.all([ordinary, teardown])
-    return readStudioState(client)
+    return readStudioState(client, cookie)
   }
 
   test('preserves the teardown availability boundary in both request arrival orders', async ({

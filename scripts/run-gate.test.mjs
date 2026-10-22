@@ -213,12 +213,12 @@ test("backend and combined gates build application assets once before runtime ch
 
 test("only the root production build receives production settings while tests retain their environment", (t) => {
   const fake = fixture(t);
-  const result = fake.run(["app"], { NODE_ENV: "test", CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "0" });
+  const result = fake.run(["app"], { NODE_ENV: "test", CAPACITYLENS_MODE: "password-only" });
   assert.equal(result.status, 0, result.stderr);
   for (const entry of fake.entries()) {
     const build = entry.args[0] === "run" && entry.args[1] === "build";
     assert.equal(entry.nodeEnv, build ? "production" : "test", entry.args.join(" "));
-    assert.equal(entry.allowOpen, build ? "1" : "0", entry.args.join(" "));
+    assert.equal(entry.mode, "password-only", entry.args.join(" "));
   }
 });
 
@@ -231,7 +231,7 @@ test("backend CI builds actual application assets before tests without leaking p
   assert.ok(buildIndex >= 0 && buildIndex < testIndex);
   const build = backend.steps[buildIndex];
   assert.equal(build.env.NODE_ENV, "production");
-  assert.equal(build.env.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION, "1");
+  assert.equal(build.env.CAPACITYLENS_MODE, "password-only");
   for (const key of ["APP_KEY", "APP_URL", "HOST", "PORT", "LOG_LEVEL", "SESSION_DRIVER"])
     assert.ok(build.env[key], key);
   assert.notEqual(backend.env?.NODE_ENV, "production");

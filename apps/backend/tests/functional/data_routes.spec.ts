@@ -1,11 +1,25 @@
 import { test } from '@japa/runner'
+import type { ApiClient } from '@japa/api-client'
+import {
+  authenticatedDataClient,
+  grantDataOwner,
+  resetAuthenticatedData,
+} from '../helpers/authenticated_data_fixture.js'
 import { freshDatabase } from '../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
 import { encodeRow, readState } from '#services/state_repository'
 
+let dataOwnerId: string
+
 const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
   request.header('sec-fetch-site', 'same-origin')
+
+async function reset(client: ApiClient, seeded = true) {
+  const session = await resetAuthenticatedData(client, seeded)
+  dataOwnerId = session.userId
+  return authenticatedDataClient(client, session.cookie)
+}
 
 test.group('M2b data routes', (group) => {
   group.setup(() => freshDatabase())
@@ -23,7 +37,7 @@ test.group('M2b data routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const candidates = await db
       .from('resources')
       .select('id')
@@ -53,7 +67,7 @@ test.group('M2b data routes', (group) => {
   })
 
   test('default export excludes inactive rows', async ({ client, assert }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const candidate = await db
       .from('resources')
       .select('id')
@@ -82,7 +96,7 @@ test.group('M2b data routes', (group) => {
   })
 
   test('export excludes membership, invitation and session secrets', async ({ client, assert }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const stamp = '2026-10-13T00:00:00.000Z'
     await db.table('users').insert({
       id: 'u-export',
@@ -163,7 +177,7 @@ test.group('M2b data routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const route = '/api/accounts/a-studio/getting-started'
     const before = await client.get(route).send()
     before.assertBodyContains({ dismissed: false })
@@ -185,7 +199,7 @@ test.group('M2b data routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const route = '/api/accounts/a-studio/getting-started'
     const extraFields = await trusted(client.put(route))
       .json({ dismissed: true, extra: 'value' })
@@ -198,13 +212,14 @@ test.group('M2b data routes', (group) => {
     const stillDismissed = await client.get(route).send()
     assert.deepEqual(stillDismissed.body(), { dismissed: true })
     const missing = await client.get('/api/accounts/unknown/getting-started').send()
-    missing.assertStatus(404)
+    missing.assertStatus(403)
   })
 
   test('example data inserts once and refuses a second request', async ({ client, assert }) => {
-    await client.post('/api/test/reset').json({ seed: false }).send()
+    client = await reset(client, false)
     const account = { ...seed().accounts[0]!, id: 'a-example' }
     await db.table('accounts').insert(encodeRow('accounts', account))
+    await grantDataOwner(dataOwnerId, account.id)
     const route = '/api/accounts/a-example/example-data'
     const first = await trusted(client.post(route)).json({}).send()
     assert.equal(first.status(), 201, JSON.stringify(first.body()))
@@ -221,9 +236,10 @@ test.group('M2b data routes', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: false }).send()
+    client = await reset(client, false)
     const account = { ...seed().accounts[0]!, id: 'a-example' }
     await db.table('accounts').insert(encodeRow('accounts', account))
+    await grantDataOwner(dataOwnerId, account.id)
     const resource = {
       ...seed().resources[0]!,
       id: 'r-existing',
@@ -240,9 +256,10 @@ test.group('M2b data routes', (group) => {
   })
 
   test('example data rejects archived-only work and unknown company', async ({ client }) => {
-    await client.post('/api/test/reset').json({ seed: false }).send()
+    client = await reset(client, false)
     const account = { ...seed().accounts[0]!, id: 'a-example' }
     await db.table('accounts').insert(encodeRow('accounts', account))
+    await grantDataOwner(dataOwnerId, account.id)
     const resource = {
       ...seed().resources[0]!,
       id: 'r-archived',
@@ -256,14 +273,15 @@ test.group('M2b data routes', (group) => {
       .send()
     existing.assertStatus(409)
     const missing = await trusted(client.post('/api/accounts/unknown/example-data')).json({}).send()
-    missing.assertStatus(404)
+    missing.assertStatus(403)
   })
 
   test('example data refuses existing client and project work', async ({ client }) => {
     for (const kind of ['client', 'project'] as const) {
-      await client.post('/api/test/reset').json({ seed: false }).send()
+      client = await reset(client, false)
       const account = { ...seed().accounts[0]!, id: 'a-example' }
       await db.table('accounts').insert(encodeRow('accounts', account))
+      await grantDataOwner(dataOwnerId, account.id)
       const clientRow = {
         ...seed().clients.find((row) => row.builtin !== true)!,
         id: 'c-example',
@@ -286,12 +304,12 @@ test.group('M2b data routes', (group) => {
     }
   })
 
-  test('off-mode creation is limited to the first company but deletion permits later setup', async ({
+  test('authenticated setup creates the first company and refuses another', async ({
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: false }).send()
-    const first = await trusted(client.post('/api/accounts'))
+    client = await reset(client, false)
+    const first = await trusted(client.post('/api/orgs'))
       .json({ ...seed().accounts[0]!, id: 'a-new' })
       .send()
     first.assertStatus(201)
@@ -299,19 +317,18 @@ test.group('M2b data routes', (group) => {
       .json({ ...seed().accounts[1]!, id: 'a-second' })
       .send()
     second.assertStatus(403)
-    const deleted = await trusted(client.delete('/api/accounts/a-new')).send()
-    deleted.assertStatus(204)
-    const remaining = await readState()
-    assert.lengthOf(remaining.accounts, 0)
+    const current = await readState()
+    assert.lengthOf(current.accounts, 1)
   })
 
-  test('off-mode company patch sets an initially null frozen setting once', async ({
+  test('authenticated company patch sets an initially null frozen setting once', async ({
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: false }).send()
+    client = await reset(client, false)
     const account = { ...seed().accounts[0]!, id: 'a-patch', timezone: null }
     await db.table('accounts').insert(encodeRow('accounts', account))
+    await grantDataOwner(dataOwnerId, account.id)
     const first = await trusted(client.patch('/api/accounts/a-patch'))
       .json({ timezone: 'Europe/London' })
       .send()

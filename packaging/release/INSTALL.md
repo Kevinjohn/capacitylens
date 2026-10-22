@@ -30,7 +30,7 @@ sudoedit /etc/capacitylens.env
 
 In the editor, paste the generated `APP_KEY` and set `APP_URL` to your HTTPS address. The sample
 binds the backend to loopback port 8787; put HTTPS in front with the supplied Caddy or nginx
-example. Keep `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=0`. The environment file stays root-only. Run the upgrade as `capacitylens` through systemd,
+example. The environment file stays root-only. Run the upgrade as `capacitylens` through systemd,
 which reads that file and gives the service user access to its settings without giving it read
 access to the file. The command takes a verified pre-upgrade
 snapshot of an existing database before running pending migrations.

@@ -1,4 +1,5 @@
 import { test } from '@japa/runner'
+import { resetAuthenticatedClient } from '../helpers/authenticated_data_fixture.js'
 import { LoggerFactory } from '@adonisjs/logger/factories'
 import { freshDatabase } from '../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
@@ -131,6 +132,7 @@ test.group('general HTTP logging privacy', (group) => {
     client,
     assert,
   }) => {
+    client = await resetAuthenticatedClient(client, true)
     const secret = 'SENTINEL_DISABLED_LOG_PRIVATE_EXCEPTION'
     const originalQuery = Account.query
     env.set('CAPACITYLENS_LOG', '0')
@@ -157,13 +159,13 @@ test.group('general HTTP logging privacy', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: false }).send()
+    client = await resetAuthenticatedClient(client, false)
     const accountId = 'a-logging-failure'
     const secret = 'SENTINEL_COMPLETION_LOG_FAILURE'
     const { output, result } = await captureLogs(
       () =>
         client
-          .post('/api/accounts')
+          .post('/api/orgs')
           .header('sec-fetch-site', 'same-origin')
           .json({ ...seed().accounts[0]!, id: accountId })
           .send(),
@@ -199,10 +201,10 @@ test.group('general HTTP logging privacy', (group) => {
         .send()
     )
 
-    assert.equal(result.status(), 404)
+    assert.equal(result.status(), 401)
     assert.include(output, 'GET')
     assert.include(output, '"path":"/*"')
-    assert.include(output, '404')
+    assert.include(output, '401')
     assert.notInclude(output, auth)
     assert.notInclude(output, cookie)
     assert.notInclude(output, query)
@@ -255,6 +257,7 @@ test.group('general HTTP logging privacy', (group) => {
     client,
     assert,
   }) => {
+    client = await resetAuthenticatedClient(client, true)
     const secret = 'SENTINEL_IMPORT_PARSER_VALUE'
     const { output, result } = await captureLogs(() =>
       client
@@ -275,6 +278,7 @@ test.group('general HTTP logging privacy', (group) => {
     client,
     assert,
   }) => {
+    client = await resetAuthenticatedClient(client, true)
     const originalQuery = Account.query
     Account.query = (() => {
       throw new Error(privateError)

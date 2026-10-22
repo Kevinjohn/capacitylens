@@ -107,8 +107,7 @@ async function loadRemoteSlice(
     // as "nothing to hydrate yet", return empty (snapshot empty) so bootstrap shows the picker
     // rather than a connection-error dead end. The picker lists the login's accounts from
     // GET /api/accounts (useAccountSummaries); picking one hydrates its slice via loadAll(accountId).
-    // Off keeps the no-arg whole read (200), so this branch never fires there. A 400 on a scoped
-    // read (accountId present) is a real error and still throws below.
+    // A 400 on a scoped read (accountId present) is a real error and still throws below.
     if (accountId === undefined && res.status === 400) {
       const empty = emptyAppData();
       if (myGen === state.loadGen) {

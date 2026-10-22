@@ -18,11 +18,8 @@ what's stored. So the client hides every edit affordance for a Viewer (UX) and t
 viewer's mutation locally (defense-in-depth). The **server 403** remains the authoritative access
 boundary — the client gating is a courtesy + a desync guard, never the security boundary.
 
-**Critical invariant:** while online, with **auth off** or in the in-memory demo there is no
-membership role to enforce, so the role resolves to `null` and remains fully editable. The persisted auth-off server is
-labelled **Open access**; only the disposable in-memory build is labelled **Demo access**. The
-online membership-driven Viewer mode is reachable only on a server + auth-on deploy where a real
-`viewer` membership exists.
+**Critical invariant:** every persisted server has authenticated membership roles, and a Viewer is
+read-only. The in-memory demo has no member roles, remains editable and is labelled **Demo access**.
 
 ## How (end-to-end)
 
@@ -55,8 +52,8 @@ draggable/resizable.
 
 ## Acceptance criteria
 
-- The role drives the UI ONLY on a server + auth-on deploy. `GET /api/accounts` returns
-  `{ id, name, role }` per account (the caller's role; **OFF mode** tags every entry `'owner'`).
+- The role drives the UI on every persisted server. `GET /api/accounts` returns
+  `{ id, name, role }` per account (the caller's role).
 - For a **Viewer**: no top **Add X** on any list; no row **Edit**/**Delete**; no empty-state create
   CTA; no scheduler per-row **+**, lane draw, or hover **+** hint; allocation bars have **no resize
   grips**, no drag/resize, no edit modal (a viewer bar is a Tab-reachable `role="img"`, not
@@ -71,10 +68,8 @@ draggable/resizable.
   (`PUT /api/<entity>/<id>` with the account's `accountId`, write tier = editor+) is **403** even if
   the UI is bypassed. As a second local guard, the store no-ops a viewer's `add*`/`update*`/`delete*`/
   `importData` and surfaces _"Read-only — you don't have edit access."_
-- **Default-editable invariant:** with **auth off** or in the in-memory demo the role is `null` and
-  the online app is fully editable.
-  The persistent badge says **Open access** for the persisted auth-off
-  server and **Demo access** for the in-memory build, rather than claiming a real membership role.
+- The in-memory demo has no persisted badge or membership role and remains editable; it identifies
+  its access posture as **Demo access**.
 - UI: `src/auth/PermissionProvider.tsx` + `src/auth/permissionContext.ts` (`useRole`/`useCanEdit`, off
   the pure `can`); story `user-stories/settings/US-SET-11-viewer-readonly.md`; spec
   `e2e/viewer.auth.spec.ts`.

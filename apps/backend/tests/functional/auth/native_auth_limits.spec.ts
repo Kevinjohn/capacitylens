@@ -57,7 +57,7 @@ test.group('native auth and API rate limits', (group) => {
     cleanup,
   }) => {
     captureEnvironment(cleanup, ['CAPACITYLENS_MODE', 'CAPACITYLENS_RATE_LIMIT'])
-    setEnvironment('CAPACITYLENS_MODE', 'off')
+    setEnvironment('CAPACITYLENS_MODE', 'password-only')
     setEnvironment('CAPACITYLENS_RATE_LIMIT', '2')
 
     assert.equal(await responseStatus(requestMetadata(client)), 200)
@@ -82,7 +82,7 @@ test.group('native auth and API rate limits', (group) => {
     cleanup,
   }) => {
     captureEnvironment(cleanup, ['CAPACITYLENS_MODE', 'CAPACITYLENS_RATE_LIMIT'])
-    setEnvironment('CAPACITYLENS_MODE', 'off')
+    setEnvironment('CAPACITYLENS_MODE', 'password-only')
     for (const configured of ['', '0', '-1', '1.5', 'invalid', ' 2 ']) {
       await db.from('rate_limits').delete()
       setEnvironment('CAPACITYLENS_RATE_LIMIT', configured)
@@ -101,7 +101,7 @@ test.group('native auth and API rate limits', (group) => {
       'CAPACITYLENS_RATE_LIMIT',
       'CAPACITYLENS_TRUST_PROXY_HEADERS',
     ])
-    setEnvironment('CAPACITYLENS_MODE', 'off')
+    setEnvironment('CAPACITYLENS_MODE', 'password-only')
     setEnvironment('CAPACITYLENS_RATE_LIMIT', '2')
     setEnvironment('CAPACITYLENS_TRUST_PROXY_HEADERS', false)
     assert.equal(await responseStatus(requestMetadata(client, '203.0.113.41')), 200)

@@ -1,12 +1,16 @@
 import { test } from '@japa/runner'
+import {
+  authenticatedDataClient,
+  resetAuthenticatedData,
+} from '../../helpers/authenticated_data_fixture.js'
 import type { ApiClient } from '@japa/api-client'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import { seed } from '@capacitylens/shared/data/seed'
 import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities'
 
 async function reset(client: ApiClient, seeded = true) {
-  const response = await client.post('/api/test/reset').json({ seed: seeded }).send()
-  response.assertStatus(200)
+  const session = await resetAuthenticatedData(client, seeded)
+  return authenticatedDataClient(client, session.cookie)
 }
 
 async function state(client: ApiClient, accountId = 'a-studio') {
@@ -32,7 +36,7 @@ test.group('M2a ordinary-write normalization', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     for (const [table, id] of [
       ['clients', 'c-acme'],
       ['projects', 'p-acme'],
@@ -56,7 +60,7 @@ test.group('M2a ordinary-write normalization', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     for (const [table, id] of [
       ['clients', 'c-acme'],
       ['projects', 'p-acme'],
@@ -80,7 +84,7 @@ test.group('M2a ordinary-write normalization', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const before = await state(client)
     const clientRow = before.clients.find((row) => row.id === 'c-acme')!
     const clientWrite = await put(client, 'clients', { ...clientRow, builtin: false })
@@ -106,11 +110,11 @@ test.group('M2a ordinary-write normalization', (group) => {
     client,
     assert,
   }) => {
-    await reset(client, false)
+    client = await reset(client, false)
     const source = seed().accounts.find((row) => row.id === 'a-studio')!
     const account = { ...source, id: 'a-sunday', weekStartsOn: 0 } as Record<string, unknown>
     delete account.workingDays
-    const created = await trusted(client.post('/api/accounts'))
+    const created = await trusted(client.post('/api/orgs'))
       .json({ id: account.id, name: account.name, weekStartsOn: account.weekStartsOn })
       .send()
     created.assertStatus(201)

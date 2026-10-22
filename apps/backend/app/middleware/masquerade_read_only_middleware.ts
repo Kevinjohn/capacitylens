@@ -1,6 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
-import { authMode } from '#services/auth/mode'
 import { activeMasquerade } from '#services/auth/masquerade'
 import { resolveCurrentActor, SessionAuthorityError } from '#services/auth/session_authority'
 
@@ -26,7 +25,7 @@ export default class MasqueradeReadOnlyMiddleware {
     const path = ctx.request.url().split('?', 1)[0]
     const method = ctx.request.method()
     const unsafe = method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS'
-    if (authMode() === 'off' || (!path?.startsWith('/api/') && !unsafe)) return next()
+    if (!path?.startsWith('/api/') && !unsafe) return next()
     const record = await activeMasquerade(ctx.session.sessionId)
     if (!record) return next()
     if (ctx.request.method() === 'GET' && path === '/api/masquerade') return next()

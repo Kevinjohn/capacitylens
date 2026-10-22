@@ -2,6 +2,7 @@ import { test } from '@japa/runner'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
+import { resetAuthenticatedClient } from '../../helpers/authenticated_data_fixture.js'
 
 test.group('membership control-data isolation', (group) => {
   group.setup(() => freshDatabase())
@@ -10,7 +11,7 @@ test.group('membership control-data isolation', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const stamp = '2026-10-15T00:00:00.000Z'
     await db.from('invitation_proposals').where('id', 'proposal-control-isolation').delete()
     await db.from('invitations').where('id', 'invite-control-isolation').delete()

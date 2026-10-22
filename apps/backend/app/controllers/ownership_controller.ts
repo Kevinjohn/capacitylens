@@ -1,5 +1,4 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { authMode } from '#services/auth/mode'
 import { AccountCommandError, readAccountCommand } from '#services/account_commands'
 import { IdentityAuthorityError } from '#services/auth/authorization'
 import { SessionAuthorityError } from '#services/auth/session_authority'
@@ -19,11 +18,6 @@ function validBody(value: unknown): value is { toUserId: string } {
 
 export default class OwnershipController {
   async transfer(ctx: HttpContext) {
-    if (authMode() === 'off')
-      return ctx.response.forbidden({
-        error: 'Ownership transfer requires sign-in.',
-        code: 'FORBIDDEN',
-      })
     if (!validBody(ctx.request.body()))
       return ctx.response.badRequest({
         error: 'An eligible target user is required.',

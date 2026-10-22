@@ -69,7 +69,7 @@ test.group('native read-only masquerade', (group) => {
     env.set('CAPACITYLENS_SETUP_TOKEN', setupToken)
     env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', false)
     return () => {
-      env.set('CAPACITYLENS_MODE', old.mode ?? 'off')
+      env.set('CAPACITYLENS_MODE', old.mode ?? 'password-only')
       env.set('CAPACITYLENS_SETUP_TOKEN', old.setup ?? '')
       env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', old.screening)
     }
@@ -356,7 +356,7 @@ test.group('native read-only masquerade', (group) => {
     }
   })
 
-  test('reports inactive for off mode, anonymous and revoked sessions without restoring data access', async ({
+  test('reports inactive for anonymous and revoked sessions without restoring data access', async ({
     client,
     assert,
   }) => {
@@ -377,16 +377,11 @@ test.group('native read-only masquerade', (group) => {
     assert.deepEqual(revoked.body(), { active: false })
     const deniedRead = await asSession(client.get('/api/state?accountId=a-studio'), cookie).send()
     deniedRead.assertStatus(401)
-    env.set('CAPACITYLENS_MODE', 'off')
-    const off = await client.get('/api/masquerade').send()
-    off.assertStatus(200)
-    assert.deepEqual(off.body(), { active: false })
-    const offStart = await client
+    const anonymousStart = await client
       .post('/api/accounts/a-studio/masquerade')
       .header('sec-fetch-site', 'same-origin')
       .json({ targetUserId: targetId })
       .send()
-    offStart.assertStatus(403)
-    env.set('CAPACITYLENS_MODE', 'password-only')
+    anonymousStart.assertStatus(401)
   })
 })

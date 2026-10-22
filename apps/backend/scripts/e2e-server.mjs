@@ -19,14 +19,15 @@ const env = {
   LOG_LEVEL: 'error',
   APP_KEY: 'capacitylens-e2e-key-0123456789abcdef',
   APP_URL: `http://127.0.0.1:${port}`,
-  SESSION_DRIVER: flavour === 'auth' ? 'database' : 'memory',
+  SESSION_DRIVER: 'database',
   CAPACITYLENS_DB: database,
-  CAPACITYLENS_MODE: flavour === 'db' ? 'off' : 'password-only',
+  CAPACITYLENS_MODE: 'password-only',
   CAPACITYLENS_ALLOW_RESET: '1',
+  ...(flavour === 'db' ? { CAPACITYLENS_RATE_LIMIT: '1000' } : {}),
   PORT: String(port),
 }
 
-if (flavour === 'auth') {
+if (flavour === 'auth' || flavour === 'db') {
   Object.assign(env, {
     CAPACITYLENS_MODE: 'password-only',
     CAPACITYLENS_CREATE_ADMIN_ADMIN: '1',

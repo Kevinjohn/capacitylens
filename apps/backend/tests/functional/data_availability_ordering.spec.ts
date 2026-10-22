@@ -3,7 +3,13 @@ import { freshDatabase } from '../helpers/fresh_database.js'
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath'
 import { seed } from '@capacitylens/shared/data/seed'
 import type { AppData } from '@capacitylens/shared/types/entities'
-import { batch, readStudioState, resetSeed, studioSeed, trusted } from './batch/ordering_helpers.js'
+import {
+  batch,
+  readStudioState,
+  resetSeedClient,
+  studioSeed,
+  trusted,
+} from './batch/ordering_helpers.js'
 
 const SESSION = 'm2b-invalid-metadata-session-01'
 
@@ -26,7 +32,7 @@ test.group('M2b resource availability and batch pre-scan', (group) => {
     client,
     assert,
   }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const before = await readStudioState(client)
     const malformedHeaders = [
       {
@@ -63,7 +69,7 @@ test.group('M2b resource availability and batch pre-scan', (group) => {
     client,
     assert,
   }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const before = await readStudioState(client)
     const data = seed()
     const clientRow = data.clients.find((row) => row.id === 'c-acme')!
@@ -105,7 +111,7 @@ test.group('M2b resource availability and batch pre-scan', (group) => {
     client,
     assert,
   }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const before = await readStudioState(client)
     const data = seed()
     const discipline = data.disciplines.find((row) => row.id === 'd-design')!
@@ -144,7 +150,7 @@ test.group('M2b resource availability and batch pre-scan', (group) => {
     client,
     assert,
   }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const before = await readStudioState(client)
     const allocation = before.allocations.find((row) => row.id === 'a-tyler-1')!
     const resource = before.resources.find((row) => row.id === allocation.resourceId)!
@@ -184,7 +190,7 @@ test.group('M2b resource availability and batch pre-scan', (group) => {
     client,
     assert,
   }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const { data } = studioSeed()
     const account = tableRow(data, 'accounts', 'a-studio')
     const person = {
@@ -252,7 +258,7 @@ test.group('M2b resource availability and batch pre-scan', (group) => {
     client,
     assert,
   }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const { data } = studioSeed()
     const person = {
       ...data.resources.find((row) => row.id === 'r-tyler')!,

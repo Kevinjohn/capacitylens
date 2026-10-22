@@ -1,5 +1,4 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { authMode } from '#services/auth/mode'
 import { withTransaction } from '#services/with_transaction'
 import { resolveCurrentActor, SessionAuthorityError } from '#services/auth/session_authority'
 import {
@@ -21,7 +20,6 @@ async function respond<T>(ctx: HttpContext, work: () => Promise<T>) {
 
 export default class MasqueradeController {
   async start(ctx: HttpContext) {
-    if (authMode() === 'off') return ctx.response.forbidden({ error: 'Forbidden.' })
     const accountId = ctx.params.accountId
     const body: unknown = ctx.request.body()
     if (
@@ -46,7 +44,6 @@ export default class MasqueradeController {
   }
 
   async status(ctx: HttpContext) {
-    if (authMode() === 'off') return ctx.response.ok({ active: false })
     return respond(ctx, async () => {
       try {
         // The web guard loads its user through the default connection; authenticate before
@@ -62,7 +59,6 @@ export default class MasqueradeController {
   }
 
   async end(ctx: HttpContext) {
-    if (authMode() === 'off') return ctx.response.forbidden({ error: 'Forbidden.' })
     const body: unknown = ctx.request.body()
     if (
       !body ||

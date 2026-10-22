@@ -51,9 +51,9 @@ attention** in the member row, with **Choose another person** and **Dismiss** co
 from the centered member dialog. Invitees never see the
 proposal or exception.
 
-The **Members management section** is a server + auth-on feature only. With auth off or in the
-in-memory demo, **Team & access** still explains the access posture and member/resource distinction,
-but no directory or management controls exist.
+The **Members management section** is available on persisted servers. In the in-memory demo,
+**Team & access** explains the demo access posture and member/resource distinction, but no directory
+or management controls exist.
 
 ## How (end-to-end)
 
@@ -136,9 +136,8 @@ the non-blocking product orientation if it is open.
 
 ## Acceptance criteria
 
-- **Team & access** renders for every role and distinguishes the in-memory **Demo access** posture
-  from a persisted auth-off server's **Open access** posture. The **Members** management section
-  renders only in server + auth-on mode for an Owner/Admin; a Viewer/Editor sees their role
+- **Team & access** renders for every role. The in-memory demo labels its posture **Demo access**.
+  The **Members** management section renders on persisted servers for an Owner/Admin; a Viewer/Editor sees their role
   explanation but no member directory or controls.
 - The member and outstanding-invitation lists use the same five-column table: **Name**, **Role**,
   **Email**, **Link to Resource**, and **Actions**. Active and inactive member tables share the
@@ -221,5 +220,5 @@ the non-blocking product orientation if it is open.
   `signInConfirmed`), `PUT …/member-sign-in-tracking {enabled}` (Owner only),
   `PATCH …/members/:userId {role}`, `PATCH …/members/:userId/status {status}`,
   `DELETE …/members/:userId`,
-  `GET /api/accounts/:accountId/invites` (no token), `DELETE …/invites/:id`. OFF mode returns empty
-  lists and inert mutates.
+  `GET /api/accounts/:accountId/invites`, `DELETE …/invites/:id`. The in-memory demo makes no
+  invitation requests.

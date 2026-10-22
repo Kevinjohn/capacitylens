@@ -75,7 +75,7 @@ function publishPlanning(state: StoreState, next: Partial<PlanningCacheState>): 
       ...state.data,
       allocations: [
         ...state.data.allocations.filter((allocation) => allocation.accountId !== companyId),
-        ...next.data.allocations,
+        ...next.data.allocations.filter((allocation) => allocation.accountId === companyId),
       ],
     },
   };

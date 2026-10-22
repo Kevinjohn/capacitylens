@@ -1,11 +1,16 @@
 import { test } from '@japa/runner'
+import type { ApiClient } from '@japa/api-client'
+import {
+  authenticatedDataClient,
+  resetAuthenticatedData,
+} from '../../helpers/authenticated_data_fixture.js'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import { request as httpRequest } from 'node:http'
 import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
 import { withTransaction } from '#services/with_transaction'
 import { applyLifecycle } from '#services/lifecycle'
-import { trustedLocalDataContext } from '#services/batch/data_policy'
+import { initialCompanyDataContext } from '#services/batch/data_policy'
 import { interceptChildLoggers } from '../../helpers/logger.js'
 
 interface RawResponse {
@@ -17,7 +22,8 @@ function postRaw(
   path: string,
   body: Buffer,
   contentType: string,
-  headers: Record<string, string> = {}
+  headers: Record<string, string> = {},
+  cookie?: string
 ): Promise<RawResponse> {
   return new Promise((resolve, reject) => {
     const request = httpRequest(
@@ -30,6 +36,7 @@ function postRaw(
           'content-type': contentType,
           'content-length': String(body.length),
           'sec-fetch-site': 'same-origin',
+          ...(cookie ? { cookie: `adonis-session=${cookie}` } : {}),
           ...headers,
         },
       },
@@ -46,6 +53,11 @@ function postRaw(
   })
 }
 
+async function reset(client: ApiClient, seeded = true) {
+  const session = await resetAuthenticatedData(client, seeded)
+  return { client: authenticatedDataClient(client, session.cookie), cookie: session.cookie }
+}
+
 test.group('M2a review regressions', (group) => {
   group.setup(() => freshDatabase())
 
@@ -59,12 +71,18 @@ test.group('M2a review regressions', (group) => {
   })
 
   test('maps actual oversized form and unsupported encoding parser failures safely', async ({
+    client,
     assert,
   }) => {
+    const fixture = await reset(client, true)
+    client = fixture.client
+    const cookie = fixture.cookie
     const oversized = await postRaw(
       '/api/batch',
       Buffer.from(`value=${'x'.repeat(1_100_000)}`),
-      'application/x-www-form-urlencoded'
+      'application/x-www-form-urlencoded',
+      {},
+      cookie
     )
     assert.equal(oversized.statusCode, 413)
     assert.deepEqual(JSON.parse(oversized.body), {
@@ -76,7 +94,8 @@ test.group('M2a review regressions', (group) => {
       '/api/batch',
       Buffer.from('value=x'),
       'application/x-www-form-urlencoded',
-      { 'content-encoding': 'compress' }
+      { 'content-encoding': 'compress' },
+      cookie
     )
     assert.equal(unsupported.statusCode, 415)
     assert.deepEqual(JSON.parse(unsupported.body), {
@@ -90,7 +109,8 @@ test.group('M2a review regressions', (group) => {
     assert,
     cleanup,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    const fixture = await reset(client, true)
+    client = fixture.client
     const project = seed().projects[0]!
     const entries: Array<Record<string, unknown>> = []
     let restoreLogger = interceptChildLoggers((child) => {
@@ -132,7 +152,7 @@ test.group('M2a review regressions', (group) => {
     assert.isNull(storedProject.archived_at)
 
     let rollbackLogs = 0
-    const context = trustedLocalDataContext('rollback-actor', () => {
+    const context = initialCompanyDataContext('rollback-actor', () => {
       rollbackLogs++
     })
     await assert.rejects(() =>

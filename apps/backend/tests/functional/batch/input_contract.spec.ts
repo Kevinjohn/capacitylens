@@ -1,4 +1,8 @@
 import { test } from '@japa/runner'
+import {
+  authenticatedDataClient,
+  resetAuthenticatedData,
+} from '../../helpers/authenticated_data_fixture.js'
 import type { ApiClient } from '@japa/api-client'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import { seed } from '@capacitylens/shared/data/seed'
@@ -6,8 +10,8 @@ import type { AppData } from '@capacitylens/shared/types/entities'
 import { invalidFieldCases } from './input_cases.js'
 
 async function reset(client: ApiClient) {
-  const response = await client.post('/api/test/reset').json({ seed: true }).send()
-  response.assertStatus(200)
+  const session = await resetAuthenticatedData(client, true)
+  return authenticatedDataClient(client, session.cookie)
 }
 
 async function state(client: ApiClient) {
@@ -30,7 +34,7 @@ test.group('M2a batch input contract', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const before = await state(client)
     const cases = invalidFieldCases(seed())
 
@@ -52,7 +56,7 @@ test.group('M2a batch input contract', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const before = await state(client)
     const person = seed().resources.find((row) => row.id === 'r-tyler')!
     const badRequests: unknown[] = [
@@ -116,7 +120,7 @@ test.group('M2a batch input contract', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const before = await state(client)
     const request = client.post('/api/batch').header('content-type', 'application/json')
     request.request.send('{')
@@ -143,7 +147,7 @@ test.group('M2a batch input contract', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const clientRow = seed().clients.find((row) => row.id === 'c-acme')!
     const response = await client
       .post('/api/batch')
@@ -172,7 +176,7 @@ test.group('M2a batch input contract', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const rows = invalidFieldCases(seed())
     const tables = [...new Set(rows.map(({ table }) => table))]
 
@@ -195,7 +199,7 @@ test.group('M2a batch input contract', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const before = await state(client)
     const person = seed().resources.find((row) => row.id === 'r-tyler')!
     const unnamedPerson = { ...person, id: 'contract-unnamed-person' }
@@ -228,7 +232,7 @@ test.group('M2a batch input contract', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const data = seed()
     const projectId = 'p'.repeat(101)
     const activityId = 'repeatable-opaque'
@@ -278,7 +282,7 @@ test.group('M2a batch input contract', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const clientRow = { ...seed().clients.find((row) => row.id === 'c-acme')! }
     const acceptedName = `  ${'e\u0301'.repeat(60)}   O'Brien  `
     const response = await putOps(client, [

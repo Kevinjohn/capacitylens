@@ -1,11 +1,15 @@
 import { test } from '@japa/runner'
+import {
+  authenticatedDataClient,
+  resetAuthenticatedData,
+} from '../../helpers/authenticated_data_fixture.js'
 import type { ApiClient } from '@japa/api-client'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
 import type { AppData } from '@capacitylens/shared/types/entities'
 import { applyLifecycle } from '#services/lifecycle'
-import { trustedLocalDataContext } from '#services/batch/data_policy'
+import { initialCompanyDataContext } from '#services/batch/data_policy'
 import { withTransaction } from '#services/with_transaction'
 
 const TS = '2026-01-01T00:00:00.000Z'
@@ -15,8 +19,8 @@ const trusted = <T extends { header(name: string, value: string): T }>(request: 
   request.header('sec-fetch-site', 'same-origin')
 
 async function reset(client: ApiClient) {
-  const response = await client.post('/api/test/reset').json({ seed: true }).send()
-  response.assertStatus(200)
+  const session = await resetAuthenticatedData(client, true)
+  return authenticatedDataClient(client, session.cookie)
 }
 
 async function state(client: ApiClient, inactive = false) {
@@ -63,7 +67,7 @@ test.group('M2a lifecycle contract', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const attempts = [
       {
         table: 'resources',
@@ -153,7 +157,7 @@ test.group('M2a lifecycle contract', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const unknown = await lifecycle(client, 'phases', 'missing', 'archive')
     unknown.assertStatus(404)
     assert.deepEqual(unknown.body(), { error: 'Unknown entity: phases.' })
@@ -181,7 +185,7 @@ test.group('M2a lifecycle contract', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const internal = seed().clients.find((row) => row.id === 'c-internal-studio')
     assert.exists(internal)
     for (const [action, verb] of [
@@ -204,7 +208,7 @@ test.group('M2a lifecycle contract', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const current = seed().clients.find((row) => row.id === 'c-acme')!
     const realName = 'PRIVATE_ARCHIVE_RESPONSE_7TQ'
     const codeName = 'Blue Beetle'
@@ -212,7 +216,7 @@ test.group('M2a lifecycle contract', (group) => {
       .from('clients')
       .where('id', current.id)
       .update({ name: realName, code_name: codeName, is_private: JSON.stringify(true) })
-    const base = trustedLocalDataContext('editor-private-name')
+    const base = initialCompanyDataContext('editor-private-name')
     const capabilities = {
       ...base.capabilitiesFor(current.accountId),
       role: 'editor' as const,
@@ -236,7 +240,7 @@ test.group('M2a lifecycle contract', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const activity = seed().activities.find((row) => row.id === 't-wires')!
     const archive = await lifecycle(client, 'activities', activity.id, 'archive')
     archive.assertStatus(200)
@@ -299,7 +303,7 @@ test.group('M2a lifecycle contract', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     await db
       .from('resources')
       .where('id', 'r-tyler')
@@ -316,7 +320,7 @@ test.group('M2a lifecycle contract', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const futureArchive = '2099-01-01T00:00:00.000Z'
     await db
       .from('resources')
@@ -334,7 +338,7 @@ test.group('M2a lifecycle contract', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const note = 'PRESERVE_LIFECYCLE_NOTE_7TQ'
     await db.from('resources').where('id', 'r-nike').update({ archived_at: TS })
     await db.from('resources').where('id', 'r-alex').update({ archived_at: TS, deleted_at: AGED })
@@ -358,7 +362,7 @@ test.group('M2a lifecycle contract', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const resource = seed().resources.find((row) => row.id === 'r-tyler')!
     const archived = await lifecycle(client, 'resources', resource.id, 'archive')
     archived.assertStatus(200)
@@ -383,7 +387,7 @@ test.group('M2a lifecycle contract', (group) => {
       resource.id
     )
 
-    await reset(client)
+    client = await reset(client)
     const project = seed().projects.find((row) => row.id === 'p-acme')!
     const phase = seed().phases.find((row) => row.id === 'ph-disc')!
     const archivedProject = await lifecycle(client, 'projects', project.id, 'archive')
@@ -432,7 +436,7 @@ test.group('M2a lifecycle contract', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const nameSentinel = 'LIFECYCLE_PRIVATE_NAME_7TQ'
     const noteSentinel = 'LIFECYCLE_PRIVATE_NOTE_7TQ'
     await db.from('resources').where('id', 'r-tyler').update({ name: nameSentinel })
@@ -498,7 +502,7 @@ test.group('M2a lifecycle contract', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const sentinel = 'PURGED_CLIENT_VALUE_7TQ'
     await db
       .from('clients')

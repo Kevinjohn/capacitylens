@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto'
 import { test } from '@japa/runner'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
-import env from '#start/env'
 import { readState } from '#services/state_repository'
 import {
   accountId,
@@ -239,18 +238,12 @@ test.group('independent typed planning operations', (group) => {
     )
   })
 
-  test('trusted local planning remains readable but cannot write in authentication-off mode', async ({
+  test('anonymous planning cannot read or write persisted allocations', async ({
     client,
     assert,
-    cleanup,
   }) => {
-    const previousMode = env.get('CAPACITYLENS_MODE')
-    env.set('CAPACITYLENS_MODE', 'off')
-    cleanup(() => env.set('CAPACITYLENS_MODE', previousMode))
     const snapshot = await trusted(client.get(planningUrl)).send()
-    snapshot.assertStatus(200)
-    assert.isFalse(snapshot.body().authority.canWrite)
-    assert.equal(snapshot.body().revision, 0)
+    snapshot.assertStatus(401)
 
     const allocation = newAllocation(await readState(accountId, true))
     const before = await readState(accountId, true)
@@ -258,7 +251,7 @@ test.group('independent typed planning operations', (group) => {
       .json(input(0, { operation: 'allocation.create', allocation }))
       .send()
     write.assertStatus(401)
-    assert.equal(body(write).code, 'unauthenticated')
+    assert.deepEqual(write.body(), { error: 'Sign-in required.' })
     assert.deepEqual(await readState(accountId, true), before)
     assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0)
     assert.lengthOf(

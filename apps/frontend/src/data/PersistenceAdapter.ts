@@ -21,8 +21,8 @@ export interface CommittedRowRevision {
 /** Load and save contract implemented by local and server-backed persistence. */
 export interface PersistenceAdapter {
   /** Load persisted data. `accountId` (server adapter only) loads only that account's scoped slice
-   * and re-seeds the diff snapshot to it; omitted requests the whole tree (off mode and a pre-pick
-   * bootstrap without live identity). `skipRemoteRead` seeds an empty server snapshot for a
+   * and re-seeds the diff snapshot to it; omitted requests the whole tree during pre-pick
+   * bootstrap. `skipRemoteRead` seeds an empty server snapshot for a
    * live-authenticated pre-pick bootstrap. The in-memory demo adapter ignores both arguments. */
   loadAll(accountId?: string, options?: { skipRemoteRead?: boolean }): Promise<AppData>;
   /** Saves the next complete application state. An unload save dispatches its ordered final

@@ -2,7 +2,7 @@ import { test } from '@japa/runner'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import type { BatchRevision } from '#services/batch/types'
-import { batch, readStudioState, resetSeed, studioSeed } from './ordering_helpers.js'
+import { batch, readStudioState, resetSeedClient, studioSeed } from './ordering_helpers.js'
 
 const SESSION = 'm2a-ordering-session-01'
 
@@ -19,7 +19,7 @@ test.group('M2a ordered batch behavior', (group) => {
     client,
     assert,
   }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const { data } = studioSeed()
     const current = data.disciplines[0]!
     const first = await batch(
@@ -59,7 +59,7 @@ test.group('M2a ordered batch behavior', (group) => {
     client,
     assert,
   }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const current = studioSeed().data.disciplines[0]!
     const newest = await batch(
       client,
@@ -86,7 +86,7 @@ test.group('M2a ordered batch behavior', (group) => {
   })
 
   test('an external edit invalidates the successor hash and remains stored', async ({ client }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const disciplines = studioSeed().data.disciplines
     const original = disciplines[0]!
     const sibling = disciplines.find((row) => row.id !== original.id)!
@@ -154,7 +154,7 @@ test.group('M2a ordered batch behavior', (group) => {
     client,
     assert,
   }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const initial = studioSeed().data
     const allocation = initial.allocations[0]!
     const discipline = initial.disciplines[0]!
@@ -193,7 +193,7 @@ test.group('M2a ordered batch behavior', (group) => {
   })
 
   test('a stale ARCHIVE rejects without changing the externally edited row', async ({ client }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const original = studioSeed().data.clients.find((row) => row.id === 'c-acme')!
     const external = await batch(client, [
       {
@@ -228,7 +228,7 @@ test.group('M2a ordered batch behavior', (group) => {
   test('ordered ARCHIVE retains its inactive row and fences an older creation', async ({
     client,
   }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const original = studioSeed().data.clients.find((row) => row.id === 'c-acme')!
     const archived = await batch(
       client,
@@ -261,7 +261,7 @@ test.group('M2a ordered batch behavior', (group) => {
   test('an ordered non-lifecycle DELETE prevents an older creation from being resurrected', async ({
     client,
   }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const base = studioSeed().data.disciplines[0]!
     const temporary = { ...base, id: 'm2a-temporary-discipline', name: 'Temporary' }
     const deleted = await batch(
@@ -295,7 +295,7 @@ test.group('M2a ordered batch behavior', (group) => {
     client,
     assert,
   }) => {
-    await resetSeed(client)
+    client = await resetSeedClient(client)
     const row = studioSeed().data.disciplines[0]!
     const recorded = await batch(
       client,

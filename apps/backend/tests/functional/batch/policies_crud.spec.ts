@@ -7,7 +7,7 @@ import { APP_DATA_KEYS, type AppDataKey } from '@capacitylens/shared/types/entit
 import DataPolicy from '#policies/data_policy'
 import { applyBatch } from '#services/batch/service'
 import {
-  trustedLocalDataContext,
+  initialCompanyDataContext,
   type BatchDataContext,
   type BatchCapabilities,
 } from '#services/batch/data_policy'
@@ -26,7 +26,7 @@ function context(role: BatchCapabilities['role']): BatchDataContext {
   }
   const bouncer = new Bouncer({ id: 'bruce-wayne' })
   return {
-    ...trustedLocalDataContext('bruce-wayne'),
+    ...initialCompanyDataContext('bruce-wayne'),
     ...capabilities,
     capabilitiesFor: () => capabilities,
     authorize: (accountId, action, resolved) =>

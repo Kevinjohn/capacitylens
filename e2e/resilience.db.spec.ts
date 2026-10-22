@@ -1,5 +1,5 @@
-import { test, expect } from "./fixtures";
-import { resetServer, serverState, requireStateRows } from "./serverTestState";
+import { test, expect } from "./dbFixtures";
+import { API, resetServer, serverState, requireStateRows } from "./serverTestState";
 import { failRequestsUntilReleased } from "./failRequestsUntilReleased";
 import { waitForAppLanding, freezeBrowserDate, openApp } from "./browserTestSupport";
 
@@ -13,7 +13,7 @@ function registerBeforeEachHooks() {
 
 function registerInitialStateFailurePreventsEditingTest() {
   test("an initial state failure prevents editing and Retry recovers the real server data", async ({ page }) => {
-    const stateFailure = await failRequestsUntilReleased(page, "**/api/state", {
+    const stateFailure = await failRequestsUntilReleased(page, "**/api/state**", {
       status: 503,
       body: { error: "Temporary test outage" },
     });
@@ -21,18 +21,18 @@ function registerInitialStateFailurePreventsEditingTest() {
     await freezeBrowserDate(page);
     await page.goto("/");
 
-    await expect(page.getByRole("heading", { name: "Can’t reach the server" })).toBeVisible();
-    await expect(page.getByText(/nothing has been changed/i)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Wayne Enterprises could not be opened" })).toBeVisible();
+    await expect(page.getByText(/previous company remains safely hidden/i)).toBeVisible();
     await expect(page.getByRole("button", { name: "Add client" })).toHaveCount(0);
     expect(stateFailure.attempts()).toBeGreaterThan(0);
 
     stateFailure.release();
-    await page.getByRole("button", { name: "Try again" }).click();
+    await page.getByRole("button", { name: "Retry" }).click();
     await waitForAppLanding(page, page.locator("#main"));
     await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
 
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Can’t reach the server" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Wayne Enterprises could not be opened" })).toHaveCount(0);
   });
 }
 
@@ -79,6 +79,10 @@ function registerStaleConcurrentEditRejectedExplainedTests() {
   }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
     const secondContext = await newObservedContext({ baseURL: new URL(page.url()).origin });
+    const secondSignIn = await secondContext.request.post(`${API}/api/auth/sign-in`, {
+      data: { email: "admin@admin.admin", password: "auth-e2e-password-2026" },
+    });
+    expect(secondSignIn.status()).toBe(200);
     const secondPage = await secondContext.newPage();
     await openApp(secondPage, "Wayne Enterprises", "/clients");
 

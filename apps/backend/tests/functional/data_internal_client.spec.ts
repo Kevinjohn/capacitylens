@@ -17,19 +17,23 @@ import { seed } from '@capacitylens/shared/data/seed'
 import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities'
 import { encodeRow } from '#services/state_repository'
 import { stripLifecycle } from './state/database_contract_cases.js'
-import { trusted } from './batch/ordering_helpers.js'
+import {
+  authenticatedDataClient,
+  grantDataOwner,
+  resetAuthenticatedData,
+} from '../helpers/authenticated_data_fixture.js'
 
 async function resetEmpty(client: ApiClient) {
-  const response = await client.post('/api/test/reset').json({ seed: false }).send()
-  response.assertStatus(200)
+  return resetAuthenticatedData(client, false)
 }
 
 async function createFirstAccount(client: ApiClient) {
-  const response = await trusted(client.post('/api/accounts'))
+  const response = await client
+    .post('/api/orgs')
     .json({ id: FIXTURE_ACCOUNT.id, name: FIXTURE_ACCOUNT.name })
     .send()
   response.assertStatus(201)
-  return response.body() as typeof FIXTURE_ACCOUNT
+  return response.body() as unknown as typeof FIXTURE_ACCOUNT
 }
 
 function put<T extends { id: string }>(table: AppDataKey, row: T) {
@@ -37,7 +41,8 @@ function put<T extends { id: string }>(table: AppDataKey, row: T) {
 }
 
 async function batch(client: ApiClient, ops: unknown[]) {
-  return trusted(client.post('/api/batch'))
+  return client
+    .post('/api/batch')
     .json({ ops } as never)
     .send()
 }
@@ -60,7 +65,8 @@ test.group('M2b protected Internal client batch contract', (group) => {
     client,
     assert,
   }) => {
-    await resetEmpty(client)
+    const session = await resetEmpty(client)
+    client = authenticatedDataClient(client, session.cookie)
     const project = {
       ...stripLifecycle(FIXTURE_PROJECT),
       clientId: `internal:${FIXTURE_ACCOUNT.id}`,
@@ -99,7 +105,8 @@ test.group('M2b protected Internal client batch contract', (group) => {
     client,
     assert,
   }) => {
-    await resetEmpty(client)
+    const session = await resetEmpty(client)
+    client = authenticatedDataClient(client, session.cookie)
     await createFirstAccount(client)
     const before = await state(client, FIXTURE_ACCOUNT.id)
     const first = await batch(client, [
@@ -124,7 +131,8 @@ test.group('M2b protected Internal client batch contract', (group) => {
   })
 
   test('rejects generic updates to the generated builtin client', async ({ client, assert }) => {
-    await resetEmpty(client)
+    const session = await resetEmpty(client)
+    client = authenticatedDataClient(client, session.cookie)
     const generatedId = `internal:${FIXTURE_ACCOUNT.id}`
     await createFirstAccount(client)
     const before = await state(client, FIXTURE_ACCOUNT.id)
@@ -145,7 +153,8 @@ test.group('M2b protected Internal client batch contract', (group) => {
     client,
     assert,
   }) => {
-    await resetEmpty(client)
+    const session = await resetEmpty(client)
+    client = authenticatedDataClient(client, session.cookie)
     const account = await createFirstAccount(client)
     const before = await state(client, FIXTURE_ACCOUNT.id)
     const counterfeit = {
@@ -164,7 +173,8 @@ test.group('M2b protected Internal client batch contract', (group) => {
     client,
     assert,
   }) => {
-    await resetEmpty(client)
+    const session = await resetEmpty(client)
+    client = authenticatedDataClient(client, session.cookie)
     const account = await createFirstAccount(client)
     const accountCreates = await db
       .from('audit_entries')
@@ -190,7 +200,8 @@ test.group('M2b protected Internal client batch contract', (group) => {
   })
 
   test('protects one builtin client per company', async ({ client, assert }) => {
-    await resetEmpty(client)
+    const session = await resetEmpty(client)
+    client = authenticatedDataClient(client, session.cookie)
     const firstAccount = seed().accounts[0]!
     const secondAccount = seed().accounts[1]!
     await db
@@ -200,6 +211,8 @@ test.group('M2b protected Internal client batch contract', (group) => {
           encodeRow('accounts', account as unknown as Record<string, unknown>)
         )
       )
+    await grantDataOwner(session.userId, firstAccount.id)
+    await grantDataOwner(session.userId, secondAccount.id)
     await db
       .table('clients')
       .insert(

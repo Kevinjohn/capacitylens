@@ -4,7 +4,7 @@ import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import HttpExceptionHandler from '#exceptions/handler'
 import { applyBatch } from '#services/batch/service'
-import { trustedLocalDataContext } from '#services/batch/data_policy'
+import { initialCompanyDataContext } from '#services/batch/data_policy'
 import { readStateWithClient, replaceWithSeed } from '#services/state_repository'
 import { withTransaction } from '#services/with_transaction'
 
@@ -118,7 +118,7 @@ test.group('M2a SQL failure and audit contracts', (group) => {
               },
             ],
             null,
-            trustedLocalDataContext('bruce-wayne')
+            initialCompanyDataContext('bruce-wayne')
           )
         )
       )
@@ -155,7 +155,7 @@ test.group('M2a SQL failure and audit contracts', (group) => {
               },
             ],
             null,
-            trustedLocalDataContext('bruce-wayne')
+            initialCompanyDataContext('bruce-wayne')
           )
         )
       )
@@ -177,7 +177,7 @@ test.group('M2a SQL failure and audit contracts', (group) => {
         trx,
         [{ method: 'PUT', table: 'disciplines', id: base.id, row: { ...base, name: sentinel } }],
         null,
-        trustedLocalDataContext('bruce-wayne')
+        initialCompanyDataContext('bruce-wayne')
       )
     )
     const rows = await db.from('audit_entries').where('entity_id', base.id)

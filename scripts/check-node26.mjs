@@ -32,7 +32,9 @@ export function runDetachedPackageProbe({ repositoryRoot = root, deployDir, runC
   runCommand("production build", "pnpm", ["run", "build"], {
     ...process.env,
     NODE_ENV: "production",
-    CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1",
+    CAPACITYLENS_MODE: "password-only",
+    CAPACITYLENS_SECRET: "capacitylens-build-secret-0123456789abcdef",
+    CAPACITYLENS_PUBLIC_URL: "http://127.0.0.1",
     HOST: "127.0.0.1",
     PORT: "0",
     LOG_LEVEL: "error",

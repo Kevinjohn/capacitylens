@@ -3,7 +3,7 @@ import { newId } from '@capacitylens/shared/lib/id'
 import { readState, readStateWithClient } from '#services/state_repository'
 import { applyBatch } from '#services/batch/service'
 import { BatchRequestError } from '#services/batch/errors'
-import { dataContextForActor, trustedLocalDataContext } from '#services/batch/data_policy'
+import { dataContextForActor, initialCompanyDataContext } from '#services/batch/data_policy'
 import { withTransaction } from '#services/with_transaction'
 import { writeAudit } from '#services/audit'
 import env from '#start/env'
@@ -14,7 +14,6 @@ import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color'
 import { timingSafeEqual } from 'node:crypto'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import db from '@adonisjs/lucid/services/db'
-import { authMode } from '#services/auth/mode'
 import {
   assertCompanyAction,
   IdentityAuthorityError,
@@ -102,14 +101,6 @@ export default class CompaniesController {
         error:
           'This installation has more than one company. Contact the administrator to resolve it.',
       })
-    if (authMode() === 'off') {
-      const state = await readState()
-      return ctx.response.ok(
-        state.accounts
-          .map(({ id, name }) => ({ id, name, role: 'owner' as const }))
-          .sort((left, right) => left.name.localeCompare(right.name))
-      )
-    }
     const summaries = await withTransaction(async (trx) => {
       const actor = await resolveCurrentActor(ctx, trx)
       const restricted = await restrictedCompanyIds(actor.userId, trx)
@@ -171,9 +162,9 @@ export default class CompaniesController {
     if (id && requested.id !== undefined && requested.id !== id)
       return response.badRequest({ error: 'Company id must match the URL.' })
     try {
-      const command = !patch && org && authMode() !== 'off' ? readAccountCommand(ctx) : null
+      const command = !patch && org ? readAccountCommand(ctx) : null
       const result = await withTransaction(async (trx) => {
-        const authenticatedCreate = !patch && org && authMode() !== 'off'
+        const authenticatedCreate = !patch && org
         const actorId = authenticatedCreate ? await this.creationActor(ctx, trx) : null
         if (command && actorId) {
           const claim = await claimAccountCommand(trx, {
@@ -192,7 +183,7 @@ export default class CompaniesController {
           }
         }
         const context = authenticatedCreate
-          ? trustedLocalDataContext(actorId!, this.logCommitted(ctx))
+          ? initialCompanyDataContext(actorId!, this.logCommitted(ctx))
           : await dataContextForActor(ctx, trx, this.logCommitted(ctx))
         const state = await readStateWithClient(trx, accountId, true)
         const existing = state.accounts[0]
@@ -274,12 +265,10 @@ export default class CompaniesController {
   }
 
   store(ctx: HttpContext) {
-    if (authMode() !== 'off')
-      return ctx.response.forbidden({
-        error: 'Use /api/orgs to create a company.',
-        code: 'FORBIDDEN',
-      })
-    return this.write(ctx, undefined, false, true)
+    return ctx.response.forbidden({
+      error: 'Use /api/orgs to create a company.',
+      code: 'FORBIDDEN',
+    })
   }
 
   storeOrg(ctx: HttpContext) {
@@ -296,10 +285,8 @@ export default class CompaniesController {
     try {
       const command = readAccountCommand(ctx)
       await withTransaction(async (trx) => {
-        const account = await trx.from('accounts').select('id').where('id', accountId).first()
-        if (!account && authMode() === 'off') return
-        const actor = authMode() === 'off' ? null : await resolveCurrentActor(ctx, trx)
-        const actorId = actor?.userId ?? ctx.auth.use('trustedLocal').getUserOrFail().id
+        const actor = await resolveCurrentActor(ctx, trx)
+        const actorId = actor.userId
         const claim = await claimAccountCommand(trx, {
           actorId,
           operation: 'erase-company',
@@ -310,8 +297,7 @@ export default class CompaniesController {
           receiptSurvivesAccountDeletion: true,
         })
         if (claim.replayed) return
-        if (authMode() !== 'off')
-          await assertCompanyAction(ctx, accountId, 'deleteAccount', trx, true)
+        await assertCompanyAction(ctx, accountId, 'deleteAccount', trx, true)
         await writeAudit(trx, {
           accountId,
           actorId,

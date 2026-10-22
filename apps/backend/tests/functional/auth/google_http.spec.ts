@@ -72,7 +72,7 @@ test.group('Google browser entry', (group) => {
     env.set('CAPACITYLENS_SETUP_TOKEN', 'google-link-test-setup-token-0123456789')
     env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', false)
     return () => {
-      env.set('CAPACITYLENS_MODE', previous.mode || 'off')
+      env.set('CAPACITYLENS_MODE', previous.mode || 'password-only')
       env.set('CAPACITYLENS_GOOGLE_CLIENT_ID', previous.clientId || '')
       env.set('CAPACITYLENS_GOOGLE_CLIENT_SECRET', previous.clientSecret || '')
       env.set('CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS', previous.bootstrap || '')
@@ -737,7 +737,7 @@ test.group('Google browser entry', (group) => {
 
   test('offers Google only in configured mixed or SSO-only modes', async ({ client, cleanup }) => {
     const previous = env.get('CAPACITYLENS_MODE')
-    cleanup(() => env.set('CAPACITYLENS_MODE', previous || 'off'))
+    cleanup(() => env.set('CAPACITYLENS_MODE', previous || 'password-only'))
     const callbackURL = new URL('/login', env.get('APP_URL')).href
     const start = () =>
       client

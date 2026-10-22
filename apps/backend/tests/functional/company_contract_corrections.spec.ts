@@ -1,4 +1,5 @@
 import { test } from '@japa/runner'
+import { resetAuthenticatedClient } from '../helpers/authenticated_data_fixture.js'
 import { freshDatabase } from '../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
@@ -14,7 +15,7 @@ test.group('M2b company route compatibility', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const response = await client.get('/api/accounts').send()
     response.assertStatus(409)
     assert.deepEqual(response.body(), {
@@ -23,41 +24,33 @@ test.group('M2b company route compatibility', (group) => {
     })
   })
 
-  test('off-mode identity offers the first company and reopens after deleting the last', async ({
+  test('signed-in identity offers first-company creation and deletion revokes its session', async ({
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: false }).send()
-    for (const [index, expected] of [true, false, true].entries()) {
-      const identity = await client.get('/api/auth/me')
-      identity.assertStatus(200)
-      assert.deepEqual(identity.body(), {
-        authMode: 'off',
-        user: {
-          id: 'demo',
-          name: 'Demo',
-          email: 'demo@capacitylens.local',
-          emailVerified: true,
-          image: null,
-        },
-        providers: [],
-        canCreateAccount: expected,
-      })
-      if (index === 0) {
-        const created = await trusted(client.post('/api/accounts'))
-          .json({ id: 'a-first', name: 'Wayne Enterprises' })
-          .send()
-        created.assertStatus(201)
-      } else if (!expected) {
-        const deleted = await trusted(client.delete('/api/accounts/a-first')).send()
-        deleted.assertStatus(204)
-      }
-    }
+    client = await resetAuthenticatedClient(client, false)
+    const initial = await client.get('/api/auth/me').send()
+    initial.assertStatus(200)
+    assert.equal(initial.body().authMode, 'password-only')
+    assert.equal(initial.body().canCreateAccount, true)
+    assert.equal(initial.body().user.email, 'bruce.wayne@wayne.example')
+    const created = await trusted(client.post('/api/orgs'))
+      .json({ id: 'a-first', name: 'Wayne Enterprises' })
+      .send()
+    created.assertStatus(201)
+    const occupied = await client.get('/api/auth/me').send()
+    occupied.assertStatus(200)
+    assert.equal(occupied.body().canCreateAccount, false)
+    const deleted = await trusted(client.delete('/api/accounts/a-first')).send()
+    deleted.assertStatus(204)
+    const revoked = await client.get('/api/auth/me').send()
+    revoked.assertStatus(401)
+    assert.equal((revoked.body() as { needsSetup?: boolean }).needsSetup, true)
   })
 
-  test('both company POST routes default only omitted color', async ({ client, assert }) => {
-    for (const path of ['/api/accounts', '/api/orgs']) {
-      await client.post('/api/test/reset').json({ seed: false }).send()
+  test('company creation default only omitted color', async ({ client, assert }) => {
+    for (const path of ['/api/orgs']) {
+      client = await resetAuthenticatedClient(client, false)
       const created = await trusted(client.post(path))
         .json({ id: 'a-color-default', name: 'Wayne Enterprises' })
         .send()
@@ -66,7 +59,7 @@ test.group('M2b company route compatibility', (group) => {
       const persisted = await readState('a-color-default', true)
       assert.equal(persisted.accounts[0]?.color, FALLBACK_PRESET_COLOR)
       for (const color of [null, 'not-a-color']) {
-        await client.post('/api/test/reset').json({ seed: false }).send()
+        client = await resetAuthenticatedClient(client, false)
         const rejected = await trusted(client.post(path))
           .json({ id: 'a-color-default', name: 'Wayne Enterprises', color })
           .send()
@@ -75,7 +68,7 @@ test.group('M2b company route compatibility', (group) => {
         assert.lengthOf(rejectedState.accounts, 0)
       }
     }
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const before = await readState('a-studio', true)
     const patched = await trusted(client.patch('/api/accounts/a-studio'))
       .json({ name: 'Wayne Updated' })
@@ -85,15 +78,15 @@ test.group('M2b company route compatibility', (group) => {
     assert.equal(after.accounts[0]?.color, before.accounts[0]?.color)
   })
 
-  test('both company POST routes reject malformed supplied timestamps before stamping', async ({
+  test('company creation reject malformed supplied timestamps before stamping', async ({
     client,
     assert,
   }) => {
     const template = seed().accounts[0]!
-    for (const path of ['/api/accounts', '/api/orgs']) {
+    for (const path of ['/api/orgs']) {
       for (const field of ['createdAt', 'updatedAt'] as const) {
         for (const value of [null, 7, 'white space', 'x'.repeat(257)]) {
-          await client.post('/api/test/reset').json({ seed: false }).send()
+          client = await resetAuthenticatedClient(client, false)
           const rejected = await trusted(client.post(path))
             .json({ ...template, id: 'a-company-metadata', [field]: value })
             .send()
@@ -104,7 +97,7 @@ test.group('M2b company route compatibility', (group) => {
           assert.lengthOf(await db.from('audit_entries'), 0)
         }
       }
-      await client.post('/api/test/reset').json({ seed: false }).send()
+      client = await resetAuthenticatedClient(client, false)
       const valid = await trusted(client.post(path))
         .json({
           id: 'a-company-metadata',
@@ -124,7 +117,7 @@ test.group('M2b company route compatibility', (group) => {
   }) => {
     for (const field of ['createdAt', 'updatedAt'] as const) {
       for (const value of [null, 7, 'white space', 'x'.repeat(257)]) {
-        await client.post('/api/test/reset').json({ seed: true }).send()
+        client = await resetAuthenticatedClient(client, true)
         const before = await readState('a-studio', true)
         const rejected = await trusted(client.patch('/api/accounts/a-studio'))
           .json({ name: 'Rejected company', [field]: value })
@@ -135,7 +128,7 @@ test.group('M2b company route compatibility', (group) => {
         assert.lengthOf(await db.from('audit_entries').where('account_id', 'a-studio'), 0)
       }
     }
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const before = await readState('a-studio', true)
     const account = before.accounts[0]!
     const accepted = await trusted(client.patch('/api/accounts/a-studio'))
@@ -144,28 +137,12 @@ test.group('M2b company route compatibility', (group) => {
     accepted.assertStatus(200)
   })
 
-  test('accounts creation keeps omitted and null settings, while orgs applies its defaults', async ({
+  test('company creation applies defaults and accepts explicit settings', async ({
     client,
     assert,
   }) => {
     const template = seed().accounts[0]!
-    for (const settings of [{}, { schedulingMode: null, inlineActivityCreateEnabled: null }]) {
-      await client.post('/api/test/reset').json({ seed: false }).send()
-      const created = await trusted(client.post('/api/accounts'))
-        .json({ id: 'a-account-defaults', name: template.name, color: template.color, ...settings })
-        .send()
-      created.assertStatus(201)
-      const account = created.body() as {
-        schedulingMode: unknown
-        inlineActivityCreateEnabled: unknown
-      }
-      assert.isNull(account.schedulingMode)
-      assert.isNull(account.inlineActivityCreateEnabled)
-      const persisted = await readState('a-account-defaults', true)
-      assert.isNull(persisted.accounts[0]?.schedulingMode)
-      assert.isNull(persisted.accounts[0]?.inlineActivityCreateEnabled)
-    }
-    await client.post('/api/test/reset').json({ seed: false }).send()
+    client = await resetAuthenticatedClient(client, false)
     const org = await trusted(client.post('/api/orgs'))
       .json({ name: template.name, color: template.color })
       .send()
@@ -174,7 +151,7 @@ test.group('M2b company route compatibility', (group) => {
     const persistedOrg = await readState(orgId, true)
     assert.equal(persistedOrg.accounts[0]?.schedulingMode, 'days')
     assert.isFalse(persistedOrg.accounts[0]?.inlineActivityCreateEnabled)
-    await client.post('/api/test/reset').json({ seed: false }).send()
+    client = await resetAuthenticatedClient(client, false)
     const explicit = await trusted(client.post('/api/orgs'))
       .json({
         name: template.name,
@@ -194,7 +171,7 @@ test.group('M2b company route compatibility', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const originalState = await readState('a-studio', true)
     const original = originalState.accounts[0]!
     const first = await trusted(client.patch('/api/accounts/a-studio'))
@@ -237,7 +214,7 @@ test.group('M2b company route compatibility', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const originalState = await readState('a-studio', true)
     const original = originalState.accounts[0]!
     const first = await trusted(client.patch('/api/accounts/a-studio'))
@@ -267,7 +244,7 @@ test.group('M2b company route compatibility', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: false }).send()
+    client = await resetAuthenticatedClient(client, false)
     const rejected = await trusted(client.patch('/api/accounts/a-missing'))
       .json({ name: 'Missing', updatedAt: null })
       .send()
@@ -277,7 +254,7 @@ test.group('M2b company route compatibility', (group) => {
   })
 
   test('frozen company fields refuse before a stale revision', async ({ client, assert }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const before = await readState('a-studio', true)
     const original = before.accounts[0]!
     const first = await trusted(client.patch('/api/accounts/a-studio'))
@@ -298,14 +275,14 @@ test.group('M2b company route compatibility', (group) => {
     assert.deepEqual(await db.from('audit_entries').where('account_id', 'a-studio'), auditsBefore)
   })
 
-  test('off-mode fresh duplicate POST obeys the company cap before conflict', async ({
+  test('duplicate company creation obeys the installation cap before conflict', async ({
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const existingState = await readState('a-studio', true)
     const existing = existingState.accounts[0]!
-    for (const path of ['/api/accounts', '/api/orgs']) {
+    for (const path of ['/api/orgs']) {
       const rejected = await trusted(client.post(path))
         .json({ ...existing, name: 'Rejected replacement' })
         .send()
@@ -320,13 +297,13 @@ test.group('M2b company route compatibility', (group) => {
     }
   })
 
-  test('company POST rejects malformed fields before the off-mode cap', async ({
+  test('company creation rejects malformed fields before the installation cap', async ({
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const before = await readState('a-studio', true)
-    for (const path of ['/api/accounts', '/api/orgs']) {
+    for (const path of ['/api/orgs']) {
       const malformed = await trusted(client.post(path))
         .json({ id: 'a-second-company', name: null, color: '#2d75da' })
         .send()
@@ -346,13 +323,10 @@ test.group('M2b company route compatibility', (group) => {
     }
   })
 
-  test('duplicate POST still requires a supplied company name in both modes', async ({
-    client,
-    assert,
-  }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+  test('duplicate company creation still requires a supplied name', async ({ client, assert }) => {
+    client = await resetAuthenticatedClient(client, true)
     const before = await readState('a-studio', true)
-    for (const path of ['/api/accounts', '/api/orgs']) {
+    for (const path of ['/api/orgs']) {
       const rejected = await trusted(client.post(path))
         .json({ id: 'a-studio', color: before.accounts[0]!.color })
         .send()
@@ -367,10 +341,10 @@ test.group('M2b company route compatibility', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const existingState = await readState('a-studio', true)
     const existing = existingState.accounts[0]!
-    for (const path of ['/api/accounts', '/api/orgs']) {
+    for (const path of ['/api/orgs']) {
       const rejected = await trusted(client.post(path))
         .json({ ...existing, name: 'Rejected replacement' })
         .send()

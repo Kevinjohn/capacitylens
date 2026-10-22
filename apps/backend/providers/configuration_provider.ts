@@ -7,12 +7,11 @@ import { hashPassword } from '#services/password_service'
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password'
 
 export function assertM1AuthenticationMode(mode: string | undefined) {
-  if (!['off', 'password-only', 'password-and-sso', 'sso-only'].includes(mode || 'off'))
+  if (!['password-only', 'password-and-sso', 'sso-only'].includes(mode || 'password-only'))
     throw new Error(`Unknown CAPACITYLENS_MODE ${mode}`)
 }
 
 function assertAuthenticationConfiguration(inProduction: boolean) {
-  if (authMode() === 'off') return
   const secret = env.get('CAPACITYLENS_SECRET')
   if (!secret || secret.length < 32)
     throw new Error(
@@ -91,8 +90,6 @@ export function assertHostedDeploymentProfile(options: HostedProfileOptions) {
 }
 
 interface ProductionPosture {
-  mode?: string
-  allowOpen?: boolean
   allowReset?: boolean
   createAdmin?: boolean
   bootstrapPassword?: string
@@ -101,10 +98,6 @@ interface ProductionPosture {
 }
 
 export function assertProductionPosture(options: ProductionPosture) {
-  if ((options.mode === undefined || options.mode === 'off') && options.allowOpen !== true)
-    throw new Error(
-      'CAPACITYLENS_MODE=off in production requires CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1'
-    )
   if (options.createAdmin || options.bootstrapPassword)
     throw new Error('Development bootstrap credentials are forbidden in production')
   if (
@@ -137,8 +130,6 @@ export default class ConfigurationProvider {
     assertAuthenticationConfiguration(this.app.inProduction)
     if (this.app.inProduction)
       assertProductionPosture({
-        mode: env.get('CAPACITYLENS_MODE'),
-        allowOpen: env.get('CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION'),
         allowReset: env.get('CAPACITYLENS_ALLOW_RESET'),
         createAdmin: env.get('CAPACITYLENS_CREATE_ADMIN_ADMIN'),
         bootstrapPassword: env.get('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD'),

@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect } from "./dbFixtures";
 import { API, resetServer, serverState, requireStateRows } from "./serverTestState";
 import { createCompany } from "./browserTestSupport";
 
@@ -71,7 +71,7 @@ test.describe("single-company production entry", () => {
   });
 
   test("ordinary additional company creation is rejected", async ({ request }) => {
-    const res = await request.post(`${API}/api/accounts`, {
+    const res = await request.post(`${API}/api/orgs`, {
       data: {
         id: `e2e-cap-check-${Date.now()}`,
         name: "Should Not Exist",

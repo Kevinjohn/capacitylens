@@ -302,7 +302,6 @@ test("ships an environment example that refuses open production access by defaul
     "CAPACITYLENS_SECRET=",
     "CAPACITYLENS_PUBLIC_URL=https://capacity.example.com",
     "CAPACITYLENS_SETUP_TOKEN=",
-    "CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=0",
     "CAPACITYLENS_AUDIT=on",
     "CAPACITYLENS_TRUST_PROXY_HEADERS=1",
     "CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db",

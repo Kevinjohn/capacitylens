@@ -1,4 +1,9 @@
 import { test } from '@japa/runner'
+import type { ApiClient } from '@japa/api-client'
+import {
+  authenticatedDataClient,
+  resetAuthenticatedData,
+} from '../../helpers/authenticated_data_fixture.js'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import { seed } from '@capacitylens/shared/data/seed'
 import db from '@adonisjs/lucid/services/db'
@@ -7,12 +12,17 @@ import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
   request.header('sec-fetch-site', 'same-origin')
 
+async function reset(client: ApiClient, seeded = true) {
+  const session = await resetAuthenticatedData(client, seeded)
+  return authenticatedDataClient(client, session.cookie)
+}
+
 test.group('M2a company batches', (group) => {
   group.setup(() => freshDatabase())
 
   test('creates one canonical Internal client beside a new company', async ({ client, assert }) => {
-    await client.post('/api/test/reset').json({ seed: false }).send()
-    const response = await trusted(client.post('/api/accounts'))
+    client = await reset(client, false)
+    const response = await trusted(client.post('/api/orgs'))
       .json({ id: 'a-new', name: 'Wayne Aerospace' })
       .send()
     response.assertStatus(201)
@@ -34,15 +44,13 @@ test.group('M2a company batches', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: false }).send()
+    client = await reset(client, false)
     const attempts = [
       { id: 'a-concurrent-one', name: 'Wayne Aerospace' },
       { id: 'a-concurrent-two', name: 'Queen Consolidated' },
     ]
     const responses = await Promise.all(
-      attempts.map(({ id, name }) =>
-        trusted(client.post('/api/accounts')).json({ id, name }).send()
-      )
+      attempts.map(({ id, name }) => trusted(client.post('/api/orgs')).json({ id, name }).send())
     )
 
     assert.deepEqual(responses.map((response) => response.status()).sort(), [201, 403])
@@ -63,8 +71,8 @@ test.group('M2a company batches', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: false }).send()
-    const accountResponse = await trusted(client.post('/api/accounts'))
+    client = await reset(client, false)
+    const accountResponse = await trusted(client.post('/api/orgs'))
       .json({ id: 'a-adopt', name: 'Wayne Aerospace' })
       .send()
     accountResponse.assertStatus(201)
@@ -124,9 +132,9 @@ test.group('M2a company batches', (group) => {
   })
 
   test('rejects a batch that attempts to create multiple companies', async ({ client, assert }) => {
-    await client.post('/api/test/reset').json({ seed: false }).send()
+    client = await reset(client, false)
     const source = seed().accounts[0]
-    const first = await trusted(client.post('/api/accounts'))
+    const first = await trusted(client.post('/api/orgs'))
       .json({ id: 'a-first', name: 'Wayne Enterprises' })
       .send()
     first.assertStatus(201)
@@ -166,8 +174,8 @@ test.group('M2a company batches', (group) => {
       [removeOriginal, createReplacement],
       [createReplacement, removeOriginal],
     ]) {
-      await client.post('/api/test/reset').json({ seed: false }).send()
-      const setup = await trusted(client.post('/api/accounts'))
+      client = await reset(client, false)
+      const setup = await trusted(client.post('/api/orgs'))
         .json({ id: original.id, name: original.name })
         .send()
       setup.assertStatus(201)
@@ -189,7 +197,7 @@ test.group('M2a company batches', (group) => {
     assert,
   }) => {
     const source = seed().accounts[0]!
-    await client.post('/api/test/reset').json({ seed: false }).send()
+    client = await reset(client, false)
     const response = await trusted(client.post('/api/batch'))
       .json({
         ops: [

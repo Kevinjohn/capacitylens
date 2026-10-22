@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect } from "./dbFixtures";
 import { openApp } from "./browserTestSupport";
 import { resetServer, serverState, requireStateRows } from "./serverTestState";
 

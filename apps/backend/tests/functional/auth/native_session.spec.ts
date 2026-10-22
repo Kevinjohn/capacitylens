@@ -35,7 +35,7 @@ test.group('native password sessions', (group) => {
     env.set('CAPACITYLENS_SETUP_TOKEN', setupToken)
     env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', false)
     return () => {
-      env.set('CAPACITYLENS_MODE', previous.mode ?? 'off')
+      env.set('CAPACITYLENS_MODE', previous.mode ?? 'password-only')
       env.set('CAPACITYLENS_SETUP_TOKEN', previous.setup ?? '')
       env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', previous.screening)
     }

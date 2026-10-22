@@ -1,21 +1,31 @@
 import { test } from '@japa/runner'
+import type { ApiClient } from '@japa/api-client'
+import {
+  authenticatedDataClient,
+  resetAuthenticatedData,
+} from '../../helpers/authenticated_data_fixture.js'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import { seed } from '@capacitylens/shared/data/seed'
 import db from '@adonisjs/lucid/services/db'
 import { withTransaction } from '#services/with_transaction'
 import { applyBatch } from '#services/batch/service'
-import { trustedLocalDataContext } from '#services/batch/data_policy'
+import { initialCompanyDataContext } from '#services/batch/data_policy'
 import { applyLifecycle } from '#services/lifecycle'
 import { readState } from '#services/state_repository'
 
 const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
   request.header('sec-fetch-site', 'same-origin')
 
+async function reset(client: ApiClient, seeded = true) {
+  const session = await resetAuthenticatedData(client, seeded)
+  return authenticatedDataClient(client, session.cookie)
+}
+
 test.group('M2a atomic batch', (group) => {
   group.setup(() => freshDatabase())
 
   test('applies a valid write and returns its server revision', async ({ client, assert }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const state = seed()
     const current = state.disciplines[0]
     const response = await trusted(client.post('/api/batch'))
@@ -42,7 +52,7 @@ test.group('M2a atomic batch', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const state = seed()
     const [first, second] = state.disciplines
     const updated = await trusted(client.post('/api/batch'))
@@ -98,7 +108,7 @@ test.group('M2a atomic batch', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const current = seed().disciplines[0]
     const response = await trusted(client.post('/api/batch'))
       .json({
@@ -130,7 +140,7 @@ test.group('M2a atomic batch', (group) => {
   })
 
   test('records audit and rejects an already applied sync sequence', async ({ client, assert }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const current = seed().disciplines[0]
     const request = () =>
       trusted(client.post('/api/batch'))
@@ -157,14 +167,19 @@ test.group('M2a atomic batch', (group) => {
       .from('audit_entries')
       .where({ entity: 'disciplines', entity_id: current.id })
     assert.lengthOf(audit, 1)
-    assert.equal(audit[0].actor_id, 'demo')
+    const owner = await db
+      .from('memberships')
+      .where('account_id', current.accountId)
+      .select('user_id')
+      .first()
+    assert.equal(audit[0].actor_id, owner.user_id)
   })
 
   test('supports archive, unarchive, and soft-delete lifecycle transitions', async ({
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const current = seed().projects[0]
     const post = (action: string) =>
       trusted(client.post(`/api/projects/${current.id}/${action}`))
@@ -192,7 +207,7 @@ test.group('M2a atomic batch', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const current = seed().resources.find((row) => row.id === 'r-tyler')!
     await db
       .from('resources')
@@ -226,7 +241,7 @@ test.group('M2a atomic batch', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const futureRevision = '2099-01-01T00:00:00.000Z'
     await db
       .from('projects')
@@ -259,7 +274,7 @@ test.group('M2a atomic batch', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const futureRevision = '2099-01-01T00:00:00.000Z'
     await db
       .from('time_off')
@@ -286,7 +301,7 @@ test.group('M2a atomic batch', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const source = seed().resources.find((row) => row.id === 'r-tyler')!
     const bounded = await trusted(client.post('/api/batch'))
       .json({
@@ -351,13 +366,13 @@ test.group('M2a atomic batch', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const [allowed, denied] = seed().disciplines.filter(
       (row, index, rows) =>
         index === rows.findIndex((candidate) => candidate.accountId === row.accountId)
     )
     if (!allowed || !denied) throw new Error('Expected fixture disciplines for both companies')
-    const base = trustedLocalDataContext('policy-actor')
+    const base = initialCompanyDataContext('policy-actor')
     const context = {
       ...base,
       capabilitiesFor: (accountId: string) => ({
@@ -397,8 +412,8 @@ test.group('M2a atomic batch', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
-    const base = trustedLocalDataContext('editor-actor')
+    client = await reset(client, true)
+    const base = initialCompanyDataContext('editor-actor')
     const editorCapabilities = {
       ...base.capabilitiesFor('a-studio'),
       role: 'editor' as const,
@@ -428,9 +443,9 @@ test.group('M2a atomic batch', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const current = seed().disciplines[0]
-    const context = trustedLocalDataContext('log-failure-actor', () => {
+    const context = initialCompanyDataContext('log-failure-actor', () => {
       throw new Error('log unavailable')
     })
     const result = await withTransaction((trx) =>
@@ -454,9 +469,9 @@ test.group('M2a atomic batch', (group) => {
   })
 
   test('redacts a hidden time-off note from an optimistic conflict', async ({ client, assert }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const current = seed().timeOff.find((row) => typeof row.note === 'string')!
-    const base = trustedLocalDataContext('note-blind')
+    const base = initialCompanyDataContext('note-blind')
     const capabilities = {
       ...base.capabilitiesFor(current.accountId),
       canSeeTimeOffNote: false,
@@ -491,7 +506,7 @@ test.group('M2a atomic batch', (group) => {
   })
 
   test('accepts a current or newer optimistic revision', async ({ client }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const current = seed().disciplines[0]
     const response = await trusted(client.post('/api/batch'))
       .json({
@@ -513,7 +528,7 @@ test.group('M2a atomic batch', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const discipline = seed().disciplines.find((row) => row.accountId === 'a-studio')!
     const clientRow = seed().clients.find(
       (row) => row.accountId === 'a-studio' && row.builtin !== true
@@ -535,7 +550,7 @@ test.group('M2a atomic batch', (group) => {
           ],
         } as never)
         .send()
-      response.assertStatus(400)
+      response.assertStatus(invalidDelete.table === 'clients' ? 400 : 403)
       const stored = await db.from('disciplines').where('id', discipline.id).first()
       assert.equal(stored.name, discipline.name)
     }
@@ -545,7 +560,7 @@ test.group('M2a atomic batch', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const studio = seed().disciplines.find((row) => row.accountId === 'a-studio')!
     const loft = seed().disciplines.find((row) => row.accountId === 'a-loft')!
     const response = await trusted(client.post('/api/batch'))
@@ -571,7 +586,7 @@ test.group('M2a atomic batch', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const allocation = seed().allocations.find((row) => row.accountId === 'a-studio')!
     const timeOff = seed().timeOff.find((row) => row.accountId === 'a-studio')!
     const cases = [
@@ -605,7 +620,7 @@ test.group('M2a atomic batch', (group) => {
   test('distinguishes accepted operations from changes and ignores a repeated archive', async ({
     client,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const source = seed().allocations.find((row) => row.accountId === 'a-studio')!
     const receipt = await trusted(client.post('/api/batch'))
       .json({
@@ -653,7 +668,7 @@ test.group('M2a atomic batch', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await reset(client, true)
     const person = seed().resources.find((row) => row.id === 'r-tyler')!
     const external = seed().resources.find((row) => row.kind === 'external')!
     const attempts = [

@@ -111,6 +111,24 @@ describe("planning authority publication", () => {
 });
 
 describe("planning ownership of allocations", () => {
+  it("keeps other companies' allocations once when a typed receipt updates the active company", async () => {
+    const active = await seedTypedAllocation();
+    const other = { ...active, id: "allocation-other-company", accountId: "a2" };
+    useStore.setState((state) => ({
+      data: {
+        ...state.data,
+        accounts: [...state.data.accounts, makeAccount({ id: "a2" })],
+        allocations: [...state.data.allocations, other],
+      },
+    }));
+
+    await useStore.getState().updateAllocation(active.id, { endDate: "2026-06-05" });
+
+    const allocations = useStore.getState().data.allocations;
+    expect(allocations.filter((row) => row.id === other.id)).toEqual([other]);
+    expect(allocations.find((row) => row.id === active.id)?.endDate).toBe("2026-06-05");
+  });
+
   it("opens the planning context for a company as soon as it becomes active", async () => {
     useStore.getState().replaceAll({
       ...useStore.getState().data,

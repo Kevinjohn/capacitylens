@@ -1,7 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { readState, readStateWithClient } from '#services/state_repository'
+import { readStateWithClient } from '#services/state_repository'
 import { transformState } from '#transformers/state_transformer'
-import { authMode } from '#services/auth/mode'
 import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization'
 import { effectiveReadPrincipal } from '#services/auth/masquerade'
 import { withTransaction } from '#services/with_transaction'
@@ -18,10 +17,6 @@ export default class ExportsController {
       return response.badRequest({
         error: 'includeInactive must be the literal value 1 when present.',
       })
-    if (authMode() === 'off') {
-      const state = await readState(accountId, accountId === undefined || includeInactive === '1')
-      return response.ok(transformState(state, accountId, 'owner'))
-    }
     return withTransaction(async (trx) => {
       const principal = await effectiveReadPrincipal(ctx, trx)
       if (principal.accountId && accountId && principal.accountId !== accountId)

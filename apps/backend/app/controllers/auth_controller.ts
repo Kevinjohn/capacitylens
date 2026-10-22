@@ -73,14 +73,6 @@ export default class AuthController {
   async me(ctx: HttpContext) {
     const mode = authMode()
     const hasCompany = Boolean(await db.from('accounts').select('id').first())
-    if (mode === 'off') {
-      return {
-        authMode: mode,
-        user: ctx.auth.use('trustedLocal').getUserOrFail(),
-        providers: [],
-        canCreateAccount: !hasCompany,
-      }
-    }
     try {
       const actor = await resolveCurrentActor(ctx)
       return {
@@ -195,7 +187,6 @@ export default class AuthController {
   }
 
   async signOut(ctx: HttpContext) {
-    if (authMode() === 'off') return ctx.response.notFound({ error: 'Sign-out is unavailable.' })
     try {
       const actor = await resolveCurrentActor(ctx)
       await withTransaction(async (trx) => {

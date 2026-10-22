@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect } from "./dbFixtures";
 import { API, resetServer } from "./serverTestState";
 import { waitForAppLanding } from "./browserTestSupport";
 
@@ -34,7 +34,7 @@ test.describe("single-company reload entry", () => {
     expect(deleted.status()).toBe(204);
 
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Set up your company" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Setup the account Owner" })).toBeVisible();
     await expect(page).toHaveURL(/\/clients$/);
     await expect(page.locator("#main")).toHaveCount(0);
   });

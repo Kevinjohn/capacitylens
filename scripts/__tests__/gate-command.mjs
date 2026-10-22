@@ -8,7 +8,7 @@ appendFileSync(
     cwd: process.cwd(),
     sentinel: process.env.CAPACITYLENS_GATE_SENTINEL,
     nodeEnv: process.env.NODE_ENV,
-    allowOpen: process.env.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION,
+    mode: process.env.CAPACITYLENS_MODE,
   }) + "\n",
 );
 if (JSON.stringify(args) === process.env.CAPACITYLENS_GATE_FAIL_COMMAND) {

@@ -106,8 +106,6 @@ async function semanticMutation<T>(
 
 export default class MembersController {
   async index(ctx: HttpContext) {
-    if (authMode() === 'off')
-      return ctx.response.ok({ members: [], signInTrackingEnabled: false, resourceCandidates: [] })
     const accountId = ctx.params.accountId
     const directory = await withTransaction(async (trx) => {
       const actor = await assertCompanyAction(ctx, accountId, 'manageMembers', trx)
@@ -346,8 +344,6 @@ export default class MembersController {
   }
 
   async revokeSessions(ctx: HttpContext) {
-    if (authMode() === 'off')
-      return ctx.response.badRequest({ error: 'Session revocation requires authentication.' })
     let nativeIds: string[] = []
     try {
       await semanticMutation(

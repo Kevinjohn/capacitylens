@@ -1,4 +1,8 @@
 import { test } from '@japa/runner'
+import {
+  authenticatedDataClient,
+  resetAuthenticatedData,
+} from '../../helpers/authenticated_data_fixture.js'
 import type { ApiClient } from '@japa/api-client'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import { seed } from '@capacitylens/shared/data/seed'
@@ -9,8 +13,8 @@ const frozenMessage =
 const frozenFields = { weekStartsOn: 1 as const, timezone: 'Etc/GMT', language: 'en' }
 
 async function reset(client: ApiClient) {
-  const response = await client.post('/api/test/reset').json({ seed: true }).send()
-  response.assertStatus(200)
+  const session = await resetAuthenticatedData(client, true)
+  return authenticatedDataClient(client, session.cookie)
 }
 
 async function account(client: ApiClient) {
@@ -41,7 +45,7 @@ test.group('M2a batch frozen account fields', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     const initial = { ...seed().accounts[0]!, ...frozenFields }
     const initialized = await batchPutAccount(client, initial)
     assert.equal(initialized.status(), 200)
@@ -80,7 +84,7 @@ test.group('M2a batch frozen account fields', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     await freezeSeededAccount(client)
     const before = await account(client)
     const malformed = [
@@ -117,7 +121,7 @@ test.group('M2a batch frozen account fields', (group) => {
     client,
     assert,
   }) => {
-    await reset(client)
+    client = await reset(client)
     await freezeSeededAccount(client)
     const before = await account(client)
     const invalid = await batchPutAccount(client, { ...before, timezone: null })

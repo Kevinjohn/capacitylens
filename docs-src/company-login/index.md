@@ -5,8 +5,9 @@ description: Sign in with a password or Google, join a company, and connect an e
 
 # Company login
 
-Sign in with a password or Google, depending on what the installer has turned on. The demo, and an
-installation with `CAPACITYLENS_MODE=off`, have no sign-in.
+Sign in with a password or Google, depending on what the installer has turned on. The in-memory
+demo does not require a real sign-in. Every persisted server requires an authenticated company
+member; `CAPACITYLENS_MODE=off` is not a supported sign-in mode.
 
 With Google sign-in, CapacityLens sends you to Google and never sees your Google password. A Google
 account alone does not grant access: the first person on an empty installation needs the installer's

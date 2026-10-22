@@ -21,7 +21,7 @@ malformed private record fails closed rather than exposing its real name.
 
 ## How (end-to-end)
 
-**Precondition:** In an auth-enabled server account, create the private client/project from
+**Precondition:** In a persisted server account, create the private client/project from
 US-PRI-01. Have both the owner and an admin available.
 
 1. Export as the owner and inspect the JSON; then export as the admin and compare the two slices.
@@ -29,7 +29,7 @@ US-PRI-01. Have both the owner and an admin available.
 3. Confirm the rejected request leaves the database—including both real names and code names—exactly
    unchanged.
 4. As the owner, import a valid full-fidelity export and confirm the atomic replacement succeeds.
-5. In trusted local/auth-off mode, import a file containing quoted code names, public rows with stale
+5. In the in-memory demo, import a file containing quoted code names, public rows with stale
    privacy fields, a malformed private row with no usable code name, and a private built-in Internal
    client.
 6. Load a schema-v6 export with no privacy fields and confirm migration to v7 leaves all existing
@@ -42,11 +42,11 @@ US-PRI-01. Have both the owner and an admin available.
 - ✅ **DAT-PRIV-02 — Role-safe export.** An owner export contains the real names and raw, unquoted code names needed for a lossless
   restore. Admin/editor/viewer exports contain only their server-projected quoted names and omit raw
   code names; auth tables, memberships, sessions and invitations remain excluded for every role.
-- ✅ **DAT-PRIV-03 — Owner-only server import.** On an auth-enabled server, whole-slice import is owner-only in both UI and API: **Import JSON** is
+- ✅ **DAT-PRIV-03 — Owner-only server import.** On a persisted server, whole-slice import is owner-only in both UI and API: **Import JSON** is
   hidden for admin/editor/viewer, their direct request is `403`, and no table changes. Export remains
   available at its existing role tiers.
-- ✅ **DAT-PRIV-04 — Mode semantics.** An owner server import remains atomic and not undoable. Trusted local/demo and auth-off server
-  remain owner-equivalent. Scheduler Undo/Redo covers bookings only, so it does not reverse an import in
+- ✅ **DAT-PRIV-04 — Mode semantics.** An owner server import remains atomic and not undoable. The in-memory demo
+  remains owner-equivalent. Scheduler Undo/Redo covers bookings only, so it does not reverse an import in
   any mode.
 - ✅ **DAT-PRIV-05 — Fail-closed repair.** Import sanitisation accepts privacy only when `isPrivate === true`; otherwise it removes both
   optional fields. Valid code names are cleaned and de-quoted. A private row whose code name becomes

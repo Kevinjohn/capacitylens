@@ -1,7 +1,5 @@
-import env from '#start/env'
 import app from '@adonisjs/core/services/app'
 import { defineConfig, stores } from '@adonisjs/session'
-import { authMode } from '#services/auth/mode'
 
 const sessionConfig = defineConfig({
   /**
@@ -57,7 +55,7 @@ const sessionConfig = defineConfig({
    * variable in order to infer the store name without any
    * errors.
    */
-  store: authMode() === 'off' ? env.get('SESSION_DRIVER') : 'database',
+  store: 'database',
 
   /**
    * List of configured stores. Refer documentation to see

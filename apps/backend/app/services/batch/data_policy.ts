@@ -4,7 +4,6 @@ import type { HttpContext } from '@adonisjs/core/http'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { can, canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access'
 import type { Role } from '@capacitylens/shared/account/types'
-import { authMode } from '#services/auth/mode'
 import { resolveCurrentActor } from '#services/auth/session_authority'
 import { restrictedCompanyIds } from '#services/auth/authorization'
 import { effectiveReadPrincipal } from '#services/auth/masquerade'
@@ -28,8 +27,8 @@ export interface BatchDataContext extends BatchCapabilities {
   ) => Promise<boolean>
 }
 
-/** Trusted-local mode resolves the same explicit capabilities a future provider-backed guard supplies. */
-export function trustedLocalDataContext(
+/** Provides owner capabilities for the authenticated first-company creation transaction. */
+export function initialCompanyDataContext(
   actorId: string,
   logCommitted: BatchDataContext['logCommitted'] = () => {}
 ): BatchDataContext {
@@ -57,8 +56,6 @@ export async function dataContextForActor(
   trx: TransactionClientContract,
   logCommitted: BatchDataContext['logCommitted'] = () => {}
 ): Promise<BatchDataContext> {
-  if (authMode() === 'off')
-    return trustedLocalDataContext(ctx.auth.use('trustedLocal').getUserOrFail().id, logCommitted)
   const actor = await resolveCurrentActor(ctx, trx)
   const principal = await effectiveReadPrincipal(ctx, trx)
   const rows = await trx

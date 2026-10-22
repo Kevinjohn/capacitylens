@@ -5,7 +5,6 @@ import { BatchRequestError } from '#services/batch/errors'
 import { LifecycleTransitionError } from '@capacitylens/shared/domain/lifecycle'
 import { dataContextForActor } from '#services/batch/data_policy'
 import { lifecycleValidator } from '#validators/lifecycle'
-import { authMode } from '#services/auth/mode'
 import { assertCompanyAction } from '#services/auth/authorization'
 
 export default class LifecycleController {
@@ -25,8 +24,7 @@ export default class LifecycleController {
       })
       let auditWarning = false
       const result = await withTransaction(async (trx) => {
-        if (action === 'purge' && authMode() !== 'off')
-          await assertCompanyAction(ctx, body.accountId, 'purge', trx, true)
+        if (action === 'purge') await assertCompanyAction(ctx, body.accountId, 'purge', trx, true)
         const context = await dataContextForActor(ctx, trx, (event) => {
           try {
             logger.info({
