@@ -250,10 +250,13 @@ export function createAllocationSlice(
           .map((allocation) => allocation.id);
         await send({ intent: { operation: "allocation.deleteGroup", ids }, inverse: RESTORE_FROM_RECEIPT });
       },
-      refreshPlanning: () => {
+      refreshPlanning: async () => {
         const companyId = get().activeAccountId;
-        if (companyId === null) return Promise.resolve(false);
+        if (companyId === null) return false;
         controller.setContext({ identity: PAGE_IDENTITY, companyId });
+        // A canonical read alone never settles an uncertain write; only its commitment lookup can,
+        // so every refresh trigger (focus, interval, legacy save) reconciles first.
+        if (get().planning.outcome?.kind === "uncertain" && (await controller.reconcile())) return true;
         return controller.refresh();
       },
       undoPlanning: () => (blockedByViewer() ? Promise.resolve(false) : controller.undo()),
