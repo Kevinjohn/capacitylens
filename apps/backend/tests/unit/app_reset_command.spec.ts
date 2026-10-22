@@ -73,7 +73,10 @@ test('app reset refuses absent stop intent, occupied paths and sidecars without 
   try {
     assert.equal(f.command(['app:upgrade']).status, 0)
     const destination = join(f.root, 'fresh.db')
-    assert.notEqual(f.command(['app:reset', destination]).status, 0)
+    const missingStopIntent = f.command(['app:reset', destination, '--disposable'])
+    assert.notEqual(missingStopIntent.status, 0)
+    assert.include(missingStopIntent.output, '--confirm-server-stopped')
+    assert.isFalse(existsSync(destination))
     writeFileSync(destination, 'operator file')
     assert.notEqual(
       f.command(['app:reset', destination, '--confirm-server-stopped', '--disposable']).status,

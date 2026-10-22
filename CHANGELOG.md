@@ -9,7 +9,7 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
-- Require `--disposable` for non-production `app:reset`; production resets are refused before archiving. The nginx example leaves HSTS and CSP reporting to the server.
+- Require `--disposable` for non-production `app:reset`; production resets are refused before archiving. The nginx example no longer duplicates application HSTS or configures obsolete CSP reporting.
 
 - Resource and catalogue records now use typed archive and restore actions. Owners and Admins can
   anonymise a resource; only an Owner can anonymise every company resource. The company,

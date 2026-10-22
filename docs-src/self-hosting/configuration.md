@@ -68,7 +68,8 @@ through a trusted proxy on the same host that overwrites forwarded headers. The 
 trusts forwarded client address and scheme headers from loopback connections only. Keep `APP_URL`
 and `CAPACITYLENS_PUBLIC_URL` aligned with the browser-visible address. An HTTPS public URL makes
 the application send a host-only one-year HSTS header and mark its cookies `Secure`; an HTTP public
-URL sends no HSTS and uses plain cookies. The supplied nginx file also adds HSTS itself. `CAPACITYLENS_CORS_ORIGIN` is
+URL sends no HSTS and uses plain cookies. The supplied nginx file leaves HSTS to the application
+and does not configure CSP reporting. `CAPACITYLENS_CORS_ORIGIN` is
 only needed when the browser app and API use different origins.
 
 `CAPACITYLENS_LOG=1` enables routine request-completion logs. Sensitive request/response values are

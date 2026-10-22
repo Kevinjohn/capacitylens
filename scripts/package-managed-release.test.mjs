@@ -341,7 +341,7 @@ test("keeps the shipped nginx site's headers and log suppression in step with th
     "$capacitylens_connect_src",
     "'self'",
   );
-  // HSTS and CSP reporting belong to the backend, not this site.
+  // The backend owns HSTS; obsolete CSP reporting is absent from this site.
   delete expected["Strict-Transport-Security"];
   delete expected["Reporting-Endpoints"];
   expected["Content-Security-Policy"] = expected["Content-Security-Policy"].replace(
