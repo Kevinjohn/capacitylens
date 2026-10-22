@@ -40,7 +40,7 @@ export function usePermissionStatus(): NonNullable<PermissionContextValue["statu
  * May the current user perform `action` in the active account?
  *
  * The single client affordance gate for every capability, not just editing: a surface asks
- * for the one {@link Action} it is gating (`'write'`, `'purge'`, `'manageMembers'`, …) instead of
+ * for the one {@link Action} it is gating (`'write'`, `'anonymise'`, `'manageMembers'`, …) instead of
  * re-deriving a role test inline. It is single-sourced from the pure {@link can} matrix, the same
  * authority the server's route guard uses, so client and server can't drift.
  *

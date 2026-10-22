@@ -109,7 +109,7 @@ test.group('Administrative recovery issuance', (group) => {
       accountId,
       targetUserId,
       restore() {
-        env.set('CAPACITYLENS_MODE', priorMode ?? 'off')
+        env.set('CAPACITYLENS_MODE', priorMode ?? 'password-only')
         env.set('CAPACITYLENS_SETUP_TOKEN', priorSetup ?? '')
         env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', priorScreen)
       },

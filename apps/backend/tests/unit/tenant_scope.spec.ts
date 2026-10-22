@@ -2,8 +2,6 @@ import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
 import { freshDatabase } from '../helpers/fresh_database.js'
 import Client from '#models/client'
-import { scopedWrite } from '#services/tenant/scoped_write'
-import { withTransaction } from '#services/with_transaction'
 
 test.group('tenant scope', (group) => {
   group.setup(() => freshDatabase())
@@ -44,16 +42,5 @@ test.group('tenant scope', (group) => {
   test('fails closed for unscoped model reads', async ({ assert }) => {
     await assert.rejects(() => Client.query(), 'A company scope is required for model reads')
     assert.lengthOf(await Client.query().withScopes((scopes) => scopes.forCompany('a-studio')), 1)
-  })
-
-  test('scopes bulk writes to one company', async ({ assert }) => {
-    await withTransaction(async (trx) => {
-      assert.throws(() => scopedWrite(trx, 'clients', ''))
-      await scopedWrite(trx, 'clients', 'a-studio').update({ color: '#333' })
-    })
-    const wayne = await db.from('clients').where('id', 'c-wayne').first()
-    const stark = await db.from('clients').where('id', 'c-stark').first()
-    assert.equal(wayne.color, '#333')
-    assert.equal(stark.color, '#222')
   })
 })

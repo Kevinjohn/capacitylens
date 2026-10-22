@@ -29,7 +29,8 @@ release. The application uses one SQLite connection and one writer process per d
 ## Company sign-in
 
 `CAPACITYLENS_MODE` accepts `password-only`, `password-and-sso`, or `sso-only` for a normal
-installation. Configure both `CAPACITYLENS_GOOGLE_CLIENT_ID` and
+installation. Every persisted installation requires sign-in; `off` is retired and is rejected.
+Configure both `CAPACITYLENS_GOOGLE_CLIENT_ID` and
 `CAPACITYLENS_GOOGLE_CLIENT_SECRET` to offer Google. The callback URL is
 `<CAPACITYLENS_PUBLIC_URL>/api/auth/callback/google`. Set
 `CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS` for the first Google identity; later new identities need
@@ -37,8 +38,8 @@ an addressed invitation. Password mode may include Google. `sso-only` removes pa
 Microsoft sign-in is deferred and GitHub sign-in is retired. Live Google acceptance must be checked
 with the operator's actual registration; deterministic tests do not prove it.
 
-Keep `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION` and `CAPACITYLENS_ALLOW_OPEN_SIGNUP` unset for a
-normal deployment. Open mode is not an authentication alternative for production data.
+Keep `CAPACITYLENS_ALLOW_OPEN_SIGNUP` unset unless you intentionally allow open registration.
+All persisted data access still requires a signed-in company member.
 
 ## Email
 
@@ -63,10 +64,12 @@ completed files separately from database readiness; see [Backups and restore](/s
 ## Network and logging
 
 Set `CAPACITYLENS_TRUST_PROXY_HEADERS=1` only when the application listener is reachable solely
-through a trusted proxy that overwrites forwarded headers. Keep `APP_URL` and
-`CAPACITYLENS_PUBLIC_URL` aligned with the browser-visible address. Set `CAPACITYLENS_HTTPS=1` to make
-the application send an HSTS header; it sends none when unset. The supplied nginx file adds HSTS
-itself, and the Caddy example does not. `CAPACITYLENS_CORS_ORIGIN` is
+through a trusted proxy on the same host that overwrites forwarded headers. The application then
+trusts forwarded client address and scheme headers from loopback connections only. Keep `APP_URL`
+and `CAPACITYLENS_PUBLIC_URL` aligned with the browser-visible address. An HTTPS public URL makes
+the application send a host-only one-year HSTS header and mark its cookies `Secure`; an HTTP public
+URL sends no HSTS and uses plain cookies. The supplied nginx file leaves HSTS to the application
+and does not configure CSP reporting. `CAPACITYLENS_CORS_ORIGIN` is
 only needed when the browser app and API use different origins.
 
 `CAPACITYLENS_LOG=1` enables routine request-completion logs. Sensitive request/response values are

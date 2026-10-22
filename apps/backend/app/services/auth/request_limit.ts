@@ -14,13 +14,9 @@ export function configuredApiLimit(): number {
   return Number.isSafeInteger(value) && value > 0 && value <= maxLimit ? value : 0
 }
 
-/** Trust proxy-provided addresses only when the operator explicitly enables that boundary. */
+/** The client address follows the HTTP server's proxy trust in `config/app.ts`. */
 export function requestClientKey(ctx: HttpContext): string {
-  const forwarded = env.get('CAPACITYLENS_TRUST_PROXY_HEADERS')
-    ? ctx.request.header('x-forwarded-for')?.split(',')[0]?.trim()
-    : undefined
-  const address = forwarded || ctx.request.request.socket.remoteAddress || 'unknown'
-  return createHash('sha256').update(address).digest('hex')
+  return createHash('sha256').update(ctx.request.ip()).digest('hex')
 }
 
 export async function consumeFailedSignInBudget(ctx: HttpContext): Promise<boolean> {

@@ -1,9 +1,9 @@
 import env from '#start/env'
 
-export type AuthMode = 'off' | 'password-only' | 'password-and-sso' | 'sso-only'
+export type AuthMode = 'password-only' | 'password-and-sso' | 'sso-only'
 
 export function authMode(): AuthMode {
-  return (env.get('CAPACITYLENS_MODE') || 'off') as AuthMode
+  return (env.get('CAPACITYLENS_MODE') || 'password-only') as AuthMode
 }
 
 export function passwordEnabled() {

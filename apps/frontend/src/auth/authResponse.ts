@@ -1,8 +1,8 @@
 import { allowsProviderSignIn } from "@capacitylens/shared/account/types";
-import { hasUnsavedPersistenceWrites } from "@/data/persist";
+import { useStore } from "@/store/useStore";
 import { readApiError } from "@/lib/readApiError";
 import { m } from "@/i18n";
-import { isAuthMode, parseAuthProviders, resolveBooleanField } from "./authStatus";
+import { isAuthMode, parseAuthProviders } from "./authStatus";
 import type { AuthStatusResult } from "./authStatus";
 import { parseAuthUser } from "./validateAuthUser";
 
@@ -45,7 +45,7 @@ function parseLoginResult(body: unknown): AuthStatusResult {
     kind: "login",
     authMode,
     degraded,
-    hadUnsavedChanges: hasUnsavedPersistenceWrites(),
+    hadUnsavedChanges: useStore.getState().planning.pending !== null,
     providers: allowsProviderSignIn(authMode) ? parseAuthProviders(fields?.providers) : [],
     needsSetup: fields?.needsSetup === true,
     passwordResetEmail: fields?.passwordResetEmail === true,
@@ -60,19 +60,19 @@ export function invalidResponse(): AuthStatusResult {
 
 function parsePassResult(body: unknown): AuthStatusResult {
   const fields = parseAuthResponseFields(body);
-  if (!fields || !isAuthMode(fields.authMode)) return invalidResponse();
+  if (!fields || !isAuthMode(fields.authMode) || fields.authMode === "off") return invalidResponse();
   const authMode = fields.authMode;
-  const user = parseAuthUser({ value: fields.user, requireEmail: authMode !== "off" });
-  if (authMode !== "off" && !user) {
+  const user = parseAuthUser({ value: fields.user, requireEmail: true });
+  if (!user) {
     console.warn("AuthProvider: /api/auth/me returned auth-on without a valid user");
     return { kind: "error", message: m.auth_service_invalid_response() };
   }
   const next: Extract<AuthStatusResult, { kind: "pass" }> = {
     kind: "pass",
-    identitySource: authMode === "off" ? "open" : "live",
+    identitySource: "live",
     authMode,
     user,
-    canCreateAccount: resolveBooleanField({ value: fields.canCreateAccount, fallback: true }),
+    canCreateAccount: false,
     providers: authMode === "password-only" ? [] : parseAuthProviders(fields.providers),
     reauthMethod: fields.reauthMethod === "provider" || authMode === "sso-only" ? "provider" : "password",
     reauthProviderId: typeof fields.reauthProviderId === "string" ? fields.reauthProviderId : null,

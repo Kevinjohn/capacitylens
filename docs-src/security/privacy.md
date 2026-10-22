@@ -93,13 +93,12 @@ photo from Microsoft Graph on the server, even though it cannot be used as an av
 
 ## Keeping and deleting data
 
-- Deleting a person, client or project immediately replaces its name with an anonymised label and
-  clears notes from its bookings and time off.
-- Permanently deleting a company removes its scheduling data and erases any identity that no
-  longer belongs to another company, including that identity's sessions and linked providers.
-- An identity used by more than one company is kept while any of those memberships needs it.
-- Deleting a live record does not change audit files, existing backups or off-host copies. The
-  operator needs a separate process to remove data from them.
+- Anonymising a resource replaces its name and role with obfuscated labels, removes its avatar,
+  and clears notes from its bookings and time off. The resource and its links remain.
+- **Anonymise all people** applies the same scrub to every resource. Client, project and activity
+  catalogue fields, the company, Owner, memberships and planning links stay unchanged.
+- Anonymisation does not change audit files, existing backups or off-host copies. The operator
+  needs a separate process to remove data from them.
 
 ## Who is responsible for what
 

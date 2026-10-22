@@ -1,6 +1,12 @@
 import { test, expect } from "./fixtures";
 import type { Locator, Page } from "./fixtures";
-import { openApp, resetSchedulerScroll, selectShadOption, setZoom } from "./browserTestSupport";
+import {
+  openApp,
+  settledSchedulerLeftDate,
+  resetSchedulerScroll,
+  selectShadOption,
+  setZoom,
+} from "./browserTestSupport";
 
 async function addTimeOff(page: Page, resource: string, start: string, end = start) {
   await page.getByRole("button", { name: "Add time off" }).click();
@@ -66,6 +72,8 @@ test("modal edits, drag and repeat creation show work on holiday as over allocat
   await markerOnFirstTimeOff(bruceLane);
   await page.screenshot({ path: testInfo.outputPath("issue_283_after.png") });
 
+  // Returning focus from the editor can scroll mid-week before the idle week snap runs.
+  await settledSchedulerLeftDate(page);
   const clarkBar = clarkLane.getByTestId("allocation-bar").filter({ hasText: "CMS Review" });
   const [barBox, holidayBox] = await Promise.all([
     clarkBar.boundingBox(),
@@ -79,6 +87,7 @@ test("modal edits, drag and repeat creation show work on holiday as over allocat
   await page.mouse.down();
   await page.mouse.move(startX + holidayBox!.x - barBox!.x, y, { steps: 10 });
   await page.mouse.up();
+  await expect(clarkBar).toHaveAttribute("aria-label", /8 Jun to 12 Jun/);
   await markerOnFirstTimeOff(clarkLane);
 
   await page.getByRole("button", { name: "Add allocation for Diana Prince" }).click();

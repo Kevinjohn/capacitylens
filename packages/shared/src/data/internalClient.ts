@@ -4,7 +4,7 @@ import type { AppData, Client, ID, ISOTimestamp } from "../types/entities.js";
 // Each account has one persisted Internal client, identified by `builtin` because import remapping changes IDs.
 // Public CRUD strips the flag, imports reconcile duplicates, and server writes reject a second built-in client.
 
-/** The display name of the built-in Internal client (also recognised on import/migrate). */
+/** The display name of the built-in Internal client (also recognised on import). */
 export const INTERNAL_CLIENT_NAME = "Internal";
 
 /** A preset swatch colour for the Internal client (Blue bright, a valid `#rrggbb` from the
@@ -12,8 +12,8 @@ export const INTERNAL_CLIENT_NAME = "Internal";
 export const INTERNAL_CLIENT_COLOR = "#2d75da";
 
 // Return a deterministic repair revision that differs from, and never precedes, the row's current
-// revision. Migration deliberately supplies a fixed clock value, so assigning `now` directly can
-// leave the revision unchanged (or move it backwards) and make updatedAt-based sync miss the repair.
+// revision. Callers may supply a fixed clock value, so assigning `now` directly can leave the
+// revision unchanged (or move it backwards).
 function repairRevision(current: ISOTimestamp, now: ISOTimestamp): ISOTimestamp {
   const currentMs = Date.parse(current);
   const nowMs = Date.parse(now);
@@ -70,8 +70,8 @@ function isStringValue(value: unknown): value is string {
 }
 
 /** The account's built-in Internal client, or undefined if none exists yet. Identifies it by the
- * `builtin` flag (id-independent so it survives import-remap). First match wins, the seed /
- * addAccount / migrate paths guarantee at most one per account. */
+ * `builtin` flag (id-independent so it survives import-remap). First match wins; seed,
+ * addAccount and imports guarantee at most one per account. */
 export function internalClientFor(clients: Client[], accountId: ID): Client | undefined {
   return clients.find((client) => isObjectValue(client) && isBuiltinClient(client) && client.accountId === accountId);
 }
@@ -93,7 +93,7 @@ export function wouldAddSecondBuiltin(clients: Client[], accountId: ID, id: ID):
   return existing !== undefined && existing.id !== id;
 }
 
-// Use the same canonical-field predicate for repair detection and revision bumps so sync observes every repaired row.
+// Use the same canonical-field predicate for repair detection and revision bumps.
 function needsInternalClientRepair(client: Client): boolean {
   return (
     client.name !== INTERNAL_CLIENT_NAME ||

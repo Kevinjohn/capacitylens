@@ -13,8 +13,9 @@ Operator procedures live in the [self-hosting guides](../docs-src/self-hosting/i
 With the service stopped, operator recovery uses `node ace.js owner:reset-password <email>
 --confirm-server-stopped` from `apps/backend/`. It prints a single-use recovery link after
 committing its private audit. Installation reset uses `node ace.js app:reset
-<new-database-path> --confirm-server-stopped`, preserving the old database and a verified snapshot
-before creating an empty database at a new path.
+<new-database-path> --confirm-server-stopped --disposable` outside production, preserving the old
+database and a verified snapshot before creating an empty database at a new path. Production
+refuses this command.
 
 All member linking and invitations are managed in **Team & access**. Owners and Admins open the
 member's actions there to link, change, or remove an eligible person Resource; the Resources page
@@ -35,10 +36,10 @@ accept responses never include it.
 > CapacityLens is a multi-tenant resource scheduler. It is **server-backed by default** (an empty
 > env means the same-origin SQLite API). The app is **multi-tenant by Account**: you pick a company
 > on load and the whole dataset is scoped to it. An explicit in-browser **demo build**
-> (`VITE_CAPACITYLENS_DEMO=1`) keeps data in memory with no login or network calls and resets on
+> (`VITE_CAPACITYLENS_DEMO=1`) keeps data in memory with no authentication or network calls and resets on
 > reload — that
-> is the build these manual stories run against, started with `pnpm run dev:demo`, signed in to the
-> seeded **Wayne Enterprises** company.
+> is the build these manual stories run against, started with `pnpm run dev:demo`, selecting the
+> sample account and seeded **Wayne Enterprises** company.
 
 ---
 
@@ -52,44 +53,35 @@ accept responses never include it.
 3. CapacityLens opens on a **demo sign-in** — a cosmetic, Google-style _"Choose an account"_ screen
    (the **Bruce Wayne** account; heading `Choose an account`). It is **not** real auth and
    has **no** popup: click the single preview account to continue. It is shown only
-   when real auth is off (the default) and is skipped once "signed in" (the choice persists
+   only in the in-memory demo build and is skipped once the sample account is chosen (the choice persists
    device-globally; "Sign out" on the picker or Account page returns to it).
 4. Production opens the sole company returned by the server and keeps the requested route. The
    active company id remains session-only and is never persisted. If an installation contains
    multiple stored companies, the server returns an actionable conflict and the UI offers no
    selection controls. The temporary in-memory demo retains its fictional two-company picker and
    switch action. While signed in, its picker shows _"Signed in as Bruce Wayne"_ with a **Sign out**
-   link. **`New company`**
+   link. In the demo, **`New company`**
    (`data-testid="new-company-button"`) opens an inline create form that captures the company
    name and the three **frozen-after-creation** fields: **Week starts on** (segmented
    Monday/Sunday, default Monday), **Timezone** (a searchable combobox that detects and preselects
    the browser's IANA zone, puts local/common choices first, and shows a friendly name, current
    abbreviation and numeric UTC offset for every option), and **Language** (read-only **English** —
    `data-testid="create-language"`; English-only until Paraglide). Company colour uses the default
-   preset automatically rather than asking for a one-off choice during onboarding. On a
-   server-backed deploy the form also shows a **Start with example data** checkbox, ticked when it
-   is the user's first company and unticked otherwise; the in-memory demo does not offer it. These three are set ONCE here and are then **disabled** in
-   Settings; the server rejects a later change with **409**.
-   When there is no company, the supported first-company setup or invitation path remains available.
+   preset automatically rather than asking for a one-off choice during demo onboarding. The demo
+   does not offer **Start with example data**. The calendar fields are set once during creation
+   and are then disabled in Settings. The native installation uses the operator command below;
+   it has no company creation form or example-data checkbox.
+   On an empty native installation, create the first identity, stop the service and run
+   `company:initialize <existing-email> <company-name> --confirm-server-stopped`, then restart
+   and sign in normally. The command creates one company and active Owner membership without
+   changing credentials or identity admission; it refuses any existing company or membership.
    Production does not offer company selection, switching, ordinary additional-company creation or
    in-app company deletion. The server summary supplies the sole installation company; scoped APIs
    still authorize every requested id from the caller's server-side membership. If the summary
    detects multiple stored companies, the app asks the administrator to resolve the installation.
    The in-memory demo retains its picker, temporary company creation and switching.
-   Company deletion remains an administrative API capability but is not offered in the production
-   UI. When an authorized deletion is used, it is atomic and fail-closed: if a corrupt stored
-   relationship would cascade a delete or unbind into another company, both companies remain
-   intact and the server refuses the operation for operator repair. A completed authenticated
-   deletion retains its anonymized command receipt briefly. If the response is lost, the same
-   authenticated principal can retry the command and receive success even though the deleted
-   company's membership is gone. Deleting the principal's last company also removes that principal
-   and invalidates its session, so the receipt cannot be replayed without a surviving authenticated session. A post-delete `403` from an
-   older/mixed server is treated as an unknown outcome, so the browser retains the command and
-   refreshes the company list from the server instead of converting uncertainty
-   into a new destructive ceremony. The picker consumes that same erasure outcome classification
-   rather than independently reclassifying the response status.
-   After a confirmed deletion completes, the picker announces that the named company was
-   permanently deleted.
+   The server has no company deletion action. Whole-company anonymisation keeps the company,
+   its Owner and memberships.
 5. The application opens with a non-blocking **How CapacityLens works** region
    (`data-testid="product-orientation"`) above the page. It explains the week-by-week people and
    work model and says CapacityLens does not manage tasks, tickets or deadlines. **Got it**
@@ -183,38 +175,30 @@ ordinary company settings; Owners and Admins manage Overview access. Everyone ca
 device preferences. See [Settings](../docs-src/using/settings.md).
 
 The **Import and export** row (**Export JSON** / **Import JSON**) is a closed-by-default disclosure
-in **Data and support**, above the compact company-details summary. **Device data** and
-**Deleted items** are not shown in Settings. It used to be a "Data" section in the sidebar; it moved because a full-slice export or
-replacement is a rare administrative act that does not warrant permanent navigation real estate.
-In an authenticated
-server deployment, **Import JSON** is owner-only because a slice replacement can author or erase
-owner-confidential client/project identities; **Export JSON** remains available at its existing
-role tiers and is server-redacted for non-owners. The local demo and auth-off deploy remain
-owner-equivalent. Import repair applies the same erasure privacy rule as an interactive resource
-deletion: a deleted person is anonymised and notes on their dependent allocations and time off are
-removed before the replacement slice is stored. The portable file contains the active company's
-scoped planning records but deliberately omits the company row itself. Import re-stamps those
-records into the destination company and does not replace its identity, calendar, language,
-scheduling mode or visibility settings. Export → import is a planning-data transfer, not a
-byte-for-byte company clone.
-Before a server import starts, CapacityLens flushes every pending edit. It then suspends persistence
-for the atomic replacement and reloads the authoritative company slice before allowing edits again.
-Server import preparation has a bounded worker pool and waiting queue. If that capacity is exhausted,
-the import is refused as temporarily busy; if the browser disconnects, queued preparation is
-withdrawn and active preparation is terminated before its worker slot is reused.
-The server compares the complete company slice captured before import preparation with the slice
-inside the replacement transaction. If another request commits a company change while the import is
-being prepared, the import is refused with a conflict notice asking the owner to retry; the newer
-change remains stored and ordinary writes resume without an authoritative reload.
-If the import may have committed but the reload cannot prove the resulting state, the UI stays
-blocked behind an explicit reload action; parked pre-import edits are never replayed over the
-replacement. File reads and confirmations remain bound to the company that was active when the file
-was selected, and export/import actions suppress duplicate in-flight requests.
-The separate beta preview validates a `capacitylens-beta` version `1` document before offering
-**Continue**. It preserves entity IDs and supported company settings and reports invalid fields or
-current member links before passing prepared data to its caller. It does not execute a replacement;
-the existing Settings flow remains in place pending backend integration. See the
-[beta transfer contract](../docs-src/using/settings.md#beta-transfer-contract).
+in **Data and support**. **Device data** and **Deleted items** are not shown in Settings. In an
+authenticated server deployment, **Import JSON** is Owner-only; **Export JSON** remains available
+at its existing role tiers and is redacted for non-owners. The temporary in-memory demo has no
+member identities, so it accepts a full beta file without login or action proof.
+
+Export writes a `capacitylens-beta` version `1` document with one company, all scoped planning
+tables, stable IDs and supported company settings. A redacted export is for inspection only.
+Import accepts only a full document, strictly validates it, previews the company and record count,
+then asks the Owner to confirm the replacement. Invalid fields, foreign scope and dangling links
+are refused rather than repaired or remapped. Identity, memberships, sessions and device
+preferences are excluded. The selected company's data and supported settings are replaced;
+other companies remain unchanged.
+
+A signed-in Owner confirms the exact import with a password or linked Google identity after
+preview. A recent sign-in alone is insufficient. The proof binds the Owner, native session,
+company, document and planning revision, is spent once in the same transaction as the import,
+and cannot authorize another operation. A stale revision or failed write leaves the data unchanged.
+A changed import keeps stable IDs and member links, clears deletion restoration groups and writes
+one revision and audit entry. An unchanged import writes neither. The server flushes pending browser
+edits, suspends persistence during replacement and reloads authoritative state before resuming.
+If the response is uncertain and state cannot be reconciled, the browser requires a reload.
+The demo applies the same strict document in page memory and refresh restores its seed.
+
+See the [beta transfer contract](../docs-src/using/settings.md#beta-transfer-contract).
 The footer puts **Help** immediately above the account block, with the same small button and tooltip
 in expanded, collapsed and mobile navigation. The account block stays at the very **bottom** of the
 sidebar, below a divider beneath the administration group. It contains exactly one avatar-led
@@ -227,12 +211,12 @@ its identity row, the avatar has its own unlabeled visible column, followed by N
 Actions. The row scrolls horizontally on narrow screens. Long email
 addresses truncate like Team & access rows and reveal in full on pointer hover or keyboard focus.
 In password-capable modes it offers password change in a dialog for local-password identities; in SSO mode it shows the provider identity without password controls.
-The page hides active-session details. Demo and auth-off modes
-never invent credential controls. Company Settings contains
+The page hides active-session details. The in-memory demo never invents credential controls.
+Every persisted server session is authenticated. Company Settings contains
 company and device configuration only. The avatar is the signed-in user's own picture when the identity provider supplied one, initials
 otherwise, and the demo persona's face in the demo build. The row always reads **Sign out**, never
 "Sign in": the sign-in wall means the sidebar only ever renders for someone already signed in.
-It appears on any auth-enabled deploy and in the demo build; an auth-off server shows no such row.
+It appears on every persisted server deploy and in the demo build.
 
 **Badge shape.** Shared role and status badges use a compact pill silhouette. This applies to the
 company picker and sidebar roles, invite roles, Team & access posture, placeholder resources,
@@ -272,12 +256,12 @@ never appears on desktop viewports or in landscape.
 **Overlapping save and page close (server mode).** If an ordinary background save is still in
 flight when the page is hidden or closed, the teardown keepalive sends the newest complete intent
 immediately. The server orders both requests per browser session, so the newest edit wins whether
-the ordinary request or the teardown request arrives first. An undo performed before the first
+the ordinary request or the teardown request arrives first. A removal performed before the first
 save acknowledges is also preserved, including removal of a newly created row that uses the
 archive lifecycle. Teardown lifecycle archives travel in the same ordered atomic batch as ordinary
 changes, so an older in-flight creation cannot recreate the archived row. If the page survives in
-the back/forward cache and the user undoes a confirmed teardown archive, the foreground retry
-unarchives that remembered row even when its local content already matches the pre-teardown save
+the back/forward cache and local state restores a row after its confirmed teardown archive, the
+foreground retry unarchives that remembered row even when its local content already matches the pre-teardown save
 baseline. An unrelated writer's intervening edit still produces the normal conflict-and-reload path.
 On a conflict, the sticky notice says the edit was not saved and that CapacityLens is reloading the
 latest copy; it does not claim reload completion before the authoritative read succeeds. If that
@@ -299,15 +283,14 @@ success for the rebase never hides the independent loss.
 ## Seed data (first run)
 
 > This auto-seed is **DEMO-BUILD-ONLY** going forward (one-company server policy). A
-> real, server-backed instance (the default deploy) no longer auto-seeds from the client side —
-> `bootstrap()` (src/main.tsx) only passes a seed dataset in the demo build
-> (`VITE_CAPACITYLENS_DEMO=1`); a fresh server-backed instance lands on the empty
-> create-your-company setup instead of a fabricated "Wayne Enterprises". The two-company seed
+> real, server-backed instance (the default deploy) no longer auto-seeds from the client side.
+> The demo build (`VITE_CAPACITYLENS_DEMO=1`) starts with a volatile seed dataset. A fresh
+> server-backed instance uses the stopped-server `company:initialize` command for an existing
+> native identity to establish its first company and Owner, with no seed scheduling data. The two-company seed
 > described below happens in the demo build (`pnpm run dev:demo`, what these stories run against)
 > and in backend tenant-isolation tests. The database-backed E2E server resets to a single-company
-> fixture so its user journeys match production. The reset route exists
-> only in trusted-local/auth-off mode; an auth-enabled server refuses it even when the development
-> flag is set because a browser session carries no installation-wide erasure authority.
+> fixture so its user journeys match production. Browser requests cannot reset persisted company
+> data; the disposable test database is reset by the test harness.
 
 - **Accounts (companies):** **Wayne Enterprises** holds the demo data below; _Stark Industries_ is
   a second fictional tenant used by the temporary demo picker and tenant-isolation tests.
@@ -472,8 +455,8 @@ Personal time off likewise keeps **Add time off** beside its heading, without a 
 The company section uses
 `data-testid="company-closures-section"`; each dated row uses
 `data-testid="company-closure-row"` and shows the required closure name plus its inclusive date
-span. Closure rows have the same edit, confirm-delete and undo/redo behaviour and permissions as
-personal entries.
+span. Closure rows have the same edit and confirm-delete behaviour and permissions as personal
+entries. Time-off and closure changes join the page-local planning Undo/Redo history after saving.
 
 **Repeat personal time-off creation.** New personal time-off forms opened from either **Add time
 off** or a drawn schedule range include a create-only **Repeat** dropdown with
@@ -495,7 +478,7 @@ The form shows the entry count and final occurrence's complete start–end range
 `data-testid="timeoff-repeat-preview"`, plus an expandable list of every generated range in
 `data-testid="timeoff-repeat-ranges"`. Preview and save use the same generated drafts, including
 the optional note that permitted roles deliberately copy to every occurrence. Saving publishes all
-entries in one mutation and one undo/redo step; a repeated submit event from the same open form
+entries in one mutation; a repeated submit event from the same open form
 cannot create a second batch. The entries remain independent dated records with no series identity:
 each can be edited or deleted normally, and edits never regenerate siblings. The form explains this
 before save. Edit forms do not show repeat controls. Time off remains whole-day; working patterns do
@@ -599,7 +582,12 @@ Switching modes is announced in the scheduler's polite live region. In Time-off 
 omit work-allocation counts, and each eligible non-external resource row exposes a keyboard
 **Add time off for <name>** button that opens the same prefilled time-off form as drawing the lane.
 External rows expose no time-off creation action.
-Saved local edits remain undoable after a background refresh that contains only their own
+Undo and Redo act on saved planning changes: bookings, catalogue and resource edits, personal time off,
+company closures and company settings. Deleting a discipline or phase leaves its people or activities
+in place without that grouping; Undo restores only the removed link, preserving other edits made
+since deletion. A created Client, Project, Activity or Resource is archived on Undo and unarchived
+with the same ID on Redo.
+Saved booking changes remain undoable after a background refresh that contains only their own
 acknowledged revisions. A genuine remote row change, addition or deletion clears history so
 Undo cannot overwrite or resurrect another writer’s work.
 Undo/redo run
@@ -790,7 +778,7 @@ schedules show **Nothing scheduled in these four weeks.**
 dismiss the Sheet and focus returns to its connected avatar button, or to the schedule when that row
 has disappeared. Owners see real private client/project names; Admins, Editors and Viewers retain
 the independently projected quoted code names. Time-off notes are visible only to authenticated
-Owners/Admins (and in existing auth-off/demo semantics), and account, permission or resource
+Owners/Admins, and account, permission or resource
 invalidation removes all stale drawer content immediately. See [Schedule](../docs-src/using/read-the-schedule.md).
 If the optional allocation Task field from #720 is available and populated under its workspace
 visibility rule, this vertical view shows it above Notes; this drawer does not create that field or
@@ -854,7 +842,7 @@ The default dev/local build leaves both variables unset, so the Build details se
 
 **Diagnostics (`/diagnostics`; Owner and Admin).** The **Diagnostics** link follows **Settings**
 in the sidebar administration group and in the command palette. It is shown to Owners and Admins,
-and to every session without a membership role (sign-in off, demo). Editors and Viewers see no link,
+and to every visitor in the in-memory demo. Editors and Viewers see no link,
 and a direct visit redirects them to the schedule; while the role is resolving the route shows a
 loading status. Settings no longer has a Diagnostics row or Build details section; only roles that
 can open Diagnostics can read its build stamp or feedback link.
@@ -865,18 +853,17 @@ The page (`data-testid="diagnostics-report"`) shows a **Support report** as plai
 timestamp captured by the client when the server response arrives or its failure is observed; the
 server values are a point-in-time snapshot, not a live monitor, and copying does not request them
 again. The fixed allowlist is: app version, a validated build revision when present, deployment
-mode and export schema; separately labelled server connectivity, database schema, persistence and
-backup status; the sign-in mode (`off`, `password-only`, `sso-only` or `password-and-sso`); this
+mode and export schema; separately labelled server connectivity, database status, last applied
+migration and newest completed snapshot modification time; the sign-in mode (`off`, `password-only`, `sso-only` or `password-and-sso`); this
 browser session's save counters (saves failed, retries armed, reconciliations resolved, reloads
 superseded, edits rebased, edits discarded, saving suspended); and the browser's user agent,
 viewport, time zone and language. A browser value outside its expected shape reads **Unknown**.
 The page is present in demo mode too, with server values unavailable. A missing or unavailable
-value is shown as **Unknown** or **unavailable**; a `null` schema means that value was unavailable
-or invalid, not zero or a browser fallback, while an unknown backup timestamp does not assert that
-no backup exists. The native backend leaves backup status unavailable: operators verify service logs
-and completed snapshots separately from database readiness. Browser constants are never presented
-as the server's database schema. The report
-contains no names, emails, identifiers, paths, hostnames, secrets, invite or session values, raw
+value is shown as **Unknown** or **unavailable**; a missing migration means it was unavailable
+or invalid, while an unknown snapshot timestamp does not assert that no backup exists. Operators
+verify service logs and completed snapshots separately from database readiness. Browser constants
+are never presented as the server's migration. The report
+contains no customer names, emails, identifiers, filesystem paths, hostnames, secrets, invite or session values, raw
 errors or arbitrary response fields. The button reports a generic success or clipboard failure
 message.
 
@@ -884,9 +871,9 @@ When SMTP is configured in a password-capable mode, `forgot-password` reveals th
 `forgot-password-email` field and `forgot-password-submit` button. A successful request shows
 `forgot-password-confirmation`: **If an account uses that address, we've emailed a reset link.**
 
-**Login screen (flag-gated; not reachable in the default deploy).** Only when the app runs in
-server mode (same-origin `/api` by default, or `VITE_CAPACITYLENS_API` for a different origin) **and** that server runs with `CAPACITYLENS_MODE=password-only`, `password-and-sso` or
-`sso-only`: the app checks `GET /api/auth/me` at boot, showing **Checking your session…** as an
+**Login screen (persisted server).** When the app runs against a persisted server (same-origin `/api`
+by default, or `VITE_CAPACITYLENS_API` for a different origin), it checks `GET /api/auth/me` at
+boot, showing **Checking your session…** as an
 accessible status while the request is pending; a 401 replaces everything — company
 picker included — with a **Sign in** screen (heading `Sign in`; fields `Email` + `Password`
 and a `Sign in` button in password-capable modes; configured company-provider buttons in sso-only mode; failures
@@ -903,10 +890,9 @@ The sign-in and session-verification failure walls set page-specific document ti
 the failure detail is announced as an alert when it replaces the checking state.
 While signed in, the sidebar's **Account** destination shows who is signed in and the available
 personal security controls. **Account** contains the single **Sign out** action for real and demo
-sessions. With auth off (the default everywhere) or in
-local mode, no login screen exists, Account has no credential controls, and local mode makes **no**
-auth request at all. The server's reported `authMode` is the single source of truth — there is no
-client-side auth flag.
+sessions. The in-memory demo has no real login screen or credential controls and makes no auth
+request. Every persisted server requires sign-in; the server's reported `authMode` is the single
+source of truth — there is no client-side auth flag.
 
 The product auth client uses `POST /api/auth/sign-in`, `POST /api/auth/sign-up` and
 `POST /api/auth/sign-out`. Password recovery uses `POST /api/auth/request-reset` and
@@ -962,8 +948,8 @@ instead of sign-in. Fields are **name** (`data-testid="owner-setup-name"`), **em
 with its length validation, and **Owner setup token** (`data-testid="owner-setup-token"`) with
 installer guidance, plus a **Create my sign-in** button
 (`data-testid="owner-setup-submit"`); failures show the same inline alert. Success signs the
-owner in and reloads into **Set up your company**, where the owner creates the first company before
-entering the app. Ordinary edge whitespace around a pasted setup token is ignored; a token containing
+owner in. A sign-in alone does not provision the installation company; without a company the app
+shows the empty access state. Ordinary edge whitespace around a pasted setup token is ignored; a token containing
 characters that cannot be represented in an HTTP header stays in the form and shows an actionable
 inline error without sending a request. The setup-token value remains secret and is never displayed
 by the app. On a populated server the
@@ -1023,7 +1009,7 @@ active role in a plain-language summary sentence. The full allowed/not-allowed c
 schedule writes, member administration, time-off-note visibility and private client/project-name
 visibility — is collapsed behind a **See full capabilities** disclosure
 (`data-testid="capabilities-toggle"`, reporting its state through `aria-expanded`), so the page opens
-on the member table rather than on reference material. On a deploy where the sidebar company block renders — auth off, or two or
+on the member table rather than on reference material. On a deploy where the sidebar company block renders — two or
 more accessible companies — that block also shows the resolved role (`data-testid="active-role"`)
 and Viewer retains the explicit **View only** wording; with access to a single company this panel is
 the only place the role is stated. Where
@@ -1032,9 +1018,8 @@ sign in, not the resources you schedule, and that adding a Resource does not cre
 neither record implicitly creates the other.
 
 In the in-memory demo the route remains visible but labels the state **Demo access** and clearly says
-that it neither creates app members nor simulates server authorization. A persisted auth-off server
-instead says **Open access** and explains that anyone who can reach the installation can view and
-edit its companies. In an authenticated server deploy, Owner/Admin additionally get the **Members**
+that it neither creates app members nor simulates server authorization. On a persisted server,
+Owner/Admin additionally get the **Members**
 management section
 (heading `Members`, `data-testid="members-section"`). Editor/Viewer see their own access explanation
 but no company directory, invitations or management controls; the server's 403 remains the backstop.
@@ -1080,7 +1065,7 @@ presented before the member directory, matching the action-first pattern of the 
   and shows a bright red **Masquerading as _name_** status bar
   (`data-testid="masquerade-banner"`) with **End now**. Switching company ends the projection
   first. Ending restores the real member's projection before writes resume and returns to `/`.
-  Disabled, archived and self rows never offer the eye button; auth-off/demo mode never exposes it.
+  Disabled, archived and self rows never offer the eye button; the in-memory demo never exposes it.
   The server enforces the read-only boundary even if a stale client attempts a write.
   Each manageable active row also has a pencil for role editing, a link icon
   (`data-testid="member-resource-menu"`) that opens a centered Resource-link dialog with the selector
@@ -1265,8 +1250,8 @@ note and makes no request. The page is `src/auth/ResetPassword.tsx`; spec
 
 **Viewer read-only mode (server + auth-on).** On an auth-on, server-backed deploy a member's account
 **role** (`owner` | `admin` | `editor` | `viewer`) drives the UI. `GET /api/accounts` now returns
-`{ id, name, role }` per account (the caller's role for it; in **OFF mode** every entry's role is the
-trusted-local sentinel `'owner'`, keeping OFF fully editable). When the active account's role resolves
+`{ id, name, role }` per account (the caller's role for it). In the in-memory demo, data is editable
+without a membership role. When the active account's role resolves
 to **viewer**, the whole app goes **read-only**:
 
 - **No create/edit/delete affordances** — list pages show no **Add X** button and no row **Edit** /
@@ -1283,28 +1268,29 @@ to **viewer**, the whole app goes **read-only**:
 - **The toolbar hides the Draw-mode toggle and Undo/Redo** (nothing to draw/undo); navigation +
   filters (reads) stay.
 - A subtle **"View only" badge** (`data-testid="view-only"`) sits in the sidebar footer beside the
-  company name, on the deploys where that block renders at all (auth off, or two or more accessible
+  company name, on the deploys where that block renders at all (two or more accessible
   companies). A single-company viewer reads their role on **Settings → Team & access**.
   The **server 403** (the write tier is editor+; a viewer's write is rejected) is the AUTHORITATIVE
   backstop — the client gating is UX + defense-in-depth. As a second local guard, the store no-ops a
   viewer's `add*`/`update*`/`delete*`/`importData` — including company creation — and surfaces a
   _"Read-only — you don't have edit access."_ notice, so an ungated path or an optimistic write can't
   desync local state. Account-setting writes additionally require their target to be the active
-  company; a stale missing target is a no-op, while an existing foreign target is rejected. **Online
-  default-editable invariant:** in auth off (the default everywhere) or local mode the live role is
-  `null` → fully editable. CapacityLens requires a server connection and never queues changes for later.
+  company; a stale missing target is a no-op, while an existing foreign target is rejected. The
+  in-memory demo remains editable without a membership role. Persisted writes require an authenticated
+  company member and CapacityLens never queues changes for later.
   The provider is `src/auth/PermissionProvider.tsx` (the hooks `useRole`/`useCanEdit` in
   `src/auth/permissionContext.ts`, off the pure `can`); story `user-stories/settings/US-SET-11-viewer-readonly.md`;
   spec `e2e/viewer.auth.spec.ts`.
 
-**Demo sign-in (cosmetic; not real auth).** In the default (auth-off) deploy, a Google-style
+**Demo sign-in (cosmetic; not real auth).** In the `VITE_CAPACITYLENS_DEMO=1` build, a Google-style
 _"Choose an account"_ screen (heading `Choose an account`; the **Bruce Wayne** account row,
 `data-testid="fake-sign-in"`) is shown **before** the company
 picker, to preview a "log in first, then pick a company" flow. There is no password and no
 popup — the preview account advances. The signed-in state is a **device-global** flag
 (`capacitylens/fakeSignedIn`, default off; never in `AppData`/export), so it persists across reloads
-and is cleared by **Sign out** (on the picker or Account page). It is mounted only when
-`authMode === 'off'`, so it never collides with the real login wall above. The persona lives in
+and is cleared by **Sign out** (on the picker or Account page). It is mounted only in the demo
+build, so it never collides with the real login wall above. Scheduling data remains in memory and
+resets when the page reloads. The persona lives in
 `src/lib/fakeAuth.ts` (avatar: `src/assets/avatar-demo.svg`).
 
 **Product orientation.** The application shell can show a normal-flow region headed **How
@@ -1383,7 +1369,7 @@ header tier), `capacity-overview-totals-cell`, `capacity-totals-committed`, `cap
 `company-closures-empty`, `company-closure-row`, `discipline-row`, `external-row`, `export-data`, `import-data`,
 `import-input`, `import-busy` (the server-mode "Importing data…" blocking dialog's status text —
 shown for the few seconds of POST + re-hydrate; not dismissable, locks all editing/switching),
-`fake-sign-in` (the demo sign-in's account row — auth-off deploys only),
+`fake-sign-in` (the demo sign-in's account row — demo build only),
 `account-load-recovery` (failed selected-company hydration; replaces the application shell until
 Retry succeeds; the demo also offers a return to its picker),
 `product-orientation` (the non-blocking **How CapacityLens works** region),
@@ -1396,8 +1382,8 @@ first-company setup when no installation company exists),
 `settings-example-data` and `add-example-data` (Settings → Example data row and its button; shown only
 to an Owner or Admin of an empty company on a server-backed deploy),
 `archived-resources-section`, `archived-clients-section`, `archived-projects-section` and
-`archived-activities-section` (expanded sections below their active management lists; shown in local
-mode and to owners/admins on an auth-on server), `archived-row` (one per directly archived row;
+`archived-activities-section` (expanded sections below their active management lists; shown in the
+in-memory demo and to owners/admins on a persisted server), `archived-row` (one per directly archived row;
 carries a **Restore <name>** + **Delete <name>** button),
 `view-only` (sidebar-footer "View only" badge — shown ONLY for a Viewer on an auth-on, server-backed
 deploy that also renders the company block, which needs two or more accessible companies; absent for
@@ -1439,13 +1425,13 @@ multiple).
   The complete acceptance contract is split across five runnable stories so every boundary remains
   traceable when tests change:
 
-  | Criterion           | Required behaviour                                                                                       | Story       |
-  | ------------------- | -------------------------------------------------------------------------------------------------------- | ----------- |
-  | Client setup        | Owner-only switch; public by default; required, normalised code name; real name retained                 | `US-CLI-05` |
-  | Project setup       | Same privacy controls while preserving the required client relationship                                  | `US-PRJ-05` |
-  | Role projection     | Owner sees real/raw values; admin/editor/viewer see one quoted code name everywhere                      | `US-PRI-01` |
-  | Server integrity    | Non-owner creates cannot author privacy; writes pin protected fields; every response path stays redacted | `US-PRI-02` |
-  | Portability/upgrade | Role-safe export, owner-only server import, fail-closed repair and v6→v7 public defaults                 | `US-DAT-07` |
+  | Criterion        | Required behaviour                                                                                       | Story       |
+  | ---------------- | -------------------------------------------------------------------------------------------------------- | ----------- |
+  | Client setup     | Owner-only switch; public by default; required, normalised code name; real name retained                 | `US-CLI-05` |
+  | Project setup    | Same privacy controls while preserving the required client relationship                                  | `US-PRJ-05` |
+  | Role projection  | Owner sees real/raw values; admin/editor/viewer see one quoted code name everywhere                      | `US-PRI-01` |
+  | Server integrity | Non-owner creates cannot author privacy; writes pin protected fields; every response path stays redacted | `US-PRI-02` |
+  | Portability      | Role-safe export, owner-only server import and fail-closed refusal of invalid privacy fields             | `US-DAT-07` |
 
   “Everywhere” includes active and archived client/project lists, filters and pickers, project/client
   compound labels, scheduler bars and popovers, forms, confirmation dialogs and the command palette.
@@ -1508,61 +1494,40 @@ multiple).
   tab (with a labelled question-mark explainer modal + an `Add external party` button) and the band appears on the schedule. When
   off they're hidden everywhere (schedule band, assignee picker, command palette, Resources tab) but
   their data is kept. The old standalone `/external` route now **redirects to `/resources`**.
-- **Archived & soft-deleted resources/clients/projects/activities are hidden from scheduling,
-  active list sections, form option-pickers and the command palette** — they remain in the DB **and
-  in export**. Archived rows surface in the owner/admin section at the bottom of their management
-  page. Settings does not show a Deleted items section.
-  A non-active entity is one with `archivedAt` set (archived) or `deletedAt` set (soft-deleted); the
-  hide is applied by the shared `activeOnly` projection in both the client view seam
-  (`useActiveScopedData`) and the server per-account read (`GET /api/state?accountId=` →
-  `includeInactive:false`). The tester-facing affordances are: each management list's **per-row
-  archive** action (Resources / Clients / Projects / Activities — see below), inline archive sections
-  that restore or soft-delete them. Settings does not expose permanent deletion; server lifecycle
-  routes retain purge-tier and 30-day enforcement. The server
-  lifecycle routes (below) enforce the same machine server-side. The **"archived vanishes"
-  end-to-end story is `e2e/archived.spec.ts`** (LOCAL mode).
+- **Archived resources/clients/projects/activities are hidden from scheduling, active lists,
+  form option-pickers and the command palette.** They remain in the database and exports. Owners
+  and Admins see them in inline archive sections on their management pages. The shared `activeOnly`
+  projection applies to client views and ordinary server reads; `includeInactive=1` is a separate
+  privileged read. `e2e/archived.spec.ts` covers the visible archive journey.
 
-### List archive affordance (P2.5b)
+### List archive affordance
 
-On the **Resources**, **Clients**, **Projects** and **Activities** management lists, the per-row destructive action
-is **Archive**. The row's icon button has the accessible name
-**"Archive <name>"** (e.g. _Archive Barry Rivera_); clicking it opens a confirm dialog (title
-**"Archive resource?" / "Archive client?" / "Archive project?"**, body _"Archive '<name>'? … You can
-restore it from the archived section below this list."_, confirm button
-**"Archive"**). Confirming hides the row from the list **and** from the schedule (it becomes
-archived), but the record + its children are **retained** (archiving is reversible, unlike the old
-cascade-delete). Client, project and activity confirmations count the projects, phases and
-allocations the archive will additionally hide, using singular nouns only when a count is exactly
-one; the activity confirmation counts allocations only, and appends its sentence only when at least
-one allocation would be hidden. The affordance is gated by `useCanEdit` (a Viewer sees nothing). In **server mode**
-the row POSTs `POST /api/:entity/:id/archive {accountId}` and reloads the active slice; in
-**local/OFF mode** it calls the store's `archiveEntity`. Built-in **Internal** client has no archive
-button (it's hidden from the Clients list and the store/server backstop it). Hook:
-`src/hooks/useLifecycleActions.ts` (the shared server/local dispatch).
+On the Resources, Clients, Projects and Activities lists, the per-row action is **Archive** with an
+accessible name such as **Archive Barry Allen**. Confirmation hides the row and its scheduled
+work without removing records or links. Editors and higher may archive. The built-in **Internal**
+client has no archive control and the server rejects a crafted archive request. Persisted writes
+use typed planning archive/unarchive operations; the editable demo uses the volatile planning
+transport. Undo uses the typed inverse operation.
 
-### Inline archives and deleted records
+### Inline archives and resource anonymisation
 
-Each management page ends with expanded archive sections for owners and administrators. The Resources section mirrors the active grouping with non-empty
-**Archived Studio**, **Archived Supplementary** and **Archived External** groups in that order, followed
-by **Archived placeholders** when archived placeholders exist. Directly archived rows offer
-Restore and Delete. Active descendants hidden by an archived client or project explain that ancestry
-and link to the controlling parent's archived section instead of presenting a false independent
-archive action. In LOCAL mode everyone has owner access;
-in **server mode** it self-gates by trying the `GET /api/state?accountId=…&includeInactive=1` read and
-rendering **nothing** if the server replies **403** (a non-admin — the inactive read is purge-tier).
-The inactive-row **source** is the store (`useInactiveScopedData`) in local mode and that
-`includeInactive=1` fetch in server mode. Server inactive data stays outside the ordinary store so it
-cannot leak into scheduling or persistence. Each successful lifecycle action refetches this source.
+Each management page ends with archive sections for Owners and Admins. Resources group non-empty
+Archived Studio, Supplementary, External and placeholder rows. **Restore** returns a directly
+archived row to active planning. Descendants hidden by an archived parent link to that parent
+instead of offering a misleading restore action. Inactive server rows stay outside the ordinary
+planning store and are refetched after a lifecycle change.
 
-- **Archived** (`data-testid="archived-row"`, one per archived resource/client/project/activity) — each shows
-  the entity name and two actions: **Restore** (aria
-  _"Restore <name>"_ → unarchive, back to active) and **Delete** (aria _"Delete <name>"_ → a confirm
-  dialog _"Delete this item?"_, then soft-delete: its state changes and a resource's name
-  is scrubbed to _"Removed person #…"_).
-- Soft-deleted rows remain in company data and exports; Settings does not expose a deleted-record
-  or permanent-delete control. Server lifecycle routes retain purge-tier and 30-day enforcement.
-  Component tests cover inactive-row permissions and confirmation behavior; `e2e/archived.spec.ts`
-  covers archive, restore and soft-delete.
+Archived resources also offer **Anonymise** to Owners and Admins, with confirmation. Anonymising
+replaces the resource's name and role with obfuscated labels, clears its avatar and dependent notes,
+and invalidates local undo history and company restoration groups. The resource, company,
+memberships and planning links remain. Clients, projects and activities have no anonymise action.
+Settings has no deleted-items section or permanent-deletion control.
+The Owner also sees **Anonymise all people** in Settings. It applies the same people-only scrub in
+the selected company, including placeholders, external people and their dependent booking and
+time-off notes. Clients, projects and
+activities stay unchanged, as do the company, memberships and planning links. In a server
+deployment the Owner confirms the exact action with password or linked Google proof; in the
+editable demo it happens in temporary page memory without login or proof.
 
 ### Generic scoped write privacy
 
@@ -1571,7 +1536,7 @@ no required company assertion, so a non-member receives the same `404 {"error":"
 a foreign row and an absent row; row-specific guards such as the built-in Internal-client rule run
 only after that tenant boundary. DELETE requires `?accountId=…`: a caller unauthorized for that
 asserted company receives the same 403 for either id, while an authorized caller receives the same
-404 for a foreign or absent id. Auth-off keeps its established idempotent missing DELETE response.
+404 for a foreign or absent id.
 PUT authorizes the body's company before looking up the id, so a non-member likewise receives one
 indistinguishable response. Insufficient-role members still receive 403 for rows in a company they
 can already read.
@@ -1579,31 +1544,25 @@ The built-in **Internal** client remains server-managed: generic POST cannot cre
 writes cannot modify the active singleton. A legacy-id PUT that atomically replaces the generated
 singleton and reparents its projects is an Admin/Owner operation; an Editor receives 403. The same authority applies to a direct PUT and the atomic batch path.
 
-### Server lifecycle routes (P2.5a)
+### Server lifecycle routes
 
-The Active → Archived → Soft-deleted → Purged data-lifecycle is enforced **server-side** by four
-dedicated action routes (entity ∈ `resources` | `clients` | `projects` **only** — any other entity is
-a **404**). Each takes a JSON body `{ accountId }` (**required** — the tenant assertion, mirroring the
-scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all on all four.
+Resources, clients, projects and activities use named planning archive and unarchive operations.
+An Editor or higher can archive an active row and restore an archived row. An invalid transition
+returns **409**; a guessed foreign row is not disclosed. The built-in **Internal** client cannot be
+archived or unarchived (**409**).
 
-| Route                             | Tier               | Transition                                                                 | Result            |
-| --------------------------------- | ------------------ | -------------------------------------------------------------------------- | ----------------- |
-| `POST /api/:entity/:id/archive`   | write (editor+)    | active → archived                                                          | `200` updated row |
-| `POST /api/:entity/:id/unarchive` | write (editor+)    | archived → active                                                          | `200` updated row |
-| `POST /api/:entity/:id/delete`    | purge (admin+)     | archived → soft-deleted (resource: `name` scrubbed to `Removed person #…`) | `200` updated row |
-| `POST /api/:entity/:id/purge`     | **purge (admin+)** | ≥30-day-old tombstone → **HARD delete + cascade**                          | `204`             |
+An Owner or Admin can anonymise one resource with
+`POST /api/accounts/:accountId/resources/:id/anonymise`. The resource remains in the company with
+its links, while name and role become stable obfuscation tokens, the avatar and dependent notes are
+cleared, and restoration groups for the company are invalidated. The operation is atomic and
+irreversible. An Editor receives **403**. Whole-company people anonymisation uses
+`POST /api/accounts/:accountId/anonymise` after action-specific proof; it applies the same scrub to
+people and dependent notes while leaving clients, projects, activities, the company, Owner,
+memberships and links unchanged. Legacy generic lifecycle action routes and company deletion
+return **404**.
 
-- **Error mapping:** an **illegal transition** (e.g. deleting a row that was never archived, archiving
-  an already-archived row) → **409** with the state machine's own message; a **cross-account** target →
-  the standard tenant guard (**403** non-member, or **404** when the id isn't in the asserted account's
-  slice); an **absent** row → **404**; an insufficient role → **403**.
-- **Purge interlock (server-enforced):** purge is refused (**409**) unless the row is a **soft-deleted
-  tombstone aged ≥ 30 days** (`PURGE_MIN_AGE_DAYS`); the cascade then removes the row and its
-  owned descendants. All-projects allocations attributed to a removed client/project survive with
-  that attribution cleared.
-- **Built-in Internal client guard:** the protected built-in **Internal** client cannot be
-  archived/deleted/purged — any of the three on it is a **409**. Import and load repair also clear
-  legacy or hand-edited lifecycle tombstones so the singleton always returns active.
+- **Error mapping:** an illegal archive transition returns **409**; a cross-account or absent target
+  follows the typed planning tenant guard; insufficient role returns **403**.
 - **Inactive-ancestor write guard:** generic POST/PUT/PATCH and batch writes return **400** when the
   target row would sit beneath an archived or soft-deleted client, project or resource, including
   inherited ancestry such as phase → project → client and allocation → activity → project → client.
@@ -1611,18 +1570,11 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   cannot immediately disappear from that view. Demo/local store creates and reparenting apply the
   same closure, while an unrelated edit may retain its already-stored parent reference. Existing
   retained rows are not deleted by this guard.
-- **Admin "read inactive":** `GET /api/state?accountId=…&includeInactive=1` returns the **full** slice
-  (archived + soft-deleted rows retained). It is gated at the **purge tier (admin+ with a session
-  signed in within the last 15 minutes)**: a non-admin gets **403**, while a stale privileged session
-  gets `403 SESSION_NOT_FRESH`; OFF mode always allows; omitting the flag = today's active-only read.
-- **Cascade deletes:** deleting a client removes its projects and their project-specific activities
-  and allocations; deleting a project removes its phases/project-specific activities and allocations
-  and _unbinds_ (does not delete) placeholders. In either case, an All-projects allocation attributed
-  to the removed project survives and becomes unattributed. Deleting an activity removes its allocations; deleting a resource removes its
-  allocations + time off. Deleting a **discipline** or **phase** is _non-destructive_
-  (ungroups resources / ungroups activities). These ordinary CRUD deletes are undoable. Lifecycle
-  **soft-delete and purge** of an archived person, client or project are irreversible and clear the
-  local undo/redo history so a destructive lifecycle action cannot be restored accidentally.
+- **Admin "read inactive":** `GET /api/state?accountId=…&includeInactive=1` returns archived rows
+  to Owners and Admins; omitting the flag returns the active-only view.
+- **Typed planning deletes** for allocations, time off, phases and disciplines preserve their
+  respective association rules. Archive and restore retain resource, client, project and
+  activity records and their links; resource anonymisation scrubs identifying details.
 - **Disciplines are optional (account-level).** Default **on**. When a company turns them off
   (Settings → Disciplines → _Use disciplines_) disciplines are hidden everywhere and the schedule
   uses engagement fallback bands — see the _Disciplines (account-level)_ note above. The seed companies leave it
@@ -1725,8 +1677,8 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   and actionable. A successful invitation keeps the newly selected company active while its account
   list refreshes.
 - Company management data is fetched only for members who may manage it. Removing a client or
-  project through the normal UI is undoable, and keyboard or pointer allocation gestures stop
-  cleanly when focus, capture or the initiating button is lost.
+  project through the normal UI is not reversed by booking Undo/Redo, and keyboard or pointer
+  allocation gestures stop cleanly when focus, capture or the initiating button is lost.
 - A deleted person's retained tombstone contains neither their original name nor role; the displayed
   identifier is an opaque `Removed person #…` label.
 

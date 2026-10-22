@@ -27,12 +27,13 @@ function command(root: string, databasePath: string, args: string[], backupDir?:
       PORT: '0',
       LOG_LEVEL: 'info',
       NODE_ENV: web ? 'production' : 'test',
-      CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: '1',
       CAPACITYLENS_AUDIT: 'on',
       CAPACITYLENS_ALLOW_RESET: 'false',
       CAPACITYLENS_CREATE_ADMIN_ADMIN: 'false',
       CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: '',
-      CAPACITYLENS_MODE: 'off',
+      CAPACITYLENS_MODE: 'password-only',
+      CAPACITYLENS_SECRET: 'capacitylens-test-secret-0123456789abcdef',
+      CAPACITYLENS_PUBLIC_URL: 'http://127.0.0.1',
     },
   })
   if (child.error) throw child.error

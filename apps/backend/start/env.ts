@@ -44,14 +44,12 @@ type OptionalStringKey =
   | 'CAPACITYLENS_WEB_DIR'
 
 type OptionalBooleanKey =
-  | 'CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION'
   | 'CAPACITYLENS_ALLOW_OPEN_SIGNUP'
   | 'CAPACITYLENS_ALLOW_RESET'
   | 'CAPACITYLENS_AUDIT_STDOUT'
   | 'CAPACITYLENS_CREATE_ADMIN_ADMIN'
   | 'CAPACITYLENS_DEMO'
   | 'CAPACITYLENS_HEALTH_DEEP'
-  | 'CAPACITYLENS_HTTPS'
   | 'CAPACITYLENS_MIGRATION_READY'
   | 'CAPACITYLENS_PASSWORD_BREACH_CHECK'
   | 'CAPACITYLENS_REQUIRE_MFA'
@@ -78,7 +76,6 @@ const envSchema: CapacityLensEnvironmentSchema = {
   APP_KEY: Env.schema.secret(),
   APP_URL: Env.schema.string({ format: 'url', tld: false }),
   SESSION_DRIVER: Env.schema.enum(['cookie', 'memory', 'database'] as const),
-  CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: optionalBoolean,
   CAPACITYLENS_ALLOW_OPEN_SIGNUP: optionalBoolean,
   CAPACITYLENS_ALLOW_RESET: optionalBoolean,
   CAPACITYLENS_API: optional,
@@ -100,7 +97,6 @@ const envSchema: CapacityLensEnvironmentSchema = {
   CAPACITYLENS_GOOGLE_CLIENT_SECRET: optional,
   CAPACITYLENS_HEALTH_DEEP: optionalBoolean,
   CAPACITYLENS_HOST: optional,
-  CAPACITYLENS_HTTPS: optionalBoolean,
   CAPACITYLENS_LOG: optional,
   CAPACITYLENS_MAIL_FROM: optional,
   CAPACITYLENS_MAIL_HOST: optional,

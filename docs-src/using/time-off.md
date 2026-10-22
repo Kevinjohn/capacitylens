@@ -69,9 +69,11 @@ repeat must create between 2 and 54 entries.
 Each entry keeps the original span of calendar days, even across weekends, holidays or non-working
 days. Overlapping time off is allowed; nothing is merged or skipped.
 
-Saving creates one undoable batch. After that, every entry is independent: it has its own row,
+Saving creates every entry together. After that, every entry is independent: it has its own row,
 **Edit** and **Delete** on the Time off page, and changing one leaves the others alone. Repeat
 controls appear only when adding.
+Deleting an entry removes just that entry. **Undo** restores it within the current page session;
+**Redo** removes it again.
 
 ![Seven weekly three-day entries listed separately for Diana Prince, each with its own Edit and Delete buttons](../screenshots/flows/timeoff_independent_entries.jpg)
 
@@ -101,6 +103,7 @@ exceptions. On Schedule it is one named band across their rows.
 Covered availability drops to zero, but bookings keep their dates and hours. Work already planned
 across the closure turns red instead of disappearing. Deleting or shortening the closure restores
 capacity.
+If you remove a closure by mistake, **Undo** restores that closure in the current page session.
 
 A closure is a dated, whole-day, one-off event. The company's non-working weekdays, set in
 [company-wide working days](/using/settings#company-wide-working-days), are different: bookings

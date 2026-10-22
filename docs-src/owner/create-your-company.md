@@ -1,6 +1,6 @@
 ---
-title: Create your company
-description: Sign in as the first Owner, create the company and choose the calendar rules that apply to everyone.
+title: Access your company
+description: Create your sign-in and ask the installer to initialize company access.
 prev: false
 next: false
 ---
@@ -9,10 +9,10 @@ next: false
 <span id="steps"></span>
 <span id="what-s-next"></span>
 
-# Create your company
+# Access your company
 
-Sign in with the setup token from your installer, then create the company. You need the
-CapacityLens address and that token.
+Sign in with the setup token from your installer. You need the CapacityLens address and that token.
+An identity needs a provisioned company and membership before it can use the schedule.
 
 ## Sign in for the first time
 
@@ -29,27 +29,18 @@ instead and use the email address the installer approved for the first Owner. If
 accepts your address, ask the installer to check the first-Owner setup before you try a different
 identity.
 
-## Create the company
+## Company access
 
-![First company setup with Company name, Week starts on, Timezone, Language and Start with example data selected](../screenshots/flows/owner_first_company_setup.jpg)
+First sign-in creates your identity. The installer then stops the service and runs
+`company:initialize` for your existing email and company name. This creates the first company
+and makes your identity its Owner. It does not create or change your password, provider identity
+or admission settings. After the installer restarts the service, sign in normally to open Schedule.
 
-1. Enter the **Company name**.
-2. Choose **Week starts on** and **Timezone**. The list is searchable and starts with your browser's
-   time zone. These two apply to everyone and **cannot be changed later**, so agree them
-   with your team first.
-3. **Start with example data** adds fictional people, a client, a project and sample bookings. It
-   is selected by default for your first company. For a real company, clear it so your Admin
-   starts with an empty schedule. Example records are ordinary: if you keep them, delete them one
-   by one like any others.
-4. Select **Create company**. CapacityLens opens Schedule.
-
-**Language** offers only English. Week start and time zone stay visible, read only, under
-**Settings → Data and support → Company details**.
-
-## If adding the example data fails
-
-The company is still created. An Owner or Admin can retry from **Settings → Data and support →
-Example data** while the company has no people, clients, projects or bookings. The in-memory demo
-does not show the checkbox.
+The company starts with Monday as the first day of the week, Monday–Friday as working days and
+day-based scheduling. It contains the built-in Internal client and no sample scheduling records.
+The setup command works only before any company or membership exists. Ask the installer to
+resolve access if the command refuses; it cannot add a second company or replace an Owner.
+The temporary [demo](/getting-started/try-the-demo) lets you explore fictional companies without
+storing their records.
 
 Next: [Appoint an Admin](/owner/appoint-an-admin) — hand the day-to-day running to someone else.

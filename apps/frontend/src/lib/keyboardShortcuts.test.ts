@@ -45,18 +45,11 @@ describe("primaryShortcut", () => {
       m.scheduler_undo_title({ shortcut }),
       m.scheduler_redo_title({ shortcut }),
       m.form_allocation_delete_message({ shortcut }),
-      m.list_resources_delete_message({ name: "Person", shortcut }),
-      m.list_resources_external_delete_message({ name: "Partner", shortcut }),
-      m.list_clients_delete_message({ name: "Client", shortcut }),
-      m.list_projects_delete_message({ name: "Project", shortcut }),
       m.scheduler_toast_undo_hint({ shortcut }),
       m.scheduler_toast_capped({ max: 24, shortcut }),
-      m.data_imported_one({ count: 1, skipped: "", shortcut }),
-      m.data_imported_other({ count: 2, skipped: "", shortcut }),
-      m.data_import_confirm_outro({ shortcut }),
     ];
 
-    expect(messages).toHaveLength(12);
+    expect(messages).toHaveLength(5);
     expect(messages.every((message) => message.includes(shortcut))).toBe(true);
   });
 });

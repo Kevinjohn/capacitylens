@@ -25,10 +25,10 @@ test.group('Credential HTTP contract', (group) => {
     const priorMode = env.get('CAPACITYLENS_MODE')
     const priorHost = env.get('CAPACITYLENS_MAIL_HOST')
     cleanup(() => {
-      env.set('CAPACITYLENS_MODE', priorMode ?? 'off')
+      env.set('CAPACITYLENS_MODE', priorMode ?? 'password-only')
       env.set('CAPACITYLENS_MAIL_HOST', priorHost ?? '')
     })
-    env.set('CAPACITYLENS_MODE', 'off')
+    env.set('CAPACITYLENS_MODE', 'sso-only')
     env.set('CAPACITYLENS_MAIL_HOST', 'mail.example.test')
     const disabled = await client
       .post('/api/auth/request-reset')
@@ -51,7 +51,7 @@ test.group('Credential HTTP contract', (group) => {
     const priorHost = env.get('CAPACITYLENS_MAIL_HOST')
     const fake = mail.fake()
     cleanup(() => {
-      env.set('CAPACITYLENS_MODE', priorMode ?? 'off')
+      env.set('CAPACITYLENS_MODE', priorMode ?? 'password-only')
       env.set('CAPACITYLENS_MAIL_HOST', priorHost ?? '')
       mail.restore()
     })
@@ -101,7 +101,7 @@ test.group('Credential HTTP contract', (group) => {
       releaseDelivery()
       if (originalSend) Object.defineProperty(mail, 'send', originalSend)
       else Reflect.deleteProperty(mail, 'send')
-      env.set('CAPACITYLENS_MODE', priorMode ?? 'off')
+      env.set('CAPACITYLENS_MODE', priorMode ?? 'password-only')
       env.set('CAPACITYLENS_MAIL_HOST', priorHost ?? '')
     })
     env.set('CAPACITYLENS_MODE', 'password-only')
@@ -185,7 +185,7 @@ test.group('Credential HTTP contract', (group) => {
       sqlite.pragma = originalPragma
       if (originalError) Object.defineProperty(logger, 'error', originalError)
       else Reflect.deleteProperty(logger, 'error')
-      env.set('CAPACITYLENS_MODE', priorMode ?? 'off')
+      env.set('CAPACITYLENS_MODE', priorMode ?? 'password-only')
       env.set('CAPACITYLENS_MAIL_HOST', priorHost ?? '')
       mail.restore()
     })
@@ -222,7 +222,7 @@ test.group('Credential HTTP contract', (group) => {
     const priorSetup = env.get('CAPACITYLENS_SETUP_TOKEN')
     const priorScreen = env.get('CAPACITYLENS_PASSWORD_BREACH_CHECK')
     cleanup(() => {
-      env.set('CAPACITYLENS_MODE', priorMode ?? 'off')
+      env.set('CAPACITYLENS_MODE', priorMode ?? 'password-only')
       env.set('CAPACITYLENS_SETUP_TOKEN', priorSetup ?? '')
       env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', priorScreen)
     })
@@ -326,7 +326,7 @@ test.group('Credential HTTP contract', (group) => {
     const priorScreen = env.get('CAPACITYLENS_PASSWORD_BREACH_CHECK')
     cleanup(async () => {
       await db.rawQuery('DROP TRIGGER IF EXISTS credential_native_delete_failure')
-      env.set('CAPACITYLENS_MODE', priorMode ?? 'off')
+      env.set('CAPACITYLENS_MODE', priorMode ?? 'password-only')
       env.set('CAPACITYLENS_SETUP_TOKEN', priorSetup ?? '')
       env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', priorScreen)
     })

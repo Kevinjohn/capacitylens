@@ -2,12 +2,12 @@ import { readIdentityProvider, linkIdentityProvider } from "./identityProviderCl
 import { joiningPolicyClient } from "./joiningPolicyClient";
 import { apiFetchReauth } from "@/auth/apiFetchReauth";
 import { API_BASE } from "@/data/apiConfig";
-import { apiFetch, API_BULK_TIMEOUT_MS } from "@/data/requestTimeout";
+import { apiFetch } from "@/data/requestTimeout";
 import type { BrowserAccountCommand } from "./accountCommands";
 import type { MembershipStatus, Role } from "@capacitylens/shared/account/types";
 import type { EndMasqueradePayload, StartMasqueradePayload } from "@capacitylens/shared/domain/masquerade";
 import { buildPayloadOperationKey } from "./commandOutcome";
-import type { CreateInvitationBody, CreateWorkspaceBody, InvitationSignupBody } from "./accountRequestTypes";
+import type { CreateInvitationBody, InvitationSignupBody } from "./accountRequestTypes";
 import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from "./commandRequest";
 import type { ReauthAction } from "@/auth/reauthCoordinator";
 import {
@@ -28,6 +28,7 @@ interface ChangeMemberRoleInput {
 interface TransferOwnershipInput {
   workspaceId: string;
   targetPrincipalId: string;
+  proofId: string;
   command?: BrowserAccountCommand | undefined;
 }
 
@@ -92,34 +93,11 @@ export const accountClient = {
     );
   },
 
-  async createWorkspace(body: CreateWorkspaceBody, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand({
-      operationKey: await buildPayloadOperationKey("workspace-create", body),
-      explicit: command,
-      request: (resolved) =>
-        apiFetch(apiRouteUrl("api.orgs.store", {}), buildJsonCommandRequestInit("POST", body, resolved)),
-    });
-  },
-
   /** Add the small example company to an empty company. Not idempotent: a second call is refused. */
   addExampleData(workspaceId: string): Promise<Response> {
     return apiFetch(apiRouteUrl("api.example-data", { params: { accountId: workspaceId } }), {
       method: "POST",
       credentials: "include",
-    });
-  },
-
-  eraseWorkspace(workspaceId: string, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand({
-      operationKey: `workspace-erase:${workspaceId}`,
-      explicit: command,
-      request: (resolved) =>
-        apiFetchReauth(
-          apiRouteUrl("api.accounts.destroy", { params: { id: workspaceId } }),
-          buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
-          { timeoutMs: API_BULK_TIMEOUT_MS, action: "delete-company" satisfies ReauthAction },
-        ),
-      ambiguousStatus: 403,
     });
   },
 
@@ -231,15 +209,14 @@ export const accountClient = {
     });
   },
 
-  transferOwnership({ workspaceId, targetPrincipalId, command }: TransferOwnershipInput): Promise<Response> {
+  transferOwnership({ workspaceId, targetPrincipalId, proofId, command }: TransferOwnershipInput): Promise<Response> {
     return runCommand({
       operationKey: `ownership-transfer:${workspaceId}:${targetPrincipalId}`,
       explicit: command,
       request: (resolved) =>
-        apiFetchReauth(
+        apiFetch(
           apiRouteUrl("api.ownership.transfer", { params: { accountId: workspaceId } }),
-          buildJsonCommandRequestInit("POST", { toUserId: targetPrincipalId }, resolved),
-          { action: "transfer-ownership" satisfies ReauthAction },
+          buildJsonCommandRequestInit("POST", { toUserId: targetPrincipalId, proofId }, resolved),
         ),
     });
   },

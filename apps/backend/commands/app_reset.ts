@@ -12,6 +12,9 @@ export default class AppReset extends BaseCommand {
   @flags.boolean({ description: 'Confirm that the application server is stopped' })
   declare confirmServerStopped: boolean
 
+  @flags.boolean({ description: 'Confirm this is a disposable non-production installation' })
+  declare disposable: boolean
+
   async run() {
     try {
       this.logger.log(JSON.stringify(await resetInstallation(this)))

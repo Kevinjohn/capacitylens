@@ -1,18 +1,15 @@
-import { test, expect } from "./fixtures";
+import { test, expect } from "./dbFixtures";
 import { waitForAppLanding } from "./browserTestSupport";
-import { API, resetServer } from "./serverTestState";
+import { resetServer } from "./serverTestState";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 test.describe("server-backed role tour", () => {
   test.beforeEach(async ({ request }) => {
-    await resetServer({ request, withSeed: false });
+    await resetServer({ request, withSeed: true });
   });
 
-  test("returns from Settings to Schedule and shows all eight Owner stops", async ({ page, request }) => {
-    const created = await request.post(`${API}/api/orgs`, { data: { name: "Wayne Enterprises" } });
-    expect(created.status()).toBe(201);
-
+  test("returns from Settings to Schedule and shows all eight Owner stops", async ({ page }) => {
     await page.goto("/settings");
     await waitForAppLanding(page, page.locator("#main"));
     await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);

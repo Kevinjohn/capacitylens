@@ -1,6 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
-import { authMode } from '#services/auth/mode'
 import { resolveCurrentActor, SessionAuthorityError } from '#services/auth/session_authority'
 
 export default class TrustedLocalMiddleware {
@@ -16,13 +15,10 @@ export default class TrustedLocalMiddleware {
       (ctx.request.method() === 'POST' &&
         /^\/api\/accounts\/[^/]+\/join\/provider\/start$/.test(pathname)) ||
       (ctx.request.method() === 'GET' && pathname === '/api/masquerade')
-    if (authMode() === 'off') await ctx.auth.authenticate()
-    else if (
+    if (
       ctx.request.url().startsWith('/api/') &&
       !publicAdmission &&
-      !['/api/auth/', '/api/health', '/api/meta', '/api/diagnostics'].some((path) =>
-        ctx.request.url().startsWith(path)
-      )
+      !['/api/auth/', '/api/health', '/api/meta'].some((path) => ctx.request.url().startsWith(path))
     ) {
       try {
         await resolveCurrentActor(ctx)

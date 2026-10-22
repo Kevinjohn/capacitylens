@@ -175,8 +175,8 @@ describe("SchedulerGrid", () => {
     expect(screen.getByText(/% utilisation over the visible/)).toBeInTheDocument();
   });
 
-  it("renders saved half days and includes their non-colour signal in the row summary", () => {
-    useStore.getState().updateResource("r1", { halfDays: [2] });
+  it("renders saved half days and includes their non-colour signal in the row summary", async () => {
+    await useStore.getState().updateResource("r1", { halfDays: [2] });
     renderGrid();
 
     const row = screen.getByRole("rowheader", { name: /Bruce/ }).closest('[data-testid="scheduler-row"]');
@@ -185,8 +185,8 @@ describe("SchedulerGrid", () => {
     expect(within(row as HTMLElement).getByText(/half working days\./)).toBeInTheDocument();
   });
 
-  it("marks over-allocated days and shows a utilization figure", () => {
-    useStore.getState().addAllocation({
+  it("marks over-allocated days and shows a utilization figure", async () => {
+    await useStore.getState().addAllocation({
       resourceId: "r1",
       activityId: "t1",
       startDate: "2026-06-01",
@@ -199,9 +199,9 @@ describe("SchedulerGrid", () => {
     expect(screen.getAllByTestId("utilization").length).toBeGreaterThan(0);
   });
 
-  it("marks a zero-load block on time off and includes it in the non-colour row summary", () => {
-    useStore.getState().updateAccount(ACC, { schedulingMode: "blocks" });
-    useStore.getState().addTimeOff({
+  it("marks a zero-load block on time off and includes it in the non-colour row summary", async () => {
+    await useStore.getState().updateAccount(ACC, { schedulingMode: "blocks" });
+    await useStore.getState().addTimeOff({
       resourceId: "r1",
       startDate: "2026-06-01",
       endDate: "2026-06-01",
@@ -220,8 +220,8 @@ describe("SchedulerGrid", () => {
 });
 
 describe("SchedulerGrid", () => {
-  it("renders each closure once across tracked rows, alongside personal time off, and stops before External", () => {
-    useStore.getState().updateAccount(ACC, { externalEnabled: true });
+  it("renders each closure once across tracked rows, alongside personal time off, and stops before External", async () => {
+    await useStore.getState().updateAccount(ACC, { externalEnabled: true });
     useStore.getState().replaceAll({
       ...useStore.getState().data,
       closures: [
@@ -289,7 +289,7 @@ describe("SchedulerGrid", () => {
 });
 
 describe("SchedulerGrid", () => {
-  it("does not replay a handled resource jump after a later model change", () => {
+  it("does not replay a handled resource jump after a later model change", async () => {
     renderGrid();
     const grid = screen.getByTestId("scheduler-grid");
 
@@ -298,9 +298,9 @@ describe("SchedulerGrid", () => {
     expect(grid.scrollTop).toBe(SCHEDULER_DENSITY.groupHeaderHeight);
     expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true);
 
-    act(() => {
+    await act(async () => {
       grid.scrollTop = 777;
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: "r1",
         activityId: "t1",
         startDate: "2026-06-03",
@@ -325,8 +325,8 @@ describe("SchedulerGrid", () => {
     expect(useStore.getState().ui.scrollToResource?.consumed).toBe(true);
   });
 
-  it("expands the collapsed External band before scrolling to its resource", () => {
-    useStore.getState().updateAccount(ACC, { externalEnabled: true });
+  it("expands the collapsed External band before scrolling to its resource", async () => {
+    await useStore.getState().updateAccount(ACC, { externalEnabled: true });
     useStore.getState().toggleGroup("external");
     renderGrid();
     const grid = screen.getByTestId("scheduler-grid");
@@ -453,9 +453,9 @@ describe("SchedulerGrid account-local day rollover", () => {
     expect(screen.getByText(/Overbooked in the next two weeks/)).toBeInTheDocument();
   });
 
-  it("refreshes immediately when a visible page resumes without its timer firing", () => {
+  it("refreshes immediately when a visible page resumes without its timer firing", async () => {
     vi.setSystemTime(new Date("2026-06-01T00:00:00.000Z"));
-    useStore.getState().updateAccount(ACC, { timezone: "Etc/GMT" });
+    await useStore.getState().updateAccount(ACC, { timezone: "Etc/GMT" });
     const view = renderGrid();
     const currentHeader = () => view.container.querySelector('[role="columnheader"] .bg-brand-soft');
     expect(currentHeader()).toHaveTextContent("1");
@@ -477,8 +477,8 @@ describe("SchedulerGrid account-local day rollover", () => {
 });
 
 describe("SchedulerGrid filters", () => {
-  it('hides tentative allocations when "hide tentative" is on', () => {
-    useStore.getState().addAllocation({
+  it('hides tentative allocations when "hide tentative" is on', async () => {
+    await useStore.getState().addAllocation({
       resourceId: "r1",
       activityId: "t1",
       startDate: "2026-06-10",

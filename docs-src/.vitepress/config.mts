@@ -55,7 +55,7 @@ const ownerSidebar = [
     text: "Owner setup",
     items: [
       { text: "Start here", link: "/owner/" },
-      { text: "Create your company", link: "/owner/create-your-company" },
+      { text: "Access your company", link: "/owner/create-your-company" },
       { text: "Appoint an Admin", link: "/owner/appoint-an-admin" },
       { text: "Owner responsibilities", link: "/owner/responsibilities" },
       { text: "Roles and permissions", link: "/getting-started/roles-and-permissions" },

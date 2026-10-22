@@ -9,10 +9,15 @@ import {
 } from '@capacitylens/shared/lib/effectiveWorkingWeek'
 import { cleanText } from '@capacitylens/shared/lib/strings'
 import { encodeRow } from '#services/state_repository'
-import { prepareEntityWrite, TABLE_NAMES } from '#services/batch/entity_policy'
-import { createServerRevision } from '#services/batch/revision'
+import {
+  assertFrozenAccountFields,
+  prepareEntityWrite,
+  TABLE_NAMES,
+} from '#services/planning_operations/entity_policy'
+import { BatchRequestError } from '#services/planning_operations/errors'
+import { createServerRevision } from '#services/planning_operations/revision'
 import { validateEntityRow } from '#validators/entities/index'
-import type { BatchCapabilities } from '#services/batch/data_policy'
+import type { BatchCapabilities } from '#services/planning_operations/data_policy'
 
 /** A safe refusal whose caller must roll back the enclosing planning transaction. */
 export class PlanningOperationError extends Error {
@@ -190,8 +195,15 @@ export async function updateSettings(
       'This setting requires an administrator.'
     )
   const existing = existingRow(data, 'accounts', accountId)
+  const candidate = { ...existing, ...changes }
+  try {
+    assertFrozenAccountFields(changes, candidate, existing)
+  } catch (error) {
+    if (!(error instanceof BatchRequestError) || error.status !== 409) throw error
+    throw new PlanningOperationError(409, 'frozen_account_setting', error.message)
+  }
   const now = createServerRevision(existing.updatedAt)
-  const candidate = { ...existing, ...changes, updatedAt: now }
+  candidate.updatedAt = now
   const validated = await validateEntityRow('accounts', candidate)
   if (typeof validated.name === 'string') validated.name = cleanText(validated.name)
   await trx.from('accounts').where('id', accountId).update(encodeRow('accounts', validated))

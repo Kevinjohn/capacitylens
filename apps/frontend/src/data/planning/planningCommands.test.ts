@@ -277,7 +277,7 @@ describe("planning command builders", () => {
       fields: { engagement: "studio", workingDays: [1, 2, 3, 4, 5], halfDays: [] },
     });
     expect(resource?.created).toEqual({ entity: "resources", ids: [stableId] });
-    expect(resource?.inverse).toBeNull();
+    expect(resource?.inverse).toEqual({ operation: "resource.archive", id: stableId });
 
     const timeOff = buildTimeOffCreate({
       data,
@@ -301,12 +301,32 @@ describe("planning command builders", () => {
           startDate: "2026-10-26",
           endDate: "2026-10-30",
           type: "holiday",
-          note: null,
         },
       },
       inverse: { operation: "timeOff.delete", id: stableId },
       created: { entity: "timeOff", ids: [stableId] },
     });
+  });
+
+  it("omits an unsupplied time-off note but preserves an explicit note or clear", () => {
+    const data = makeAppData({ resources: [makeResource({ id: "resource-1", accountId })] });
+    for (const note of ["Private note", null] as const) {
+      const command = buildTimeOffCreate({
+        data,
+        accountId,
+        args: {
+          id: stableId,
+          fields: {
+            resourceId: "resource-1",
+            startDate: "2026-10-26",
+            endDate: "2026-10-30",
+            type: "holiday",
+            note,
+          },
+        },
+      });
+      expect(command?.intent).toMatchObject({ operation: "timeOff.create", timeOff: { note } });
+    }
   });
 
   it("builds explicit time-off and resource updates with draft-based inverses", () => {
@@ -337,7 +357,7 @@ describe("planning command builders", () => {
     });
   });
 
-  it("normalizes activity catalogue creates and gives closures an exact delete inverse", () => {
+  it("preserves supplied activity fields for authoritative validation and gives closures an exact delete inverse", () => {
     const data = makeAppData({ accounts: [makeAccount({ id: accountId })] });
     expect(
       buildCatalogueCreate({
@@ -355,10 +375,10 @@ describe("planning command builders", () => {
         entity: {
           entity: "activities",
           id: stableId,
-          fields: { name: "Internal planning", kind: "internal", projectId: null, phaseId: null },
+          fields: { name: "Internal planning", kind: "internal", projectId: "stale", phaseId: "stale" },
         },
       },
-      inverse: null,
+      inverse: { operation: "catalogue.archive", entity: { entity: "activities", id: stableId } },
       created: { entity: "activities", ids: [stableId] },
     });
 
@@ -373,7 +393,7 @@ describe("planning command builders", () => {
     expect(closure?.inverse).toEqual({ operation: "closure.delete", id: stableId });
   });
 
-  it("uses original closure values for inverses and leaves company settings out of history", () => {
+  it("uses original closure and company settings values for inverses", () => {
     const closure = makeClosure({ id: "closure-1", accountId });
     const changed = buildClosureUpdate({
       data: makeAppData({ closures: [closure] }),
@@ -396,7 +416,7 @@ describe("planning command builders", () => {
     });
     expect(settings).toEqual({
       intent: { operation: "settings.update", changes: { name: "After" } },
-      inverse: null,
+      inverse: { operation: "settings.update", changes: { name: "Before" } },
     });
 
     const nullableSetting = makeAccount({ id: accountId, timezone: "Etc/GMT" });

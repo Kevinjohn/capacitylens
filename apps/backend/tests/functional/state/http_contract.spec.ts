@@ -1,8 +1,9 @@
 import { test } from '@japa/runner'
+import { randomUUID } from 'node:crypto'
 import { freshDatabase } from '../../helpers/fresh_database.js'
-import { replaceWithSeed } from '#services/state_repository'
+import { replaceWithSeed, resetState } from '#services/state_repository'
+import { resetAuthenticatedClient } from '../../helpers/authenticated_data_fixture.js'
 import db from '@adonisjs/lucid/services/db'
-import { seed } from '@capacitylens/shared/data/seed'
 import env from '#start/env'
 
 const securityHeaders = [
@@ -19,6 +20,7 @@ test.group('M1 HTTP contract', (group) => {
   group.each.setup(() => replaceWithSeed())
 
   test('validates state queries and scopes the account read', async ({ client, assert }) => {
+    client = await resetAuthenticatedClient(client, true)
     const empty = await client.get('/api/state?accountId=')
     assert.equal(empty.status(), 400)
     assert.deepEqual(empty.body(), { error: 'accountId must be a non-empty string.' })
@@ -57,24 +59,35 @@ test.group('M1 HTTP contract', (group) => {
       )
   })
 
-  test('reset without seed wipes and seed true restores data', async ({ client, assert }) => {
-    const wiped = await client.post('/api/test/reset').json({})
-    assert.equal(wiped.status(), 200)
+  test('disposable in-process reset works while HTTP reset refuses anonymous and signed-in callers', async ({
+    client,
+    assert,
+  }) => {
+    const anonymous = await client.post('/api/test/reset').json({ seed: false })
+    assert.equal(anonymous.status(), 401)
+    await resetState(false)
     const emptyMeta = await client.get('/api/meta')
     assert.deepEqual(emptyMeta.body(), { hasData: false })
-    const restored = await client.post('/api/test/reset').json({ seed: true })
-    assert.equal(restored.status(), 200)
+    client = await resetAuthenticatedClient(client, true)
+    const signedIn = await client.post('/api/test/reset').json({ seed: false })
+    assert.equal(signedIn.status(), 403)
     const seededMeta = await client.get('/api/meta')
     assert.deepEqual(seededMeta.body(), { hasData: true })
   })
 
-  test('reset returns the retained refusal when disabled', async ({ client, assert }) => {
+  test('reset remains forbidden even when the fixture flag is disabled', async ({
+    client,
+    assert,
+  }) => {
+    client = await resetAuthenticatedClient(client, true)
     const enabled = env.get('CAPACITYLENS_ALLOW_RESET')
     env.set('CAPACITYLENS_ALLOW_RESET', false)
     try {
       const response = await client.post('/api/test/reset').json({ seed: true })
       assert.equal(response.status(), 403)
-      assert.deepEqual(response.body(), { error: 'Reset is disabled.' })
+      assert.deepEqual(response.body(), {
+        error: 'Installation reset is unavailable with authentication enabled.',
+      })
     } finally {
       env.set('CAPACITYLENS_ALLOW_RESET', enabled)
     }
@@ -105,6 +118,7 @@ test.group('M1 HTTP contract', (group) => {
     client,
     assert,
   }) => {
+    client = await resetAuthenticatedClient(client, true)
     const allowed = 'http://localhost:5173'
     const accepted = await client.get('/api/health').header('origin', allowed)
     assert.equal(accepted.header('access-control-allow-origin'), allowed)
@@ -122,47 +136,53 @@ test.group('M1 HTTP contract', (group) => {
     assert.equal(preflight.status(), 204)
     assert.equal(preflight.header('access-control-allow-origin'), allowed)
 
-    const discipline = seed().disciplines[0]!
+    const planning = await client.get('/api/accounts/a-studio/planning')
+    assert.equal(planning.status(), 200)
+    const writePath = '/api/accounts/a-studio/disciplines'
+    const write = {
+      mutationId: randomUUID(),
+      baseRevision: (planning.body() as { revision: number }).revision,
+      intent: {
+        operation: 'catalogue.create',
+        entity: {
+          entity: 'disciplines',
+          id: randomUUID(),
+          fields: { name: 'Planning', color: '#2d75da', sortOrder: 10 },
+        },
+      },
+    }
     const allowedWrite = await client
-      .post('/api/batch')
+      .post(writePath)
       .header('origin', allowed)
       .header('sec-fetch-site', 'cross-site')
-      .json({
-        ops: [
-          {
-            method: 'PUT',
-            table: 'disciplines',
-            id: discipline.id,
-            row: { ...discipline } as Record<string, unknown>,
-          },
-        ],
-      })
+      .json(write)
     assert.equal(allowedWrite.status(), 200)
 
     const disallowedWrite = await client
-      .post('/api/test/reset')
+      .post(writePath)
       .header('origin', 'https://attacker.example')
-      .json({ seed: true })
+      .header('sec-fetch-site', 'cross-site')
+      .json(write)
     assert.equal(disallowedWrite.status(), 403)
     assert.deepEqual(disallowedWrite.body(), { error: 'Cross-site request rejected.' })
     assert.equal(disallowedWrite.header('x-content-type-options'), 'nosniff')
     assert.equal(disallowedWrite.header('x-frame-options'), 'DENY')
 
     const originlessCrossSite = await client
-      .post('/api/test/reset')
+      .post(writePath)
       .header('sec-fetch-site', 'cross-site')
-      .json({ seed: true })
+      .json(write)
     assert.equal(originlessCrossSite.status(), 403)
 
     const nonBrowser = await client.post('/api/test/reset').json({ seed: true })
-    assert.equal(nonBrowser.status(), 200)
+    assert.equal(nonBrowser.status(), 403)
 
     const tlsTerminatedSameHost = await client
       .post('/api/test/reset')
       .header('host', 'capacity.example.com')
       .header('origin', 'https://capacity.example.com')
       .json({ seed: true })
-    assert.equal(tlsTerminatedSameHost.status(), 200)
+    assert.equal(tlsTerminatedSameHost.status(), 403)
 
     const tlsTerminatedOtherHost = await client
       .post('/api/test/reset')
@@ -173,6 +193,7 @@ test.group('M1 HTTP contract', (group) => {
   })
 
   test('diagnostics preserves the unavailable database projection', async ({ client, assert }) => {
+    client = await resetAuthenticatedClient(client, true)
     await db.rawQuery('DROP INDEX closures_account_id_index')
     try {
       const response = await client.get('/api/diagnostics')
@@ -180,9 +201,9 @@ test.group('M1 HTTP contract', (group) => {
       assert.deepEqual(response.body(), {
         server: {
           connectivity: 'ok',
-          database: { status: 'unavailable', schemaVersion: null },
-          persistence: 'unknown',
-          backup: { status: 'unavailable', lastSuccessAt: null },
+          database: { status: 'unavailable' },
+          schema: { migration: null },
+          backup: { newestSnapshotAt: null },
         },
       })
     } finally {

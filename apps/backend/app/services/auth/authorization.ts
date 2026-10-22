@@ -3,7 +3,6 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { canAdministerIdentityAcrossWorkspaces } from '@capacitylens/shared/account/policy'
 import type { Role } from '@capacitylens/shared/account/types'
 import { can, type Action } from '@capacitylens/shared/domain/access'
-import { authMode } from '#services/auth/mode'
 import { resolveCurrentActor, assertFreshSession } from '#services/auth/session_authority'
 
 export class IdentityAuthorityError extends Error {
@@ -93,8 +92,6 @@ export async function assertCompanyAction(
   trx: TransactionClientContract,
   fresh = false
 ): Promise<{ actorId: string; role: Role }> {
-  if (authMode() === 'off')
-    return { actorId: ctx.auth.use('trustedLocal').getUserOrFail().id, role: 'owner' }
   const actor = await resolveCurrentActor(ctx, trx)
   const memberRole = await activeCompanyRole(actor.userId, accountId, trx)
   if (!memberRole || !can(memberRole, action)) throw new IdentityAuthorityError('Forbidden.')

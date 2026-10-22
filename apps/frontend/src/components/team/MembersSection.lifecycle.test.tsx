@@ -5,7 +5,6 @@ import userEvent from "@testing-library/user-event";
 
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse, makeResourceDraft } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
-import { refreshActiveAccountSlice } from "@/data/persist";
 import { m } from "@/i18n";
 import { teamAccessClient } from "@/account/teamAccessClient";
 import * as resourceAvatars from "@/account/useResourceAvatars";
@@ -37,20 +36,9 @@ vi.mock("@/data/apiConfig", () => ({
   isServerConfigured: () => true,
 }));
 
-vi.mock("@/data/persist", () => ({
-  refreshActiveAccountSlice: vi.fn(async () => ({ kind: "reloaded" })),
-  flushPendingWrites: vi.fn(async () => ({ kind: "clean" })),
-  suspendServerWrites: vi.fn(() => vi.fn()),
-  switchAndAwaitHydration: vi.fn(async (id: string | null) => {
-    useStore.getState().setActiveAccount(id);
-    return { kind: "reloaded" };
-  }),
-}));
-
-beforeEach(() => {
+beforeEach(async () => {
   accountTransitionMocks.startMasquerade.mockClear();
-  resetStoreWithAccount();
-  vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });
+  await resetStoreWithAccount();
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -77,7 +65,7 @@ describe("MembersSection — member lifecycle", () => {
 function registerMemberResourceLinkTests(): void {
   it("reconciles an uncertain Resource link and invalidates derived pictures", async () => {
     const user = userEvent.setup();
-    requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
+    await requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     const fetchMock = mockApi([
       { userId: "me", role: "owner", isSelf: true },
       { userId: "ed", role: "editor", name: "Clark Kent" },
@@ -102,7 +90,7 @@ function registerMemberResourceLinkTests(): void {
 
   it("keeps member actions distinct and opens Resource linking from its own icon", async () => {
     const user = userEvent.setup();
-    useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    await useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
     vi.stubGlobal(
       "fetch",
       mockApi([
@@ -140,7 +128,7 @@ function registerMemberResourceLinkTests(): void {
 
   it("shows schedule attention and clears it through choose-another-person", async () => {
     const user = userEvent.setup();
-    const resource = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
+    const resource = await requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     const members: RawMember[] = [
       { userId: "me", role: "owner", isSelf: true },
       {
@@ -172,7 +160,7 @@ function registerMemberResourceLinkTests(): void {
 
   it("announces a completed Resource-link save inside the open dialog", async () => {
     const user = userEvent.setup();
-    const resource = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
+    const resource = await requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     let linked = false;
     const fetchMock = mockApi(
       [
@@ -210,7 +198,7 @@ function registerMemberResourceLinkTests(): void {
   });
 
   it("dismisses a schedule attention exception and refreshes the directory", async () => {
-    const resource = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
+    const resource = await requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     const fetchMock = mockApi(
       [
         { userId: "me", role: "owner", isSelf: true },
@@ -238,8 +226,8 @@ function registerMemberResourceLinkTests(): void {
   });
 
   it("retains the current inactive person for direct unlink and reconciles after the write", async () => {
-    const resource = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
-    useStore.getState().updateResource(resource.id, { archivedAt: "2026-09-14T10:00:00.000Z" });
+    const resource = await requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
+    await useStore.getState().updateResource(resource.id, { archivedAt: "2026-09-14T10:00:00.000Z" });
     const fetchMock = mockApi([
       { userId: "me", role: "owner", isSelf: true },
       {
@@ -270,8 +258,8 @@ function registerMemberResourceLinkTests(): void {
   // store has not loaded yet (a person created in another session, or a poll that has not landed)
   // must still be offered, and a live link to one must not be reported as inactive.
   it("offers a server candidate the Resources store has not loaded and orders the rest by Resources", async () => {
-    const diana = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Diana Prince" })));
-    const bruce = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
+    const diana = await requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Diana Prince" })));
+    const bruce = await requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     const fetchMock = mockApi(
       [
         { userId: "me", role: "owner", isSelf: true },
@@ -321,7 +309,7 @@ function registerMemberResourceLinkTests(): void {
 
   it("focuses the selector on open and restores focus to the trigger on close", async () => {
     const user = userEvent.setup();
-    const resource = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
+    const resource = await requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     const fetchMock = mockApi(
       [
         { userId: "me", role: "owner", isSelf: true },
@@ -653,6 +641,10 @@ function registerLifecycleReconciliationTests(): void {
     });
     vi.stubGlobal("fetch", fetchMock);
     const revisionBefore = useStore.getState().membershipRevision;
+    let sawPlanningRead = false;
+    const unsubscribe = useStore.subscribe((state) => {
+      if (state.planning.status === "loading") sawPlanningRead = true;
+    });
     renderSection({ refreshAuth });
     await screen.findByTestId("members-section");
 
@@ -661,7 +653,8 @@ function registerLifecycleReconciliationTests(): void {
 
     await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
     expect(refreshAuth).toHaveBeenCalledTimes(1);
-    expect(refreshActiveAccountSlice).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
+    unsubscribe();
+    expect(sawPlanningRead).toBe(true);
     expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID);
     expect(useStore.getState().notice?.message).toMatch(/Your access was refreshed; verify the result/i);
     expect(useStore.getState().notice?.message).not.toMatch(/Reload the page/i);

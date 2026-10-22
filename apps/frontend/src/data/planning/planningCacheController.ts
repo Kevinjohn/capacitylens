@@ -33,6 +33,8 @@ export interface PlanningTransport {
   ): Promise<PlanningMutationSuccess>;
   read(context: PlanningClientContext, signal: AbortSignal): Promise<PlanningSnapshot>;
   lookup(context: PlanningClientContext, mutationId: string, signal: AbortSignal): Promise<PlanningMutationLookup>;
+  /** The page-memory demo uses this when an imported company replaces its planning history. */
+  resetAfterDemoImport?(companyId: string, data: AppData): number;
 }
 
 export interface PlanningHistory {
@@ -108,6 +110,7 @@ export interface PlanningControllerOptions {
   setState: PlanningCacheStore["setState"];
   transport: PlanningTransport;
   createMutationId?: () => string;
+  onAuthLoss?: () => void;
 }
 
 export class PlanningControllerError extends Error {
@@ -175,6 +178,20 @@ function errorDetails(error: unknown): { code?: string; status?: number; message
     };
   }
   return { message: error instanceof Error ? error.message : "Planning request failed." };
+}
+
+/** True when the planning state already shows the outcome: the follow-up canonical read resolves a
+ * stale revision, and a 403 refusal stays visible as refused. Callers add no notice for either. */
+export function isShownByPlanningState(error: unknown): boolean {
+  const { code, status } = errorDetails(error);
+  return code === "stale_revision" || status === 409 || status === 403;
+}
+
+/** The planning notice to show: a 403 refusal keeps the rows (K2), and a failed read leaves them stale. */
+export function readPlanningProblem(planning: PlanningControllerMetadata): "refused" | "unavailable" | null {
+  if (planning.error === null) return null;
+  if (errorDetails(planning.error).status === 403) return "refused";
+  return planning.status === "error" ? "unavailable" : null;
 }
 
 function isValidSnapshot(snapshot: unknown): snapshot is PlanningSnapshot {
@@ -260,9 +277,11 @@ function isValidReceipt(receipt: unknown, execution: PlanningExecution): receipt
   );
 }
 
+// K2: only an ended session loses scope. Every 403, membership loss included, is a refusal that
+// keeps the readable rows and history.
 function losesScope(error: unknown): boolean {
   const details = errorDetails(error);
-  return details.status === 401 || details.code === "unauthenticated" || details.code === "account_membership_lost";
+  return details.status === 401 || details.code === "unauthenticated";
 }
 
 function restoreIntent(handle: string): PlanningIntent {
@@ -274,7 +293,7 @@ function isDeleteIntent(intent: PlanningIntent): boolean {
 }
 
 function isLookupHistoryEligible(intent: PlanningIntent, inverse: PlanningIntent | null): boolean {
-  if (!inverse || intent.operation === "settings.update") return false;
+  if (!inverse) return false;
   return !(
     intent.operation === "catalogue.update" &&
     ("isPrivate" in intent.entity.changes ||
@@ -310,6 +329,13 @@ function movedHistory(
       redo = cloneImmutable(entry);
     } else if (replacementHandle) {
       redo = { forward: restoreIntent(replacementHandle), inverse: cloneImmutable(action) };
+    } else if (entry.forward.operation === "resource.create" && action.operation === "resource.archive") {
+      redo = { forward: { operation: "resource.unarchive", id: action.id }, inverse: cloneImmutable(action) };
+    } else if (entry.forward.operation === "catalogue.create" && action.operation === "catalogue.archive") {
+      redo = {
+        forward: { operation: "catalogue.unarchive", entity: action.entity },
+        inverse: cloneImmutable(action),
+      };
     } else if (isDeleteIntent(action) || entry.forward.operation === "planning.restoreGroup") {
       return emptyHistory();
     } else {
@@ -373,6 +399,21 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     accessKeyEstablished = false;
     abortAll();
     store.setState(() => ({ data: emptyAppData(), planning: initialMetadata(frozenContext) }));
+  }
+
+  function loseScope(): void {
+    setContext(null);
+    options.onAuthLoss?.();
+  }
+
+  function invalidateAfterDemoImport(context: PlanningClientContext, revision: number): PlanningControllerMetadata {
+    generation += 1;
+    readSequence += 1;
+    lookupSequence += 1;
+    attempt = null;
+    accessKeyEstablished = false;
+    abortAll();
+    return { ...initialMetadata(Object.freeze({ ...context })), revision, canWrite: true, status: "ready" };
   }
 
   function acceptRead(snapshot: PlanningSnapshot): boolean {
@@ -470,7 +511,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       if (!isCurrent(capturedGeneration, context) || sequence !== readSequence || controller.signal.aborted)
         return false;
       if (losesScope(error)) {
-        setContext(null);
+        loseScope();
         return false;
       }
       store.setState((state) => ({
@@ -566,7 +607,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       return await refresh();
     } catch (error) {
       if (!currentLookup()) return false;
-      if (losesScope(error)) setContext(null);
+      if (losesScope(error)) loseScope();
       else
         store.setState((state) => ({
           planning: { ...state.planning, status: owner.pending.commitment ? "error" : "uncertain", error },
@@ -650,8 +691,8 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     } catch (error) {
       const details = errorDetails(error);
       if (error instanceof PlanningControllerError && error.uncertain) throw error;
-      if (details.code === "unauthenticated" || details.code === "account_membership_lost" || details.status === 401) {
-        if (ownsAttempt(owner)) setContext(null);
+      if (losesScope(error)) {
+        if (ownsAttempt(owner)) loseScope();
         throw new PlanningControllerError(details.message, details.code, details.status);
       }
       if (details.code === "mutation_id_reused") {
@@ -788,5 +829,5 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     return isCurrent(item.draft.generation, item.draft.context);
   }
 
-  return { setContext, refresh, begin, execute, reconcile: reconcilePending, undo, redo };
+  return { setContext, invalidateAfterDemoImport, refresh, begin, execute, reconcile: reconcilePending, undo, redo };
 }

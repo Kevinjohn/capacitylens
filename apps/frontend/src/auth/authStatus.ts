@@ -8,7 +8,7 @@ export type AuthStatusResult =
   | { kind: "error"; message: string }
   | {
       kind: "pass";
-      /** Identifies whether tenant access was confirmed by a live session or opened without auth. */
+      /** Identifies whether tenant access was confirmed by a live session or opened in the demo. */
       identitySource?: "live" | "open";
       authMode: AccountMode;
       user: AuthUser | null;
@@ -34,8 +34,8 @@ export type AuthStatusResult =
       hadUnsavedChanges: boolean;
     };
 
-// Demo/open entry uses permissive creation defaults; an unreadable live-auth response remains behind the retryable authentication error boundary.
-/** Builds the auth result used when server access metadata is unavailable. */
+// Demo entry uses permissive creation defaults; an unreadable live-auth response remains behind the retryable authentication error boundary.
+/** Builds the auth result for the volatile demo that does not request server access metadata. */
 export function buildOpenAuthResult(authMode: AccountMode, user: AuthUser | null): AuthStatusResult {
   return {
     kind: "pass",

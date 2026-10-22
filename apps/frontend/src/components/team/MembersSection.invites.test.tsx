@@ -4,7 +4,6 @@ import userEvent from "@testing-library/user-event";
 
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
-import { refreshActiveAccountSlice } from "@/data/persist";
 import { m } from "@/i18n";
 import {
   chooseMemberAction,
@@ -45,20 +44,9 @@ vi.mock("@/data/apiConfig", () => ({
   isServerConfigured: () => true,
 }));
 
-vi.mock("@/data/persist", () => ({
-  refreshActiveAccountSlice: vi.fn(async () => ({ kind: "reloaded" })),
-  flushPendingWrites: vi.fn(async () => ({ kind: "clean" })),
-  suspendServerWrites: vi.fn(() => vi.fn()),
-  switchAndAwaitHydration: vi.fn(async (id: string | null) => {
-    useStore.getState().setActiveAccount(id);
-    return { kind: "reloaded" };
-  }),
-}));
-
-beforeEach(() => {
+beforeEach(async () => {
   accountTransitionMocks.startMasquerade.mockClear();
-  resetStoreWithAccount();
-  vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });
+  await resetStoreWithAccount();
 });
 afterEach(() => {
   vi.useRealTimers();

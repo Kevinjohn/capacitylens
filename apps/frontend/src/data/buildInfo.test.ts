@@ -13,15 +13,6 @@ async function freshBuildInfo() {
 
 const client = {
   signInMode: "sso-only",
-  persistence: {
-    savesFailed: 2,
-    retriesArmed: 1,
-    reconciliationsResolved: 0,
-    reloadsSuperseded: 0,
-    editsRebased: 3,
-    editsDiscarded: 0,
-    suspended: false,
-  },
   browser: {
     userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15",
     viewport: "1280×800",
@@ -132,31 +123,30 @@ describe("diagnostics projection", () => {
 
     first.server.connectivity = "ok";
     first.server.database.status = "ok";
-    first.server.database.schemaVersion = 37;
-    first.server.persistence = "degraded";
-    first.server.backup.status = "ok";
-    first.server.backup.lastSuccessAt = "2026-09-10T12:00:00.000Z";
+    first.server.schema.migration = "database/migrations/202610120001_create_capacitylens_baseline";
+    first.server.backup.newestSnapshotAt = "2026-09-10T12:00:00.000Z";
 
     expect(second.server).toEqual({
       connectivity: "unavailable",
-      database: { status: "unavailable", schemaVersion: null },
-      persistence: "unknown",
-      backup: { status: "unavailable", lastSuccessAt: null },
+      database: { status: "unavailable" },
+      schema: { migration: null },
+      backup: { newestSnapshotAt: null },
     });
   });
 });
 
 describe("diagnostics projection privacy", () => {
-  it("keeps only the fixed allowlist and validates server values", async () => {
+  it("keeps only real migration and snapshot fields", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "A1B2C3D4");
     const { readDiagnostics, formatDiagnostics } = await freshBuildInfo();
     const report = readDiagnostics(
       {
         server: {
           connectivity: "ok",
-          database: { status: "ok", schemaVersion: 37, secret: "password" },
+          database: { status: "ok", secret: "password" },
+          schema: { migration: "database/migrations/202610120001_create_capacitylens_baseline", path: "/private/db" },
+          backup: { newestSnapshotAt: "2026-09-10T12:00:00.000Z", sessionId: "secret" },
           persistence: "degraded",
-          backup: { status: "ok", lastSuccessAt: "2026-09-10T12:00:00.000Z", sessionId: "secret" },
           password: "should never be copied",
         },
         inviteToken: "never copy",
@@ -167,23 +157,26 @@ describe("diagnostics projection privacy", () => {
     expect(report.buildRevision).toBe("A1B2C3D4");
     expect(report.server).toEqual({
       connectivity: "ok",
-      database: { status: "ok", schemaVersion: 37 },
-      persistence: "degraded",
-      backup: { status: "ok", lastSuccessAt: "2026-09-10T12:00:00.000Z" },
+      database: { status: "ok" },
+      schema: { migration: "database/migrations/202610120001_create_capacitylens_baseline" },
+      backup: { newestSnapshotAt: "2026-09-10T12:00:00.000Z" },
     });
-    expect(formatDiagnostics(report)).not.toMatch(/password|sessionId|inviteToken|secret/i);
+    const text = formatDiagnostics(report);
+    expect(text).toContain("Schema migration: database/migrations/202610120001_create_capacitylens_baseline");
+    expect(text).toContain("Newest snapshot: 2026-09-10T12:00:00.000Z");
+    expect(text).not.toMatch(/password|sessionId|inviteToken|secret|Persistence:/i);
   });
 
-  it("rejects non-hex revisions, invalid schema values, statuses and timestamps", async () => {
+  it("rejects invalid migration names and snapshot timestamps", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "revision-with-private-path");
     const { readDiagnostics } = await freshBuildInfo();
     const report = readDiagnostics(
       {
         server: {
           connectivity: true,
-          database: { status: "ok", schemaVersion: 37.5 },
-          persistence: "raw error",
-          backup: { status: "ok", lastSuccessAt: "database password" },
+          database: { status: "ok" },
+          schema: { migration: "/private/database/migration" },
+          backup: { newestSnapshotAt: "database password" },
         },
       },
       undefined,
@@ -192,42 +185,39 @@ describe("diagnostics projection privacy", () => {
     expect(report.buildRevision).toBeNull();
     expect(report.server).toEqual({
       connectivity: "unavailable",
-      database: { status: "unavailable", schemaVersion: null },
-      persistence: "unknown",
-      backup: { status: "ok", lastSuccessAt: null },
+      database: { status: "ok" },
+      schema: { migration: null },
+      backup: { newestSnapshotAt: null },
     });
   });
 
-  it("clears schema and rejects non-canonical timestamps from unavailable projections", async () => {
+  it("clears migration and rejects non-canonical timestamps from unavailable projections", async () => {
     const { readDiagnostics } = await freshBuildInfo();
     const report = readDiagnostics(
       {
         server: {
           connectivity: "ok",
-          database: { status: "unavailable", schemaVersion: 38 },
-          persistence: "unknown",
-          backup: { status: "ok", lastSuccessAt: "2026-02-31T12:00:00.000Z" },
+          database: { status: "unavailable" },
+          schema: { migration: "database/migrations/202610120001_create_capacitylens_baseline" },
+          backup: { newestSnapshotAt: "2026-02-31T12:00:00.000Z" },
         },
       },
       undefined,
       client,
     );
-    expect(report.server.database).toEqual({ status: "unavailable", schemaVersion: null });
-    expect(report.server.backup).toEqual({ status: "ok", lastSuccessAt: null });
+    expect(report.server.database).toEqual({ status: "unavailable" });
+    expect(report.server.schema).toEqual({ migration: null });
+    expect(report.server.backup).toEqual({ newestSnapshotAt: null });
   });
 });
 
 describe("diagnostics client facts", () => {
-  it("adds the sign-in mode, persistence counters and browser details", async () => {
+  it("adds the sign-in mode and browser details", async () => {
     const { readDiagnostics, formatDiagnostics } = await freshBuildInfo();
     const text = formatDiagnostics(readDiagnostics(null, undefined, client));
 
     for (const line of [
       "Sign-in mode: sso-only",
-      "Saves failed: 2",
-      "Retries armed: 1",
-      "Edits rebased: 3",
-      "Saving suspended: no",
       `User agent: ${client.browser.userAgent}`,
       "Viewport: 1280×800",
       "Time zone: Europe/London",
@@ -248,9 +238,9 @@ describe("diagnostics client facts", () => {
           user: { email: "bruce.wayne@wayne.example", name: "Bruce Wayne" },
           server: {
             connectivity: "ok",
-            database: { status: "ok", schemaVersion: 38, path: "/srv/capacitylens/app.db" },
-            persistence: "unknown",
-            backup: { status: "ok", lastSuccessAt: "2026-09-10T12:00:00.000Z", target: "https://backups.example" },
+            database: { status: "ok", path: "/srv/capacitylens/app.db" },
+            schema: { migration: "database/migrations/202610120001_create_capacitylens_baseline" },
+            backup: { newestSnapshotAt: "2026-09-10T12:00:00.000Z", target: "https://backups.example" },
             accountId: id,
           },
         },

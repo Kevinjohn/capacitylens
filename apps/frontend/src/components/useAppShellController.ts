@@ -9,7 +9,8 @@ import { AUDIT_WARNING_EVENT } from "@/lib/auditWarning";
 import { clearJoinedAccountHandoff, readJoinedAccountHandoff } from "@/lib/joinedAccountHandoff";
 import { ACCOUNT_LINK, ADMIN_LINKS, HELP_LINK, LINKS } from "@/lib/navLinks";
 import { hasOpenModal, isTextEntryShortcutOwner } from "@/lib/shortcutGuards";
-import { hasUnsavedPersistenceWrites } from "@/data/persist";
+import { isShownByPlanningState } from "@/data/planning/planningCacheController";
+import { resolveErrorMessage } from "@/lib/errorMessage";
 import { useStore } from "@/store/useStore";
 import { useAuth } from "@/auth/authContext";
 import { useDemoAuthActive } from "@/lib/fakeAuth";
@@ -192,7 +193,7 @@ function useBeforeUnloadWarning(input: BeforeUnloadWarningInput) {
   const { dirtyForm } = input;
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!dirtyForm && !hasUnsavedPersistenceWrites()) return;
+      if (!dirtyForm && useStore.getState().planning.pending === null) return;
       event.preventDefault();
       event.returnValue = "";
     };
@@ -223,9 +224,9 @@ function useNoticeBridge(notice: StoreState["notice"], setNotice: StoreState["se
 
 interface GlobalShortcutsInput {
   paletteOpen: boolean;
-  redo: StoreState["redo"];
+  redo: StoreState["redoPlanning"];
   setPaletteOpen: Dispatch<SetStateAction<boolean>>;
-  undo: StoreState["undo"];
+  undo: StoreState["undoPlanning"];
 }
 
 type PaletteShortcutInput = Pick<GlobalShortcutsInput, "paletteOpen" | "setPaletteOpen">;
@@ -251,8 +252,9 @@ function applyHistoryShortcutEffect(event: KeyboardEvent, input: HistoryShortcut
   if (event.isComposing || isTextEntryShortcutOwner(event.target) || hasOpenModal()) return;
   if (useStore.getState().dirtyForm) return;
   event.preventDefault();
-  if (event.shiftKey) input.redo();
-  else input.undo();
+  (event.shiftKey ? input.redo() : input.undo()).catch((error: unknown) => {
+    if (!isShownByPlanningState(error)) useStore.getState().setNotice(resolveErrorMessage(error), "error");
+  });
 }
 
 function useGlobalShortcuts(input: GlobalShortcutsInput) {
@@ -287,8 +289,8 @@ export function useAppShellController() {
   const notice = useStore((state) => state.notice);
   const setNotice = useStore((state) => state.setNotice);
   const dirtyForm = useStore((state) => state.dirtyForm);
-  const undo = useStore((state) => state.undo);
-  const redo = useStore((state) => state.redo);
+  const undo = useStore((state) => state.undoPlanning);
+  const redo = useStore((state) => state.redoPlanning);
   const accounts = useStore((state) => state.data.accounts);
   const accountSummaries = useStore((state) => state.accountSummaries);
   const accountSummariesComplete = useStore((state) => state.accountSummariesComplete);

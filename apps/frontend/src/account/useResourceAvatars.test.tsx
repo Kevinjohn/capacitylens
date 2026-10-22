@@ -6,7 +6,10 @@ import { AuthContext } from "@/auth/authContext";
 import { useStore } from "@/store/useStore";
 
 vi.mock("./accountClient", () => ({ accountClient: { listResourceAvatars: vi.fn() } }));
-vi.mock("@/data/apiConfig", () => ({ isServerConfigured: () => true }));
+vi.mock("@/data/apiConfig", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/data/apiConfig")>()),
+  isServerConfigured: () => true,
+}));
 
 function response(avatars: unknown[]): Response {
   return new Response(JSON.stringify({ avatars }), { status: 200, headers: { "Content-Type": "application/json" } });

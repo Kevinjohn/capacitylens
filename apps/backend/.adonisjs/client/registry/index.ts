@@ -36,6 +36,24 @@ const routes = {
     tokens: [{"old":"/api/accounts/:accountId/allocations/create-group","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/allocations/create-group","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/allocations/create-group","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/allocations/create-group","type":0,"val":"allocations","end":""},{"old":"/api/accounts/:accountId/allocations/create-group","type":0,"val":"create-group","end":""}],
     types: placeholder as Registry['api.planning.allocation.createGroup']['types'],
   },
+  'api.planning.allocation.delete': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/allocations/:id/delete',
+    tokens: [{"old":"/api/accounts/:accountId/allocations/:id/delete","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/allocations/:id/delete","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/allocations/:id/delete","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/allocations/:id/delete","type":0,"val":"allocations","end":""},{"old":"/api/accounts/:accountId/allocations/:id/delete","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/allocations/:id/delete","type":0,"val":"delete","end":""}],
+    types: placeholder as Registry['api.planning.allocation.delete']['types'],
+  },
+  'api.planning.allocation.deleteGroup': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/allocations/delete-group',
+    tokens: [{"old":"/api/accounts/:accountId/allocations/delete-group","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/allocations/delete-group","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/allocations/delete-group","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/allocations/delete-group","type":0,"val":"allocations","end":""},{"old":"/api/accounts/:accountId/allocations/delete-group","type":0,"val":"delete-group","end":""}],
+    types: placeholder as Registry['api.planning.allocation.deleteGroup']['types'],
+  },
+  'api.planning.restoreGroup': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/planning/restore-group',
+    tokens: [{"old":"/api/accounts/:accountId/planning/restore-group","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/planning/restore-group","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/planning/restore-group","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/planning/restore-group","type":0,"val":"planning","end":""},{"old":"/api/accounts/:accountId/planning/restore-group","type":0,"val":"restore-group","end":""}],
+    types: placeholder as Registry['api.planning.restoreGroup']['types'],
+  },
   'api.planning.resource.create': {
     methods: ["POST"],
     pattern: '/api/accounts/:accountId/resources',
@@ -60,6 +78,18 @@ const routes = {
     tokens: [{"old":"/api/accounts/:accountId/time-off/:id","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/time-off/:id","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/time-off/:id","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/time-off/:id","type":0,"val":"time-off","end":""},{"old":"/api/accounts/:accountId/time-off/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['api.planning.timeOff.update']['types'],
   },
+  'api.planning.timeOff.delete': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/time-off/:id/delete',
+    tokens: [{"old":"/api/accounts/:accountId/time-off/:id/delete","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/time-off/:id/delete","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/time-off/:id/delete","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/time-off/:id/delete","type":0,"val":"time-off","end":""},{"old":"/api/accounts/:accountId/time-off/:id/delete","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/time-off/:id/delete","type":0,"val":"delete","end":""}],
+    types: placeholder as Registry['api.planning.timeOff.delete']['types'],
+  },
+  'api.planning.timeOff.deleteGroup': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/time-off/delete-group',
+    tokens: [{"old":"/api/accounts/:accountId/time-off/delete-group","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/time-off/delete-group","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/time-off/delete-group","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/time-off/delete-group","type":0,"val":"time-off","end":""},{"old":"/api/accounts/:accountId/time-off/delete-group","type":0,"val":"delete-group","end":""}],
+    types: placeholder as Registry['api.planning.timeOff.deleteGroup']['types'],
+  },
   'api.planning.closure.create': {
     methods: ["POST"],
     pattern: '/api/accounts/:accountId/closures',
@@ -71,6 +101,12 @@ const routes = {
     pattern: '/api/accounts/:accountId/closures/:id',
     tokens: [{"old":"/api/accounts/:accountId/closures/:id","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/closures/:id","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/closures/:id","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/closures/:id","type":0,"val":"closures","end":""},{"old":"/api/accounts/:accountId/closures/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['api.planning.closure.update']['types'],
+  },
+  'api.planning.closure.delete': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/closures/:id/delete',
+    tokens: [{"old":"/api/accounts/:accountId/closures/:id/delete","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/closures/:id/delete","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/closures/:id/delete","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/closures/:id/delete","type":0,"val":"closures","end":""},{"old":"/api/accounts/:accountId/closures/:id/delete","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/closures/:id/delete","type":0,"val":"delete","end":""}],
+    types: placeholder as Registry['api.planning.closure.delete']['types'],
   },
   'api.planning.client.create': {
     methods: ["POST"],
@@ -156,6 +192,12 @@ const routes = {
     tokens: [{"old":"/api/accounts/:accountId/phases/:id","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/phases/:id","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/phases/:id","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/phases/:id","type":0,"val":"phases","end":""},{"old":"/api/accounts/:accountId/phases/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['api.planning.phase.update']['types'],
   },
+  'api.planning.phase.delete': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/phases/:id/delete',
+    tokens: [{"old":"/api/accounts/:accountId/phases/:id/delete","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/phases/:id/delete","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/phases/:id/delete","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/phases/:id/delete","type":0,"val":"phases","end":""},{"old":"/api/accounts/:accountId/phases/:id/delete","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/phases/:id/delete","type":0,"val":"delete","end":""}],
+    types: placeholder as Registry['api.planning.phase.delete']['types'],
+  },
   'api.planning.discipline.create': {
     methods: ["POST"],
     pattern: '/api/accounts/:accountId/disciplines',
@@ -167,6 +209,12 @@ const routes = {
     pattern: '/api/accounts/:accountId/disciplines/:id',
     tokens: [{"old":"/api/accounts/:accountId/disciplines/:id","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/disciplines/:id","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/disciplines/:id","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/disciplines/:id","type":0,"val":"disciplines","end":""},{"old":"/api/accounts/:accountId/disciplines/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['api.planning.discipline.update']['types'],
+  },
+  'api.planning.discipline.delete': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/disciplines/:id/delete',
+    tokens: [{"old":"/api/accounts/:accountId/disciplines/:id/delete","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/disciplines/:id/delete","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/disciplines/:id/delete","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/disciplines/:id/delete","type":0,"val":"disciplines","end":""},{"old":"/api/accounts/:accountId/disciplines/:id/delete","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/disciplines/:id/delete","type":0,"val":"delete","end":""}],
+    types: placeholder as Registry['api.planning.discipline.delete']['types'],
   },
   'api.planning.resource.archive': {
     methods: ["POST"],
@@ -204,17 +252,17 @@ const routes = {
     tokens: [{"old":"/api/accounts/:accountId/settings","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/settings","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/settings","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/settings","type":0,"val":"settings","end":""}],
     types: placeholder as Registry['api.planning.settings.update']['types'],
   },
-  'api.batch': {
+  'api.transfer.preview': {
     methods: ["POST"],
-    pattern: '/api/batch',
-    tokens: [{"old":"/api/batch","type":0,"val":"api","end":""},{"old":"/api/batch","type":0,"val":"batch","end":""}],
-    types: placeholder as Registry['api.batch']['types'],
+    pattern: '/api/transfer/preview',
+    tokens: [{"old":"/api/transfer/preview","type":0,"val":"api","end":""},{"old":"/api/transfer/preview","type":0,"val":"transfer","end":""},{"old":"/api/transfer/preview","type":0,"val":"preview","end":""}],
+    types: placeholder as Registry['api.transfer.preview']['types'],
   },
-  'api.import': {
+  'api.transfer.apply': {
     methods: ["POST"],
-    pattern: '/api/import',
-    tokens: [{"old":"/api/import","type":0,"val":"api","end":""},{"old":"/api/import","type":0,"val":"import","end":""}],
-    types: placeholder as Registry['api.import']['types'],
+    pattern: '/api/transfer/apply',
+    tokens: [{"old":"/api/transfer/apply","type":0,"val":"api","end":""},{"old":"/api/transfer/apply","type":0,"val":"transfer","end":""},{"old":"/api/transfer/apply","type":0,"val":"apply","end":""}],
+    types: placeholder as Registry['api.transfer.apply']['types'],
   },
   'api.state': {
     methods: ["GET","HEAD"],
@@ -222,29 +270,17 @@ const routes = {
     tokens: [{"old":"/api/state","type":0,"val":"api","end":""},{"old":"/api/state","type":0,"val":"state","end":""}],
     types: placeholder as Registry['api.state']['types'],
   },
-  'api.orgs.store': {
+  'api.accounts.anonymise': {
     methods: ["POST"],
-    pattern: '/api/orgs',
-    tokens: [{"old":"/api/orgs","type":0,"val":"api","end":""},{"old":"/api/orgs","type":0,"val":"orgs","end":""}],
-    types: placeholder as Registry['api.orgs.store']['types'],
+    pattern: '/api/accounts/:accountId/anonymise',
+    tokens: [{"old":"/api/accounts/:accountId/anonymise","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/anonymise","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/anonymise","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/anonymise","type":0,"val":"anonymise","end":""}],
+    types: placeholder as Registry['api.accounts.anonymise']['types'],
   },
-  'api.accounts.store': {
+  'api.resources.anonymise': {
     methods: ["POST"],
-    pattern: '/api/accounts',
-    tokens: [{"old":"/api/accounts","type":0,"val":"api","end":""},{"old":"/api/accounts","type":0,"val":"accounts","end":""}],
-    types: placeholder as Registry['api.accounts.store']['types'],
-  },
-  'api.accounts.update': {
-    methods: ["PATCH"],
-    pattern: '/api/accounts/:id',
-    tokens: [{"old":"/api/accounts/:id","type":0,"val":"api","end":""},{"old":"/api/accounts/:id","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:id","type":1,"val":"id","end":""}],
-    types: placeholder as Registry['api.accounts.update']['types'],
-  },
-  'api.accounts.destroy': {
-    methods: ["DELETE"],
-    pattern: '/api/accounts/:id',
-    tokens: [{"old":"/api/accounts/:id","type":0,"val":"api","end":""},{"old":"/api/accounts/:id","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:id","type":1,"val":"id","end":""}],
-    types: placeholder as Registry['api.accounts.destroy']['types'],
+    pattern: '/api/accounts/:accountId/resources/:id/anonymise',
+    tokens: [{"old":"/api/accounts/:accountId/resources/:id/anonymise","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/resources/:id/anonymise","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/resources/:id/anonymise","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/resources/:id/anonymise","type":0,"val":"resources","end":""},{"old":"/api/accounts/:accountId/resources/:id/anonymise","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/resources/:id/anonymise","type":0,"val":"anonymise","end":""}],
+    types: placeholder as Registry['api.resources.anonymise']['types'],
   },
   'api.example-data': {
     methods: ["POST"],
@@ -287,6 +323,18 @@ const routes = {
     pattern: '/api/auth/sign-out',
     tokens: [{"old":"/api/auth/sign-out","type":0,"val":"api","end":""},{"old":"/api/auth/sign-out","type":0,"val":"auth","end":""},{"old":"/api/auth/sign-out","type":0,"val":"sign-out","end":""}],
     types: placeholder as Registry['api.auth.sign-out']['types'],
+  },
+  'api.auth.action-proof.password': {
+    methods: ["POST"],
+    pattern: '/api/auth/action-proof/password',
+    tokens: [{"old":"/api/auth/action-proof/password","type":0,"val":"api","end":""},{"old":"/api/auth/action-proof/password","type":0,"val":"auth","end":""},{"old":"/api/auth/action-proof/password","type":0,"val":"action-proof","end":""},{"old":"/api/auth/action-proof/password","type":0,"val":"password","end":""}],
+    types: placeholder as Registry['api.auth.action-proof.password']['types'],
+  },
+  'api.auth.action-proof.google-start': {
+    methods: ["POST"],
+    pattern: '/api/auth/action-proof/google-start',
+    tokens: [{"old":"/api/auth/action-proof/google-start","type":0,"val":"api","end":""},{"old":"/api/auth/action-proof/google-start","type":0,"val":"auth","end":""},{"old":"/api/auth/action-proof/google-start","type":0,"val":"action-proof","end":""},{"old":"/api/auth/action-proof/google-start","type":0,"val":"google-start","end":""}],
+    types: placeholder as Registry['api.auth.action-proof.google-start']['types'],
   },
   'api.auth.provider-start': {
     methods: ["POST"],
@@ -521,12 +569,6 @@ const routes = {
     pattern: '/api/company-join/complete-provider',
     tokens: [{"old":"/api/company-join/complete-provider","type":0,"val":"api","end":""},{"old":"/api/company-join/complete-provider","type":0,"val":"company-join","end":""},{"old":"/api/company-join/complete-provider","type":0,"val":"complete-provider","end":""}],
     types: placeholder as Registry['api.google.join-complete']['types'],
-  },
-  'api.lifecycle': {
-    methods: ["POST"],
-    pattern: '/api/:entity/:id/:action',
-    tokens: [{"old":"/api/:entity/:id/:action","type":0,"val":"api","end":""},{"old":"/api/:entity/:id/:action","type":1,"val":"entity","end":""},{"old":"/api/:entity/:id/:action","type":1,"val":"id","end":""},{"old":"/api/:entity/:id/:action","type":1,"val":"action","end":""}],
-    types: placeholder as Registry['api.lifecycle']['types'],
   },
   'api.health': {
     methods: ["GET","HEAD"],

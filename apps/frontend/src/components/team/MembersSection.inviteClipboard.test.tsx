@@ -8,8 +8,8 @@ import { mockApi, renderSection } from "./MembersSection.testSupport";
 
 vi.mock("@/data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfigured: () => true }));
 
-beforeEach(() => {
-  resetStoreWithAccount();
+beforeEach(async () => {
+  await resetStoreWithAccount();
 });
 afterEach(() => {
   vi.restoreAllMocks();

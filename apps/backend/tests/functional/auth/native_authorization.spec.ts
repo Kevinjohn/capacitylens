@@ -6,6 +6,8 @@ import type { ApiClient } from '@japa/api-client'
 import env from '#start/env'
 import { resetState } from '#services/state_repository'
 import { seed } from '@capacitylens/shared/data/seed'
+import { buildBetaExport } from '@capacitylens/shared/data/betaTransfer'
+import { readState } from '#services/state_repository'
 
 const accountId = 'a-studio'
 const otherAccountId = 'a-loft'
@@ -49,7 +51,7 @@ function configureAuth(cleanup: (callback: () => void) => void) {
   env.set('CAPACITYLENS_ALLOW_RESET', true)
   env.set('CAPACITYLENS_RATE_LIMIT', '0')
   cleanup(() => {
-    env.set('CAPACITYLENS_MODE', prior.mode ?? 'off')
+    env.set('CAPACITYLENS_MODE', prior.mode ?? 'password-only')
     env.set('CAPACITYLENS_SECRET', prior.secret ?? '')
     env.set('CAPACITYLENS_PUBLIC_URL', prior.publicUrl ?? '')
     env.set('CAPACITYLENS_SETUP_TOKEN', prior.setupToken ?? '')
@@ -105,14 +107,21 @@ async function writeDismissal(client: ApiClient, cookie: string) {
 }
 
 async function importSeed(client: ApiClient, cookie: string) {
-  return withSession(trusted(client.post('/api/import')), cookie)
-    .json({ accountId, data: seed() })
+  const document = buildBetaExport(await readState(accountId, true), {
+    accountId,
+    completeness: 'full',
+  })
+  return withSession(trusted(client.post('/api/transfer/apply')), cookie)
+    .json({ accountId, document, baseRevision: 0 })
     .send()
 }
 
-async function purgeOldClient(client: ApiClient, cookie: string, id: string) {
-  return withSession(trusted(client.post(`/api/clients/${id}/purge`)), cookie)
-    .json({ accountId })
+async function anonymiseResource(client: ApiClient, cookie: string, id: string) {
+  return withSession(
+    trusted(client.post(`/api/accounts/${accountId}/resources/${id}/anonymise`)),
+    cookie
+  )
+    .json({})
     .send()
 }
 
@@ -199,22 +208,15 @@ test.group('native authorization and role projections', (group) => {
     assert.equal(foreignRow?.account_id, otherAccountId)
   })
 
-  test('four roles separate read, ordinary write, purge, and whole-slice import authority', async ({
+  test('four roles separate read, ordinary write, resource anonymisation, and whole-slice import authority', async ({
     client,
     assert,
     cleanup,
   }) => {
     configureAuth(cleanup)
     const { cookie, userId } = await createMember(client, 'viewer')
-    const purgeCandidates = seed().clients.filter(
-      (row) => row.accountId === accountId && row.builtin !== true
-    )
-    assert.isAtLeast(purgeCandidates.length, 2)
-    for (const row of purgeCandidates.slice(0, 2))
-      await db
-        .from('clients')
-        .where({ id: row.id })
-        .update({ deleted_at: '2020-01-01T00:00:00.000Z' })
+    const anonymiseCandidates = seed().resources.filter((row) => row.accountId === accountId)
+    assert.isAtLeast(anonymiseCandidates.length, 2)
 
     for (const role of roles) {
       await setRole(userId, role)
@@ -241,16 +243,16 @@ test.group('native authorization and role projections', (group) => {
       const write = await writeDismissal(client, cookie)
       assert.equal(write.status(), role === 'viewer' ? 403 : 200, `${role} ordinary write`)
 
-      const purgeTarget = role === 'owner' ? purgeCandidates[1]! : purgeCandidates[0]!
-      const purge = await purgeOldClient(client, cookie, purgeTarget.id)
+      const target = role === 'owner' ? anonymiseCandidates[1]! : anonymiseCandidates[0]!
+      const anonymised = await anonymiseResource(client, cookie, target.id)
       assert.equal(
-        purge.status(),
+        anonymised.status(),
         role === 'admin' || role === 'owner' ? 204 : 403,
-        `${role} purge`
+        `${role} resource anonymisation`
       )
 
       const importing = await importSeed(client, cookie)
-      assert.equal(importing.status(), role === 'owner' ? 200 : 403, `${role} import`)
+      assert.equal(importing.status(), 403, `${role} import without action proof`)
 
       if (role === 'owner') {
         const reset = await withSession(trusted(client.post('/api/test/reset')), cookie)
@@ -316,7 +318,7 @@ test.group('native authorization and role projections', (group) => {
     }
   })
 
-  test('freshness is exclusive at 15 minutes and ordinary read/write remain available', async ({
+  test('import needs action proof before and after 15 minutes while ordinary read/write remain available', async ({
     client,
     assert,
     cleanup,
@@ -331,7 +333,8 @@ test.group('native authorization and role projections', (group) => {
     try {
       Date.now = () => authenticatedAt + 15 * 60 * 1000 - 1
       const justFresh = await importing()
-      justFresh.assertStatus(200)
+      justFresh.assertStatus(403)
+      assert.equal((justFresh.body() as { code?: string }).code, 'ACTION_PROOF_REQUIRED')
 
       Date.now = () => authenticatedAt + 15 * 60 * 1000
       const staleExport = await stateFor(client, cookie)
@@ -340,35 +343,7 @@ test.group('native authorization and role projections', (group) => {
       staleWrite.assertStatus(200)
       const staleImport = await importing()
       staleImport.assertStatus(403)
-      assert.equal((staleImport.body() as { code?: string }).code, 'SESSION_NOT_FRESH')
-    } finally {
-      Date.now = realNow
-    }
-  })
-
-  test('administrator purge requires fresh session assurance', async ({
-    client,
-    assert,
-    cleanup,
-  }) => {
-    configureAuth(cleanup)
-    const { cookie, userId } = await createMember(client, 'admin')
-    const candidate = seed().clients.find(
-      (row) => row.accountId === accountId && row.builtin !== true
-    )
-    assert.isDefined(candidate)
-    await db.from('clients').where({ id: candidate!.id }).update({
-      deleted_at: '2020-01-01T00:00:00.000Z',
-    })
-    const index = await db.from('user_session_index').where({ user_id: userId }).first()
-    assert.isDefined(index)
-    const realNow = Date.now
-    Date.now = () => Number(index!.authenticated_at) + 15 * 60 * 1000
-    try {
-      const purge = await purgeOldClient(client, cookie, candidate!.id)
-      purge.assertStatus(403)
-      assert.equal((purge.body() as { code?: string }).code, 'SESSION_NOT_FRESH')
-      assert.isNotNull(await db.from('clients').where({ id: candidate!.id }).first())
+      assert.equal((staleImport.body() as { code?: string }).code, 'ACTION_PROOF_REQUIRED')
     } finally {
       Date.now = realNow
     }

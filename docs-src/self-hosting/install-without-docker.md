@@ -90,10 +90,29 @@ certificate details. Do not expose the loopback application port publicly.
 
 ## 5. Complete first-run setup
 
-Check readiness at `https://capacity.example.com/health/ready`. Open the site and use
-`CAPACITYLENS_SETUP_TOKEN` to create the first identity and company. Send the address and token
-separately if another person will become Owner. Remove the setup token from the environment file
-and restart the service after the first identity exists.
+1. Check readiness at `https://capacity.example.com/health/ready`. Open the site and use
+   `CAPACITYLENS_SETUP_TOKEN` to create the first identity. Send the address and token separately
+   if another person will become Owner. Configured Google first-identity sign-in is also supported.
+2. Stop the service: `sudo systemctl stop capacitylens`. Remove the setup token from the private
+   environment file after the first identity exists.
+3. From the release's `backend/` directory, as the dedicated site user and with the same private
+   environment loaded, run:
+
+   ```sh
+   node ace.js company:initialize bruce@wayne.example "Wayne Enterprises" --confirm-server-stopped
+   ```
+
+   Substitute the existing identity's email and company name. The command requires the server to
+   be stopped and obtains an exclusive SQLite lock. It accepts exactly one matching identity with
+   a sign-in method enabled by the current configuration. It creates the company, Internal client,
+   active Owner membership and initial planning revision atomically, with an operator audit entry.
+   It does not create credentials or grant identity admission. Monday, Monday–Friday working days
+   and day-based scheduling are the initial calendar defaults; there is no sample schedule.
+   A missing or ambiguous identity, unavailable sign-in method, existing company or membership,
+   concurrent database writer or failed write refuses setup without creating company access.
+4. Restart with `sudo systemctl start capacitylens`. Sign in normally with that identity and verify
+   that the company opens on Schedule. A second initialization is refused; use normal membership
+   administration after setup.
 
 Continue with [TLS and networking](/self-hosting/tls-and-networking),
 [Monitoring](/self-hosting/monitoring), and [Verify and hand over](/self-hosting/verify-and-hand-over).

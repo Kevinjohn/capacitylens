@@ -26,6 +26,8 @@ Check backup success independently: inspect the service logs for failed snapshot
 errors, free disk space and directory permissions, then confirm a recent completed snapshot in
 `CAPACITYLENS_BACKUP_DIR`. Backups run at startup and every 24 hours while the service runs.
 Readiness has no backup health latch; a healthy response does not prove recovery is available.
+The Diagnostics support report names the last applied migration and the newest completed snapshot
+file modification time when one is available. Confirm backup integrity separately before recovery.
 
 Run `node ace.js db:backup` from `backend/` for an operator-requested snapshot. See
 [Backups and restore](/self-hosting/backups-and-restore).

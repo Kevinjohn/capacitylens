@@ -3,6 +3,7 @@ import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
 import { resetState } from '#services/state_repository'
+import { createFixtureCompanyForOwner } from '../../helpers/authenticated_data_fixture.js'
 
 const setupToken = 'member-setup-token-0123456789abcdef'
 const password = 'batman-secret-2026'
@@ -56,10 +57,11 @@ test.group('company member administration', (group) => {
       .send()
     owner.assertStatus(201)
     const ownerCookie = owner.cookie('adonis-session')!.value
-    const created = await signed(client.post('/api/orgs'), ownerCookie)
-      .json({ id: 'a-studio', name: 'Wayne Enterprises' })
-      .send()
-    created.assertStatus(201)
+    await createFixtureCompanyForOwner(
+      await userId('bruce.wayne@wayne.example'),
+      'Wayne Enterprises',
+      'a-studio'
+    )
     const setupRevision = await db
       .from('company_planning_revisions')
       .where('account_id', 'a-studio')
@@ -159,11 +161,11 @@ test.group('company member administration', (group) => {
       .json({ email: 'bruce.wayne@wayne.example', password, name: 'Bruce Wayne' })
       .send()
     owner.assertStatus(201)
-    const ownerCookie = owner.cookie('adonis-session')!.value
-    const company = await signed(client.post('/api/orgs'), ownerCookie)
-      .json({ id: 'a-studio', name: 'Wayne Enterprises' })
-      .send()
-    company.assertStatus(201)
+    await createFixtureCompanyForOwner(
+      await userId('bruce.wayne@wayne.example'),
+      'Wayne Enterprises',
+      'a-studio'
+    )
     const admin = await client
       .post('/api/auth/sign-up')
       .json({ email: 'diana.prince@wayne.example', password, name: 'Diana Prince' })
@@ -239,10 +241,11 @@ test.group('company member administration', (group) => {
       .json({ email: 'bruce.wayne@wayne.example', password, name: 'Bruce Wayne' })
       .send()
     owner.assertStatus(201)
-    const first = await signed(client.post('/api/orgs'), owner.cookie('adonis-session')!.value)
-      .json({ id: 'a-studio', name: 'Wayne Enterprises' })
-      .send()
-    first.assertStatus(201)
+    await createFixtureCompanyForOwner(
+      await userId('bruce.wayne@wayne.example'),
+      'Wayne Enterprises',
+      'a-studio'
+    )
     const admin = await client
       .post('/api/auth/sign-up')
       .json({ email: 'diana.prince@wayne.example', password, name: 'Diana Prince' })
@@ -269,7 +272,7 @@ test.group('company member administration', (group) => {
       const second = await signed(client.post('/api/orgs'), cookie)
         .json({ id: 'a-loft', name: 'Stark Industries' })
         .send()
-      second.assertStatus(403)
+      second.assertStatus(404)
       assert.isNull(await db.from('accounts').where('id', 'a-loft').first())
     } finally {
       Date.now = realNow
@@ -287,10 +290,11 @@ test.group('company member administration', (group) => {
       .send()
     owner.assertStatus(201)
     const cookie = owner.cookie('adonis-session')!.value
-    const company = await signed(client.post('/api/orgs'), cookie)
-      .json({ id: 'a-studio', name: 'Wayne Enterprises' })
-      .send()
-    company.assertStatus(201)
+    await createFixtureCompanyForOwner(
+      await userId('bruce.wayne@wayne.example'),
+      'Wayne Enterprises',
+      'a-studio'
+    )
     const editor = await client
       .post('/api/auth/sign-up')
       .json({ email: 'clark.kent@wayne.example', password, name: 'Clark Kent' })
@@ -340,10 +344,11 @@ test.group('company member administration', (group) => {
       .send()
     owner.assertStatus(201)
     const cookie = owner.cookie('adonis-session')!.value
-    const company = await signed(client.post('/api/orgs'), cookie)
-      .json({ id: 'a-studio', name: 'Wayne Enterprises' })
-      .send()
-    company.assertStatus(201)
+    await createFixtureCompanyForOwner(
+      await userId('bruce.wayne@wayne.example'),
+      'Wayne Enterprises',
+      'a-studio'
+    )
     const editor = await client
       .post('/api/auth/sign-up')
       .json({ email: 'clark.kent@wayne.example', password, name: 'Clark Kent' })
@@ -389,10 +394,11 @@ test.group('company member administration', (group) => {
       .send()
     owner.assertStatus(201)
     const ownerCookie = owner.cookie('adonis-session')!.value
-    const created = await signed(client.post('/api/orgs'), ownerCookie)
-      .json({ id: 'a-studio', name: 'Wayne Enterprises' })
-      .send()
-    created.assertStatus(201)
+    await createFixtureCompanyForOwner(
+      await userId('bruce.wayne@wayne.example'),
+      'Wayne Enterprises',
+      'a-studio'
+    )
     const editor = await client
       .post('/api/auth/sign-up')
       .json({ email: 'clark.kent@wayne.example', password, name: 'Clark Kent' })

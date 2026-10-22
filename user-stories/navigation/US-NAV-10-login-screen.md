@@ -1,18 +1,16 @@
-# US-NAV-10 — Sign in before using the app (auth-gated deploy)
+# US-NAV-10 — Sign in before using persisted server data
 
 **Area:** Navigation / Auth · **Persona:** Tester on an auth-enabled deploy · **Linked E2E:** `e2e/login.auth.spec.ts` (auth-backed project) → "unauthenticated visit shows the login screen, not the app", "signing in reveals the app; signing out from Account returns to the login screen", "the --create-owner-admin-admin bootstrap credential signs in through the real form"
 
-> **Flag-gated; not reachable in the default deploy.** The login screen only exists when
-> the optional server runs with `CAPACITYLENS_MODE=password-only`, `password-and-sso` or `sso-only` — the controlled-demo
-> deploy keeps `CAPACITYLENS_MODE` unset (off), where every request carries a synthetic demo
-> identity and no login UI exists. The dedicated Playwright `auth-backed` project boots a
-> server with the flag on to run this story's checks; it cannot be exercised against
-> `pnpm run dev`.
+> **Persisted server access.** Every server that stores scheduling data requires an authenticated
+> company member. `CAPACITYLENS_MODE` selects password and provider options; it does not disable
+> authentication. The dedicated Playwright `auth-backed` project boots a server to run this
+> story's checks; the in-memory demo is a separate, no-login experience.
 
 ## Goal
 
-Be the only kind of visitor who can read or change data on an auth-enabled deploy: one
-who has signed in — and be able to sign out again from Account.
+Read or change persisted company data only after signing in, and be able to sign out again from
+Account.
 
 ## Why
 
@@ -64,7 +62,7 @@ self-registration closes automatically and only the Sign in form below is reacha
 - A successful sign-in opens the sole server-selected company when the user is an active member;
   when none are available, the documented first-company or invitation path is shown instead.
 - Account shows the signed-in identity and personal security controls only while signed in on an
-  auth-enabled deploy; it never exposes credential controls with auth off or in local mode.
+  persisted server; the in-memory demo has no credential controls.
 - In mixed mode, **Connect Google** from Account asks for **Confirm it's you** when the session has
   aged. Linking requires a verified local email matching the verified Google address. Cancelling
   leaves the account unconnected; success starts the link once. A further freshness refusal asks

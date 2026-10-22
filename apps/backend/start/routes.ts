@@ -1,7 +1,14 @@
 import '#start/planning_routes'
 import env from '#start/env'
+import db from '@adonisjs/lucid/services/db'
+import { statSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { listSnapshots, type FileIdentity } from '#services/backup/retention'
 import router from '@adonisjs/core/services/router'
 import { checkDatabase, readState, resetState } from '#services/state_repository'
+import { resolveCurrentActor } from '#services/auth/session_authority'
+import { activeCompanyRole } from '#services/auth/authorization'
+import { withTransaction } from '#services/with_transaction'
 import { fileURLToPath } from 'node:url'
 import { healthChecks } from '#start/health'
 import { registerAuthRoutes } from '#start/auth_routes'
@@ -11,21 +18,22 @@ import { registerMasqueradeRoutes } from '#start/masquerade_routes'
 import { registerOwnershipRoutes } from '#start/ownership_routes'
 import { registerGoogleRoutes } from '#start/google_routes'
 
-const BatchController = () => import('#controllers/batch_controller')
-const LifecycleController = () => import('#controllers/lifecycle_controller')
-const ImportsController = () => import('#controllers/imports_controller')
+const AnonymiseController = () => import('#controllers/anonymise_controller')
+const TransferController = () => import('#controllers/transfer_controller')
 const ExportsController = () => import('#controllers/exports_controller')
 const ExampleDataController = () => import('#controllers/example_data_controller')
 const GettingStartedController = () => import('#controllers/getting_started_controller')
 const CompaniesController = () => import('#controllers/companies_controller')
 
-router.post('/api/batch', [BatchController, 'store']).as('api.batch')
-router.post('/api/import', [ImportsController, 'store']).as('api.import')
+router.post('/api/transfer/preview', [TransferController, 'preview']).as('api.transfer.preview')
+router.post('/api/transfer/apply', [TransferController, 'apply']).as('api.transfer.apply')
 router.get('/api/state', [ExportsController, 'show']).as('api.state')
-router.post('/api/orgs', [CompaniesController, 'storeOrg']).as('api.orgs.store')
-router.post('/api/accounts', [CompaniesController, 'store']).as('api.accounts.store')
-router.patch('/api/accounts/:id', [CompaniesController, 'update']).as('api.accounts.update')
-router.delete('/api/accounts/:id', [CompaniesController, 'destroy']).as('api.accounts.destroy')
+router
+  .post('/api/accounts/:accountId/anonymise', [AnonymiseController, 'company'])
+  .as('api.accounts.anonymise')
+router
+  .post('/api/accounts/:accountId/resources/:id/anonymise', [AnonymiseController, 'resource'])
+  .as('api.resources.anonymise')
 router
   .post('/api/accounts/:accountId/example-data', [ExampleDataController, 'store'])
   .as('api.example-data')
@@ -41,7 +49,6 @@ registerAdmissionRoutes()
 registerMasqueradeRoutes()
 registerOwnershipRoutes()
 registerGoogleRoutes()
-router.post('/api/:entity/:id/:action', [LifecycleController, 'mutate']).as('api.lifecycle')
 
 router.get('/api/health', () => ({ ok: true })).as('api.health')
 router.get('/health/live', () => ({ ok: true }))
@@ -59,24 +66,71 @@ router.get('/api/meta', async () => {
   const state = await readState()
   return { hasData: state.accounts.length > 0 }
 })
-router.get('/api/diagnostics', async ({ response }) => {
+router.get('/api/diagnostics', async (ctx) => {
+  const { response, logger } = ctx
+  // Release level and backup timing are administration facts: Owners and Admins only.
+  const administers = await withTransaction(async (trx) => {
+    const actor = await resolveCurrentActor(ctx, trx)
+    const memberships = await trx
+      .from('memberships')
+      .where({ user_id: actor.userId, status: 'active' })
+      .select('account_id')
+    for (const membership of memberships) {
+      const role = await activeCompanyRole(actor.userId, String(membership.account_id), trx)
+      if (role === 'owner' || role === 'admin') return true
+    }
+    return false
+  })
+  if (!administers)
+    return response.forbidden({ error: 'Diagnostics are limited to Owners and Admins.' })
   try {
     await checkDatabase()
+    const lastMigration = await db
+      .from('adonis_schema')
+      .select('name')
+      .orderBy('id', 'desc')
+      .first()
+    let newestSnapshotAt: string | null = null
+    const backupDir = env.get('CAPACITYLENS_BACKUP_DIR')
+    if (backupDir) {
+      try {
+        const connectionConfig = db.getRawConnection(db.primaryConnectionName)?.config
+        const databasePath =
+          connectionConfig?.client === 'better-sqlite3'
+            ? (connectionConfig.connection.filename as string)
+            : null
+        let databaseIdentity: FileIdentity | null = null
+        if (databasePath && databasePath !== ':memory:') {
+          const file = statSync(databasePath, { bigint: true })
+          databaseIdentity = { path: resolve(databasePath), device: file.dev, inode: file.ino }
+        }
+        const newestMtime = listSnapshots(backupDir, databaseIdentity)
+          .map((file) => statSync(join(backupDir, file)).mtimeMs)
+          .reduce<number | null>(
+            (newest, mtime) => (newest === null ? mtime : Math.max(newest, mtime)),
+            null
+          )
+        newestSnapshotAt = newestMtime === null ? null : new Date(newestMtime).toISOString()
+      } catch {
+        logger.warn('Diagnostics could not inspect completed snapshots')
+      }
+    }
     return {
       server: {
         connectivity: 'ok',
-        database: { status: 'ok', schemaVersion: 4 },
-        persistence: 'unknown',
-        backup: { status: 'unavailable', lastSuccessAt: null },
+        database: { status: 'ok' },
+        schema: { migration: lastMigration?.name ?? null },
+        backup: { newestSnapshotAt },
       },
     }
   } catch {
+    logger.warn('Diagnostics could not read database state')
     return response.serviceUnavailable({
       server: {
         connectivity: 'ok',
-        database: { status: 'unavailable', schemaVersion: null },
-        persistence: 'unknown',
-        backup: { status: 'unavailable', lastSuccessAt: null },
+        database: { status: 'unavailable' },
+        schema: { migration: null },
+        backup: { newestSnapshotAt: null },
       },
     })
   }

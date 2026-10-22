@@ -30,19 +30,10 @@ interface TrustedOriginInput {
   fetchSite?: string
   host?: string
   protocol?: string
-  forwardedProtocol?: string
-  trustProxy: boolean
 }
 
 /** Resolves whether an unsafe browser request comes from an explicitly trusted origin. */
-export function isTrustedUnsafeOrigin({
-  origin,
-  fetchSite,
-  host,
-  protocol,
-  forwardedProtocol,
-  trustProxy,
-}: TrustedOriginInput) {
+export function isTrustedUnsafeOrigin({ origin, fetchSite, host, protocol }: TrustedOriginInput) {
   if (!origin) return fetchSite !== 'cross-site'
   let normalizedOrigin: string
   try {
@@ -52,16 +43,12 @@ export function isTrustedUnsafeOrigin({
   }
   if (corsOrigins.includes(normalizedOrigin)) return true
   if (fetchSite === 'same-origin') return true
-  const effectiveProtocol =
-    trustProxy && (forwardedProtocol === 'http' || forwardedProtocol === 'https')
-      ? forwardedProtocol
-      : protocol
-  if (!host || (effectiveProtocol !== 'http' && effectiveProtocol !== 'https')) return false
+  if (!host || (protocol !== 'http' && protocol !== 'https')) return false
   let parsedOrigin: URL
   let reconstructed: URL
   try {
     parsedOrigin = new URL(origin)
-    reconstructed = new URL(`${effectiveProtocol}://${host}`)
+    reconstructed = new URL(`${protocol}://${host}`)
   } catch {
     return false
   }

@@ -13,7 +13,13 @@ function main() {
       console.log(label);
       const env =
         args[0] === "run" && args[1] === "build"
-          ? { ...process.env, NODE_ENV: "production", CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: "1" }
+          ? {
+              ...process.env,
+              NODE_ENV: "production",
+              CAPACITYLENS_MODE: "password-only",
+              CAPACITYLENS_SECRET: "capacitylens-build-secret-0123456789abcdef",
+              CAPACITYLENS_PUBLIC_URL: "http://127.0.0.1",
+            }
           : process.env;
       const result = spawnPnpmSync(args, { cwd: root, stdio: "inherit", env });
       const status = reportSpawnFailureAndResolveExitStatus(label, result);

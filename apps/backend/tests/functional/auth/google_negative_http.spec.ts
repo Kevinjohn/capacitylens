@@ -111,7 +111,7 @@ test.group('Google denial and rollback boundaries', (group) => {
     env.set('CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS', bruce.email)
     env.set('CAPACITYLENS_SETUP_TOKEN', 'google-negative-setup-token-2026')
     return () => {
-      env.set('CAPACITYLENS_MODE', previous.mode || 'off')
+      env.set('CAPACITYLENS_MODE', previous.mode || 'password-only')
       env.set('CAPACITYLENS_GOOGLE_CLIENT_ID', previous.id || '')
       env.set('CAPACITYLENS_GOOGLE_CLIENT_SECRET', previous.secret || '')
       env.set('CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS', previous.bootstrap || '')

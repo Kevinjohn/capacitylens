@@ -8,7 +8,6 @@ import {
 import ConfigurationProvider from '#providers/configuration_provider'
 import env from '#start/env'
 import { authMode, passwordEnabled } from '#services/auth/mode'
-import { isTrustedUnsafeOrigin } from '#services/cors_policy'
 import { assertPasswordAllowed } from '#services/password_screening'
 import { createHash } from 'node:crypto'
 
@@ -20,7 +19,6 @@ type MutableKey =
   | 'CAPACITYLENS_DEPLOYMENT_PROFILE'
   | 'CAPACITYLENS_ALLOW_OPEN_SIGNUP'
   | 'CAPACITYLENS_SETUP_TOKEN'
-  | 'CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION'
   | 'CAPACITYLENS_ALLOW_RESET'
   | 'CAPACITYLENS_CREATE_ADMIN_ADMIN'
   | 'CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD'
@@ -58,9 +56,10 @@ function enablePasswordConfiguration(publicUrl = 'https://capacity.example.test'
 }
 
 test('auth mode validation accepts all product modes and rejects unknown values', ({ assert }) => {
-  for (const mode of [undefined, 'off', 'password-only', 'password-and-sso', 'sso-only'])
+  for (const mode of [undefined, 'password-only', 'password-and-sso', 'sso-only'])
     assert.doesNotThrow(() => assertM1AuthenticationMode(mode))
   assert.throws(() => assertM1AuthenticationMode('password'), /Unknown CAPACITYLENS_MODE/)
+  assert.throws(() => assertM1AuthenticationMode('off'), /Unknown CAPACITYLENS_MODE/)
   assert.throws(() => assertM1AuthenticationMode('unexpected'), /Unknown CAPACITYLENS_MODE/)
 })
 
@@ -171,7 +170,7 @@ test('password mode requires a 32-character secret and a bare public HTTP(S) ori
   await assert.rejects(() => provider.boot(), /at least 32 characters/)
 })
 
-test('production refuses open mode, bootstrap credentials, invalid limits, audit-off, and reset', ({
+test('production refuses bootstrap credentials, invalid limits, audit-off, and reset', ({
   assert,
 }) => {
   const safe = {
@@ -183,11 +182,6 @@ test('production refuses open mode, bootstrap credentials, invalid limits, audit
   }
   assert.doesNotThrow(() => assertProductionPosture(safe))
   assert.doesNotThrow(() => assertProductionPosture({ ...safe, rateLimit: '1000000' }))
-  assert.throws(
-    () => assertProductionPosture({ ...safe, mode: 'off', allowOpen: false }),
-    /ALLOW_OPEN_IN_PRODUCTION/
-  )
-  assert.doesNotThrow(() => assertProductionPosture({ ...safe, mode: 'off', allowOpen: true }))
   assert.throws(() => assertProductionPosture({ ...safe, createAdmin: true }), /bootstrap/)
   const secret = 'private-bootstrap-password'
   const bootstrapError = thrownBy(() =>
@@ -213,7 +207,6 @@ test('production boot refuses reset while non-production boot keeps the test fla
     'CAPACITYLENS_ALLOW_OPEN_SIGNUP',
     'CAPACITYLENS_SETUP_TOKEN',
     'CAPACITYLENS_ALLOW_RESET',
-    'CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION',
     'CAPACITYLENS_CREATE_ADMIN_ADMIN',
     'CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD',
     'CAPACITYLENS_RATE_LIMIT',
@@ -224,7 +217,6 @@ test('production boot refuses reset while non-production boot keeps the test fla
   setEnvironment('CAPACITYLENS_ALLOW_OPEN_SIGNUP', false)
   setEnvironment('CAPACITYLENS_SETUP_TOKEN', '')
   setEnvironment('CAPACITYLENS_ALLOW_RESET', true)
-  setEnvironment('CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION', false)
   setEnvironment('CAPACITYLENS_CREATE_ADMIN_ADMIN', false)
   setEnvironment('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', '')
   setEnvironment('CAPACITYLENS_RATE_LIMIT', '100')
@@ -232,34 +224,13 @@ test('production boot refuses reset while non-production boot keeps the test fla
   const production = new ConfigurationProvider({ inProduction: true } as never)
   await assert.rejects(() => production.boot(), /ALLOW_RESET/)
 
-  setEnvironment('CAPACITYLENS_MODE', 'off')
-  setEnvironment('CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION', true)
+  setEnvironment('CAPACITYLENS_MODE', 'password-only')
   setEnvironment('CAPACITYLENS_CREATE_ADMIN_ADMIN', true)
   setEnvironment('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD', 'development-only-password')
   setEnvironment('CAPACITYLENS_RATE_LIMIT', 'invalid')
   setEnvironment('CAPACITYLENS_AUDIT', 'off')
   const development = new ConfigurationProvider({ inProduction: false } as never)
   await assert.doesNotReject(() => development.boot())
-})
-
-test('proxy protocol headers affect origin checks only when proxy trust is enabled', ({
-  assert,
-}) => {
-  const request = {
-    origin: 'http://capacity.example.test',
-    host: 'capacity.example.test',
-    protocol: 'https',
-    forwardedProtocol: 'http',
-  }
-  assert.isFalse(isTrustedUnsafeOrigin({ ...request, trustProxy: false }))
-  assert.isTrue(isTrustedUnsafeOrigin({ ...request, trustProxy: true }))
-  assert.isFalse(
-    isTrustedUnsafeOrigin({
-      ...request,
-      host: 'attacker.example.test',
-      trustProxy: true,
-    })
-  )
 })
 
 test('production screens passwords by default and only skips screening after explicit opt-out', async ({

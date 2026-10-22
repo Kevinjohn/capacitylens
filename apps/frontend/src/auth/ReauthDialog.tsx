@@ -243,7 +243,6 @@ const reauthActionLabels: Record<ReauthAction, () => string> = {
   "connect-provider": () => m.reauth_action_connect_provider(),
   "correct-member-email": () => m.reauth_action_correct_member_email(),
   "remove-federated-link": () => m.reauth_action_remove_federated_link(),
-  "delete-company": () => m.reauth_action_delete_company(),
   "change-sign-in-tracking": () => m.reauth_action_change_sign_in_tracking(),
   "change-member-role": () => m.reauth_action_change_member_role(),
   "change-member-status": () => m.reauth_action_change_member_status(),
@@ -255,8 +254,6 @@ const reauthActionLabels: Record<ReauthAction, () => string> = {
   "revoke-invitation": () => m.reauth_action_revoke_invitation(),
   "lifecycle-archive": () => m.reauth_action_lifecycle_archive(),
   "lifecycle-restore": () => m.reauth_action_lifecycle_restore(),
-  "lifecycle-delete": () => m.reauth_action_lifecycle_delete(),
-  "lifecycle-purge": () => m.reauth_action_lifecycle_purge(),
 };
 
 function reauthActionLabel(action: ReauthAction): string {

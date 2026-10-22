@@ -61,7 +61,8 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
 - ✅ **Team & access** and **Settings** are the last two links, in that order, below the divider —
   they never appear among the working destinations above it.
 - ✅ The sidebar has exactly one avatar-led **Account** row at the bottom and no separate **Sign out**
-  row. Real and demo sign-out is on **Account**; auth-off/local has no sign-out action.
+  row. Persisted sessions sign out from **Account**; the demo's sample-account choice can also be
+  cleared there.
 - ✅ **Schedule** renders the scheduler grid (`data-testid="scheduler-grid"`).
 - ✅ Each available destination renders its screen with at least the seeded rows /
   fields visible (e.g. _Bruce Wayne_ on Resources, _Queen Consolidated_ on Clients, the

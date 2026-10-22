@@ -302,7 +302,6 @@ test("ships an environment example that refuses open production access by defaul
     "CAPACITYLENS_SECRET=",
     "CAPACITYLENS_PUBLIC_URL=https://capacity.example.com",
     "CAPACITYLENS_SETUP_TOKEN=",
-    "CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=0",
     "CAPACITYLENS_AUDIT=on",
     "CAPACITYLENS_TRUST_PROXY_HEADERS=1",
     "CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db",
@@ -342,14 +341,13 @@ test("keeps the shipped nginx site's headers and log suppression in step with th
     "$capacitylens_connect_src",
     "'self'",
   );
-  // The site is the TLS edge itself, so HSTS is host-only, as the server's own header is.
-  expected["Strict-Transport-Security"] = "max-age=63072000";
   expected["Cache-Control"] = "$capacitylens_cache_control";
   assert.deepEqual(headerValues(site), expected);
 
   const silenced = (conf) => [...conf.matchAll(/location\s+(~[^{]*)\{\s*access_log off;/g)].map((match) => match[1]);
   assert.equal(silenced(edge).length, 3);
   assert.deepEqual(silenced(site), silenced(edge));
+  assert.match(site, /location ~ \^\/api\/auth\/\(callback\|oauth2\/callback\)\/ \{\s*access_log off;/);
   assert.match(site, /client_max_body_size 6m;/);
   assert.match(site, /root \/opt\/capacitylens\/current\/backend\/public;/);
   const health = site.match(/location \^~ \/health\/ \{([^}]*)\}/)?.[1];

@@ -8,20 +8,23 @@ import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "@/test/fixtures";
 import { PermissionContext } from "@/auth/permissionContext";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 
-beforeEach(() => resetStoreWithAccount());
+beforeEach(async () => {
+  await resetStoreWithAccount();
+});
 
 describe("ProjectForm", () => {
-  const installInternalClient = () => {
+  const installInternalClient = async () => {
     const state = useStore.getState();
     const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, "2026-05-01T00:00:00.000Z");
     state.replaceAll({ ...state.data, clients: [...state.data.clients, internal] });
+    await useStore.getState().refreshPlanning();
     return internal;
   };
 
   it("stores an owner-configured private project and normalizes display quotes out of storage", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111111" }));
+    const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111111" }));
     render(<ProjectForm onClose={onClose} />);
 
     await user.type(screen.getByLabelText("Name"), "Secret Launch");
@@ -42,7 +45,7 @@ describe("ProjectForm", () => {
   it("rejects a code name that contains only display quotes", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111111" }));
+    const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111111" }));
     render(<ProjectForm onClose={onClose} />);
 
     await user.type(screen.getByLabelText("Name"), "Secret Launch");
@@ -61,9 +64,9 @@ describe("ProjectForm", () => {
     expect(useStore.getState().data.projects).toHaveLength(0);
   });
 
-  it("does not expose privacy settings or an editable redacted name to a non-owner", () => {
-    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111111" }));
-    const created = requireCreated(
+  it("does not expose privacy settings or an editable redacted name to a non-owner", async () => {
+    const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111111" }));
+    const created = await requireCreated(
       useStore.getState().addProject({ name: "Real project", clientId: client.id, color: "#ec4899" }),
     );
     const project = { ...created, name: '"Aurora"', isPrivate: true };
@@ -95,7 +98,7 @@ describe("ProjectForm", () => {
   it("saves when a client is chosen", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
+    const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     render(<ProjectForm onClose={onClose} />);
 
     await user.type(screen.getByLabelText("Name"), "New Project");
@@ -108,10 +111,10 @@ describe("ProjectForm", () => {
     expect(useStore.getState().data.projects[0]?.clientId).toBe(client.id);
   });
 
-  it("pins Internal above a divider and sorts ordinary clients alphabetically", () => {
-    const internal = installInternalClient();
-    const zulu = requireCreated(useStore.getState().addClient({ name: "Zulu", color: "#111111" }));
-    const alpha = requireCreated(useStore.getState().addClient({ name: "alpha", color: "#222222" }));
+  it("pins Internal above a divider and sorts ordinary clients alphabetically", async () => {
+    const internal = await installInternalClient();
+    const zulu = await requireCreated(useStore.getState().addClient({ name: "Zulu", color: "#111111" }));
+    const alpha = await requireCreated(useStore.getState().addClient({ name: "alpha", color: "#222222" }));
     const { baseElement } = render(<ProjectForm onClose={vi.fn()} />);
 
     fireEvent.keyDown(screen.getByLabelText("Client"), { key: "ArrowDown" });
@@ -130,7 +133,7 @@ describe("ProjectForm", () => {
   });
 
   it("hides the colour picker for an Internal-owned project in the default grey mode", async () => {
-    const internal = installInternalClient();
+    const internal = await installInternalClient();
     render(<ProjectForm onClose={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: /^Colour/ })).toBeInTheDocument();
@@ -141,8 +144,8 @@ describe("ProjectForm", () => {
 
   it("hides the colour picker for an Internal project and preserves its saved colour on edit", async () => {
     const user = userEvent.setup();
-    const internal = installInternalClient();
-    const project = requireCreated(
+    const internal = await installInternalClient();
+    const project = await requireCreated(
       useStore.getState().addProject({
         name: "Planning",
         clientId: internal.id,
@@ -164,8 +167,8 @@ describe("ProjectForm", () => {
   it("renames a project under an archived client without forcing a reassignment", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
-    const project = requireCreated(
+    const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
+    const project = await requireCreated(
       useStore.getState().addProject({ name: "Alpha", clientId: client.id, color: "#ec4899" }),
     );
     useStore.getState().archiveEntity("clients", client.id);
@@ -189,8 +192,8 @@ describe("ProjectForm", () => {
   it("rejects a stale edit instead of overwriting a concurrently changed project", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#2d75da" }));
-    const project = requireCreated(
+    const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#2d75da" }));
+    const project = await requireCreated(
       useStore.getState().addProject({
         name: "Launch",
         clientId: client.id,
@@ -199,7 +202,7 @@ describe("ProjectForm", () => {
     );
     render(<ProjectForm project={project} onClose={onClose} />);
 
-    useStore.getState().updateProject(project.id, { color: "#e02727" });
+    await useStore.getState().updateProject(project.id, { color: "#e02727" });
     await user.clear(screen.getByLabelText("Name"));
     await user.type(screen.getByLabelText("Name"), "Launch renamed");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -212,8 +215,8 @@ describe("ProjectForm", () => {
   it("keeps the form open when the project vanished during editing", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#2d75da" }));
-    const project = requireCreated(
+    const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#2d75da" }));
+    const project = await requireCreated(
       useStore.getState().addProject({
         name: "Launch",
         clientId: client.id,

@@ -4,8 +4,7 @@ import { Bouncer } from '@adonisjs/bouncer'
 import DataPolicy from '#policies/data_policy'
 import { activeCompanyRole } from '#services/auth/authorization'
 import { effectiveReadPrincipal, activeMasquerade } from '#services/auth/masquerade'
-import { authMode } from '#services/auth/mode'
-import type { BatchCapabilities } from '#services/batch/data_policy'
+import type { BatchCapabilities } from '#services/planning_operations/data_policy'
 import { can, canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access'
 import type { Role } from '@capacitylens/shared/account/types'
 import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities'
@@ -18,6 +17,7 @@ import {
   PlanningOperationError,
 } from '#services/planning_operations/execute'
 import { writeAudit } from '#services/audit'
+import { unconsumedGroupId } from '#services/planning_operations/restoration'
 import {
   assertPlanningBaseRevision,
   mutationLookupValidator,
@@ -50,16 +50,8 @@ async function currentAuthority(
   trx: TransactionClientContract,
   accountId: string
 ) {
-  const principal =
-    authMode() === 'off'
-      ? {
-          actorId: ctx.auth.use('trustedLocal').getUserOrFail().id,
-          effectiveId: ctx.auth.use('trustedLocal').getUserOrFail().id,
-          accountId: null,
-        }
-      : await effectiveReadPrincipal(ctx, trx)
-  const role =
-    authMode() === 'off' ? 'owner' : await activeCompanyRole(principal.effectiveId, accountId, trx)
+  const principal = await effectiveReadPrincipal(ctx, trx)
+  const role = await activeCompanyRole(principal.effectiveId, accountId, trx)
   if (!role || (principal.accountId !== null && principal.accountId !== accountId))
     throw new PlanningOperationError(
       403,
@@ -76,19 +68,18 @@ async function currentAuthority(
       'account_membership_lost',
       'Company membership is unavailable.'
     )
-  const masquerading =
-    authMode() !== 'off' && (await activeMasquerade(ctx.session.sessionId, trx)) !== null
+  const masquerading = (await activeMasquerade(ctx.session.sessionId, trx)) !== null
   const authority: PlanningAuthority = {
     actorId: principal.actorId,
     effectiveActorId: principal.effectiveId,
     role,
-    canWrite: authMode() !== 'off' && !masquerading && can(role, 'write'),
+    canWrite: !masquerading && can(role, 'write'),
     canSeePrivateNames: canSeePrivateNames(role),
     canSeeTimeOffNote: canSeeTimeOffNote(role),
   }
   const capabilities: BatchCapabilities = {
     ...authority,
-    canPurge: !masquerading && can(role, 'purge'),
+    canAnonymise: !masquerading && can(role, 'anonymise'),
   }
   return { authority, capabilities, bouncer }
 }
@@ -136,7 +127,6 @@ function projectionChanges(before: AppData, after: AppData) {
 }
 
 function requiresRefetch(intent: PlanningMutationInput['intent']) {
-  if (intent.operation === 'settings.update') return true
   if (intent.operation === 'catalogue.update' && 'changes' in intent.entity)
     return (
       Object.hasOwn(intent.entity.changes, 'isPrivate') ||
@@ -146,14 +136,30 @@ function requiresRefetch(intent: PlanningMutationInput['intent']) {
   return false
 }
 
+function invalidatesRestoration(
+  intent: PlanningMutationInput['intent'],
+  before: AppData,
+  after: AppData
+) {
+  if (intent.operation !== 'catalogue.update') return false
+  const { entity, id, changes } = intent.entity
+  if (entity !== 'clients' && entity !== 'projects' && entity !== 'activities') return false
+  const fields = entity === 'activities' ? ['kind'] : ['isPrivate', 'codeName']
+  const oldRow = before[entity].find((row) => row.id === id)
+  const newRow = after[entity].find((row) => row.id === id)
+  return fields.some(
+    (field) =>
+      Object.hasOwn(changes, field) &&
+      oldRow?.[field as keyof typeof oldRow] !== newRow?.[field as keyof typeof newRow]
+  )
+}
+
 /** Commits one deliberate operation, its revision, audit entry and identity as one atomic unit. */
 export function mutatePlanning(
   ctx: HttpContext,
   accountId: string,
   input: PlanningMutationInput
 ): Promise<PlanningMutationSuccess> {
-  if (authMode() === 'off')
-    throw new PlanningOperationError(401, 'unauthenticated', 'Sign in to edit planning data.')
   return withTransaction(async (trx) => {
     const { authority, capabilities, bouncer } = await currentAuthority(ctx, trx, accountId)
     if (!(await bouncer.with(DataPolicy).allows('write', { accountId, capabilities })))
@@ -175,7 +181,14 @@ export function mutatePlanning(
       input.mutationId
     )
     const before = await readStateWithClient(trx, accountId, true)
-    await executePlanningIntent(trx, accountId, input.intent, capabilities, structuredClone(before))
+    const restoration = await executePlanningIntent(
+      trx,
+      accountId,
+      input.intent,
+      capabilities,
+      structuredClone(before),
+      { actorId: authority.actorId, sessionId: ctx.session.sessionId, mutationId: input.mutationId }
+    )
     const after = await readStateWithClient(trx, accountId, true)
     if (semanticState(before) === semanticState(after))
       throw new PlanningOperationError(
@@ -183,12 +196,18 @@ export function mutatePlanning(
         'no_change',
         'The operation does not change planning data.'
       )
+    // Private names and activity kind can change what a saved before-image may safely reveal.
+    // A restoration group is valid only until one of those fields actually changes.
+    if (invalidatesRestoration(input.intent, before, after))
+      await trx.from('deleted_groups').where('account_id', accountId).delete()
     const revision = await advancePlanningRevision(trx, accountId)
     await trx.table('planning_mutations').insert({
       account_id: accountId,
       mutation_id: input.mutationId,
       actor_id: authority.actorId,
       revision,
+      restoration_group_id: restoration.replacementGroupId,
+      origin_session_id: restoration.replacementGroupId ? ctx.session.sessionId : null,
     })
     const changed = projectionChanges(
       transformState(before, accountId, authority.role),
@@ -211,7 +230,7 @@ export function mutatePlanning(
       status: 'committed',
       mutationId: input.mutationId,
       revision,
-      restoration: { consumedGroupId: null, replacementGroupId: null },
+      restoration,
       projection: requiresRefetch(input.intent)
         ? { mode: 'refetch', history: 'clear' }
         : { mode: 'patch', history: 'retain', changed },
@@ -232,9 +251,18 @@ export function lookupPlanningMutation(
       .where({ account_id: accountId, actor_id: authority.actorId, mutation_id: mutationId })
       .select('revision')
       .first()
-    return marker
-      ? { status: 'committed', mutationId, revision: Number(marker.revision) }
-      : { status: 'unknown', mutationId }
+    if (!marker) return { status: 'unknown', mutationId }
+    const restorationGroupId = await unconsumedGroupId(trx, accountId, {
+      actorId: authority.actorId,
+      sessionId: ctx.session.sessionId,
+      mutationId,
+    })
+    return {
+      status: 'committed',
+      mutationId,
+      revision: Number(marker.revision),
+      ...(restorationGroupId ? { restorationGroupId } : {}),
+    }
   })
 }
 

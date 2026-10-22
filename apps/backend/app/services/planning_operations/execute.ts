@@ -10,13 +10,19 @@ import {
   unarchive,
 } from '@capacitylens/shared/domain/lifecycle'
 import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities'
-import { BatchRequestError } from '#services/batch/errors'
-import { createServerRevision } from '#services/batch/revision'
+import { BatchRequestError } from '#services/planning_operations/errors'
+import { createServerRevision } from '#services/planning_operations/revision'
 import { encodeRow } from '#services/state_repository'
-import { TABLE_NAMES } from '#services/batch/entity_policy'
-import type { PlanningIntent } from '#validators/planning_operations'
-import type { BatchCapabilities } from '#services/batch/data_policy'
+import { TABLE_NAMES } from '#services/planning_operations/entity_policy'
+import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning_operations'
+import type { BatchCapabilities } from '#services/planning_operations/data_policy'
 import { existingRow, PlanningOperationError, updateSettings, writeRow } from './writer.js'
+import {
+  deleteAllocations,
+  deleteRows,
+  restoreGroup,
+  type RestorationIdentity,
+} from './restoration.js'
 export { PlanningOperationError } from './writer.js'
 
 type LifecycleTable = Extract<AppDataKey, 'clients' | 'projects' | 'resources' | 'activities'>
@@ -64,8 +70,8 @@ async function transitionLifecycle(
   const current = existingRow(data, table, id)
   if (table === 'clients' && current.builtin === true)
     throw new PlanningOperationError(
-      400,
-      'validation_error',
+      409,
+      'conflict',
       `The built-in Internal client cannot be ${action === 'archive' ? 'archived' : 'unarchived'}.`
     )
   const now = createServerRevision(current.updatedAt)
@@ -101,14 +107,17 @@ async function transitionLifecycle(
 /**
  * Applies one intent to the caller's transaction and mutable, complete company snapshot.
  * The caller retains a separate before-image and owns rollback, revision, audit and commitment.
+ * Typed allocation deletes return a new restoration group; restore returns the group it consumed.
  */
 export async function executePlanningIntent(
   trx: TransactionClientContract,
   accountId: string,
   intent: PlanningIntent,
   capabilities: BatchCapabilities,
-  data: AppData
-): Promise<void> {
+  data: AppData,
+  identity: RestorationIdentity
+): Promise<PlanningMutationSuccess['restoration']> {
+  const unchanged = { consumedGroupId: null, replacementGroupId: null }
   if (!capabilities.canWrite || capabilities.role === 'viewer')
     throw new PlanningOperationError(403, 'authorization_denied', 'Write access is required.')
   if (!data.accounts.some((row) => row.id === accountId))
@@ -126,7 +135,7 @@ export async function executePlanningIntent(
           capabilities,
           'create'
         )
-        return
+        return unchanged
       case 'allocation.createGroup': {
         assertAllocationGroupHomogeneous(intent.allocations)
         const seriesId = crypto.randomUUID()
@@ -143,7 +152,7 @@ export async function executePlanningIntent(
             { permissiveRepeatStart: index > 0 }
           )
         }
-        return
+        return unchanged
       }
       case 'allocation.update':
         await writeRow(
@@ -156,7 +165,7 @@ export async function executePlanningIntent(
           capabilities,
           'update'
         )
-        return
+        return unchanged
       case 'allocation.duplicate':
       case 'allocation.repeat': {
         const source = existingRow(data, 'allocations', intent.sourceAllocationId)
@@ -188,7 +197,7 @@ export async function executePlanningIntent(
             { permissiveRepeatStart: intent.operation === 'allocation.repeat' && index > 0 }
           )
         }
-        return
+        return unchanged
       }
       case 'catalogue.create':
       case 'catalogue.update': {
@@ -219,7 +228,7 @@ export async function executePlanningIntent(
             }
           }
         }
-        return
+        return unchanged
       }
       case 'catalogue.archive':
       case 'catalogue.unarchive':
@@ -231,7 +240,18 @@ export async function executePlanningIntent(
           intent.entity.id,
           intent.operation === 'catalogue.archive' ? 'archive' : 'unarchive'
         )
-        return
+        return unchanged
+      case 'catalogue.delete': {
+        const groupId = await deleteRows(
+          trx,
+          data,
+          accountId,
+          intent.entity.entity,
+          [intent.entity.id],
+          identity
+        )
+        return { consumedGroupId: null, replacementGroupId: groupId }
+      }
       case 'resource.create':
       case 'resource.update':
         await writeRow(
@@ -244,7 +264,7 @@ export async function executePlanningIntent(
           capabilities,
           intent.operation === 'resource.create' ? 'create' : 'update'
         )
-        return
+        return unchanged
       case 'resource.archive':
       case 'resource.unarchive':
         await transitionLifecycle(
@@ -255,7 +275,7 @@ export async function executePlanningIntent(
           intent.id,
           intent.operation === 'resource.archive' ? 'archive' : 'unarchive'
         )
-        return
+        return unchanged
       case 'timeOff.create':
         await writeRow(
           trx,
@@ -267,7 +287,7 @@ export async function executePlanningIntent(
           capabilities,
           'create'
         )
-        return
+        return unchanged
       case 'timeOff.update':
         await writeRow(
           trx,
@@ -279,11 +299,17 @@ export async function executePlanningIntent(
           capabilities,
           'update'
         )
-        return
+        return unchanged
       case 'timeOff.repeat':
         for (const entry of intent.entries)
           await writeRow(trx, data, accountId, 'timeOff', entry.id, entry, capabilities, 'create')
-        return
+        return unchanged
+      case 'timeOff.delete':
+      case 'timeOff.deleteGroup': {
+        const ids = intent.operation === 'timeOff.delete' ? [intent.id] : intent.ids
+        const groupId = await deleteRows(trx, data, accountId, 'timeOff', ids, identity)
+        return { consumedGroupId: null, replacementGroupId: groupId }
+      }
       case 'closure.create':
       case 'closure.update':
         await writeRow(
@@ -296,10 +322,23 @@ export async function executePlanningIntent(
           capabilities,
           intent.operation === 'closure.create' ? 'create' : 'update'
         )
-        return
+        return unchanged
+      case 'closure.delete': {
+        const groupId = await deleteRows(trx, data, accountId, 'closures', [intent.id], identity)
+        return { consumedGroupId: null, replacementGroupId: groupId }
+      }
       case 'settings.update':
         await updateSettings(trx, data, accountId, intent.changes, capabilities)
-        return
+        return unchanged
+      case 'allocation.delete':
+      case 'allocation.deleteGroup': {
+        const ids = intent.operation === 'allocation.delete' ? [intent.id] : intent.ids
+        const groupId = await deleteAllocations(trx, data, accountId, ids, identity)
+        return { consumedGroupId: null, replacementGroupId: groupId }
+      }
+      case 'planning.restoreGroup':
+        await restoreGroup(trx, accountId, intent.restorationGroupId, identity)
+        return { consumedGroupId: intent.restorationGroupId, replacementGroupId: null }
       default:
         throw new PlanningOperationError(
           403,

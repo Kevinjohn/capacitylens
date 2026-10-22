@@ -5,10 +5,10 @@ import { resetStoreWithAccount } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
 import { ClosureForm } from "./ClosureForm";
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-06-03T12:00:00.000Z"));
-  resetStoreWithAccount();
+  await resetStoreWithAccount();
 });
 
 afterEach(() => {

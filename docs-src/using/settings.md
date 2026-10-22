@@ -10,7 +10,7 @@ next: false
 Choose how the schedule looks in your browser, and set the planning rules your whole company
 shares.
 
-![Settings showing My display and this-browser preferences](../screenshots/flows/using_settings_1.png)
+![Settings showing My display preferences and the company anonymisation action](../screenshots/flows/using_settings_1.png)
 
 Open **Settings** near the bottom of the left menu. One scrollable page holds four groups. Each
 row's question-mark button, **About &lt;section&gt;**, opens a fuller explanation.
@@ -20,7 +20,7 @@ row's question-mark button, **About &lt;section&gt;**, opens a fuller explanatio
 | My display          | Only you, in this browser. Everyone can change it.                                                                     |
 | Company setup       | Everyone. Editors and above change units, working days and date format; only Owners and Admins change Overview access. |
 | Scheduling features | Everyone. Editors and above change the **Company features** switches. A Viewer sees them disabled.                     |
-| Data and support    | Example data, import and export and company details. Actions depend on your role.                      |
+| Data and support    | Example data, import and export, resource anonymisation and company details. Actions depend on your role. |
 
 ![Settings with the Company setup group, full-width choices and compact rows](../screenshots/flows/settings_overview.png)
 
@@ -32,7 +32,7 @@ managing the plan.
 These preferences are saved in this browser. They don't change a teammate's display or travel
 with an export.
 
-![The My display group with Schedule on this device, allocation labels, utilisation figures and appearance preferences](../screenshots/flows/settings_schedule_device.png)
+![My display preferences above Data and support, including the company anonymisation action](../screenshots/flows/settings_schedule_device.png)
 
 - **Schedule on this device:** **Minimise weekends** narrows Saturday and Sunday so the working
   week gets more room. Weekend work still appears.
@@ -77,13 +77,15 @@ booking ignores working days.
 
 Choose how planning dates read for everyone: **9 Sep**, **9th Sep**, **Sep 9** or **Sep 9th**.
 It applies to dates and ranges across the app, including Schedule and Time off, and takes effect
-without a reload. You can undo it.
+without a reload.
+Saved company setting changes, including date format, can be undone and redone in the current page
+session. Reloading starts a new history; the saved setting remains shared by the company.
 
 - Compact weekday dates on Time off always keep the ordinal: with **9 Sep**, a Wednesday reads
   **Wed 9th Sep**.
 - A range crossing a year shows the year at both ends, except in Overview's narrow week headings.
-- The date format is not in the JSON from **Import and export**, and an import keeps the
-  destination company's format.
+- The date format is in the beta JSON from **Import and export**. Importing a full document
+  replaces the destination company's date format along with its other supported settings.
 
 Times tied to an event, such as session and invitation expiry and ownership-transfer deadlines,
 use your browser's language and time zone instead.
@@ -147,8 +149,8 @@ was saved. The app never replaces a failed read with a browser snapshot or queue
 
 Owners and Admins see **Example data** only while the company has no people, clients, projects or
 bookings. **Add example data** adds two people, a client, a project and a few bookings across
-this week and next. They are ordinary records; delete them like any others. The request is refused
-if the company already holds any of these, including archived or deleted ones.
+this week and next. They are ordinary records that can be archived. The request is refused
+if the company already holds any of these, including archived ones.
 
 <!-- Compatibility anchor for existing links to import and export. -->
 
@@ -159,16 +161,35 @@ if the company already holds any of these, including archived or deleted ones.
 **Export JSON** downloads the current company's scheduling records. **Import JSON** replaces those
 records after you confirm; in signed-in server deployments, only an Owner can import.
 
-Files must contain valid JSON accepted by the server's standard request parser. Malformed JSON is
-refused before anything is replaced. Recognised older record values may be repaired or skipped, and
-the skipped count is shown afterwards. The company's settings, including date format, and your
-browser preferences are not part of the file.
+The file must be a full `capacitylens-beta` version `1` export. It includes the company and its
+planning records, with their IDs and supported settings. It excludes members, sign-in details and
+browser preferences. A redacted export can be inspected but cannot replace company data. Invalid
+fields and missing links are refused rather than repaired.
 
-### Beta JSON preview {#beta-transfer-contract}
+Choose a file and select **Continue** to preview it without changing anything. Review the company
+and record count, then select **Replace data**. In a signed-in installation, confirm this exact
+import with your password or linked Google identity. A recent sign-in alone is not enough. A
+password confirmation is bound to this file and company; Google confirmation checks the linked
+Google identity on return. Cancel leaves the company unchanged. If the company changed since the
+preview, preview again before retrying. After returning from Google, choose the same file again;
+the browser does not keep its contents during the confirmation journey.
 
-The beta preview checks a file without changing your data. It is not connected to Settings yet.
-The **Export JSON** and **Import JSON** controls continue to use the existing format described
-above.
+### Beta transfer contract {#beta-transfer-contract}
+
+Import replaces the selected company's scheduling records and supported settings atomically. It
+keeps the IDs in the file and existing member-to-person links, which means every linked person
+must still be present. Another company's data stays in place. An import cannot be undone. Export
+before replacing data if you may need the current version. The temporary demo performs the same
+strict file checks in page memory; refreshing restores the demo seed.
+
+### Anonymise all people
+
+An Owner can select **Anonymise all people** to remove personal details and dependent booking and
+time-off notes across the company, including placeholders and external people. Clients, projects
+and activities stay unchanged. The company,
+its members and planning links remain. This cannot be undone. A signed-in Owner confirms the exact
+action with their password or linked Google identity. In the editable demo, the same change stays
+in temporary page memory and does not require sign-in. Refreshing resets the demo.
 
 ### Company details {#calendar}
 
@@ -179,7 +200,7 @@ created and cannot be changed.
 Owners and Admins can copy build details and a support report from
 [Diagnostics](/admin/diagnostics).
 
-![Appearance preferences above Data and support, with Import and export closed](../screenshots/flows/settings_account_disclosures.png)
+![Data and support with company anonymisation, Import and export closed, and company details](../screenshots/flows/settings_account_disclosures.png)
 
 ## Change your sign-in or password
 

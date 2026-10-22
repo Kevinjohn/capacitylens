@@ -1,6 +1,6 @@
 ---
-title: Set up your company
-description: Your first steps as the Owner. Sign in with the setup token, create the company, invite an Admin and hand over.
+title: Access your company
+description: Sign in, check company access, invite an Admin and hand over.
 prev: false
 next: false
 ---
@@ -10,10 +10,10 @@ next: false
 <span id="when-you-are-done"></span>
 <span id="what-s-next"></span>
 
-# Set up your company
+# Access your company
 
-You own the company in CapacityLens. Your job is short: create the company and give someone
-the day-to-day running of it. Four steps, then you can stop.
+If your installation has a provisioned company and your identity has Owner membership, you can
+give someone the day-to-day running of it. Sign-in setup alone does not create that company.
 
 You need the CapacityLens address and the [setup token](/reference/glossary#setup-token) from
 whoever installed it.
@@ -24,15 +24,12 @@ whoever installed it.
 
    **Sign in for the first time.** Open the address. Enter your name, email and a password, and
    paste the setup token into **Owner setup token**. Select **Create my sign-in**. The token works
-   once. If your installer set up Google or Microsoft sign-in, choose that instead.
+   once. If your installer set up Google sign-in, choose that instead.
 
-2. ![Company form with Company name, Week starts on, Timezone, Language, Start with example data ticked and Create company](../screenshots/steps/owner_create_company_form.png)
-
-   **Create the company.** Enter its name, then choose the day the week starts and your time zone.
-   These two apply to everyone and **cannot be changed later**. **Start with example data** is
-   ticked by default for your first company; for a real company, clear it so your Admin doesn't
-   inherit fictional people. The [demo](/getting-started/try-the-demo) is for exploring. Select
-   **Create company**.
+2. **Check company access.** After first sign-in setup, ask your installer to run the stopped-server
+   [first-company command](/owner/create-your-company), then sign in again to open your company.
+   The [demo](/getting-started/try-the-demo) lets you edit fictional companies, but its changes are
+   lost on reload.
 
 3. ![Invite someone dialog with Role set to Admin, an email address, No Resource linked and Create invite](../screenshots/steps/owner_invite_admin_dialog.png)
 
@@ -54,15 +51,15 @@ Running the company yourself as well? Skip step 3 and go straight to
 ## What stays with you
 
 Appointing an Admin does not make them the Owner. Deciding who can join, transferring ownership,
-importing data and deleting the company stay with you.
+and importing data stay with you.
 [Owner responsibilities](/owner/responsibilities) covers each of them.
 
 <span id="in-more-detail"></span>
 
 ## Go further
 
-- [Create your company](/owner/create-your-company): company login, a rejected token, and the
-  example data.
+- [Access your company](/owner/create-your-company): company login, a rejected token, and the
+  first-company setup.
 - [Appoint an Admin](/owner/appoint-an-admin): lost links, pending invitations and linking a
   scheduled person.
 - [Roles and permissions](/getting-started/roles-and-permissions) for what each role can see and

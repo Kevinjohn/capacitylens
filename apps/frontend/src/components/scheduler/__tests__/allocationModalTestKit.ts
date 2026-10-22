@@ -11,7 +11,6 @@ import {
   makeClient,
   makeProject,
   makeResourceDraft,
-  setPlaceholdersEnabled,
 } from "@/test/fixtures";
 import { chooseOption } from "./schedulerTestKit";
 
@@ -60,12 +59,13 @@ export function restoreStoreAllocationActions(): void {
 }
 
 /** Resets allocation modal fixtures and patched actions between tests. */
-export function resetAllocationModalStore(): void {
+export async function resetAllocationModalStore(): Promise<void> {
   restoreStoreAllocationActions();
   useStore.getState().replaceAll(base());
   useStore.getState().setActiveAccount(ACC);
+  await useStore.getState().refreshPlanning();
   // Enable placeholders for assignment fixtures because the picker hides them by default. A current hidden assignee remains selectable while editing.
-  setPlaceholdersEnabled({ on: true });
+  await useStore.getState().updateAccount(ACC, { placeholdersEnabled: true });
 }
 
 /** Builds a person fixture with the supplied display name. */

@@ -93,20 +93,10 @@
       "types": "./src/data/internalClient.ts",
       "default": "./dist/data/internalClient.js"
     },
-    "./data/migrate": {
-      "development": "./src/data/migrate.ts",
-      "types": "./src/data/migrate.ts",
-      "default": "./dist/data/migrate.js"
-    },
     "./data/seed": {
       "development": "./src/data/seed.ts",
       "types": "./src/data/seed.ts",
       "default": "./dist/data/seed.js"
-    },
-    "./data/transfer": {
-      "development": "./src/data/transfer.ts",
-      "types": "./src/data/transfer.ts",
-      "default": "./dist/data/transfer.js"
     },
     "./data/betaTransfer": {
       "development": "./src/data/betaTransfer.ts",

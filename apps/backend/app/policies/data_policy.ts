@@ -1,5 +1,5 @@
 import { BasePolicy } from '@adonisjs/bouncer'
-import type { BatchCapabilities } from '#services/batch/data_policy'
+import type { BatchCapabilities } from '#services/planning_operations/data_policy'
 
 export interface DataPolicyActor {
   id: string
@@ -20,12 +20,12 @@ export default class DataPolicy extends BasePolicy {
     return actor.id.length > 0 && target.accountId.length > 0 && target.capabilities.canWrite
   }
 
-  purge(actor: DataPolicyActor, target: DataPolicyTarget) {
+  anonymise(actor: DataPolicyActor, target: DataPolicyTarget) {
     return (
       actor.id.length > 0 &&
       target.accountId.length > 0 &&
       target.capabilities.canWrite &&
-      target.capabilities.canPurge
+      target.capabilities.canAnonymise
     )
   }
 }

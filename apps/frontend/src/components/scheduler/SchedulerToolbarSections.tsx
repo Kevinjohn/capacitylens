@@ -27,9 +27,9 @@ interface ChromeProps {
   canEdit: boolean;
   canUndo: boolean;
   canRedo: boolean;
-  undo: StoreState["undo"];
-  redo: StoreState["redo"];
-  runHistoryAction: (action: () => void) => void;
+  undo: StoreState["undoPlanning"];
+  redo: StoreState["redoPlanning"];
+  runHistoryAction: (action: () => Promise<unknown>) => void;
   filtersOpen: boolean;
   setFiltersOpen: (value: boolean | ((open: boolean) => boolean)) => void;
 }

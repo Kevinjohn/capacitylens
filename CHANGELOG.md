@@ -7,7 +7,53 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Align remaining security-header and first-company guides with native setup and the supported Google provider.
+
+### Changed
+
+- Require `--disposable` for non-production `app:reset`; production resets are refused before archiving. The nginx example no longer duplicates application HSTS or configures obsolete CSP reporting. `db:seed` now adds missing fixture rows without replacing existing product data or audit history. Diagnostics now show the last applied migration and newest completed snapshot modification time.
+
+- Native installations can initialize their first company and Owner for an existing identity with
+  the stopped-server `company:initialize` command. Setup refuses existing company access and
+  leaves credentials and identity admission unchanged.
+- Persisted access now requires an authenticated principal and one provisioned company. The
+  temporary demo keeps its editable, volatile multi-company picker. Retired generic company and
+  batch writes, browser sync queues and their recovery controls; scheduling changes use typed
+  planning commands and server revisions.
+- Frozen company calendar fields now reject a second typed settings change with 409.
+- Resource and catalogue records now use typed archive and restore actions. Owners and Admins can
+  anonymise a person; only an Owner can anonymise all people in the company. Clients, projects,
+  activities, the company, memberships and planning links remain while personal details and
+  dependent notes are scrubbed.
+- Removed company deletion, lifecycle soft-delete and purge actions, including the 30-day purge
+  countdown and generic lifecycle routes.
+- Clarified that creating a sign-in identity does not provision a company or Owner membership, and
+  refreshed Settings guide screenshots.
+
+### Fixed
+
+- Refuse allocation restoration when current references or resource availability are incompatible, keeping the deletion available for retry.
+
 ### Added
+
+- Beta-native company export, preview and atomic Owner import now preserve stable planning IDs,
+  company settings and member links. Ownership transfer and import require a single-use
+  confirmation bound to the exact action and native session; password or linked Google identity
+  can confirm, and a recent sign-in alone cannot. Unchanged imports leave revision and audit
+  untouched.
+
+- Typed planning writes now cover disciplines, phases, personal time off, closures and company
+  settings. Session-bound deletion restoration reconnects surviving phase and discipline links
+  without overwriting later edits, and Undo/Redo covers the migrated actions in the editable demo
+  and authenticated app.
+
+- Typed allocation deletion and restoration routes. Deleting one allocation or a listed set saves
+  the complete rows as a restoration group bound to the deleting company, person and session;
+  restoring it reinserts them unchanged, once, with one revision and audit entry per action.
+  Commitment lookup returns the unconsumed group to its own session, and revoking a person's
+  sessions removes their groups.
 
 - Typed allocation-group creation and catalogue/resource archive and unarchive operations preserve
   stable IDs and commit one revision per action. Existing deletion and Undo paths remain active
@@ -59,6 +105,22 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Keep the no-login demo editable with temporary in-memory scheduling data, while requiring
+  authenticated company membership for every persisted server. Retire anonymous persisted
+  `CAPACITYLENS_MODE=off` access.
+- The schedule saves every booking change as one typed planning request: create, move, resize,
+  reassign, duplicate, repeat and delete. Toolbar and keyboard Undo and Redo replay those booking
+  changes through typed inverses, and Undo of a deletion restores the saved rows. Undo and Redo
+  now cover booking changes only, and import and deletion messages no longer offer an undo shortcut.
+  Other changes no longer send bookings in the general batch. A stale edit shows the server's schedule without a
+  toast, a refused change keeps the schedule and shows a refusal, and a lost sign-in clears the
+  schedule and its history together. The demo keeps booking changes in page memory only.
+- The server sends host-only one-year HSTS and `Secure` `__Host-` session cookies whenever
+  `CAPACITYLENS_PUBLIC_URL` is HTTPS; `CAPACITYLENS_HTTPS` is removed. With
+  `CAPACITYLENS_TRUST_PROXY_HEADERS` set, forwarded client address and scheme headers are trusted
+  from loopback connections only, and rate limits key on the nearest untrusted address; otherwise
+  no forwarded header is trusted.
+
 - Native SQLite snapshots run at startup and every 24 hours, retaining the configured number of
   completed managed backups. Manual snapshots use the same retention; pre-upgrade recovery
   snapshots remain separate. Removed interval configuration and the backup health latch.
@@ -67,9 +129,8 @@ new features and **patch** versions carry fixes.
   retain their original mutation for commitment lookup; obsolete contexts suppress completion
   results, and activity-kind updates clear incomplete typed history. Canonical reads require explicit
   server write authority, typed history keeps at most 50 entries, and pure non-delete command builders
-  prepare field-preserving typed requests. The schedule retains its current persistence, deletion
-  and Undo path; complete typed Undo and session-bound restoration remain unfinished. This milestone
-  uses the existing real authentication; later identity-link integration is separate.
+  prepare field-preserving typed requests. This milestone uses the existing real authentication;
+  later identity-link integration is separate.
 
 - Use Adonis BodyParser and compiled Vine validation for requests, with flat 400 errors and no CSP report endpoint.
 

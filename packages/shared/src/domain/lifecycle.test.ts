@@ -4,14 +4,10 @@ import {
   lifecycleStatus,
   canArchive,
   canUnarchive,
-  canSoftDelete,
-  canPurge,
   archive,
   unarchive,
-  softDelete,
   obfuscateResource,
   isLifecycleEntityKey,
-  PURGE_MIN_AGE_DAYS,
   LifecycleTransitionError,
   LIFECYCLE_ENTITY_KEYS,
 } from "@capacitylens/shared/domain/lifecycle";
@@ -19,8 +15,8 @@ import type { LifecycleState, LifecycleFields } from "@capacitylens/shared/domai
 import type { Resource } from "../types/entities.js";
 
 // These tests are an independent oracle of the lifecycle state machine: the expected states /
-// booleans below are hand-derived from the contract (deletedAt wins; archive needs active; delete +
-// unarchive need archived; purge needs deleted + age ≥ 30d, fail-closed), not copied from the
+// booleans below are hand-derived from the contract (deletedAt wins; archive needs active;
+// unarchive needs archived), not copied from the
 // implementation. If lifecycle.ts and these tables disagree, that's the test doing its job.
 
 // Fixed ISO consts so every assertion is deterministic (no ambient clock anywhere in the machine).
@@ -37,12 +33,6 @@ describe("lifecycle vocabulary", () => {
 });
 // An arbitrary "now" used for archive/softDelete timestamps.
 const NOW = "2026-06-01T00:00:00.000Z";
-
-const DAY_MS = 86_400_000;
-
-// `new Date(number).toISOString()` is deterministic/pure (a number in, never an ambient clock), fine
-// in a test. Used to build exact-age "now" values relative to the tombstone for the canPurge boundary.
-const nowAfterDelete = (days: number): string => new Date(Date.parse(T_DEL) + days * DAY_MS).toISOString();
 
 // The three canonical sample entities, each carrying an extra `{ id, name }` payload so the
 // immutability/preservation assertions have something concrete to check survives a transition.
@@ -113,18 +103,18 @@ describe("canArchive — public archive affordance over active/archived/deleted"
   }
 });
 
-describe.each([
-  ["canUnarchive", canUnarchive],
-  ["canSoftDelete", canSoftDelete],
-] as const)("%s — public archived-state affordance", (_name, predicate) => {
-  it.each([
-    ["active", makeActive(), false],
-    ["archived", makeArchived(), true],
-    ["deleted", makeDeleted(), false],
-  ] as const)("returns the documented result for %s", (_state, sample, expected) => {
-    expect(predicate(sample)).toBe(expected);
-  });
-});
+describe.each([["canUnarchive", canUnarchive]] as const)(
+  "%s — public archived-state affordance",
+  (_name, predicate) => {
+    it.each([
+      ["active", makeActive(), false],
+      ["archived", makeArchived(), true],
+      ["deleted", makeDeleted(), false],
+    ] as const)("returns the documented result for %s", (_state, sample, expected) => {
+      expect(predicate(sample)).toBe(expected);
+    });
+  },
+);
 
 describe("archive — active → archived (immutable, fail-loud)", () => {
   it("from active: sets archivedAt to nowISO, status archived, other fields preserved", () => {
@@ -186,99 +176,6 @@ describe("unarchive — archived → active (clears archivedAt to null, immutabl
     expect(result.archivedAt).toBeNull();
     expect(result.deletedAt).toBeNull();
     expect(lifecycleStatus(result)).toBe("active");
-  });
-});
-
-describe("softDelete — archived → deleted (preserves archivedAt, immutable, fail-loud)", () => {
-  it("from archived: sets deletedAt to nowISO, PRESERVES archivedAt, status deleted", () => {
-    const input = makeArchived();
-    const result = softDelete(input, NOW);
-    expect(result.deletedAt).toBe(NOW);
-    expect(result.archivedAt).toBe(T_ARCH);
-    expect(lifecycleStatus(result)).toBe("deleted");
-    expect(result.id).toBe("r1");
-  });
-  it("does NOT mutate the input (immutability)", () => {
-    const input = makeArchived();
-    softDelete(input, NOW);
-    expect(input.deletedAt).toBeUndefined();
-    expect(lifecycleStatus(input)).toBe("archived");
-  });
-  it("from active: throws (must archive first)", () => {
-    expect(() => softDelete(makeActive(), NOW)).toThrow(/archived first/);
-  });
-  it("from deleted: throws (no re-delete)", () => {
-    expect(() => softDelete(makeDeleted(), NOW)).toThrow(/archived first/);
-  });
-
-  it("never records deletion before a future archive when the caller clock moves backward", () => {
-    const futureArchive = "2099-01-01T00:00:00.000Z";
-    const result = softDelete({ ...makeArchived(), archivedAt: futureArchive }, NOW);
-
-    expect(result.archivedAt).toBe(futureArchive);
-    expect(result.deletedAt).toBe(futureArchive);
-  });
-
-  it("rejects malformed transition and archive timestamps", () => {
-    expect(() => softDelete(makeArchived(), "not-a-timestamp")).toThrow(/valid ISO timestamp/);
-    expect(() => softDelete({ ...makeArchived(), archivedAt: "not-a-timestamp" }, NOW)).toThrow(/archived first/);
-  });
-});
-
-describe("canPurge — deleted + age ≥ 30d, fail-closed", () => {
-  it("deleted + age exactly 30d (== PURGE_MIN_AGE_MS) → true (inclusive boundary)", () => {
-    expect(canPurge(makeDeleted(), nowAfterDelete(PURGE_MIN_AGE_DAYS))).toBe(true);
-  });
-  it("deleted + age 29d → false (under the window)", () => {
-    expect(canPurge(makeDeleted(), nowAfterDelete(29))).toBe(false);
-  });
-  it("deleted + age 31d → true (over the window)", () => {
-    expect(canPurge(makeDeleted(), nowAfterDelete(31))).toBe(true);
-  });
-  it("active → false (not deleted)", () => {
-    expect(canPurge(makeActive(), nowAfterDelete(365))).toBe(false);
-  });
-  it("archived → false (not deleted)", () => {
-    expect(canPurge(makeArchived(), nowAfterDelete(365))).toBe(false);
-  });
-  it("deleted but deletedAt is unparseable garbage → false (fail-closed)", () => {
-    expect(canPurge({ deletedAt: "not-a-date" }, nowAfterDelete(365))).toBe(false);
-  });
-  it.each(["0", "01/01/2000", "2026-02-29T00:00:00Z"])(
-    "deleted but deletedAt is Date.parse-compatible non-ISO %s → false (fail-closed)",
-    (deletedAt) => {
-      expect(canPurge({ deletedAt }, NOW)).toBe(false);
-    },
-  );
-  it("deleted but nowISO is garbage → false (fail-closed)", () => {
-    expect(canPurge(makeDeleted(), "not-a-date")).toBe(false);
-  });
-  it("future-dated tombstone (now is 5d BEFORE deletedAt, negative age) → false (clock skew, never falls open)", () => {
-    // A negative age must never read as purgeable: `nowMs - deletedMs` is negative, so `>= MS` is false.
-    expect(canPurge(makeDeleted(), nowAfterDelete(-5))).toBe(false);
-  });
-  it("deleted WITHOUT archivedAt, aged 31d → true (archival is NOT a purge precondition — state+age only)", () => {
-    // An aged tombstone is purgeable regardless of how it got there; only 'deleted' + age matters.
-    expect(canPurge({ deletedAt: T_DEL }, nowAfterDelete(31))).toBe(true);
-  });
-  it("null deletedAt → false (null = absent ⇒ not deleted ⇒ fail-closed; DB round-trip yields null)", () => {
-    // The field type is `ISOTimestamp | undefined`, but a SQLite/JSON round-trip can hand back `null`.
-    expect(canPurge({ deletedAt: null } as unknown as LifecycleFields, NOW)).toBe(false);
-  });
-  it("exact MILLISECOND boundary: == PURGE_MIN_AGE_MS → true, one ms less → false (locks the >= edge)", () => {
-    // Day-granular cases (29d/30d/31d) can't catch a `>` vs `>=` or off-by-one ms regression, assert
-    // both edges to the millisecond. `new Date(number).toISOString()` is pure (a number in, no clock).
-    const PURGE_MIN_AGE_MS = PURGE_MIN_AGE_DAYS * DAY_MS;
-    const atBoundary = new Date(Date.parse(T_DEL) + PURGE_MIN_AGE_MS).toISOString();
-    const oneMsShort = new Date(Date.parse(T_DEL) + PURGE_MIN_AGE_MS - 1).toISOString();
-    expect(canPurge(makeDeleted(), atBoundary)).toBe(true);
-    expect(canPurge(makeDeleted(), oneMsShort)).toBe(false);
-  });
-});
-
-describe("constants", () => {
-  it("PURGE_MIN_AGE_DAYS === 30", () => {
-    expect(PURGE_MIN_AGE_DAYS).toBe(30);
   });
 });
 

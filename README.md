@@ -39,8 +39,9 @@ Doing all of it yourself? [The whole setup on one page](https://kevinjohn.github
 ## Try it in two minutes
 
 For people comfortable with a terminal: the demo runs on your computer with sample data and no
-sign-in, and needs the developer tools Node 24 and git. Drag things about, book time off, break
-something: changes reset when you reload. Everyone else: watch the walkthrough above instead.
+real sign-in, and needs the developer tools Node 24 and git. Its sample-account picker is cosmetic.
+Drag things about, book time off, break something: changes reset when you reload. Everyone else:
+watch the walkthrough above instead.
 
 ```bash
 corepack enable

@@ -3,7 +3,9 @@
 **Area:** Allocation editor · **Persona:** Studio manager · **Linked tests:**
 `e2e/allocation.spec.ts` → "deletes an allocation from the edit dialog and ⌘Z restores it" ·
 `e2e/features.spec.ts` → "undo restores a deleted allocation" ·
-`apps/frontend/src/components/scheduler/AllocationModal.edit.test.tsx`
+`apps/frontend/src/components/scheduler/AllocationModal.edit.test.tsx` ·
+`apps/backend/tests/functional/planning/restoration.spec.ts` (server restoration only; the schedule
+does not use it yet)
 
 ## Goal
 

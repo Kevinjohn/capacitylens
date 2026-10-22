@@ -24,7 +24,7 @@ the page directly.
 | List members and manage invites                       |     —      |     —      |    Yes     |    Yes     |
 | Disable or Enable Access; archive or restore a member |     —      |     —      |    Yes     |    Yes     |
 | Export the schedule                                   | Code names | Code names | Code names | Real names |
-| Import, delete the company, transfer ownership        |     —      |     —      |     —      |    Yes     |
+| Import or anonymise the company; transfer ownership   |     —      |     —      |     —      |    Yes     |
 
 Each company has exactly one Owner. Nobody becomes Owner through an invitation or a role change, only
 through [an ownership transfer](#hand-the-company-to-someone-else). An Admin can invite, remove,

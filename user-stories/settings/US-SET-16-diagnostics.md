@@ -36,7 +36,7 @@ open the app in a build with `VITE_CAPACITYLENS_DEMO=1`.
 ## Acceptance criteria
 
 - Owners and Admins see **Diagnostics** after **Settings** in the sidebar and in the command
-  palette. With sign-in off (including the demo), everyone sees it.
+  palette. In the in-memory demo, every demo visitor sees it.
 - Editors and Viewers see no Diagnostics link, and a direct visit to `/diagnostics` redirects them
   to the schedule. While their role is still resolving, the page shows a loading status.
 - The page shows the report text exactly as **Copy diagnostics** copies it.
@@ -53,4 +53,4 @@ open the app in a build with `VITE_CAPACITYLENS_DEMO=1`.
 - A successful copy and a clipboard failure each produce generic user-visible feedback.
 - The page has no serious or critical axe violations.
 - Settings has no Diagnostics row or Build details section. Build details are available on Diagnostics
-  only to Owners and Admins, or to everyone when sign-in is off.
+  only to Owners and Admins on a persisted server, and to demo visitors in the in-memory demo.

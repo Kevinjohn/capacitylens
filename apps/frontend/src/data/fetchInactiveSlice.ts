@@ -1,8 +1,12 @@
 import type { AppData, ID } from "@capacitylens/shared/types/entities";
+import {
+  BETA_EXPORT_FORMAT,
+  BETA_EXPORT_SCHEMA_VERSION,
+  parseBetaExport,
+} from "@capacitylens/shared/data/betaTransfer";
 import { readApiError } from "@/lib/readApiError";
 import { API_BASE } from "./apiConfig";
 import { apiFetch, API_BULK_TIMEOUT_MS } from "./requestTimeout";
-import { parseAccountSlice } from "./validateAccountSlice";
 
 // The shared inactive-slice reader validates the complete tenant projection so backup and lifecycle views cannot accept a partial response.
 
@@ -38,9 +42,9 @@ export class InactiveSliceShapeError extends Error {
 }
 
 /**
- * Fetches one structurally complete tenant slice including inactive rows, then repairs field-level defects. Repair can change invalid lifecycle state; completeness does not prove archival semantics.
+ * Fetches one complete tenant slice including inactive rows and validates it under the strict beta transfer contract.
  *
- * @throws InactiveSliceHttpError for non-success HTTP status; InactiveSliceShapeError for missing tables, invalid or duplicate row IDs, or rows belonging to another account. Transport and decoding errors propagate.
+ * @throws InactiveSliceHttpError for non-success HTTP status; InactiveSliceShapeError for invalid rows, links, or tenant scope. Transport and decoding errors propagate.
  */
 export async function fetchInactiveSlice(accountId: ID, signal?: AbortSignal): Promise<AppData> {
   const res = await apiFetch(
@@ -52,7 +56,20 @@ export async function fetchInactiveSlice(accountId: ID, signal?: AbortSignal): P
   );
   if (!res.ok) throw new InactiveSliceHttpError(res.status, await readApiError(res));
   const body: unknown = await res.json();
-  const data = parseAccountSlice(body, accountId);
-  if (!data) throw new InactiveSliceShapeError();
-  return data;
+  try {
+    // The state endpoint returns raw AppData; wrapping it validates every row and link before a
+    // backup can turn it into a portable file. Redacted mode also accepts Admin projections.
+    const document = parseBetaExport(
+      JSON.stringify({
+        format: BETA_EXPORT_FORMAT,
+        schemaVersion: BETA_EXPORT_SCHEMA_VERSION,
+        completeness: "redacted",
+        data: body,
+      }),
+    );
+    if (document.data.accounts[0]?.id !== accountId) throw new InactiveSliceShapeError();
+    return document.data;
+  } catch {
+    throw new InactiveSliceShapeError();
+  }
 }

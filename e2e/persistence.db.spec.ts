@@ -1,10 +1,9 @@
-import { test, expect } from "./fixtures";
+import { test, expect } from "./dbFixtures";
 import { openApp, selectShadOption } from "./browserTestSupport";
 import { resetServer, serverState, requireStateRows } from "./serverTestState";
 
-// This database-backed project uses VITE_CAPACITYLENS_API, so persistence runs through ServerSyncAdapter and SQLite.
-// The specs use the same UI flows as the in-memory demo, but reloads hydrate from GET /api/state without a
-// localStorage fallback. A record that survives reload proves the full UI-to-database round trip.
+// This database-backed project uses VITE_CAPACITYLENS_API, so typed writes persist in SQLite.
+// A record surviving a planning-read reload proves the full UI-to-database round trip.
 
 function registerBeforeEachHooks() {
   test.beforeEach(async ({ request }) => {
@@ -29,7 +28,7 @@ function registerCreateReloadNewClientRoundTest() {
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByText("Persisted DB Co")).toBeVisible();
 
-    // The write is debounced; confirm it actually reached the server tables.
+    // Confirm the accepted typed write reached the server tables.
     await expect
       .poll(
         async () => requireStateRows(await serverState(request), "clients").some((c) => c.name === "Persisted DB Co"),
@@ -46,13 +45,14 @@ function registerCreateReloadNewClientRoundTest() {
 }
 
 function registerRepeatCreationPersistsAllAllocationTest() {
-  test("repeat creation persists all allocation PUTs through one atomic client batch", async ({ page, request }) => {
+  test("repeat creation persists one typed allocation group request", async ({ page, request }) => {
     const before = requireStateRows(await serverState(request), "allocations");
-    const batchBodies: Array<{ ops?: Array<{ method?: string; table?: string; id?: string }> }> = [];
+    let groupRequests = 0;
+    let batchRequests = 0;
     page.on("request", (outgoing) => {
-      if (outgoing.method() === "POST" && outgoing.url().endsWith("/api/batch")) {
-        batchBodies.push(outgoing.postDataJSON() as { ops?: Array<{ method?: string; table?: string; id?: string }> });
-      }
+      if (outgoing.method() !== "POST") return;
+      if (outgoing.url().endsWith("/api/batch")) batchRequests++;
+      if (outgoing.url().endsWith("/allocations/create-group")) groupRequests++;
     });
     await openApp(page);
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
@@ -68,11 +68,8 @@ function registerRepeatCreationPersistsAllAllocationTest() {
     await expect
       .poll(async () => requireStateRows(await serverState(request), "allocations").length, { timeout: 10_000 })
       .toBe(before.length + 14);
-    expect(batchBodies).toHaveLength(1);
-    const batch = batchBodies[0];
-    if (batch === undefined) throw new Error("Repeat creation must send one batch");
-    expect(batch.ops).toHaveLength(14);
-    expect(batch.ops?.every((op) => op.method === "PUT" && op.table === "allocations")).toBe(true);
+    expect(groupRequests).toBe(1);
+    expect(batchRequests).toBe(0);
 
     await openApp(page);
     const afterReload = requireStateRows(await serverState(request), "allocations");

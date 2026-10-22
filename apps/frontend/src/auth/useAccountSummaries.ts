@@ -154,13 +154,12 @@ export async function refreshAccountSummaries(requestOptions?: {
   return list;
 }
 
-/** Keeps the picker directory current. Authenticated active-company reads belong to PermissionProvider; picker and auth-off reads belong here. Failed reads preserve the previous list, and demo mode derives local summaries. */
+/** Keeps the picker directory current. Active-company reads belong to PermissionProvider; failed reads preserve the previous list, and the demo derives local summaries. */
 export function useAccountSummaries({
   refreshActiveAccount = true,
 }: {
   /** Authenticated app bodies delegate active-account refreshes to PermissionProvider so the
-   * directory and permission projection share one request. Auth-off has no active permission
-   * lookup, so its shell keeps this enabled. Picker reads always remain owned by this hook. */
+   * directory and permission projection share one request. Picker reads remain owned by this hook. */
   refreshActiveAccount?: boolean;
 } = {}): void {
   const serverMode = isServerConfigured();
@@ -196,8 +195,8 @@ export function useAccountSummaries({
 
   useEffect(() => {
     if (serverMode) return;
-    // Demo build: the picker's list is the store's accounts (tagged owner = full access, mirroring the
-    // server's off wire shape so the pure `can` keeps local fully editable). Kept in lockstep on every
+    // Demo build: the picker's list is the store's accounts (tagged owner = full access so the
+    // pure `can` keeps local fully editable). Kept in lockstep on every
     // add/delete so the picker reflects changes without a fetch.
     useStore.getState().setAccountSummaries({
       list: localAccounts.map((allocation) => ({ id: allocation.id, name: allocation.name, role: "owner" as const })),

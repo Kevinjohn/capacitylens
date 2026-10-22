@@ -29,12 +29,10 @@ export function FavouriteButton({ resource }: { resource: Resource }) {
       title={label}
       aria-pressed={selected}
       onClick={() => {
-        try {
-          updateResource(resource.id, { isFavourite: !selected });
-        } catch (error) {
+        void updateResource(resource.id, { isFavourite: !selected }).catch((error: unknown) => {
           // Report a rejected favourite change instead of silently leaving the preference unchanged.
           setNotice(resolveErrorMessage(error), "error");
-        }
+        });
       }}
     >
       <Star aria-hidden className={cn("text-muted-foreground", selected && "fill-warn text-warn")} />

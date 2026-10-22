@@ -39,8 +39,8 @@ test.describe("Projects", () => {
   });
 
   // the per-row destructive action archives (hidden from the active list, fully retained, not
-  // a hard cascade-delete). Archiving is undoable via the local store.
-  test("archiving a project hides it from the list, restorable with undo", async ({ page }) => {
+  // a hard cascade-delete). Booking-only Undo leaves the archive in place.
+  test("archiving a project hides it from the list, and undo leaves it archived", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/projects");
     await page
       .getByTestId("project-row")
@@ -54,6 +54,6 @@ test.describe("Projects", () => {
     await expect(page.getByTestId("project-row").filter({ hasText: "Project Watchtower" })).toHaveCount(0);
 
     await page.keyboard.press("Meta+z");
-    await expect(page.getByTestId("project-row").filter({ hasText: "Project Watchtower" })).toBeVisible();
+    await expect(page.getByTestId("project-row").filter({ hasText: "Project Watchtower" })).toHaveCount(0);
   });
 });

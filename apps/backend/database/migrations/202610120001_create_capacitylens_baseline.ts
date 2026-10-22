@@ -336,32 +336,59 @@ export default class extends BaseSchema {
       table.string('idempotency_key').nullable()
       table.unique(['operation', 'idempotency_key'])
     })
+    // A group is one session's server-side before-image of a typed delete; restore consumes it once.
+    this.schema.createTable('deleted_groups', (table) => {
+      table.string('group_id').primary()
+      table
+        .string('account_id')
+        .notNullable()
+        .references('id')
+        .inTable('accounts')
+        .onDelete('CASCADE')
+      table.string('actor_id').notNullable()
+      table.string('session_id').notNullable()
+      table.string('mutation_id').notNullable()
+      table.timestamp('created_at').notNullable()
+      table.timestamp('consumed_at').nullable()
+      table.index(['account_id'])
+      table.index(['session_id'])
+    })
+    this.schema.createTable('deleted_rows', (table) => {
+      table.increments('id')
+      table
+        .string('group_id')
+        .notNullable()
+        .references('group_id')
+        .inTable('deleted_groups')
+        .onDelete('CASCADE')
+      table.string('entity').notNullable()
+      table.string('row_id').notNullable()
+      table.text('payload_json').notNullable()
+      table.unique(['group_id', 'entity', 'row_id'])
+    })
+    this.schema.createTable('action_proofs', (table) => {
+      table.string('id').primary()
+      table.string('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE')
+      table.string('session_id').notNullable()
+      table
+        .string('account_id')
+        .notNullable()
+        .references('id')
+        .inTable('accounts')
+        .onDelete('CASCADE')
+      table.string('action').notNullable()
+      table.string('intent_hash').notNullable()
+      table.timestamp('expires_at').notNullable()
+      table.timestamp('verified_at').nullable()
+      table.timestamp('consumed_at').nullable()
+      table.index(['user_id', 'session_id'])
+    })
+
     this.schema.createTable('company_settings', (table) => {
       scoped(table)
       table.string('key').notNullable()
       table.json('value').nullable()
       table.unique(['account_id', 'key'])
-    })
-
-    this.schema.createTable('capacitylens_sync_sessions', (table) => {
-      table.increments('id')
-      table.string('session_id').notNullable().unique()
-      table.integer('last_sequence').notNullable()
-      table.timestamp('updated_at').notNullable()
-      table.check('last_sequence > 0')
-    })
-    this.schema.createTable('capacitylens_sync_row_provenance', (table) => {
-      table.increments('id')
-      table.string('table_name').notNullable()
-      table.string('row_id').notNullable()
-      table.string('account_id').notNullable()
-      table.string('session_id').notNullable()
-      table.integer('sequence').notNullable()
-      table.string('row_hash', 64).notNullable()
-      table.check('sequence > 0')
-      table.unique(['table_name', 'row_id'])
-      table.index(['session_id', 'sequence'])
-      table.index(['account_id'])
     })
 
     this.schema.createTable('account_getting_started_dismissals', (table) => {
@@ -560,6 +587,9 @@ export default class extends BaseSchema {
       table.integer('revision').notNullable()
       table.primary(['account_id', 'mutation_id'])
       table.check('revision >= 0')
+      table.string('restoration_group_id').nullable()
+      table.string('origin_session_id').nullable()
+      table.index(['account_id', 'actor_id', 'origin_session_id', 'restoration_group_id'])
     })
 
     for (const [table, column, target] of relationships) {

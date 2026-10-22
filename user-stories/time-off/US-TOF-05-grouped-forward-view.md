@@ -40,5 +40,5 @@ See [Review current and upcoming time off](../../docs-src/using/time-off.md#revi
   shown safely in a final **(unknown)** section. Time off beneath an archived resource remains hidden.
 - ✅ Empty sections explain their purpose. **Add closure** and **Add time off** appear once each,
   beside their section headings, including when no entries remain in the forward view.
-- ✅ Each row keeps its date-specific Edit/Delete accessible name. Editing, deleting, confirmation,
-  Undo and role-based mutation visibility target the correct underlying entry after sorting.
+- ✅ Each row keeps its date-specific Edit/Delete accessible name. Editing, deleting, confirmation
+  and role-based mutation visibility target the correct underlying entry after sorting.

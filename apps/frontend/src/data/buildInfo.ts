@@ -11,31 +11,20 @@ import { EXPORT_SCHEMA_VERSION } from "@capacitylens/shared/types/entities";
 import packageJson from "../../../../package.json";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 import type { AccountMode } from "@capacitylens/shared/account/types";
-import type { PersistenceDiagnostics } from "./persistenceDiagnostics";
 
 /** Whether the observed diagnostics response was reachable; `unavailable` means no response was usable. */
 export type DiagnosticsConnectivity = "ok" | "unavailable";
 /** Whether the observed database schema could be read safely; `unavailable` means the value is unknown. */
 export type DiagnosticsDatabaseStatus = "ok" | "unavailable";
-/** The persistence state included in the snapshot; `unknown` means this endpoint did not expose it. */
-export type DiagnosticsPersistenceStatus = "ok" | "degraded" | "unknown";
-/** The backup state: `pending` has no successful snapshot yet, `degraded` saw a failure, and `unavailable` could not be read. */
-export type DiagnosticsBackupStatus = "ok" | "degraded" | "pending" | "unavailable";
 
 /** Fixed server fields allowed into a client diagnostics snapshot. */
 export interface ServerDiagnostics {
   connectivity: DiagnosticsConnectivity;
   database: {
     status: DiagnosticsDatabaseStatus;
-    /** Null means the schema version was unavailable or invalid, never zero or a browser fallback. */
-    schemaVersion: number | null;
   };
-  persistence: DiagnosticsPersistenceStatus;
-  backup: {
-    status: DiagnosticsBackupStatus;
-    /** Null means no valid backup timestamp was observed; it does not assert that no backup exists. */
-    lastSuccessAt: string | null;
-  };
+  schema: { migration: string | null };
+  backup: { newestSnapshotAt: string | null };
 }
 
 /** Browser facts a support report may carry; none identifies a person or a company. */
@@ -47,10 +36,9 @@ export interface BrowserDiagnostics {
   language: string;
 }
 
-/** Facts known only to the running client: its sign-in mode, persistence counters and browser. */
+/** Facts known only to the running client: its sign-in mode and browser. */
 export interface ClientDiagnostics {
   signInMode: AccountMode;
-  persistence: PersistenceDiagnostics;
   browser: BrowserDiagnostics;
 }
 
@@ -71,9 +59,9 @@ const UNKNOWN = "Unknown";
 function createUnknownServerDiagnostics(): ServerDiagnostics {
   return {
     connectivity: "unavailable",
-    database: { status: "unavailable", schemaVersion: null },
-    persistence: "unknown",
-    backup: { status: "unavailable", lastSuccessAt: null },
+    database: { status: "unavailable" },
+    schema: { migration: null },
+    backup: { newestSnapshotAt: null },
   };
 }
 
@@ -102,11 +90,12 @@ const isOneOf = <T extends string>(value: unknown, values: readonly T[]): value 
 function parseServerDiagnostics(value: unknown): ServerDiagnostics {
   if (!isRecord(value)) return createUnknownServerDiagnostics();
   const database = isRecord(value.database) ? value.database : null;
+  const schema = isRecord(value.schema) ? value.schema : null;
   const backup = isRecord(value.backup) ? value.backup : null;
   return {
     connectivity: readConnectivity(value.connectivity),
     database: readDatabaseProjection(database),
-    persistence: readPersistenceStatus(value.persistence),
+    schema: readSchemaProjection(schema, readDatabaseStatus(database?.status)),
     backup: readBackupProjection(backup),
   };
 }
@@ -119,28 +108,22 @@ function readDatabaseStatus(value: unknown): DiagnosticsDatabaseStatus {
   return isOneOf(value, ["ok", "unavailable"] as const) ? value : "unavailable";
 }
 
-function readSchemaVersion(value: unknown): number | null {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
+function readDatabaseProjection(database: Record<string, unknown> | null) {
+  return { status: readDatabaseStatus(database?.status) };
 }
 
-function readDatabaseProjection(database: Record<string, unknown> | null) {
-  const declared = readDatabaseStatus(database?.status);
-  const schemaVersion = declared === "ok" ? readSchemaVersion(database?.schemaVersion) : null;
+function readSchemaProjection(schema: Record<string, unknown> | null, databaseStatus: DiagnosticsDatabaseStatus) {
+  const migration = databaseStatus === "ok" ? schema?.migration : null;
   return {
-    status: declared === "ok" && schemaVersion !== null ? ("ok" as const) : ("unavailable" as const),
-    schemaVersion,
+    migration:
+      typeof migration === "string" && /^database\/migrations\/\d{12}_[a-z0-9_]{1,100}$/.test(migration)
+        ? migration
+        : null,
   };
 }
 
-function readPersistenceStatus(value: unknown): DiagnosticsPersistenceStatus {
-  return isOneOf(value, ["ok", "degraded", "unknown"] as const) ? value : "unknown";
-}
-
 function readBackupProjection(backup: Record<string, unknown> | null) {
-  const status = isOneOf(backup?.status, ["ok", "degraded", "pending", "unavailable"] as const)
-    ? backup.status
-    : ("unavailable" as const);
-  return { status, lastSuccessAt: readTimestamp(backup?.lastSuccessAt) };
+  return { newestSnapshotAt: readTimestamp(backup?.newestSnapshotAt) };
 }
 
 function readMatching(value: string, pattern: RegExp): string {
@@ -184,14 +167,14 @@ export function readDiagnostics(
     // physical server schema, which is supplied separately by the authenticated diagnostics route.
     exportSchema: EXPORT_SCHEMA_VERSION,
     server: parseServerDiagnostics(isRecord(serverResponse) ? serverResponse.server : null),
-    client: { ...client, persistence: { ...client.persistence }, browser: readBrowserProjection(client.browser) },
+    client: { ...client, browser: readBrowserProjection(client.browser) },
   };
 }
 
 /** Format diagnostics as stable labelled text for support reports. It contains no raw response data. */
 export function formatDiagnostics(report: DiagnosticsReport): string {
   const { server } = report;
-  const { persistence, browser } = report.client;
+  const { browser } = report.client;
   return [
     `${APP_NAME} diagnostics`,
     `Snapshot observed: ${report.observedAt ?? UNKNOWN}`,
@@ -201,18 +184,9 @@ export function formatDiagnostics(report: DiagnosticsReport): string {
     `Export schema: ${report.exportSchema}`,
     `Server connectivity: ${server.connectivity}`,
     `Database: ${server.database.status}`,
-    `Database schema: ${server.database.schemaVersion ?? UNKNOWN}`,
-    `Persistence: ${server.persistence}`,
-    `Backup: ${server.backup.status}`,
-    `Backup last success: ${server.backup.lastSuccessAt ?? UNKNOWN}`,
+    `Schema migration: ${server.schema.migration ?? UNKNOWN}`,
+    `Newest snapshot: ${server.backup.newestSnapshotAt ?? UNKNOWN}`,
     `Sign-in mode: ${report.client.signInMode}`,
-    `Saves failed: ${persistence.savesFailed}`,
-    `Retries armed: ${persistence.retriesArmed}`,
-    `Reconciliations resolved: ${persistence.reconciliationsResolved}`,
-    `Reloads superseded: ${persistence.reloadsSuperseded}`,
-    `Edits rebased: ${persistence.editsRebased}`,
-    `Edits discarded: ${persistence.editsDiscarded}`,
-    `Saving suspended: ${persistence.suspended ? "yes" : "no"}`,
     `User agent: ${browser.userAgent}`,
     `Viewport: ${browser.viewport}`,
     `Time zone: ${browser.timeZone}`,

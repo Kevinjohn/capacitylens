@@ -56,8 +56,9 @@ recognise a returning sign-in.
 
 On a new installation, set `CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS` to the exact verified email
 address allowed to create the first Google identity. It applies only while no user exists. The
-Google callback creates the sign-in identity and session, but no company or membership; the Owner
-then follows [Set up your company](/owner/) to create the first company.
+Google callback creates the sign-in identity and session, but no company or membership. Access
+requires a provisioned company and membership; see [Access your company](/owner/) for the current
+first-company limitation.
 
 After the first identity exists, a new Google identity needs an unused invitation addressed to its
 verified Google email. A company joining policy cannot create a new sign-in identity.

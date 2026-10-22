@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { screen, fireEvent, act } from "@testing-library/react";
 import { AllocationBar } from "./AllocationBar";
 import { PermissionContext } from "@/auth/permissionContext";
+import { PlanningControllerError } from "@/data/planning/planningCacheController";
 import { useStore } from "@/store/useStore";
 import type { Allocation, Weekday } from "@capacitylens/shared/types/entities";
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, makeResourceDraft } from "@/test/fixtures";
@@ -14,13 +15,14 @@ import {
   laneRect,
   rect,
   seedAllocation,
+  settlePlanning,
 } from "./__tests__/allocationBarInteractionTestKit";
 
-beforeEach(() => resetStoreWithAccount());
+beforeEach(async () => resetStoreWithAccount());
 
 function registerBasicPointerTests() {
-  it("commits a move drag to the store (shifts both dates by a day)", () => {
-    const a = seedAllocation();
+  it("commits a move drag to the store (shifts both dates by a day)", async () => {
+    const a = await seedAllocation();
     render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
     const bar = screen.getByTestId("allocation-bar");
 
@@ -28,14 +30,34 @@ function registerBasicPointerTests() {
 
     document.dispatchEvent(new MouseEvent("pointermove", { clientX: 98, bubbles: true }));
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 98, bubbles: true }));
+    await settlePlanning();
 
     const moved = getStoredAllocation(a.id);
     expect(moved.startDate).toBe("2026-06-02");
     expect(moved.endDate).toBe("2026-06-04");
   });
 
-  it("does not report a successful move when permission drops to Viewer mid-drag", () => {
-    const a = seedAllocation();
+  it("leaves a stale-revision drag to the refetched schedule without a toast", async () => {
+    const a = await seedAllocation();
+    const original = useStore.getState().updateAllocation;
+    useStore.setState({
+      updateAllocation: () =>
+        Promise.reject(new PlanningControllerError("The schedule changed.", "stale_revision", 409)),
+    });
+    try {
+      render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+      fireEvent.pointerDown(screen.getByTestId("allocation-bar"), { clientX: 50, button: 0 });
+      document.dispatchEvent(new MouseEvent("pointermove", { clientX: 98, bubbles: true }));
+      document.dispatchEvent(new MouseEvent("pointerup", { clientX: 98, bubbles: true }));
+      await settlePlanning();
+      expect(useStore.getState().notice).toBeNull();
+    } finally {
+      useStore.setState({ updateAllocation: original });
+    }
+  });
+
+  it("does not report a successful move when permission drops to Viewer mid-drag", async () => {
+    const a = await seedAllocation();
     const barUi = (role: "editor" | "viewer") => (
       <PermissionContext.Provider value={{ role, status: "resolved" }}>
         <AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />
@@ -49,6 +71,7 @@ function registerBasicPointerTests() {
     act(() => useStore.getState().setActiveRole("viewer"));
     rerender(barUi("viewer"));
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 98, bubbles: true }));
+    await settlePlanning();
 
     expect(useStore.getState().data.allocations.find((row) => row.id === a.id)).toMatchObject({
       startDate: "2026-06-01",
@@ -58,14 +81,15 @@ function registerBasicPointerTests() {
     expect(useStore.getState().notice?.message).not.toMatch(/moved|reassigned|undo/i);
   });
 
-  it("a click (no movement) opens the editor instead of moving", () => {
-    const a = seedAllocation();
+  it("a click (no movement) opens the editor instead of moving", async () => {
+    const a = await seedAllocation();
     const onEdit = vi.fn();
     render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={onEdit} />);
     const bar = screen.getByTestId("allocation-bar");
 
     fireEvent.pointerDown(bar, { clientX: 50, button: 0 });
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 50, bubbles: true }));
+    await settlePlanning();
 
     expect(onEdit).toHaveBeenCalled();
     const unchanged = getStoredAllocation(a.id);
@@ -74,15 +98,15 @@ function registerBasicPointerTests() {
 }
 
 function registerRejectedReassignmentTest() {
-  it("leaves assignee, dates and hours unchanged when a diagonal reassign is rejected", () => {
+  it("leaves assignee, dates and hours unchanged when a diagonal reassign is rejected", async () => {
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const p1 = requireCreated(st.addProject({ name: "P1", clientId: c.id, color: "#2" }));
-    const p2 = requireCreated(st.addProject({ name: "P2", clientId: c.id, color: "#3" }));
-    const t1 = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p1.id }));
-    const person = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+    const c = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const p1 = await requireCreated(st.addProject({ name: "P1", clientId: c.id, color: "#2" }));
+    const p2 = await requireCreated(st.addProject({ name: "P2", clientId: c.id, color: "#3" }));
+    const t1 = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p1.id }));
+    const person = await requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
     // A placeholder bound to p2 cannot take a p1 activity, dropping onto it must be rejected.
-    const slot = requireCreated(
+    const slot = await requireCreated(
       st.addResource({
         kind: "placeholder",
         role: "Slot",
@@ -96,7 +120,7 @@ function registerRejectedReassignmentTest() {
       }),
     );
     const a = requireCreated(
-      st.addAllocation({
+      await st.addAllocation({
         resourceId: person.id,
         activityId: t1.id,
         startDate: "2026-06-01",
@@ -122,6 +146,7 @@ function registerRejectedReassignmentTest() {
     // not silently retain its horizontal source-row move.
     document.dispatchEvent(new MouseEvent("pointermove", { clientX: 98, clientY: 125, bubbles: true }));
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 98, clientY: 125, bubbles: true }));
+    await settlePlanning();
 
     const alloc = getStoredAllocation(a.id);
     expect(alloc).toMatchObject({
@@ -135,13 +160,13 @@ function registerRejectedReassignmentTest() {
 }
 
 function registerValidReassignmentTest() {
-  it("reassigns to another row (and highlights it mid-drag) when dropped on a valid lane", () => {
+  it("reassigns to another row (and highlights it mid-drag) when dropped on a valid lane", async () => {
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
-    const r1 = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
-    const r2 = requireCreated(
+    const c = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const p = await requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const r1 = await requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+    const r2 = await requireCreated(
       st.addResource({
         kind: "person",
         name: "Sam",
@@ -155,7 +180,7 @@ function registerValidReassignmentTest() {
       }),
     );
     const a = requireCreated(
-      st.addAllocation({
+      await st.addAllocation({
         resourceId: r1.id,
         activityId: t.id,
         startDate: "2026-06-01",
@@ -182,6 +207,7 @@ function registerValidReassignmentTest() {
     expect(screen.getByTestId("lane-dst").hasAttribute("data-droptarget")).toBe(true);
     expect(screen.getByTestId("lane-src").hasAttribute("data-droptarget")).toBe(false);
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 55, clientY: 125, bubbles: true }));
+    await settlePlanning();
 
     expect(getStoredAllocation(a.id).resourceId).toBe(r2.id);
     expect(screen.getByTestId("lane-dst").hasAttribute("data-droptarget")).toBe(false);
@@ -218,16 +244,16 @@ function renderReassignmentLanes(sourceId: string, destinationId: string, alloca
   screen.getByTestId("lane-dst").getBoundingClientRect = () => laneRect(100, 150);
 }
 
-function verifyWorkingDayRejection({
+async function verifyWorkingDayRejection({
   accountWorkingDays,
   targetWorkingDays,
 }: (typeof workingDayRejectionCases)[number]) {
   const st = useStore.getState();
-  st.updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: accountWorkingDays });
-  const client = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-  const project = requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
-  const activity = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
-  const source = requireCreated(
+  await st.updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: accountWorkingDays });
+  const client = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+  const project = await requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
+  const activity = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
+  const source = await requireCreated(
     st.addResource({
       kind: "person",
       name: "Jess Chambers",
@@ -240,7 +266,7 @@ function verifyWorkingDayRejection({
       color: "#3",
     }),
   );
-  const destination = requireCreated(
+  const destination = await requireCreated(
     st.addResource({
       kind: "person",
       name: "Marie Moreau",
@@ -254,7 +280,7 @@ function verifyWorkingDayRejection({
     }),
   );
   const allocation = requireCreated(
-    st.addAllocation({
+    await st.addAllocation({
       resourceId: source.id,
       activityId: activity.id,
 
@@ -272,6 +298,7 @@ function verifyWorkingDayRejection({
   document.dispatchEvent(new MouseEvent("pointermove", { clientX: 50, clientY: 125, bubbles: true }));
   expect(screen.getByTestId("lane-dst")).not.toHaveAttribute("data-droptarget");
   document.dispatchEvent(new MouseEvent("pointerup", { clientX: 50, clientY: 125, bubbles: true }));
+  await settlePlanning();
 
   expect(useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id)).toMatchObject({
     resourceId: source.id,
@@ -292,13 +319,13 @@ function registerWorkingDayRejectionTests() {
 }
 
 function registerIgnoredWorkingDayTest() {
-  it("allows that literal vertical drop when the allocation ignores working days", () => {
+  it("allows that literal vertical drop when the allocation ignores working days", async () => {
     const st = useStore.getState();
-    st.updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: [1, 2, 3, 4] });
-    const client = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const project = requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
-    const activity = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
-    const source = requireCreated(
+    await st.updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: [1, 2, 3, 4] });
+    const client = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const project = await requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
+    const activity = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
+    const source = await requireCreated(
       st.addResource({
         kind: "person",
         name: "Jess Chambers",
@@ -311,7 +338,7 @@ function registerIgnoredWorkingDayTest() {
         color: "#3",
       }),
     );
-    const destination = requireCreated(
+    const destination = await requireCreated(
       st.addResource({
         kind: "person",
         name: "Marie Moreau",
@@ -325,7 +352,7 @@ function registerIgnoredWorkingDayTest() {
       }),
     );
     const allocation = requireCreated(
-      st.addAllocation({
+      await st.addAllocation({
         resourceId: source.id,
         activityId: activity.id,
         // The Friday destination has no effective weekdays under the company’s Monday-through-Thursday schedule.
@@ -352,6 +379,7 @@ function registerIgnoredWorkingDayTest() {
     document.dispatchEvent(new MouseEvent("pointermove", { clientX: 50, clientY: 125, bubbles: true }));
     expect(screen.getByTestId("lane-dst")).toHaveAttribute("data-droptarget", "");
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 50, clientY: 125, bubbles: true }));
+    await settlePlanning();
 
     expect(useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id)).toMatchObject({
       resourceId: destination.id,
@@ -363,8 +391,8 @@ function registerIgnoredWorkingDayTest() {
 }
 
 function registerDragPreviewTests() {
-  it("updates a vertical drag without a trailing transform transition", () => {
-    const allocation = seedAllocation();
+  it("updates a vertical drag without a trailing transform transition", async () => {
+    const allocation = await seedAllocation();
     render(<AllocationBar bar={barFor(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
     const bar = screen.getByTestId("allocation-bar");
 
@@ -380,13 +408,13 @@ function registerDragPreviewTests() {
     });
   });
 
-  it("assigns a shared lane-boundary drop to the following lane", () => {
+  it("assigns a shared lane-boundary drop to the following lane", async () => {
     const st = useStore.getState();
-    const client = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const project = requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
-    const activity = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
-    const source = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
-    const destination = requireCreated(
+    const client = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const project = await requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
+    const activity = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
+    const source = await requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+    const destination = await requireCreated(
       st.addResource({
         kind: "person",
         name: "Sam",
@@ -400,7 +428,7 @@ function registerDragPreviewTests() {
       }),
     );
     const allocation = requireCreated(
-      st.addAllocation({
+      await st.addAllocation({
         resourceId: source.id,
         activityId: activity.id,
         startDate: "2026-06-01",
@@ -424,6 +452,7 @@ function registerDragPreviewTests() {
     fireEvent.pointerDown(bar, { clientX: 50, clientY: 25, button: 0 });
     document.dispatchEvent(new MouseEvent("pointermove", { clientX: 55, clientY: 50, bubbles: true }));
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 55, clientY: 50, bubbles: true }));
+    await settlePlanning();
 
     expect(useStore.getState().data.allocations.find((row) => row.id === allocation.id)?.resourceId).toBe(
       destination.id,
@@ -432,13 +461,13 @@ function registerDragPreviewTests() {
 }
 
 function registerExternalReassignmentTest() {
-  it("keeps an External block at zero hours when it is reassigned to a person", () => {
+  it("keeps an External block at zero hours when it is reassigned to a person", async () => {
     const st = useStore.getState();
-    st.updateAccount(DEFAULT_ACCOUNT_ID, { schedulingMode: "blocks" });
-    const client = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const project = requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
-    const activity = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
-    const external = requireCreated(
+    await st.updateAccount(DEFAULT_ACCOUNT_ID, { schedulingMode: "blocks" });
+    const client = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const project = await requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
+    const activity = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
+    const external = await requireCreated(
       st.addResource({
         kind: "external",
         name: "Kord Industries",
@@ -451,9 +480,9 @@ function registerExternalReassignmentTest() {
         color: "#3",
       }),
     );
-    const person = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#4" })));
+    const person = await requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#4" })));
     const allocation = requireCreated(
-      st.addAllocation({
+      await st.addAllocation({
         resourceId: external.id,
         activityId: activity.id,
         startDate: "2026-06-01",
@@ -483,6 +512,7 @@ function registerExternalReassignmentTest() {
     fireEvent.pointerDown(bar, { clientX: 50, clientY: 25, button: 0 });
     document.dispatchEvent(new MouseEvent("pointermove", { clientX: 55, clientY: 125, bubbles: true }));
     document.dispatchEvent(new MouseEvent("pointerup", { clientX: 55, clientY: 125, bubbles: true }));
+    await settlePlanning();
 
     expect(useStore.getState().data.allocations.find((row) => row.id === allocation.id)).toMatchObject({
       resourceId: person.id,
@@ -494,16 +524,16 @@ function registerExternalReassignmentTest() {
 function registerGeometryRefreshTests() {
   it.each(["scroll", "resize"] as const)(
     "uses post-%s lane rectangles when pointerup precedes the queued animation frame",
-    (geometryEvent) => {
+    async (geometryEvent) => {
       const requestFrame = vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation(() => 47);
       const cancelFrame = vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => undefined);
       try {
         const st = useStore.getState();
-        const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-        const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
-        const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
-        const r1 = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
-        const r2 = requireCreated(
+        const c = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+        const p = await requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+        const t = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+        const r1 = await requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+        const r2 = await requireCreated(
           st.addResource({
             kind: "person",
             name: "Sam",
@@ -517,7 +547,7 @@ function registerGeometryRefreshTests() {
           }),
         );
         const a = requireCreated(
-          st.addAllocation({
+          await st.addAllocation({
             resourceId: r1.id,
             activityId: t.id,
             startDate: "2026-06-01",
@@ -549,6 +579,7 @@ function registerGeometryRefreshTests() {
         eventTarget.dispatchEvent(new Event(geometryEvent));
         expect(requestFrame).toHaveBeenCalledOnce();
         document.dispatchEvent(new MouseEvent("pointerup", { clientX: 55, clientY: 225, bubbles: true }));
+        await settlePlanning();
 
         expect(cancelFrame).toHaveBeenCalledWith(47);
         expect(getStoredAllocation(a.id).resourceId).toBe(r2.id);

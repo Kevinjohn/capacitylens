@@ -9,12 +9,12 @@ import {
   PlanningOperationError,
 } from '#services/planning_operations/execute'
 import type { PlanningIntent } from '#validators/planning_operations'
-import type { BatchCapabilities } from '#services/batch/data_policy'
+import type { BatchCapabilities } from '#services/planning_operations/data_policy'
 
 const owner: BatchCapabilities = {
   role: 'owner',
   canWrite: true,
-  canPurge: true,
+  canAnonymise: true,
   canSeePrivateNames: true,
   canSeeTimeOffNote: true,
 }
@@ -26,7 +26,11 @@ async function executePlanningIntent(
   capabilities: BatchCapabilities
 ) {
   const data = await readStateWithClient(trx, accountId, true)
-  return applyPlanningIntent(trx, accountId, intent, capabilities, data)
+  return applyPlanningIntent(trx, accountId, intent, capabilities, data, {
+    actorId: 'u-bruce',
+    sessionId: 'session-bruce',
+    mutationId: randomUUID(),
+  })
 }
 
 test.group('typed planning writers', (group) => {

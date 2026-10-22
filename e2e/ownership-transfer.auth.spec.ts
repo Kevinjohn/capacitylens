@@ -84,6 +84,8 @@ test("the Owner confirms one immediate handover and both memberships refresh", a
     await expect(dialog).toContainText("Clark Kent");
     await expect(dialog).toContainText("Admin");
     await ownerPage.getByTestId("ownership-transfer-complete").click();
+    await ownerPage.getByLabel("Password").fill(PASSWORD);
+    await ownerPage.getByTestId("action-proof-confirm").click();
 
     await expect
       .poll(() => readRoles(request, owner.cookie, accountId, [admin.userId, owner.userId]))

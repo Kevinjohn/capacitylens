@@ -19,10 +19,10 @@ const resourceDraft = {
   color: "#111111",
 };
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
-  resetStoreWithAccount();
+  await resetStoreWithAccount();
 });
 
 afterEach(() => {
@@ -30,8 +30,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function renderCreateForm(startDate = "2026-01-30", endDate = startDate, onClose = vi.fn()) {
-  const resource = requireCreated(useStore.getState().addResource(resourceDraft));
+async function renderCreateForm(startDate = "2026-01-30", endDate = startDate, onClose = vi.fn()) {
+  const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
   render(<TimeOffForm defaults={{ resourceId: resource.id, startDate, endDate }} onClose={onClose} />);
   return { resource, onClose };
 }
@@ -43,8 +43,8 @@ function chooseRepeat(optionName: string): void {
 }
 
 function registerTimeOffRepeatBasics(): void {
-  it("offers the finite repeat choices only while creating", () => {
-    const { resource } = renderCreateForm();
+  it("offers the finite repeat choices only while creating", async () => {
+    const { resource } = await renderCreateForm();
 
     expect(screen.getByTestId("timeoff-repeat")).toHaveTextContent("Doesn’t repeat");
     fireEvent.keyDown(screen.getByLabelText("Repeat"), { key: "ArrowDown" });
@@ -59,7 +59,7 @@ function registerTimeOffRepeatBasics(): void {
     ]);
 
     fireEvent.keyDown(document, { key: "Escape" });
-    const existing = requireCreated(
+    const existing = await requireCreated(
       useStore.getState().addTimeOff({
         resourceId: resource.id,
         startDate: "2026-01-30",
@@ -74,7 +74,7 @@ function registerTimeOffRepeatBasics(): void {
 
   it("suggests the final day of the twelfth calendar month and follows start edits until manually changed", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    renderCreateForm();
+    await renderCreateForm();
     chooseRepeat("Weekly");
 
     const cutoff = screen.getByTestId("timeoff-repeat-until");
@@ -88,8 +88,8 @@ function registerTimeOffRepeatBasics(): void {
     expect(cutoff).toHaveValue("2026-10-31");
   });
 
-  it("restores an untouched cutoff suggestion after repetition is enabled with a blank start", () => {
-    renderCreateForm();
+  it("restores an untouched cutoff suggestion after repetition is enabled with a blank start", async () => {
+    await renderCreateForm();
     fireEvent.change(screen.getByLabelText("Start"), { target: { value: "" } });
     chooseRepeat("Weekly");
     expect(screen.getByTestId("timeoff-repeat-until")).toHaveValue("");
@@ -102,7 +102,7 @@ function registerTimeOffRepeatBasics(): void {
 function registerTimeOffRepeatProjection(): void {
   it("previews and saves exactly twelve last Fridays without an anniversary-window thirteenth", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    const { resource, onClose } = renderCreateForm();
+    const { resource, onClose } = await renderCreateForm();
     chooseRepeat("Monthly on the last Friday");
 
     const preview = screen.getByTestId("timeoff-repeat-preview");
@@ -116,6 +116,7 @@ function registerTimeOffRepeatProjection(): void {
     expect(ranges).not.toHaveTextContent("29 Jan 2027");
 
     await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(useStore.getState().data.timeOff).toHaveLength(12));
     const saved = useStore.getState().data.timeOff.filter((entry) => entry.resourceId === resource.id);
     expect(saved).toHaveLength(12);
     expect(saved.map(({ startDate }) => startDate)).toEqual([
@@ -137,13 +138,14 @@ function registerTimeOffRepeatProjection(): void {
 
   it("preserves an inclusive multi-day calendar span and copies an authorised note", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    renderCreateForm("2026-03-27", "2026-03-29");
+    await renderCreateForm("2026-03-27", "2026-03-29");
     await user.type(screen.getByLabelText("Note"), "  Family trip  ");
     chooseRepeat("Monthly on the last Friday");
 
     expect(screen.getByTestId("timeoff-repeat-preview")).toHaveTextContent("26 – 28 Feb 2027");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
+    await waitFor(() => expect(useStore.getState().data.timeOff).toHaveLength(12));
     const saved = useStore.getState().data.timeOff;
     expect(saved).toHaveLength(12);
     expect(saved.at(-1)).toMatchObject({
@@ -158,7 +160,7 @@ function registerTimeOffRepeatProjection(): void {
 function registerTimeOffRepeatValidation(): void {
   it("rejects a non-last-weekday anchor, then unlocks submission after correction", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    renderCreateForm("2026-01-23");
+    await renderCreateForm("2026-01-23");
     chooseRepeat("Monthly on the last Friday");
 
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -170,12 +172,12 @@ function registerTimeOffRepeatValidation(): void {
     fireEvent.change(screen.getByLabelText("Start"), { target: { value: "2026-01-30" } });
     fireEvent.change(screen.getByLabelText("End"), { target: { value: "2026-01-30" } });
     await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(useStore.getState().data.timeOff).toHaveLength(12);
+    await waitFor(() => expect(useStore.getState().data.timeOff).toHaveLength(12));
   });
 
   it("explains a cutoff that permits only the original entry and keeps the form open", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    const { onClose } = renderCreateForm();
+    const { onClose } = await renderCreateForm();
     chooseRepeat("Weekly");
     const cutoff = screen.getByLabelText("Repeat until");
     await user.clear(cutoff);
@@ -190,7 +192,7 @@ function registerTimeOffRepeatValidation(): void {
 
   it("rejects a cutoff after the twelve-calendar-month horizon", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    renderCreateForm();
+    await renderCreateForm();
     chooseRepeat("Weekly");
     fireEvent.change(screen.getByLabelText("Repeat until"), { target: { value: "2027-01-01" } });
 
@@ -202,7 +204,7 @@ function registerTimeOffRepeatValidation(): void {
 
   it("rejects the whole draft when a generated multi-day end exceeds the date domain", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    renderCreateForm("9999-11-30", "9999-12-31");
+    await renderCreateForm("9999-11-30", "9999-12-31");
     chooseRepeat("Monthly on the last Tuesday");
 
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -212,8 +214,8 @@ function registerTimeOffRepeatValidation(): void {
 }
 
 function registerTimeOffRepeatSubmission(): void {
-  it("guards re-entrant submission of one accepted batch", () => {
-    const { onClose } = renderCreateForm();
+  it("guards re-entrant submission of one accepted batch", async () => {
+    const { onClose } = await renderCreateForm();
     chooseRepeat("Monthly on the last Friday");
     const form = screen.getByRole("dialog", { name: "Add time off" }).querySelector("form");
     if (!form) throw new Error("Expected the time-off form element.");
@@ -221,17 +223,17 @@ function registerTimeOffRepeatSubmission(): void {
     fireEvent.submit(form);
     fireEvent.submit(form);
 
-    expect(useStore.getState().data.timeOff).toHaveLength(12);
+    await waitFor(() => expect(useStore.getState().data.timeOff).toHaveLength(12));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("releases the submit guard after a synchronous store rejection", async () => {
+  it("releases the submit guard after an asynchronous store rejection", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const addMany = vi.spyOn(useStore.getState(), "addTimeOffs");
-    addMany.mockImplementationOnce(() => {
+    addMany.mockImplementationOnce(async () => {
       throw new Error("Temporary store refusal");
     });
-    const { onClose } = renderCreateForm();
+    const { onClose } = await renderCreateForm();
     chooseRepeat("Monthly on the last Friday");
 
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -239,7 +241,7 @@ function registerTimeOffRepeatSubmission(): void {
     expect(onClose).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(useStore.getState().data.timeOff).toHaveLength(12);
+    await waitFor(() => expect(useStore.getState().data.timeOff).toHaveLength(12));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 }
@@ -247,7 +249,7 @@ function registerTimeOffRepeatSubmission(): void {
 function registerTimeOffRepeatPrivacy(): void {
   it("never renders or copies notes for a role without note access", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    const resource = requireCreated(useStore.getState().addResource(resourceDraft));
+    const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
     render(
       <PermissionContext.Provider value={{ role: "editor" }}>
         <TimeOffForm
@@ -259,7 +261,7 @@ function registerTimeOffRepeatPrivacy(): void {
     expect(screen.queryByLabelText("Note")).not.toBeInTheDocument();
     chooseRepeat("Monthly on the last Friday");
     await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(useStore.getState().data.timeOff).toHaveLength(12);
+    await waitFor(() => expect(useStore.getState().data.timeOff).toHaveLength(12));
     expect(useStore.getState().data.timeOff.every((entry) => entry.note === null)).toBe(true);
   });
 }

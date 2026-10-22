@@ -4,6 +4,8 @@ import { isServerConfigured } from "@/data/apiConfig";
 import { bindStoredAccountCommandsToIdentity, clearStoredAccountCommands } from "@/account/accountClient";
 import { resolvePublicAuthEntry } from "./authEntryRoute";
 import { useStore } from "@/store/useStore";
+import { queryClient } from "@/api/queryClient";
+import { masqueradeController } from "./masqueradeController";
 import { AuthContext } from "./authContext";
 import { m } from "@/i18n";
 import { Button } from "@/components/ui/button";
@@ -17,13 +19,12 @@ import { useAuthContextValue } from "./useAuthContextValue";
 
 // Auth boundary. In the demo build (VITE_CAPACITYLENS_DEMO=1) this is a
 // pure pass-through that performs no fetch at all. In server mode (the default) it asks
-// GET /api/auth/me once at boot: authMode 'off' (the default deploy) renders the app
-// without a sign-in; a 401 replaces everything with the LoginScreen. The screen is a
+// GET /api/auth/me once at boot; a 401 replaces everything with the LoginScreen. The screen is a
 // lazy chunk so interactive auth forms never load unless a login is actually shown.
 
 const LoginScreen = lazy(() => import("./LoginScreen").then((screenModule) => ({ default: screenModule.LoginScreen })));
 
-type CheckAuth = (onNull: "fail-open" | "keep-previous") => Promise<AuthStatusResult | null>;
+type CheckAuth = (onNull: "report-error" | "keep-previous") => Promise<AuthStatusResult | null>;
 
 function useTenantAccessReady(
   status: AuthStatusResult,
@@ -54,12 +55,17 @@ function useAuthStatus({ serverMode }: UseAuthStatusOptions) {
     const next = await fetchAuthStatus(() => requestId === authRequestSeq.current);
     if (requestId !== authRequestSeq.current) return null;
     if (next === null || (next.kind === "error" && onNull === "keep-previous")) {
-      if (onNull === "fail-open") setStatus(buildOpenAuthResult("off", null));
-      else console.warn("AuthProvider: /api/auth/me refresh failed; keeping the previous auth snapshot");
+      if (next?.kind === "error" && onNull === "keep-previous") {
+        console.warn("AuthProvider: /api/auth/me refresh failed; keeping the previous auth snapshot");
+      }
       return next;
     }
-    if (next.kind === "login") clearStoredAccountCommands();
-    else if (next.kind === "pass") bindStoredAccountCommandsToIdentity(next.user?.id ?? "auth-off");
+    if (next.kind === "login") {
+      clearStoredAccountCommands();
+      masqueradeController.invalidate();
+      queryClient.clear();
+      useStore.getState().clearPlanning();
+    } else if (next.kind === "pass") bindStoredAccountCommandsToIdentity(next.user?.id ?? "auth-off");
     setStatus(next);
     return next;
   }, []);
@@ -71,34 +77,46 @@ function useAuthStatus({ serverMode }: UseAuthStatusOptions) {
 
 function useAuthRevalidation({
   serverMode,
-  persistError,
+  planningAuthLossVersion,
   checkAuth,
   refreshAuth,
 }: {
   serverMode: boolean;
-  persistError: unknown;
+  planningAuthLossVersion: number;
   checkAuth: CheckAuth;
   refreshAuth: () => Promise<void>;
 }) {
   useEffect(() => {
     if (!serverMode) return;
-    void checkAuth("fail-open");
+    void checkAuth("report-error");
   }, [serverMode, checkAuth]);
+  const previousAuthLossVersion = useRef(planningAuthLossVersion);
   useEffect(() => {
-    if (serverMode && persistError) void refreshAuth();
-  }, [serverMode, persistError, refreshAuth]);
+    if (serverMode && planningAuthLossVersion !== previousAuthLossVersion.current) void refreshAuth();
+    previousAuthLossVersion.current = planningAuthLossVersion;
+  }, [serverMode, planningAuthLossVersion, refreshAuth]);
   useEffect(() => {
     if (!serverMode) return;
     const revalidateVisibleSession = () => {
-      if (document.visibilityState === "visible") void refreshAuth();
+      if (document.visibilityState !== "visible") return;
+      // A returning tab must reconcile its planning revision after identity has been checked.
+      // A refused identity clears the private cache in checkAuth, so it cannot start a read.
+      void checkAuth("keep-previous").then((next) => {
+        if (next?.kind === "pass" && useStore.getState().activeAccountId !== null)
+          return useStore.getState().refreshPlanning();
+      });
     };
     window.addEventListener("focus", revalidateVisibleSession);
     document.addEventListener("visibilitychange", revalidateVisibleSession);
+    const interval = window.setInterval(() => {
+      if (useStore.getState().activeAccountId !== null) revalidateVisibleSession();
+    }, 60_000);
     return () => {
+      window.clearInterval(interval);
       window.removeEventListener("focus", revalidateVisibleSession);
       document.removeEventListener("visibilitychange", revalidateVisibleSession);
     };
-  }, [serverMode, refreshAuth]);
+  }, [serverMode, checkAuth]);
 }
 
 function useAuthInvalidation({
@@ -114,9 +132,11 @@ function useAuthInvalidation({
     if (!serverMode) return;
     const onAuthInvalidation = (event: StorageEvent) => {
       if (event.key !== AUTH_INVALIDATION_STORAGE_KEY) return;
-      useStore.getState().setActiveAccount(null);
+      masqueradeController.invalidate();
+      queryClient.clear();
+      useStore.getState().clearPlanning();
       setStatus({ kind: "checking" });
-      void checkAuth("fail-open");
+      void checkAuth("report-error");
     };
     window.addEventListener("storage", onAuthInvalidation);
     return () => window.removeEventListener("storage", onAuthInvalidation);
@@ -220,10 +240,10 @@ function AuthenticatedAppProvider({
   onTenantAccessReady?: (identitySource: "live" | "open") => void;
 }) {
   const serverMode = isServerConfigured();
-  const persistError = useStore((state) => state.persistError);
+  const planningAuthLossVersion = useStore((state) => state.planningAuthLossVersion);
   const { status, setStatus, checkAuth, refreshAuth } = useAuthStatus({ serverMode });
   useTenantAccessReady(status, onTenantAccessReady);
-  useAuthRevalidation({ serverMode, persistError, checkAuth, refreshAuth });
+  useAuthRevalidation({ serverMode, planningAuthLossVersion, checkAuth, refreshAuth });
   useAuthInvalidation({ serverMode, checkAuth, setStatus });
 
   useEffect(() => {
@@ -245,7 +265,7 @@ function AuthenticatedAppProvider({
         message={status.message}
         retry={() => {
           setStatus({ kind: "checking" });
-          void checkAuth("fail-open");
+          void checkAuth("report-error");
         }}
       />
     );

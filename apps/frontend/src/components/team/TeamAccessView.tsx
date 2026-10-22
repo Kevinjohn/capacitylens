@@ -2,7 +2,6 @@ import { useState } from "react";
 import { can, canSeePrivateNames, canSeeTimeOffNote } from "@capacitylens/shared/domain/access";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { usePermissionStatus, useRole } from "@/auth/permissionContext";
-import { useAuth } from "@/auth/authContext";
 import { resolveAccessLabel, resolveAccessSummary } from "@/lib/accessCopy";
 import { resolveAccessExperience } from "@/lib/resolveAccessExperience";
 import { MembersSection } from "./MembersSection";
@@ -50,7 +49,6 @@ function listCapabilities(role: Role): Capability[] {
 
 function resolveAccessWarning({ accessExperience }: ResolveAccessWarningInput) {
   if (accessExperience === "demo") return m.access_demo_warning();
-  if (accessExperience === "open") return m.access_open_warning();
   return null;
 }
 
@@ -156,9 +154,8 @@ export function TeamAccessView() {
   const activeAccountId = useStore((state) => state.activeAccountId);
   const role = useRole();
   const permissionStatus = usePermissionStatus();
-  const { authMode } = useAuth();
   const masqueradeActive = useStore((state) => state.masquerade.kind !== "inactive");
-  const accessExperience = resolveAccessExperience(authMode);
+  const accessExperience = resolveAccessExperience();
   const authenticated = accessExperience === "authenticated";
   const resolvedRole = authenticated && permissionStatus === "resolved" ? role : null;
   const effectiveRole: Role | null = resolvedRole;

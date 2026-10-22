@@ -4,6 +4,8 @@ import { freshDatabase } from '../../helpers/fresh_database.js'
 import { replaceWithSeed } from '#services/state_repository'
 import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities'
 import { fillNullableFields } from '@capacitylens/shared/types/nullableFields'
+import { resetAuthenticatedClient } from '../../helpers/authenticated_data_fixture.js'
+import db from '@adonisjs/lucid/services/db'
 
 const fixture = JSON.parse(
   await readFile(new URL('../../fixtures-main-responses.json', import.meta.url), 'utf8')
@@ -20,23 +22,36 @@ const fixture = JSON.parse(
 test.group('M1 read path', (group) => {
   group.setup(() => freshDatabase())
   group.each.setup(() => replaceWithSeed())
-  for (const expected of fixture.responses) {
+  for (const expected of fixture.responses.filter(
+    (entry) => !['/api/test/reset', '/api/state', '/api/auth/me'].includes(entry.path)
+  )) {
     test(`${expected.method} ${expected.path} matches the main response`, async ({
       client,
       assert,
     }) => {
+      if (
+        expected.path.startsWith('/api/state?') ||
+        ['/api/accounts', '/api/diagnostics'].includes(expected.path)
+      )
+        client = await resetAuthenticatedClient(client, true)
       const response =
         expected.method === 'POST'
           ? await client.post(expected.path).json({ seed: true })
           : await client.get(expected.path)
       assert.equal(response.status(), expected.status)
+      const lastMigration =
+        expected.path === '/api/diagnostics'
+          ? await db.from('adonis_schema').select('name').orderBy('id', 'desc').first()
+          : null
+      if (expected.path === '/api/diagnostics') assert.isString(lastMigration?.name)
       const expectedBody =
         expected.path === '/api/diagnostics'
           ? {
-              ...(expected.body as object),
               server: {
-                ...(expected.body as { server: object }).server,
-                database: { status: 'ok', schemaVersion: 4 },
+                connectivity: 'ok',
+                database: { status: 'ok' },
+                schema: { migration: lastMigration?.name ?? null },
+                backup: { newestSnapshotAt: null },
               },
             }
           : expected.path.startsWith('/api/state')
@@ -61,20 +76,31 @@ test.group('M1 read path', (group) => {
     })
   }
 
-  test('boots the SPA in trusted-local mode', async ({ client, assert }) => {
-    const response = await client.get('/api/auth/me')
-    assert.deepEqual(response.body(), {
-      authMode: 'off',
-      user: {
-        id: 'demo',
-        name: 'Demo',
-        email: 'demo@capacitylens.local',
-        emailVerified: true,
-        image: null,
-      },
-      providers: [],
-      canCreateAccount: false,
-    })
+  test('refuses anonymous state and reset, then reports a real signed-in identity', async ({
+    client,
+    assert,
+  }) => {
+    const state = await client.get('/api/state')
+    state.assertStatus(401)
+    const reset = await client.post('/api/test/reset').json({ seed: true })
+    reset.assertStatus(401)
+    client = await resetAuthenticatedClient(client, true)
+    const identity = await client.get('/api/auth/me')
+    identity.assertStatus(200)
+    assert.equal(identity.body().authMode, 'password-only')
+    assert.equal(identity.body().user.email, 'bruce.wayne@wayne.example')
+    assert.isFalse(identity.body().canCreateAccount)
+    const unscoped = await client.get('/api/state')
+    unscoped.assertStatus(200)
+    assert.deepEqual(
+      unscoped
+        .body()
+        .accounts.map(({ id }: { id: string }) => id)
+        .sort(),
+      ['a-loft', 'a-studio']
+    )
+    const signedReset = await client.post('/api/test/reset').json({ seed: true })
+    signedReset.assertStatus(403)
   })
 
   test('exposes liveness and readiness', async ({ client, assert }) => {

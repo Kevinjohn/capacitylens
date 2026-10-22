@@ -147,7 +147,7 @@ test("edits an activity name", async ({ page }) => {
   await expect(page.getByTestId("activity-row").filter({ hasText: "CMS Build" })).toBeVisible();
 });
 
-test("archives an activity and hides its allocation bars, restorable with undo", async ({ page }) => {
+test("archives an activity and hides its allocation bars, and Undo restores it", async ({ page }) => {
   await openApp(page);
   await setZoom(page, 4);
   await resetSchedulerScroll(page);

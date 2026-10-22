@@ -6,6 +6,7 @@ import { AllocationModal } from "./AllocationModal";
 import { AllocationBar } from "./AllocationBar";
 import { useStore } from "@/store/useStore";
 import { chooseOption, GEOM, indexAtClientX, renderWithTooltip } from "./__tests__/schedulerTestKit";
+import { settlePlanning } from "./__tests__/allocationBarInteractionTestKit";
 import { required, ACC, resetAllocationModalStore, person, enableDays } from "./__tests__/allocationModalTestKit";
 
 type CapacityAdvisoryMockInput =
@@ -24,20 +25,20 @@ vi.mock("@/lib/capacity", async (importOriginal) => ({
   buildCapacityAdvisoryFromLoad: capacityAdvisoryMock,
 }));
 
-beforeEach(() => {
-  resetAllocationModalStore();
+beforeEach(async () => {
+  await resetAllocationModalStore();
   capacityAdvisoryMock.mockClear();
   capacityAdvisoryMock.mockImplementation(() => ({ overDays: 0, timeOffDays: 0 }));
 });
 
 describe("#257: modal and gesture effective-week agreement", () => {
   it("saves the same end and hours/day as a resize commit for the same five-day span", async () => {
-    enableDays([1, 2, 3, 4]);
-    const resource = requireCreated(
+    await enableDays([1, 2, 3, 4]);
+    const resource = await requireCreated(
       useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -57,7 +58,7 @@ describe("#257: modal and gesture effective-week agreement", () => {
     );
     modal.unmount();
 
-    useStore.getState().updateAllocation(allocation.id, { endDate: "2026-06-04", hoursPerDay: 8 });
+    await useStore.getState().updateAllocation(allocation.id, { endDate: "2026-06-04", hoursPerDay: 8 });
     const resetAllocation = required(
       useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
       "Expected the reset allocation.",
@@ -79,6 +80,7 @@ describe("#257: modal and gesture effective-week agreement", () => {
       />,
     );
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight", shiftKey: true });
+    await settlePlanning();
     const gestureAllocation = required(
       useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
       "Expected the gesture-resized allocation.",
@@ -94,10 +96,10 @@ describe("#257: modal and gesture effective-week agreement", () => {
 
 describe("#257: stale-start edit and duplicate creation gates", () => {
   it("still saves an existing allocation after its assignee loses every effective working day", async () => {
-    useStore.getState().updateAccount(ACC, { workingDays: [2] });
-    const resource = requireCreated(useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] }));
+    await useStore.getState().updateAccount(ACC, { workingDays: [2] });
+    const resource = await requireCreated(useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] }));
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -124,8 +126,8 @@ describe("#257: stale-start edit and duplicate creation gates", () => {
   // The typed-date create path must enforce the same start rule as the gesture gate: new normal
   // allocations begin on an effective working day, whatever field the date arrived through.
   it("rejects creating an allocation whose typed start is company-non-working", async () => {
-    useStore.getState().updateAccount(ACC, { workingDays: [1, 2, 3, 4] });
-    const resource = requireCreated(
+    await useStore.getState().updateAccount(ACC, { workingDays: [1, 2, 3, 4] });
+    const resource = await requireCreated(
       useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const onClose = vi.fn();
@@ -150,12 +152,12 @@ describe("#257: stale-start edit and duplicate creation gates", () => {
   });
 
   it("rejects duplicating an allocation whose start is company-non-working", async () => {
-    useStore.getState().updateAccount(ACC, { workingDays: [1, 2, 3, 4] });
-    const resource = requireCreated(
+    await useStore.getState().updateAccount(ACC, { workingDays: [1, 2, 3, 4] });
+    const resource = await requireCreated(
       useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: "t1",
         startDate: "2026-06-05",
@@ -178,12 +180,12 @@ describe("#257: stale-start edit and duplicate creation gates", () => {
   });
 
   it("rejects duplicating even an ignored allocation whose start is non-effective (no escape hatch)", async () => {
-    useStore.getState().updateAccount(ACC, { workingDays: [1, 2, 3, 4] });
-    const resource = requireCreated(
+    await useStore.getState().updateAccount(ACC, { workingDays: [1, 2, 3, 4] });
+    const resource = await requireCreated(
       useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: "t1",
         startDate: "2026-06-05",
@@ -205,10 +207,10 @@ describe("#257: stale-start edit and duplicate creation gates", () => {
   });
 
   it("rejects duplicating a normal allocation for a zero-overlap person", async () => {
-    useStore.getState().updateAccount(ACC, { workingDays: [2] });
-    const resource = requireCreated(useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] }));
+    await useStore.getState().updateAccount(ACC, { workingDays: [2] });
+    const resource = await requireCreated(useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] }));
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: "t1",
         startDate: "2026-06-01",

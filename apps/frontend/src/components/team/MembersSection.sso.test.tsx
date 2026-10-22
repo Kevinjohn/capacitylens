@@ -12,8 +12,8 @@ vi.mock("@/data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfig
 const workforce = { id: "google", label: "Google", kind: "social", experimental: false } as const;
 const partner = { id: "google", label: "Google", kind: "social", experimental: false } as const;
 
-beforeEach(() => {
-  resetStoreWithAccount();
+beforeEach(async () => {
+  await resetStoreWithAccount();
 });
 
 afterEach(() => {

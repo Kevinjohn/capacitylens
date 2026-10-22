@@ -57,13 +57,14 @@ Viewer; send an addressed invitation for any other role.
 
 ## Why can't I find Delete company?
 
-The app does not provide a company chooser or deletion action. A standard installation holds one
-company: export a copy, then ask the installer to retire the installation and its data.
-[Delete the company](/owner/responsibilities#delete-the-company)
+The app keeps the company and its members while you can anonymise resource details. To retire the
+installation and its data, ask the installer.
+[Anonymise the company](/owner/responsibilities#anonymise-the-company)
 
 ## Why am I asked to confirm my sign-in?
 
-Transferring ownership, importing and deleting the company need a recent sign-in.
+Transferring ownership, importing and whole-company anonymisation need proof of your identity for
+each action.
 
 ## What does it cost?
 

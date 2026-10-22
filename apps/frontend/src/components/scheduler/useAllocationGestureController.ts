@@ -7,6 +7,7 @@ import { MAX_HOURS_PER_DAY } from "@capacitylens/shared/types/entities";
 import type { Allocation, ID, Weekday } from "@capacitylens/shared/types/entities";
 import { useDragResize } from "@/hooks/useDragResize";
 import type { DragResizePreviewInput, Pointer } from "@/hooks/useDragResize";
+import { isShownByPlanningState } from "@/data/planning/planningCacheController";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import { applyGesture } from "@/lib/gestureMath";
 import type { DateRange, DragMode } from "@/lib/gestureMath";
@@ -190,7 +191,7 @@ interface SavePointerCommitInput {
   result: ReturnType<typeof resolveCommitDates>;
 }
 
-function savePointerCommit({ options, effectiveResourceId, targetResourceId, result }: SavePointerCommitInput) {
+async function savePointerCommit({ options, effectiveResourceId, targetResourceId, result }: SavePointerCommitInput) {
   const { bar, isBlocks } = options;
   const { setNotice, updateAllocation } = useStore.getState();
   const reconciledHours = reconcileCommitHours({
@@ -200,7 +201,7 @@ function savePointerCommit({ options, effectiveResourceId, targetResourceId, res
     hours: result.hours,
   });
   try {
-    const updated = updateAllocation(bar.allocation.id, {
+    const updated = await updateAllocation(bar.allocation.id, {
       ...result.dates,
       ...(reconciledHours !== bar.allocation.hoursPerDay ? { hoursPerDay: reconciledHours } : null),
       ...(targetResourceId ? { resourceId: targetResourceId } : {}),
@@ -209,6 +210,7 @@ function savePointerCommit({ options, effectiveResourceId, targetResourceId, res
   } catch (error) {
     // A diagonal drag is one transaction. A rejected reassignment must not commit its horizontal
     // component as a second update.
+    if (isShownByPlanningState(error)) return;
     setNotice(error instanceof Error ? resolveErrorMessage(error) : m.scheduler_toast_move_rejected(), "error");
     return;
   }
@@ -248,7 +250,7 @@ function commitPointerGesture(options: ControllerOptions, runtime: GestureRuntim
   if (refuseIneffectiveResize(options.bar, mode, effectiveResourceId)) return;
   const result = resolveCommitDates({ options, mode, deltaDays, resourceId: effectiveResourceId });
   if (refuseBlockedCommit({ options, mode, resourceId: effectiveResourceId, dates: result.dates })) return;
-  savePointerCommit({ options, effectiveResourceId, targetResourceId, result });
+  void savePointerCommit({ options, effectiveResourceId, targetResourceId, result });
 }
 
 function resolveKeyboardGesture(options: ControllerOptions, mode: DragMode, deltaDays: number) {
@@ -293,7 +295,7 @@ function refuseBlockedKeyboardGesture({ options, mode, current, next }: Keyboard
   return leavesTimeline;
 }
 
-function saveKeyboardGesture(
+async function saveKeyboardGesture(
   options: ControllerOptions,
   scheduleFocus: ScheduleAllocationFocus,
   input: { next: DateRange; rescale: ReturnType<typeof resolveVolumePreservingHours> | null },
@@ -302,7 +304,7 @@ function saveKeyboardGesture(
   const { next, rescale } = input;
   const { activeAccountId, setNotice, updateAllocation, announceCapacity } = useStore.getState();
   try {
-    const updated = updateAllocation(bar.allocation.id, {
+    const updated = await updateAllocation(bar.allocation.id, {
       ...next,
       ...(rescale ? { hoursPerDay: rescale.hours } : null),
     });
@@ -314,6 +316,7 @@ function saveKeyboardGesture(
     scheduleFocus(bar.allocation.id, activeAccountId);
   } catch (error) {
     // Surface a refused gesture commit so preview feedback cannot imply that a rejected move saved.
+    if (isShownByPlanningState(error)) return;
     setNotice(error instanceof Error ? resolveErrorMessage(error) : m.scheduler_toast_move_disallowed(), "error");
   }
 }
@@ -342,7 +345,7 @@ function nudgeAllocation(
     next.endDate === current.endDate &&
     (rescale === null || rescale.hours === bar.allocation.hoursPerDay);
   if (unchanged) return;
-  saveKeyboardGesture(options, scheduleFocus, { next, rescale });
+  void saveKeyboardGesture(options, scheduleFocus, { next, rescale });
 }
 
 function startPointerGesture(runtime: GestureRuntime) {
