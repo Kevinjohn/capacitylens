@@ -1,8 +1,21 @@
 import { expect, test } from "./fixtures";
+import type { Page } from "@playwright/test";
 import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./authTestSupport";
 import { selectShadOption, waitForAppLanding } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
+
+function recordPlanningWrites(page: Page) {
+  const writes: Array<{ method: string; path: string }> = [];
+  page.on("request", (request) => {
+    if (["GET", "HEAD", "OPTIONS"].includes(request.method())) return;
+    const path = new URL(request.url()).pathname;
+    if (path === "/api/batch" || path.startsWith("/api/accounts/")) {
+      writes.push({ method: request.method(), path });
+    }
+  });
+  return writes;
+}
 
 test("authenticated client creation and settings Undo/Redo persist as typed writes", async ({ page, request }) => {
   const suffix = Date.now();
@@ -16,6 +29,7 @@ test("authenticated client creation and settings Undo/Redo persist as typed writ
   await page.getByLabel("Password").fill(AUTH_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
+  const writes = recordPlanningWrites(page);
 
   await page.getByRole("link", { name: "Clients" }).click();
   await page.getByRole("button", { name: "Add client" }).click();
@@ -55,6 +69,9 @@ test("authenticated client creation and settings Undo/Redo persist as typed writ
   await page.getByRole("link", { name: "Settings" }).click();
   await expect(monthDay).toHaveAttribute("aria-checked", "true");
   expect((await state()).clients.some((row) => row.name === "Wayne Foundation")).toBe(true);
+  expect(writes).toContainEqual({ method: "POST", path: `/api/accounts/${accountId}/clients` });
+  expect(writes).toContainEqual({ method: "PATCH", path: `/api/accounts/${accountId}/settings` });
+  expect(writes.some((write) => write.path === "/api/batch")).toBe(false);
 });
 
 test("authenticated discipline and time-off deletion restore the same rows", async ({ page, request }) => {
@@ -98,6 +115,7 @@ test("authenticated discipline and time-off deletion restore the same rows", asy
   await page.getByLabel("Password").fill(AUTH_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
+  const writes = recordPlanningWrites(page);
 
   const state = async () => {
     const response = await request.get(`${AUTH_API}/api/state?accountId=${accountId}`, {
@@ -123,9 +141,18 @@ test("authenticated discipline and time-off deletion restore the same rows", asy
       return disciplineId;
     })
     .not.toBe("");
-  await discipline.getByRole("button", { name: "Delete" }).click();
+  await discipline.getByRole("button", { name: /^Edit / }).click();
+  const disciplineEditor = page.getByRole("dialog", { name: "Edit discipline" });
+  await disciplineEditor.getByRole("textbox", { name: "Name", exact: true }).fill("Strategy Operations");
+  await disciplineEditor.getByRole("button", { name: "Save" }).click();
+  const updatedDiscipline = page.getByTestId("discipline-row").filter({ hasText: "Strategy Operations" });
+  await expect(updatedDiscipline).toBeVisible();
+  await expect
+    .poll(async () => (await state()).disciplines.find((row) => row.id === disciplineId)?.name)
+    .toBe("Strategy Operations");
+  await updatedDiscipline.getByRole("button", { name: "Delete" }).click();
   await page.getByRole("alertdialog", { name: "Delete discipline?" }).getByRole("button", { name: "Delete" }).click();
-  await expect(discipline).toHaveCount(0);
+  await expect(updatedDiscipline).toHaveCount(0);
   await page.getByRole("link", { name: "Schedule" }).click();
   await page.getByTestId("undo-button").click();
   await expect.poll(async () => (await state()).disciplines.some((row) => row.id === disciplineId)).toBe(true);
@@ -147,6 +174,13 @@ test("authenticated discipline and time-off deletion restore the same rows", asy
       return timeOffId;
     })
     .not.toBe("");
+  await row.getByRole("button", { name: /^Edit / }).click();
+  const timeOffEditor = page.getByRole("dialog", { name: "Edit time off" });
+  await timeOffEditor.getByRole("textbox", { name: "Note" }).fill("Watchtower briefing");
+  await timeOffEditor.getByRole("button", { name: "Save" }).click();
+  await expect
+    .poll(async () => (await state()).timeOff.find((entry) => entry.id === timeOffId)?.note)
+    .toBe("Watchtower briefing");
   await row.getByRole("button", { name: "Delete" }).click();
   await page.getByRole("alertdialog", { name: "Delete time off?" }).getByRole("button", { name: "Delete" }).click();
   await expect(row).toHaveCount(0);
@@ -154,7 +188,12 @@ test("authenticated discipline and time-off deletion restore the same rows", asy
   await page.getByTestId("undo-button").click();
   await expect
     .poll(async () => (await state()).timeOff.find((entry) => entry.id === timeOffId)?.note)
-    .toBe("Watchtower visit");
+    .toBe("Watchtower briefing");
+  expect(writes).toContainEqual({ method: "POST", path: `/api/accounts/${accountId}/disciplines` });
+  expect(writes).toContainEqual({ method: "PATCH", path: `/api/accounts/${accountId}/disciplines/${disciplineId}` });
+  expect(writes).toContainEqual({ method: "POST", path: `/api/accounts/${accountId}/time-off` });
+  expect(writes).toContainEqual({ method: "PATCH", path: `/api/accounts/${accountId}/time-off/${timeOffId}` });
+  expect(writes.some((write) => write.path === "/api/batch")).toBe(false);
 });
 
 for (const repeat of [false, true]) {
@@ -204,6 +243,7 @@ for (const repeat of [false, true]) {
     await page.getByLabel("Password").fill(AUTH_PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();
     await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
+    const writes = recordPlanningWrites(page);
     await page.getByRole("link", { name: "Time off" }).click();
     await page.getByRole("button", { name: "Add time off" }).click();
     const dialog = page.getByRole("dialog", { name: "Add time off" });
@@ -234,5 +274,7 @@ for (const repeat of [false, true]) {
     expect(state.timeOff.filter((entry) => entry.resourceId === resourceId).every((entry) => entry.note === null)).toBe(
       true,
     );
+    expect(writes).toContainEqual({ method: "POST", path });
+    expect(writes.some((write) => write.path === "/api/batch")).toBe(false);
   });
 }

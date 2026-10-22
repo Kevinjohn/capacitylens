@@ -27,8 +27,8 @@ describe("CompanyClosureSection", () => {
     expect(screen.queryByRole("button", { name: "Add a closure" })).not.toBeInTheDocument();
   });
 
-  it("shows the required name and complete inclusive date span", () => {
-    useStore.getState().addClosure({
+  it("shows the required name and complete inclusive date span", async () => {
+    await useStore.getState().addClosure({
       name: "Summer shutdown",
       startDate: "2026-08-01",
       endDate: "2026-08-05",
@@ -44,23 +44,23 @@ describe("CompanyClosureSection", () => {
     expect(screen.getByRole("button", { name: "Delete Summer shutdown closure, Sat 1st – Wed 5th Aug" })).toBeVisible();
   });
 
-  it("uses the active company's timezone and week-start setting for the visible boundary", () => {
+  it("uses the active company's timezone and week-start setting for the visible boundary", async () => {
     vi.setSystemTime(new Date("2026-06-08T00:30:00.000Z"));
-    useStore.getState().addClosure({
+    await useStore.getState().addClosure({
       name: "Wayne Enterprises shutdown",
       startDate: "2026-06-06",
       endDate: "2026-06-07",
     });
 
-    useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 1 });
+    await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 1 });
     const { rerender } = render(<CompanyClosureSection />);
     expect(screen.queryByTestId("company-closure-row")).not.toBeInTheDocument();
 
-    useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Pacific/Honolulu", weekStartsOn: 1 });
+    await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Pacific/Honolulu", weekStartsOn: 1 });
     rerender(<CompanyClosureSection />);
     expect(screen.getByTestId("company-closure-row")).toBeInTheDocument();
 
-    useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 0 });
+    await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 0 });
     rerender(<CompanyClosureSection />);
     expect(screen.getByTestId("company-closure-row")).toBeInTheDocument();
   });
@@ -69,8 +69,8 @@ describe("CompanyClosureSection", () => {
     vi.useRealTimers();
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-07T23:59:59.000Z"));
-    useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 1 });
-    useStore.getState().addClosure({
+    await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 1 });
+    await useStore.getState().addClosure({
       name: "Wayne Enterprises shutdown",
       startDate: "2026-06-07",
       endDate: "2026-06-07",
@@ -86,7 +86,7 @@ describe("CompanyClosureSection", () => {
 
   it("confirms deletion and keeps the store mutation undoable", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    useStore.getState().addClosure({
+    await useStore.getState().addClosure({
       name: "Summer shutdown",
       startDate: "2026-08-01",
       endDate: "2026-08-05",
@@ -98,12 +98,12 @@ describe("CompanyClosureSection", () => {
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
     expect(useStore.getState().data.closures).toHaveLength(0);
 
-    useStore.getState().undo();
+    await useStore.getState().undoPlanning();
     expect(useStore.getState().data.closures).toHaveLength(1);
   });
 
-  it("keeps closure mutation controls hidden for viewers", () => {
-    useStore.getState().addClosure({
+  it("keeps closure mutation controls hidden for viewers", async () => {
+    await useStore.getState().addClosure({
       name: "Summer shutdown",
       startDate: "2026-08-01",
       endDate: "2026-08-05",

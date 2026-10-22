@@ -5,7 +5,7 @@ import { PlanningControllerError } from "@/data/planning/planningCacheController
 import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { AppShell } from "./AppShell";
 import { useStore } from "@/store/useStore";
-import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
+import { makeAppData, makeAccount, makeClient, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
 import { stubMatchMedia } from "@/test/stubMatchMedia";
 import { attachPersistence } from "@/data/persist";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
@@ -380,6 +380,8 @@ it("does not reactivate a sole company after its loaded slice proves missing", a
 });
 
 it("guards navigation while a persistence write is still unacknowledged", () => {
+  const client = makeClient({ id: "unsaved-client", accountId: DEFAULT_ACCOUNT_ID, name: "Unsaved client" });
+  useStore.setState((state) => ({ data: { ...state.data, clients: [...state.data.clients, client] } }));
   const detachPersistence = attachPersistence({
     store: useStore,
     adapter: { loadAll: async () => emptyAppData(), saveAll: async () => {} },
@@ -387,7 +389,7 @@ it("guards navigation while a persistence write is still unacknowledged", () => 
   });
   const { unmount } = renderAppShell({});
   act(() => {
-    useStore.getState().addClient({ name: "Unsaved client", color: "#111111" });
+    useStore.getState().archiveEntity("clients", client.id);
   });
 
   const event = new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent;

@@ -66,8 +66,14 @@ describe("bootstrap", () => {
     const seededAccount = useStore.getState().data.accounts[0];
     if (!seededAccount) throw new Error("expected bootstrap to retain the seeded account");
     useStore.getState().setActiveAccount(seededAccount.id);
-    useStore.getState().addClient({ name: "Later", color: "#1" });
-    expect((await adapter.loadAll()).clients.some((c) => c.name === "Later")).toBe(true);
+    const resource = useStore.getState().data.resources[0];
+    if (!resource) throw new Error("Expected a seeded resource");
+    useStore.getState().archiveEntity("resources", resource.id);
+    await vi.waitFor(async () =>
+      expect(typeof (await adapter.loadAll()).resources.find((entry) => entry.id === resource.id)?.archivedAt).toBe(
+        "string",
+      ),
+    );
     detach();
   });
   it("loads existing data without re-seeding", async () => {
@@ -206,7 +212,7 @@ describe("bootstrap", () => {
     expect(useStore.getState().data.clients[0]?.name).toBe("Loaded");
     expect(useStore.getState().data.resources).toHaveLength(0);
 
-    useStore.getState().addClient({ name: "Later", color: "#222222" });
+    useStore.getState().archiveEntity("clients", "c1");
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalled());
     detach();
   });

@@ -489,10 +489,11 @@ it("attachPersistence keeps a lifecycle-only pagehide deletion dirty until its a
   const onError = vi.fn();
   const detach = await attachActiveA2({ adapter: adapter, debounceMs: 300, onError: onError });
 
-  useStore.getState().replaceAll({
-    ...useStore.getState().data,
-    clients: useStore.getState().data.clients.filter((client) => client.id !== "c2"),
-  });
+  // A lifecycle removal changes data without publishing a planning revision; replaceAll is a
+  // hydration boundary and clears planning history in the same update.
+  useStore.setState((state) => ({
+    data: { ...state.data, clients: state.data.clients.filter((client) => client.id !== "c2") },
+  }));
   window.dispatchEvent(new Event("pagehide"));
   await vi.waitFor(() =>
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "lifecycle keepalive dropped" })),

@@ -69,7 +69,9 @@ export function DisciplineList() {
         <ConfirmDialog
           title={m.list_disciplines_delete_title()}
           message={m.list_disciplines_delete_message({ name: confirming.name })}
-          onConfirm={() => confirmDelete(confirming.id)}
+          onConfirm={() => {
+            void confirmDelete(confirming.id);
+          }}
           onCancel={() => setConfirming(null)}
         />
       )}

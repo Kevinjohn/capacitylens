@@ -29,7 +29,7 @@ async function freshProvider() {
   const { AuthProvider } = await import("./AuthProvider");
   const { useStore } = await import("@/store/useStore");
   const { attachPersistence } = await import("@/data/persist");
-  const { resetStoreWithAccount } = await import("@/test/fixtures");
+  const { resetStoreWithAccount, makeClient, DEFAULT_ACCOUNT_ID } = await import("@/test/fixtures");
   // authContext must come from the same fresh module graph as AuthProvider (which imports it
   // internally): a statically-imported useAuth from before vi.resetModules() would read the
   // context object's default value, not whatever this AuthProvider instance provides.
@@ -43,6 +43,8 @@ async function freshProvider() {
     resetStoreWithAccount,
     requestReauth,
     isReauthPending,
+    makeClient,
+    DEFAULT_ACCOUNT_ID,
   };
 }
 
@@ -870,7 +872,8 @@ function registerServerModeTest29() {
       )
       .mockResolvedValue(me(401, { authMode: "password-only", providers: [] }));
     vi.stubGlobal("fetch", fetchSpy);
-    const { AuthProvider, useStore, attachPersistence, resetStoreWithAccount } = await freshProvider();
+    const { AuthProvider, useStore, attachPersistence, resetStoreWithAccount, makeClient, DEFAULT_ACCOUNT_ID } =
+      await freshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
@@ -879,6 +882,8 @@ function registerServerModeTest29() {
     expect(await screen.findByText("app-content")).toBeInTheDocument();
 
     await resetStoreWithAccount();
+    const client = makeClient({ id: "not-yet-saved", accountId: DEFAULT_ACCOUNT_ID, name: "Not yet saved" });
+    useStore.setState((state) => ({ data: { ...state.data, clients: [...state.data.clients, client] } }));
     const detach = attachPersistence({
       store: useStore,
       adapter: {
@@ -888,7 +893,7 @@ function registerServerModeTest29() {
       debounceMs: 60_000,
       serverMode: true,
     });
-    useStore.getState().addClient({ name: "Not yet saved", color: "#222222" });
+    useStore.getState().archiveEntity("clients", client.id);
 
     act(() => useStore.getState().setPersistError(true));
 

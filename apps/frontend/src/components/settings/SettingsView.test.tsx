@@ -198,8 +198,8 @@ it("warns that calendar changes reinterpret existing allocations without moving 
   ).toBeInTheDocument();
 });
 
-it("reorders from Sunday without changing an explicit saved selection", () => {
-  useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: [1, 3, 5], weekStartsOn: 0 });
+it("reorders from Sunday without changing an explicit saved selection", async () => {
+  await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: [1, 3, 5], weekStartsOn: 0 });
   render(<SettingsView />);
 
   expect(screen.getAllByRole("checkbox").map((checkbox) => checkbox.id)).toEqual([

@@ -45,15 +45,18 @@ function setTaskFieldVisibility({ enabled }: SetTaskFieldVisibilityOptions) {
 }
 
 describe("AllocationBar rendering", () => {
-  it("re-reads its accessible name when the date style changes with a stable bar", () => {
+  it("re-reads its accessible name when the date style changes with a stable bar", async () => {
     useStore.getState().replaceAll({ ...emptyAppData(), accounts: [makeAccount({ dateStyle: "day-month" })] });
     useStore.getState().setActiveAccount("acct-test");
+    await useStore.getState().refreshPlanning();
     const bar = makeBar(makeAllocation());
     render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
     const element = screen.getByTestId("allocation-bar");
     expect(element).toHaveAccessibleName(/1 Jun to 7 Jun/);
 
-    act(() => useStore.getState().updateAccount("acct-test", { dateStyle: "month-day" }));
+    await act(async () => {
+      await useStore.getState().updateAccount("acct-test", { dateStyle: "month-day" });
+    });
 
     expect(element).toHaveAccessibleName(/Jun 1 to Jun 7/);
     expect(element).not.toHaveAccessibleName(/1 Jun to 7 Jun/);

@@ -18,24 +18,26 @@ const meta = { accountId: DEFAULT_ACCOUNT_ID, createdAt: T, updatedAt: T };
 
 beforeEach(() => resetStoreWithAccount());
 
-function undoOps(afterDelete: AppData) {
-  useStore.getState().undo();
+async function undoOps(afterDelete: AppData) {
+  await useStore.getState().undoPlanning();
   return diffOps(afterDelete, useStore.getState().data);
 }
 
 function registerUndoSyncPart1(): void {
-  it("re-stamps an undo whose content is identical but stored revision changed", () => {
+  it("re-stamps an undo whose content is identical but stored revision changed", async () => {
     useStore.getState().replaceAll(
       makeAppData({
         clients: [{ ...NULLABLE_FIELDS.clients, ...meta, id: "c1", name: "Client", color: "#111111" }],
       }),
     );
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
+    await useStore.getState().refreshPlanning();
 
-    useStore.getState().updateClient("c1", { name: "Client" });
+    await useStore.getState().updateClient("c1", { name: "Changed" });
     const afterNoOpSave = useStore.getState().data;
     const savedRevision = requireValue(afterNoOpSave.clients[0], "saved client").updatedAt;
-    const ops = undoOps(afterNoOpSave);
+    expect(afterNoOpSave.clients[0]?.name).toBe("Changed");
+    const ops = await undoOps(afterNoOpSave);
 
     expect(useStore.getState().data.clients[0]).toMatchObject({ name: "Client", color: "#111111" });
     expect(Date.parse(requireValue(useStore.getState().data.clients[0], "restored client").updatedAt)).toBeGreaterThan(
@@ -44,7 +46,7 @@ function registerUndoSyncPart1(): void {
     expect(ops).toContainEqual(expect.objectContaining({ method: "PUT", table: "clients", id: "c1" }));
   });
 
-  it("re-timestamps a tenant larger than the engine argument limit without throwing", () => {
+  it("re-timestamps a tenant larger than the engine argument limit without throwing", async () => {
     const clients = Array.from({ length: 75_000 }, (_, index) => ({
       ...NULLABLE_FIELDS.clients,
       ...meta,
@@ -54,15 +56,22 @@ function registerUndoSyncPart1(): void {
     }));
     useStore.getState().replaceAll(makeAppData({ clients }));
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
-    useStore.getState().addClient({ name: "Last client", color: "#222222" });
+    await useStore.getState().refreshPlanning();
+    await useStore.getState().addClient({ name: "Last client", color: "#222222" });
+    const addedClient = requireValue(useStore.getState().data.clients.at(-1), "last client");
 
-    expect(() => useStore.getState().undo()).not.toThrow();
-    expect(useStore.getState().data.clients).toHaveLength(75_000);
+    await useStore.getState().undoPlanning();
+    expect(useStore.getState().data.clients).toHaveLength(75_001);
+    const archivedClient = requireValue(
+      useStore.getState().data.clients.find((client) => client.id === addedClient.id),
+      "archived client",
+    );
+    expect(typeof archivedClient.archivedAt).toBe("string");
   });
 }
 
 function registerUndoSyncPart2(): void {
-  it("restores an activity phaseId with an activity PUT", () => {
+  it("restores an activity phaseId with an activity PUT", async () => {
     useStore.getState().replaceAll(
       makeAppData({
         clients: [{ ...NULLABLE_FIELDS.clients, ...meta, id: "c1", name: "Client", color: "#111111" }],
@@ -84,11 +93,12 @@ function registerUndoSyncPart2(): void {
       }),
     );
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
+    await useStore.getState().refreshPlanning();
 
-    useStore.getState().deletePhase("ph1");
+    await useStore.getState().deletePhase("ph1");
     const afterDelete = useStore.getState().data;
     expect(requireValue(afterDelete.activities[0], "activity")).toHaveProperty("phaseId", null);
-    const ops = undoOps(afterDelete);
+    const ops = await undoOps(afterDelete);
 
     expect(ops).toContainEqual(
       expect.objectContaining({
@@ -100,7 +110,7 @@ function registerUndoSyncPart2(): void {
     expect(useStore.getState().data.activities[0]?.phaseId).toBe("ph1");
   });
 
-  it("restores a resource disciplineId with a resource PUT", () => {
+  it("restores a resource disciplineId with a resource PUT", async () => {
     useStore.getState().replaceAll(
       makeAppData({
         disciplines: [{ ...NULLABLE_FIELDS.disciplines, ...meta, id: "d1", name: "Design", sortOrder: 0 }],
@@ -108,11 +118,12 @@ function registerUndoSyncPart2(): void {
       }),
     );
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
+    await useStore.getState().refreshPlanning();
 
-    useStore.getState().deleteDiscipline("d1");
+    await useStore.getState().deleteDiscipline("d1");
     const afterDelete = useStore.getState().data;
     expect(requireValue(afterDelete.resources[0], "resource")).toHaveProperty("disciplineId", null);
-    const ops = undoOps(afterDelete);
+    const ops = await undoOps(afterDelete);
 
     expect(ops).toContainEqual(expect.objectContaining({ method: "PUT", table: "resources", id: "r1" }));
     expect(useStore.getState().data.resources[0]?.disciplineId).toBe("d1");
@@ -120,7 +131,7 @@ function registerUndoSyncPart2(): void {
 }
 
 function registerUndoSyncPart3(): void {
-  it("keeps a placeholder projectId removed after project purge and emits no undo sync", () => {
+  it("keeps a placeholder projectId removed after project purge and emits no undo sync", async () => {
     useStore.getState().replaceAll(
       makeAppData({
         clients: [{ ...NULLABLE_FIELDS.clients, ...meta, id: "c1", name: "Client", color: "#111111" }],
@@ -155,18 +166,19 @@ function registerUndoSyncPart3(): void {
       }),
     );
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
+    await useStore.getState().refreshPlanning();
 
     useStore.getState().purgeEntity("projects", "p1");
     const afterDelete = useStore.getState().data;
     expect(requireValue(afterDelete.resources[0], "resource")).toHaveProperty("projectId", null);
-    const ops = undoOps(afterDelete);
+    const ops = await undoOps(afterDelete);
     expect(ops).toEqual([]);
     expect(requireValue(useStore.getState().data.resources[0], "resource")).toHaveProperty("projectId", null);
   });
 }
 
 function registerUndoSyncPart4(): void {
-  it("keeps a placeholder projectId removed after client purge and emits no undo sync", () => {
+  it("keeps a placeholder projectId removed after client purge and emits no undo sync", async () => {
     useStore.getState().replaceAll(
       makeAppData({
         clients: [
@@ -202,11 +214,12 @@ function registerUndoSyncPart4(): void {
       }),
     );
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
+    await useStore.getState().refreshPlanning();
 
     useStore.getState().purgeEntity("clients", "c1");
     const afterDelete = useStore.getState().data;
     expect(requireValue(afterDelete.resources[0], "resource")).toHaveProperty("projectId", null);
-    const ops = undoOps(afterDelete);
+    const ops = await undoOps(afterDelete);
     expect(ops).toEqual([]);
     expect(requireValue(useStore.getState().data.resources[0], "resource")).toHaveProperty("projectId", null);
   });

@@ -26,7 +26,7 @@ beforeEach(() => {
 describe("SchedulerGrid component identity and row variants", () => {
   it.each([undefined, "https://images.example/bruce.png"])(
     "uses the linked avatar fallback unless stored URL %s is present",
-    (avatarUrl) => {
+    async (avatarUrl) => {
       class LoadedImage {
         complete = true;
         naturalWidth = 1;
@@ -39,7 +39,7 @@ describe("SchedulerGrid component identity and row variants", () => {
       vi.stubGlobal("Image", LoadedImage);
       const bruce = useStore.getState().data.resources.find(({ name }) => name === "Bruce");
       if (!bruce) throw new Error("Expected Bruce in the scheduler fixture");
-      useStore.getState().updateResource(bruce.id, { avatarUrl });
+      await useStore.getState().updateResource(bruce.id, { avatarUrl });
       vi.mocked(useResourceAvatars).mockReturnValue(new Map([[bruce.id, "https://images.example/linked.png"]]));
 
       try {
@@ -132,8 +132,8 @@ describe("SchedulerGrid individual schedule drawer", () => {
     expect(screen.queryByText("Bruce's schedule")).not.toBeInTheDocument();
   });
 
-  it("preserves the dimmed placeholder surface and work-mode creation affordance", () => {
-    useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { placeholdersEnabled: true });
+  it("preserves the dimmed placeholder surface and work-mode creation affordance", async () => {
+    await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { placeholdersEnabled: true });
     useStore.getState().replaceAll({
       ...useStore.getState().data,
       resources: [makeResource({ accountId: DEFAULT_ACCOUNT_ID, kind: "placeholder", disciplineId: "d1" })],

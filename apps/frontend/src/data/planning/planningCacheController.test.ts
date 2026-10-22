@@ -640,25 +640,40 @@ describe("planning reconciliation races", () => {
   });
 
   it.each([
-    { operation: "settings.update", changes: { timezone: "Europe/London" } },
-    { operation: "catalogue.update", entity: { entity: "clients", id: "client-1", changes: { codeName: "Wayne" } } },
     {
-      operation: "catalogue.update",
-      entity: { entity: "activities", id: "activity-1", changes: { kind: "internal" } },
+      action: { operation: "settings.update", changes: { timezone: "Europe/London" } },
+      retainedEntries: 1,
     },
-  ] as PlanningIntent[])("clears history for a lookup-proven projection change: %j", async (action) => {
-    const h = await uncertainHarness();
-    // Start a distinct operation so its submitted intent drives lookup eligibility.
-    h.controller.setContext(null);
-    h.controller.setContext(context);
-    await h.readSnapshot({ revision: 1, canWrite: true, data: emptyAppData() });
-    await expect(h.controller.execute(h.controller.begin({}), action, inverse)).rejects.toMatchObject({
-      uncertain: true,
-    });
-    h.lookup.mockResolvedValueOnce({ status: "committed", mutationId: "mutation-2", revision: 2 });
-    await h.controller.reconcile();
-    expect(h.state().planning.history.past).toHaveLength(0);
-  });
+    {
+      action: {
+        operation: "catalogue.update",
+        entity: { entity: "clients", id: "client-1", changes: { codeName: "Wayne" } },
+      },
+      retainedEntries: 0,
+    },
+    {
+      action: {
+        operation: "catalogue.update",
+        entity: { entity: "activities", id: "activity-1", changes: { kind: "internal" } },
+      },
+      retainedEntries: 0,
+    },
+  ] as Array<{ action: PlanningIntent; retainedEntries: number }>)(
+    "reconciles lookup-proven history according to the changed domain: %j",
+    async ({ action, retainedEntries }) => {
+      const h = await uncertainHarness();
+      // Start a distinct operation so its submitted intent drives lookup eligibility.
+      h.controller.setContext(null);
+      h.controller.setContext(context);
+      await h.readSnapshot({ revision: 1, canWrite: true, data: emptyAppData() });
+      await expect(h.controller.execute(h.controller.begin({}), action, inverse)).rejects.toMatchObject({
+        uncertain: true,
+      });
+      h.lookup.mockResolvedValueOnce({ status: "committed", mutationId: "mutation-2", revision: 2 });
+      await h.controller.reconcile();
+      expect(h.state().planning.history.past).toHaveLength(retainedEntries);
+    },
+  );
 });
 
 describe("planning lookup history boundaries", () => {

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { PlanningControllerError, readPlanningProblem } from "@/data/planning/planningCacheController";
-import { attachPersistence } from "@/data/persist";
+import { attachPersistence, flushPendingWrites } from "@/data/persist";
 import { useStore } from "@/store/useStore";
 import { makeAccount, makeResourceDraft, resetStoreWithAccount } from "@/test/fixtures";
 import { requireCreated } from "@/test/requireCreated";
@@ -54,7 +54,6 @@ afterEach(() => {
 
 describe("planning authority publication", () => {
   it("clears the cache and both histories together when authentication is lost, without legacy deletes", async () => {
-    await seedTypedAllocation();
     const saveAll = vi.fn().mockResolvedValue(undefined);
     const detach = attachPersistence({
       store: useStore,
@@ -62,10 +61,23 @@ describe("planning authority publication", () => {
       debounceMs: 0,
     });
     try {
-      await useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" });
-      expect(saveAll).not.toHaveBeenCalled();
-      expect(useStore.getState().past).toEqual([]);
-      expect(useStore.getState().planning.history.past).toHaveLength(4);
+      const client = await requireCreated(
+        useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" }),
+      );
+      useStore.getState().archiveEntity("clients", client.id);
+      useStore.getState().unarchiveEntity("clients", client.id);
+      useStore.getState().undo();
+      expect(await flushPendingWrites()).toEqual({ kind: "clean" });
+      expect(useStore.getState().past).toHaveLength(1);
+      expect(useStore.getState().future).toHaveLength(1);
+      await seedTypedAllocation();
+      expect(useStore.getState().planning.history.past).toHaveLength(3);
+      await useStore.getState().undoPlanning();
+      expect(useStore.getState().planning.history.past).toHaveLength(2);
+      expect(useStore.getState().planning.history.future).toHaveLength(1);
+      expect(useStore.getState().past).toHaveLength(1);
+      expect(useStore.getState().future).toHaveLength(1);
+      const savesBeforeLoss = saveAll.mock.calls.length;
 
       failure.read = new PlanningControllerError("Sign in again.", "unauthenticated", 401);
       await useStore.getState().refreshPlanning();
@@ -77,10 +89,11 @@ describe("planning authority publication", () => {
       expect(state.past).toEqual([]);
       expect(state.future).toEqual([]);
       expect(state.planning.history.past).toEqual([]);
+      expect(state.planning.history.future).toEqual([]);
       expect(state.planning.context).toBeNull();
       expect(state.activeAccountId).toBeNull();
       await new Promise((resolve) => setTimeout(resolve, 0));
-      expect(saveAll).not.toHaveBeenCalled();
+      expect(saveAll).toHaveBeenCalledTimes(savesBeforeLoss);
     } finally {
       detach();
     }
