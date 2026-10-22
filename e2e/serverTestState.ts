@@ -59,7 +59,8 @@ export function ensureDbFixtureAdministrator() {
 
 /** Resets only the disposable SQLite fixture; product HTTP reset stays forbidden. */
 export async function resetServer({ withSeed = true }: ResetServerOptions): Promise<void> {
-  seedDisposableDatabase();
+  if (!existsSync(databasePath) || realpathSync(databasePath) !== resolve(databasePath))
+    throw new Error("The disposable database-backed fixture is unavailable.");
   const db = new DatabaseSync(databasePath);
   try {
     const tables = new Set(
@@ -67,10 +68,20 @@ export async function resetServer({ withSeed = true }: ResetServerOptions): Prom
         ({ name }) => name,
       ),
     );
-    if (["users", "memberships", "accounts", "adonis_sessions"].some((table) => !tables.has(table)))
+    if (["users", "memberships", "accounts", "adonis_sessions", "audit_entries"].some((table) => !tables.has(table)))
       throw new Error("The disposable database does not match the authenticated schema.");
     db.exec("PRAGMA foreign_keys = ON");
     db.exec("PRAGMA busy_timeout = 5000");
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      // Only the guarded test database is cleared; insert-only seeding then restores a fresh fixture.
+      db.exec("DELETE FROM audit_entries; DELETE FROM accounts");
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+    seedDisposableDatabase();
     db.exec("BEGIN IMMEDIATE");
     try {
       if (withSeed) db.prepare("DELETE FROM accounts WHERE id <> ?").run("a-studio");
@@ -81,7 +92,9 @@ export async function resetServer({ withSeed = true }: ResetServerOptions): Prom
         if (!admin) throw new Error("The disposable administrator is unavailable.");
         const now = new Date().toISOString();
         db.prepare(
-          "INSERT INTO memberships (id, account_id, user_id, role, status, created_at, updated_at) VALUES (?, ?, ?, 'owner', 'active', ?, ?)",
+          `INSERT INTO memberships (id, account_id, user_id, role, status, created_at, updated_at)
+           VALUES (?, ?, ?, 'owner', 'active', ?, ?)
+           ON CONFLICT(account_id, user_id) DO UPDATE SET role = 'owner', status = 'active', updated_at = excluded.updated_at`,
         ).run(crypto.randomUUID(), "a-studio", admin.id, now, now);
       }
       db.exec("COMMIT");

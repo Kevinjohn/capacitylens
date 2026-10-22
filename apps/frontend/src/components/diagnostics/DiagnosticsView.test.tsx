@@ -5,6 +5,8 @@ import { AuthContext } from "@/auth/authContext";
 import { DiagnosticsView } from "./DiagnosticsView";
 
 const fetchMock = vi.hoisted(() => ({ fetch: vi.fn() }));
+const migration = "database/migrations/202610220002_add_planning_restoration_origin";
+const snapshotAt = "2026-09-10T12:00:00.000Z";
 
 beforeEach(() => {
   vi.stubGlobal("fetch", fetchMock.fetch);
@@ -14,9 +16,9 @@ beforeEach(() => {
     json: async () => ({
       server: {
         connectivity: "ok",
-        database: { status: "ok", schemaVersion: 38 },
-        persistence: "unknown",
-        backup: { status: "unavailable", lastSuccessAt: null },
+        database: { status: "ok" },
+        schema: { migration },
+        backup: { newestSnapshotAt: snapshotAt },
       },
     }),
   });
@@ -70,18 +72,18 @@ describe("DiagnosticsView — report", () => {
       json: async () => ({
         server: {
           connectivity: "ok",
-          database: { status: "unavailable", schemaVersion: null },
-          persistence: "unknown",
-          backup: { status: "degraded", lastSuccessAt: "2026-09-10T12:00:00.000Z" },
+          database: { status: "unavailable" },
+          schema: { migration },
+          backup: { newestSnapshotAt: snapshotAt },
           secret: "must not render",
         },
       }),
     });
     render(<DiagnosticsView />);
 
-    await waitFor(() => expect(reportText()).toHaveTextContent("Backup: degraded"));
+    await waitFor(() => expect(reportText()).toHaveTextContent(`Newest snapshot: ${snapshotAt}`));
     expect(reportText()).toHaveTextContent("Database: unavailable");
-    expect(reportText()).toHaveTextContent("Backup last success: 2026-09-10T12:00:00.000Z");
+    expect(reportText()).toHaveTextContent("Schema migration: Unknown");
     expect(reportText()).not.toHaveTextContent("must not render");
   });
 });
@@ -125,9 +127,9 @@ describe("DiagnosticsView — observation", () => {
           json: async () => ({
             server: {
               connectivity: "ok",
-              database: { status: "ok", schemaVersion: 38 },
-              persistence: "unknown",
-              backup: { status: "unavailable", lastSuccessAt: null },
+              database: { status: "ok" },
+              schema: { migration },
+              backup: { newestSnapshotAt: null },
             },
           }),
         });
@@ -135,7 +137,8 @@ describe("DiagnosticsView — observation", () => {
         await Promise.resolve();
       });
       expect(reportText()).toHaveTextContent(`Snapshot observed: ${observedAt}`);
-      expect(reportText()).toHaveTextContent("Database schema: 38");
+      expect(reportText()).toHaveTextContent(`Schema migration: ${migration}`);
+      expect(reportText()).toHaveTextContent("Newest snapshot: Unknown");
     } finally {
       vi.useRealTimers();
     }
@@ -149,7 +152,8 @@ describe("DiagnosticsView — clipboard", () => {
     vi.spyOn(navigator, "clipboard", "get").mockReturnValue({ writeText } as unknown as Clipboard);
     render(<DiagnosticsView />);
 
-    await waitFor(() => expect(reportText()).toHaveTextContent("Database schema: 38"));
+    await waitFor(() => expect(reportText()).toHaveTextContent(`Schema migration: ${migration}`));
+    expect(reportText()).toHaveTextContent(`Newest snapshot: ${snapshotAt}`);
     const fetchCountBeforeCopy = fetchMock.fetch.mock.calls.length;
 
     await user.click(screen.getByTestId("copy-diagnostics"));
