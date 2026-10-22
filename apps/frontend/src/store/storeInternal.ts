@@ -23,17 +23,7 @@ function createMutationActions(set: StoreApi<StoreState>["setState"]) {
       future: [],
     }));
 
-  // Anonymisation must not leave a recoverable pre-erasure snapshot in memory. It also
-  // cannot honestly be undoable, so clear both history directions as part of the same state write.
-  const mutateIrreversible = (producer: (data: AppData) => AppData) =>
-    set((state) => ({
-      data: producer(state.data),
-      past: [],
-      future: [],
-      planning: { ...state.planning, history: { past: [], future: [], tipRevision: null } },
-    }));
-
-  return { mutate, mutateIrreversible };
+  return { mutate };
 }
 
 const applyPatch = <T extends Entity>(row: T, patch: Patch<T>): T => {
@@ -81,7 +71,7 @@ function createImportAction(
 
 /** Create the shared internal actions used by store slices. */
 export function createStoreInternals(set: StoreApi<StoreState>["setState"], get: StoreApi<StoreState>["getState"]) {
-  const { mutate, mutateIrreversible } = createMutationActions(set);
+  const { mutate } = createMutationActions(set);
 
   const {
     requireAccount,
@@ -102,7 +92,6 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
 
   return {
     mutate,
-    mutateIrreversible,
     applyPatch,
     requireAccount,
     blockedByViewer,

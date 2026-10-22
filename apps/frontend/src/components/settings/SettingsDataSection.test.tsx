@@ -6,7 +6,7 @@ import type { Role } from "@capacitylens/shared/domain/access";
 import { accountClient } from "@/account/accountClient";
 import { PermissionContext } from "@/auth/permissionContext";
 import { refreshActiveAccountSlice } from "@/data/persist";
-import { flushPendingWrites } from "@/data/persist";
+import { flushPendingWrites, suspendServerWrites } from "@/data/persist";
 import { apiFetch } from "@/data/requestTimeout";
 import { reloadPage } from "@/lib/reloadPage";
 import { useStore } from "@/store/useStore";
@@ -28,10 +28,21 @@ vi.mock("@/data/persist", () => ({
 vi.mock("@/data/requestTimeout", () => ({ apiFetch: vi.fn(), API_BULK_TIMEOUT_MS: 30000 }));
 vi.mock("@/lib/reloadPage", () => ({ reloadPage: vi.fn() }));
 vi.mock("@/auth/ActionProofDialog", () => ({
-  ActionProofDialog: ({ onConfirmed }: { onConfirmed: (id: string) => void }) => (
-    <button type="button" onClick={() => onConfirmed("proof-one")}>
-      Confirm identity
-    </button>
+  ActionProofDialog: ({
+    onConfirmed,
+    onProviderStart,
+  }: {
+    onConfirmed: (id: string) => void;
+    onProviderStart: (id: string) => void;
+  }) => (
+    <>
+      <button type="button" onClick={() => onConfirmed("proof-one")}>
+        Confirm identity
+      </button>
+      <button type="button" onClick={() => onProviderStart("provider-proof")}>
+        Continue with Google
+      </button>
+    </>
   ),
 }));
 
@@ -57,9 +68,15 @@ const section = () => screen.queryByTestId("settings-example-data");
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  sessionStorage.clear();
+  window.history.replaceState(null, "", "/");
   await resetStoreWithAccount();
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  sessionStorage.clear();
+  window.history.replaceState(null, "", "/");
+});
 
 describe("Settings example data", () => {
   it("is offered to an admin of an empty company, including one that only holds the Internal client", () => {
@@ -205,5 +222,135 @@ describe("Whole-company anonymisation", () => {
       expect.any(Number),
     );
     expect(reloadPage).toHaveBeenCalledOnce();
+  });
+
+  it("does not dispatch after the selected company changes during pending-write flush", async () => {
+    let finishFlush!: (value: { kind: "clean" }) => void;
+    vi.mocked(flushPendingWrites).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishFlush = resolve;
+        }),
+    );
+    renderSection({ role: "owner" });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(screen.getByRole("button", { name: "Confirm identity" }));
+    expect(flushPendingWrites).toHaveBeenCalledOnce();
+    useStore.setState({ activeAccountId: "a-loft" });
+    finishFlush({ kind: "clean" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(apiFetch).not.toHaveBeenCalled();
+    expect(suspendServerWrites).not.toHaveBeenCalled();
+    useStore.setState({ activeAccountId: DEFAULT_ACCOUNT_ID });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it.each([408, 500])("keeps writes suspended after an uncertain HTTP %s", async (status) => {
+    vi.mocked(apiFetch).mockResolvedValue(new Response(null, { status }));
+    renderSection({ role: "owner" });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(screen.getByRole("button", { name: "Confirm identity" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Reload" })).toBeInTheDocument());
+    const resume = vi.mocked(suspendServerWrites).mock.results[0]?.value as ReturnType<typeof suspendServerWrites>;
+    expect(resume).not.toHaveBeenCalled();
+  });
+
+  it("keeps writes suspended after a lost response", async () => {
+    vi.mocked(apiFetch).mockRejectedValue(new Error("Connection lost"));
+    renderSection({ role: "owner" });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(screen.getByRole("button", { name: "Confirm identity" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Reload" })).toBeInTheDocument());
+    const resume = vi.mocked(suspendServerWrites).mock.results[0]?.value as ReturnType<typeof suspendServerWrites>;
+    expect(resume).not.toHaveBeenCalled();
+  });
+
+  it("stores only the opaque provider proof before leaving, without submitting", async () => {
+    renderSection({ role: "owner" });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(screen.getByRole("button", { name: "Continue with Google" }));
+    expect(JSON.parse(sessionStorage.getItem("capacitylens/company-anonymise-action-proof") ?? "null")).toEqual({
+      accountId: DEFAULT_ACCOUNT_ID,
+      proofId: "provider-proof",
+    });
+    expect(apiFetch).not.toHaveBeenCalled();
+  });
+
+  it("resumes a same-company provider proof only after another explicit click", async () => {
+    sessionStorage.setItem(
+      "capacitylens/company-anonymise-action-proof",
+      JSON.stringify({ accountId: DEFAULT_ACCOUNT_ID, proofId: "provider-proof" }),
+    );
+    window.history.replaceState(null, "", "/?capacitylensActionConfirmed=1");
+    vi.mocked(apiFetch).mockResolvedValue(new Response(null, { status: 204 }));
+    renderSection({ role: "owner" });
+    const dialog = await screen.findByRole("dialog", { name: "Anonymise all company resources?" });
+    expect(apiFetch).not.toHaveBeenCalled();
+    await userEvent.setup().click(within(dialog).getByRole("button", { name: "Anonymise all resources" }));
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledOnce());
+    expect(apiFetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ body: JSON.stringify({ proofId: "provider-proof" }) }),
+      expect.any(Number),
+    );
+  });
+
+  it("clears a pending provider continuation when the selected company changes", async () => {
+    sessionStorage.setItem(
+      "capacitylens/company-anonymise-action-proof",
+      JSON.stringify({ accountId: DEFAULT_ACCOUNT_ID, proofId: "provider-proof" }),
+    );
+    window.history.replaceState(null, "", "/?capacitylensActionConfirmed=1");
+    renderSection({ role: "owner" });
+    await screen.findByRole("dialog", { name: "Anonymise all company resources?" });
+    useStore.setState({ activeAccountId: "a-loft" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    useStore.setState({ activeAccountId: DEFAULT_ACCOUNT_ID });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(apiFetch).not.toHaveBeenCalled();
+  });
+
+  it("discards wrong-company provider proof and a cancelled continuation", async () => {
+    sessionStorage.setItem(
+      "capacitylens/company-anonymise-action-proof",
+      JSON.stringify({ accountId: "a-loft", proofId: "foreign-proof" }),
+    );
+    window.history.replaceState(null, "", "/?capacitylensActionConfirmed=1");
+    const wrong = renderSection({ role: "owner" });
+    await waitFor(() => expect(sessionStorage.getItem("capacitylens/company-anonymise-action-proof")).toBeNull());
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    wrong.unmount();
+
+    sessionStorage.setItem(
+      "capacitylens/company-anonymise-action-proof",
+      JSON.stringify({ accountId: DEFAULT_ACCOUNT_ID, proofId: "provider-proof" }),
+    );
+    window.history.replaceState(null, "", "/?capacitylensActionConfirmed=1");
+    renderSection({ role: "owner" });
+    const dialog = await screen.findByRole("dialog", { name: "Anonymise all company resources?" });
+    await userEvent.setup().click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(dialog).not.toBeInTheDocument();
+    expect(apiFetch).not.toHaveBeenCalled();
+  });
+
+  it("releases suspended writes after a definitive refusal", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(new Response(JSON.stringify({ error: "Forbidden." }), { status: 403 }));
+    renderSection({ role: "owner" });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(screen.getByRole("button", { name: "Confirm identity" }));
+    await waitFor(() => expect(useStore.getState().notice?.message).toBe("Forbidden."));
+    const resume = vi.mocked(suspendServerWrites).mock.results[0]?.value as ReturnType<typeof suspendServerWrites>;
+    expect(resume).toHaveBeenCalledOnce();
+    expect(reloadPage).not.toHaveBeenCalled();
   });
 });

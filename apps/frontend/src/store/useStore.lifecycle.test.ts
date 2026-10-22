@@ -63,4 +63,45 @@ describe("volatile lifecycle", () => {
     expect(s().planning.history.past).toEqual([]);
     expect(s().planning.history.future).toEqual([]);
   });
+
+  it("invalidates retained deletion handles for the selected company after resource anonymisation", async () => {
+    const target = makeResource({ id: "r-target", accountId, name: "Diana Prince" });
+    const other = makeResource({ id: "r-other", accountId, name: "Clark Kent" });
+    const privateBooking = makeAllocation({ id: "al-private", accountId, resourceId: target.id, note: "Private note" });
+    const otherBooking = makeAllocation({
+      id: "al-other",
+      accountId,
+      resourceId: other.id,
+      note: "Other private note",
+    });
+    s().replaceAll(makeAppData({ resources: [target, other], allocations: [privateBooking, otherBooking] }));
+    s().setActiveAccount(accountId);
+    await s().deleteAllocation(privateBooking.id);
+    await s().deleteAllocation(otherBooking.id);
+    const retained = s()
+      .planning.history.past.map((entry) => entry.inverse)
+      .filter((inverse) => inverse.operation === "planning.restoreGroup");
+    expect(retained).toHaveLength(2);
+    s().anonymiseResource(target.id);
+    for (const inverse of retained) {
+      await expect(s().sendPlanningCommand({ intent: inverse, inverse: null })).rejects.toMatchObject({ status: 409 });
+    }
+    expect(s().data.allocations).toEqual([]);
+    expect(s().data.resources.find((row) => row.id === other.id)?.name).toBe("Clark Kent");
+  });
+
+  it("does not republish a pre-scrub planning completion after the reset generation changes", async () => {
+    const resource = makeResource({ id: "r-racing", accountId, name: "Diana Prince" });
+    s().replaceAll(makeAppData({ resources: [resource] }));
+    s().setActiveAccount(accountId);
+    const pending = s().sendPlanningCommand({
+      intent: { operation: "resource.archive", id: resource.id },
+      inverse: { operation: "resource.unarchive", id: resource.id },
+    });
+    s().anonymiseResource(resource.id);
+    await pending.catch(() => undefined);
+    expect(s().data.resources.find((row) => row.id === resource.id)?.name).toMatch(/^Removed person/);
+    expect(s().planning.pending).toBeNull();
+    expect(s().planning.history.past).toEqual([]);
+  });
 });

@@ -105,13 +105,13 @@ test.group('atomic ownership transfer', (group) => {
       .json({})
       .send()
     unknown.assertStatus(404)
-    const supportedInvalid = await signed(
+    const retiredCompanyArchive = await signed(
       client.post('/api/accounts/a-studio/archive'),
       ownerCookie
     )
       .json({})
       .send()
-    supportedInvalid.assertStatus(400)
+    retiredCompanyArchive.assertStatus(404)
   })
 
   test('swaps exactly one Owner, burns both recovery links and replays the same receipt after demotion', async ({
