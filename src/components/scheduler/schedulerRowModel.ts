@@ -7,7 +7,7 @@ import { resolveTimeOffTypeLabel } from "@/lib/metadata";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import type { Allocation, ID, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 import { isCreationStartBlockedForEffectiveWeek } from "./creationAvailability";
-import { hasRenderableDateRange, reportInvalidScheduleDateRangeOnce } from "./schedulerModelIndexing";
+import { includeRenderableDateRange } from "./schedulerModelIndexing";
 import type { createAllocationFilters } from "./schedulerModelFilters";
 import type { createCapacitySource } from "./schedulerRowCapacity";
 import type { BarLayout, DayState, RowModel, SchedulerModelOptions, TimeOffBlock } from "./schedulerModelTypes";
@@ -27,12 +27,6 @@ interface CreateRowBuilderInput {
 type AllocationFilters = ReturnType<typeof createAllocationFilters>;
 type CapacitySource = ReturnType<ReturnType<typeof createCapacitySource>["capacitySourceFor"]>;
 const NO_TIME_OFF_BLOCKS: TimeOffBlock[] = [];
-
-function includeRenderableDateRange(row: { id: string; startDate: ISODate; endDate: ISODate }): boolean {
-  const renderable = hasRenderableDateRange(row);
-  if (!renderable) reportInvalidScheduleDateRangeOnce(row);
-  return renderable;
-}
 
 function buildTimeOffBlock(timeOffEntry: TimeOff, geometry: SchedulerModelOptions["geom"]): TimeOffBlock {
   return {

@@ -18,7 +18,7 @@ and test-ids are stable identifiers and never change under this page.
 ## The verb is the contract
 
 Read these two calls from `server/src/controlTables/members.ts` and
-`server/src/accounts/adminPort/authority.ts`:
+`server/src/accounts/adminPort/accountAuthority.ts`:
 
 ```ts
 const role = getMemberRole(db, accountId, userId); // Role | null: absence is a value
@@ -33,7 +33,7 @@ on the way, and the verb comes from one of the two tables below.
 | Verb               | Promise                                                                                                                                                                                 | Example in the tree                                                                        |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `is`, `has`, `can` | Returns a boolean. No side effects.                                                                                                                                                     | `canArchive(entity)` in `shared/src/domain/lifecycle/transitions.ts`                       |
-| `assert`           | Throws when the condition fails. On success returns the value it established, or nothing.                                                                                               | `assertAccountAuthority` in `server/src/accounts/adminPort/authority.ts` returns the `Role` |
+| `assert`           | Throws when the condition fails. On success returns the value it established, or nothing.                                                                                               | `assertAccountAuthority` in `server/src/accounts/adminPort/accountAuthority.ts` returns the `Role` |
 | `require`          | Returns what the caller needs, or refuses: it throws, or, as a route guard, sends the refusal response. The throwing partner of `get`.                                                    | `requireAccountActor(req)` in `server/src/accounts/routes/handlers/authenticatedPrincipal.ts` |
 | `ensure`           | Makes a state true if it is not already, returns nothing. Safe to call twice.                                                                                                           | `ensureControlTables(db)` in `server/src/controlTables/retentionV24.ts`                    |
 | `get`              | Looks one thing up by key in storage. Returns it, or `null` when absent. Never throws for absence.                                                                                      | `getMemberRole(db, accountId, userId)` in `server/src/controlTables/members.ts`            |
@@ -63,7 +63,7 @@ families are already in consistent use:
 | `format` | Returns display text. | `formatDayFigure(days)` in `src/components/capacity-overview/capacityOverviewBar.ts` |
 | `to<Type>` | Converts a value to another representation of the same thing. | `toISODate(date)` in `shared/src/lib/dateMath.ts` |
 | `sanitize` | Repairs untrusted import or write input into a valid row, dropping what cannot be repaired. | `sanitizeAllocation` in `shared/src/lib/sanitizeImport.ts` |
-| `evaluate` | Returns a decision, such as an authority verdict, without changing state. | `evaluateAuthority` in `server/src/accounts/adminPort/authority.ts` |
+| `evaluate` | Returns a decision, such as an authority verdict, without changing state. | `evaluateAuthority` in `server/src/accounts/adminPort/identityAdminAuthority.ts` |
 | `inspect` | Examines a structure and reports what it found, without repairing it. | `inspectColumn` in `server/src/schema/assert.ts` |
 | `verify` | Checks a credential, signature or artefact. | `verifyLegacyHash` in `server/src/passwordSecurity.ts` |
 

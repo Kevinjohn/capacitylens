@@ -8,8 +8,7 @@ import type { LaneLayout } from "@/lib/lanePacking";
 import { laneLayout as compactLaneLayout } from "./layout";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import {
-  hasRenderableDateRange,
-  reportInvalidScheduleDateRangeOnce,
+  includeRenderableDateRange,
   bucketByCoveredDate,
   groupByResourceId,
   NO_ALLOCATIONS,
@@ -26,12 +25,6 @@ interface ApplyVisibleUtilizationInput {
   blocksMode?: boolean | undefined;
   laneLayout?: LaneLayout | undefined;
   partiallyExposesNextColumn?: boolean | undefined;
-}
-
-function includeRenderableDateRange<T extends { id: string; startDate: ISODate; endDate: ISODate }>(row: T): boolean {
-  const renderable = hasRenderableDateRange(row);
-  if (!renderable) reportInvalidScheduleDateRangeOnce(row);
-  return renderable;
 }
 
 function projectVisibleLanes({
