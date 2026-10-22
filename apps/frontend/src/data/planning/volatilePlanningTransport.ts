@@ -115,11 +115,29 @@ function deleteRows(data: AppData, key: AppDataKey, ids: string[], groups: Map<s
 function restore(data: AppData, group: Group): void {
   if (group.rows.some((row) => rows(data, group.key).some((current) => current.id === row.id))) throw conflict();
   for (const link of group.links) if (find(data, link.key, link.id)[link.field] !== null) throw conflict();
+  for (const row of group.rows) {
+    try {
+      if (group.key === "phases") assertScopedRefs(data, group.companyId, "phases", row);
+      if (group.key === "timeOff") assertResourceExists(data, group.companyId, String(row.resourceId));
+    } catch (error) {
+      if (error instanceof DomainError) throw conflict();
+      throw error;
+    }
+  }
   put(data, group.key, [
     ...rows(data, group.key),
     ...group.rows.map((row) => ({ ...row, updatedAt: touchAfter(row.updatedAt) })),
   ]);
-  for (const link of group.links) patch(data, link.key, link.id, { [link.field]: link.parentId });
+  for (const link of group.links) {
+    const child = find(data, link.key, link.id);
+    try {
+      assertScopedRefs(data, group.companyId, link.key, { ...child, [link.field]: link.parentId }, child);
+    } catch (error) {
+      if (error instanceof DomainError) throw conflict();
+      throw error;
+    }
+    patch(data, link.key, link.id, { [link.field]: link.parentId });
+  }
 }
 function lifecycle(
   data: AppData,

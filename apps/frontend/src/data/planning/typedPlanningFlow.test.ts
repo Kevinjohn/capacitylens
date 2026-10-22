@@ -31,7 +31,13 @@ function flow(initial: PlanningCacheState["data"]) {
     transport,
   });
   controller.setContext(context);
-  return { controller, state: store.getState };
+  return {
+    controller,
+    state: store.getState,
+    replaceVisible: (next: PlanningCacheState["data"]) => {
+      visible = next;
+    },
+  };
 }
 
 describe("typed demo planning flow", () => {
@@ -98,6 +104,121 @@ describe("typed demo planning flow", () => {
     );
     expect(state().data.phases[0]?.id).toBe("phase-1");
     expect(state().data.activities[0]).toMatchObject({ name: "Updated activity", phaseId: "phase-1" });
+  });
+
+  it("keeps a deleted phase restorable after refusing a child relink to the wrong project", async () => {
+    const initial = makeAppData({
+      accounts: [makeAccount({ id: companyId })],
+      clients: [makeClient({ id: "c1", accountId: companyId })],
+      projects: [makeProject({ id: "p1", accountId: companyId }), makeProject({ id: "p2", accountId: companyId })],
+      phases: [
+        { id: "phase-1", accountId: companyId, projectId: "p1", name: "Design", createdAt: "t", updatedAt: "t" },
+      ],
+      activities: [makeActivity({ id: "activity-1", accountId: companyId, projectId: "p1", phaseId: "phase-1" })],
+    });
+    const { controller, state } = flow(initial);
+    await controller.refresh();
+    await controller.execute(
+      controller.begin(null),
+      { operation: "catalogue.delete", entity: { entity: "phases", id: "phase-1" } },
+      { operation: "planning.restoreGroup", restorationGroupId: "" },
+    );
+    const inverse = state().planning.history.past[0]?.inverse;
+    const handle = inverse?.operation === "planning.restoreGroup" ? inverse.restorationGroupId : null;
+    if (!handle) throw new Error("Expected restoration handle.");
+    await controller.execute(
+      controller.begin(null),
+      {
+        operation: "catalogue.update",
+        entity: { entity: "activities", id: "activity-1", changes: { projectId: "p2" } },
+      },
+      null,
+    );
+    const revision = state().planning.revision;
+    const history = state().planning.history.past;
+
+    await expect(
+      controller.execute(
+        controller.begin(null),
+        { operation: "planning.restoreGroup", restorationGroupId: handle },
+        null,
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(state().data.phases).toHaveLength(0);
+    expect(state().data.activities[0]).toMatchObject({ projectId: "p2", phaseId: null });
+    expect(state().planning.revision).toBe(revision);
+    expect(state().planning.history.past).toBe(history);
+
+    await controller.execute(
+      controller.begin(null),
+      {
+        operation: "catalogue.update",
+        entity: { entity: "activities", id: "activity-1", changes: { projectId: "p1" } },
+      },
+      null,
+    );
+    await controller.execute(
+      controller.begin(null),
+      { operation: "planning.restoreGroup", restorationGroupId: handle },
+      null,
+    );
+    expect(state().data.phases[0]?.id).toBe("phase-1");
+    expect(state().data.activities[0]?.phaseId).toBe("phase-1");
+  });
+
+  it("refuses a deleted time-off restore while its resource is missing and retains the handle", async () => {
+    const resource = makeResource({ id: "resource-1", accountId: companyId });
+    const initial = makeAppData({
+      accounts: [makeAccount({ id: companyId })],
+      resources: [resource],
+      timeOff: [
+        {
+          id: "time-off-1",
+          accountId: companyId,
+          resourceId: resource.id,
+          type: "holiday",
+          startDate: "2026-06-01",
+          endDate: "2026-06-02",
+          note: "Private note",
+          createdAt: "t",
+          updatedAt: "t",
+        },
+      ],
+    });
+    const { controller, state, replaceVisible } = flow(initial);
+    await controller.refresh();
+    await controller.execute(
+      controller.begin(null),
+      { operation: "timeOff.delete", id: "time-off-1" },
+      { operation: "planning.restoreGroup", restorationGroupId: "" },
+    );
+    const inverse = state().planning.history.past[0]?.inverse;
+    const handle = inverse?.operation === "planning.restoreGroup" ? inverse.restorationGroupId : null;
+    if (!handle) throw new Error("Expected restoration handle.");
+    replaceVisible({ ...state().data, resources: [] });
+    await controller.refresh();
+    const revision = state().planning.revision;
+    const history = state().planning.history.past;
+
+    await expect(
+      controller.execute(
+        controller.begin(null),
+        { operation: "planning.restoreGroup", restorationGroupId: handle },
+        null,
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(state().data.timeOff).toHaveLength(0);
+    expect(state().planning.revision).toBe(revision);
+    expect(state().planning.history.past).toBe(history);
+
+    replaceVisible({ ...state().data, resources: [resource] });
+    await controller.refresh();
+    await controller.execute(
+      controller.begin(null),
+      { operation: "planning.restoreGroup", restorationGroupId: handle },
+      null,
+    );
+    expect(state().data.timeOff[0]).toMatchObject({ id: "time-off-1", note: "Private note" });
   });
 
   it("uses archive and unarchive for resource creation history without changing its id", async () => {

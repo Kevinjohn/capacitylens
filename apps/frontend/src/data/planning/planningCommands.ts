@@ -198,7 +198,7 @@ export function buildTimeOffCreate(
     startDate: args.fields.startDate,
     endDate: args.fields.endDate,
     type: args.fields.type,
-    note: args.fields.note ?? null,
+    ...(Object.hasOwn(args.fields, "note") ? { note: args.fields.note ?? null } : {}),
   };
   return {
     intent: { operation: "timeOff.create", timeOff },
