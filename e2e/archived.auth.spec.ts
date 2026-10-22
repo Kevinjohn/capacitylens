@@ -4,10 +4,7 @@ import { waitForAppLanding } from "./browserTestSupport";
 
 const suffix = Date.now();
 
-test("an Owner archives, restores and anonymises a resource, then confirms a whole-company scrub", async ({
-  page,
-  request,
-}) => {
+test("an Owner archives, restores and anonymises a resource, then anonymises all people", async ({ page, request }) => {
   const email = `bruce-wayne-lifecycle-${suffix}@capacitylens.dev`;
   const owner = await signUpUser(email, "Bruce Wayne");
   const accountId = await bootstrapOrg(request, owner.cookie, `Wayne Lifecycle Studio ${suffix}`);
@@ -50,10 +47,13 @@ test("an Owner archives, restores and anonymises a resource, then confirms a who
   await expect(archive.getByTestId("archived-row").filter({ hasText: /Removed person/ })).toBeVisible();
 
   await page.getByRole("link", { name: "Settings" }).click();
-  await page.getByTestId("settings-company-anonymise").getByRole("button", { name: "Anonymise all people" }).click();
   await page
-    .getByRole("dialog", { name: "Anonymise all company resources?" })
-    .getByRole("button", { name: "Anonymise all people" })
+    .getByTestId("settings-company-anonymise")
+    .getByRole("button", { name: "Anonymise all people", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Anonymise all people?", exact: true })
+    .getByRole("button", { name: "Anonymise all people", exact: true })
     .click();
   await page.getByLabel("Password").fill(AUTH_PASSWORD);
   const reloaded = page.waitForEvent("load");
