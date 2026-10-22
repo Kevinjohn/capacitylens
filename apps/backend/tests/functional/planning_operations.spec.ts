@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { randomUUID } from 'node:crypto'
 import { readState, readStateWithClient, resetState } from '#services/state_repository'
@@ -30,7 +30,7 @@ async function executePlanningIntent(
 }
 
 test.group('typed planning writers', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('creates and patches a closure while preserving its other fields', async ({ assert }) => {
     await resetState('single')

@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import { randomUUID } from 'node:crypto'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { readState, readStateWithClient, resetState } from '#services/state_repository'
 import {
@@ -54,7 +54,7 @@ const makeAllocation = (
 })
 
 test.group('typed allocation group and lifecycle operations', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('creates one allocation series and allows only later group entries to start on a nonworking day', async ({
     assert,

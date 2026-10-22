@@ -119,9 +119,9 @@ This is the short, present-tense record of decisions that constrain future work.
 - An unmatched URL is navigation state: a branded not-found page with a schedule link. Valid
   reset and invitation bearer paths keep their exact matcher; malformed signed-out entries stay
   behind the sign-in wall.
-- Migrations are append-only from the beta baseline and run through Lucid. A build refuses a
-  database containing a migration it does not know. `app:upgrade` writes an online backup before
-  migrating; the backup is the rollback. There are no down migrations and no checksum ledger.
+- Migrations start from one baseline, are forward-only and run through Lucid. `app:upgrade` writes
+  an online backup before migrating; the backup is the rollback. There are no down migrations and
+  no checksum ledger.
 - A native online SQLite backup runs at startup and every 24 hours; count-based retention keeps the
   configured number of snapshots. Failures are logged or returned by the operator command.
 

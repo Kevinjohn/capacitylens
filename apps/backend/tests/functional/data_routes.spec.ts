@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
 import { encodeRow, readState } from '#services/state_repository'
@@ -8,7 +8,7 @@ const trusted = <T extends { header(name: string, value: string): T }>(request: 
   request.header('sec-fetch-site', 'same-origin')
 
 test.group('M2b data routes', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
     await db.from('account_member_resources').delete()
     await db.from('audit_entries').delete()

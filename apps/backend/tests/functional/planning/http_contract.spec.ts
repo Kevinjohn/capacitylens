@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { readState } from '#services/state_repository'
 import {
@@ -15,7 +15,7 @@ import {
 } from './helpers.js'
 
 test.group('authenticated typed planning transactions', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
     await resetPlanningFixture()
   })

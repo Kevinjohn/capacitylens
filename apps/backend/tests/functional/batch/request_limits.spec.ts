@@ -1,11 +1,11 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import logger from '@adonisjs/core/services/logger'
 import server from '@adonisjs/core/services/server'
 import { MAX_SERVER_CONNECTIONS } from '#start/resource_limits'
 
 test.group('M2a request infrastructure', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('applies the configured Node connection and request timeouts and rate-limits drop logs', async ({
     assert,

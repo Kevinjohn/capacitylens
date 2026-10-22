@@ -201,7 +201,7 @@ test.group('M5 documentation and policy contracts', () => {
     assert.include(dockerGuide, 'Keep open production access disabled')
   })
 
-  test('ignores runtime databases while tracking the released migration manifest', ({ assert }) => {
+  test('ignores runtime databases', ({ assert }) => {
     const ignored = (path: string) => {
       try {
         execFileSync('git', ['check-ignore', '--no-index', '--quiet', path], {
@@ -215,7 +215,6 @@ test.group('M5 documentation and policy contracts', () => {
     }
     assert.isTrue(ignored('capacitylens-local.db'))
     assert.isTrue(ignored('apps/backend/tmp/operator.db'))
-    assert.isFalse(ignored('apps/backend/database/released.json'))
   })
 
   test('keeps the shared domain core executable from the backend Node runtime', ({ assert }) => {

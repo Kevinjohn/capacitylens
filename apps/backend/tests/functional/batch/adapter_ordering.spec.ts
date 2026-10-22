@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import { createServer, type ViteDevServer } from 'vite'
 import type { AppData, Discipline } from '@capacitylens/shared/types/entities'
 import { readStudioState, resetSeed } from './ordering_helpers.js'
@@ -57,7 +57,7 @@ test.group('M2a ServerSyncAdapter and SQLite ordering', (group) => {
       Reflect.deleteProperty(globalThis, 'localStorage')
     }
   })
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   async function exercise(
     client: ApiClient,

@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
 import { hashPassword } from '#services/password_service'
@@ -46,7 +46,7 @@ async function signIn(
 }
 
 test.group('native auth and API rate limits', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
     await db.from('rate_limits').delete()
   })

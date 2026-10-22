@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
 import { seed } from '@capacitylens/shared/data/seed'
@@ -30,14 +30,13 @@ test.group('authenticated company erasure', (group) => {
       env.set('CAPACITYLENS_SETUP_TOKEN', previous.setup)
     }
   })
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
     await resetState(false)
     await db.from('user_session_index').delete()
     await db.from('adonis_sessions').delete()
     await db.from('users').delete()
   })
-  // The migration intentionally refuses to restore its old FK while deleted-company audit remains.
   group.each.teardown(async () => {
     await db.from('audit_entries').delete()
   })

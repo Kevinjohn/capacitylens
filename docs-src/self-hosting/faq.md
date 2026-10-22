@@ -49,7 +49,7 @@ until a restore has passed startup checks. See [Backups and restore](/self-hosti
 ### Can I upgrade by replacing the files and restarting?
 
 No. Run `node ace.js app:upgrade` from the new release's `backend/` directory before restarting.
-It checks the released migration manifest and takes a verified pre-upgrade snapshot when needed.
+It takes a verified pre-upgrade snapshot of an existing database, then runs pending migrations.
 See [Upgrades](/self-hosting/upgrades).
 
 ### How do I recover the sole Owner's access?

@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../helpers/fresh_database.js'
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath'
 import { seed } from '@capacitylens/shared/data/seed'
 import type { AppData } from '@capacitylens/shared/types/entities'
@@ -20,7 +20,7 @@ function responseCode(response: { body(): unknown }) {
 }
 
 test.group('M2b resource availability and batch pre-scan', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('rejects malformed browser ordering header pairs before writes', async ({
     client,

@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import router from '@adonisjs/core/services/router'
 import db from '@adonisjs/lucid/services/db'
 import mail from '@adonisjs/mail/services/main'
@@ -36,7 +36,7 @@ function withSession<
 }
 
 test.group('Administrative recovery issuance', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
     await db.from('audit_entries').delete()
     await db.from('user_session_index').delete()

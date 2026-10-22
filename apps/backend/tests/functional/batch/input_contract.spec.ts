@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import { seed } from '@capacitylens/shared/data/seed'
 import type { AppData } from '@capacitylens/shared/types/entities'
 import { invalidFieldCases } from './input_cases.js'
@@ -24,7 +24,7 @@ async function putOps(client: ApiClient, ops: unknown[]) {
 }
 
 test.group('M2a batch input contract', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('rejects malformed supplied entity fields and leaves the seeded account unchanged', async ({
     client,

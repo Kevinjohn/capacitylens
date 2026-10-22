@@ -1,6 +1,6 @@
 import type { ApiClient } from '@japa/api-client'
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import {
   FIXTURE_ACCOUNT,
@@ -54,7 +54,7 @@ function bodyError(response: { body(): unknown }) {
 }
 
 test.group('M2b protected Internal client batch contract', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('rejects replacing the generated Internal client while preserving project references', async ({
     client,

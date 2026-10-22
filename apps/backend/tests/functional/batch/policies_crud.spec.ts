@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { Bouncer } from '@adonisjs/bouncer'
 import { canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access'
@@ -69,7 +69,7 @@ function rowFor(data: Awaited<ReturnType<typeof state>>, table: AppDataKey, id?:
 }
 
 test.group('M2a CRUD and field policy contracts', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(() => replaceWithSeed())
 
   test('round-trips a full create and update for every account-scoped product entity', async ({

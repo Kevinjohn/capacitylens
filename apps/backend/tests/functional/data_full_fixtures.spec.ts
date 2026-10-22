@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import type { ApiClient } from '@japa/api-client'
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../helpers/fresh_database.js'
 import {
   FIXTURE_ACCOUNT,
   FIXTURE_ACTIVITY,
@@ -100,7 +100,7 @@ function assertFixture(actual: Revisioned, expected: Revisioned) {
 }
 
 test.group('M2b full-fixture HTTP persistence', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('account: every field round-trips, including optional scheduling mode', async ({
     client,

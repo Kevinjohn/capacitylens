@@ -56,7 +56,7 @@ test('app reset archives all account, joining and credential state and initializ
       'planning_mutations',
     ])
       assert.equal(tableCount(fresh, table), 0, table)
-    assert.equal(tableCount(fresh, 'adonis_schema'), 10)
+    assert.equal(tableCount(fresh, 'adonis_schema'), 1)
     fresh.close()
   } finally {
     f.cleanup()
@@ -85,7 +85,7 @@ test('app reset refuses absent stop intent, occupied paths and sidecars without 
   }
 })
 
-test('lock and unknown-history reset refusals preserve the source without reserving a destination', ({
+test('a lock reset refusal preserves the source without reserving a destination', ({
   assert,
   test: t,
 }) => {
@@ -99,15 +99,7 @@ test('lock and unknown-history reset refusals preserve the source without reserv
     const locked = f.command(['app:reset', destination, '--confirm-server-stopped'])
     assert.notEqual(locked.status, 0)
     source.exec('ROLLBACK')
-    source
-      .prepare(
-        "UPDATE adonis_schema SET name='database/migrations/unknown' WHERE id=(SELECT MAX(id) FROM adonis_schema)"
-      )
-      .run()
     source.close()
-    const unknown = f.command(['app:reset', destination, '--confirm-server-stopped'])
-    assert.notEqual(unknown.status, 0)
-    assert.match(unknown.output, /Migration journal is inconsistent/)
     assert.isTrue(existsSync(f.databasePath))
     assert.isFalse(existsSync(destination))
   } finally {

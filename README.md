@@ -94,9 +94,8 @@ is the one-page introduction.
 ## Project status
 
 CapacityLens is alpha software with a single maintainer. Beta will mean the upgrade path and the
-settings are stable. Database upgrades are tested from thirteen released database
-snapshots, the oldest from 0.20.0-alpha.1, so a database created by that release or any later one
-is expected to upgrade in place.
+settings are stable. The database schema starts from one forward-only baseline migration;
+`app:upgrade` backs up an existing database before running pending migrations.
 [Before you adopt](https://kevinjohn.github.io/capacitylens/getting-started/what-is-capacitylens.html#before-you-adopt)
 covers status, getting your data out and support. See
 [how it is tested](docs-src/reference/how-it-is-tested.md) and the

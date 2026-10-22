@@ -1,10 +1,10 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { withTransaction } from '#services/with_transaction'
 
 test.group('M1 transaction helper', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('rolls back every write when transactional work fails', async ({ assert }) => {
     await assert.rejects(

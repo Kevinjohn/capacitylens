@@ -32,8 +32,8 @@ In the editor, paste the generated `APP_KEY` and set `APP_URL` to your HTTPS add
 binds the backend to loopback port 8787; put HTTPS in front with the supplied Caddy or nginx
 example. Keep `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=0`. The environment file stays root-only. Run the upgrade as `capacitylens` through systemd,
 which reads that file and gives the service user access to its settings without giving it read
-access to the file. The command checks the released migration manifest and takes a verified
-pre-upgrade snapshot when migrations are pending on an existing database.
+access to the file. The command takes a verified pre-upgrade
+snapshot of an existing database before running pending migrations.
 
 ```bash
 sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens -p WorkingDirectory=/opt/capacitylens/current/backend -p EnvironmentFile=/etc/capacitylens.env /usr/bin/env node ace.js app:upgrade

@@ -35,7 +35,6 @@ async function makeRelease(packages = []) {
     ["public", "assets", "app.js"],
     ["bin", "server.js"],
     ["ace.js"],
-    ["database", "released.json"],
     ["database", "migrations", "1_initial.js"],
     ["pnpm-workspace.yaml"],
     ["node_modules", "@capacitylens", "shared", "dist", "brand.js"],
@@ -43,10 +42,6 @@ async function makeRelease(packages = []) {
   ]) {
     await writeFile(join(root, "backend", ...file), "fixture");
   }
-  await writeFile(
-    join(root, "backend", "database", "released.json"),
-    JSON.stringify({ version: 1, migrations: [{ name: "database/migrations/1_initial", sha256: "abc" }] }),
-  );
   await addReleaseFiles(root, { repositoryRoot, version: "1.2.3", revision: "abc123" });
   for (const name of packages) {
     await mkdir(join(root, "backend", "node_modules", ".pnpm", name), { recursive: true });
@@ -165,13 +160,6 @@ test("does not forbid a development dependency the server also needs at runtime"
     JSON.stringify({ devDependencies: { "fast-check": "1" } }),
   );
   assert.deepEqual(await readDevelopmentPackages(root), ["@fastify/type-provider", "fast-check", "tsx", "vite"]);
-});
-
-test("rejects an artifact without the executable migration manifest", async (context) => {
-  const root = await makeRelease();
-  context.after(() => rm(root, { recursive: true, force: true }));
-  await writeFile(join(root, "backend", "database", "released.json"), "");
-  await assert.rejects(() => inspectManagedRelease(root, []), /released\.json/);
 });
 
 test("rejects an artifact missing its frontend, compiled shared runtime, or SQLite addon", async (context) => {

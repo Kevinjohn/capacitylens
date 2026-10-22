@@ -1,12 +1,12 @@
 import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../helpers/fresh_database.js'
 import Client from '#models/client'
 import { scopedWrite } from '#services/tenant/scoped_write'
 import { withTransaction } from '#services/with_transaction'
 
 test.group('tenant scope', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
     await db.from('clients').delete()
     await db.from('accounts').delete()

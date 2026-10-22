@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath'
 import { NEUTRAL_COLOR } from '@capacitylens/shared/lib/color'
 import { MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays'
@@ -40,7 +40,7 @@ function newAllocation(id: string, changes: Record<string, unknown> = {}) {
 }
 
 test.group('M2a batch entity validation', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('requires complete ordinary rows and rejects references outside the account', async ({
     client,

@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
 
@@ -29,7 +29,7 @@ function isFullProductTableSelect(sql: string) {
 }
 
 test.group('M2a scoped batch projections', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('performs no full product-table SELECT for empty or single-company batches', async ({
     client,

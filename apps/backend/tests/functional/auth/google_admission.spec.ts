@@ -1,6 +1,6 @@
 /* eslint-disable @unicorn/no-await-expression-member -- Keep each row lookup beside its assertion. */
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
 import { googleSignInUser, type VerifiedGoogleProfile } from '#services/auth/google_identity'
@@ -13,7 +13,7 @@ const profile: VerifiedGoogleProfile = {
 }
 
 test.group('Google identity admission', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.setup(() => {
     const previous = env.get('CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS')
     env.set('CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS', profile.email)

@@ -1,6 +1,6 @@
 /* eslint-disable @unicorn/no-await-expression-member -- Keep each HTTP request adjacent to its Japa status assertion. */
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { randomUUID } from 'node:crypto'
 import {
@@ -40,7 +40,7 @@ test.group('native password sessions', (group) => {
       env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', previous.screening)
     }
   })
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
     await limiter.clear()
     await db.from('user_session_index').delete()

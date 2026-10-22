@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { cp, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -13,6 +13,8 @@ const STARTUP_TIMEOUT_MS = 30_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 const RESOURCE_NAME = "Bruce Wayne Packaged Schedule";
+// The packaged schema is one forward-only baseline migration.
+const MIGRATION_COUNT = 1;
 
 function message(error) {
   return error instanceof Error ? error.message : String(error);
@@ -216,39 +218,19 @@ async function main() {
   let passed = false;
   try {
     await stat(join(backend, "ace.js"));
-    const migrations = JSON.parse(await readFile(join(backend, "database", "released.json"), "utf8")).migrations;
-    assert.ok(Array.isArray(migrations) && migrations.length > 1, "Packaged migration manifest is incomplete.");
-    const migrationCount = migrations.length;
     const initial = command(backend, environment, "app:upgrade");
     assert.equal(initial.status, 0, initial.output);
-    assert.equal(inspectDatabase(databasePath).length, migrationCount);
+    assert.doesNotMatch(initial.output, /Pre-upgrade backup written/);
+    assert.equal(inspectDatabase(databasePath).length, MIGRATION_COUNT);
 
-    const rollback = command(
-      backend,
-      environment,
-      "migration:rollback",
-      `--step=${migrationCount - 1}`,
-      "--force",
-      "--no-schema-generate",
-    );
-    assert.equal(rollback.status, 0, rollback.output);
-    assert.equal(inspectDatabase(databasePath).length, 1);
-    const upgrade = command(backend, environment, "app:upgrade");
+    const upgradeDir = join(workDir, "upgrade snapshots");
+    const upgrade = command(backend, { ...environment, CAPACITYLENS_BACKUP_DIR: upgradeDir }, "app:upgrade");
     assert.equal(upgrade.status, 0, upgrade.output);
-    assert.match(upgrade.output, /Pre-upgrade backup written/);
-    assert.equal(inspectDatabase(databasePath).length, migrationCount);
-    assert.equal(inspectDatabase(join(backupDir, `capacitylens-pre-migration-v1-to-v${migrationCount}.db`)).length, 1);
-
-    const unknown = new DatabaseSync(databasePath);
-    const lastName = unknown.prepare("SELECT name FROM adonis_schema ORDER BY id DESC LIMIT 1").get().name;
-    unknown.prepare("UPDATE adonis_schema SET name = ? WHERE name = ?").run("database/migrations/unknown", lastName);
-    unknown.close();
-    const refused = command(backend, environment, "app:upgrade");
-    assert.notEqual(refused.status, 0, refused.output);
-    assert.match(refused.output, /Migration journal is inconsistent/);
-    const restored = new DatabaseSync(databasePath);
-    restored.prepare("UPDATE adonis_schema SET name = ? WHERE name = ?").run(lastName, "database/migrations/unknown");
-    restored.close();
+    const upgradeSnapshot = upgrade.output.match(/Pre-upgrade backup written (.+\.db)/)?.[1];
+    assert.ok(upgradeSnapshot, `Upgrade did not name its snapshot: ${upgrade.output}`);
+    assert.match(upgradeSnapshot, /capacitylens-pre-migration-utc-/);
+    assert.equal(inspectDatabase(upgradeSnapshot).length, MIGRATION_COUNT);
+    assert.equal(inspectDatabase(databasePath).length, MIGRATION_COUNT);
 
     const beforeStartup = await snapshotFiles(backupDir);
     child = startServer(backend, environment, (chunk) => {
@@ -314,7 +296,7 @@ async function main() {
       pathToFileURL(join(backend, "node_modules", "@capacitylens", "shared", "dist", "data", "seed.js")).href
     );
     const { accountId, resource } = await writeSmokeSchedule(baseUrl, cookie, seed());
-    assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, migrationCount);
+    assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, MIGRATION_COUNT);
 
     const beforeExplicit = await snapshotFiles(backupDir);
     const explicit = command(backend, environment, "db:backup");
@@ -324,7 +306,7 @@ async function main() {
     const afterExplicit = await snapshotFiles(backupDir);
     assert.ok(!beforeExplicit.includes(explicitPath.split("/").at(-1)));
     assert.ok(afterExplicit.includes(explicitPath.split("/").at(-1)));
-    assert.equal(inspectDatabase(explicitPath, RESOURCE_NAME).length, migrationCount);
+    assert.equal(inspectDatabase(explicitPath, RESOURCE_NAME).length, MIGRATION_COUNT);
 
     assert.deepEqual(await stopServer(child), { code: 0, signal: null });
     child = startServer(backend, environment, (chunk) => {
@@ -341,14 +323,13 @@ async function main() {
       JSON.stringify({
         node: process.version,
         nativeArtifact: "passed",
-        migrations: migrationCount,
+        migrations: MIGRATION_COUNT,
         passwordAuthentication: "verified",
         databaseSession: "survived restart",
         scheduleWrite: "persisted",
         explicitBackup: "verified",
         scheduledStartupBackup: "verified",
         upgradeSnapshot: "verified",
-        unknownJournal: "refused",
         shutdown: "clean",
       }),
     );

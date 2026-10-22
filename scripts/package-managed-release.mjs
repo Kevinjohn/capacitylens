@@ -76,7 +76,6 @@ const requiredReleaseFiles = [
   "backend/public/index.html",
   "backend/bin/server.js",
   "backend/ace.js",
-  "backend/database/released.json",
   "backend/pnpm-workspace.yaml",
   "backend/node_modules/@capacitylens/shared/dist/brand.js",
   "capacitylens.env.example",
@@ -95,12 +94,6 @@ export async function inspectManagedRelease(root, forbiddenPackages) {
   for (const file of requiredReleaseFiles) await requireNonemptyFile(join(root, ...file.split("/")), file);
   const nativeAddon = join(root, "backend", "node_modules", "better-sqlite3", "prebuilds", `${platform}-${arch}.node`);
   await requireNonemptyFile(nativeAddon, `better-sqlite3 native addon for ${platform}-${arch}`);
-  const manifest = JSON.parse(await readFile(join(root, "backend", "database", "released.json"), "utf8"));
-  if (!Array.isArray(manifest.migrations) || manifest.migrations.length === 0)
-    throw new Error("Production artifact has no executable migration manifest entries.");
-  for (const migration of manifest.migrations) {
-    await requireNonemptyFile(join(root, "backend", `${migration.name}.js`), `${migration.name}.js`);
-  }
   const tests = await stat(join(root, "backend", "tests")).catch((error) => {
     if (error?.code === "ENOENT") return null;
     throw error;

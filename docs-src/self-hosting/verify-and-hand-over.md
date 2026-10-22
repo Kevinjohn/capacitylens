@@ -17,8 +17,8 @@ curl -fsS https://capacity.example.com/health/live
 curl -fsS https://capacity.example.com/health/ready
 ```
 
-Liveness only proves that the process answers. Readiness checks the database and accepted
-migration history. Investigate a failing response before handover; verify backups separately.
+Liveness only proves that the process answers. Readiness checks the database and its schema
+integrity. Investigate a failing response before handover; verify backups separately.
 
 ## Confirm persistence and backups
 

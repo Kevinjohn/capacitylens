@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import { seed } from '@capacitylens/shared/data/seed'
 import type { BatchRevision } from '#services/batch/types'
 import { encodeRow } from '#services/state_repository'
@@ -110,7 +110,7 @@ function attributableFixture() {
 }
 
 test.group('M2a batch projection attribution', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('clears project attribution at the activity flip and echoes the rewritten revision', async ({
     client,
