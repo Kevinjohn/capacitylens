@@ -12,7 +12,8 @@ next:
 # Install without Docker
 
 These steps use the native release archive, Node 24 in the supported 24.x line, systemd and a
-reverse proxy that terminates public TLS. Replace `X.Y.Z`, hostnames and paths with your own.
+reverse proxy on the same machine that terminates public TLS. Whoever manages hosting follows
+these five steps and remains responsible for backups, upgrades and service health. Replace `X.Y.Z`, hostnames and paths with your own.
 
 ## 1. Create the service and data directories
 
@@ -88,31 +89,23 @@ The supplied unit runs one backend process as `capacitylens` and serves both the
 Put the supplied Caddy or nginx configuration at the network edge, adjusting the hostname and
 certificate details. Do not expose the loopback application port publicly.
 
-## 5. Complete first-run setup
+## 5. Open
 
-1. Check readiness at `https://capacity.example.com/health/ready`. Open the site and use
-   `CAPACITYLENS_SETUP_TOKEN` to create the first identity. Send the address and token separately
-   if another person will become Owner. Configured Google first-identity sign-in is also supported.
-2. Stop the service: `sudo systemctl stop capacitylens`. Remove the setup token from the private
-   environment file after the first identity exists.
-3. From the release's `backend/` directory, as the dedicated site user and with the same private
-   environment loaded, run:
+Check `https://capacity.example.com/health/ready`, then open the site. Create the first sign-in with
+`CAPACITYLENS_SETUP_TOKEN`, or use the configured Google identity approved for first sign-in. On
+**Set up your company**, enter **Company name** and select **Create company**. Schedule opens with
+that identity as Owner. There is no server stop, company command or restart during this browser step.
+Send the address and setup token separately if someone else will become Owner.
 
-   ```sh
-   node ace.js company:initialize bruce@wayne.example "Wayne Enterprises" --confirm-server-stopped
-   ```
+The company starts with Monday, Monday–Friday working days, day-based scheduling and the Internal
+client, without a sample schedule. Keep open signup disabled until company setup is complete.
+Remove the first-run token from the private environment at the next routine configuration change;
+the server refuses its reuse once an identity exists.
 
-   Substitute the existing identity's email and company name. The command requires the server to
-   be stopped and obtains an exclusive SQLite lock. It accepts exactly one matching identity with
-   a sign-in method enabled by the current configuration. It creates the company, Internal client,
-   active Owner membership and initial planning revision atomically, with an operator audit entry.
-   It does not create credentials or grant identity admission. Monday, Monday–Friday working days
-   and day-based scheduling are the initial calendar defaults; there is no sample schedule.
-   A missing or ambiguous identity, unavailable sign-in method, existing company or membership,
-   concurrent database writer or failed write refuses setup without creating company access.
-4. Restart with `sudo systemctl start capacitylens`. Sign in normally with that identity and verify
-   that the company opens on Schedule. A second initialization is refused; use normal membership
-   administration after setup.
+Browser setup requires exactly one existing sign-in identity and no company or membership. If
+multiple identities were created before the company, browser setup refuses rather than choosing
+an Owner. Resolving that uncommon state currently needs the hosting operator's stopped-server
+`company:initialize` initializer. This is a limitation, not an extra installation step. A second company is never created.
 
 Continue with [TLS and networking](/self-hosting/tls-and-networking),
 [Monitoring](/self-hosting/monitoring), and [Verify and hand over](/self-hosting/verify-and-hand-over).

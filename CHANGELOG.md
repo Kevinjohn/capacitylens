@@ -15,9 +15,12 @@ new features and **patch** versions carry fixes.
 
 - Require `--disposable` for non-production `app:reset`; production resets are refused before archiving. The nginx example no longer duplicates application HSTS or configures obsolete CSP reporting. `db:seed` now adds missing fixture rows without replacing existing product data or audit history. Diagnostics now show the last applied migration and newest completed snapshot modification time.
 
-- Native installations can initialize their first company and Owner for an existing identity with
-  the stopped-server `company:initialize` command. Setup refuses existing company access and
-  leaves credentials and identity admission unchanged.
+- Native first-run setup now lets the sole signed-in identity enter a company name in the browser
+  and become its Owner without stopping the service. Setup refuses existing company access or
+  multiple pre-company identities and leaves credentials and admission unchanged.
+- Privacy, code-name and activity-kind changes ask once before clearing pending company-wide
+  deleted-item recovery copies, showing the number affected and skipping the warning when none
+  are lost. Cancellation keeps the draft and recovery copies unchanged.
 - Persisted access now requires an authenticated principal and one provisioned company. The
   temporary demo keeps its editable, volatile multi-company picker. Retired generic company and
   batch writes, browser sync queues and their recovery controls; scheduling changes use typed
@@ -29,8 +32,8 @@ new features and **patch** versions carry fixes.
   dependent notes are scrubbed.
 - Removed company deletion, lifecycle soft-delete and purge actions, including the 30-day purge
   countdown and generic lifecycle routes.
-- Clarified that creating a sign-in identity does not provision a company or Owner membership, and
-  refreshed Settings guide screenshots.
+- First sign-in leads to browser company setup on an empty installation; refreshed Settings guide
+  screenshots retain the explicit people-only anonymisation scope.
 
 ### Fixed
 

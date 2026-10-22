@@ -111,19 +111,22 @@ export interface PlanningControllerOptions {
   transport: PlanningTransport;
   createMutationId?: () => string;
   onAuthLoss?: () => void;
+  confirmRestorationCleanup?: (count: number, signal: AbortSignal) => Promise<boolean>;
 }
 
 export class PlanningControllerError extends Error {
   readonly code: string | undefined;
   readonly status: number | undefined;
   readonly uncertain: boolean;
+  readonly restorableItemCount: number | undefined;
 
-  constructor(message: string, code?: string, status?: number, uncertain = false) {
+  constructor(message: string, code?: string, status?: number, uncertain = false, restorableItemCount?: number) {
     super(message);
     this.name = "PlanningControllerError";
     this.code = code;
     this.status = status;
     this.uncertain = uncertain;
+    this.restorableItemCount = restorableItemCount;
   }
 }
 
@@ -633,7 +636,11 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     if (state.planning.pending) throw new PlanningControllerError("A planning change is already pending or uncertain.");
     if (state.planning.status !== "ready" && state.planning.status !== "refused")
       throw new PlanningControllerError("Planning is not ready for a new change.");
-    const execution = cloneImmutable({ mutationId: createMutationId(), baseRevision: draft.baseRevision, intent });
+    let execution: PlanningExecution = cloneImmutable({
+      mutationId: createMutationId(),
+      baseRevision: draft.baseRevision,
+      intent,
+    });
     const immutableInverse = inverse ? cloneImmutable(inverse) : null;
     const pending: PlanningPendingMutation = {
       execution,
@@ -655,7 +662,44 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     }));
     const controller = requestController();
     try {
-      const receipt = await transport.execute(draft.context, execution, controller.signal);
+      let receipt: PlanningMutationSuccess;
+      try {
+        receipt = await transport.execute(draft.context, execution, controller.signal);
+      } catch (error) {
+        if (
+          !(error instanceof PlanningControllerError) ||
+          error.code !== "restoration_confirmation_required" ||
+          !Number.isSafeInteger(error.restorableItemCount) ||
+          error.restorableItemCount === undefined ||
+          error.restorableItemCount <= 0 ||
+          !options.confirmRestorationCleanup
+        )
+          throw error;
+        if (!ownsAttempt(owner) || controller.signal.aborted) throw error;
+        const accepted = await options.confirmRestorationCleanup(error.restorableItemCount, controller.signal);
+        controller.signal.throwIfAborted();
+        if (!ownsAttempt(owner)) throw new PlanningControllerError("Planning context changed before confirmation.");
+        if (!accepted) {
+          attempt = null;
+          store.setState((current) => ({
+            planning:
+              current.planning.revision === state.planning.revision
+                ? state.planning
+                : {
+                    ...current.planning,
+                    status: "ready",
+                    pending: null,
+                    outcome: null,
+                    error: null,
+                    history: emptyHistory(),
+                  },
+          }));
+          return null;
+        }
+        execution = cloneImmutable({ ...execution, confirmedRestorationCount: error.restorableItemCount });
+        pending.execution = execution;
+        receipt = await transport.execute(draft.context, execution, controller.signal);
+      }
       if (!ownsAttempt(owner))
         throw new PlanningControllerError("Planning context changed while the request was pending.");
       if (!isValidReceipt(receipt, execution) || !isProjectionForCompany(receipt, draft.context.companyId)) {

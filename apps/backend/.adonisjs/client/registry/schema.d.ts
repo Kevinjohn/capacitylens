@@ -499,6 +499,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['settingsUpdate']>>>
     }
   }
+  'api.installation.company': {
+    methods: ["POST"]
+    pattern: '/api/installation/company'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/first_company_setup_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/first_company_setup_controller').default['store']>>>
+    }
+  }
   'api.transfer.preview': {
     methods: ["POST"]
     pattern: '/api/transfer/preview'

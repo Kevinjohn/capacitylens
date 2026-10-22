@@ -1,3 +1,5 @@
+import { PlanningSaveCancelledError } from "@/data/planning/PlanningSaveCancelledError";
+import { requestRestorationCleanup } from "@/data/planning/restorationCleanupConfirmation";
 import type { StateCreator, StoreApi } from "zustand";
 import type { PlanningIntent } from "@capacitylens/backend/planning";
 import { assertAllocationWithinResourceAvailability, assertDateRange } from "@capacitylens/shared/domain/mutations";
@@ -168,6 +170,7 @@ export function createAllocationSlice(
         ),
       transport,
       onAuthLoss: () => clearPrivatePlanning(true),
+      confirmRestorationCleanup: requestRestorationCleanup,
     });
     let contextEpoch = 0;
     let contextCompanyId: string | null = null;
@@ -214,7 +217,8 @@ export function createAllocationSlice(
     };
     const send = async (command: PlanningCommand, original: unknown = null): Promise<void> => {
       if (commandsSuspended()) throw new Error("Planning commands are suspended while company data changes.");
-      await controller.execute(controller.begin(original), command.intent, command.inverse);
+      const receipt = await controller.execute(controller.begin(original), command.intent, command.inverse);
+      if (!receipt) throw new PlanningSaveCancelledError();
     };
     const prepareNew = (inputs: readonly Draft<Allocation>[]) => {
       if (inputs.length === 0) throw new Error("At least one allocation is required.");

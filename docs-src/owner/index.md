@@ -12,8 +12,8 @@ next: false
 
 # Access your company
 
-If your installation has a provisioned company and your identity has Owner membership, you can
-give someone the day-to-day running of it. Sign-in setup alone does not create that company.
+Create your sign-in, name the company and give someone its day-to-day running. Whoever manages
+hosting remains responsible for the server, backups and upgrades.
 
 You need the CapacityLens address and the [setup token](/reference/glossary#setup-token) from
 whoever installed it.
@@ -26,8 +26,9 @@ whoever installed it.
    paste the setup token into **Owner setup token**. Select **Create my sign-in**. The token works
    once. If your installer set up Google sign-in, choose that instead.
 
-2. **Check company access.** After first sign-in setup, ask your installer to run the stopped-server
-   [first-company command](/owner/create-your-company), then sign in again to open your company.
+2. **Create your company.** On **Set up your company**, enter **Company name** and select
+   **Create company**. Schedule opens with you as Owner. [Company setup](/owner/create-your-company)
+   explains what to do if access is unavailable.
    The [demo](/getting-started/try-the-demo) lets you edit fictional companies, but its changes are
    lost on reload.
 

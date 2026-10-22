@@ -69,12 +69,13 @@ accept responses never include it.
    `data-testid="create-language"`; English-only until Paraglide). Company colour uses the default
    preset automatically rather than asking for a one-off choice during demo onboarding. The demo
    does not offer **Start with example data**. The calendar fields are set once during creation
-   and are then disabled in Settings. The native installation uses the operator command below;
-   it has no company creation form or example-data checkbox.
-   On an empty native installation, create the first identity, stop the service and run
-   `company:initialize <existing-email> <company-name> --confirm-server-stopped`, then restart
-   and sign in normally. The command creates one company and active Owner membership without
-   changing credentials or identity admission; it refuses any existing company or membership.
+   and are then disabled in Settings. The native installation has a one-field first-run company form and no example-data checkbox.
+   On an empty native installation, the initial sign-in identity reaches **Set up your company**
+   (`data-testid="company-setup"`). Enter **Company name** (`company-setup-name`) and select
+   **Create company** (`company-setup-submit`) to become its Owner and open Schedule without
+   stopping or restarting the service. Failed setup keeps the name and displays a retryable error.
+   Setup creates defaults, Internal client and one active Owner atomically; it leaves credentials
+   and existing admission rules unchanged and refuses any existing company or membership.
    Production does not offer company selection, switching, ordinary additional-company creation or
    in-app company deletion. The server summary supplies the sole installation company; scoped APIs
    still authorize every requested id from the caller's server-side membership. If the summary
@@ -285,8 +286,8 @@ success for the rebase never hides the independent loss.
 > This auto-seed is **DEMO-BUILD-ONLY** going forward (one-company server policy). A
 > real, server-backed instance (the default deploy) no longer auto-seeds from the client side.
 > The demo build (`VITE_CAPACITYLENS_DEMO=1`) starts with a volatile seed dataset. A fresh
-> server-backed instance uses the stopped-server `company:initialize` command for an existing
-> native identity to establish its first company and Owner, with no seed scheduling data. The two-company seed
+> server-backed instance lets its initial signed-in identity name the company in the browser
+> and become its first Owner, with no seed scheduling data. The two-company seed
 > described below happens in the demo build (`pnpm run dev:demo`, what these stories run against)
 > and in backend tenant-isolation tests. The database-backed E2E server resets to a single-company
 > fixture so its user journeys match production. Browser requests cannot reset persisted company
@@ -1712,3 +1713,15 @@ The [Admin guide](../docs-src/admin/index.md) covers invitations, scheduled peop
 company settings and prepared work without requiring the Owner guide. The
 [Owner guide](../docs-src/owner/index.md) ends initial setup with an Admin handover;
 ownership decisions remain available separately.
+
+## Confirmation before clearing deleted-item recovery
+
+An actual change to client/project privacy or code name, or to activity kind, clears the company's
+pending deleted-item recovery copies, including unrelated items deleted by other sessions. Before
+saving, one confirmation says **This change clears N restorable items**. N counts saved deleted
+records, excluding links to surviving records. **Cancel** keeps the draft, data and recovery copies;
+confirmation saves the original change and clears the copies atomically. No warning appears when
+there are none or the relevant fields are unchanged. Ordinary edits keep recovery copies. A changed
+company revision or cleanup count cannot silently expand a confirmed save. Demo and server follow
+the same rule. See [Clients and projects](../docs-src/using/projects.md) and
+[Activities](../docs-src/using/activities.md).

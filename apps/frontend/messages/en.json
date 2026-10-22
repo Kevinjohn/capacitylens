@@ -1408,5 +1408,9 @@
   "diagnostics_help": "A privacy-safe report of the app build, observable server status, this browser session's save counters, the sign-in mode and browser details. It contains no names, email addresses, identifiers, company data, secrets, hostnames or raw errors. It is not a live monitor.",
   "diagnostics_copy": "Copy diagnostics",
   "diagnostics_copied": "Diagnostics copied.",
-  "diagnostics_copy_failed": "Diagnostics could not be copied. Check clipboard permissions and try again."
+  "diagnostics_copy_failed": "Diagnostics could not be copied. Check clipboard permissions and try again.",
+  "restoration_cleanup_title": "This change clears {count} restorable items",
+  "restoration_cleanup_title_single": "This change clears 1 restorable item",
+  "restoration_cleanup_description": "All pending Restore items in this company, including unrelated deleted items, will be cleared.",
+  "restoration_cleanup_save": "Save change"
 }

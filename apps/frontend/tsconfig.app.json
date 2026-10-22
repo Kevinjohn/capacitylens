@@ -20,6 +20,8 @@
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
+    // Type-aware editors and lint must read the same backend client declarations as tsc.
+    "disableSourceOfProjectReferenceRedirect": true,
     "jsx": "react-jsx",
 
     // paths resolve relative to this config in bundler mode; baseUrl is deprecated in TypeScript 6.

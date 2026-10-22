@@ -13,6 +13,7 @@ export type AuthStatusResult =
       authMode: AccountMode;
       user: AuthUser | null;
       canCreateAccount: boolean;
+      companySetupRequired?: boolean;
       providers: AuthProviderInfo[];
       reauthMethod: "password" | "provider";
       reauthProviderId: string | null;

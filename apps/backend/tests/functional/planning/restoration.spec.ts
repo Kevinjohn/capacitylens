@@ -23,6 +23,7 @@ const note = 'Gotham night shift briefing'
 interface Reply {
   revision: number
   code?: string
+  restorableItemCount?: number
   restoration: { consumedGroupId: string | null; replacementGroupId: string }
   projection: { changed: { removed: Array<{ entity: string; id: string }> } }
 }
@@ -34,10 +35,16 @@ async function send(
   baseRevision: number,
   intent: Record<string, unknown>,
   mutationId: string = randomUUID(),
-  method: 'post' | 'patch' = 'post'
+  method: 'post' | 'patch' = 'post',
+  confirmedRestorationCount?: number
 ) {
   const response = await session(method === 'post' ? client.post(url) : client.patch(url), cookie)
-    .json({ mutationId, baseRevision, intent })
+    .json({
+      mutationId,
+      baseRevision,
+      intent,
+      ...(confirmedRestorationCount === undefined ? {} : { confirmedRestorationCount }),
+    })
     .send()
   // Only the receipt fields exercised by these restoration tests are read.
   return response as unknown as Omit<typeof response, 'body'> & { body(): Reply }
@@ -908,7 +915,29 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       randomUUID(),
       'patch'
     )
-    changed.assertStatus(200)
+    changed.assertStatus(409)
+    assert.equal(changed.body().code, 'restoration_confirmation_required')
+    assert.equal(changed.body().restorableItemCount, 1)
+    assert.isDefined(await group(groupId))
+    const confirmed = await session(
+      client.patch(`/api/accounts/${accountId}/projects/${target.id}`),
+      cookie
+    )
+      .json({
+        mutationId: randomUUID(),
+        baseRevision: 4,
+        confirmedRestorationCount: 1,
+        intent: {
+          operation: 'catalogue.update',
+          entity: {
+            entity: 'projects',
+            id: target.id,
+            changes: { isPrivate: true, codeName: 'Gotham confidential' },
+          },
+        },
+      })
+      .send()
+    confirmed.assertStatus(200)
     assert.isNull(await group(groupId))
     assert.isDefined(await group(foreignGroup))
   })
@@ -956,8 +985,125 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       randomUUID(),
       'patch'
     )
-    changed.assertStatus(200)
+    changed.assertStatus(409)
+    assert.equal(changed.body().code, 'restoration_confirmation_required')
+    assert.equal(changed.body().restorableItemCount, 1)
+    assert.isDefined(await group(groupId))
+    const confirmed = await session(
+      client.patch(`/api/accounts/${accountId}/activities/${activity.id}`),
+      cookie
+    )
+      .json({
+        mutationId: randomUUID(),
+        baseRevision: 3,
+        confirmedRestorationCount: 1,
+        intent: {
+          operation: 'catalogue.update',
+          entity: { entity: 'activities', id: activity.id, changes: { kind: 'repeatable' } },
+        },
+      })
+      .send()
+    confirmed.assertStatus(200)
     assert.isNull(await group(groupId))
+  })
+
+  test('cleanup counts all pending deleted rows, excludes links and consumed groups, and rejects stale consent', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup)
+    const { cookie, userId } = await signIn(client)
+    const [allocationId] = await createAllocations(client, cookie, 1)
+    const deletion = await deleteOne(client, cookie, allocationId!, 1)
+    deletion.assertStatus(200)
+    const before = await readState(accountId, true)
+    const target = before.projects.find((row) => !row.isPrivate)!
+    const other = randomUUID()
+    const consumed = randomUUID()
+    for (const [id, consumedInstant] of [
+      [other, null],
+      [consumed, new Date().toISOString()],
+    ] as const) {
+      await db.table('deleted_groups').insert({
+        group_id: id,
+        account_id: accountId,
+        actor_id: 'another-actor',
+        session_id: 'another-session',
+        mutation_id: randomUUID(),
+        created_at: new Date().toISOString(),
+        consumed_at: consumedInstant,
+      })
+      await db.table('deleted_rows').multiInsert([
+        {
+          group_id: id,
+          entity: 'closures',
+          row_id: randomUUID(),
+          payload_json: JSON.stringify({ kind: 'row', row: {} }),
+        },
+        {
+          group_id: id,
+          entity: 'phases',
+          row_id: randomUUID(),
+          payload_json: JSON.stringify({ kind: 'row', row: {} }),
+        },
+        {
+          group_id: id,
+          entity: 'activities',
+          row_id: randomUUID(),
+          payload_json: JSON.stringify({ kind: 'link', parentId: 'gotham' }),
+        },
+      ])
+    }
+    const mutationId = randomUUID()
+    const intent = {
+      operation: 'catalogue.update',
+      entity: {
+        entity: 'projects',
+        id: target.id,
+        changes: { isPrivate: true, codeName: 'Gotham confidential' },
+      },
+    }
+    const request = (confirmedRestorationCount?: number, baseRevision = 2) =>
+      session(client.patch(`/api/accounts/${accountId}/projects/${target.id}`), cookie)
+        .json({
+          mutationId,
+          baseRevision,
+          intent,
+          ...(confirmedRestorationCount === undefined ? {} : { confirmedRestorationCount }),
+        })
+        .send()
+    const refused = await request()
+    refused.assertStatus(409)
+    assert.equal(refused.body().restorableItemCount, 3)
+    assert.deepEqual(await readState(accountId, true), before)
+    assert.equal(await currentRevision(client, cookie), 2)
+    assert.isNull(await db.from('planning_mutations').where('mutation_id', mutationId).first())
+    // Session cleanup can remove groups without changing the planning revision.
+    await db.from('deleted_groups').where('group_id', other).delete()
+    const stale = await request(3)
+    stale.assertStatus(409)
+    assert.equal(stale.body().code, 'restoration_confirmation_stale')
+    assert.equal(stale.body().restorableItemCount, 1)
+    assert.deepEqual(await readState(accountId, true), before)
+    const staleRevision = await request(1, 1)
+    staleRevision.assertStatus(409)
+    assert.equal(staleRevision.body().code, 'stale_revision')
+    assert.isUndefined(staleRevision.body().restorableItemCount)
+    await db
+      .from('memberships')
+      .where({ account_id: accountId, user_id: userId })
+      .update({ role: 'viewer' })
+    const forbidden = await request(1)
+    forbidden.assertStatus(403)
+    assert.isUndefined(forbidden.body().restorableItemCount)
+    await db
+      .from('memberships')
+      .where({ account_id: accountId, user_id: userId })
+      .update({ role: 'owner' })
+    const confirmed = await request(1)
+    confirmed.assertStatus(200)
+    assert.isNull(await group(deletion.body().restoration.replacementGroupId))
   })
 
   test('a failed privacy transaction retains its data and restoration group', async ({
@@ -991,7 +1137,8 @@ test.group('typed catalogue and time-off restoration', (suite) => {
           },
         },
         randomUUID(),
-        'patch'
+        'patch',
+        1
       )
       refused.assertStatus(500)
       assert.isDefined(await group(groupId))

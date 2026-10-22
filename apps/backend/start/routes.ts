@@ -20,6 +20,12 @@ const TransferController = () => import('#controllers/transfer_controller')
 const ExportsController = () => import('#controllers/exports_controller')
 const ExampleDataController = () => import('#controllers/example_data_controller')
 const GettingStartedController = () => import('#controllers/getting_started_controller')
+const FirstCompanySetupController = () => import('#controllers/first_company_setup_controller')
+
+router
+  .post('/api/installation/company', [FirstCompanySetupController, 'store'])
+  .as('api.installation.company')
+
 const CompaniesController = () => import('#controllers/companies_controller')
 
 router.post('/api/transfer/preview', [TransferController, 'preview']).as('api.transfer.preview')

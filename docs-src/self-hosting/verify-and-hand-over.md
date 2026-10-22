@@ -1,6 +1,6 @@
 ---
 title: Verify and hand over
-description: Check the native service, readiness and backup recovery before handing an installation to its Owner.
+description: Check native service readiness, persistence and backup recovery, and agree who maintains hosting.
 ---
 
 # Verify and hand over
@@ -29,7 +29,9 @@ exists under `CAPACITYLENS_BACKUP_DIR` and copy a protected snapshot off-host. F
 
 ## Hand over access
 
-Give the Owner the public address, the setup instructions and the relevant operator contacts. Send
-any setup token separately, then remove it from the environment and restart once the first identity
-exists. Agree who owns upgrades, backups, readiness monitoring and future sign-in configuration.
+Give the Owner the public address, browser setup instructions and the hosting operator's contact.
+Send any setup token separately. It cannot be reused after the first identity exists; remove it at
+the next routine configuration change. Agree who manages upgrades, backups, readiness monitoring
+and sign-in configuration. These hosting duties need a technical operator; they do not become the
+company Owner's responsibility simply because that person owns the company.
 Do not send secrets through deployment logs or public support channels.

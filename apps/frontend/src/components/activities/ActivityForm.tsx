@@ -1,3 +1,4 @@
+import { PlanningSaveCancelledError } from "@/data/planning/PlanningSaveCancelledError";
 import { useMemo, useState } from "react";
 import { useStore } from "@/store/useStore";
 import { useActiveScopedData, useScopedData } from "@/store/useScopedData";
@@ -179,6 +180,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
       }
       onClose();
     } catch (e) {
+      if (e instanceof PlanningSaveCancelledError) return;
       fail(null, resolveErrorMessage(e));
     }
   };

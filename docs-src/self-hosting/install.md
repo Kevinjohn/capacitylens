@@ -18,12 +18,11 @@ backup directory outside the versioned release folder under that user's access.
 The full procedure is [Install without Docker](/self-hosting/install-without-docker); managed
 platforms can follow [Deploy on a managed host](/self-hosting/managed-vps/).
 
-Before opening the service to users, configure the secrets and public URL in a private environment
-file, run `node ace.js app:upgrade` from the archive's `backend/` directory, then start the service.
-The first-run page uses `CAPACITYLENS_SETUP_TOKEN` to create the first identity. Then stop the
-service, initialize its company and Owner with `company:initialize`, remove the token and restart,
-as described in [first-run setup](/self-hosting/install-without-docker#_5-complete-first-run-setup).
-Configure an external proxy to terminate TLS and forward requests to the loopback listener; see [TLS and networking](/self-hosting/tls-and-networking).
+Whoever manages your hosting completes the [five installation steps](/self-hosting/install-without-docker).
+The last step is to open the address. First sign-in and company naming then happen in the browser,
+without stopping the service. Hosting maintenance, backups and upgrades stay with that operator.
 
-The [Docker Compose guide](/self-hosting/install-with-docker) builds separate web and API images.
-It runs the checked upgrade command before the API starts and keeps data in persistent volumes.
+Use a TLS proxy on the same machine, forwarding to the loopback listener; see
+[TLS and networking](/self-hosting/tls-and-networking). A proxy in a separate container or on a
+separate machine is not supported for the first release. Existing [Docker Compose support](/self-hosting/install-with-docker)
+remains optional; it is not the expected installation route.

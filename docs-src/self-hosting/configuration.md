@@ -21,7 +21,7 @@ Restart the single backend process after changing its environment.
 | `CAPACITYLENS_DB` | SQLite database path. Put it in persistent storage outside the release. |
 | `CAPACITYLENS_SECRET` | Independent application secret used by product account operations. |
 | `CAPACITYLENS_PUBLIC_URL` | Public origin used for sign-in callbacks and addressed links. Match `APP_URL`. |
-| `CAPACITYLENS_SETUP_TOKEN` | One-time secret for first-run identity setup. Remove it after the first identity exists. |
+| `CAPACITYLENS_SETUP_TOKEN` | One-time secret for first-run identity setup. It cannot be reused after an identity exists; remove it at the next routine configuration change. |
 
 Run `node ace.js app:upgrade` with the service stopped before the first start and after each
 release. The application uses one SQLite connection and one writer process per database file.
@@ -60,6 +60,11 @@ Positive fractional values are floored to whole snapshots; invalid or nonpositiv
 with a startup warning, and values above 10,000 clamp to 10,000 with a warning. Pre-upgrade
 snapshots and unrelated files are excluded from scheduled/manual retention. Check backup logs and
 completed files separately from database readiness; see [Backups and restore](/self-hosting/backups-and-restore).
+
+A proxy on a separate machine or in a separate container is not supported for the first release.
+Until private-network proxy support is added, those clients may share the proxy's request-limit
+budget. Use a same-machine proxy that connects over loopback; do not widen trust to arbitrary
+forwarded headers.
 
 ## Network and logging
 

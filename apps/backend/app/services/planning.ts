@@ -17,7 +17,11 @@ import {
   PlanningOperationError,
 } from '#services/planning_operations/execute'
 import { writeAudit } from '#services/audit'
-import { unconsumedGroupId } from '#services/planning_operations/restoration'
+import {
+  unconsumedGroupId,
+  countRestorableItems,
+  RestorationConfirmationError,
+} from '#services/planning_operations/restoration'
 import {
   assertPlanningBaseRevision,
   mutationLookupValidator,
@@ -198,8 +202,17 @@ export function mutatePlanning(
       )
     // Private names and activity kind can change what a saved before-image may safely reveal.
     // A restoration group is valid only until one of those fields actually changes.
-    if (invalidatesRestoration(input.intent, before, after))
+    if (invalidatesRestoration(input.intent, before, after)) {
+      const count = await countRestorableItems(trx, accountId)
+      if (
+        input.confirmedRestorationCount !== undefined &&
+        input.confirmedRestorationCount !== count
+      )
+        throw new RestorationConfirmationError(count, true)
+      if (count > 0 && input.confirmedRestorationCount === undefined)
+        throw new RestorationConfirmationError(count, false)
       await trx.from('deleted_groups').where('account_id', accountId).delete()
+    }
     const revision = await advancePlanningRevision(trx, accountId)
     await trx.table('planning_mutations').insert({
       account_id: accountId,

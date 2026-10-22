@@ -9,6 +9,7 @@ import { parseAuthUser } from "./validateAuthUser";
 interface AuthResponseFields {
   authMode: unknown;
   canCreateAccount: unknown;
+  companySetupRequired: unknown;
   needsSetup: unknown;
   passwordResetEmail: unknown;
   providers: unknown;
@@ -26,6 +27,7 @@ function parseAuthResponseFields(value: unknown): AuthResponseFields | null {
   return {
     authMode: readField(value, "authMode"),
     canCreateAccount: readField(value, "canCreateAccount"),
+    companySetupRequired: readField(value, "companySetupRequired"),
     needsSetup: readField(value, "needsSetup"),
     passwordResetEmail: readField(value, "passwordResetEmail"),
     providers: readField(value, "providers"),
@@ -73,6 +75,7 @@ function parsePassResult(body: unknown): AuthStatusResult {
     authMode,
     user,
     canCreateAccount: false,
+    companySetupRequired: fields.companySetupRequired === true,
     providers: authMode === "password-only" ? [] : parseAuthProviders(fields.providers),
     reauthMethod: fields.reauthMethod === "provider" || authMode === "sso-only" ? "provider" : "password",
     reauthProviderId: typeof fields.reauthProviderId === "string" ? fields.reauthProviderId : null,

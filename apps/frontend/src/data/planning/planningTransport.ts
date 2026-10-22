@@ -19,7 +19,14 @@ function planningError(error: unknown): unknown {
   const body: unknown = error.response;
   const message = isRecord(body) && typeof body.error === "string" ? body.error : "The planning request was refused.";
   const code = isRecord(body) && typeof body.code === "string" ? body.code : undefined;
-  return new PlanningControllerError(message, code, error.status);
+  const count =
+    isRecord(body) &&
+    Number.isSafeInteger(body.restorableItemCount) &&
+    typeof body.restorableItemCount === "number" &&
+    body.restorableItemCount >= 0
+      ? body.restorableItemCount
+      : undefined;
+  return new PlanningControllerError(message, code, error.status, false, count);
 }
 
 async function sendOperation(

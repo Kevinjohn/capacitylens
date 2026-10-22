@@ -140,3 +140,45 @@ describe("volatile planning transport", () => {
     });
   });
 });
+
+describe("demo Restore cleanup", () => {
+  it("requires an exact company-wide deleted-row count for actual changes, and preserves pending groups on refusal", async () => {
+    const original = makeAllocation();
+    const activity = makeActivity({ kind: "internal", projectId: null });
+    const h = harness(makeAppData({ allocations: [original], activities: [activity], resources: [makeResource()] }));
+    const deleted = await h.run("delete", { operation: "allocation.delete", id: original.id });
+    const group = deleted.restoration.replacementGroupId;
+    const revision = (await h.transport.read(context, signal)).revision;
+    const intent = {
+      operation: "catalogue.update",
+      entity: { entity: "activities", id: activity.id, changes: { kind: "repeatable" } },
+    } as const;
+    const execution = { mutationId: "change", baseRevision: revision, intent };
+    await expect(h.transport.execute(context, execution, signal)).rejects.toMatchObject({
+      code: "restoration_confirmation_required",
+      restorableItemCount: 1,
+    });
+    await expect(h.transport.lookup(context, "delete", signal)).resolves.toMatchObject({ restorationGroupId: group });
+    await expect(
+      h.transport.execute(context, { ...execution, confirmedRestorationCount: 2 }, signal),
+    ).rejects.toMatchObject({ code: "restoration_confirmation_stale" });
+    await expect(
+      h.transport.execute(context, { ...execution, confirmedRestorationCount: 1 }, signal),
+    ).resolves.toMatchObject({ revision: revision + 1 });
+  });
+  it("does not warn or invalidate Restore for supplied unchanged kind", async () => {
+    const original = makeAllocation();
+    const activity = makeActivity({ kind: "internal", projectId: null });
+    const h = harness(makeAppData({ allocations: [original], activities: [activity], resources: [makeResource()] }));
+    const deleted = await h.run("delete", { operation: "allocation.delete", id: original.id });
+    const revision = (await h.transport.read(context, signal)).revision;
+    const intent = {
+      operation: "catalogue.update",
+      entity: { entity: "activities", id: activity.id, changes: { name: "Gotham planning", kind: activity.kind } },
+    } as const;
+    await h.transport.execute(context, { mutationId: "rename", baseRevision: revision, intent }, signal);
+    await expect(h.transport.lookup(context, "delete", signal)).resolves.toMatchObject({
+      restorationGroupId: deleted.restoration.replacementGroupId,
+    });
+  });
+});

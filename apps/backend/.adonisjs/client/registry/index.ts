@@ -252,6 +252,12 @@ const routes = {
     tokens: [{"old":"/api/accounts/:accountId/settings","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/settings","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/settings","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/settings","type":0,"val":"settings","end":""}],
     types: placeholder as Registry['api.planning.settings.update']['types'],
   },
+  'api.installation.company': {
+    methods: ["POST"],
+    pattern: '/api/installation/company',
+    tokens: [{"old":"/api/installation/company","type":0,"val":"api","end":""},{"old":"/api/installation/company","type":0,"val":"installation","end":""},{"old":"/api/installation/company","type":0,"val":"company","end":""}],
+    types: placeholder as Registry['api.installation.company']['types'],
+  },
   'api.transfer.preview': {
     methods: ["POST"],
     pattern: '/api/transfer/preview',

@@ -7,17 +7,20 @@ next: false
 
 # Install and run CapacityLens
 
-CapacityLens runs as one Node process and stores company data in a SQLite database. The current
-installation route uses a native release archive. [Docker Compose](/self-hosting/install-with-docker)
-builds the same compiled backend with persistent database and backup volumes.
+CapacityLens runs as one Node process and stores company data in SQLite. These five steps are for
+whoever manages your hosting. That person also handles backups, upgrades and service health.
+The expected installation is the native release archive with an HTTPS proxy on the same machine.
 
-1. [Install the archive](/self-hosting/install-without-docker) on Linux or follow the
-   [managed-host guide](/self-hosting/managed-vps/).
-2. Configure the database, secrets and backup directory in a private environment file.
-3. Put a trusted proxy in front to terminate HTTPS, run the database upgrade and start one service
-   process.
-4. Check readiness and complete first-run setup with the private setup token.
-5. Remove the setup token and hand over the service and recovery procedures to its Owner.
+1. **Download** and unpack the archive for your host.
+2. **Choose a data folder** outside the release directory.
+3. **Configure** the private environment, secrets, public address and backups.
+4. **Start** the service after its database upgrade, with HTTPS at the same-machine proxy.
+5. **Open** the address and complete sign-in and company naming in the browser.
+
+[Install without Docker](/self-hosting/install-without-docker) gives the exact Linux commands;
+[Deploy on a managed host](/self-hosting/managed-vps/) explains the process-manager requirements.
+Existing [Docker support](/self-hosting/install-with-docker) remains optional. A proxy in a
+separate container or on another machine is not yet supported.
 
 Before handover, read [Configuration](/self-hosting/configuration),
 [TLS and networking](/self-hosting/tls-and-networking), [Backups and restore](/self-hosting/backups-and-restore),

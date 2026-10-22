@@ -1,3 +1,4 @@
+import { requiresFirstCompanySetup } from '#services/first_company_setup'
 import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
 import { randomUUID, timingSafeEqual } from 'node:crypto'
@@ -79,6 +80,10 @@ export default class AuthController {
         user: userProjection(actor.user),
         providers: availableProviders(),
         canCreateAccount: false,
+        companySetupRequired: await withTransaction(async (trx) => {
+          await trx.from('account_transaction_lock').where('id', 1).increment('version', 1)
+          return requiresFirstCompanySetup(actor.userId, trx)
+        }),
         reauthMethod: passwordEnabled() && actor.user.passwordHash ? 'password' : 'provider',
         reauthProviderId: passwordEnabled() && actor.user.passwordHash ? null : 'google',
       }
