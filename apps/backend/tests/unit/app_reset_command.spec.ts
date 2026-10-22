@@ -57,7 +57,7 @@ test('app reset archives all account, joining and credential state and initializ
       'action_proofs',
     ])
       assert.equal(tableCount(fresh, table), 0, table)
-    assert.equal(tableCount(fresh, 'adonis_schema'), 4)
+    assert.equal(tableCount(fresh, 'adonis_schema'), 1)
     fresh.close()
   } finally {
     f.cleanup()
