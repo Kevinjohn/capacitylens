@@ -1,6 +1,6 @@
 import { expect, test } from "./fixtures";
 import type { APIRequestContext, Locator, Page } from "./fixtures";
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from "./authTestSupport";
+import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, revokeFixtureSessions, signUpUser } from "./authTestSupport";
 import {
   boundingBoxOrThrow,
   goToSeedWeek,
@@ -612,9 +612,11 @@ test("an ended session (401) clears the scheduler cache and history", async ({ p
     .toBe("2026-06-01");
   await expect(page.getByTestId("undo-button")).toBeEnabled();
 
+  revokeFixtureSessions(ownerEmail);
   await page.context().clearCookies();
+  expect((await page.request.get(`${AUTH_API}/api/accounts/${accountId}/planning`)).status()).toBe(401);
   await page.clock.setFixedTime(new Date("2026-06-03T12:00:31"));
-  // Match only a read issued after the cookies were cleared; a read already in flight answers 200.
+  // A late response may reissue a cookie, but the server-side session is revoked.
   const read = page.waitForRequest((sent) => isPlanningRead(accountId, sent.method(), sent.url()));
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   expect((await (await read).response())?.status()).toBe(401);

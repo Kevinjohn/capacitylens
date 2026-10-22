@@ -66,6 +66,7 @@ function openAuthE2EDatabase(): DatabaseSync {
         "users",
         "memberships",
         "adonis_sessions",
+        "user_session_index",
         "audit_entries",
         "account_member_resources",
         ...COMPANY_DATA_RESET_ORDER,
@@ -137,6 +138,20 @@ export function seedFixtureMember(accountId: string, email: string, role: "admin
       `INSERT INTO memberships (id, account_id, user_id, role, status, created_at, updated_at)
        VALUES (?, ?, ?, ?, 'active', ?, ?)`,
     ).run(crypto.randomUUID(), accountId, principal.id, role, new Date().toISOString(), new Date().toISOString());
+  } finally {
+    db.close();
+  }
+}
+
+/** Revokes a disposable E2E principal's real session authority without relying on browser cookie timing. */
+export function revokeFixtureSessions(email: string): void {
+  const db = openAuthE2EDatabase();
+  try {
+    const principal = db.prepare("SELECT id FROM users WHERE lower(email) = ?").get(email.toLowerCase()) as
+      { id: string } | undefined;
+    if (!principal) throw new Error(`Missing E2E fixture identity for ${email}`);
+    const removed = db.prepare("DELETE FROM user_session_index WHERE user_id = ?").run(principal.id);
+    if (removed.changes === 0) throw new Error(`Missing E2E fixture session for ${email}`);
   } finally {
     db.close();
   }
