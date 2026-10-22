@@ -6,6 +6,7 @@ import type { ApiClient } from '@japa/api-client'
 import { randomUUID } from 'node:crypto'
 import { withTransaction } from '#services/with_transaction'
 import { getPlanningRevision } from '#services/planning_revision'
+import { readState } from '#services/state_repository'
 import env from '#start/env'
 
 const accountId = 'a-studio'
@@ -225,6 +226,7 @@ test.group('company anonymisation', (group) => {
   }) => {
     const { cookie, userId } = await resetAuthenticatedData(client, true)
     const foreignDelete = await seedOtherCompanyRestoration(userId)
+    const foreignProductBefore = await readState('a-loft', true)
     const resource = await db.from('resources').where('account_id', accountId).first()
     await db.table('account_member_resources').insert({
       id: 'link-bruce-person',
@@ -339,6 +341,7 @@ test.group('company anonymisation', (group) => {
       await db.from('audit_entries').where('account_id', 'a-loft').select('*'),
       foreignAuditBefore
     )
+    assert.deepEqual(await readState('a-loft', true), foreignProductBefore)
     assert.lengthOf(
       await db
         .from('allocations')
