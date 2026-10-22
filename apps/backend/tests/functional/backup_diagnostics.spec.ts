@@ -30,6 +30,29 @@ test.group('Backup diagnostics', (group) => {
     assert.notProperty(response.body().server, 'persistence')
   })
 
+  test('an unreadable backup directory does not erase verified database diagnostics', async ({
+    client,
+    assert,
+  }) => {
+    const root = mkdtempSync(join(tmpdir(), 'capacitylens-diagnostics-'))
+    const original = env.get('CAPACITYLENS_BACKUP_DIR')
+    try {
+      env.set('CAPACITYLENS_BACKUP_DIR', join(root, 'missing'))
+      const latest = await db.from('adonis_schema').select('name').orderBy('id', 'desc').first()
+      const response = await client.get('/api/diagnostics')
+      assert.equal(response.status(), 200)
+      assert.deepEqual(response.body().server, {
+        connectivity: 'ok',
+        database: { status: 'ok' },
+        schema: { migration: latest!.name },
+        backup: { newestSnapshotAt: null },
+      })
+    } finally {
+      env.set('CAPACITYLENS_BACKUP_DIR', original ?? '')
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   test('diagnostics uses the newest snapshot file mtime, not its filename date', async ({
     client,
     assert,

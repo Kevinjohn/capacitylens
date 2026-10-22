@@ -68,7 +68,7 @@ router.get('/api/meta', async () => {
   const state = await readState()
   return { hasData: state.accounts.length > 0 }
 })
-router.get('/api/diagnostics', async ({ response }) => {
+router.get('/api/diagnostics', async ({ response, logger }) => {
   try {
     await checkDatabase()
     const lastMigration = await db
@@ -76,37 +76,41 @@ router.get('/api/diagnostics', async ({ response }) => {
       .select('name')
       .orderBy('id', 'desc')
       .first()
+    let newestSnapshotAt: string | null = null
     const backupDir = env.get('CAPACITYLENS_BACKUP_DIR')
-    const connectionConfig = db.getRawConnection(db.primaryConnectionName)?.config
-    const databasePath =
-      connectionConfig?.client === 'better-sqlite3'
-        ? (connectionConfig.connection.filename as string)
-        : null
-    let databaseIdentity: FileIdentity | null = null
-    if (databasePath && databasePath !== ':memory:') {
-      const file = statSync(databasePath, { bigint: true })
-      databaseIdentity = { path: resolve(databasePath), device: file.dev, inode: file.ino }
-    }
-    const newestSnapshotMtime = backupDir
-      ? listSnapshots(backupDir, databaseIdentity)
+    if (backupDir) {
+      try {
+        const connectionConfig = db.getRawConnection(db.primaryConnectionName)?.config
+        const databasePath =
+          connectionConfig?.client === 'better-sqlite3'
+            ? (connectionConfig.connection.filename as string)
+            : null
+        let databaseIdentity: FileIdentity | null = null
+        if (databasePath && databasePath !== ':memory:') {
+          const file = statSync(databasePath, { bigint: true })
+          databaseIdentity = { path: resolve(databasePath), device: file.dev, inode: file.ino }
+        }
+        const newestMtime = listSnapshots(backupDir, databaseIdentity)
           .map((file) => statSync(join(backupDir, file)).mtimeMs)
           .reduce<number | null>(
             (newest, mtime) => (newest === null ? mtime : Math.max(newest, mtime)),
             null
           )
-      : null
+        newestSnapshotAt = newestMtime === null ? null : new Date(newestMtime).toISOString()
+      } catch {
+        logger.warn('Diagnostics could not inspect completed snapshots')
+      }
+    }
     return {
       server: {
         connectivity: 'ok',
         database: { status: 'ok' },
         schema: { migration: lastMigration?.name ?? null },
-        backup: {
-          newestSnapshotAt:
-            newestSnapshotMtime === null ? null : new Date(newestSnapshotMtime).toISOString(),
-        },
+        backup: { newestSnapshotAt },
       },
     }
   } catch {
+    logger.warn('Diagnostics could not read database state')
     return response.serviceUnavailable({
       server: {
         connectivity: 'ok',
