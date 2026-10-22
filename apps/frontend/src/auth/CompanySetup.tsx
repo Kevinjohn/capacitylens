@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { API_BASE } from "@/data/apiConfig";
 import { apiFetch } from "@/data/requestTimeout";
 import { readApiError } from "@/lib/readApiError";
+import { MAX_NAME_LENGTH } from "@capacitylens/shared/lib/strings";
 
 /** Collects the only company setup choice after native identity authentication. */
 export function CompanySetup({
@@ -58,7 +59,7 @@ export function CompanySetup({
             data-testid="company-setup-name"
             value={name}
             onChange={(event) => setName(event.target.value)}
-            maxLength={200}
+            maxLength={MAX_NAME_LENGTH}
             required
             autoComplete="organization"
             disabled={busy}

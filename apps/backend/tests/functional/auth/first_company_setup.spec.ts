@@ -48,11 +48,20 @@ test.group('authenticated first company setup', (group) => {
     const cookie = signin.cookie('adonis-session')!.value
     const before = await asDataOwner(client.get('/api/auth/me'), cookie).send()
     assert.isTrue(before.body().companySetupRequired)
+    await db.table('password_reset_tokens').insert({
+      tokenable_id: signin.body().user.id,
+      email: credentials.email,
+      hash: 'b'.repeat(64),
+      expires_at: '2999-01-01T00:00:00.000Z',
+      created_at: new Date().toISOString(),
+    })
     const setup = await asDataOwner(client.post('/api/installation/company'), cookie)
-      .json({ name: 'Wayne Enterprises' })
+      .json({ name: '  Wayne   Enterprises ' })
       .send()
     setup.assertStatus(201)
     const accountId = setup.body().accountId
+    assert.equal((await db.from('accounts').first())!.name, 'Wayne Enterprises')
+    assert.lengthOf(await db.from('password_reset_tokens'), 0)
     const membership = await db.from('memberships').first()
     assert.deepInclude(membership!, {
       account_id: accountId,
@@ -195,7 +204,9 @@ test.group('authenticated first company setup', (group) => {
     for (const body of [
       { name: '' },
       { name: ' ' },
-      { name: 'x'.repeat(201) },
+      { name: 'x'.repeat(101) },
+      { name: 'Wayne\u2122 Enterprises' },
+      { name: 'Wayne \u{1F680} Enterprises' },
       { name: 1 },
       { name: 'Wayne Enterprises', email: 'clark@wayne.example' },
     ]) {

@@ -3,26 +3,22 @@ import { resolveCurrentActor } from '#services/auth/session_authority'
 import { withTransaction } from '#services/with_transaction'
 import { requiresFirstCompanySetup } from '#services/first_company_setup'
 import { createInitialCompany } from '#services/initial_company_defaults'
+import { MAX_NAME_LENGTH, parseUserName } from '@capacitylens/shared/lib/strings'
 
 /** Establishes company access only for the sole signed-in principal on an empty installation. */
 export default class FirstCompanySetupController {
   async store(ctx: HttpContext) {
     const body: unknown = ctx.request.body()
-    if (
-      !body ||
-      typeof body !== 'object' ||
-      Array.isArray(body) ||
-      Object.keys(body).length !== 1 ||
-      !('name' in body) ||
-      typeof body.name !== 'string' ||
-      !body.name.trim() ||
-      body.name.trim().length > 200
-    )
+    // The same name rule as every later company-settings write, so the stored name can be re-saved.
+    const name =
+      body && typeof body === 'object' && !Array.isArray(body) && Object.keys(body).length === 1
+        ? parseUserName((body as { name?: unknown }).name)
+        : null
+    if (name === null)
       return ctx.response.badRequest({
-        error: 'Enter a company name of up to 200 characters.',
+        error: `Enter a company name of up to ${MAX_NAME_LENGTH} characters without symbols.`,
         code: 'INVALID_INPUT',
       })
-    const name = body.name.trim()
     const result = await withTransaction(async (trx) => {
       await trx.from('account_transaction_lock').where('id', 1).increment('version', 1)
       const actor = await resolveCurrentActor(ctx, trx)
