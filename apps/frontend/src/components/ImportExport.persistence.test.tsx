@@ -206,6 +206,7 @@ async function reschedulesParkedEditDuringZeroRecordImport(): Promise<void> {
   await waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
   const saved = savedData(saveAll);
   expect(saved.clients.map((client) => client.name)).toContain("Keep after refused import");
+  expect(typeof saved.clients.find((client) => client.id === "keep-after-refused-import")?.archivedAt).toBe("string");
   expect(onPersistenceError.mock.calls.some(([error]) => error instanceof ReloadDiscardedEditError)).toBe(false);
   expect(useStore.getState().notice).toMatchObject({
     tone: "error",

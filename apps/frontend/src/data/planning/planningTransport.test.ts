@@ -122,6 +122,18 @@ const cases: Array<{ intent: PlanningIntent; method: string; path: string; resto
   { intent: { operation: "timeOff.update", id, changes: { type: "sick" } }, method: "PATCH", path: `time-off/${id}` },
   { intent: { operation: "timeOff.repeat", entries: [timeOff] }, method: "POST", path: "time-off/repeat" },
   {
+    intent: { operation: "timeOff.delete", id },
+    method: "POST",
+    path: `time-off/${id}/delete`,
+    restoration: { consumedGroupId: null, replacementGroupId: groupId },
+  },
+  {
+    intent: { operation: "timeOff.deleteGroup", ids: [id] },
+    method: "POST",
+    path: "time-off/delete-group",
+    restoration: { consumedGroupId: null, replacementGroupId: groupId },
+  },
+  {
     intent: {
       operation: "closure.create",
       id,
@@ -134,6 +146,12 @@ const cases: Array<{ intent: PlanningIntent; method: string; path: string; resto
     intent: { operation: "closure.update", id, changes: { name: "Wayne holiday" } },
     method: "PATCH",
     path: `closures/${id}`,
+  },
+  {
+    intent: { operation: "closure.delete", id },
+    method: "POST",
+    path: `closures/${id}/delete`,
+    restoration: { consumedGroupId: null, replacementGroupId: groupId },
   },
   {
     intent: { operation: "settings.update", changes: { timezone: "Europe/London" } },
@@ -152,6 +170,14 @@ for (const entity of ["clients", "projects", "activities", "phases", "discipline
     intent: { operation: "catalogue.update", entity: { entity, id, changes: { name: "Gotham update" } } },
     method: "PATCH",
     path: `${entity}/${id}`,
+  });
+}
+for (const entity of ["phases", "disciplines"] as const) {
+  cases.push({
+    intent: { operation: "catalogue.delete", entity: { entity, id } },
+    method: "POST",
+    path: `${entity}/${id}/delete`,
+    restoration: { consumedGroupId: null, replacementGroupId: groupId },
   });
 }
 
@@ -268,19 +294,5 @@ describe("generated planning transport", () => {
       transport.execute(context, execution({ operation: "allocation.create", allocation }), signal),
     ).rejects.toMatchObject({ status: 408, message: "Request timed out" });
     expect(fetcher).toHaveBeenCalledOnce();
-  });
-
-  it.each([
-    { operation: "timeOff.delete", id },
-    { operation: "timeOff.deleteGroup", ids: [id] },
-    { operation: "catalogue.delete", entity: { entity: "phases", id } },
-    { operation: "closure.delete", id },
-  ] as PlanningIntent[])("keeps refusing the unrestorable $operation without a request", async (intent) => {
-    const { transport, fetcher } = harness({});
-    await expect(transport.execute(context, execution(intent), signal)).rejects.toMatchObject({
-      code: "restoration_unavailable",
-      status: 400,
-    });
-    expect(fetcher).not.toHaveBeenCalled();
   });
 });

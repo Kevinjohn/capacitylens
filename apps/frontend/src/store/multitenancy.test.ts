@@ -316,6 +316,8 @@ describe("setActiveAccount resets per-account view state", () => {
     expect(s().ui.selectedAllocationId).toBeNull();
     expect(s().past).toEqual([]);
     expect(s().future).toEqual([]);
+    expect(s().planning.history.past).toEqual([]);
+    expect(s().planning.history.future).toEqual([]);
   });
 
   it("atomically clears tenant-bound navigation and interaction state on switch", () => {
