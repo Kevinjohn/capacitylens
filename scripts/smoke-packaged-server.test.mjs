@@ -138,12 +138,12 @@ test("smoke fixture creates one isolated company and owner membership for an exi
   }
 });
 
-test("authenticated smoke writes one typed resource under its isolated company", async () => {
+test("authenticated smoke writes a typed allocation under its isolated company", async () => {
   const originalFetch = globalThis.fetch;
   const requests = [];
   globalThis.fetch = async (url, options) => {
     requests.push({ url, headers: options.headers, body: JSON.parse(options.body) });
-    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    return new Response(JSON.stringify({ revision: requests.length + 1 }), { status: 200 });
   };
   try {
     const fixture = {
@@ -169,6 +169,20 @@ test("authenticated smoke writes one typed resource under its isolated company",
     assert.equal(requests[0].body.baseRevision, 1);
     assert.equal(requests[0].body.intent.operation, "resource.create");
     assert.equal(requests[0].body.intent.fields.name, "Bruce Wayne Packaged Schedule");
+    assert.equal(requests[1].url, "http://localhost:8787/api/accounts/isolated-company/activities");
+    assert.equal(requests[1].headers.cookie, "fixture-session");
+    assert.equal(requests[1].body.baseRevision, 2);
+    assert.equal(requests[1].body.intent.operation, "catalogue.create");
+    assert.equal(requests[1].body.intent.entity.entity, "activities");
+    assert.equal(requests[1].body.intent.entity.fields.kind, "internal");
+    assert.equal(requests[2].url, "http://localhost:8787/api/accounts/isolated-company/allocations");
+    assert.equal(requests[2].headers.cookie, "fixture-session");
+    assert.equal(requests[2].body.baseRevision, 3);
+    assert.equal(requests[2].body.intent.operation, "allocation.create");
+    assert.equal(requests[2].body.intent.allocation.resourceId, written.resource.id);
+    assert.equal(requests[2].body.intent.allocation.activityId, written.activity.id);
+    assert.equal(written.allocation.id, requests[2].body.intent.allocation.id);
+    assert.equal(requests.length, 3);
     assert.equal(written.accountId, "isolated-company");
     assert.equal(fixture.resources[0].accountId, "a-studio");
   } finally {

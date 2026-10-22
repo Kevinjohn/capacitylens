@@ -95,6 +95,31 @@ function inspectDatabase(path, expectedResourceName) {
   }
 }
 
+function assertAllocationInDatabase(path, accountId, allocation) {
+  const database = new DatabaseSync(path, { readOnly: true });
+  try {
+    const row = database
+      .prepare(
+        "SELECT account_id, resource_id, activity_id, start_date, end_date, hours_per_day, status FROM allocations WHERE id = ?",
+      )
+      .get(allocation.id);
+    assert.deepEqual(
+      { ...row },
+      {
+        account_id: accountId,
+        resource_id: allocation.resourceId,
+        activity_id: allocation.activityId,
+        start_date: allocation.startDate,
+        end_date: allocation.endDate,
+        hours_per_day: allocation.hoursPerDay,
+        status: allocation.status,
+      },
+    );
+  } finally {
+    database.close();
+  }
+}
+
 async function snapshotFiles(directory) {
   try {
     return (await readdir(directory)).filter((name) => name.endsWith(".db")).sort();
@@ -209,7 +234,7 @@ export function createSmokeCompany(databasePath, userId, account, internalClient
   }
 }
 
-/** Write one resource through the authenticated typed planning route. */
+/** Write one scheduled allocation through authenticated typed planning routes. */
 export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture) {
   const account = fixture.accounts.find((row) => row.id === "a-studio");
   assert.ok(account);
@@ -219,7 +244,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture) {
     name: RESOURCE_NAME,
   };
   assert.ok(resource.id);
-  await fetchOk(`${baseUrl}/api/accounts/${accountId}/resources`, {
+  const createdResource = await fetchOk(`${baseUrl}/api/accounts/${accountId}/resources`, {
     method: "POST",
     headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", cookie },
     body: JSON.stringify({
@@ -248,7 +273,48 @@ export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture) {
       },
     }),
   });
-  return { accountId, resource };
+  assert.equal(JSON.parse(createdResource.body).revision, 2);
+
+  const activity = { id: randomUUID(), name: "Packaged Planning", kind: "internal", projectId: null, phaseId: null };
+  const createdActivity = await fetchOk(`${baseUrl}/api/accounts/${accountId}/activities`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", cookie },
+    body: JSON.stringify({
+      mutationId: randomUUID(),
+      baseRevision: 2,
+      intent: {
+        operation: "catalogue.create",
+        entity: {
+          entity: "activities",
+          id: activity.id,
+          fields: { name: activity.name, kind: activity.kind, projectId: null, phaseId: null },
+        },
+      },
+    }),
+  });
+  assert.equal(JSON.parse(createdActivity.body).revision, 3);
+
+  const allocation = {
+    id: randomUUID(),
+    resourceId: resource.id,
+    activityId: activity.id,
+    projectId: null,
+    startDate: "2026-11-02",
+    endDate: "2026-11-06",
+    hoursPerDay: 7.5,
+    status: "confirmed",
+  };
+  const createdAllocation = await fetchOk(`${baseUrl}/api/accounts/${accountId}/allocations`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", cookie },
+    body: JSON.stringify({
+      mutationId: randomUUID(),
+      baseRevision: 3,
+      intent: { operation: "allocation.create", allocation },
+    }),
+  });
+  assert.equal(JSON.parse(createdAllocation.body).revision, 4);
+  return { accountId, resource, activity, allocation };
 }
 
 async function main() {
@@ -352,8 +418,9 @@ async function main() {
       fixture.accounts.find((row) => row.id === "a-studio"),
       buildInternalClient,
     );
-    const { resource } = await writeSmokeSchedule(baseUrl, cookie, accountId, fixture);
+    const { resource, allocation } = await writeSmokeSchedule(baseUrl, cookie, accountId, fixture);
     assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, MIGRATION_COUNT);
+    assertAllocationInDatabase(databasePath, accountId, allocation);
 
     const beforeExplicit = await snapshotFiles(backupDir);
     const explicit = command(backend, environment, "db:backup");
@@ -364,6 +431,7 @@ async function main() {
     assert.ok(!beforeExplicit.includes(explicitPath.split("/").at(-1)));
     assert.ok(afterExplicit.includes(explicitPath.split("/").at(-1)));
     assert.equal(inspectDatabase(explicitPath, RESOURCE_NAME).length, MIGRATION_COUNT);
+    assertAllocationInDatabase(explicitPath, accountId, allocation);
 
     assert.deepEqual(await stopServer(child), { code: 0, signal: null });
     child = startServer(backend, environment, (chunk) => {
@@ -374,6 +442,7 @@ async function main() {
       (await fetchOk(`${baseUrl}/api/state?accountId=${encodeURIComponent(accountId)}`, { headers: { cookie } })).body,
     );
     assert.equal(state.resources.find((row) => row.id === resource.id)?.name, RESOURCE_NAME);
+    assert.equal(state.allocations.find((row) => row.id === allocation.id)?.hoursPerDay, allocation.hoursPerDay);
     assert.deepEqual(await stopServer(child), { code: 0, signal: null });
 
     const restoredPath = join(workDir, "restored.db");
@@ -382,6 +451,7 @@ async function main() {
     const restoreUpgrade = command(backend, restoredEnvironment, "app:upgrade");
     assert.equal(restoreUpgrade.status, 0, restoreUpgrade.output);
     assert.equal(inspectDatabase(restoredPath, RESOURCE_NAME).length, MIGRATION_COUNT);
+    assertAllocationInDatabase(restoredPath, accountId, allocation);
     child = startServer(backend, restoredEnvironment, (chunk) => {
       log += chunk;
     });
@@ -392,8 +462,14 @@ async function main() {
       (await fetchOk(`${baseUrl}/api/state?accountId=${encodeURIComponent(accountId)}`, { headers: { cookie } })).body,
     );
     assert.equal(restoredState.resources.find((row) => row.id === resource.id)?.name, RESOURCE_NAME);
+    assert.equal(
+      restoredState.allocations.find((row) => row.id === allocation.id)?.hoursPerDay,
+      allocation.hoursPerDay,
+    );
     assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, MIGRATION_COUNT);
+    assertAllocationInDatabase(databasePath, accountId, allocation);
     assert.equal(inspectDatabase(explicitPath, RESOURCE_NAME).length, MIGRATION_COUNT);
+    assertAllocationInDatabase(explicitPath, accountId, allocation);
     assert.deepEqual(await stopServer(child), { code: 0, signal: null });
     passed = true;
     console.log(
@@ -404,6 +480,7 @@ async function main() {
         passwordAuthentication: "verified",
         databaseSession: "survived restart",
         scheduleWrite: "persisted",
+        allocation: "persisted and restored",
         explicitBackup: "verified",
         restoredSnapshot: "verified",
         scheduledStartupBackup: "verified",
