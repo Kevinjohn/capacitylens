@@ -85,6 +85,9 @@ export async function initializeCompany(input: {
         created_at: now,
         updated_at: now,
       })
+      // Owner authority burns any reset bearer issued before the identity held a company role,
+      // as every other access-granting path does.
+      await trx.from('password_reset_tokens').where('tokenable_id', String(principal.id)).delete()
       await trx.table('company_planning_revisions').insert({ account_id: accountId, revision: 1 })
       // Stopped-server authority is the operator, rather than an impersonated signed-in principal.
       await trx.table('audit_entries').insert({
