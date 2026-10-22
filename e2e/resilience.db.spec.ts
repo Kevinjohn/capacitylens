@@ -40,6 +40,11 @@ function registerFailedSaveStaysVisiblyUnsavedTest() {
     request,
   }) => {
     await openApp(page, "Wayne Enterprises", "/clients");
+    const clientPosts: string[] = [];
+    page.on("request", (browserRequest) => {
+      const path = new URL(browserRequest.url()).pathname;
+      if (browserRequest.method() === "POST" && /\/api\/accounts\/[^/]+\/clients$/.test(path)) clientPosts.push(path);
+    });
     const clientFailure = await failRequestsUntilReleased(page, "**/api/accounts/*/clients", {
       status: 503,
       body: { error: "Temporary test outage" },
@@ -50,6 +55,7 @@ function registerFailedSaveStaysVisiblyUnsavedTest() {
     await page.getByRole("button", { name: "Save" }).click();
 
     await expect.poll(clientFailure.attempts).toBe(1);
+    expect(clientPosts).toHaveLength(1);
     await expect(page.getByRole("dialog", { name: "Add client" }).getByText("Temporary test outage")).toBeVisible();
     expect(
       requireStateRows(await serverState(request), "clients").filter(({ name }) => name === "Retry Recovery Co"),
@@ -57,7 +63,9 @@ function registerFailedSaveStaysVisiblyUnsavedTest() {
 
     clientFailure.release();
     await page.evaluate(() => window.dispatchEvent(new Event("online")));
-    expect(clientFailure.attempts()).toBe(1);
+    await page.getByRole("dialog", { name: "Add client" }).getByRole("button", { name: "Save" }).click();
+    await expect(page.getByRole("dialog", { name: "Add client" }).getByText(/planning is not ready/i)).toBeVisible();
+    expect(clientPosts).toHaveLength(1);
     expect(
       requireStateRows(await serverState(request), "clients").filter(({ name }) => name === "Retry Recovery Co"),
     ).toHaveLength(0);
@@ -75,7 +83,7 @@ function registerFailedSaveStaysVisiblyUnsavedTest() {
             .length,
       )
       .toBe(1);
-    expect(clientFailure.attempts()).toBe(1);
+    expect(clientPosts).toHaveLength(2);
 
     await openApp(page, "Wayne Enterprises", "/clients");
     await expect(page.getByTestId("client-row").filter({ hasText: "Retry Recovery Co" })).toHaveCount(1);
