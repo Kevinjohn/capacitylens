@@ -195,7 +195,7 @@ describe("Beta transfer failure boundaries", () => {
     expect(() => parseBetaExport(JSON.stringify(document))).toThrow(/name/);
   });
 
-  it.each(["closure:one", "_closure", "götham", "x".repeat(129)])(
+  it.each(["closure/one", "_closure", "götham", "x".repeat(129)])(
     "refuses identifiers outside the typed planning route contract: %s",
     (id) => {
       const document = freshDocument();

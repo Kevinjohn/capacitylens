@@ -139,6 +139,29 @@ export class AccountSchema extends BaseModel {
   declare workingDays: import('@capacitylens/shared/types/entities').Weekday[] | null
 }
 
+export class ActionProofSchema extends BaseModel {
+  static $columns = ['accountId', 'action', 'consumedAt', 'expiresAt', 'id', 'intentHash', 'sessionId', 'userId', 'verifiedAt'] as const
+  $columns = ActionProofSchema.$columns
+  @column()
+  declare accountId: string
+  @column()
+  declare action: string
+  @column()
+  declare consumedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  @column()
+  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare intentHash: string
+  @column()
+  declare sessionId: string
+  @column()
+  declare userId: string
+  @column()
+  declare verifiedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+}
+
 export class ActivitySchema extends BaseModel {
   static $columns = ['accountId', 'archivedAt', 'createdAt', 'deletedAt', 'id', 'kind', 'name', 'phaseId', 'projectId', 'updatedAt'] as const
   $columns = ActivitySchema.$columns

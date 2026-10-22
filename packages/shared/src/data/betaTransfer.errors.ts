@@ -18,9 +18,9 @@ export function assert(condition: unknown, path: string, message: string): asser
   if (!condition) fail(path, message);
 }
 
-/** Return whether an entity identifier can be addressed by the typed planning routes. */
+/** Return whether an entity identifier, including a persisted Internal client ID, can be addressed by the typed planning routes. */
 export const isId = (value: unknown): value is string =>
-  typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._~-]{0,127}$/.test(value);
+  typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._~:-]{0,127}$/.test(value);
 
 /** Return whether a plain object has its own property with this key. */
 export const own = (value: object, key: string) => Object.prototype.hasOwnProperty.call(value, key);
