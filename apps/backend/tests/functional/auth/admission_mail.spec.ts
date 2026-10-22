@@ -1,6 +1,7 @@
 import { test } from '@japa/runner'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
+import { createFixtureCompanyForOwner } from '../../helpers/authenticated_data_fixture.js'
 import mail from '@adonisjs/mail/services/main'
 import env from '#start/env'
 import { resetState } from '#services/state_repository'
@@ -114,13 +115,8 @@ test.group('invitation delivery after commit', (group) => {
       .send()
     owner.assertStatus(201)
     const cookie = owner.cookie('adonis-session')!.value
-    const company = await withSession(
-      client.post('/api/orgs').header('sec-fetch-site', 'same-origin'),
-      cookie
-    )
-      .json({ id: 'a-studio', name: 'Wayne Enterprises' })
-      .send()
-    company.assertStatus(201)
+    const ownerId = (owner.body() as { user: { id: string } }).user.id
+    await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio')
     const unaddressed = await withSession(
       client.post('/api/invites').header('sec-fetch-site', 'same-origin'),
       cookie
