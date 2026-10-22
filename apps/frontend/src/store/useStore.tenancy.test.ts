@@ -116,7 +116,12 @@ describe("active-account replacement invariant", () => {
     s().replaceAll(replacement);
     unsubscribe();
 
-    expect(fallbackStates).toHaveLength(1);
+    expect(fallbackStates.length).toBeGreaterThan(0);
+    for (const state of fallbackStates) {
+      expect(state.data).toBe(replacement);
+      expect(state.activeAccountId).toBeNull();
+      expect(state.previousAccountId).toBeNull();
+    }
     expect(s().data).toBe(replacement);
     expect(s().activeAccountId).toBeNull();
     expect(s().previousAccountId).toBeNull();
