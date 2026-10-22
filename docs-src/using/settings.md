@@ -185,7 +185,8 @@ strict file checks in page memory; refreshing restores the demo seed.
 ### Anonymise all people
 
 An Owner can select **Anonymise all people** to remove personal details and dependent booking and
-time-off notes across the company. Clients, projects and activities stay unchanged. The company,
+time-off notes across the company, including placeholders and external people. Clients, projects
+and activities stay unchanged. The company,
 its members and planning links remain. This cannot be undone. A signed-in Owner confirms the exact
 action with their password or linked Google identity. In the editable demo, the same change stays
 in temporary page memory and does not require sign-in. Refreshing resets the demo.
