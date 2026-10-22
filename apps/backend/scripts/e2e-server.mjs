@@ -164,6 +164,7 @@ async function waitForAuthFixtureBaseline(signal) {
 if (flavour === 'auth') {
   try {
     await waitForAuthFixtureBaseline(startupController.signal)
+    console.info('Auth E2E fixture ready')
   } catch (error) {
     const startupError = startupController.signal.aborted ? startupController.signal.reason : error
     stopping = true
