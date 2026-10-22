@@ -341,14 +341,20 @@ test("keeps the shipped nginx site's headers and log suppression in step with th
     "$capacitylens_connect_src",
     "'self'",
   );
-  // The site is the TLS edge itself, so HSTS is host-only, as the server's own header is.
-  expected["Strict-Transport-Security"] = "max-age=63072000";
+  // HSTS and CSP reporting belong to the backend, not this site.
+  delete expected["Strict-Transport-Security"];
+  delete expected["Reporting-Endpoints"];
+  expected["Content-Security-Policy"] = expected["Content-Security-Policy"].replace(
+    /; report-uri [^;]+; report-to [^;]+/,
+    "",
+  );
   expected["Cache-Control"] = "$capacitylens_cache_control";
   assert.deepEqual(headerValues(site), expected);
 
   const silenced = (conf) => [...conf.matchAll(/location\s+(~[^{]*)\{\s*access_log off;/g)].map((match) => match[1]);
   assert.equal(silenced(edge).length, 3);
   assert.deepEqual(silenced(site), silenced(edge));
+  assert.match(site, /location ~ \^\/api\/auth\/\(callback\|oauth2\/callback\)\/ \{\s*access_log off;/);
   assert.match(site, /client_max_body_size 6m;/);
   assert.match(site, /root \/opt\/capacitylens\/current\/backend\/public;/);
   const health = site.match(/location \^~ \/health\/ \{([^}]*)\}/)?.[1];

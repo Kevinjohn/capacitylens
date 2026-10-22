@@ -26,7 +26,7 @@ test('app reset archives all account, joining and credential state and initializ
       .run('policy', 'a-studio', 'invitation_only', '[]', now, now)
     source.close()
     const destination = join(f.root, 'fresh.db')
-    const reset = f.command(['app:reset', destination, '--confirm-server-stopped'])
+    const reset = f.command(['app:reset', destination, '--confirm-server-stopped', '--disposable'])
     assert.equal(reset.status, 0, reset.output)
     const result = JSON.parse(reset.output.trim()) as {
       archivePath: string
@@ -57,7 +57,7 @@ test('app reset archives all account, joining and credential state and initializ
       'action_proofs',
     ])
       assert.equal(tableCount(fresh, table), 0, table)
-    assert.equal(tableCount(fresh, 'adonis_schema'), 3)
+    assert.equal(tableCount(fresh, 'adonis_schema'), 4)
     fresh.close()
   } finally {
     f.cleanup()
@@ -75,10 +75,16 @@ test('app reset refuses absent stop intent, occupied paths and sidecars without 
     const destination = join(f.root, 'fresh.db')
     assert.notEqual(f.command(['app:reset', destination]).status, 0)
     writeFileSync(destination, 'operator file')
-    assert.notEqual(f.command(['app:reset', destination, '--confirm-server-stopped']).status, 0)
+    assert.notEqual(
+      f.command(['app:reset', destination, '--confirm-server-stopped', '--disposable']).status,
+      0
+    )
     const sidecar = join(f.root, 'other.db')
     writeFileSync(`${sidecar}-wal`, 'operator sidecar')
-    assert.notEqual(f.command(['app:reset', sidecar, '--confirm-server-stopped']).status, 0)
+    assert.notEqual(
+      f.command(['app:reset', sidecar, '--confirm-server-stopped', '--disposable']).status,
+      0
+    )
     assert.isTrue(existsSync(f.databasePath))
     assert.isFalse(readdirSync(f.root).some((name) => name.includes('archive')))
   } finally {
@@ -97,7 +103,7 @@ test('a lock reset refusal preserves the source without reserving a destination'
     const source = f.inspect()
     const destination = join(f.root, 'fresh.db')
     source.exec('BEGIN IMMEDIATE')
-    const locked = f.command(['app:reset', destination, '--confirm-server-stopped'])
+    const locked = f.command(['app:reset', destination, '--confirm-server-stopped', '--disposable'])
     assert.notEqual(locked.status, 0)
     source.exec('ROLLBACK')
     source.close()
@@ -132,7 +138,11 @@ test('a replacement upgrade failure preserves the verified recovery files and na
       "if (process.argv[2] === 'app:upgrade') process.exit(44); await import('./ace.original.js');\n"
     )
     const destination = join(f.root, 'partial.db')
-    const result = f.command(['app:reset', destination, '--confirm-server-stopped'], {}, scratch)
+    const result = f.command(
+      ['app:reset', destination, '--confirm-server-stopped', '--disposable'],
+      {},
+      scratch
+    )
     assert.notEqual(result.status, 0)
     assert.include(result.output, 'new database upgrade')
     assert.include(result.output, destination)
@@ -175,12 +185,61 @@ test('a failed snapshot reports only completed recovery artifacts and leaves the
       )
     source.close()
     const destination = join(f.root, 'fresh.db')
-    const result = f.command(['app:reset', destination, '--confirm-server-stopped'])
+    const result = f.command(['app:reset', destination, '--confirm-server-stopped', '--disposable'])
     assert.notEqual(result.status, 0)
     assert.include(result.output, 'No verified snapshot was completed')
     assert.include(result.output, `Original source remains at: ${f.databasePath}`)
     assert.notInclude(result.output, 'Original archive:')
     assert.isTrue(existsSync(f.databasePath))
+  } finally {
+    f.cleanup()
+  }
+})
+
+test('app reset refuses production even with disposable confirmation, preserving a populated source', ({
+  assert,
+}) => {
+  const f = operatorFixture()
+  try {
+    assert.equal(f.command(['app:upgrade']).status, 0)
+    const source = f.inspect()
+    seedOwner(source)
+    source.close()
+    const destination = join(f.root, 'fresh.db')
+    const result = f.command(
+      ['app:reset', destination, '--confirm-server-stopped', '--disposable'],
+      { NODE_ENV: 'production', CAPACITYLENS_ALLOW_RESET: 'false' }
+    )
+    assert.notEqual(result.status, 0)
+    assert.include(result.output, 'app:reset is unavailable in production')
+    const unchanged = f.inspect()
+    assert.equal(tableCount(unchanged, 'users'), 1)
+    unchanged.close()
+    assert.isFalse(existsSync(destination))
+    assert.isFalse(readdirSync(f.root).some((name) => name.includes('archive')))
+  } finally {
+    f.cleanup()
+  }
+})
+
+test('app reset requires disposable confirmation before changing a populated source', ({
+  assert,
+}) => {
+  const f = operatorFixture()
+  try {
+    assert.equal(f.command(['app:upgrade']).status, 0)
+    const source = f.inspect()
+    seedOwner(source)
+    source.close()
+    const destination = join(f.root, 'fresh.db')
+    const result = f.command(['app:reset', destination, '--confirm-server-stopped'])
+    assert.notEqual(result.status, 0)
+    assert.include(result.output, '--disposable')
+    const unchanged = f.inspect()
+    assert.equal(tableCount(unchanged, 'users'), 1)
+    unchanged.close()
+    assert.isFalse(existsSync(destination))
+    assert.isFalse(readdirSync(f.root).some((name) => name.includes('archive')))
   } finally {
     f.cleanup()
   }

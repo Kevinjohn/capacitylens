@@ -20,7 +20,10 @@ function destinationEntryExists(path: string) {
 export async function resetInstallation(input: {
   newDatabasePath: string
   confirmServerStopped: boolean
+  disposable: boolean
 }) {
+  if (app.inProduction) throw new Error('app:reset is unavailable in production')
+  if (!input.disposable) throw new Error('app:reset requires --disposable')
   const sourcePath = resolve(operatorDatabasePath(input.confirmServerStopped))
   const databasePath = resolve(input.newDatabasePath)
   if (

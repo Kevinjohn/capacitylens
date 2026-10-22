@@ -13,8 +13,9 @@ Operator procedures live in the [self-hosting guides](../docs-src/self-hosting/i
 With the service stopped, operator recovery uses `node ace.js owner:reset-password <email>
 --confirm-server-stopped` from `apps/backend/`. It prints a single-use recovery link after
 committing its private audit. Installation reset uses `node ace.js app:reset
-<new-database-path> --confirm-server-stopped`, preserving the old database and a verified snapshot
-before creating an empty database at a new path.
+<new-database-path> --confirm-server-stopped --disposable` outside production, preserving the old
+database and a verified snapshot before creating an empty database at a new path. Production
+refuses this command.
 
 All member linking and invitations are managed in **Team & access**. Owners and Admins open the
 member's actions there to link, change, or remove an eligible person Resource; the Resources page
