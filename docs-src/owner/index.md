@@ -24,7 +24,7 @@ whoever installed it.
 
    **Sign in for the first time.** Open the address. Enter your name, email and a password, and
    paste the setup token into **Owner setup token**. Select **Create my sign-in**. The token works
-   once. If your installer set up Google or Microsoft sign-in, choose that instead.
+   once. If your installer set up Google sign-in, choose that instead.
 
 2. **Check company access.** If the installation has no company, the current native release has no
    supported first-company provisioning screen or command. Ask your installer about this limitation.

@@ -17,9 +17,8 @@ describe("SPA content security policy", () => {
     expect(securityHeaders).toContain("script-src 'self'");
     expect(securityHeaders).toContain("style-src 'self'; style-src-attr 'unsafe-inline'");
     expect(securityHeaders).toContain("connect-src $capacitylens_connect_src");
-    expect(securityHeaders).toContain("report-uri /api/security/csp-report");
-    expect(securityHeaders).toContain("report-to csp-endpoint");
-    expect(securityHeaders).toContain("Reporting-Endpoints");
+    expect(securityHeaders).not.toMatch(/report-uri|report-to|Reporting-Endpoints/);
+    expect(securityHeaders).not.toContain("add_header Strict-Transport-Security");
     expect(securityHeaders).toContain('Cross-Origin-Embedder-Policy "require-corp"');
     expect(securityHeaders).toContain('Cross-Origin-Opener-Policy "same-origin"');
     expect(securityHeaders).toContain('Cross-Origin-Resource-Policy "same-origin"');
