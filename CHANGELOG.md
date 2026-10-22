@@ -10,8 +10,9 @@ new features and **patch** versions carry fixes.
 ### Changed
 
 - Resource and catalogue records now use typed archive and restore actions. Owners and Admins can
-  anonymise a resource; only an Owner can anonymise every company resource. The company,
-  memberships and planning links remain while names, roles, avatars and dependent notes are scrubbed.
+  anonymise a person; only an Owner can anonymise all people in the company. Clients, projects,
+  activities, the company, memberships and planning links remain while personal details and
+  dependent notes are scrubbed.
 - Removed company deletion, lifecycle soft-delete and purge actions, including the 30-day purge
   countdown and generic lifecycle routes.
 

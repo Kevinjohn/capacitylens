@@ -22,7 +22,7 @@ personal details and dependent notes unrecoverable through Undo.
    him from **Archived Studio**; his planning links remain.
 2. Choose **Anonymise** for a resource and confirm. Its name and role become obfuscated, its avatar
    and dependent allocation and time-off notes are cleared, and Undo cannot restore them.
-3. As the Owner, choose whole-company anonymisation in Settings. In a signed-in company, confirm
+3. As the Owner, choose **Anonymise all people** in Settings. In a signed-in company, confirm
    the exact action with fresh proof; in the editable demo, confirm it in page memory.
 
 ## Acceptance criteria
@@ -32,9 +32,9 @@ personal details and dependent notes unrecoverable through Undo.
 - ✅ A resource's **Anonymise** action asks for confirmation. After confirmation, the resource stays
   in the company with an obfuscated name and role, no avatar, and no dependent allocation or
   time-off notes. Undo cannot restore those personal details.
-- ✅ An Owner can anonymise every resource in the company from Settings. The company, memberships
-  and planning links remain. A signed-in Owner confirms this exact action with a fresh proof;
-  the editable demo applies it in page memory without sign-in.
+- ✅ An Owner can select **Anonymise all people** in Settings. Clients, projects and activities
+  stay unchanged, as do the company, memberships and planning links. A signed-in Owner confirms
+  this exact action with a fresh proof; the editable demo applies it in page memory without sign-in.
 - ✅ Clients, projects and activities can be archived and restored. They have no anonymise action.
 - ✅ An Editor may archive and restore through planning controls but cannot anonymise a resource.
   Viewers cannot edit. The built-in **Internal** client cannot be archived.

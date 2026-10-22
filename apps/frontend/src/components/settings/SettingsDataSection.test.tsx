@@ -134,10 +134,12 @@ describe("Settings example data", () => {
   });
 });
 
-describe("Whole-company anonymisation", () => {
-  it("offers the server action to an Owner, but not an Admin or Editor", () => {
+describe("Company-wide people anonymisation", () => {
+  it("offers the clearly named server action to an Owner, but not an Admin or Editor", () => {
     const owner = renderSection({ role: "owner" });
-    expect(screen.getByTestId("settings-company-anonymise")).toBeInTheDocument();
+    const section = screen.getByTestId("settings-company-anonymise");
+    expect(section).toBeInTheDocument();
+    expect(section).toHaveTextContent("Anonymise all people");
     owner.unmount();
     const admin = renderSection({ role: "admin" });
     expect(screen.queryByTestId("settings-company-anonymise")).not.toBeInTheDocument();
@@ -146,7 +148,22 @@ describe("Whole-company anonymisation", () => {
     expect(screen.queryByTestId("settings-company-anonymise")).not.toBeInTheDocument();
   });
 
-  it("scrubs only the selected company's demo resources in one volatile replacement", async () => {
+  it("explains that anonymising all people leaves catalogue records unchanged", async () => {
+    renderSection({ role: "owner" });
+    const section = screen.getByTestId("settings-company-anonymise");
+    const user = userEvent.setup();
+    await user.click(within(section).getByRole("button", { name: "About Anonymise all people" }));
+    const help = screen.getByRole("dialog", { name: "Anonymise all people" });
+    expect(help).toHaveTextContent("clients, projects, activities and planning links");
+    await user.click(within(help).getByRole("button", { name: "Close" }));
+    await user.click(within(section).getByRole("button", { name: "Anonymise all people" }));
+    const confirmation = screen.getByRole("dialog", { name: "Anonymise all people?" });
+    expect(confirmation).toHaveTextContent("Clients, projects and activities stay unchanged.");
+    expect(confirmation).toHaveTextContent("The company, its members and planning links remain.");
+    expect(confirmation).toHaveTextContent("This cannot be undone.");
+  });
+
+  it("scrubs only the selected company's people in one volatile replacement", async () => {
     const resource = makeResource({ id: "r-private", accountId: DEFAULT_ACCOUNT_ID, name: "Bruce Wayne" });
     const foreign = makeResource({ id: "r-foreign", accountId: "a-loft", name: "Tony Stark" });
     const allocation = makeAllocation({
@@ -165,19 +182,20 @@ describe("Whole-company anonymisation", () => {
       data: { ...state.data, resources: [resource, foreign], allocations: [allocation, foreignAllocation] },
     }));
     renderSection({ serverMode: false });
-    await userEvent.setup().click(screen.getByRole("button", { name: "Anonymise all resources" }));
+    await userEvent.setup().click(screen.getByRole("button", { name: "Anonymise all people" }));
     const observed: string[] = [];
     const unsubscribe = useStore.subscribe((state) => {
       observed.push(state.data.resources.find((row) => row.id === resource.id)?.name ?? "missing");
     });
     await userEvent
       .setup()
-      .click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
+      .click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all people" }));
     const data = useStore.getState().data;
     expect(data.resources.find((row) => row.id === resource.id)?.name).toMatch(/^Removed person/);
     expect(data.resources.find((row) => row.id === foreign.id)).toEqual(foreign);
     expect(data.allocations.find((row) => row.id === foreignAllocation.id)).toEqual(foreignAllocation);
     expect(data.allocations.find((row) => row.id === allocation.id)?.note).toBeNull();
+    expect(useStore.getState().notice?.message).toBe("All people in the company were anonymised.");
     expect(useStore.getState().past).toEqual([]);
     expect(apiFetch).not.toHaveBeenCalled();
     expect(observed.length).toBeGreaterThan(0);
@@ -200,8 +218,8 @@ describe("Whole-company anonymisation", () => {
     expect(useStore.getState().planning.history.past.length).toBeGreaterThan(0);
     renderSection({ serverMode: false });
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "Anonymise all resources" }));
-    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(screen.getByRole("button", { name: "Anonymise all people" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all people" }));
     expect(useStore.getState().planning.history.past).toEqual([]);
     await useStore.getState().undoPlanning();
     expect(useStore.getState().data.allocations).toEqual([]);
@@ -211,8 +229,8 @@ describe("Whole-company anonymisation", () => {
     vi.mocked(apiFetch).mockResolvedValue(new Response(null, { status: 204 }));
     renderSection({ role: "owner" });
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "Anonymise all resources" }));
-    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(screen.getByRole("button", { name: "Anonymise all people" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all people" }));
     await user.click(screen.getByRole("button", { name: "Confirm identity" }));
     await waitFor(() => expect(apiFetch).toHaveBeenCalledOnce());
     expect(flushPendingWrites).toHaveBeenCalledOnce();
@@ -234,8 +252,8 @@ describe("Whole-company anonymisation", () => {
     );
     renderSection({ role: "owner" });
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "Anonymise all resources" }));
-    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(screen.getByRole("button", { name: "Anonymise all people" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all people" }));
     await user.click(screen.getByRole("button", { name: "Confirm identity" }));
     expect(flushPendingWrites).toHaveBeenCalledOnce();
     useStore.setState({ activeAccountId: "a-loft" });
@@ -245,8 +263,8 @@ describe("Whole-company anonymisation", () => {
     expect(suspendServerWrites).not.toHaveBeenCalled();
     useStore.setState({ activeAccountId: DEFAULT_ACCOUNT_ID });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Anonymise all resources" }));
-    const reopened = screen.getByRole("dialog", { name: "Anonymise all company resources?" });
+    await user.click(screen.getByRole("button", { name: "Anonymise all people" }));
+    const reopened = screen.getByRole("dialog", { name: "Anonymise all people?" });
     expect(within(reopened).getByRole("button", { name: "Cancel" })).toBeEnabled();
     await user.click(within(reopened).getByRole("button", { name: "Cancel" }));
     expect(reopened).not.toBeInTheDocument();
@@ -256,8 +274,8 @@ describe("Whole-company anonymisation", () => {
     vi.mocked(apiFetch).mockResolvedValue(new Response(null, { status }));
     renderSection({ role: "owner" });
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "Anonymise all resources" }));
-    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(screen.getByRole("button", { name: "Anonymise all people" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all people" }));
     await user.click(screen.getByRole("button", { name: "Confirm identity" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Reload" })).toBeInTheDocument());
     const resume = vi.mocked(suspendServerWrites).mock.results[0]?.value as ReturnType<typeof suspendServerWrites>;
@@ -268,8 +286,8 @@ describe("Whole-company anonymisation", () => {
     vi.mocked(apiFetch).mockRejectedValue(new Error("Connection lost"));
     renderSection({ role: "owner" });
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "Anonymise all resources" }));
-    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(screen.getByRole("button", { name: "Anonymise all people" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all people" }));
     await user.click(screen.getByRole("button", { name: "Confirm identity" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Reload" })).toBeInTheDocument());
     const resume = vi.mocked(suspendServerWrites).mock.results[0]?.value as ReturnType<typeof suspendServerWrites>;
@@ -279,8 +297,8 @@ describe("Whole-company anonymisation", () => {
   it("stores only the opaque provider proof before leaving, without submitting", async () => {
     renderSection({ role: "owner" });
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "Anonymise all resources" }));
-    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(screen.getByRole("button", { name: "Anonymise all people" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all people" }));
     await user.click(screen.getByRole("button", { name: "Continue with Google" }));
     expect(JSON.parse(sessionStorage.getItem("capacitylens/company-anonymise-action-proof") ?? "null")).toEqual({
       accountId: DEFAULT_ACCOUNT_ID,
@@ -297,9 +315,9 @@ describe("Whole-company anonymisation", () => {
     window.history.replaceState(null, "", "/?capacitylensActionConfirmed=1");
     vi.mocked(apiFetch).mockResolvedValue(new Response(null, { status: 204 }));
     renderSection({ role: "owner" });
-    const dialog = await screen.findByRole("dialog", { name: "Anonymise all company resources?" });
+    const dialog = await screen.findByRole("dialog", { name: "Anonymise all people?" });
     expect(apiFetch).not.toHaveBeenCalled();
-    await userEvent.setup().click(within(dialog).getByRole("button", { name: "Anonymise all resources" }));
+    await userEvent.setup().click(within(dialog).getByRole("button", { name: "Anonymise all people" }));
     await waitFor(() => expect(apiFetch).toHaveBeenCalledOnce());
     expect(apiFetch).toHaveBeenCalledWith(
       expect.any(String),
@@ -315,7 +333,7 @@ describe("Whole-company anonymisation", () => {
     );
     window.history.replaceState(null, "", "/?capacitylensActionConfirmed=1");
     renderSection({ role: "owner" });
-    await screen.findByRole("dialog", { name: "Anonymise all company resources?" });
+    await screen.findByRole("dialog", { name: "Anonymise all people?" });
     useStore.setState({ activeAccountId: "a-loft" });
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     useStore.setState({ activeAccountId: DEFAULT_ACCOUNT_ID });
@@ -340,7 +358,7 @@ describe("Whole-company anonymisation", () => {
     );
     window.history.replaceState(null, "", "/?capacitylensActionConfirmed=1");
     renderSection({ role: "owner" });
-    const dialog = await screen.findByRole("dialog", { name: "Anonymise all company resources?" });
+    const dialog = await screen.findByRole("dialog", { name: "Anonymise all people?" });
     await userEvent.setup().click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(dialog).not.toBeInTheDocument();
     expect(apiFetch).not.toHaveBeenCalled();
@@ -350,8 +368,8 @@ describe("Whole-company anonymisation", () => {
     vi.mocked(apiFetch).mockResolvedValue(new Response(JSON.stringify({ error: "Forbidden." }), { status: 403 }));
     renderSection({ role: "owner" });
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "Anonymise all resources" }));
-    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(screen.getByRole("button", { name: "Anonymise all people" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all people" }));
     await user.click(screen.getByRole("button", { name: "Confirm identity" }));
     await waitFor(() => expect(useStore.getState().notice?.message).toBe("Forbidden."));
     const resume = vi.mocked(suspendServerWrites).mock.results[0]?.value as ReturnType<typeof suspendServerWrites>;

@@ -182,13 +182,13 @@ must still be present. Another company's data stays in place. An import cannot b
 before replacing data if you may need the current version. The temporary demo performs the same
 strict file checks in page memory; refreshing restores the demo seed.
 
-### Anonymise company resources
+### Anonymise all people
 
-An Owner can select **Anonymise all resources** to remove every resource's name, role and avatar,
-along with notes on their bookings and time off. The company, members and planning links remain.
-This cannot be undone. A signed-in Owner confirms the exact action with their password or linked
-Google identity. In the editable demo, the same change stays in temporary page memory and does
-not require sign-in. Refreshing resets the demo.
+An Owner can select **Anonymise all people** to remove personal details and dependent booking and
+time-off notes across the company. Clients, projects and activities stay unchanged. The company,
+its members and planning links remain. This cannot be undone. A signed-in Owner confirms the exact
+action with their password or linked Google identity. In the editable demo, the same change stays
+in temporary page memory and does not require sign-in. Refreshing resets the demo.
 
 ### Company details {#calendar}
 
