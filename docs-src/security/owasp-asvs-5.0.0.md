@@ -21,7 +21,7 @@ TLS, disks, collectors, secret stores and identity-provider policy cannot become
 an environment acknowledgement is set; those stay Partial where deployment evidence is required.
 Requirement descriptions are not reproduced here; use the official ASVS release alongside these IDs.
 
-Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Following the 2026-10-09 local MFA removal and this control review, the amended rows total **185 Pass, 54 Partial, 8 Gap and 98 N/A = 345**. These are not a score or certification percentage.
+Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Following the 2026-10-09 local MFA removal, this control review and the 2026-10-21 retirement of the automated cryptographic path check, the amended rows total **184 Pass, 55 Partial, 8 Gap and 98 N/A = 345**. These are not a score or certification percentage.
 
 ## V1 Encoding and sanitization
 
@@ -128,7 +128,7 @@ Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Fo
 
 | Section                       | Evidence summary                                                                                                                                                    | Pass                               | Partial          | Gap     | N/A     |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ---------------- | ------- | ------- |
-| V11.1 Inventory/lifecycle     | Repository crypto inventory plus a gate-enforced automated implementation-path discovery check; deployment key rotation/PQC migration remain operator/planning work | V11.1.2, V11.1.3                   | V11.1.1, V11.1.4 | —       | —       |
+| V11.1 Inventory/lifecycle     | Repository crypto inventory reviewed by hand, without automated implementation-path discovery; deployment key rotation/PQC migration remain operator/planning work | V11.1.2                            | V11.1.1, V11.1.3, V11.1.4 | —       | —       |
 | V11.2 Design/implementation   | Node/Web Crypto/Better Auth, ≥128-bit primitives and fail-closed errors; versioned formats but legacy hashes and library timing remain                              | V11.2.1, V11.2.3, V11.2.5          | V11.2.2, V11.2.4 | —       | —       |
 | V11.3 Symmetric encryption    | Provider-token encryption; no separate cipher+MAC construction                                                  | V11.3.1, V11.3.2, V11.3.3, V11.3.4 | —                | —       | V11.3.5 |
 | V11.4 Hash/KDF                | SHA-256 token digests, versioned OWASP scrypt and appropriate derived lengths; SHA-1 only for non-verifier HIBP protocol                                            | V11.4.1, V11.4.2, V11.4.3, V11.4.4 | —                | —       | —       |

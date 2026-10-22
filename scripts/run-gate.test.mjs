@@ -70,7 +70,7 @@ test("a command failure keeps its exit code and prevents every later check", (t)
   const fake = fixture(t);
   for (const gate of ["app", "backend", "all"]) {
     const commands = gateCommands(gate);
-    const failing = commands.findIndex((args) => args.includes("policy:import-cycles"));
+    const failing = commands.findIndex((args) => args.includes("policy:ports"));
     assert.ok(failing > 0);
     const result = fake.run([gate], {
       CAPACITYLENS_GATE_FAIL_COMMAND: JSON.stringify(commands[failing]),
@@ -155,6 +155,43 @@ test("mode selection returns independent argument arrays and includes the runner
     assert.ok(gateCommands(mode).some((args) => args.includes("policy:gate-runner:test")));
   }
   assert.throws(() => gateCommands("unknown"), /Expected app, backend, or all/);
+});
+
+test("gateCommands('all') excludes every retired custom structural check", () => {
+  const names = gateCommands("all").map((args) => args.join(" "));
+  for (const retired of [
+    "policy:typed-lint:test",
+    "policy:shared-environment:test",
+    "policy:typecheck-graph:test",
+    "policy:build-tsconfig:test",
+    "policy:script-environments:test",
+    "policy:import-cycles",
+    "policy:dependencies:test",
+    "security:crypto-inventory",
+  ]) {
+    assert.ok(!names.includes(`run ${retired}`), retired);
+  }
+});
+
+test("gateCommands('all') includes every retained policy, package and security check", () => {
+  const names = gateCommands("all").map((args) => args.join(" "));
+  for (const retained of [
+    "policy:gate-runner:test",
+    "policy:ports",
+    "policy:ports:test",
+    "policy:sonner-csp:test",
+    "package:managed-release:test",
+    "security:screenshot-publication",
+    "security:screenshot-publication:test",
+    "policy:dependabot",
+    "policy:dependabot:test",
+    "security:gitleaks-config",
+    "policy:dco:test",
+    "policy:workflow-report:test",
+    "policy:node-runtime:test",
+  ]) {
+    assert.ok(names.includes(`run ${retained}`), retained);
+  }
 });
 
 test("backend and combined gates build application assets once before runtime checks and backend tests", () => {
