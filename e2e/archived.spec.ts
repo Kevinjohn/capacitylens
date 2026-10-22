@@ -1,13 +1,13 @@
 import { test, expect } from "./fixtures";
 import { openApp } from "./browserTestSupport";
 
-// The temporary demo state exercises archive, restore and soft-delete without a server.
+// The temporary demo state exercises archive, restore and anonymise without a server.
 // Each action must update the scheduler and active list together.
 
 const RESOURCE = "Barry Allen";
 
-test.describe("Inline archives and deleted items (demo mode)", () => {
-  test("archive a resource → it vanishes from the schedule + active list → inline restore → re-archive → soft-delete", async ({
+test.describe("Inline archives and anonymisation (demo mode)", () => {
+  test("archive a resource → it vanishes from the schedule + active list → inline restore → re-archive → anonymise", async ({
     page,
   }) => {
     await openApp(page, "Wayne Enterprises", "/resources");
@@ -54,14 +54,13 @@ test.describe("Inline archives and deleted items (demo mode)", () => {
     const section2 = page.getByTestId("archived-resources-section");
     const archivedRow2 = section2.getByTestId("archived-row").filter({ hasText: RESOURCE });
     await expect(archivedRow2).toBeVisible();
-    await archivedRow2.getByRole("button", { name: `Delete ${RESOURCE}` }).click();
-    const deleteDialog = page.getByRole("alertdialog", { name: "Delete this item?" });
-    await expect(deleteDialog).toBeVisible();
-    await deleteDialog.getByRole("button", { name: "Delete", exact: true }).click();
+    await archivedRow2.getByRole("button", { name: `Anonymise ${RESOURCE}` }).click();
+    const anonymiseDialog = page.getByRole("alertdialog", { name: "Anonymise resource?" });
+    await expect(anonymiseDialog).toBeVisible();
+    await anonymiseDialog.getByRole("button", { name: "Anonymise", exact: true }).click();
 
-    // Soft-delete removes it from the inline archive. The tombstone remains in company data,
-    // while Settings no longer exposes the Deleted items section.
-    await expect(section2).toHaveCount(0);
+    await expect(section2.getByTestId("archived-row").filter({ hasText: RESOURCE })).toHaveCount(0);
+    await expect(section2.getByTestId("archived-row").filter({ hasText: /Removed person/ })).toBeVisible();
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Deleted items" })).toHaveCount(0);
   });
