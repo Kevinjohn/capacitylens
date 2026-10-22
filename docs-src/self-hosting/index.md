@@ -20,7 +20,7 @@ The expected installation is the native release archive with an HTTPS proxy on t
 [Install without Docker](/self-hosting/install-without-docker) gives the exact Linux commands;
 [Deploy on a managed host](/self-hosting/managed-vps/) explains the process-manager requirements.
 Existing [Docker support](/self-hosting/install-with-docker) remains optional. A proxy in a
-separate container or on another machine is not yet supported.
+separate container or on another machine is not supported.
 
 Before handover, read [Configuration](/self-hosting/configuration),
 [TLS and networking](/self-hosting/tls-and-networking), [Backups and restore](/self-hosting/backups-and-restore),

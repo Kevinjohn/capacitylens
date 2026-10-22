@@ -24,5 +24,5 @@ without stopping the service. Hosting maintenance, backups and upgrades stay wit
 
 Use a TLS proxy on the same machine, forwarding to the loopback listener; see
 [TLS and networking](/self-hosting/tls-and-networking). A proxy in a separate container or on a
-separate machine is not supported for the first release. Existing [Docker Compose support](/self-hosting/install-with-docker)
+separate machine is not supported. Existing [Docker Compose support](/self-hosting/install-with-docker)
 remains optional; it is not the expected installation route.
