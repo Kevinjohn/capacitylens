@@ -141,14 +141,8 @@ export default class ConfigurationProvider {
   async start() {
     // Code generation warms a web app without serving requests or closing database pools.
     if (this.app.getMode() === 'warmup') return
-    const environment = this.app.getEnvironment()
-    const command =
-      environment === 'console'
-        ? process.argv.slice(2).find((argument) => !argument.startsWith('-'))
-        : undefined
-    if (command === 'owner:reset-password' || command === 'app:reset') return
-    if (command === 'app:upgrade' || command === 'db:backup' || command?.startsWith('migration:'))
-      return
+    // Console commands opt into application startup through their native startApp option.
+    if (this.app.getEnvironment() === 'console') return
     const rows = await db
       .from('sqlite_master')
       .where({ type: 'table', name: 'accounts' })

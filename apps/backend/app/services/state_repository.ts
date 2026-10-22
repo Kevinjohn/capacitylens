@@ -192,6 +192,22 @@ export async function resetState(seedRequested: boolean | 'single') {
   })
 }
 
+/** Add fixture rows without replacing operator data or audit history. */
+export async function insertSeed() {
+  await withTransaction(async (trx) => {
+    const data = seed()
+    for (const [key, table] of Object.entries(tables)) {
+      const rows = data[key as keyof typeof tables]
+      if (rows.length > 0)
+        await trx
+          .table(table)
+          .insert(rows.map((row) => encodeRow(table, row as unknown as Record<string, unknown>)))
+          .onConflict('id')
+          .ignore()
+    }
+  })
+}
+
 function filterCompanyRows<T extends { accountId: string }>(rows: T[], accountId: string): T[] {
   return rows.filter((row) => row.accountId === accountId)
 }
