@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Refuse allocation restoration when current references or resource availability are incompatible, keeping the deletion available for retry.
+
 ### Added
 
 - Beta-native company export, preview and atomic Owner import now preserve stable planning IDs,
