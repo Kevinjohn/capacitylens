@@ -23,7 +23,7 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
   const sortOrder = discipline?.sortOrder ?? nextSortOrder;
   const { error, errorField, errorId, fail } = useFieldError();
 
-  const submit = () => {
+  const submit = async () => {
     const trimmed = parseName(name, fail);
     if (!trimmed) return;
     if (!validatePresetColor(color, fail)) return;
@@ -35,9 +35,9 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
           fail(null, m.form_discipline_err_changed());
           return;
         }
-        update(discipline.id, { name: trimmed, color, sortOrder });
+        await update(discipline.id, { name: trimmed, color, sortOrder });
       } else {
-        if (add({ name: trimmed, color, sortOrder }).kind === "blocked") return;
+        if ((await add({ name: trimmed, color, sortOrder })).kind === "blocked") return;
       }
       onClose();
     } catch (e) {
@@ -49,7 +49,9 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
     <Modal
       title={discipline ? m.form_discipline_edit_title() : m.form_discipline_add_title()}
       onClose={onClose}
-      onSubmit={submit}
+      onSubmit={() => {
+        void submit();
+      }}
       footer={<FormActions onCancel={onClose} />}
     >
       <TextField

@@ -2,11 +2,11 @@ import { useStore } from "@/store/useStore";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 
 /** Deletes an entity and closes on success; failures leave the dialog open and show a store notice. */
-export function useConfirmDelete(deleteEntity: (id: string) => void, close: () => void) {
+export function useConfirmDelete(deleteEntity: (id: string) => Promise<void>, close: () => void) {
   const setNotice = useStore((state) => state.setNotice);
-  return (id: string) => {
+  return async (id: string) => {
     try {
-      deleteEntity(id);
+      await deleteEntity(id);
       close();
     } catch (error) {
       setNotice(resolveErrorMessage(error), "error");

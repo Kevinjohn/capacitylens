@@ -64,10 +64,10 @@ export function useSettingsViewController() {
   const serverMode = isServerConfigured();
   const scheduling = readSchedulingSettings(data, activeAccountId);
   const localData = useLocalDataActions(setNotice);
-  const updateSetting = (patch: Parameters<typeof updateAccount>[1]) => {
+  const updateSetting = async (patch: Parameters<typeof updateAccount>[1]) => {
     if (!activeAccount) return;
     try {
-      updateAccount(activeAccount.id, patch);
+      await updateAccount(activeAccount.id, patch);
     } catch (error) {
       // Surface the rejected settings write so controls cannot imply a saved value.
       setNotice(resolveErrorMessage(error), "error");

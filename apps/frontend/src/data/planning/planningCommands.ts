@@ -296,10 +296,10 @@ export function buildResourceCreate(
     avatarUrl: input.avatarUrl ?? null,
     disciplineId: input.disciplineId ?? null,
     employmentType: input.kind === "external" ? externalDefaults.employmentType : input.employmentType,
-    engagement: input.kind === "person" ? (input.engagement ?? "studio") : ("studio" as const),
+    engagement: input.kind === "external" ? "studio" : (input.engagement ?? "studio"),
     workingHoursPerDay: input.kind === "external" ? externalDefaults.workingHoursPerDay : input.workingHoursPerDay,
-    workingDays: input.kind === "person" ? input.workingDays : kindDefaults.workingDays,
-    halfDays: input.kind === "person" ? input.halfDays : kindDefaults.halfDays,
+    workingDays: input.kind === "external" ? kindDefaults.workingDays : input.workingDays,
+    halfDays: input.kind === "external" ? kindDefaults.halfDays : input.halfDays,
     projectId: input.kind === "external" ? null : (input.projectId ?? null),
     color: input.kind === "external" ? NEUTRAL_COLOR : input.color,
     isFavourite: input.isFavourite ?? null,
@@ -308,7 +308,7 @@ export function buildResourceCreate(
   };
   return {
     intent: { operation: "resource.create", id: args.id, fields },
-    inverse: null,
+    inverse: { operation: "resource.archive", id: args.id },
     created: { entity: "resources", ids: [args.id] },
   };
 }
@@ -385,7 +385,7 @@ type CatalogueCreateFields =
   | { entity: "activities"; fields: Pick<Activity, "name" | "kind"> & Partial<Pick<Activity, "projectId" | "phaseId">> }
   | { entity: "disciplines"; fields: Pick<Discipline, "name" | "sortOrder"> & Partial<Pick<Discipline, "color">> };
 
-/** Build an explicit catalogue creation intent with activity links normalized. */
+/** Build an explicit catalogue creation intent, preserving supplied links for validation. */
 export function buildCatalogueCreate(
   context: CreateCommandContext & { args: { id: string } & CatalogueCreateFields },
 ): PlanningCommand | null {
@@ -397,7 +397,12 @@ export function buildCatalogueCreate(
       entity = {
         entity: "clients",
         id: args.id,
-        fields: { ...args.fields, isPrivate: args.fields.isPrivate ?? null, codeName: args.fields.codeName ?? null },
+        fields: {
+          name: args.fields.name,
+          color: args.fields.color,
+          isPrivate: args.fields.isPrivate ?? null,
+          codeName: args.fields.codeName ?? null,
+        },
       };
       break;
     case "projects":
@@ -411,15 +416,14 @@ export function buildCatalogueCreate(
       entity = { entity: "phases", id: args.id, fields: args.fields };
       break;
     case "activities": {
-      const projectKind = args.fields.kind === "project";
       entity = {
         entity: "activities",
         id: args.id,
         fields: {
           name: args.fields.name,
           kind: args.fields.kind,
-          projectId: projectKind ? (args.fields.projectId ?? null) : null,
-          phaseId: projectKind ? (args.fields.phaseId ?? null) : null,
+          projectId: args.fields.projectId ?? null,
+          phaseId: args.fields.phaseId ?? null,
         },
       };
       break;
@@ -430,7 +434,10 @@ export function buildCatalogueCreate(
   }
   return {
     intent: { operation: "catalogue.create", entity },
-    inverse: null,
+    inverse:
+      args.entity === "phases" || args.entity === "disciplines"
+        ? { operation: "catalogue.delete", entity: { entity: args.entity, id: args.id } }
+        : { operation: "catalogue.archive", entity: { entity: args.entity, id: args.id } },
     created: { entity: args.entity, ids: [args.id] },
   };
 }
@@ -518,14 +525,29 @@ type SettingsFields = Pick<
   | "dateStyle"
 >;
 
-/** Build an account settings patch while preserving the explicit settings-history boundary. */
+/** Build an account settings patch and its field-limited inverse. */
 export function buildSettingsUpdate(
   context: CommandContext & { original: Account; args: Pick<Patch<Account>, keyof SettingsFields> },
 ): PlanningCommand | null {
   const { data, accountId, original, args } = context;
   const current = data.accounts.find((account) => account.id === accountId);
   if (!current || original.id !== accountId) return null;
-  const fields = Object.keys(args) as (keyof SettingsFields)[];
+  const allowedFields = [
+    "name",
+    "color",
+    "weekStartsOn",
+    "timezone",
+    "schedulingMode",
+    "workingDays",
+    "disciplinesEnabled",
+    "placeholdersEnabled",
+    "externalEnabled",
+    "inlineActivityCreateEnabled",
+    "showTaskFieldInSchedule",
+    "capacityOverviewAccess",
+    "dateStyle",
+  ] as const satisfies readonly (keyof SettingsFields)[];
+  const fields = allowedFields.filter((field) => Object.hasOwn(args, field));
   const diff = diffFields(original, args, fields, [
     "weekStartsOn",
     "timezone",
@@ -540,5 +562,8 @@ export function buildSettingsUpdate(
     "dateStyle",
   ]);
   if (!diff) return null;
-  return { intent: { operation: "settings.update", changes: diff.changes }, inverse: null };
+  return {
+    intent: { operation: "settings.update", changes: diff.changes },
+    inverse: { operation: "settings.update", changes: diff.inverse },
+  };
 }

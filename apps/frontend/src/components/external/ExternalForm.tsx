@@ -56,7 +56,7 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
   const [role, setRole] = useState(resource?.role ?? "");
   const { error, errorField, errorId, fail } = useFieldError();
 
-  const submit = () => {
+  const submit = async () => {
     const cleanName = parseText(name, fail, {
       field: "name",
       required: true,
@@ -79,8 +79,8 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
           fail(null, m.form_external_err_changed());
           return;
         }
-        update(resource.id, patch);
-      } else if (add(patch).kind === "blocked") return;
+        await update(resource.id, patch);
+      } else if ((await add(patch)).kind === "blocked") return;
       onClose();
     } catch (e) {
       // Surface store rejection inside the external-resource form so invalid writes cannot fail silently.
@@ -92,7 +92,9 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
     <Modal
       title={resource ? m.form_external_edit_title() : m.form_external_add_title()}
       onClose={onClose}
-      onSubmit={submit}
+      onSubmit={() => {
+        void submit();
+      }}
       footer={<FormActions onCancel={onClose} />}
     >
       <ExternalFormFields

@@ -290,7 +290,7 @@ function isDeleteIntent(intent: PlanningIntent): boolean {
 }
 
 function isLookupHistoryEligible(intent: PlanningIntent, inverse: PlanningIntent | null): boolean {
-  if (!inverse || intent.operation === "settings.update") return false;
+  if (!inverse) return false;
   return !(
     intent.operation === "catalogue.update" &&
     ("isPrivate" in intent.entity.changes ||
@@ -326,6 +326,13 @@ function movedHistory(
       redo = cloneImmutable(entry);
     } else if (replacementHandle) {
       redo = { forward: restoreIntent(replacementHandle), inverse: cloneImmutable(action) };
+    } else if (entry.forward.operation === "resource.create" && action.operation === "resource.archive") {
+      redo = { forward: { operation: "resource.unarchive", id: action.id }, inverse: cloneImmutable(action) };
+    } else if (entry.forward.operation === "catalogue.create" && action.operation === "catalogue.archive") {
+      redo = {
+        forward: { operation: "catalogue.unarchive", entity: action.entity },
+        inverse: cloneImmutable(action),
+      };
     } else if (isDeleteIntent(action) || entry.forward.operation === "planning.restoreGroup") {
       return emptyHistory();
     } else {
