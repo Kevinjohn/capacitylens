@@ -314,8 +314,7 @@ function SessionMenuItem({
 function ActiveRoleBadge() {
   const role = useRole();
   const permissionStatus = usePermissionStatus();
-  const { authMode } = useAuth();
-  const accessExperience = resolveAccessExperience(authMode);
+  const accessExperience = resolveAccessExperience();
   const resolvedRole = accessExperience === "authenticated" && permissionStatus === "resolved" ? role : null;
   const label = resolveAccessLabel({
     experience: accessExperience,

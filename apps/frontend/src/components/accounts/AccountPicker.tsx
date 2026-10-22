@@ -340,7 +340,7 @@ export function AccountPicker() {
   const signOutDemo = useStore((state) => state.signOutDemo);
   const demoAuthActive = useDemoAuthActive();
   const previous = demoAuthActive ? (accounts.find((account) => account.id === previousAccountId) ?? null) : null;
-  const { authMode, canCreateAccount, refreshAuth } = useAuth();
+  const { canCreateAccount, refreshAuth } = useAuth();
   const roleDescriptionPrefix = useId();
   const { form, submit, reset } = useCreateAccountForm({ refreshAuth });
   const accountDeletion = useDeleteAccount({ refreshAuth });
@@ -391,7 +391,7 @@ export function AccountPicker() {
       {!productionMode && accounts.length > 0 && (
         <AccountItems
           accounts={accounts}
-          accessExperience={resolveAccessExperience(authMode)}
+          accessExperience={resolveAccessExperience()}
           roleDescriptionPrefix={roleDescriptionPrefix}
           onActivate={activateAccount}
           onConfirmDelete={accountDeletion.setConfirming}

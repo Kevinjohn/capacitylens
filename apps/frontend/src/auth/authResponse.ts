@@ -60,16 +60,16 @@ export function invalidResponse(): AuthStatusResult {
 
 function parsePassResult(body: unknown): AuthStatusResult {
   const fields = parseAuthResponseFields(body);
-  if (!fields || !isAuthMode(fields.authMode)) return invalidResponse();
+  if (!fields || !isAuthMode(fields.authMode) || fields.authMode === "off") return invalidResponse();
   const authMode = fields.authMode;
-  const user = parseAuthUser({ value: fields.user, requireEmail: authMode !== "off" });
-  if (authMode !== "off" && !user) {
+  const user = parseAuthUser({ value: fields.user, requireEmail: true });
+  if (!user) {
     console.warn("AuthProvider: /api/auth/me returned auth-on without a valid user");
     return { kind: "error", message: m.auth_service_invalid_response() };
   }
   const next: Extract<AuthStatusResult, { kind: "pass" }> = {
     kind: "pass",
-    identitySource: authMode === "off" ? "open" : "live",
+    identitySource: "live",
     authMode,
     user,
     canCreateAccount: resolveBooleanField({ value: fields.canCreateAccount, fallback: true }),

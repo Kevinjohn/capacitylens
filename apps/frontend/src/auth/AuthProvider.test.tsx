@@ -215,7 +215,7 @@ function registerServerModeTest05() {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByText("app-content")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Unable to verify your session" })).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const call = fetchSpy.mock.calls.at(0);
     expect(call).toBeDefined();
@@ -228,12 +228,12 @@ function registerServerModeTest05() {
 }
 
 function registerServerModeTest06() {
-  it("authMode 'off' renders children after one credentialed /api/auth/me check", async () => {
+  it("rejects authMode 'off' from a credentialed /api/auth/me check", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       void input;
       void init;
-      return me(200, { authMode: "off", user: { id: "demo", name: "Demo" } });
+      return me(200, { authMode: "off", user: null });
     });
     vi.stubGlobal("fetch", fetchSpy);
     const { AuthProvider } = await freshProvider();
@@ -242,7 +242,7 @@ function registerServerModeTest06() {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByText("app-content")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Unable to verify your session" })).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const call = fetchSpy.mock.calls.at(0);
     expect(call).toBeDefined();
@@ -281,6 +281,33 @@ function registerServerModeTest06() {
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(useStore.getState().activeAccountId).toBe("a-studio");
     expect(useStore.getState().masquerade.kind).toBe("active");
+  });
+
+  it("rejects an active masquerade whose auth mode is off", async () => {
+    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    authBootstrapMocks.masqueradeStatus.mockResolvedValue({
+      active: true,
+      accountId: "a-studio",
+      targetUserId: "target-user",
+      targetName: "Selina Kyle",
+      effectiveRole: "viewer",
+      startedAt: "2026-09-01T10:00:00.000Z",
+      token: "session-token",
+      principal: { id: "real-principal", name: "Bruce Wayne", email: "bruce@example.test" },
+      authMode: "off",
+    });
+    const { AuthProvider, useStore, resetStoreWithAccount } = await freshProvider();
+    await resetStoreWithAccount("a-studio");
+
+    render(
+      <AuthProvider>
+        <div>app-content</div>
+      </AuthProvider>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Unable to verify your session" })).toBeInTheDocument();
+    expect(screen.queryByText("app-content")).not.toBeInTheDocument();
+    expect(useStore.getState().masquerade.kind).not.toBe("active");
   });
 }
 
@@ -987,8 +1014,8 @@ function registerAccountPolicyTest01() {
       "fetch",
       vi.fn(async () =>
         me(200, {
-          authMode: "off",
-          user: null,
+          authMode: "password-only",
+          user: { id: "setup-owner", email: "owner@example.test" },
           canCreateAccount: false,
         }),
       ),
@@ -1010,8 +1037,8 @@ function registerAccountPolicyTest02() {
       "fetch",
       vi.fn(async () =>
         me(200, {
-          authMode: "off",
-          user: null,
+          authMode: "password-only",
+          user: { id: "setup-owner", email: "owner@example.test" },
           canCreateAccount: true,
         }),
       ),
@@ -1031,7 +1058,9 @@ function registerAccountPolicyTest03() {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => me(200, { authMode: "off", user: null })),
+      vi.fn(async () =>
+        me(200, { authMode: "password-only", user: { id: "setup-owner", email: "owner@example.test" } }),
+      ),
     );
     const { AuthProvider, useAuth } = await freshProvider();
     render(
@@ -1083,6 +1112,29 @@ function registerAccountPolicyTest05() {
   });
 }
 
+function registerAccountPolicyTest09() {
+  it("fails closed on authMode 'off' with either a missing or present user", async () => {
+    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    for (const user of [null, { id: "unexpected", email: "unexpected@example.test" }]) {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => me(200, { authMode: "off", user })),
+      );
+      const { AuthProvider } = await freshProvider();
+      const view = render(
+        <AuthProvider>
+          <div>app-content</div>
+        </AuthProvider>,
+      );
+      expect(await screen.findByRole("heading", { name: "Unable to verify your session" })).toBeInTheDocument();
+      expect(screen.queryByText("app-content")).not.toBeInTheDocument();
+      view.unmount();
+    }
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("unexpected authMode"));
+  });
+}
+
 function registerAccountPolicyTest06() {
   it("refreshAuth re-asks /api/auth/me and a flipped canCreateAccount reaches consumers", async () => {
     // The server recomputes canCreateAccount per request (account count + membership roles), so a
@@ -1093,15 +1145,15 @@ function registerAccountPolicyTest06() {
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: "off",
-          user: null,
+          authMode: "password-only",
+          user: { id: "setup-owner", email: "owner@example.test" },
           canCreateAccount: false,
         }),
       )
       .mockResolvedValue(
         me(200, {
-          authMode: "off",
-          user: null,
+          authMode: "password-only",
+          user: { id: "setup-owner", email: "owner@example.test" },
           canCreateAccount: true,
         }),
       );
@@ -1121,17 +1173,15 @@ function registerAccountPolicyTest06() {
 
 function registerAccountPolicyTest07() {
   it("a FAILED refresh keeps the previous (stale) snapshot with a warn breadcrumb — no crash, no reset", async () => {
-    // Fail-open posture (see fetchAuthStatus): an unresolved refresh must not flip a live session
-    // to authMode 'off' / canCreateAccount true, stale beats wrong, and the server 403 remains
-    // the real enforcer. The handler logs and surfaces its failure.
+    // An unresolved refresh must preserve the last verified session snapshot.
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: "off",
-          user: null,
+          authMode: "password-only",
+          user: { id: "setup-owner", email: "owner@example.test" },
           canCreateAccount: false,
         }),
       )
@@ -1178,4 +1228,5 @@ describe("AuthProvider — first-company setup policy", () => {
   registerAccountPolicyTest06();
   registerAccountPolicyTest07();
   registerAccountPolicyTest08();
+  registerAccountPolicyTest09();
 });

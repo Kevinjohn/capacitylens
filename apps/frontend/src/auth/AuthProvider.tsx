@@ -22,7 +22,7 @@ import { useAuthContextValue } from "./useAuthContextValue";
 
 const LoginScreen = lazy(() => import("./LoginScreen").then((screenModule) => ({ default: screenModule.LoginScreen })));
 
-type CheckAuth = (onNull: "fail-open" | "keep-previous") => Promise<AuthStatusResult | null>;
+type CheckAuth = (onNull: "report-error" | "keep-previous") => Promise<AuthStatusResult | null>;
 
 function useTenantAccessReady(
   status: AuthStatusResult,
@@ -53,8 +53,9 @@ function useAuthStatus({ serverMode }: UseAuthStatusOptions) {
     const next = await fetchAuthStatus(() => requestId === authRequestSeq.current);
     if (requestId !== authRequestSeq.current) return null;
     if (next === null || (next.kind === "error" && onNull === "keep-previous")) {
-      if (onNull === "fail-open") setStatus(buildOpenAuthResult("off", null));
-      else console.warn("AuthProvider: /api/auth/me refresh failed; keeping the previous auth snapshot");
+      if (next?.kind === "error" && onNull === "keep-previous") {
+        console.warn("AuthProvider: /api/auth/me refresh failed; keeping the previous auth snapshot");
+      }
       return next;
     }
     if (next.kind === "login") clearStoredAccountCommands();
@@ -81,7 +82,7 @@ function useAuthRevalidation({
 }) {
   useEffect(() => {
     if (!serverMode) return;
-    void checkAuth("fail-open");
+    void checkAuth("report-error");
   }, [serverMode, checkAuth]);
   useEffect(() => {
     if (serverMode && persistError) void refreshAuth();
@@ -115,7 +116,7 @@ function useAuthInvalidation({
       if (event.key !== AUTH_INVALIDATION_STORAGE_KEY) return;
       useStore.getState().setActiveAccount(null);
       setStatus({ kind: "checking" });
-      void checkAuth("fail-open");
+      void checkAuth("report-error");
     };
     window.addEventListener("storage", onAuthInvalidation);
     return () => window.removeEventListener("storage", onAuthInvalidation);
@@ -244,7 +245,7 @@ function AuthenticatedAppProvider({
         message={status.message}
         retry={() => {
           setStatus({ kind: "checking" });
-          void checkAuth("fail-open");
+          void checkAuth("report-error");
         }}
       />
     );

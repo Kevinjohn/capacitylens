@@ -39,13 +39,12 @@ interface AccessCopyInput {
   role: Role | null;
 }
 
-type AccessState = "demo" | "open" | "checking" | "not-applicable" | "unavailable";
+type AccessState = "demo" | "checking" | "not-applicable" | "unavailable";
 type AccessCopyResult = { kind: AccessState } | { kind: "role"; role: Role };
 
 // Resolve precedence once so access labels and explanations cannot disagree.
 function resolveAccessState(input: AccessCopyInput): AccessCopyResult {
   if (input.experience === "demo") return { kind: "demo" };
-  if (input.experience === "open") return { kind: "open" };
   if (input.permissionStatus === "pending") return { kind: "checking" };
   if (input.permissionStatus === "not-applicable") return { kind: "not-applicable" };
   if (input.permissionStatus === "unavailable" || input.role === null) return { kind: "unavailable" };
@@ -56,7 +55,6 @@ function resolveAccessState(input: AccessCopyInput): AccessCopyResult {
 // time, so a resolved string captured at module load would freeze to the import-time language.
 const STATE_LABELS: Record<AccessState, () => string> = {
   demo: m.access_demo_label,
-  open: m.access_open_label,
   checking: m.access_checking_label,
   "not-applicable": m.access_not_applicable_label,
   unavailable: m.access_unavailable_label,
@@ -64,7 +62,6 @@ const STATE_LABELS: Record<AccessState, () => string> = {
 
 const STATE_SUMMARIES: Record<AccessState, () => string> = {
   demo: m.access_demo_summary,
-  open: m.access_open_summary,
   checking: m.access_checking_summary,
   "not-applicable": m.access_not_applicable_summary,
   unavailable: m.access_unavailable_summary,

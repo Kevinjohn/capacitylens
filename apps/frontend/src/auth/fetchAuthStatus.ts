@@ -29,9 +29,9 @@ async function readActiveMasqueradeAuthStatus(
   acceptEffects: () => boolean,
 ): Promise<AuthStatusResult | null> {
   try {
-    if (!(await adoptMasqueradeStatus(masquerade, acceptEffects))) return null;
     const user = parseAuthUser({ value: masquerade.principal, requireEmail: true });
-    if (!user || !isAuthMode(masquerade.authMode)) return invalidResponse();
+    if (!user || !isAuthMode(masquerade.authMode) || masquerade.authMode === "off") return invalidResponse();
+    if (!(await adoptMasqueradeStatus(masquerade, acceptEffects))) return null;
     const next: Extract<AuthStatusResult, { kind: "pass" }> = {
       kind: "pass",
       identitySource: "live",

@@ -2,6 +2,7 @@ import { test } from '@japa/runner'
 import app from '@adonisjs/core/services/app'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import { readdir } from 'node:fs/promises'
+import { resetAuthenticatedClient } from '../../helpers/authenticated_data_fixture.js'
 
 const strictPolicy =
   "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'"
@@ -36,6 +37,7 @@ test.group('M1 static fallback', (group) => {
       assert.equal(response.status(), 404, path)
       assert.notInclude(response.text(), '<!doctype html>')
     }
+    client = await resetAuthenticatedClient(client, true)
     const api = await client.get('/api/does-not-exist')
     assert.equal(api.status(), 404)
     assert.deepEqual(api.body(), { error: 'Not found' })
