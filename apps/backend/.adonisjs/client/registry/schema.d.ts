@@ -583,16 +583,28 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/companies_controller').default['update']>>>
     }
   }
-  'api.accounts.destroy': {
-    methods: ["DELETE"]
-    pattern: '/api/accounts/:id'
+  'api.accounts.anonymise': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/anonymise'
     types: {
       body: {}
       paramsTuple: [ParamValue]
-      params: { id: ParamValue }
+      params: { accountId: ParamValue }
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/companies_controller').default['destroy']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/companies_controller').default['destroy']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['company']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['company']>>>
+    }
+  }
+  'api.resources.anonymise': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/resources/:id/anonymise'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['resource']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['resource']>>>
     }
   }
   'api.example-data': {
@@ -1169,18 +1181,6 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/google_controller').default['joinComplete']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/google_controller').default['joinComplete']>>>
-    }
-  }
-  'api.lifecycle': {
-    methods: ["POST"]
-    pattern: '/api/:entity/:id/:action'
-    types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/lifecycle').lifecycleValidator)>>
-      paramsTuple: [ParamValue, ParamValue, ParamValue]
-      params: { entity: ParamValue; id: ParamValue; action: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/lifecycle').lifecycleValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/lifecycle_controller').default['mutate']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/lifecycle_controller').default['mutate']>>>
     }
   }
   'api.health': {

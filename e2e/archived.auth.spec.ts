@@ -85,7 +85,7 @@ test("an Owner archives, restores and anonymises a resource, then confirms a who
     .click();
   await page.getByLabel("Password").fill(AUTH_PASSWORD);
   const reloaded = page.waitForEvent("load");
-  await page.getByRole("dialog", { name: "Confirm it's you" }).getByRole("button", { name: "Confirm" }).click();
+  await page.getByRole("dialog", { name: "Confirm it's you" }).getByRole("button", { name: "Continue" }).click();
   await reloaded;
   await waitForAppLanding(page, page.locator("#main"));
 

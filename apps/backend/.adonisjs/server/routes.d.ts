@@ -52,7 +52,8 @@ export type ScannedRoutes = {
     'api.orgs.store': { paramsTuple?: []; params?: {} }
     'api.accounts.store': { paramsTuple?: []; params?: {} }
     'api.accounts.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'api.accounts.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'api.accounts.anonymise': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.resources.anonymise': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.example-data': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.getting-started.update': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
@@ -101,7 +102,6 @@ export type ScannedRoutes = {
     'api.google.join-start': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.google.join-cancel': { paramsTuple?: []; params?: {} }
     'api.google.join-complete': { paramsTuple?: []; params?: {} }
-    'api.lifecycle': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'entity': ParamValue,'id': ParamValue,'action': ParamValue} }
     'api.health': { paramsTuple?: []; params?: {} }
     'api.accounts.index': { paramsTuple?: []; params?: {} }
   }
@@ -178,6 +178,8 @@ export type ScannedRoutes = {
     'api.transfer.apply': { paramsTuple?: []; params?: {} }
     'api.orgs.store': { paramsTuple?: []; params?: {} }
     'api.accounts.store': { paramsTuple?: []; params?: {} }
+    'api.accounts.anonymise': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.resources.anonymise': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.example-data': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.auth.sign-up': { paramsTuple?: []; params?: {} }
     'api.auth.sign-in': { paramsTuple?: []; params?: {} }
@@ -203,7 +205,6 @@ export type ScannedRoutes = {
     'api.google.join-start': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.google.join-cancel': { paramsTuple?: []; params?: {} }
     'api.google.join-complete': { paramsTuple?: []; params?: {} }
-    'api.lifecycle': { paramsTuple: [ParamValue,ParamValue,ParamValue]; params: {'entity': ParamValue,'id': ParamValue,'action': ParamValue} }
   }
   PATCH: {
     'api.planning.allocation.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
@@ -220,19 +221,18 @@ export type ScannedRoutes = {
     'api.members.role': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
     'api.members.status': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
   }
-  DELETE: {
-    'api.accounts.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'api.members.remove': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
-    'api.invites.revoke': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
-    'api.member-resources.clear': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'principalId': ParamValue} }
-    'api.member-resources.clear-exception': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'principalId': ParamValue} }
-    'api.masquerade.end': { paramsTuple?: []; params?: {} }
-  }
   PUT: {
     'api.getting-started.update': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.members.tracking': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.joining.update-policy': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.member-resources.set': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'principalId': ParamValue} }
+  }
+  DELETE: {
+    'api.members.remove': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
+    'api.invites.revoke': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
+    'api.member-resources.clear': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'principalId': ParamValue} }
+    'api.member-resources.clear-exception': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'principalId': ParamValue} }
+    'api.masquerade.end': { paramsTuple?: []; params?: {} }
   }
 }
 declare module '@adonisjs/core/types/http' {
