@@ -71,6 +71,11 @@ export const baselineTables = [
   'masquerades',
   'command_results',
   'company_settings',
+  'company_planning_revisions',
+  'planning_mutations',
+  'deleted_groups',
+  'deleted_rows',
+  'action_proofs',
 ] as const
 
 export function expectedFixture(value: unknown): unknown {
