@@ -1,6 +1,12 @@
 import { expect, test } from "./fixtures";
 import type { Page } from "./fixtures";
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./authTestSupport";
+import {
+  AUTH_PASSWORD,
+  bootstrapOrg,
+  seedFixtureMember,
+  sendPlanningFixtureCommand,
+  signUpUser,
+} from "./authTestSupport";
 import { waitForAppLanding } from "./browserTestSupport";
 
 const STAMP = Date.now();
@@ -37,11 +43,14 @@ test("the account access setting gates viewer navigation and direct routes", asy
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
 
-  const enabled = await request.patch(`${AUTH_API}/api/accounts/${accountId}`, {
-    headers: { cookie: owner.cookie, "content-type": "application/json" },
-    data: { capacityOverviewAccess: "everyone" },
-  });
-  expect(enabled.status()).toBe(200);
+  await sendPlanningFixtureCommand(
+    request,
+    owner.cookie,
+    accountId,
+    "settings",
+    { operation: "settings.update", changes: { capacityOverviewAccess: "everyone" } },
+    "patch",
+  );
   await page.reload();
   const capacityOverviewLink = page.getByRole("link", { name: "Overview" });
   await expect(capacityOverviewLink).toBeVisible();

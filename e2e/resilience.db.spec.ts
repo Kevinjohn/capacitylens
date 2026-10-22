@@ -10,8 +10,11 @@ function registerBeforeEachHooks() {
 }
 
 function registerInitialStateFailurePreventsEditingTest() {
-  test("an initial state failure prevents editing and Retry recovers the real server data", async ({ page }) => {
-    const stateFailure = await failRequestsUntilReleased(page, "**/api/state**", {
+  test("an initial planning read failure prevents a write until reload recovers the real server data", async ({
+    page,
+    request,
+  }) => {
+    const stateFailure = await failRequestsUntilReleased(page, "**/api/accounts/*/planning", {
       status: 503,
       body: { error: "Temporary test outage" },
     });
@@ -19,18 +22,26 @@ function registerInitialStateFailurePreventsEditingTest() {
     await freezeBrowserDate(page);
     await page.goto("/");
 
-    await expect(page.getByRole("heading", { name: "Wayne Enterprises could not be opened" })).toBeVisible();
-    await expect(page.getByText(/previous company remains safely hidden/i)).toBeVisible();
-    await expect(page.getByRole("button", { name: "Add client" })).toHaveCount(0);
+    await expect(page.getByRole("alert")).toContainText("The schedule couldn’t be loaded from the server");
     expect(stateFailure.attempts()).toBeGreaterThan(0);
+    await expect(page.getByText("Bruce Wayne")).toHaveCount(0);
+
+    await page.getByRole("link", { name: "Clients" }).click();
+    await page.getByRole("button", { name: "Add client" }).click();
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Outage Client");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(
+      page.getByRole("dialog", { name: "Add client" }).getByText("No active company is selected."),
+    ).toBeVisible();
+    expect(requireStateRows(await serverState(request), "clients").some(({ name }) => name === "Outage Client")).toBe(
+      false,
+    );
 
     stateFailure.release();
-    await page.getByRole("button", { name: "Retry" }).click();
+    await page.goto("/");
     await waitForAppLanding(page, page.locator("#main"));
-    await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
-
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Wayne Enterprises could not be opened" })).toHaveCount(0);
+    await expect(page.getByRole("alert")).toHaveCount(0);
   });
 }
 
