@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Refuse allocation restoration when current references or resource availability are incompatible, keeping the deletion available for retry.
+
 ### Added
 
 - Typed planning writes now cover disciplines, phases, personal time off, closures and company
