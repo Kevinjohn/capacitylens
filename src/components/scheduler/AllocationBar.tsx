@@ -1,6 +1,6 @@
 import { memo, useMemo, useState } from "react";
 import type { KeyboardEventHandler, PointerEventHandler } from "react";
-import { resolveAccessibleBarColors } from "@capacitylens/shared/lib/color";
+import { resolveAccessibleBarColors } from "@capacitylens/shared/lib/accessibleColors";
 import type { ID } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { useCanEdit } from "@/auth/permissionContext";
@@ -9,7 +9,7 @@ import { useDateStyle } from "@/store/useDateStyle";
 import type { BarLabelPreferences } from "@/lib/displayPrefs";
 import { resolveAllocationStatusAnnotation } from "@/lib/metadata";
 import { useStore } from "@/store/useStore";
-import { hasVisibleTaskFieldInSchedule } from "@/store/selectors";
+import { hasVisibleTaskFieldInSchedule } from "@/store/accountSettingsSelectors";
 import { AllocationBarView } from "./AllocationBarView";
 import type { ColumnGeometry } from "./columnGeometry";
 import { buildAllocationBarInset } from "./layout";

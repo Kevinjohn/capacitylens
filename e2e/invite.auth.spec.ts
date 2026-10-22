@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
 import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUser } from "./authTestSupport";
-import { waitForAppLanding } from "./browserTestSupport";
+import { waitForAppLanding } from "./appEntrySupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 

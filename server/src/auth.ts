@@ -29,7 +29,8 @@ export {
   ensureFederatedIdentitySchema,
   assertFederatedIdentitySchemaCurrent,
 } from "./authConfig/federatedIdentitySchema";
-export { runAuthMigrations, planAuthSchemaMigrations, BOOTSTRAP_ADMIN_EMAIL } from "./authConfig/bootstrapAdmin";
+export { runAuthMigrations, planAuthSchemaMigrations } from "./authConfig/authSchemaMigrations";
+export { BOOTSTRAP_ADMIN_EMAIL } from "./authConfig/bootstrapAdmin";
 
 // Better Auth owns session, credential, and named provider sign-in. With CAPACITYLENS_MODE unset or
 // `off`, authFromEnv returns before initializing Better Auth, reading credentials, or creating auth

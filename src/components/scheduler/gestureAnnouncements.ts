@@ -13,7 +13,8 @@ import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingW
 import { carriesHourlyLoad, FULL_DAY_HOURS, isCapacityTracked } from "@capacitylens/shared/types/entities";
 import type { ID } from "@capacitylens/shared/types/entities";
 import { resolveResourceDisplayName } from "@/lib/metadata";
-import { listAccountWorkingDays, resolveSchedulingMode, buildVisibleRange } from "@/store/selectors";
+import { listAccountWorkingDays, resolveSchedulingMode } from "@/store/accountSettingsSelectors";
+import { buildVisibleRange } from "@/store/schedulerSelectors";
 import { useStore } from "@/store/useStore";
 import { buildActiveGestureData } from "./gestureLanes";
 

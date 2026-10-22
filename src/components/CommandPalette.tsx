@@ -6,7 +6,7 @@ import {
   hasExternalResourcesEnabled,
   hasPlaceholdersEnabled,
   resolveCapacityOverviewAccess,
-} from "@/store/selectors";
+} from "@/store/accountSettingsSelectors";
 import { usePermissionStatus, useRole } from "@/auth/permissionContext";
 import { resolveCapacityOverviewAccessDecision } from "@/auth/capacityOverviewAccess";
 import { useActiveScopedData } from "@/store/useScopedData";

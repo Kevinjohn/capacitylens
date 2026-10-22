@@ -15,6 +15,13 @@ export function reportInvalidScheduleDateRangeOnce(row: { id: string }): void {
   console.error(`Scheduler omitted ${row.id}: invalid date range.`);
 }
 
+/** Filter predicate that keeps renderable rows and reports each corrupt row once. */
+export function includeRenderableDateRange(row: { id: string; startDate: ISODate; endDate: ISODate }): boolean {
+  const renderable = hasRenderableDateRange(row);
+  if (!renderable) reportInvalidScheduleDateRangeOnce(row);
+  return renderable;
+}
+
 // Reused for a bucket miss so a day with no allocations / no time off doesn't allocate a throwaway
 // array per resource-day (this runs days × resources times on every model rebuild).
 /** Stable empty allocation list shared by rows with no allocations. */

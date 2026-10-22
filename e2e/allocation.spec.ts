@@ -1,12 +1,13 @@
 import { test, expect } from "./fixtures";
 import {
+  boundingBoxOrThrow as box,
   goToSeedWeek,
-  openApp,
-  resetSchedulerScroll,
   selectShadOption,
   setZoom,
   showPlaceholders,
 } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
+import { resetSchedulerScroll } from "./schedulerGeometrySupport";
 
 // Covers US-ALL-01..08. The allocation editor (modal) opened from the row "+" or by
 // clicking a bar. Seed bars live in June 2026, so each test explicitly opens that visible week.
@@ -334,6 +335,109 @@ function registerRejectsEmptyDatesAcceptsListedTests() {
     await expect(dialog).toHaveCount(0);
   });
 }
+
+function registerUndoRestoresDeletedAllocationTest() {
+  test("undo restores a deleted allocation", async ({ page }) => {
+    await openApp(page);
+    const bars = page.getByTestId("allocation-bar");
+    await expect(bars).toHaveCount(6);
+    const n = await bars.count();
+
+    await bars.filter({ hasText: "Brand System" }).click();
+    await expect(page.getByRole("dialog", { name: "Edit allocation" })).toBeVisible();
+    await page.getByRole("button", { name: "Delete" }).click();
+    await page.getByRole("alertdialog", { name: "Delete allocation?" }).getByRole("button", { name: "Delete" }).click();
+    await expect(bars).toHaveCount(n - 1);
+
+    // Undo here uses the global ⌘Z shortcut (AppShell); the toolbar Undo button path is
+    // covered in toolbar.spec.ts. Click an empty corner of the grid first so the shortcut
+    // isn't swallowed by a focused input.
+    await page.getByTestId("scheduler-grid").click({ position: { x: 5, y: 5 } });
+    await page.keyboard.press("Meta+z");
+    await expect(bars).toHaveCount(n);
+  });
+}
+
+function registerDraggingAllocationOntoAnotherRowTest() {
+  test("dragging an allocation onto another row reassigns it", async ({ page }, testInfo) => {
+    await openApp(page);
+    // Zoom preserves the seed week’s left edge, so these bars need no manual scroll reset.
+    await setZoom(page, 4);
+
+    const bar = page.getByTestId("allocation-bar").filter({ hasText: "Brand System" });
+    const b0 = await box(bar);
+    // Target the resource by its stable ID so seed reordering cannot change the destination.
+    const clarkLane = page.locator('[data-resource-id="r-nike"]');
+    const clark = await box(clarkLane);
+    const cx = b0.x + b0.width / 2;
+
+    await page.mouse.move(cx, b0.y + b0.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(cx, clark.y + clark.height / 2, { steps: 10 });
+    await expect(clarkLane).toHaveAttribute("data-droptarget", "");
+    await page.screenshot({
+      path: testInfo.outputPath("capacitylens_drophighlight.png"),
+    });
+    await page.mouse.up();
+
+    await expect(clarkLane.getByTestId("allocation-bar").filter({ hasText: "Brand System" })).toBeVisible();
+    await expect(clarkLane).not.toHaveAttribute("data-droptarget", "");
+  });
+}
+
+function registerRejectsVerticalReassignmentOntoNonTest() {
+  test("rejects a vertical reassignment onto a non-working start date unless explicitly ignored", async ({ page }) => {
+    await openApp(page);
+    await setZoom(page, 4);
+
+    await page.getByRole("button", { name: "Add allocation for Diana Prince" }).click();
+    const createDialog = page.getByRole("dialog", { name: "New allocation" });
+    await selectShadOption(createDialog.getByLabel("Project", { exact: true }), "p-brand");
+    await selectShadOption(createDialog.getByRole("combobox", { name: "Activity", exact: true }), "t-brand");
+
+    await createDialog.getByLabel("Start").fill("2026-06-05");
+    await createDialog.getByLabel("End").fill("2026-06-05");
+    await createDialog.getByRole("button", { name: "Save" }).click();
+
+    const dianaLane = page.locator('[data-resource-id="r-pam"]');
+    const bar = dianaLane.getByRole("button", { name: /Brand System.*5 Jun to 5 Jun/ });
+    const barBox = await box(bar);
+    const barX = barBox.x + barBox.width / 2;
+    const barY = barBox.y + barBox.height / 2;
+    const barryLane = page.locator('[data-resource-id="r-alex"]');
+    const barryBox = await box(barryLane);
+    const targetY = barryBox.y + barryBox.height / 2;
+
+    await page.mouse.move(barX, barY);
+    await page.mouse.down();
+    await page.mouse.move(barX, targetY, { steps: 10 });
+    await expect(barryLane).not.toHaveAttribute("data-droptarget", "");
+    expect(await bar.evaluate((element) => getComputedStyle(element).transitionProperty)).not.toContain("transform");
+    await page.mouse.up();
+
+    await expect(page.getByText("That allocation cannot start there because it is not a working day.")).toBeVisible();
+    await expect(dianaLane.getByRole("button", { name: /Brand System.*5 Jun to 5 Jun/ })).toBeVisible();
+    await expect(barryLane.getByRole("button", { name: /Brand System.*5 Jun to 5 Jun/ })).toHaveCount(0);
+
+    await bar.click();
+    const editDialog = page.getByRole("dialog", { name: "Edit allocation" });
+    await editDialog.getByRole("checkbox", { name: "Ignore working days" }).check();
+    await editDialog.getByRole("button", { name: "Save" }).click();
+
+    const ignoredBarBox = await box(bar);
+    await page.mouse.move(ignoredBarBox.x + ignoredBarBox.width / 2, ignoredBarBox.y + ignoredBarBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(ignoredBarBox.x + ignoredBarBox.width / 2, targetY, { steps: 10 });
+    await expect(barryLane).toHaveAttribute("data-droptarget", "");
+    await page.mouse.up();
+
+    await expect(barryLane.getByRole("button", { name: /Brand System.*5 Jun to 5 Jun/ })).toBeVisible();
+  });
+}
+
+registerUndoRestoresDeletedAllocationTest();
+registerDraggingAllocationOntoAnotherRowTest();
+registerRejectsVerticalReassignmentOntoNonTest();
 
 test.describe("Allocation editor", () => {
   registerBeforeEachHooks();

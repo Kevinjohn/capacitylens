@@ -3,10 +3,10 @@ import {
   authHandlerErrorCapture,
   passwordResetSessionCapture,
   preparedPasswordHashCapture,
-  isFederatedAccountCoordinateConstraint,
   microsoftCallbackCapture,
   federatedCallbackCapture,
 } from "./captureContexts";
+import { isFederatedAccountCoordinateConstraint } from "./identityStorageErrors";
 import { MicrosoftProofError } from "./microsoftProof";
 import type { MicrosoftProof } from "./microsoftProof";
 import {

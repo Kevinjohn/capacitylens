@@ -305,12 +305,14 @@ describe("buildApp route registration", () => {
   });
 
   it.each<[string, InjectOptions]>([
-    ["systemRoutes", { method: "GET", url: "/api/meta" }],
-    ["authProxyRoutes", { method: "GET", url: "/api/auth/me" }],
+    ["metaRoutes", { method: "GET", url: "/api/meta" }],
+    ["identityRoutes", { method: "GET", url: "/api/auth/me" }],
     ["stateRoutes", { method: "GET", url: "/api/state" }],
+    ["organisationRoutes", { method: "POST", url: "/api/orgs" }],
     ["entityRoutes", { method: "POST", url: "/api/clients" }],
     ["batchRoutes", { method: "POST", url: "/api/batch" }],
     ["importRoutes", { method: "POST", url: "/api/import" }],
+    ["testResetRoutes", { method: "POST", url: "/api/test/reset" }],
   ])("keeps %s inside the rate-limited child scope", async (_module, request) => {
     const app = createApp(openDb(":memory:"), {
       allowReset: true,

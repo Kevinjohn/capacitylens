@@ -1,12 +1,7 @@
 import { test, expect } from "./fixtures";
 import type { Locator } from "./fixtures";
-import {
-  computedStyles,
-  disableCssMotion,
-  expectConnectedSelectionEdges,
-  focusByKeyboard,
-  openApp,
-} from "./browserTestSupport";
+import { computedStyles, disableCssMotion, expectConnectedSelectionEdges, focusByKeyboard } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
 
 async function selectedTreatment(segment: Locator) {
   const style = await computedStyles(segment, [

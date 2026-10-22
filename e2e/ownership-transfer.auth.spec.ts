@@ -1,14 +1,9 @@
 import { test, expect } from "./fixtures";
 import type { APIRequestContext, Page } from "./fixtures";
 import type { BrowserContext } from "@playwright/test";
-import {
-  AUTH_API as API,
-  AUTH_PASSWORD as PASSWORD,
-  bootstrapOrg,
-  seedFixtureMember,
-  signUpUserWithId,
-} from "./authTestSupport";
-import { waitForAppLanding } from "./browserTestSupport";
+import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUserWithId } from "./authTestSupport";
+import { seedFixtureMember } from "./authDatabaseFixtures";
+import { waitForAppLanding } from "./appEntrySupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 

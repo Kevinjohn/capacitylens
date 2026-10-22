@@ -1,6 +1,7 @@
 import { expect, test } from "./fixtures";
 import type { Locator, Page } from "./fixtures";
-import { dismissLandscapeHint, openApp, selectShadOption } from "./browserTestSupport";
+import { dismissLandscapeHint, selectShadOption } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
 
 const OWNER_DESCRIPTION = "Only account owners can see real names. Everyone else sees the code name.";
 

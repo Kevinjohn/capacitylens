@@ -8,8 +8,8 @@
     "node": ">=24"
   },
   "exports": {
-    "./account/audit": "./src/account/audit.ts",
     "./account/approvedDomains": "./src/account/approvedDomains.ts",
+    "./account/audit": "./src/account/audit.ts",
     "./account/conformance": "./src/account/conformance.ts",
     "./account/errors": "./src/account/errors.ts",
     "./account/ownershipTransfer": "./src/account/ownershipTransfer.ts",
@@ -26,8 +26,8 @@
     "./data/fixtures": "./src/data/fixtures.ts",
     "./data/internalClient": "./src/data/internalClient.ts",
     "./data/migrate": "./src/data/migrate.ts",
-    "./data/strictJson": "./src/data/strictJson.ts",
     "./data/seed": "./src/data/seed.ts",
+    "./data/strictJson": "./src/data/strictJson.ts",
     "./data/transfer": "./src/data/transfer.ts",
     "./domain/access": "./src/domain/access.ts",
     "./domain/errors": "./src/domain/errors.ts",
@@ -38,8 +38,12 @@
     "./domain/privateNames": "./src/domain/privateNames.ts",
     "./domain/resourceAvatarUrl": "./src/domain/resourceAvatarUrl.ts",
     "./domain/tenancy": "./src/domain/tenancy.ts",
-    "./lib/color": "./src/lib/color.ts",
+    "./lib/accessibleColors": "./src/lib/accessibleColors.ts",
     "./lib/accountWorkingDays": "./src/lib/accountWorkingDays.ts",
+    "./lib/barColors": "./src/lib/barColors.ts",
+    "./lib/cascades": "./src/lib/cascades.ts",
+    "./lib/color": "./src/lib/color.ts",
+    "./lib/colorPalette": "./src/lib/colorPalette.ts",
     "./lib/dateMath": "./src/lib/dateMath.ts",
     "./lib/effectiveWorkingWeek": "./src/lib/effectiveWorkingWeek.ts",
     "./lib/id": "./src/lib/id.ts",
@@ -49,6 +53,7 @@
     "./lib/sanitizeImport": "./src/lib/sanitizeImport.ts",
     "./lib/schedulingDays": "./src/lib/schedulingDays.ts",
     "./lib/strings": "./src/lib/strings.ts",
+    "./lib/today": "./src/lib/today.ts",
     "./types/entities": "./src/types/entities.ts"
   },
   "dependencies": {

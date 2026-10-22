@@ -15,7 +15,7 @@ import {
   resolveSchedulingMode,
   resolveTimeZone,
   resolveWeekStart,
-} from "@/store/selectors";
+} from "@/store/accountSettingsSelectors";
 import { defaultAccountWorkingDays, normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { addDaysISO } from "@capacitylens/shared/lib/dateMath";
 import { UTILIZATION_WINDOW_DAYS } from "@/lib/schedulerConfig";

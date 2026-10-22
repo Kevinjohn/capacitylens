@@ -1,5 +1,5 @@
 import { APIError } from "better-auth/api";
-import type { PasswordHasher } from "../passwordSecurity";
+import type { PasswordHasher } from "../passwordHasher";
 import { WorkQueueFullError } from "../workQueue";
 
 // Queue pressure is availability failure; translate it before Better Auth treats it as a credential verdict.

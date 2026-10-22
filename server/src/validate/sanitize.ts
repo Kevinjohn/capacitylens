@@ -1,6 +1,6 @@
 import { isLifecycleEntityKey } from "@capacitylens/shared/domain/lifecycle";
 import { hasUsablePrivateCodeName } from "@capacitylens/shared/domain/privateNames";
-import { snapToPresetColor } from "@capacitylens/shared/lib/color";
+import { snapToPresetColor } from "@capacitylens/shared/lib/colorPalette";
 import { sanitizeAccount, sanitizeImportedRecord } from "@capacitylens/shared/lib/sanitizeImport";
 import { cleanText } from "@capacitylens/shared/lib/strings";
 import { parseResourceAvatarUrl } from "@capacitylens/shared/domain/resourceAvatarUrl";

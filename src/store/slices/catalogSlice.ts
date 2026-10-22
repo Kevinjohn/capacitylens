@@ -1,12 +1,7 @@
 import type { StateCreator, StoreApi } from "zustand";
 import { newId } from "@capacitylens/shared/lib/id";
-import {
-  allocationAttributionAllowed,
-  deleteActivityCascade,
-  deleteDisciplineCascade,
-  deletePhaseCascade,
-  withoutAllocationAttribution,
-} from "@capacitylens/shared/lib/integrity";
+import { deleteActivityCascade, deleteDisciplineCascade, deletePhaseCascade } from "@capacitylens/shared/lib/cascades";
+import { allocationAttributionAllowed, withoutAllocationAttribution } from "@capacitylens/shared/lib/integrity";
 import { assertActivityProjectAllowsDependents, assertScopedRefs } from "@capacitylens/shared/domain/mutations";
 import { hasUsablePrivateCodeName } from "@capacitylens/shared/domain/privateNames";
 import type { Activity, Client, Discipline, ID, Phase, Project } from "@capacitylens/shared/types/entities";

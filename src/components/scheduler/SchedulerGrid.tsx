@@ -6,7 +6,7 @@ import { useStore } from "@/store/useStore";
 import type { SchedulerUI } from "@/store/useStore";
 import { useCanEdit } from "@/auth/permissionContext";
 import { resolveSharedScopedData } from "@/store/useScopedData";
-import { listAccountWorkingDays } from "@/store/selectors";
+import { listAccountWorkingDays } from "@/store/accountSettingsSelectors";
 import { EmptyState } from "@/components/common/ui";
 import { LAYOUT } from "./layout";
 import { SchedulerGridHeader } from "./SchedulerGridHeader";

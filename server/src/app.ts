@@ -13,6 +13,7 @@ import { createAppRuntime } from "./routes/appRuntime";
 import { installRootHooks } from "./routes/appRootHooks";
 import { installSessionResolution } from "./routes/appSessionResolution";
 import { createAuthorization } from "./routes/appAuthorization";
+import { installOriginPolicy } from "./routes/appOriginPolicy";
 import { registerApiRoutes } from "./routes/appRouteTree";
 import { registerStaticWeb } from "./routes/staticWeb";
 export { MAX_BATCH_OPS } from "./routes/batchRoutes";
@@ -157,7 +158,13 @@ export function createApp(db: Db, options: AppOptions = {}): FastifyInstance {
     options,
     securityEvent: rootHelpers.securityEvent,
   });
-  const authorization = createAuthorization({ app, runtime, config, options, rootHelpers });
+  installOriginPolicy({
+    app,
+    corsOrigins: rootHelpers.corsOrigins,
+    securityEvent: rootHelpers.securityEvent,
+    trustProxyHeaders: options.trustProxyHeaders === true,
+  });
+  const authorization = createAuthorization({ runtime, config, rootHelpers });
   registerApiRoutes({ app, db, runtime, config, options, rootHelpers, sessionResolution, authorization });
   // Registered last so every API route wins over the web app's catch-all.
   if (options.webDir) registerStaticWeb(app, { webDir: options.webDir });

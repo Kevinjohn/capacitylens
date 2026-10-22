@@ -1,4 +1,7 @@
 import { AccountContractError } from "@capacitylens/shared/account/errors";
+import { SINGLE_COMPANY_CAP_MESSAGE } from "@capacitylens/shared/account/policy";
+import type { ActorContext } from "@capacitylens/shared/account/types";
+import type { LocalAccountAdminPort } from "../adminPort/contracts";
 import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
 import { tx } from "../../txn";
 import { recordTerminalOutcome } from "../accountFlowRuntime";
@@ -11,7 +14,6 @@ import {
   terminateCommand,
 } from "../commands";
 import type { LocalAccountFlows } from "../createLocalAccountFlows";
-import { assertWorkspaceProvisioningAllowedInTx } from "./actorContext";
 import type { LocalAccountFlowContext } from "./context";
 import { isAuthorityDenial } from "./failures";
 import { createWorkspaceErasureFlows } from "./workspaceErasure";
@@ -288,4 +290,31 @@ export function createWorkspaceLifecycleFlows(
     ...createWorkspaceProvisioningFlows(context),
     ...createWorkspaceErasureFlows(context),
   };
+}
+
+/** Rejects workspace provisioning when the transaction-bound authority check refuses it. */
+function assertWorkspaceProvisioningAllowedInTx(
+  administration: LocalAccountAdminPort,
+  input: {
+    actor: ActorContext;
+    multiWorkspace: boolean;
+    bootstrapAuthorized: boolean;
+    projectedWorkspaceCount?: number;
+    commandId?: string;
+  },
+): void {
+  const decision = administration.evaluateWorkspaceProvisioningAuthorityInTx({
+    actor: input.actor,
+    multiWorkspace: input.multiWorkspace,
+    bootstrapAuthorized: input.bootstrapAuthorized,
+    ...(input.projectedWorkspaceCount === undefined ? {} : { projectedWorkspaceCount: input.projectedWorkspaceCount }),
+  });
+  if (!decision.allowed) {
+    throw new AccountContractError({
+      code: "FORBIDDEN",
+      message: decision.reason === "single-workspace-cap" ? SINGLE_COMPANY_CAP_MESSAGE : "Forbidden.",
+      retryable: false,
+      ...(input.commandId === undefined ? {} : { commandId: input.commandId }),
+    });
+  }
 }

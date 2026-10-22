@@ -1,6 +1,7 @@
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
-import { dismissLandscapeHint, openApp } from "./browserTestSupport";
+import { dismissLandscapeHint } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
 
 async function expectCompactRows(dialog: Locator, expectedCount: number) {
   const rows = dialog.locator('[data-product-layout="label-control"]');

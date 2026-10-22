@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { todayISO } from "@capacitylens/shared/lib/dateMath";
+import { todayISO } from "@capacitylens/shared/lib/today";
 import type { ISODate } from "@capacitylens/shared/types/entities";
 
 const BOUNDARY_SEARCH_MS = 36 * 60 * 60 * 1000;

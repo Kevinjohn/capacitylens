@@ -1,6 +1,6 @@
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { byName, createClientProjectDisplayNameComparator } from "@/lib/displayOrder";
-import { byDisciplineOrder } from "@/store/selectors";
+import { byDisciplineOrder } from "@/store/schedulerSelectors";
 
 /** One entity option in a {@link FilterSelect}, the stored id and the text the menu shows. */
 export interface FilterOption {

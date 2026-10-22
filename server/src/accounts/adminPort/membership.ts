@@ -20,7 +20,7 @@ import type { Db } from "../../db";
 import type { AccountAuditInput } from "../accountFlowRuntime";
 import { createOperationReceipt } from "../accountFlowRuntime";
 import { bumpSecurityRevision } from "../state";
-import { assertAccountAuthority, assertAdministrativeAssurance } from "./authority";
+import { assertAccountAuthority, assertAdministrativeAssurance } from "./accountAuthority";
 import type { AdminPortContext, SsoCutoverAccountAdminPort } from "./contracts";
 import { ACCOUNT_POLICY_VERSION } from "./contracts";
 import { assertInvitationRole, createAccountFailure } from "./failures";

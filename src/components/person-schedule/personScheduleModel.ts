@@ -1,5 +1,5 @@
 import { internalClientFor } from "@capacitylens/shared/data/internalClient";
-import { resolveBarColor } from "@capacitylens/shared/lib/color";
+import { resolveBarColor } from "@capacitylens/shared/lib/barColors";
 import { rangesOverlap } from "@capacitylens/shared/lib/dateMath";
 import { carriesHourlyLoad, isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
 import type {

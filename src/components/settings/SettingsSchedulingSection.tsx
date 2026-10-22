@@ -3,7 +3,7 @@ import type { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDay
 import type { CapacityOverviewAccess, DateStyle, SchedulingMode } from "@capacitylens/shared/types/entities";
 import { externalExplainer } from "@/lib/externalCopy";
 import { buildLabels, buildLabelOptions } from "@/lib/metadata";
-import type { listAccountWorkingDays } from "@/store/selectors";
+import type { listAccountWorkingDays } from "@/store/accountSettingsSelectors";
 import type { StoreState } from "@/store/useStore";
 import { SegmentedControl, SwitchField } from "@/components/common/ui";
 import { SettingsSection } from "./SettingsSection";

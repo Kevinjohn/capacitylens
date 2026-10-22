@@ -23,7 +23,7 @@ import {
   assertAdministrativeAssurance,
   assertInvitationAuthority,
   assertWorkspaceExists,
-} from "./authority";
+} from "./accountAuthority";
 import type { AdminPortContext, SsoCutoverAccountAdminPort } from "./contracts";
 import { MAX_INVITATION_TTL_MS } from "./contracts";
 import {

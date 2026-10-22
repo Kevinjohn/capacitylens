@@ -8,6 +8,7 @@ import { registerGettingStartedRoutes } from "./gettingStartedRoutes";
 import { readMemberSignInTrackingSnapshot, setMemberSignInTracking } from "../accounts/memberSignInTracking";
 import { registerLifecycleRoutes } from "./lifecycleRoutes";
 import { registerAuthProxyRoutes } from "./authProxyRoutes";
+import { registerIdentityRoutes } from "./identityRoutes";
 import { registerMicrosoftProofRoutes } from "./microsoftProofRoutes";
 import { registerJoiningProofRoutes } from "./joiningProofRoutes";
 import { withSendBudget } from "../authConfig/mailSender";
@@ -15,6 +16,9 @@ import type { MailSender } from "../authConfig/mailSender";
 import { registerBatchRoutes } from "./batchRoutes";
 import { registerEntityRoutes } from "./entityRoutes";
 import { registerImportRoutes } from "./importRoutes";
+import { registerTestResetRoutes } from "./testResetRoutes";
+import { registerOrganisationRoutes } from "./organisationRoutes";
+import { registerMetaRoutes } from "./metaRoutes";
 import { registerStateRoutes } from "./stateRoutes";
 import { registerSystemRoutes } from "./systemRoutes";
 import { isStaleWrite, ownsRow } from "./routeShared";
@@ -54,7 +58,6 @@ function registerImportRouteGroup(input: RegisterRouteGroupInput): void {
     db,
     store: runtime.store,
     authMode: config.authMode,
-    allowReset: options.allowReset === true,
     accountAdminPort: runtime.accountAdminPort,
     memberResources: runtime.memberResources,
     accountLock: runtime.accountLock,
@@ -62,6 +65,11 @@ function registerImportRouteGroup(input: RegisterRouteGroupInput): void {
     executeImportWorker: config.executeImportWorker,
     commitProductAudit: runtime.commitProductAudit,
     fail: rootHelpers.sendFail,
+  });
+  registerTestResetRoutes(app, {
+    db,
+    authMode: config.authMode,
+    allowReset: options.allowReset === true,
   });
 }
 
@@ -191,28 +199,45 @@ function registerAccountControlRoutes(input: RegisterRouteGroupInput): void {
   });
 }
 
+function buildSystemRouteDependencies(input: {
+  runtime: ReturnType<typeof createAppRuntime>;
+  options: AppOptions;
+  auditSink: ReturnType<typeof resolveAppConfig>["auditSink"];
+  securityEvent: ReturnType<typeof installRootHooks>["securityEvent"];
+}) {
+  const { runtime, options, auditSink, securityEvent } = input;
+  return {
+    securityEvent,
+    healthStatement: runtime.healthStmt,
+    diagnosticsSchemaStatement: runtime.diagnosticsSchemaStatement,
+    auditDrainer: runtime.auditDrainer,
+    auditSink,
+    ...(options.backupHealth === undefined ? {} : { backupHealth: options.backupHealth }),
+    ...(options.internalTlsExpiresAt === undefined ? {} : { internalTlsExpiresAt: options.internalTlsExpiresAt }),
+    ...(options.internalTlsFingerprintSha256 === undefined
+      ? {}
+      : { internalTlsFingerprintSha256: options.internalTlsFingerprintSha256 }),
+  };
+}
+
 function buildPlatformRouteDependencies(input: RegisterApiRoutesInput) {
   const { db, runtime, config, options, rootHelpers, sessionResolution, authorization } = input;
-  const { accountAdminPort, accountFlows, auditDrainer, drainProductAudit, healthStmt, masquerades, store } = runtime;
+  const { accountAdminPort, accountFlows, drainProductAudit, masquerades, store } = runtime;
   const { auditSink, auth, authMode, logOn } = config;
   const { accountFail, securityEvent, sendFail } = rootHelpers;
   const { resolveIncomingSession } = sessionResolution;
   const { authorize, resolveEffectiveRole } = authorization;
   return {
-    system: {
-      securityEvent,
-      healthStatement: healthStmt,
-      diagnosticsSchemaStatement: runtime.diagnosticsSchemaStatement,
-      auditDrainer,
-      auditSink,
-      ...(options.backupHealth === undefined ? {} : { backupHealth: options.backupHealth }),
-      ...(options.internalTlsExpiresAt === undefined ? {} : { internalTlsExpiresAt: options.internalTlsExpiresAt }),
-      ...(options.internalTlsFingerprintSha256 === undefined
-        ? {}
-        : { internalTlsFingerprintSha256: options.internalTlsFingerprintSha256 }),
-      isInitialized: () => isInitialized(db),
-    },
+    system: buildSystemRouteDependencies({ runtime, options, auditSink, securityEvent }),
     authProxy: {
+      authMode,
+      auth,
+      masquerades,
+      resolveIncomingSession,
+      toWebHeaders,
+      logOn,
+    },
+    identity: {
       authMode,
       auth,
       db,
@@ -221,21 +246,23 @@ function buildPlatformRouteDependencies(input: RegisterApiRoutesInput) {
       masquerades,
       resolveIncomingSession,
       sessionUserFromApplicationSession: buildSessionUser,
-      toWebHeaders,
-      logOn,
     },
     state: {
       db,
       store,
       authMode,
-      auth,
-      multiAccount: options.multiAccount === true,
-      ...(options.bootstrapToken === undefined ? {} : { bootstrapToken: options.bootstrapToken }),
       accountAdminPort,
-      accountFlows,
       masquerades,
       authorize,
       resolveEffectiveRole,
+    },
+    organisation: {
+      db,
+      authMode,
+      auth,
+      multiAccount: options.multiAccount === true,
+      ...(options.bootstrapToken === undefined ? {} : { bootstrapToken: options.bootstrapToken }),
+      accountFlows,
       accountCommand: createAccountCommand,
       accountFail,
       sendFail,
@@ -249,8 +276,8 @@ function registerPlatformRoutes(input: RegisterRouteGroupInput): void {
   const dependencies = buildPlatformRouteDependencies(input);
   const { accountAdminPort, identityPort } = runtime;
   const { application, auth, authMode } = config;
-  registerSystemRoutes(app, { ...dependencies.system, section: "public" });
-  registerAuthProxyRoutes(app, { ...dependencies.authProxy, section: "identity" });
+  registerSystemRoutes(app, dependencies.system);
+  registerIdentityRoutes(app, dependencies.identity);
   if (authMode !== "off" && auth) {
     registerMicrosoftProofRoutes({ app: app, auth: auth, trustProxyHeaders: options.trustProxyHeaders === true });
     if (options.joiningProof)
@@ -276,11 +303,11 @@ function registerPlatformRoutes(input: RegisterRouteGroupInput): void {
       toWebHeaders,
       trustProxyHeaders: options.trustProxyHeaders === true,
     });
-    registerAuthProxyRoutes(app, { ...dependencies.authProxy, section: "proxy" });
+    registerAuthProxyRoutes(app, dependencies.authProxy);
   }
-  registerStateRoutes(app, { ...dependencies.state, section: "read" });
-  registerSystemRoutes(app, { ...dependencies.system, section: "meta" });
-  registerStateRoutes(app, { ...dependencies.state, section: "org" });
+  registerStateRoutes(app, dependencies.state);
+  registerMetaRoutes(app, { isInitialized: () => isInitialized(db) });
+  registerOrganisationRoutes(app, dependencies.organisation);
 }
 
 /** Registers API route plugins under the root Fastify instance. */

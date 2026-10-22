@@ -8,7 +8,7 @@ When you drag an allocation onto a placeholder that is bound to a _different_ pr
 
 ## Why
 
-Placeholders stand in for a yet-to-be-hired role on **one specific project**, so they may only ever hold activities from that project. Silently snapping the bar back would leave the manager guessing why a drop "didn't take." Refusing the reassignment _and saying so_ keeps the placeholder's project binding trustworthy while making the rule legible the moment it bites. (Related: the create path is locked the same way — see `e2e/features.spec.ts` → "drawing on a placeholder locks the modal to its bound project".)
+Placeholders stand in for a yet-to-be-hired role on **one specific project**, so they may only ever hold activities from that project. Silently snapping the bar back would leave the manager guessing why a drop "didn't take." Refusing the reassignment _and saying so_ keeps the placeholder's project binding trustworthy while making the rule legible the moment it bites. (Related: the create path is locked the same way — see `e2e/placeholders.spec.ts` → "drawing on a placeholder locks the modal to its bound project".)
 
 ## How (end-to-end)
 

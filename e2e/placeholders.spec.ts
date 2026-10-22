@@ -1,10 +1,50 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./browserTestSupport";
+import { boundingBoxOrThrow as box, setZoom, showPlaceholders } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
+import { resetSchedulerScroll, waitForWeekSnap } from "./schedulerGeometrySupport";
 
 // Covers US-SET-06. Placeholders are a per-account view pref (`placeholdersEnabled` on the active
 // Account, absent = false), default off, hidden everywhere out of the box, but their data is
 // untouched and returns when the switch goes on. The seed has one placeholder (r-ph-designer,
 // role "Senior Designer", bound to Project Watchtower) so the toggle is demonstrable.
+function registerDrawingPlaceholderLocksModalBoundTests() {
+  test("drawing on a placeholder locks the modal to its bound project", async ({ page }) => {
+    await openApp(page, "Wayne Enterprises", "/settings");
+    await showPlaceholders(page);
+    await page.getByRole("link", { name: "Schedule" }).click();
+    await setZoom(page, 4);
+    await resetSchedulerScroll(page);
+    await waitForWeekSnap(page);
+
+    const lane = page.locator('[data-resource-id="r-ph-designer"]');
+    const b = await box(lane);
+    const y = b.y + b.height / 2;
+    // Start on an empty working day inside the reset window instead of the lane origin, which sits
+    // underneath the sticky resource column.
+    const monday = await box(page.getByTestId("scheduler-day-tier").locator('[data-date="2026-05-11"]'));
+    const timeline = await box(page.getByTestId("scheduler-resource-header"));
+    const grid = await box(page.getByTestId("scheduler-grid"));
+    const x0 = monday.x + monday.width / 2;
+    const x1 = x0 + monday.width;
+    expect(x0).toBeGreaterThan(timeline.x + timeline.width);
+    expect(x1).toBeLessThan(grid.x + grid.width);
+    await page.mouse.move(x0, y);
+    await page.mouse.down();
+    await page.mouse.move(x1, y, { steps: 6 });
+    await page.mouse.up();
+
+    await expect(page.getByRole("dialog", { name: "New allocation" })).toBeVisible();
+    const project = page.getByLabel("Project", { exact: true });
+    // "Locked" = the bound project is preselected and the choices are restricted to it
+    // (+ the general option), but the select stays enabled so the placeholder can still
+    // take general activities. A non-bound project ("Metropolis Rebrand") is not offered.
+    await expect(project).toHaveText(/Project Watchtower/);
+    await expect(project).toBeEnabled();
+    await project.click();
+    await expect(page.getByRole("option", { name: /Metropolis Rebrand/ })).toHaveCount(0);
+  });
+}
+
 test.describe("Placeholders (per-account pref, default off)", () => {
   test("hidden by default: the seeded placeholder is absent from the schedule and Resources list", async ({ page }) => {
     await openApp(page);
@@ -54,4 +94,5 @@ test.describe("Placeholders (per-account pref, default off)", () => {
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("switch", { name: "Show placeholders" })).toHaveAttribute("aria-checked", "true");
   });
+  registerDrawingPlaceholderLocksModalBoundTests();
 });

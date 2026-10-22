@@ -24,7 +24,7 @@ import {
   readLiveRequest,
   sweepExpiredHistory,
 } from "../../controlTables";
-import { assertAccountAuthority, assertAdministrativeAssurance } from "./authority";
+import { assertAccountAuthority, assertAdministrativeAssurance } from "./accountAuthority";
 import {
   applyRequestTransition,
   assertParticipant,

@@ -1,5 +1,6 @@
 import { test, expect } from "./fixtures";
-import { openNewCompanyForm, createCompany } from "./browserTestSupport";
+import { openNewCompanyForm } from "./appEntrySupport";
+import { createCompany } from "./appEntrySupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce", timezoneId: "Europe/London" } });
 

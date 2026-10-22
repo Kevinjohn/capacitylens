@@ -1,4 +1,4 @@
-import { NEUTRAL_COLOR, snapToPresetColor } from "./color";
+import { NEUTRAL_COLOR, snapToPresetColor } from "./colorPalette";
 import { INTERNAL_CLIENT_COLOR } from "../data/internalClient";
 import { cleanText } from "./strings";
 import {

@@ -1,15 +1,9 @@
 import { test, expect } from "./fixtures";
 import type { Page } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
-import {
-  computedStyles,
-  disableCssMotion,
-  openApp,
-  resetSchedulerScroll,
-  setTheme,
-  setZoom,
-  showScheduleFilters,
-} from "./browserTestSupport";
+import { computedStyles, disableCssMotion, setTheme, setZoom, showScheduleFilters } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
+import { resetSchedulerScroll } from "./schedulerGeometrySupport";
 
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 

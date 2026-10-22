@@ -1,6 +1,6 @@
 # US-SCH-16 — Collapse and expand a discipline group
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/features.spec.ts` → "clicking a discipline header collapses its rows"
+**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/disciplines.spec.ts` → "clicking a discipline header collapses its rows"
 
 ## Goal
 

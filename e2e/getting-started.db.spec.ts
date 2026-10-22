@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { waitForAppLanding } from "./browserTestSupport";
+import { waitForAppLanding } from "./appEntrySupport";
 import { API, resetServer } from "./serverTestState";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });

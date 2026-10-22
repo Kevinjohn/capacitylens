@@ -1,6 +1,6 @@
 # US-FIL-04 — Filter by project
 
-**Area:** Filters · **Persona:** Studio manager · **Linked E2E:** `e2e/filters.spec.ts` → "filters the schedule to a single project" · `e2e/features.spec.ts` → "filtering by project narrows the schedule to that project"
+**Area:** Filters · **Persona:** Studio manager · **Linked E2E:** `e2e/filters.spec.ts` → "filters the schedule to a single project" · "filtering by project narrows the schedule to that project"
 
 ## Goal
 

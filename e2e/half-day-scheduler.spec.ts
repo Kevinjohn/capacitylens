@@ -1,6 +1,7 @@
 import { test, expect } from "./fixtures";
 import type { Locator, Page } from "./fixtures";
-import { goToSeedWeek, openApp, setZoom } from "./browserTestSupport";
+import { goToSeedWeek, setZoom } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
 
 function dated(lane: Locator, testId: string, date: string): Locator {
   return lane.locator(`[data-testid="${testId}"][data-date="${date}"]`);

@@ -5,14 +5,12 @@ import {
   dismissLandscapeHint,
   focusByKeyboard,
   goToSeedWeek,
-  nudgeScheduler,
-  openApp,
-  probeSchedulerGeometry,
-  resetSchedulerScroll,
   setTheme,
   setZoom,
   showScheduleFilters,
 } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
+import { nudgeScheduler, probeSchedulerGeometry, resetSchedulerScroll } from "./schedulerGeometrySupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 

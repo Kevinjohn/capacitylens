@@ -1,5 +1,5 @@
 import { useStore } from "./useStore";
-import { resolveDateStyle } from "./selectors";
+import { resolveDateStyle } from "./accountSettingsSelectors";
 import type { DateStyle } from "@capacitylens/shared/types/entities";
 
 /** Subscribes to the company date style. Components caching formatted strings must

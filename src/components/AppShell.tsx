@@ -4,7 +4,7 @@ import { matchPath, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { GettingStarted } from "./GettingStarted";
 import { Toaster } from "sonner";
 import { useStore } from "@/store/useStore";
-import { hasDisciplinesEnabled, resolveCapacityOverviewAccess } from "@/store/selectors";
+import { hasDisciplinesEnabled, resolveCapacityOverviewAccess } from "@/store/accountSettingsSelectors";
 import { usePermissionStatus, useRole } from "@/auth/permissionContext";
 import { resolveCapacityOverviewAccessDecision } from "@/auth/capacityOverviewAccess";
 import { useDemoAuthActive } from "@/lib/fakeAuth";

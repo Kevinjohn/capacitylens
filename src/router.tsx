@@ -7,11 +7,11 @@ import { SchedulerView } from "./components/scheduler/SchedulerView";
 import { RouteError } from "./components/common/ErrorBoundary";
 import { NotFound } from "./components/common/NotFound";
 import { useStore } from "./store/useStore";
-import { hasDisciplinesEnabled } from "./store/selectors";
+import { hasDisciplinesEnabled } from "./store/accountSettingsSelectors";
 import { m } from "@/i18n";
 import { usePermissionStatus, useRole } from "./auth/permissionContext";
 import { resolveCapacityOverviewAccessDecision } from "./auth/capacityOverviewAccess";
-import { resolveCapacityOverviewAccess } from "./store/selectors";
+import { resolveCapacityOverviewAccess } from "./store/accountSettingsSelectors";
 import { useDiagnosticsAccessDecision } from "./components/diagnostics/useDiagnosticsAccessDecision";
 import { ROUTE_HELP } from "./lib/tourAnchors";
 

@@ -1,6 +1,8 @@
 import { test, expect } from "./fixtures";
 import type { Locator } from "./fixtures";
-import { openApp, resetSchedulerScroll, setZoom } from "./browserTestSupport";
+import { setZoom } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
+import { resetSchedulerScroll } from "./schedulerGeometrySupport";
 
 // The end-to-end colour invariant ensures a selected preset swatch renders on the scheduler.
 // Disciplines use their swatch for the group-header dot and member avatars; projects use theirs

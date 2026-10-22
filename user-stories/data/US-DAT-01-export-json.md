@@ -1,6 +1,6 @@
 # US-DAT-01 — Export the account to JSON
 
-**Area:** Data management · **Persona:** Studio manager · **Linked E2E:** `e2e/crud.spec.ts`
+**Area:** Data management · **Persona:** Studio manager · **Linked E2E:** `e2e/data.spec.ts`
 
 **Documentation:** [Settings — Import and export](../../docs-src/using/settings.md#everything-else-on-the-page)
 

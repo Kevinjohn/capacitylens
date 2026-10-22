@@ -2,7 +2,7 @@ import { parseApprovedDomains } from "@capacitylens/shared/account/approvedDomai
 import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
 import { isJoiningPolicy } from "@capacitylens/shared/account/types";
 import { readJoiningPolicy, writeJoiningPolicy } from "../../controlTables";
-import { assertAccountAuthority, assertAdministrativeAssurance } from "./authority";
+import { assertAccountAuthority, assertAdministrativeAssurance } from "./accountAuthority";
 import type { AdminPortContext } from "./contracts";
 import { createAccountFailure } from "./failures";
 

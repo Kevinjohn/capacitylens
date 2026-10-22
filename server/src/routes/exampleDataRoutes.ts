@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import type { Role } from "@capacitylens/shared/account/types";
 import { buildExampleCompany, countExampleRows } from "@capacitylens/shared/data/exampleCompany";
 import { can } from "@capacitylens/shared/domain/access";
-import { todayISO } from "@capacitylens/shared/lib/dateMath";
+import { todayISO } from "@capacitylens/shared/lib/today";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import type { KeyedOperationLock } from "../accounts/KeyedOperationLock";
 import type { AuditRecord } from "../audit";

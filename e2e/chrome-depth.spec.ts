@@ -4,10 +4,10 @@ import {
   computedStyles,
   disableCssMotion,
   expectConnectedSelectionEdges,
-  openApp,
   setTheme,
   showScheduleFilters,
 } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
 
 function luminance(cssColor: string): number {
   const channels = cssColor

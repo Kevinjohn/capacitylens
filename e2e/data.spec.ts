@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
 import { MAX_IMPORT_RECORDS } from "@capacitylens/shared/data/transfer";
 import { EXPORT_SCHEMA_VERSION } from "@capacitylens/shared/types/entities";
 
@@ -109,8 +109,8 @@ const importFile = async (page: Page, name: string, body: string) => {
 
 const openSchedule = (page: Page) => page.getByRole("link", { name: "Schedule", exact: true }).click();
 
-// Covers US-DAT-02..04 and demo first-load seeding. Export round-trip and reset-on-reload behavior
-// are exercised in e2e/crud.spec.ts; database persistence cases are in persistence.db.spec.ts.
+// Covers US-DAT-02..04 and demo first-load seeding. Export round-trip coverage is included below; demo reset-on-reload behavior
+// remains in e2e/demo-persistence.spec.ts; database persistence cases are in persistence.db.spec.ts.
 function registerSeedsDemoDatasetFirstLoadTest() {
   test("seeds a demo dataset on first load", async ({ page }) => {
     await openApp(page);
@@ -267,4 +267,34 @@ test.describe("Data import/export", () => {
   registerRejectsNonCapacitylensFileNoticeTest();
   registerRejectsEMPTYCapacitylensFileWouldTest();
   registerRejectsRefusalNamePreciseNoticeTests();
+
+  test("exports the dataset and re-imports it (round-trip)", async ({ page }) => {
+    await openApp(page);
+    await page.getByRole("link", { name: "Clients" }).click();
+    await page.getByRole("button", { name: "Add client" }).click();
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill("RoundTrip Co");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByText("RoundTrip Co")).toBeVisible();
+
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
+    await page.getByRole("button", { name: "Import and export", exact: true }).click();
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByTestId("export-data").click();
+    const file = await (await downloadPromise).path();
+
+    await page.waitForTimeout(400);
+    // Reload restores the demo seed because account data is intentionally memory-only.
+    await page.evaluate(() => localStorage.clear());
+    await openApp(page);
+    await page.getByRole("link", { name: "Clients" }).click();
+    await expect(page.getByText("RoundTrip Co")).toHaveCount(0);
+
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
+    await page.getByRole("button", { name: "Import and export", exact: true }).click();
+    await page.getByTestId("import-input").setInputFiles(file);
+    await expect(page.getByRole("alertdialog", { name: "Import data?" })).toBeVisible();
+    await page.getByRole("button", { name: "Replace data" }).click();
+    await page.getByRole("link", { name: "Clients" }).click();
+    await expect(page.getByText("RoundTrip Co")).toBeVisible();
+  });
 });

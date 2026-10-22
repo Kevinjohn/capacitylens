@@ -13,9 +13,9 @@ import {
   PasswordPolicyError,
   assertNoContextSpecificPassword,
   assertPasswordNotBreached,
-  createScryptPasswordHasher,
 } from "../passwordSecurity";
-import type { PasswordHasher } from "../passwordSecurity";
+import { createScryptPasswordHasher } from "../passwordHasher";
+import type { PasswordHasher } from "../passwordHasher";
 import { preparedPasswordHashCapture } from "./captureContexts";
 
 type SessionDeletionLifecycleRef = {

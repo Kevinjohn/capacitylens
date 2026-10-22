@@ -1,5 +1,5 @@
 import { useStore } from "./useStore";
-import { scopeData } from "./selectors";
+import { scopeData } from "./tenancySelectors";
 import { activeOnly } from "@capacitylens/shared/domain/lifecycle";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";

@@ -8,7 +8,7 @@ import {
   createFavouriteDisplayNameComparator,
 } from "@/lib/displayOrder";
 import { resolveResourceDisplayName } from "@/lib/metadata";
-import { buildDisciplineGroups, hasSupplementaryResources } from "@/store/selectors";
+import { buildDisciplineGroups, hasSupplementaryResources } from "@/store/schedulerSelectors";
 import { buildDayCapacity } from "@/lib/capacity";
 import type { CapacityOverviewPeriod } from "./capacityOverviewDates";
 import { buildCapacityOverviewPeriods } from "./capacityOverviewDates";

@@ -1,5 +1,6 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption } from "./browserTestSupport";
+import { selectShadOption } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
 
 // Covers US-PRJ-01..03. US-PRJ-04 remains manual while phase management is hidden.
 test.describe("Projects", () => {
@@ -55,5 +56,16 @@ test.describe("Projects", () => {
 
     await page.keyboard.press("Meta+z");
     await expect(page.getByTestId("project-row").filter({ hasText: "Project Watchtower" })).toBeVisible();
+  });
+
+  test("a project cannot be saved without a client", async ({ page }) => {
+    await openApp(page);
+    await page.getByRole("link", { name: "Projects" }).click();
+    await page.getByRole("button", { name: "Add project" }).click();
+
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Clientless Project");
+    await page.getByRole("button", { name: "Save" }).click();
+
+    await expect(page.getByRole("alert")).toContainText(/must belong to a client/i);
   });
 });

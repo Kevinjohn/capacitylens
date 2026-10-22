@@ -1,6 +1,7 @@
 import { m } from "@/i18n";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
-import { parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
+import { parseDate } from "@capacitylens/shared/lib/dateMath";
+import { todayISO } from "@capacitylens/shared/lib/today";
 import { carriesHourlyLoad } from "@capacitylens/shared/types/entities";
 import { useEffect, useMemo, useState } from "react";
 import { useCanEdit } from "@/auth/permissionContext";
@@ -14,7 +15,7 @@ import {
   hasPlaceholdersEnabled,
   resolveSchedulingMode,
   resolveTimeZone,
-} from "@/store/selectors";
+} from "@/store/accountSettingsSelectors";
 import { useActiveScopedData } from "@/store/useScopedData";
 import { useStore } from "@/store/useStore";
 import { buildAllocationAdvisory } from "./buildAllocationAdvisory";

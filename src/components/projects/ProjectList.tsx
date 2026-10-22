@@ -6,7 +6,7 @@ import type { AppData, Client, ID, Project } from "@capacitylens/shared/types/en
 import { useLifecycleActions } from "@/hooks/useLifecycleActions";
 import { m } from "@/i18n";
 import { nameForQuotedContext } from "@capacitylens/shared/domain/privateNames";
-import { resolveProjectColor } from "@capacitylens/shared/lib/color";
+import { resolveProjectColor } from "@capacitylens/shared/lib/barColors";
 import { Fragment, useMemo } from "react";
 import { Folder, Plus } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/components/ui/item";

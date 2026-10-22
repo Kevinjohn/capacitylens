@@ -1,9 +1,7 @@
 import { existsSync } from "node:fs";
-import { randomUUID } from "node:crypto";
 import { normalizeAccountEmail } from "@capacitylens/shared/account/validation";
-import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
-import { assertAuditOutboxCurrent, enqueueAudit } from "./auditOutbox";
-import { assertFederatedIdentitySchemaCurrent, DEFAULT_ACCOUNT_APPLICATION } from "./auth";
+import { assertAuditOutboxCurrent } from "./auditOutbox";
+import { assertFederatedIdentitySchemaCurrent } from "./auth";
 import {
   assertAccountControlPlaneCurrent,
   assertAccountControlPlaneSchemaCurrent,
@@ -12,47 +10,20 @@ import { openDbConnection, planDatabaseMigrations } from "./db";
 import type { Db } from "./db";
 import { restrictIdentifiedDatabasePermissions } from "./db/filePermissions";
 import { acquireExclusiveDatabaseLock } from "./resetOwnerPassword";
-import { tx } from "./txn";
-import { eraseWorkspaceProductDataInTx } from "./erasure";
-import { eraseWorkspaceCommandHistoryInTx } from "./accounts/state";
 import { mixedModeCutoverContext } from "./cutoverContext";
-import { buildCutoverAuditEvent } from "./federatedLinkLifecycle";
 
-/** Exact stopped-server mutation selected by the cutover repair CLI. */
-export type CutoverRepairOperation =
-  | { kind: "remove-provider-link"; email: string; providerId: string; subject: string }
-  | { kind: "deprovision-credential-orphan"; email: string }
-  | { kind: "assign-workspace-owner"; workspaceId: string; email: string }
-  | { kind: "erase-empty-workspace"; workspaceId: string };
-
-/** Fully resolved repair request; destructive execution additionally requires the stopped flag. */
-export interface CutoverRepairInput {
-  databasePath: string;
-  confirmServerStopped: boolean;
-  operation: CutoverRepairOperation;
-  env?: Record<string, string | undefined>;
-}
-
-/** Non-secret coordinates and durable audit id returned after one committed repair. */
-export interface CutoverRepairResult {
-  operation: CutoverRepairOperation["kind"];
-  principalId: string | null;
-  email: string | null;
-  providerId: string | null;
-  subject: string | null;
-  auditId: string;
-}
-
-type CutoverContext = Awaited<ReturnType<typeof mixedModeCutoverContext>>;
-type CutoverFacts = ReturnType<CutoverContext["identity"]["inspectSsoCutover"]>;
-type CutoverPrincipal = CutoverFacts["principals"][number];
-
-interface ResolvedRepair {
-  db: Db;
-  context: CutoverContext;
-  principal: CutoverPrincipal;
-  email: string;
-}
+export { type CutoverRepairOperation, type CutoverRepairInput, type CutoverRepairResult } from "./cutoverRepairTypes";
+import type {
+  CutoverRepairOperation,
+  CutoverRepairInput,
+  CutoverRepairResult,
+  CutoverFacts,
+  CutoverPrincipal,
+} from "./cutoverRepairTypes";
+import { eraseEmptyWorkspace } from "./cutoverRepair/eraseEmptyWorkspace";
+import { assignWorkspaceOwner } from "./cutoverRepair/assignWorkspaceOwner";
+import { removeProviderLink } from "./cutoverRepair/removeProviderLink";
+import { deprovisionCredentialOrphan } from "./cutoverRepair/deprovisionCredentialOrphan";
 
 const REPAIR_COMPATIBLE_MIGRATIONS = new Set([
   25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
@@ -103,42 +74,6 @@ function assertRepairSchema(db: Db, operation: CutoverRepairOperation): void {
   assertAuditOutboxCurrent(db);
 }
 
-function eraseEmptyWorkspace(
-  db: Db,
-  context: CutoverContext,
-  operation: Extract<CutoverRepairOperation, { kind: "erase-empty-workspace" }>,
-): CutoverRepairResult {
-  const workspace = context.administration
-    .inspectSsoCutoverWorkspaces()
-    .find((candidate) => candidate.workspaceId === operation.workspaceId);
-  if (!workspace) throw new Error("No workspace matches that exact id.");
-  if (workspace.members.length > 0) throw new Error("Only a workspace with zero active members can be erased.");
-  const occurredAt = new Date().toISOString();
-  const auditId = randomUUID();
-  tx(
-    db,
-    () => {
-      eraseWorkspaceProductDataInTx(db, workspace.workspaceId);
-      context.administration.eraseWorkspaceAdministrationInTx(workspace.workspaceId);
-      eraseWorkspaceCommandHistoryInTx(db, workspace.workspaceId);
-      enqueueAudit(
-        db,
-        buildCutoverAuditEvent(auditId, occurredAt, {
-          applicationId: DEFAULT_ACCOUNT_APPLICATION.applicationId,
-          workspaceId: workspace.workspaceId,
-          actorPrincipalId: null,
-          targetPrincipalId: null,
-          action: "workspace.erased",
-          changedFields: ["workspace", "memberships"],
-        }),
-        auditId,
-      );
-    },
-    "immediate",
-  );
-  return { operation: operation.kind, principalId: null, email: null, providerId: null, subject: null, auditId };
-}
-
 function resolvePrincipal(facts: CutoverFacts, email: string): CutoverPrincipal {
   const principals = facts.principals.filter((principal) => normalizeAccountEmail(principal.email) === email);
   if (principals.length === 0) throw new Error("No identity matches that address.");
@@ -148,137 +83,6 @@ function resolvePrincipal(facts: CutoverFacts, email: string): CutoverPrincipal 
   const principal = principals[0];
   if (!principal) throw new Error("No identity matches that address.");
   return principal;
-}
-
-function assignWorkspaceOwner(
-  repair: ResolvedRepair,
-  operation: Extract<CutoverRepairOperation, { kind: "assign-workspace-owner" }>,
-): CutoverRepairResult {
-  const { db, context, principal, email } = repair;
-  const workspace = context.administration
-    .inspectSsoCutoverWorkspaces()
-    .find((candidate) => candidate.workspaceId === operation.workspaceId);
-  if (!workspace) throw new Error("No workspace matches that exact id.");
-  if (workspace.members.some((member) => member.role === "owner")) {
-    throw new Error("The workspace already has an active Owner.");
-  }
-  if (!workspace.members.some((member) => member.principalId === principal.id)) {
-    throw new Error("The selected identity is not an active member of that workspace.");
-  }
-  const occurredAt = new Date().toISOString();
-  const auditId = randomUUID();
-  tx(
-    db,
-    () => {
-      if (!context.administration.repairOwnerlessWorkspaceInTx(workspace.workspaceId, principal.id)) {
-        throw new Error("The owner repair target changed before commit.");
-      }
-      enqueueAudit(
-        db,
-        buildCutoverAuditEvent(auditId, occurredAt, {
-          applicationId: DEFAULT_ACCOUNT_APPLICATION.applicationId,
-          workspaceId: workspace.workspaceId,
-          actorPrincipalId: null,
-          targetPrincipalId: principal.id,
-          action: "member.role_changed",
-          changedFields: ["role"],
-        }),
-        auditId,
-      );
-    },
-    "immediate",
-  );
-  return { operation: operation.kind, principalId: principal.id, email, providerId: null, subject: null, auditId };
-}
-
-async function removeProviderLink(
-  repair: ResolvedRepair,
-  facts: CutoverFacts,
-  operation: Extract<CutoverRepairOperation, { kind: "remove-provider-link" }>,
-): Promise<CutoverRepairResult> {
-  const { context, principal, email } = repair;
-  const links = [
-    ...facts.requiredProviderLinks.map((link) => ({ ...link, providerId: context.provider.id })),
-    ...facts.alternativeProviderLinks,
-  ].filter(
-    (link) =>
-      link.principalId === principal.id &&
-      link.providerId === operation.providerId &&
-      link.subject === operation.subject,
-  );
-  if (links.length !== 1) {
-    throw new Error("The email, provider id, and exact subject do not resolve one provider link.");
-  }
-  const link = links[0];
-  if (!link) throw new Error("The provider link disappeared before repair completed.");
-  const auditId = randomUUID();
-  const audit: AccountAuditEvent = buildCutoverAuditEvent(auditId, new Date().toISOString(), {
-    applicationId: DEFAULT_ACCOUNT_APPLICATION.applicationId,
-    workspaceId: null,
-    actorPrincipalId: null,
-    targetPrincipalId: principal.id,
-    action: "identity.federated_link_removed",
-    changedFields: ["federatedIdentity", "sessions"],
-  });
-  const changed = await context.identity.removeFederatedLinkForStoppedRepair({
-    principalId: principal.id,
-    providerId: operation.providerId,
-    rowId: link.rowId,
-    subject: link.subject,
-    audit,
-  });
-  if (!changed) throw new Error("The provider link disappeared before repair completed.");
-  return {
-    operation: operation.kind,
-    principalId: principal.id,
-    email,
-    providerId: operation.providerId,
-    subject: operation.subject,
-    auditId,
-  };
-}
-
-function deprovisionCredentialOrphan(repair: ResolvedRepair): CutoverRepairResult {
-  const { db, context, principal, email } = repair;
-  const memberships = context.administration
-    .inspectSsoCutoverWorkspaces()
-    .flatMap((workspace) => workspace.members)
-    .filter((member) => member.principalId === principal.id);
-  const locallyDeprovisionable =
-    principal.providerIds.length === 0 ||
-    (principal.providerIds.length === 1 && principal.providerIds[0] === "credential");
-  if (memberships.length > 0 || !locallyDeprovisionable) {
-    throw new Error(
-      "The target is not a providerless or credential-only principal with zero active workspace memberships.",
-    );
-  }
-  const auditId = randomUUID();
-  const audit: AccountAuditEvent = buildCutoverAuditEvent(auditId, new Date().toISOString(), {
-    applicationId: DEFAULT_ACCOUNT_APPLICATION.applicationId,
-    workspaceId: null,
-    actorPrincipalId: null,
-    targetPrincipalId: principal.id,
-    action: "identity.local_deprovisioned",
-    changedFields: ["localIdentity", "credential", "sessions"],
-  });
-  let masqueradeHandles: readonly string[] = [];
-  tx(
-    db,
-    () => {
-      masqueradeHandles = context.identity.deprovisionLocalPrincipalInTx(principal.id);
-      enqueueAudit(db, audit, audit.id);
-    },
-    "immediate",
-  );
-  context.identity.commitMasqueradeSessionEnds(masqueradeHandles);
-  return {
-    operation: "deprovision-credential-orphan",
-    principalId: principal.id,
-    email,
-    providerId: null,
-    subject: null,
-    auditId,
-  };
 }
 
 /** Narrow, stopped-server repair for identities the all-workspace preflight names. It never accepts
@@ -297,17 +101,37 @@ export async function repairSsoCutover(input: CutoverRepairInput): Promise<Cutov
     restrictIdentifiedDatabasePermissions(db);
     const context = await mixedModeCutoverContext(db, { ...(input.env ?? process.env) });
     const facts = context.identity.inspectSsoCutover(context.provider.id);
-    if (input.operation.kind === "erase-empty-workspace") return eraseEmptyWorkspace(db, context, input.operation);
+    if (input.operation.kind === "erase-empty-workspace") {
+      return eraseEmptyWorkspace({ db, administration: context.administration, operation: input.operation });
+    }
     const email = normalizeAccountEmail(input.operation.email);
     const principal = resolvePrincipal(facts, email);
-    const repair = { db, context, principal, email };
     if (input.operation.kind === "assign-workspace-owner") {
-      return assignWorkspaceOwner(repair, input.operation);
+      return assignWorkspaceOwner({
+        db,
+        administration: context.administration,
+        principal,
+        email,
+        operation: input.operation,
+      });
     }
     if (input.operation.kind === "remove-provider-link") {
-      return removeProviderLink(repair, facts, input.operation);
+      return removeProviderLink({
+        identity: context.identity,
+        configuredProviderId: context.provider.id,
+        principal,
+        email,
+        facts,
+        operation: input.operation,
+      });
     }
-    return deprovisionCredentialOrphan(repair);
+    return deprovisionCredentialOrphan({
+      db,
+      administration: context.administration,
+      identity: context.identity,
+      principal,
+      email,
+    });
   } finally {
     db.close();
   }

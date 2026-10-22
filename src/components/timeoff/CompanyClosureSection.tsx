@@ -6,7 +6,7 @@ import { m } from "@/i18n";
 import { useEntityListState } from "@/hooks/useEntityListState";
 import { useConfirmDelete } from "@/hooks/useConfirmDelete";
 import { formatShortDateRange } from "@/lib/dateDisplay";
-import { resolveTimeZone, resolveWeekStart } from "@/store/selectors";
+import { resolveTimeZone, resolveWeekStart } from "@/store/accountSettingsSelectors";
 import { useActiveScopedData } from "@/store/useScopedData";
 import { useStore } from "@/store/useStore";
 import { AddButton, ConfirmDialog, DeleteButton, EditButton, EmptyState } from "@/components/common/ui";

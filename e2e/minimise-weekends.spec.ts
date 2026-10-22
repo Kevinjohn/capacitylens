@@ -1,14 +1,12 @@
 import { test, expect } from "./fixtures";
+import { boundingBoxOrThrow as box, disableWeekSnap, setZoom } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
 import {
-  boundingBoxOrThrow as box,
-  disableWeekSnap,
   nudgeScheduler as nudge,
-  openApp,
   probeSchedulerGeometry as probe,
   settledSchedulerLeftDate as settledLeftDate,
-  setZoom,
   waitForWeekSnap,
-} from "./browserTestSupport";
+} from "./schedulerGeometrySupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 

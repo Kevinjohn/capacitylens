@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
-import { openApp } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 

@@ -1,6 +1,7 @@
 import { test, expect } from "./fixtures";
 import type { Page } from "./fixtures";
-import { enableInlineActivityCreation, openApp, selectShadOption, setZoom } from "./browserTestSupport";
+import { enableInlineActivityCreation, selectShadOption, setZoom } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
 
 // Covers US-SCH-09 (weekend criteria): the per-day over-marker is weekend-aware. A bar that merely
 // spans a weekend adds no over-marker; ignoring its working pattern turns those days red; and

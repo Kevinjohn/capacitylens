@@ -1,5 +1,5 @@
 import type { AuthorizeRouteInput } from "./routeShared";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyRequest } from "fastify";
 import type { Role, IdentityAdminAction, IdentityAdminAuthorityDecision } from "@capacitylens/shared/account/types";
 import { ACCOUNT_SESSION_FRESH_AGE_SECONDS } from "@capacitylens/shared/account/sessionPolicy";
 import { ALL_FIELDS_VISIBLE } from "./routeShared";
@@ -7,11 +7,9 @@ import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
 import { redactGatedEcho, hasGatedFields, resolveVisibilityForRole } from "../fieldPolicy";
 import type { SanitizeWriteOptions } from "../fieldPolicy";
 import { can } from "@capacitylens/shared/domain/access";
-import { resolveCorsOrigin, isSameRequestOrigin } from "./appOriginPolicy";
 import type { resolveAppConfig } from "./appConfig";
 import type { createAppRuntime } from "./appRuntime";
 import type { installRootHooks } from "./appRootHooks";
-import type { AppOptions } from "../app";
 import { FROZEN_REPLY_MESSAGES, REPLY_ERRORS } from "./replyErrors";
 
 /** The outcome of an authorization check. */
@@ -20,10 +18,8 @@ export type AuthorizationResult = { kind: "allowed"; role: Role | null } | { kin
 export type EffectiveRoleResult = { kind: "resolved"; role: Role | null } | { kind: "ended" };
 
 interface CreateAuthorizationInput {
-  app: FastifyInstance;
   runtime: ReturnType<typeof createAppRuntime>;
   config: ReturnType<typeof resolveAppConfig>;
-  options: AppOptions;
   rootHelpers: ReturnType<typeof installRootHooks>;
 }
 
@@ -33,21 +29,6 @@ type ResolveEffectiveRole = (req: FastifyRequest, accountId: string) => Effectiv
 interface MemberProjection {
   principalId: string;
   decisions: ReadonlyMap<string, ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision>>;
-}
-
-interface TrustedOriginInput {
-  req: FastifyRequest;
-  listedOrigin: string | null;
-  fetchSite: string | undefined;
-  trustForwarded: boolean;
-}
-
-function resolveTrustedOrigin({ req, listedOrigin, fetchSite, trustForwarded }: TrustedOriginInput): string | null {
-  if (listedOrigin !== null) return listedOrigin;
-  const reqOrigin = req.headers.origin;
-  if (reqOrigin === undefined) return null;
-  if (fetchSite === "same-origin" || isSameRequestOrigin({ req, reqOrigin, trustForwarded })) return reqOrigin;
-  return null;
 }
 
 function requireUser(req: FastifyRequest): NonNullable<FastifyRequest["user"]> {
@@ -198,9 +179,9 @@ function redactWriteEcho(
 }
 
 /** Builds route authorization helpers from the application runtime and request hooks. */
-export function createAuthorization({ app, runtime, config, options, rootHelpers }: CreateAuthorizationInput) {
+export function createAuthorization({ runtime, config, rootHelpers }: CreateAuthorizationInput) {
   const { authMode } = config;
-  const { corsOrigins, securityEvent } = rootHelpers;
+  const { securityEvent } = rootHelpers;
   const resolveEffectiveRole = createEffectiveRoleResolver(runtime);
   const readMemberProjection = createMemberProjectionReader(runtime);
   const readFieldVisibility = createFieldVisibility(authMode, resolveEffectiveRole);
@@ -209,65 +190,6 @@ export function createAuthorization({ app, runtime, config, options, rootHelpers
 
   const authorizeAllowed = ({ req, reply, accountId, action, options = {} }: AuthorizeRouteInput): boolean =>
     authorize({ req, reply, accountId, action, options }).kind === "allowed";
-
-  // CORS response headers are not a CSRF control: browsers can still send a simple form request
-  // and merely hide the response. Reject unsafe cross-site browser requests before routing, then
-  // add CORS headers for explicitly trusted origins. Requests without Origin/Sec-Fetch-Site are
-  // retained for CLI/server clients; modern browsers supply at least one signal for a cross-site
-  // unsafe request. This hook must live on the root instance, not in the routes child
-  // below: there are no OPTIONS routes, so a preflight takes the not-found path, and
-  // only root-level hooks run there. A child-scoped hook would leave preflights as
-  // bare 404s without CORS headers, silently blocking every cross-origin write.
-  app.addHook("onRequest", async function enforceOriginPolicy(req: FastifyRequest, reply: FastifyReply) {
-    const reqOrigin = req.headers.origin;
-    const listedOrigin = resolveCorsOrigin(reqOrigin, corsOrigins);
-    const fetchSite = req.headers["sec-fetch-site"];
-    // Sec-Fetch-Site is a forbidden browser-controlled header and therefore the most direct signal
-    // for the packaged proxy path (where an outer TLS edge or non-default port can make server-side
-    // origin reconstruction ambiguous). Exact scheme/Host comparison remains the fallback for
-    // older clients that do not send Fetch Metadata. trustProxyHeaders is the shared deployment
-    // posture: it also controls X-Forwarded-For rate-limit identity above, and only trusted proxies
-    // that overwrite both headers may enable it.
-    const origin = resolveTrustedOrigin({
-      req,
-      listedOrigin,
-      fetchSite,
-      trustForwarded: options.trustProxyHeaders === true,
-    });
-    const unsafe = !["GET", "HEAD", "OPTIONS"].includes(req.method);
-    // An Origin exactly on the credentialed CORS allow-list (listedOrigin, folded into `origin`
-    // above) is the operator's explicit cross-site contract, so it passes the gate regardless of
-    // Fetch Metadata, a `Sec-Fetch-Site: cross-site` on an allow-listed Origin is exactly the
-    // legitimate configured cross-origin call, not an attack. We therefore block only when the
-    // request resolved to no trusted origin (`origin === null`, i.e. neither allow-listed nor
-    // same-origin) and there is a cross-site signal: an Origin header we could not trust, or an
-    // explicit cross-site Fetch Metadata label (which also catches Origin-less browser writes).
-    if (unsafe && origin === null && (reqOrigin !== undefined || fetchSite === "cross-site")) {
-      securityEvent({
-        event: "cross_site_request",
-        outcome: "blocked",
-        method: req.method,
-        path: req.url,
-        origin: reqOrigin,
-        fetchSite,
-      });
-      return reply.code(403).send({ error: REPLY_ERRORS.crossSiteRequest });
-    }
-    if (origin) {
-      reply.header("Access-Control-Allow-Origin", origin);
-      reply.header("Vary", "Origin");
-      reply.header("Access-Control-Allow-Credentials", "true");
-    }
-    reply.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-    reply.header("Access-Control-Expose-Headers", "x-capacitylens-audit-warning");
-    // Static allow-list: Content-Type plus the explicit account-bootstrap and first-owner setup
-    // secret headers. Never reflect arbitrary requested headers on credentialed origins.
-    reply.header(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Idempotency-Key, x-account-command-id, x-capacitylens-bootstrap-token, x-capacitylens-setup-token, x-capacitylens-sync-session, x-capacitylens-sync-sequence",
-    );
-    if (req.method === "OPTIONS") return reply.code(204).send();
-  });
 
   return {
     resolveEffectiveRole,

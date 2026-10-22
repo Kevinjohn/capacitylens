@@ -1,6 +1,6 @@
 # US-DAT-06 — Demo resets to its canonical seed
 
-**Area:** Demo · **Persona:** Evaluator · **Linked E2E:** `e2e/data.spec.ts`, `e2e/crud.spec.ts`
+**Area:** Demo · **Persona:** Evaluator · **Linked E2E:** `e2e/data.spec.ts`, `e2e/demo-persistence.spec.ts`
 
 ## Goal
 

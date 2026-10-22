@@ -1,7 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect } from "./fixtures";
 import type { Page } from "./fixtures";
-import { disableCssMotion, openApp } from "./browserTestSupport";
+import { disableCssMotion } from "./browserTestSupport";
+import { openApp } from "./appEntrySupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
