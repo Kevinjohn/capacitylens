@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { AppData } from "@capacitylens/shared/types/entities";
+import type { BetaExportDocument } from "@capacitylens/shared/data/betaTransfer";
 import { API_BASE } from "@/data/apiConfig";
 import { flushPendingWrites, refreshActiveAccountSlice, suspendServerWrites } from "@/data/persist";
 import type { RefreshOutcome } from "@/data/persist";
@@ -77,6 +77,11 @@ const completeImport = async (response: Response, context: ImportContext): Promi
     await reportCommittedImport(context, m.data_import_done());
     return;
   }
+  if (isRecord(body) && body.changed === false) {
+    context.transaction.committed = false;
+    context.setNotice(m.data_import_done());
+    return;
+  }
   if (imported === 0) {
     context.transaction.committed = false;
     const why = buildSkippedMessage(skipped, { one: m.data_why_skipped_one, other: m.data_why_skipped_other });
@@ -91,7 +96,12 @@ const completeImport = async (response: Response, context: ImportContext): Promi
   await reportCommittedImport(context, successMessage);
 };
 
-const runServerImport = async (incoming: AppData, context: ImportContext): Promise<void> => {
+const runServerImport = async (
+  document: BetaExportDocument,
+  baseRevision: number,
+  proofId: string,
+  context: ImportContext,
+): Promise<void> => {
   const { accountId, transaction, setNotice } = context;
   if ((await flushPendingWrites()).kind !== "clean") {
     setNotice(m.data_import_blocked_unsynced(), "error");
@@ -100,12 +110,12 @@ const runServerImport = async (incoming: AppData, context: ImportContext): Promi
   const resumeWrites = suspendServerWrites();
   try {
     const response = await apiFetch(
-      `${API_BASE}/api/import`,
+      `${API_BASE}/api/transfer/apply`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ accountId, data: incoming }),
+        body: JSON.stringify({ accountId, document, baseRevision, proofId }),
       },
       API_BULK_TIMEOUT_MS,
     );
@@ -135,7 +145,7 @@ export function useServerImport() {
     return () => setDirtyFormSource({ source: dirtySource, dirty: false });
   }, [busy, dirtySource, setDirtyFormSource]);
 
-  const confirm = async (incoming: AppData): Promise<void> => {
+  const confirm = async (document: BetaExportDocument, baseRevision: number, proofId: string): Promise<void> => {
     if (importInFlightRef.current) return;
     importInFlightRef.current = true;
     const accountId = useStore.getState().activeAccountId;
@@ -147,7 +157,7 @@ export function useServerImport() {
     setRequiresReload(false);
     const transaction: ImportTransaction = { committed: false, requiresReload: false };
     try {
-      await runServerImport(incoming, { accountId, transaction, setRequiresReload, setNotice });
+      await runServerImport(document, baseRevision, proofId, { accountId, transaction, setRequiresReload, setNotice });
       if (!transaction.requiresReload) setBusy(false);
     } catch (error) {
       // Report a failed import-start boundary and release busy state so recovery controls remain usable.

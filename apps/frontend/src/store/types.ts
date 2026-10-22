@@ -266,6 +266,8 @@ export interface StoreState extends StoreEntityActions {
   redo: () => void;
   /** Load the active company's canonical planning snapshot, entering its planning context first. */
   refreshPlanning: () => Promise<boolean>;
+  /** Publish a strict demo import and invalidate page-local planning history in one store change. */
+  replaceAfterDemoImport: (data: AppData) => void;
   /** Undo the latest typed allocation change as one typed planning write. */
   undoPlanning: () => Promise<boolean>;
   /** Redo the latest undone typed allocation change as one typed planning write. */

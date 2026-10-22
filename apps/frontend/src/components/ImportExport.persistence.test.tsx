@@ -2,14 +2,12 @@ import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { serializeData } from "@capacitylens/shared/data/transfer";
+import type { BetaExportDocument } from "@capacitylens/shared/data/betaTransfer";
 import { attachPersistence, ReloadDiscardedEditError } from "@/data/persist";
 import { InMemoryDemoAdapter } from "@/data/InMemoryDemoAdapter";
 import { useStore } from "@/store/useStore";
-import { DEFAULT_ACCOUNT_ID, makeAppData, makeClient, makeResourceDraft, resetStoreWithAccount } from "@/test/fixtures";
-import { ImportExport } from "./ImportExport";
+import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from "@/test/fixtures";
 import { useServerImport } from "./import-export/useServerImport";
 
 vi.mock("@/data/apiConfig", () => ({
@@ -20,35 +18,8 @@ vi.mock("@/data/apiConfig", () => ({
 
 const TS = "2026-05-01T00:00:00.000Z";
 
-function incomingFile(): File {
-  return new File(
-    [
-      serializeData({
-        ...emptyAppData(),
-        resources: [
-          {
-            ...NULLABLE_FIELDS.resources,
-            ...makeResourceDraft({ name: "Imported person" }),
-            id: "import-resource",
-            accountId: "source-account",
-            createdAt: TS,
-            updatedAt: TS,
-            engagement: "studio",
-            halfDays: [],
-          },
-        ],
-      }),
-    ],
-    "incoming.json",
-    { type: "application/json" },
-  );
-}
-
 async function chooseAndConfirmImport(): Promise<void> {
-  const input = screen.getByTestId("import-input");
-  Object.defineProperty(input, "files", { value: [incomingFile()], configurable: true });
-  fireEvent.change(input);
-  fireEvent.click(await screen.findByRole("button", { name: "Replace data" }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirm twice" }));
 }
 
 function RepeatedConfirmationHarness() {
@@ -56,8 +27,14 @@ function RepeatedConfirmationHarness() {
   return (
     <button
       onClick={() => {
-        void confirm(importedSlice());
-        void confirm(importedSlice());
+        const document: BetaExportDocument = {
+          format: "capacitylens-beta",
+          schemaVersion: 1,
+          completeness: "full",
+          data: importedSlice(),
+        };
+        void confirm(document, 1, "proof-1");
+        void confirm(document, 1, "proof-1");
       }}
     >
       Confirm twice
@@ -73,12 +50,32 @@ function importedSlice(): AppData {
         id: "import-client",
         accountId: DEFAULT_ACCOUNT_ID,
         name: "Imported client",
-        color: "#2563eb",
+        color: "#2d75da",
         createdAt: TS,
         updatedAt: TS,
       },
     ],
   });
+}
+
+function publishParkedClient(name: string): void {
+  useStore.setState((state) => ({
+    data: {
+      ...state.data,
+      clients: [
+        ...state.data.clients,
+        {
+          ...NULLABLE_FIELDS.clients,
+          id: `client-${name.replaceAll(" ", "-")}`,
+          accountId: DEFAULT_ACCOUNT_ID,
+          name,
+          color: "#16a34a",
+          createdAt: TS,
+          updatedAt: TS,
+        },
+      ],
+    },
+  }));
 }
 
 function stringMatching(pattern: RegExp): unknown {
@@ -93,15 +90,6 @@ function savedData(saveAll: Mock<(data: AppData) => Promise<void>>): AppData {
   return saved;
 }
 
-function stageClient(name: string, id: string): void {
-  const client = makeClient({ id, accountId: DEFAULT_ACCOUNT_ID, name });
-  useStore.setState((state) => ({ data: { ...state.data, clients: [...state.data.clients, client] } }));
-}
-
-function archiveClient(id: string): void {
-  useStore.getState().archiveEntity("clients", id);
-}
-
 let detachPersistence: (() => void) | null = null;
 let adapter: InMemoryDemoAdapter;
 let saveAll: Mock<(data: AppData) => Promise<void>>;
@@ -109,8 +97,6 @@ let onPersistenceError: Mock<(error: unknown) => void>;
 
 beforeEach(async () => {
   await resetStoreWithAccount();
-  stageClient("Parked during import", "parked-during-import");
-  stageClient("Keep after refused import", "keep-after-refused-import");
   adapter = new InMemoryDemoAdapter();
   await adapter.saveAll(structuredClone(useStore.getState().data));
   saveAll = vi.spyOn(adapter, "saveAll");
@@ -142,12 +128,12 @@ async function dropsParkedEditDuringCommittedImport(): Promise<void> {
       }),
   );
   vi.stubGlobal("fetch", fetchMock);
-  render(<ImportExport />);
+  render(<RepeatedConfirmationHarness />);
 
   await chooseAndConfirmImport();
   await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
 
-  archiveClient("parked-during-import");
+  publishParkedClient("Parked during import");
   await new Promise((resolve) => setTimeout(resolve, 0));
   expect(saveAll).not.toHaveBeenCalled();
 
@@ -170,7 +156,7 @@ async function dropsParkedEditDuringCommittedImport(): Promise<void> {
   expect(saveAll).not.toHaveBeenCalled();
 
   // A later ordinary edit must not smuggle the dropped pre-import edit back into persistence.
-  stageClient("After import", "after-import");
+  publishParkedClient("After import");
   await waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
   const saved = savedData(saveAll);
   expect(saved.clients.map((client) => client.name)).toContain("Imported client");
@@ -178,7 +164,7 @@ async function dropsParkedEditDuringCommittedImport(): Promise<void> {
   expect(saved.clients.map((client) => client.name)).not.toContain("Parked during import");
 }
 
-async function reschedulesParkedEditDuringZeroRecordImport(): Promise<void> {
+async function reschedulesParkedEditDuringUnchangedImport(): Promise<void> {
   let finishImport!: (response: Response) => void;
   const fetchMock = vi.fn(
     () =>
@@ -187,17 +173,17 @@ async function reschedulesParkedEditDuringZeroRecordImport(): Promise<void> {
       }),
   );
   vi.stubGlobal("fetch", fetchMock);
-  render(<ImportExport />);
+  render(<RepeatedConfirmationHarness />);
 
   await chooseAndConfirmImport();
   await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
 
-  archiveClient("keep-after-refused-import");
+  publishParkedClient("Keep after unchanged import");
   await new Promise((resolve) => setTimeout(resolve, 0));
   expect(saveAll).not.toHaveBeenCalled();
 
   finishImport(
-    new Response(JSON.stringify({ imported: 0, skipped: 1 }), {
+    new Response(JSON.stringify({ imported: 1, changed: false, revision: 1 }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     }),
@@ -205,13 +191,9 @@ async function reschedulesParkedEditDuringZeroRecordImport(): Promise<void> {
 
   await waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
   const saved = savedData(saveAll);
-  expect(saved.clients.map((client) => client.name)).toContain("Keep after refused import");
-  expect(typeof saved.clients.find((client) => client.id === "keep-after-refused-import")?.archivedAt).toBe("string");
+  expect(saved.clients.map((client) => client.name)).toContain("Keep after unchanged import");
   expect(onPersistenceError.mock.calls.some(([error]) => error instanceof ReloadDiscardedEditError)).toBe(false);
-  expect(useStore.getState().notice).toMatchObject({
-    tone: "error",
-    message: stringMatching(/no records imported/i),
-  });
+  expect(useStore.getState().notice).toMatchObject({ message: stringMatching(/Import complete/i) });
 }
 
 describe("ImportExport with the real persistence coordinator", () => {
@@ -223,7 +205,7 @@ describe("ImportExport with the real persistence coordinator", () => {
     fireEvent.click(screen.getByRole("button", { name: "Confirm twice" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
 
-    archiveClient("parked-during-import");
+    publishParkedClient("Parked during import");
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(saveAll).not.toHaveBeenCalled();
   });
@@ -232,7 +214,7 @@ describe("ImportExport with the real persistence coordinator", () => {
     await dropsParkedEditDuringCommittedImport();
   });
 
-  it("re-schedules an edit parked during a zero-record import", async () => {
-    await reschedulesParkedEditDuringZeroRecordImport();
+  it("re-schedules an edit parked during an unchanged import", async () => {
+    await reschedulesParkedEditDuringUnchangedImport();
   });
 });

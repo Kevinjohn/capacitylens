@@ -171,38 +171,30 @@ ordinary company settings; Owners and Admins manage Overview access. Everyone ca
 device preferences. See [Settings](../docs-src/using/settings.md).
 
 The **Import and export** row (**Export JSON** / **Import JSON**) is a closed-by-default disclosure
-in **Data and support**, above the compact company-details summary. **Device data** and
-**Deleted items** are not shown in Settings. It used to be a "Data" section in the sidebar; it moved because a full-slice export or
-replacement is a rare administrative act that does not warrant permanent navigation real estate.
-In an authenticated
-server deployment, **Import JSON** is owner-only because a slice replacement can author or erase
-owner-confidential client/project identities; **Export JSON** remains available at its existing
-role tiers and is server-redacted for non-owners. The in-memory demo is owner-equivalent because it
-has no member identities. Import repair applies the same erasure privacy rule as an interactive resource
-deletion: a deleted person is anonymised and notes on their dependent allocations and time off are
-removed before the replacement slice is stored. The portable file contains the active company's
-scoped planning records but deliberately omits the company row itself. Import re-stamps those
-records into the destination company and does not replace its identity, calendar, language,
-scheduling mode or visibility settings. Export → import is a planning-data transfer, not a
-byte-for-byte company clone.
-Before a server import starts, CapacityLens flushes every pending edit. It then suspends persistence
-for the atomic replacement and reloads the authoritative company slice before allowing edits again.
-Server import preparation has a bounded worker pool and waiting queue. If that capacity is exhausted,
-the import is refused as temporarily busy; if the browser disconnects, queued preparation is
-withdrawn and active preparation is terminated before its worker slot is reused.
-The server compares the complete company slice captured before import preparation with the slice
-inside the replacement transaction. If another request commits a company change while the import is
-being prepared, the import is refused with a conflict notice asking the owner to retry; the newer
-change remains stored and ordinary writes resume without an authoritative reload.
-If the import may have committed but the reload cannot prove the resulting state, the UI stays
-blocked behind an explicit reload action; parked pre-import edits are never replayed over the
-replacement. File reads and confirmations remain bound to the company that was active when the file
-was selected, and export/import actions suppress duplicate in-flight requests.
-The separate beta preview validates a `capacitylens-beta` version `1` document before offering
-**Continue**. It preserves entity IDs and supported company settings and reports invalid fields or
-current member links before passing prepared data to its caller. It does not execute a replacement;
-the existing Settings flow remains in place pending backend integration. See the
-[beta transfer contract](../docs-src/using/settings.md#beta-transfer-contract).
+in **Data and support**. **Device data** and **Deleted items** are not shown in Settings. In an
+authenticated server deployment, **Import JSON** is Owner-only; **Export JSON** remains available
+at its existing role tiers and is redacted for non-owners. The temporary in-memory demo has no
+member identities, so it accepts a full beta file without login or action proof.
+
+Export writes a `capacitylens-beta` version `1` document with one company, all scoped planning
+tables, stable IDs and supported company settings. A redacted export is for inspection only.
+Import accepts only a full document, strictly validates it, previews the company and record count,
+then asks the Owner to confirm the replacement. Invalid fields, foreign scope and dangling links
+are refused rather than repaired or remapped. Identity, memberships, sessions and device
+preferences are excluded. The selected company's data and supported settings are replaced;
+other companies remain unchanged.
+
+A signed-in Owner confirms the exact import with a password or linked Google identity after
+preview. A recent sign-in alone is insufficient. The proof binds the Owner, native session,
+company, document and planning revision, is spent once in the same transaction as the import,
+and cannot authorize another operation. A stale revision or failed write leaves the data unchanged.
+A changed import keeps stable IDs and member links, clears deletion restoration groups and writes
+one revision and audit entry. An unchanged import writes neither. The server flushes pending browser
+edits, suspends persistence during replacement and reloads authoritative state before resuming.
+If the response is uncertain and state cannot be reconciled, the browser requires a reload.
+The demo applies the same strict document in page memory and refresh restores its seed.
+
+See the [beta transfer contract](../docs-src/using/settings.md#beta-transfer-contract).
 The footer puts **Help** immediately above the account block, with the same small button and tooltip
 in expanded, collapsed and mobile navigation. The account block stays at the very **bottom** of the
 sidebar, below a divider beneath the administration group. It contains exactly one avatar-led

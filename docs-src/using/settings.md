@@ -84,8 +84,8 @@ session. Reloading starts a new history; the saved setting remains shared by the
 - Compact weekday dates on Time off always keep the ordinal: with **9 Sep**, a Wednesday reads
   **Wed 9th Sep**.
 - A range crossing a year shows the year at both ends, except in Overview's narrow week headings.
-- The date format is not in the JSON from **Import and export**, and an import keeps the
-  destination company's format.
+- The date format is in the beta JSON from **Import and export**. Importing a full document
+  replaces the destination company's date format along with its other supported settings.
 
 Times tied to an event, such as session and invitation expiry and ownership-transfer deadlines,
 use your browser's language and time zone instead.
@@ -161,16 +161,26 @@ if the company already holds any of these, including archived ones.
 **Export JSON** downloads the current company's scheduling records. **Import JSON** replaces those
 records after you confirm; in signed-in server deployments, only an Owner can import.
 
-Files must contain valid JSON accepted by the server's standard request parser. Malformed JSON is
-refused before anything is replaced. Recognised older record values may be repaired or skipped, and
-the skipped count is shown afterwards. The company's settings, including date format, and your
-browser preferences are not part of the file.
+The file must be a full `capacitylens-beta` version `1` export. It includes the company and its
+planning records, with their IDs and supported settings. It excludes members, sign-in details and
+browser preferences. A redacted export can be inspected but cannot replace company data. Invalid
+fields and missing links are refused rather than repaired.
 
-### Beta JSON preview {#beta-transfer-contract}
+Choose a file and select **Continue** to preview it without changing anything. Review the company
+and record count, then select **Replace data**. In a signed-in installation, confirm this exact
+import with your password or linked Google identity. A recent sign-in alone is not enough. A
+password confirmation is bound to this file and company; Google confirmation checks the linked
+Google identity on return. Cancel leaves the company unchanged. If the company changed since the
+preview, preview again before retrying. After returning from Google, choose the same file again;
+the browser does not keep its contents during the confirmation journey.
 
-The beta preview checks a file without changing your data. It is not connected to Settings yet.
-The **Export JSON** and **Import JSON** controls continue to use the existing format described
-above.
+### Beta transfer contract {#beta-transfer-contract}
+
+Import replaces the selected company's scheduling records and supported settings atomically. It
+keeps the IDs in the file and existing member-to-person links, which means every linked person
+must still be present. Another company's data stays in place. An import cannot be undone. Export
+before replacing data if you may need the current version. The temporary demo performs the same
+strict file checks in page memory; refreshing restores the demo seed.
 
 ### Company details {#calendar}
 

@@ -437,10 +437,12 @@ describe("ActivityList", () => {
       await user.click(within(dialog).getByRole("button", { name: "Archive" }));
 
       expect(useStore.getState().data.activities).toContainEqual(activity);
-      expect(useStore.getState().notice).toMatchObject({
-        message: "Stored activity is inconsistent.",
-        tone: "error",
-      });
+      await vi.waitFor(() =>
+        expect(useStore.getState().notice).toMatchObject({
+          message: "Stored activity is inconsistent.",
+          tone: "error",
+        }),
+      );
     } finally {
       useStore.setState({ sendPlanningCommand: originalSend });
       vi.unstubAllEnvs();

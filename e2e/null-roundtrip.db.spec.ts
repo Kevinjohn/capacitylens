@@ -53,9 +53,22 @@ test("clearing, saving and reloading availability keeps explicit null values", a
     })
     .toEqual(["2026-06-05", "2026-06-25"]);
 
-  // Undo covers bookings only, so clearing is saved explicitly.
+  // Resource availability is a typed planning write and can be undone without losing nulls.
   await page.getByRole("link", { name: "Schedule", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect
+    .poll(async () => {
+      const row = await persistedAvailability(request);
+      return [row.firstAvailableDate, row.lastAvailableDate];
+    })
+    .toEqual([null, null]);
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await expect
+    .poll(async () => {
+      const row = await persistedAvailability(request);
+      return [row.firstAvailableDate, row.lastAvailableDate];
+    })
+    .toEqual(["2026-06-05", "2026-06-25"]);
   await page.getByRole("link", { name: "Resources", exact: true }).click();
   await saveAvailability(page, "", "");
   await expect

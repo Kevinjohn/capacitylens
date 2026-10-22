@@ -46,7 +46,8 @@ that meets the policy, or an invitation to their email.
 Only the current Owner can transfer ownership. In **Team & access → Company ownership**, select
 **Manage ownership**, then choose an active, unrestricted Admin from **Next Owner**. Select
 **Transfer ownership** and review the confirmation: the selected Admin becomes Owner and you become
-Admin. Confirm with a recent sign-in.
+Admin. Confirm this particular transfer with your password or linked Google identity. A recent
+sign-in alone is not enough.
 
 The change takes effect immediately. The selected Admin does not separately sign in to accept or
 consent. Choose carefully: once confirmed, they hold the Owner role and you no longer do. The member
@@ -54,8 +55,10 @@ list and your available company actions refresh to match the new roles.
 
 ## Replace the schedule with an import
 
-Import replaces the active company's planning records; it does not add to them. Check the
-destination and file before you confirm. It needs a recent sign-in.
+Import replaces the active company's planning records and supported settings; it does not add to them. Check the
+destination and file before you confirm.
+In a signed-in installation, confirm the exact file and destination with your password or linked
+Google identity. The confirmation cannot be reused for a different import.
 [Import and export](/using/settings#import-and-export) has the steps.
 
 ## Anonymise the company

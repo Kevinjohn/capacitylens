@@ -19,8 +19,7 @@ Owner becomes Admin. The nominated Admin does not separately authenticate or con
 ## How (end-to-end)
 
 **Precondition:** Server mode with authentication on. Bruce Wayne is the current Owner and Selina
-Kyle is an active, unrestricted Admin in the same company. Bruce has completed the fresh
-authentication check required for this action.
+Kyle is an active, unrestricted Admin in the same company.
 
 1. Bruce opens **Team & access → Company ownership**. The Owner-only card
    (`data-testid="ownership-transfer-card"`) has a **Manage ownership** button
@@ -28,7 +27,8 @@ authentication check required for this action.
 2. Bruce selects Selina in **Next Owner** (`data-testid="ownership-transfer-nominee"`). The list
    contains active, unrestricted Admins of this company.
 3. Bruce selects **Transfer ownership**. The confirmation says Selina will become Owner and Bruce
-   will become Admin. On confirmation, both roles change immediately in one transaction. The final
+   will become Admin. Bruce confirms this exact action with his password or linked Google identity;
+   a recent sign-in does not replace this step. On confirmation, both roles change immediately in one transaction. The final
    submit retains `data-testid="ownership-transfer-complete"`.
 4. The company member list and Bruce's available company access refresh to reflect the new roles.
    If the response is uncertain, retrying the same command returns its original result; it does not
@@ -44,10 +44,12 @@ authentication check required for this action.
   confirmation is the authorization for this immediate handover.
 - The card is available only to the Owner. The server refuses unauthorized, stale-owner,
   masquerading, ineligible-target and malformed requests without changing either role.
-- `POST /api/accounts/:accountId/ownership-transfer` accepts `{toUserId}` and returns **200**
+- `POST /api/accounts/:accountId/ownership-transfer` accepts `{toUserId, proofId}` and returns **200**
   `{fromUserId, toUserId}` after commit. A repeated command with the same scope and payload returns
   the original result even after the caller becomes Admin; a new command requires the current Owner.
   Reusing command identity with a different scope or target returns **409**.
+- The proof is bound to the Owner, native session, company and selected Admin. A proof for another
+  action or target, a revoked session, role loss, cancellation or a second spend cannot transfer ownership.
 - Only the **Manage ownership** entry and the existing card, open, nominee and final-submit test IDs
   remain: `ownership-transfer-card`, `ownership-transfer-open`, `ownership-transfer-nominee`, and
   `ownership-transfer-complete`.

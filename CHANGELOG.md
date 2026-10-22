@@ -17,6 +17,12 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Beta-native company export, preview and atomic Owner import now preserve stable planning IDs,
+  company settings and member links. Ownership transfer and import require a single-use
+  confirmation bound to the exact action and native session; password or linked Google identity
+  can confirm, and a recent sign-in alone cannot. Unchanged imports leave revision and audit
+  untouched.
+
 - Typed planning writes now cover disciplines, phases, personal time off, closures and company
   settings. Session-bound deletion restoration reconnects surviving phase and discipline links
   without overwriting later edits, and Undo/Redo covers the migrated actions in the editable demo

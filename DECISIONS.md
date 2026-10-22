@@ -106,6 +106,10 @@ This is the short, present-tense record of decisions that constrain future work.
 - The portable export is this product's own document and the only import source. Import is
   Owner-only, atomic and not undoable. A malformed or foreign document is rejected, never repaired.
   Identity, sessions, membership and admission records are never part of the export.
+- Beta transfer uses the versioned full company document, preserves scoped IDs and member links,
+  and replaces supported company settings. A redacted document cannot be imported. The Owner
+  previews the destination revision before applying; changed imports advance it and audit once,
+  while unchanged imports do neither.
 - Resource and catalogue lifecycle uses archive/restore (Editor and up). Resource anonymisation
   (Owner/Admin) irreversibly removes identifying details and dependent notes while retaining the
   resource and its links. Whole-company anonymisation applies the same scrub to every resource and
@@ -156,9 +160,14 @@ This is the short, present-tense record of decisions that constrain future work.
   nothing is pushed to the browser.
 - A verified provider email that matches an unused invitation records invitation evidence at
   account creation. Identities are otherwise never merged by email.
-- Sessions follow the kit's idle expiry, configured once. Sensitive actions re-prove the password
-  (or the social equivalent) per action; there is no time-based freshness window. The sensitive
-  set is: ownership transfer, whole-company import and whole-company anonymisation.
+- Sessions follow the kit's idle expiry, configured once. Ownership transfer, whole-company import
+  and whole-company anonymisation require proof for each action; a time-based fresh-session window cannot replace
+  it. Other sensitive actions retain their native fresh-session gates.
+- Ownership transfer, whole-company import and whole-company anonymisation use a single-use proof bound to the
+  real principal, native session, company and exact operation. The proof is spent in the same
+  transaction as the change. Password proof verifies the current credential; linked Google proof
+  verifies the stable Google identity through an interactive account-selection journey. That
+  Google journey does not guarantee a fresh password or MFA challenge.
 - Password hashing uses the framework's default hasher through the kit. There is no breach
   screening and no custom hashing queue.
 - The first Owner is created by the operator through the kit's command line (invite, accept,

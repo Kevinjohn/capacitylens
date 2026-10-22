@@ -29,6 +29,7 @@ type AllocationSlice = Pick<
   | "deleteAllocation"
   | "deleteAllocationSeriesFrom"
   | "refreshPlanning"
+  | "replaceAfterDemoImport"
   | "undoPlanning"
   | "redoPlanning"
 >;
@@ -270,6 +271,23 @@ export function createAllocationSlice(
         if (companyId === null) return Promise.resolve(false);
         controller.setContext({ identity: PAGE_IDENTITY, companyId });
         return controller.refresh();
+      },
+      replaceAfterDemoImport: (data) => {
+        const companyId = get().activeAccountId;
+        const account = data.accounts.find((row) => row.id === companyId);
+        if (!companyId || !account || !transport.resetAfterDemoImport)
+          throw new Error("A demo import requires the selected company and page-memory planning transport.");
+        const revision = transport.resetAfterDemoImport(companyId, data);
+        const planning = controller.invalidateAfterDemoImport({ identity: PAGE_IDENTITY, companyId }, revision);
+        set((state) => ({
+          data,
+          past: [],
+          future: [],
+          planning,
+          accountSummaries: state.accountSummaries.map((summary) =>
+            summary.id === companyId ? { ...summary, name: account.name } : summary,
+          ),
+        }));
       },
       undoPlanning: () => (blockedByViewer() ? Promise.resolve(false) : controller.undo()),
       redoPlanning: () => (blockedByViewer() ? Promise.resolve(false) : controller.redo()),
