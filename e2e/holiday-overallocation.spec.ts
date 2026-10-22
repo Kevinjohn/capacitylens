@@ -79,6 +79,7 @@ test("modal edits, drag and repeat creation show work on holiday as over allocat
   await page.mouse.down();
   await page.mouse.move(startX + holidayBox!.x - barBox!.x, y, { steps: 10 });
   await page.mouse.up();
+  await expect(clarkBar).toHaveAttribute("aria-label", /8 Jun to 12 Jun/);
   await markerOnFirstTimeOff(clarkLane);
 
   await page.getByRole("button", { name: "Add allocation for Diana Prince" }).click();
