@@ -499,18 +499,6 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['settingsUpdate']>>>
     }
   }
-  'api.batch': {
-    methods: ["POST"]
-    pattern: '/api/batch'
-    types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/batch').batchValidator)>>
-      paramsTuple: []
-      params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/batch').batchValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/batch_controller').default['store']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/batch_controller').default['store']>>>
-    }
-  }
   'api.transfer.preview': {
     methods: ["POST"]
     pattern: '/api/transfer/preview'
@@ -545,42 +533,6 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/exports_controller').default['show']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/exports_controller').default['show']>>>
-    }
-  }
-  'api.orgs.store': {
-    methods: ["POST"]
-    pattern: '/api/orgs'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/companies_controller').default['storeOrg']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/companies_controller').default['storeOrg']>>>
-    }
-  }
-  'api.accounts.store': {
-    methods: ["POST"]
-    pattern: '/api/accounts'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/companies_controller').default['store']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/companies_controller').default['store']>>>
-    }
-  }
-  'api.accounts.update': {
-    methods: ["PATCH"]
-    pattern: '/api/accounts/:id'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue]
-      params: { id: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/companies_controller').default['update']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/companies_controller').default['update']>>>
     }
   }
   'api.accounts.anonymise': {

@@ -1,9 +1,9 @@
 import { test } from '@japa/runner'
+import { randomUUID } from 'node:crypto'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import { replaceWithSeed, resetState } from '#services/state_repository'
 import { resetAuthenticatedClient } from '../../helpers/authenticated_data_fixture.js'
 import db from '@adonisjs/lucid/services/db'
-import { seed } from '@capacitylens/shared/data/seed'
 import env from '#start/env'
 
 const securityHeaders = [
@@ -136,37 +136,42 @@ test.group('M1 HTTP contract', (group) => {
     assert.equal(preflight.status(), 204)
     assert.equal(preflight.header('access-control-allow-origin'), allowed)
 
-    const discipline = seed().disciplines[0]!
+    const planning = await client.get('/api/accounts/a-studio/planning')
+    assert.equal(planning.status(), 200)
+    const writePath = '/api/accounts/a-studio/disciplines'
+    const write = {
+      mutationId: randomUUID(),
+      baseRevision: (planning.body() as { revision: number }).revision,
+      intent: {
+        operation: 'catalogue.create',
+        entity: {
+          entity: 'disciplines',
+          id: randomUUID(),
+          fields: { name: 'Planning', color: '#2d75da', sortOrder: 10 },
+        },
+      },
+    }
     const allowedWrite = await client
-      .post('/api/batch')
+      .post(writePath)
       .header('origin', allowed)
       .header('sec-fetch-site', 'cross-site')
-      .json({
-        ops: [
-          {
-            method: 'PUT',
-            table: 'disciplines',
-            id: discipline.id,
-            row: { ...discipline } as Record<string, unknown>,
-          },
-        ],
-      })
+      .json(write)
     assert.equal(allowedWrite.status(), 200)
 
     const disallowedWrite = await client
-      .post('/api/batch')
+      .post(writePath)
       .header('origin', 'https://attacker.example')
       .header('sec-fetch-site', 'cross-site')
-      .json({ ops: [] })
+      .json(write)
     assert.equal(disallowedWrite.status(), 403)
     assert.deepEqual(disallowedWrite.body(), { error: 'Cross-site request rejected.' })
     assert.equal(disallowedWrite.header('x-content-type-options'), 'nosniff')
     assert.equal(disallowedWrite.header('x-frame-options'), 'DENY')
 
     const originlessCrossSite = await client
-      .post('/api/batch')
+      .post(writePath)
       .header('sec-fetch-site', 'cross-site')
-      .json({ ops: [] })
+      .json(write)
     assert.equal(originlessCrossSite.status(), 403)
 
     const nonBrowser = await client.post('/api/test/reset').json({ seed: true })

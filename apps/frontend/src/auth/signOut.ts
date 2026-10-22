@@ -1,6 +1,7 @@
 import { clearStoredAccountCommands } from "@/account/accountClient";
 import { queryClient } from "@/api/queryClient";
 import { authClient } from "./authClient";
+import { useStore } from "@/store/useStore";
 
 /** Non-secret storage signal that makes sibling tabs recheck the server session. */
 export const AUTH_INVALIDATION_STORAGE_KEY = "capacitylens/sessionInvalidated";
@@ -31,6 +32,7 @@ export async function signOutAndReload(overrides: Partial<SignOutDependencies> =
   try {
     // Server query results belong to the outgoing principal and must not survive sign-out.
     queryClient.clear();
+    useStore.getState().clearPlanning();
     // Clear identity-bound retry ceremonies because sessionStorage survives this tab's mandatory
     // reload and could carry an administrative command into the next session on a shared browser.
     try {

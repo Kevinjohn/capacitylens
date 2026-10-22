@@ -59,7 +59,5 @@ useStore.subscribe((state) => {
 
 // Entering a company opens its planning context and loads its canonical planning snapshot.
 useStore.subscribe((state, previous) => {
-  if (state.activeAccountId !== null && state.activeAccountId !== previous.activeAccountId) {
-    void state.refreshPlanning();
-  }
+  if (state.activeAccountId !== previous.activeAccountId) void state.refreshPlanning();
 });

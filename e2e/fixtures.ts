@@ -1,16 +1,31 @@
 import { expect, test as base } from "@playwright/test";
 import type { APIRequestContext, BrowserContext, BrowserContextOptions, Locator, Page } from "@playwright/test";
+import { clearAuthE2ECompanies } from "./authTestSupport";
 
 export { expect, type APIRequestContext, type Locator, type Page };
 
 type PageErrorObserver = { observePage: (page: Page) => void };
 type CapacityLensFixtures = {
+  authCompanyIsolation: void;
   newObservedContext: (options?: BrowserContextOptions) => Promise<BrowserContext>;
   pageErrorObserver: PageErrorObserver;
 };
 
 /** Every browser spec fails if application code raises on any page registered with the fixture. */
 export const test = base.extend<CapacityLensFixtures>({
+  authCompanyIsolation: [
+    // Playwright requires a destructuring pattern for an automatic fixture with no inputs.
+    // eslint-disable-next-line no-empty-pattern
+    async ({}, use, testInfo) => {
+      if (testInfo.project.name === "auth-backed") clearAuthE2ECompanies();
+      try {
+        await use();
+      } finally {
+        if (testInfo.project.name === "auth-backed") clearAuthE2ECompanies();
+      }
+    },
+    { auto: true },
+  ],
   pageErrorObserver: [
     // Playwright requires a destructuring pattern even when an automatic fixture has no inputs.
     // eslint-disable-next-line no-empty-pattern

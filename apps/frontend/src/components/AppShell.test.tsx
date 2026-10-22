@@ -2,12 +2,11 @@ import { afterEach, describe, it, expect, beforeEach, vi } from "vitest";
 import type { Mock } from "vitest";
 import { screen, act, fireEvent, waitFor, within } from "@testing-library/react";
 import { PlanningControllerError } from "@/data/planning/planningCacheController";
-import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AppShell } from "./AppShell";
 import { useStore } from "@/store/useStore";
-import { makeAppData, makeAccount, makeClient, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
+import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
 import { stubMatchMedia } from "@/test/stubMatchMedia";
-import { attachPersistence } from "@/data/persist";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import * as accountTransition from "@/auth/accountTransition";
@@ -107,6 +106,59 @@ it("offers projection recovery after the server has prepared a starting member v
 
   renderAppShell({});
 
+  const banner = screen.getByTestId("masquerade-banner");
+  expect(within(banner).getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  expect(within(banner).getByRole("button", { name: "End now" })).toBeInTheDocument();
+});
+
+it("hides old actor route data during a member-view projection while keeping recovery controls", () => {
+  useStore.getState().setMasquerade({
+    kind: "starting",
+    generation: 1,
+    pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: "u-viewer" },
+    state: {
+      accountId: DEFAULT_ACCOUNT_ID,
+      targetUserId: "u-viewer",
+      targetName: "Selina Kyle",
+      effectiveRole: "viewer",
+      startedAt: "2026-09-01T10:00:00.000Z",
+      token: "token-1",
+    },
+  });
+
+  render(
+    <MemoryRouter initialEntries={["/"]}>
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<div>old actor private row</div>} />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  expect(screen.getByTestId("masquerade-banner")).toHaveTextContent("Starting member view…");
+  expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "End now" })).toBeInTheDocument();
+  expect(screen.queryByText("old actor private row")).not.toBeInTheDocument();
+  expect(screen.getAllByRole("status").some((element) => element.textContent.includes("Loading"))).toBe(true);
+});
+
+it("offers Retry and End when an authenticated cold member view has no selected company", () => {
+  useStore.getState().clearPlanning();
+  useStore.getState().setMasquerade({
+    kind: "starting",
+    generation: 1,
+    pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: "u-viewer" },
+    state: {
+      accountId: DEFAULT_ACCOUNT_ID,
+      targetUserId: "u-viewer",
+      targetName: "Selina Kyle",
+      effectiveRole: "viewer",
+      startedAt: "2026-09-01T10:00:00.000Z",
+      token: "token-1",
+    },
+  });
+  renderAppShell();
   const banner = screen.getByTestId("masquerade-banner");
   expect(within(banner).getByRole("button", { name: "Retry" })).toBeInTheDocument();
   expect(within(banner).getByRole("button", { name: "End now" })).toBeInTheDocument();
@@ -379,17 +431,12 @@ it("does not reactivate a sole company after its loaded slice proves missing", a
   expect(useStore.getState().notice?.message).toBe("That company no longer exists.");
 });
 
-it("guards navigation while a persistence write is still unacknowledged", () => {
-  const client = makeClient({ id: "unsaved-client", accountId: DEFAULT_ACCOUNT_ID, name: "Unsaved client" });
-  useStore.setState((state) => ({ data: { ...state.data, clients: [...state.data.clients, client] } }));
-  const detachPersistence = attachPersistence({
-    store: useStore,
-    adapter: { loadAll: async () => emptyAppData(), saveAll: async () => {} },
-    debounceMs: 300,
-  });
+it("guards navigation while a typed planning write is unacknowledged", () => {
   const { unmount } = renderAppShell({});
   act(() => {
-    useStore.getState().archiveEntity("clients", client.id);
+    useStore.setState((state) => ({
+      planning: { ...state.planning, pending: {} as NonNullable<typeof state.planning.pending> },
+    }));
   });
 
   const event = new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent;
@@ -398,7 +445,6 @@ it("guards navigation while a persistence write is still unacknowledged", () => 
   expect(useStore.getState().dirtyForm).toBe(false);
   expect(event.defaultPrevented).toBe(true);
   unmount();
-  detachPersistence();
 });
 
 function registerSkipLinkLayerTest(): void {

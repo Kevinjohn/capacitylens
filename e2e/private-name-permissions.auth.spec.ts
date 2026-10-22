@@ -1,5 +1,11 @@
 import { expect, test } from "./fixtures";
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./authTestSupport";
+import {
+  AUTH_PASSWORD,
+  bootstrapOrg,
+  seedFixtureMember,
+  sendPlanningFixtureCommand,
+  signUpUser,
+} from "./authTestSupport";
 import { waitForAppLanding } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
@@ -87,56 +93,24 @@ async function seedPrivateNames(
   accountId: string,
   ownerCookie: string,
 ) {
-  const now = new Date().toISOString();
-  const clientId = `privacy-client-${STAMP}`;
-  const projectId = `privacy-project-${STAMP}`;
-  const clientWrite = await request.post(`${AUTH_API}/api/batch`, {
-    headers: { cookie: ownerCookie, "content-type": "application/json" },
-    data: {
-      ops: [
-        {
-          method: "PUT",
-          table: "clients",
-          id: clientId,
-          row: {
-            id: clientId,
-            accountId,
-            name: REAL_CLIENT,
-            color: "#76a5e7",
-            isPrivate: true,
-            codeName: "Nightwing",
-            createdAt: now,
-            updatedAt: now,
-          },
-        },
-      ],
+  const clientId = crypto.randomUUID();
+  const projectId = crypto.randomUUID();
+  await sendPlanningFixtureCommand(request, ownerCookie, accountId, "clients", {
+    operation: "catalogue.create",
+    entity: {
+      entity: "clients",
+      id: clientId,
+      fields: { name: REAL_CLIENT, color: "#76a5e7", isPrivate: true, codeName: "Nightwing" },
     },
   });
-  expect(clientWrite.status()).toBe(200);
-  const projectWrite = await request.post(`${AUTH_API}/api/batch`, {
-    headers: { cookie: ownerCookie, "content-type": "application/json" },
-    data: {
-      ops: [
-        {
-          method: "PUT",
-          table: "projects",
-          id: projectId,
-          row: {
-            id: projectId,
-            accountId,
-            clientId,
-            name: REAL_PROJECT,
-            color: "#e776b8",
-            isPrivate: true,
-            codeName: "Aurora",
-            createdAt: now,
-            updatedAt: now,
-          },
-        },
-      ],
+  await sendPlanningFixtureCommand(request, ownerCookie, accountId, "projects", {
+    operation: "catalogue.create",
+    entity: {
+      entity: "projects",
+      id: projectId,
+      fields: { clientId, name: REAL_PROJECT, color: "#e776b8", isPrivate: true, codeName: "Aurora" },
     },
   });
-  expect(projectWrite.status()).toBe(200);
 }
 
 test("non-owners see protected code names without owner controls or real-name leaks", async ({

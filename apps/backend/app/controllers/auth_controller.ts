@@ -72,14 +72,13 @@ async function withRequestPasswordWork<T>(ctx: HttpContext, work: () => Promise<
 export default class AuthController {
   async me(ctx: HttpContext) {
     const mode = authMode()
-    const hasCompany = Boolean(await db.from('accounts').select('id').first())
     try {
       const actor = await resolveCurrentActor(ctx)
       return {
         authMode: mode,
         user: userProjection(actor.user),
         providers: availableProviders(),
-        canCreateAccount: !hasCompany,
+        canCreateAccount: false,
         reauthMethod: passwordEnabled() && actor.user.passwordHash ? 'password' : 'provider',
         reauthProviderId: passwordEnabled() && actor.user.passwordHash ? null : 'google',
       }

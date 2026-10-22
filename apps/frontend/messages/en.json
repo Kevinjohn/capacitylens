@@ -164,6 +164,7 @@
   "settings_example_data_button": "Add example data",
   "settings_example_data_added": "Example data added.",
   "settings_example_data_reload": "Example data was added, but the schedule could not be refreshed. Reload the page to see it.",
+  "settings_example_data_unknown_reload_required": "The example-data result could not be verified. Reload this page before making changes.",
   "settings_example_data_failed": "Example data could not be added ({status}).",
   "settings_clear_storage_confirm_title": "Clear device data?",
   "settings_data_heading": "Import and export",

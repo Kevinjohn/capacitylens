@@ -66,18 +66,12 @@ export interface ApiDefinition {
         update: typeof routes['api.planning.settings.update']
       }
     }
-    batch: typeof routes['api.batch']
     transfer: {
       preview: typeof routes['api.transfer.preview']
       apply: typeof routes['api.transfer.apply']
     }
     state: typeof routes['api.state']
-    orgs: {
-      store: typeof routes['api.orgs.store']
-    }
     accounts: {
-      store: typeof routes['api.accounts.store']
-      update: typeof routes['api.accounts.update']
       anonymise: typeof routes['api.accounts.anonymise']
       index: typeof routes['api.accounts.index']
     }

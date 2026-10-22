@@ -12,7 +12,6 @@ import {
   remapAndValidateImport,
 } from "./mutations.js";
 import { emptyAppData, SCOPED_KEYS } from "../types/entities.js";
-import { migrate } from "../data/migrate.js";
 import { addDaysISO } from "../lib/dateMath.js";
 import { MAX_SPAN_DAYS } from "../lib/schedulingDays.js";
 import { DomainError } from "./errors.js";
@@ -1195,50 +1194,6 @@ const registerRemapAndValidateImportPart1 = (incoming: () => AppData) => {
   });
 };
 
-const registerRemapAndValidateImportPart2 = () => {
-  it("retains a legacy-only activity and its allocation from a mixed v4 migration state", () => {
-    const migrated = migrate({
-      schemaVersion: 4,
-      data: {
-        resources: [person("src-r", "src-acct")],
-        tasks: [
-          {
-            ...meta("legacy-task", "src-acct"),
-            name: "Legacy work",
-            kind: "repeatable",
-          },
-        ],
-        activities: [
-          {
-            ...meta("modern-activity", "src-acct"),
-            name: "Modern work",
-            kind: "internal",
-          },
-        ],
-        allocations: [
-          {
-            ...meta("legacy-allocation", "src-acct"),
-            resourceId: "src-r",
-            taskId: "legacy-task",
-            startDate: "2026-01-01",
-            endDate: "2026-01-05",
-            hoursPerDay: 8,
-            status: "confirmed",
-          },
-        ],
-      },
-    });
-
-    const { data, imported, skipped } = remapAndValidateImport(base(), A1, migrated, TS);
-    const legacyActivity = data.activities.find(({ name }) => name === "Legacy work");
-    expect(legacyActivity).toBeDefined();
-    expect(data.allocations).toHaveLength(1);
-    expect(data.allocations[0]?.activityId).toBe(legacyActivity?.id);
-    expect(imported).toBe(4);
-    expect(skipped).toBe(0);
-  });
-};
-
 const registerRemapAndValidateImportPart3 = (incoming: () => AppData) => {
   it("replaces only the active account slice; other accounts are untouched", () => {
     const start: AppData = { ...base(), clients: [client("keep", A2)] };
@@ -1275,33 +1230,6 @@ const registerRemapAndValidateImportPart3 = (incoming: () => AppData) => {
     const { data, skipped } = remapAndValidateImport(base(), A1, bad, TS);
     expect(data.allocations).toHaveLength(1);
     expect(skipped).toBe(3); // The rejected rows are two invalid allocations and one dangling time-off entry.
-  });
-};
-
-const registerRemapAndValidateImportPart4 = () => {
-  it("drops a v16 Everyone time-off entry instead of converting it to a closure", () => {
-    const migrated = migrate({
-      schemaVersion: 16,
-      data: {
-        ...emptyAppData(),
-        timeOff: [
-          {
-            ...meta("to-everyone", "src-acct"),
-            resourceId: null,
-            startDate: "2026-12-24",
-            endDate: "2026-12-25",
-            type: "holiday",
-          },
-        ],
-      },
-    });
-
-    const { data, imported, skipped } = remapAndValidateImport(base(), A1, migrated, TS);
-
-    expect(data.timeOff).toEqual([]);
-    expect(data.closures).toEqual([]);
-    expect(imported).toBe(0);
-    expect(skipped).toBe(1);
   });
 };
 
@@ -1616,9 +1544,8 @@ const registerRemapAndValidateImportPart11 = () => {
 
 const registerRemapAndValidateImportPart12 = () => {
   it("does not count an auto-added built-in Internal that the file already carries (no N+1 over-report)", () => {
-    // A pre-v6 full export gets a builtin Internal synthesised by migrate before this import runs, so
-    // the file reaching here already carries one. It must be kept (every account needs exactly one) but
-    // not counted, `imported` reflects only the file's genuine non-builtin records.
+    // A full import may already carry its built-in Internal. It must be kept (every account needs
+    // exactly one) but not counted; `imported` reflects only genuine non-builtin records.
     const withBuiltin: AppData = {
       ...emptyAppData(),
       clients: [
@@ -2000,9 +1927,7 @@ describe("remapAndValidateImport", () => {
     activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
   });
   registerRemapAndValidateImportPart1(incoming);
-  registerRemapAndValidateImportPart2();
   registerRemapAndValidateImportPart3(incoming);
-  registerRemapAndValidateImportPart4();
   registerRemapAndValidateImportPart5();
   registerRemapAndValidateImportPart6();
   registerRemapAndValidateImportPart7();

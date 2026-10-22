@@ -175,7 +175,7 @@ export interface Client extends ScopedEntity {
    * projection adds them consistently wherever the code name is displayed. */
   codeName: string | null;
   /** True only for the built-in "Internal" pseudo-client, exactly one per account, created by
-   * seed / addAccount / migrate. A built-in client cannot be renamed or deleted, and a project-less
+   * seed / addAccount / imports. A built-in client cannot be renamed or deleted, and a project-less
    * internal/all-projects activity buckets under it for display + filtering. Null/false = a normal,
    * user-managed client. Identified at runtime by this flag, never a hard-coded id (so it survives
    * import-remap). See shared/src/data/internalClient.ts. */

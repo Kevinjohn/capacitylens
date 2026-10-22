@@ -1,25 +1,22 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useStore } from "@/store/useStore";
-import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "@/test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeAccount, resetStoreWithAccount } from "@/test/fixtures";
 import { useLifecycleActions } from "./useLifecycleActions";
 import type { PlanningCommand } from "@/data/planning/planningCommands";
-import { refreshActiveAccountSlice } from "@/data/persist";
 
 vi.mock("@/data/apiConfig", () => ({
   API_BASE: "http://api.test",
   isServerConfigured: () => true,
 }));
-vi.mock("@/data/persist", () => ({
-  refreshActiveAccountSlice: vi.fn(async () => ({ kind: "reloaded" })),
-}));
+const originalRefreshPlanning = useStore.getState().refreshPlanning;
 
 beforeEach(async () => {
   await resetStoreWithAccount();
   vi.clearAllMocks();
-  vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });
 });
 afterEach(() => {
+  useStore.setState({ refreshPlanning: originalRefreshPlanning });
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -61,6 +58,21 @@ describe("named lifecycle actions", () => {
     expect(options).toMatchObject({ method: "POST", body: "{}" });
   });
 
+  it("refuses resource anonymisation while another replacement owns the planning context", async () => {
+    const release = useStore.getState().suspendPlanningCommands();
+    if (!release) throw new Error("The test planning context was not ready.");
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const { result } = renderHook(() => useLifecycleActions());
+
+    await act(async () => result.current.anonymise("r-1"));
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(useStore.getState().notice?.tone).toBe("error");
+    release();
+    expect(useStore.getState().planningReadyForReplacement()).toBe(true);
+  });
+
   it("drops a queued action after the selected company changes", async () => {
     const send = vi.fn(async (command: PlanningCommand) => {
       void command;
@@ -73,39 +85,44 @@ describe("named lifecycle actions", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it.each(["failed", "skipped"] as const)(
-    "blocks another anonymisation after a %s refresh, including after remount",
-    async (kind) => {
-      useStore.setState({ activeAccountId: `a-recovery-${kind}` });
-      vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind });
-      const fetch = vi.fn(async () => new Response(null, { status: 204 }));
-      vi.stubGlobal("fetch", fetch);
-      const first = renderHook(() => useLifecycleActions());
-      await act(async () => first.result.current.anonymise("r-one"));
-      first.unmount();
-      const second = renderHook(() => useLifecycleActions());
-      await act(async () => second.result.current.anonymise("r-two"));
-      expect(fetch).toHaveBeenCalledOnce();
-      expect(useStore.getState().notice?.message).toMatch(/Reload this page before anonymising another resource/);
-    },
-  );
+  it("blocks another anonymisation after a failed canonical refresh, including after remount", async () => {
+    useStore
+      .getState()
+      .replaceAll({ ...useStore.getState().data, accounts: [makeAccount({ id: "a-recovery-failed" })] });
+    useStore.getState().setActiveAccount("a-recovery-failed");
+    await useStore.getState().refreshPlanning();
+    useStore.setState({ refreshPlanning: async () => false });
+    const fetch = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetch);
+    const first = renderHook(() => useLifecycleActions());
+    await act(async () => first.result.current.anonymise("r-one"));
+    first.unmount();
+    const second = renderHook(() => useLifecycleActions());
+    await act(async () => second.result.current.anonymise("r-two"));
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(useStore.getState().notice?.message).toMatch(/Reload this page before anonymising another resource/);
+  });
 
   it("does not publish a stale tenant response after the selected company changes", async () => {
-    let finishRefresh!: (value: { kind: "reloaded" }) => void;
-    vi.mocked(refreshActiveAccountSlice).mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          finishRefresh = resolve;
-        }),
-    );
+    let finishRefresh!: (value: boolean) => void;
+    const refresh = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<boolean>((resolve) => {
+            finishRefresh = resolve;
+          }),
+      )
+      .mockResolvedValue(true);
+    useStore.setState({ refreshPlanning: refresh });
     const fetch = vi.fn(async () => new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetch);
     const onReloaded = vi.fn();
     const { result } = renderHook(() => useLifecycleActions(onReloaded));
     const operation = result.current.anonymise("r-one");
-    await vi.waitFor(() => expect(refreshActiveAccountSlice).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
     act(() => useStore.setState({ activeAccountId: "a-loft" }));
-    finishRefresh({ kind: "reloaded" });
+    finishRefresh(true);
     await act(async () => operation);
     expect(onReloaded).not.toHaveBeenCalled();
     expect(useStore.getState().activeAccountId).toBe("a-loft");

@@ -1,6 +1,13 @@
 import { expect, test } from "./fixtures";
 import type { APIRequestContext, Page } from "./fixtures";
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./authTestSupport";
+import {
+  AUTH_PASSWORD,
+  bootstrapOrg,
+  createFixturePerson,
+  seedFixtureMember,
+  sendPlanningFixtureCommand,
+  signUpUser,
+} from "./authTestSupport";
 import { waitForAppLanding, freezeBrowserDate, goToSeedWeek, setZoom } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
@@ -9,95 +16,73 @@ const STAMP = Date.now();
 const ACCOUNT = `Wayne Privacy Studio ${STAMP}`;
 const OWNER = `clark-kent-${STAMP}@capacitylens.dev`;
 const VIEWER = `kara-zor-el-${STAMP}@capacitylens.dev`;
-const RESOURCE_ID = `privacy-person-${STAMP}`;
-const TIME_OFF_ID = `privacy-timeoff-${STAMP}`;
-const CLIENT_ID = `privacy-client-${STAMP}`;
-const PROJECT_ID = `privacy-project-${STAMP}`;
-const ACTIVITY_ID = `privacy-activity-${STAMP}`;
-const ALLOCATION_ID = `privacy-allocation-${STAMP}`;
+const RESOURCE_ID = crypto.randomUUID();
+const TIME_OFF_ID = crypto.randomUUID();
+const CLIENT_ID = crypto.randomUUID();
+const PROJECT_ID = crypto.randomUUID();
+const ACTIVITY_ID = crypto.randomUUID();
+const ALLOCATION_ID = crypto.randomUUID();
 const PRIVATE_NOTE = "Owner-only medical appointment";
 const REAL_CLIENT = "Kane Industries Acquisition";
 const REAL_PROJECT = "Gotham Renewal";
-
-async function putEntity(
-  request: APIRequestContext,
-  cookie: string,
-  entity: string,
-  id: string,
-  data: Record<string, unknown>,
-) {
-  const response = await request.post(`${AUTH_API}/api/batch`, {
-    headers: { cookie, "content-type": "application/json" },
-    data: { ops: [{ method: "PUT", table: entity, id, row: { id, ...data } }] },
-  });
-  expect(response.status(), `seed ${entity}/${id}`).toBe(200);
-}
-
-async function seedPrivateScheduleEntities(
-  request: APIRequestContext,
-  cookie: string,
-  scoped: { accountId: string; createdAt: string; updatedAt: string },
-) {
-  await putEntity(request, cookie, "clients", CLIENT_ID, {
-    ...scoped,
-    name: REAL_CLIENT,
-    color: "#76a5e7",
-    isPrivate: true,
-    codeName: "Nightwing",
-  });
-  await putEntity(request, cookie, "projects", PROJECT_ID, {
-    ...scoped,
-    clientId: CLIENT_ID,
-    name: REAL_PROJECT,
-    color: "#e776b8",
-    isPrivate: true,
-    codeName: "Aurora",
-  });
-  await putEntity(request, cookie, "activities", ACTIVITY_ID, {
-    ...scoped,
-    name: "Private project delivery",
-    kind: "project",
-    projectId: PROJECT_ID,
-  });
-  await putEntity(request, cookie, "allocations", ALLOCATION_ID, {
-    ...scoped,
-    resourceId: RESOURCE_ID,
-    activityId: ACTIVITY_ID,
-    startDate: "2026-06-01",
-    endDate: "2026-06-05",
-    hoursPerDay: 8,
-    status: "confirmed",
-  });
-}
 
 async function seedPrivacyScenario(request: APIRequestContext) {
   const owner = await signUpUser(OWNER);
   const viewer = await signUpUser(VIEWER);
   const accountId = await bootstrapOrg(request, owner.cookie, ACCOUNT);
-  const seededAt = new Date().toISOString();
-  const scoped = { accountId, createdAt: seededAt, updatedAt: seededAt };
-
-  await putEntity(request, owner.cookie, "resources", RESOURCE_ID, {
-    ...scoped,
-    kind: "person",
+  await createFixturePerson(request, owner.cookie, accountId, {
+    id: RESOURCE_ID,
     name: "Victor Stone",
     role: "Developer",
-    employmentType: "permanent",
-    engagement: "studio",
-    workingHoursPerDay: 8,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-    color: "#76a5e7",
   });
-  await putEntity(request, owner.cookie, "timeOff", TIME_OFF_ID, {
-    ...scoped,
-    resourceId: RESOURCE_ID,
-    startDate: "2026-06-10",
-    endDate: "2026-06-11",
-    type: "sick",
-    note: PRIVATE_NOTE,
+  await sendPlanningFixtureCommand(request, owner.cookie, accountId, "time-off", {
+    operation: "timeOff.create",
+    timeOff: {
+      id: TIME_OFF_ID,
+      resourceId: RESOURCE_ID,
+      startDate: "2026-06-10",
+      endDate: "2026-06-11",
+      type: "sick",
+      note: PRIVATE_NOTE,
+    },
   });
-  await seedPrivateScheduleEntities(request, owner.cookie, scoped);
+  await sendPlanningFixtureCommand(request, owner.cookie, accountId, "clients", {
+    operation: "catalogue.create",
+    entity: {
+      entity: "clients",
+      id: CLIENT_ID,
+      fields: { name: REAL_CLIENT, color: "#76a5e7", isPrivate: true, codeName: "Nightwing" },
+    },
+  });
+  await sendPlanningFixtureCommand(request, owner.cookie, accountId, "projects", {
+    operation: "catalogue.create",
+    entity: {
+      entity: "projects",
+      id: PROJECT_ID,
+      fields: { clientId: CLIENT_ID, name: REAL_PROJECT, color: "#e776b8", isPrivate: true, codeName: "Aurora" },
+    },
+  });
+  await sendPlanningFixtureCommand(request, owner.cookie, accountId, "activities", {
+    operation: "catalogue.create",
+    entity: {
+      entity: "activities",
+      id: ACTIVITY_ID,
+      fields: { name: "Private project delivery", kind: "project", projectId: PROJECT_ID, phaseId: null },
+    },
+  });
+  await sendPlanningFixtureCommand(request, owner.cookie, accountId, "allocations", {
+    operation: "allocation.create",
+    allocation: {
+      id: ALLOCATION_ID,
+      resourceId: RESOURCE_ID,
+      activityId: ACTIVITY_ID,
+      projectId: null,
+      startDate: "2026-06-01",
+      endDate: "2026-06-05",
+      hoursPerDay: 8,
+      status: "confirmed",
+    },
+  });
 
   seedFixtureMember(accountId, viewer.email, "viewer");
   return { owner, viewer };

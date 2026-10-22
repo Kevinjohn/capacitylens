@@ -6,6 +6,7 @@ import { seed } from '@capacitylens/shared/data/seed'
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 import { encodeRow, resetState } from '#services/state_repository'
 import { acceptInvitation } from '#services/admission/invitations'
+import { createFixtureCompanyForOwner } from '../../helpers/authenticated_data_fixture.js'
 
 const setupToken = 'member-setup-token-0123456789abcdef'
 const password = 'batman-secret-2026'
@@ -59,10 +60,11 @@ test.group('company member access and tracking', (group) => {
       .send()
     owner.assertStatus(201)
     const ownerCookie = owner.cookie('adonis-session')!.value
-    const created = await signed(client.post('/api/orgs'), ownerCookie)
-      .json({ id: 'a-studio', name: 'Wayne Enterprises' })
-      .send()
-    created.assertStatus(201)
+    await createFixtureCompanyForOwner(
+      await userId('bruce.wayne@wayne.example'),
+      'Wayne Enterprises',
+      'a-studio'
+    )
     const editor = await client
       .post('/api/auth/sign-up')
       .json({ email: 'clark.kent@wayne.example', password, name: 'Clark Kent' })
@@ -115,18 +117,15 @@ test.group('company member access and tracking', (group) => {
       .json({ status: 'active' })
       .send()
     restored.assertStatus(200)
-    const blocked = await signed(client.patch('/api/accounts/a-studio'), editorCookie)
-      .json({ name: 'Blocked Edit' })
-      .send()
+    const planningPath = '/api/accounts/a-studio/planning'
+    const blocked = await signed(client.get(planningPath), editorCookie).send()
     blocked.assertStatus(403)
     const access = await signed(
       client.post(`/api/accounts/a-studio/members/${editorId}/enable-access`),
       ownerCookie
     ).send()
     access.assertStatus(200)
-    const allowed = await signed(client.patch('/api/accounts/a-studio'), editorCookie)
-      .json({ name: 'Wayne Studio' })
-      .send()
+    const allowed = await signed(client.get(planningPath), editorCookie).send()
     allowed.assertStatus(200)
     const after = await signed(client.get(directoryPath), ownerCookie).send()
     after.assertStatus(200)
@@ -147,10 +146,11 @@ test.group('company member access and tracking', (group) => {
       .send()
     owner.assertStatus(201)
     const ownerCookie = owner.cookie('adonis-session')!.value
-    const company = await signed(client.post('/api/orgs'), ownerCookie)
-      .json({ id: 'a-studio', name: 'Wayne Enterprises' })
-      .send()
-    company.assertStatus(201)
+    await createFixtureCompanyForOwner(
+      await userId('bruce.wayne@wayne.example'),
+      'Wayne Enterprises',
+      'a-studio'
+    )
     const editor = await client
       .post('/api/auth/sign-up')
       .json({ email: 'clark.kent@wayne.example', password, name: 'Clark Kent' })
@@ -247,10 +247,11 @@ test.group('company member access and tracking', (group) => {
       .send()
     owner.assertStatus(201)
     const ownerCookie = owner.cookie('adonis-session')!.value
-    const first = await signed(client.post('/api/orgs'), ownerCookie)
-      .json({ id: 'a-studio', name: 'Wayne Enterprises' })
-      .send()
-    first.assertStatus(201)
+    await createFixtureCompanyForOwner(
+      await userId('bruce.wayne@wayne.example'),
+      'Wayne Enterprises',
+      'a-studio'
+    )
     const now = new Date().toISOString()
     const otherCompany = { ...seed().accounts[0]!, id: 'a-loft', name: 'Stark Industries' }
     await db.table('accounts').insert(encodeRow('accounts', otherCompany))
@@ -327,10 +328,11 @@ test.group('company member access and tracking', (group) => {
       .send()
     owner.assertStatus(201)
     const ownerCookie = owner.cookie('adonis-session')!.value
-    const first = await signed(client.post('/api/orgs'), ownerCookie)
-      .json({ id: 'a-studio', name: 'Wayne Enterprises' })
-      .send()
-    first.assertStatus(201)
+    await createFixtureCompanyForOwner(
+      await userId('bruce.wayne@wayne.example'),
+      'Wayne Enterprises',
+      'a-studio'
+    )
     const admin = await client
       .post('/api/auth/sign-up')
       .json({ email: 'diana.prince@wayne.example', password, name: 'Diana Prince' })
@@ -354,7 +356,7 @@ test.group('company member access and tracking', (group) => {
     const refusedWhileActive = await signed(client.post('/api/orgs'), adminCookie)
       .json({ id: 'a-loft', name: 'Stark Industries' })
       .send()
-    refusedWhileActive.assertStatus(403)
+    refusedWhileActive.assertStatus(404)
     assert.isNull(await db.from('accounts').where('id', 'a-loft').first())
     const disabled = await signed(
       client.patch(`/api/accounts/a-studio/members/${adminId}/status`),
@@ -369,7 +371,7 @@ test.group('company member access and tracking', (group) => {
     const refused = await signed(client.post('/api/orgs'), ownerCookie)
       .json({ id: 'a-loft', name: 'Stark Industries' })
       .send()
-    refused.assertStatus(403)
+    refused.assertStatus(404)
     assert.isNull(await db.from('accounts').where('id', 'a-loft').first())
   })
 
@@ -384,10 +386,11 @@ test.group('company member access and tracking', (group) => {
       .send()
     owner.assertStatus(201)
     const ownerCookie = owner.cookie('adonis-session')!.value
-    const company = await signed(client.post('/api/orgs'), ownerCookie)
-      .json({ id: 'a-studio', name: 'Wayne Enterprises' })
-      .send()
-    company.assertStatus(201)
+    await createFixtureCompanyForOwner(
+      await userId('bruce.wayne@wayne.example'),
+      'Wayne Enterprises',
+      'a-studio'
+    )
     const editor = await client
       .post('/api/auth/sign-up')
       .json({ email: 'clark.kent@wayne.example', password, name: 'Clark Kent' })
@@ -520,10 +523,11 @@ test.group('company member access and tracking', (group) => {
       .send()
     owner.assertStatus(201)
     const ownerCookie = owner.cookie('adonis-session')!.value
-    const company = await signed(client.post('/api/orgs'), ownerCookie)
-      .json({ id: 'a-studio', name: 'Wayne Enterprises' })
-      .send()
-    company.assertStatus(201)
+    await createFixtureCompanyForOwner(
+      await userId('bruce.wayne@wayne.example'),
+      'Wayne Enterprises',
+      'a-studio'
+    )
     const editor = await client
       .post('/api/auth/sign-up')
       .json({ email: 'clark.kent@wayne.example', password, name: 'Clark Kent' })

@@ -45,13 +45,9 @@ export type ScannedRoutes = {
     'api.planning.allocation.repeat': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.timeOff.repeat': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.settings.update': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.batch': { paramsTuple?: []; params?: {} }
     'api.transfer.preview': { paramsTuple?: []; params?: {} }
     'api.transfer.apply': { paramsTuple?: []; params?: {} }
     'api.state': { paramsTuple?: []; params?: {} }
-    'api.orgs.store': { paramsTuple?: []; params?: {} }
-    'api.accounts.store': { paramsTuple?: []; params?: {} }
-    'api.accounts.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'api.accounts.anonymise': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.resources.anonymise': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.example-data': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
@@ -173,11 +169,8 @@ export type ScannedRoutes = {
     'api.planning.allocation.duplicate': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.allocation.repeat': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.timeOff.repeat': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.batch': { paramsTuple?: []; params?: {} }
     'api.transfer.preview': { paramsTuple?: []; params?: {} }
     'api.transfer.apply': { paramsTuple?: []; params?: {} }
-    'api.orgs.store': { paramsTuple?: []; params?: {} }
-    'api.accounts.store': { paramsTuple?: []; params?: {} }
     'api.accounts.anonymise': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.resources.anonymise': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.example-data': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
@@ -217,7 +210,6 @@ export type ScannedRoutes = {
     'api.planning.phase.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.discipline.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.settings.update': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.accounts.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'api.members.role': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
     'api.members.status': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
   }

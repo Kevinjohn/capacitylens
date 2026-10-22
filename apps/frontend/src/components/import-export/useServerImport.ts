@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { BetaExportDocument } from "@capacitylens/shared/data/betaTransfer";
 import { API_BASE } from "@/data/apiConfig";
-import { flushPendingWrites, refreshActiveAccountSlice, suspendServerWrites } from "@/data/persist";
-import type { RefreshOutcome } from "@/data/persist";
 import { apiFetch, API_BULK_TIMEOUT_MS } from "@/data/requestTimeout";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import { readApiError } from "@/lib/readApiError";
@@ -14,16 +12,19 @@ type SetNotice = ReturnType<typeof useStore.getState>["setNotice"];
 type ImportTransaction = { committed: boolean; requiresReload: boolean };
 type ImportContext = {
   accountId: string;
+  planningContext: ReturnType<typeof useStore.getState>["planning"]["context"];
   transaction: ImportTransaction;
   setRequiresReload: (required: boolean) => void;
   setNotice: SetNotice;
 };
 
+const ownsContext = (context: ImportContext): boolean => {
+  const state = useStore.getState();
+  return state.activeAccountId === context.accountId && state.planning.context === context.planningContext;
+};
+
 const parseCount = (value: unknown): number | null =>
   typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
-const isStaleView = (outcome: RefreshOutcome): boolean =>
-  outcome.kind === "failed" || outcome.kind === "skipped" || outcome.kind === "unattached";
-
 const buildSkippedMessage = (
   skipped: number,
   messages: {
@@ -41,17 +42,25 @@ const markReloadRequired = (context: ImportContext, message: string): void => {
   context.setNotice(message, "error");
 };
 
-const refreshRespectingNotices = async (accountId: string) => {
+const refreshRespectingNotices = async (context: ImportContext) => {
   const noticeBefore = useStore.getState().notice;
-  const outcome = await refreshActiveAccountSlice(accountId);
+  const outcome = ownsContext(context) && (await useStore.getState().refreshPlanning({ fresh: true }));
   const noticeAfter = useStore.getState().notice;
-  return { outcome, errorRaised: noticeAfter !== noticeBefore && noticeAfter?.tone === "error" };
+  return {
+    outcome: outcome && ownsContext(context),
+    errorRaised: noticeAfter !== noticeBefore && noticeAfter?.tone === "error",
+  };
 };
 
 const reconcileUnknownOutcome = async (context: ImportContext): Promise<void> => {
   context.transaction.committed = true;
-  const outcome = await refreshActiveAccountSlice(context.accountId).catch((): RefreshOutcome => ({ kind: "failed" }));
-  if (isStaleView(outcome)) {
+  if (!ownsContext(context)) return;
+  const outcome = await useStore
+    .getState()
+    .refreshPlanning({ fresh: true })
+    .catch(() => false);
+  if (!ownsContext(context)) return;
+  if (!outcome) {
     markReloadRequired(context, m.data_import_unknown_reload_required());
     return;
   }
@@ -59,8 +68,10 @@ const reconcileUnknownOutcome = async (context: ImportContext): Promise<void> =>
 };
 
 const reportCommittedImport = async (context: ImportContext, successMessage: string): Promise<void> => {
-  const { outcome, errorRaised } = await refreshRespectingNotices(context.accountId);
-  if (isStaleView(outcome)) {
+  if (!ownsContext(context)) return;
+  const { outcome, errorRaised } = await refreshRespectingNotices(context);
+  if (!ownsContext(context)) return;
+  if (!outcome) {
     markReloadRequired(context, m.data_import_refresh_failed());
     return;
   }
@@ -70,6 +81,7 @@ const reportCommittedImport = async (context: ImportContext, successMessage: str
 const completeImport = async (response: Response, context: ImportContext): Promise<void> => {
   context.transaction.committed = true;
   const body: unknown = await response.json().catch(() => null);
+  if (!ownsContext(context)) return;
   const imported = parseCount(isRecord(body) ? body.imported : undefined);
   const skipped = parseCount(isRecord(body) ? body.skipped : undefined) ?? 0;
   if (imported === null) {
@@ -103,12 +115,18 @@ const runServerImport = async (
   context: ImportContext,
 ): Promise<void> => {
   const { accountId, transaction, setNotice } = context;
-  if ((await flushPendingWrites()).kind !== "clean") {
+  if (!useStore.getState().planningReadyForReplacement()) {
     setNotice(m.data_import_blocked_unsynced(), "error");
     return;
   }
-  const resumeWrites = suspendServerWrites();
+  const resumeWrites = useStore.getState().suspendPlanningCommands();
+  if (!resumeWrites) {
+    setNotice(m.data_import_blocked_unsynced(), "error");
+    return;
+  }
+  context.planningContext = useStore.getState().planning.context;
   try {
+    if (!ownsContext(context)) return;
     const response = await apiFetch(
       `${API_BASE}/api/transfer/apply`,
       {
@@ -119,14 +137,18 @@ const runServerImport = async (
       },
       API_BULK_TIMEOUT_MS,
     );
+    if (!ownsContext(context)) return;
     if (response.ok) await completeImport(response, context);
     else if (response.status === 408 || response.status >= 500) await reconcileUnknownOutcome(context);
-    else setNotice((await readApiError(response)) ?? m.data_import_failed({ status: response.status }), "error");
+    else {
+      const message = (await readApiError(response)) ?? m.data_import_failed({ status: response.status });
+      if (ownsContext(context)) setNotice(message, "error");
+    }
   } catch {
     // A missing import response does not prove rejection; reconcile server state before permitting another replacement.
-    await reconcileUnknownOutcome(context);
+    if (ownsContext(context)) await reconcileUnknownOutcome(context);
   } finally {
-    if (!transaction.requiresReload) resumeWrites({ dropParkedEdits: transaction.committed });
+    if (!transaction.requiresReload) resumeWrites();
   }
 };
 
@@ -157,11 +179,18 @@ export function useServerImport() {
     setRequiresReload(false);
     const transaction: ImportTransaction = { committed: false, requiresReload: false };
     try {
-      await runServerImport(document, baseRevision, proofId, { accountId, transaction, setRequiresReload, setNotice });
+      await runServerImport(document, baseRevision, proofId, {
+        accountId,
+        planningContext: useStore.getState().planning.context,
+        transaction,
+        setRequiresReload,
+        setNotice,
+      });
       if (!transaction.requiresReload) setBusy(false);
     } catch (error) {
       // Report a failed import-start boundary and release busy state so recovery controls remain usable.
-      setNotice(resolveErrorMessage(error) || m.data_import_failed({ status: 0 }), "error");
+      if (useStore.getState().activeAccountId === accountId)
+        setNotice(resolveErrorMessage(error) || m.data_import_failed({ status: 0 }), "error");
       setBusy(false);
     } finally {
       if (!transaction.requiresReload) importInFlightRef.current = false;

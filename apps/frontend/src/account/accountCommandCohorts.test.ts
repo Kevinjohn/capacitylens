@@ -10,7 +10,7 @@ vi.mock("@/data/requestTimeout", () => ({
   API_BULK_TIMEOUT_MS: 120_000,
   createRequestSignal: vi.fn((signal?: AbortSignal) => signal),
 }));
-vi.mock("@/auth/apiFetchReauth", () => ({ apiFetchReauth: vi.fn() }));
+vi.mock("@/auth/apiFetchReauth", () => ({ apiFetchReauth: mocks.apiFetch }));
 
 import { accountClient, bindStoredAccountCommandsToIdentity, clearStoredAccountCommands } from "./accountClient";
 
@@ -48,7 +48,7 @@ async function flushPromiseContinuations(): Promise<void> {
 
 const ok = () => new Response(null, { status: 201 });
 const unknown = () => new Response(null, { status: 503 });
-const createWorkspace = () => accountClient.createWorkspace({ name: "Wayne Enterprises" });
+const createInvitation = () => accountClient.createInvitation({ accountId: "a-studio", role: "viewer" });
 
 describe("implicit account command cohorts", () => {
   beforeEach(() => {
@@ -68,7 +68,7 @@ describe("implicit account command cohorts", () => {
     const requests = [deferred<Response>(), deferred<Response>()] as const;
     mocks.apiFetch.mockImplementationOnce(() => requests[0].promise).mockImplementationOnce(() => requests[1].promise);
 
-    const siblings = [createWorkspace(), createWorkspace()];
+    const siblings = [createInvitation(), createInvitation()];
     await waitForRequests(2);
     const shared = commandHeadersAt(0);
     expect(commandHeadersAt(1)).toEqual(shared);
@@ -79,9 +79,9 @@ describe("implicit account command cohorts", () => {
     await Promise.all(siblings);
 
     mocks.apiFetch.mockResolvedValueOnce(ok()).mockResolvedValueOnce(ok());
-    await createWorkspace();
+    await createInvitation();
     expect(commandHeadersAt(2)).toEqual(shared);
-    await createWorkspace();
+    await createInvitation();
     expect(commandHeadersAt(3)).not.toEqual(shared);
   });
 
@@ -89,7 +89,7 @@ describe("implicit account command cohorts", () => {
     const requests = [deferred<Response>(), deferred<Response>(), deferred<Response>()] as const;
     for (const request of requests) mocks.apiFetch.mockImplementationOnce(() => request.promise);
 
-    const siblings = [createWorkspace(), createWorkspace(), createWorkspace()];
+    const siblings = [createInvitation(), createInvitation(), createInvitation()];
     await waitForRequests(3);
     const shared = commandHeadersAt(0);
     expect(commandHeadersAt(1)).toEqual(shared);
@@ -101,7 +101,7 @@ describe("implicit account command cohorts", () => {
     await Promise.all(siblings);
 
     mocks.apiFetch.mockResolvedValueOnce(unknown());
-    await createWorkspace();
+    await createInvitation();
     expect(commandHeadersAt(3)).toEqual(shared);
   });
 
@@ -110,10 +110,10 @@ describe("implicit account command cohorts", () => {
     const definitive = deferred<Response>();
     mocks.apiFetch.mockImplementationOnce(() => uncertain.promise).mockImplementationOnce(() => definitive.promise);
 
-    const uncertainCall = accountClient.createWorkspace({ name: "Wayne Enterprises" });
+    const uncertainCall = accountClient.createInvitation({ accountId: "a-studio", role: "viewer" });
     await waitForRequests(1);
     const uncertainHeaders = commandHeadersAt(0);
-    const definitiveCall = accountClient.createWorkspace({ name: "Daily Planet" });
+    const definitiveCall = accountClient.createInvitation({ accountId: "a-studio", role: "editor" });
     await waitForRequests(2);
     const definitiveHeaders = commandHeadersAt(1);
     expect(definitiveHeaders).not.toEqual(uncertainHeaders);
@@ -123,9 +123,9 @@ describe("implicit account command cohorts", () => {
     await Promise.all([uncertainCall, definitiveCall]);
 
     mocks.apiFetch.mockResolvedValueOnce(unknown()).mockResolvedValueOnce(ok());
-    await accountClient.createWorkspace({ name: "Wayne Enterprises" });
+    await accountClient.createInvitation({ accountId: "a-studio", role: "viewer" });
     expect(commandHeadersAt(2)).toEqual(uncertainHeaders);
-    await accountClient.createWorkspace({ name: "Daily Planet" });
+    await accountClient.createInvitation({ accountId: "a-studio", role: "editor" });
     expect(commandHeadersAt(3)).not.toEqual(definitiveHeaders);
   });
 
@@ -134,9 +134,9 @@ describe("implicit account command cohorts", () => {
     const second = deferred<Response>();
     mocks.apiFetch.mockImplementationOnce(() => first.promise).mockImplementationOnce(() => second.promise);
 
-    const firstCall = createWorkspace();
+    const firstCall = createInvitation();
     await waitForRequests(1);
-    const secondCall = createWorkspace();
+    const secondCall = createInvitation();
     await waitForRequests(2);
     const shared = commandHeadersAt(0);
     first.resolve(ok());
@@ -144,7 +144,7 @@ describe("implicit account command cohorts", () => {
 
     const third = deferred<Response>();
     mocks.apiFetch.mockImplementationOnce(() => third.promise);
-    const thirdCall = createWorkspace();
+    const thirdCall = createInvitation();
     await waitForRequests(3);
     expect(commandHeadersAt(2)).toEqual(shared);
     second.resolve(ok());
@@ -152,7 +152,7 @@ describe("implicit account command cohorts", () => {
     await Promise.all([secondCall, thirdCall]);
 
     mocks.apiFetch.mockResolvedValueOnce(ok());
-    await createWorkspace();
+    await createInvitation();
     expect(commandHeadersAt(3)).not.toEqual(shared);
   });
 
@@ -161,9 +161,9 @@ describe("implicit account command cohorts", () => {
     const failure = deferred<Response>();
     mocks.apiFetch.mockImplementationOnce(() => success.promise).mockImplementationOnce(() => failure.promise);
 
-    const successfulCall = createWorkspace();
+    const successfulCall = createInvitation();
     await waitForRequests(1);
-    const failedCall = createWorkspace();
+    const failedCall = createInvitation();
     await waitForRequests(2);
     const shared = commandHeadersAt(0);
     failure.reject(new TypeError("network unavailable"));
@@ -172,7 +172,7 @@ describe("implicit account command cohorts", () => {
     await successfulCall;
 
     mocks.apiFetch.mockResolvedValueOnce(unknown());
-    await createWorkspace();
+    await createInvitation();
     expect(commandHeadersAt(2)).toEqual(shared);
   });
 
@@ -182,11 +182,11 @@ describe("implicit account command cohorts", () => {
     mocks.apiFetch.mockImplementationOnce(() => identityA.promise).mockImplementationOnce(() => identityB.promise);
 
     bindStoredAccountCommandsToIdentity("bruce-wayne");
-    const callA = createWorkspace();
+    const callA = createInvitation();
     await waitForRequests(1);
     const headersA = commandHeadersAt(0);
     bindStoredAccountCommandsToIdentity("clark-kent");
-    const callB = createWorkspace();
+    const callB = createInvitation();
     await waitForRequests(2);
     const headersB = commandHeadersAt(1);
     expect(headersB).not.toEqual(headersA);
@@ -197,7 +197,7 @@ describe("implicit account command cohorts", () => {
     await callB;
 
     mocks.apiFetch.mockResolvedValueOnce(unknown());
-    await createWorkspace();
+    await createInvitation();
     expect(commandHeadersAt(2)).toEqual(headersB);
   });
 
@@ -205,7 +205,7 @@ describe("implicit account command cohorts", () => {
     const request = deferred<Response>();
     mocks.apiFetch.mockImplementationOnce(() => request.promise);
     bindStoredAccountCommandsToIdentity("bruce-wayne");
-    const call = createWorkspace();
+    const call = createInvitation();
     await waitForRequests(1);
 
     clearStoredAccountCommands();
@@ -213,7 +213,7 @@ describe("implicit account command cohorts", () => {
     await call;
 
     mocks.apiFetch.mockResolvedValueOnce(ok());
-    await createWorkspace();
+    await createInvitation();
     expect(commandHeadersAt(1)).not.toEqual(commandHeadersAt(0));
   });
 
@@ -221,7 +221,7 @@ describe("implicit account command cohorts", () => {
     const stale = deferred<Response>();
     mocks.apiFetch.mockImplementationOnce(() => stale.promise);
     bindStoredAccountCommandsToIdentity("bruce-wayne");
-    const staleCall = createWorkspace();
+    const staleCall = createInvitation();
     await waitForRequests(1);
 
     clearStoredAccountCommands();
@@ -229,7 +229,7 @@ describe("implicit account command cohorts", () => {
 
     const fresh = deferred<Response>();
     mocks.apiFetch.mockImplementationOnce(() => fresh.promise);
-    const freshCall = createWorkspace();
+    const freshCall = createInvitation();
     await waitForRequests(2);
     const freshHeaders = commandHeadersAt(1);
 
@@ -237,7 +237,7 @@ describe("implicit account command cohorts", () => {
     await staleCall;
 
     mocks.apiFetch.mockResolvedValueOnce(ok());
-    const thirdCall = createWorkspace();
+    const thirdCall = createInvitation();
     await waitForRequests(3);
     expect(commandHeadersAt(2)).toEqual(freshHeaders);
 
@@ -259,7 +259,7 @@ describe("implicit account command cohorts", () => {
     const ambiguous = deferred<Response>();
     mocks.apiFetch.mockImplementationOnce(() => definitive.promise).mockImplementationOnce(() => ambiguous.promise);
 
-    const siblings = [createWorkspace(), createWorkspace()];
+    const siblings = [createInvitation(), createInvitation()];
     await waitForRequests(2);
     const shared = commandHeadersAt(0);
     definitive.resolve(ok());
@@ -267,7 +267,7 @@ describe("implicit account command cohorts", () => {
     await Promise.all(siblings);
 
     mocks.apiFetch.mockResolvedValueOnce(unknown());
-    await createWorkspace();
+    await createInvitation();
     expect(commandHeadersAt(2)).toEqual(shared);
   });
 });

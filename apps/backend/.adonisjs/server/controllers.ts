@@ -7,7 +7,6 @@ export const controllers = {
   ActionProofs: () => import('#controllers/action_proofs_controller'),
   Anonymise: () => import('#controllers/anonymise_controller'),
   Auth: () => import('#controllers/auth_controller'),
-  Batch: () => import('#controllers/batch_controller'),
   Companies: () => import('#controllers/companies_controller'),
   Credential: () => import('#controllers/credential_controller'),
   ExampleData: () => import('#controllers/example_data_controller'),

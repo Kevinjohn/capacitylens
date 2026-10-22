@@ -458,7 +458,7 @@ test.group('authenticated planning operations', (group) => {
         ],
       })
       .send()
-    retained.assertStatus(400)
+    retained.assertStatus(404)
     assert.deepEqual(await readState(accountId, true), before)
     assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0)
     assert.lengthOf(await db.from('audit_entries').where('account_id', accountId), 0)

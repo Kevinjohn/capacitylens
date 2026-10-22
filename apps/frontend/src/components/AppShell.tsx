@@ -23,7 +23,6 @@ import { endMasquerade, retryMasqueradeProjection } from "@/auth/accountTransiti
 import { Button } from "./ui/button";
 import { ROUTE_CAPACITY_OVERVIEW, ROUTE_DIAGNOSTICS } from "@/lib/tourAnchors";
 import { useDiagnosticsAccessDecision } from "./diagnostics/useDiagnosticsAccessDecision";
-import { retryActiveAccountLoad } from "@/data/persist";
 import { readPlanningProblem } from "@/data/planning/planningCacheController";
 import { chooseAnotherAccountAfterLoadFailure } from "./accountLoadRecoveryActions";
 import { useAuth } from "@/auth/authContext";
@@ -163,9 +162,7 @@ function GatedApp({
       activeAccountName={activeAccount?.name ?? m.account_load_fallback_name()}
       onFakeSignIn={onFakeSignIn}
       onRetryActiveAccountLoad={() =>
-        activeAccountId
-          ? retryActiveAccountLoad(activeAccountId).then((outcome) => outcome.kind !== "failed")
-          : Promise.resolve(false)
+        activeAccountId ? useStore.getState().refreshPlanning() : Promise.resolve(false)
       }
       onChooseAnotherAccount={() =>
         void chooseAnotherAccountAfterLoadFailure({ accountRoute: allowWithoutActiveAccount, navigate: navigate })
@@ -246,6 +243,9 @@ function GatedMain({
   orientation: ReturnType<typeof useProductOrientation>;
 }) {
   const loader = <AppShellLoader />;
+  const projectionChanging = useStore(
+    (state) => state.masquerade.kind === "starting" || state.masquerade.kind === "ending",
+  );
   const planningProblem = useStore((state) => readPlanningProblem(state.planning));
   return (
     <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-auto">
@@ -273,7 +273,7 @@ function GatedMain({
         />
       )}
       <GettingStarted />
-      {hydrated ? (
+      {hydrated && !projectionChanging ? (
         <Suspense fallback={loader}>
           <Outlet />
         </Suspense>
@@ -368,7 +368,7 @@ export function AppShell() {
         demoAuthActive={demoAuthActive}
         fakeSignedIn={fakeSignedIn}
         hasActiveAccount={activeAccount !== undefined}
-        allowWithoutActiveAccount={accountRoute}
+        allowWithoutActiveAccount={accountRoute || (masquerade.kind !== "inactive" && masquerade.state !== undefined)}
         activeAccountId={activeAccountId}
         activeAccountLoadFailed={activeAccountLoadFailed}
         onFakeSignIn={() => setFakeSignedIn(true)}

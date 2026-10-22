@@ -8,12 +8,4 @@ export default class extends BaseSchema {
       table.index(['account_id', 'actor_id', 'origin_session_id', 'restoration_group_id'])
     })
   }
-
-  async down() {
-    this.schema.alterTable('planning_mutations', (table) => {
-      table.dropIndex(['account_id', 'actor_id', 'origin_session_id', 'restoration_group_id'])
-      table.dropColumn('restoration_group_id')
-      table.dropColumn('origin_session_id')
-    })
-  }
 }

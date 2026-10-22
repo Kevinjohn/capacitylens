@@ -1,7 +1,5 @@
 import { useCallback, useMemo, useRef } from "react";
 import { API_BASE, isServerConfigured } from "@/data/apiConfig";
-import { persistenceAdapter } from "@/data/storageAdapter";
-import { refreshActiveAccountSlice } from "@/data/persist";
 import { useStore } from "@/store/useStore";
 import type { LifecycleEntity } from "@/store/useStore";
 import type { PlanningCommand } from "@/data/planning/planningCommands";
@@ -34,31 +32,17 @@ export interface LifecycleActions {
   anonymise: (id: string) => Promise<void>;
 }
 
-// Reload through the persistence orchestrator so pending ordinary edits settle before
-// anonymisation reseeds the baseline. An unattached fallback has no queued writes
-// to race; a failed save preserves the optimistic edit until recovery.
+// A lifecycle response is followed by the same canonical read as typed planning writes.
 type LifecycleReloadOutcome =
   { kind: "reloaded" } | { kind: "skipped" } | { kind: "failed" } | { kind: "stale-account" };
 
-async function reloadFromServer(accountId: string): Promise<LifecycleReloadOutcome> {
-  // A lifecycle POST can finish after a company switch. Check ownership before reload
-  // so its old tenant slice cannot replace the current tenant, including the unattached fallback.
-  if (useStore.getState().activeAccountId !== accountId) return { kind: "stale-account" };
-  // Anything but 'unattached' means the orchestrator owned the call, including 'skipped' (a
-  // failed save's edits win; the committed change appears on the next successful refresh) and
-  // 'failed' (surfaced via the persist banner). Only the no-orchestrator case may fall back.
-  const outcome = await refreshActiveAccountSlice(accountId);
-  // `skipped` also covers an orchestrator superseded by a tenant switch. Re-check ownership so the
-  // caller can keep that deliberate stale-tenant outcome silent while treating a same-tenant skip
-  // (normally a failed save that must not be overwritten) as committed-but-stale.
-  if (useStore.getState().activeAccountId !== accountId) return { kind: "stale-account" };
-  if (outcome.kind !== "unattached") return outcome;
-  const slice = await persistenceAdapter.loadAll(accountId);
-  // The bare load is asynchronous too. A switch can happen after the pre-load guard but before the
-  // old slice arrives, so check ownership again at the exact store-install boundary.
-  if (useStore.getState().activeAccountId !== accountId) return { kind: "stale-account" };
-  useStore.getState().replaceAll(slice);
-  return { kind: "reloaded" };
+async function reloadFromServer(context: ServerLifecycleContext): Promise<LifecycleReloadOutcome> {
+  // A lifecycle POST can finish after a company switch. The planning controller rejects
+  // reads from a departed context before publication.
+  if (!ownsLifecycleContext(context)) return { kind: "stale-account" };
+  const accepted = await useStore.getState().refreshPlanning({ fresh: true });
+  if (!ownsLifecycleContext(context)) return { kind: "stale-account" };
+  return accepted ? { kind: "reloaded" } : { kind: "failed" };
 }
 
 function buildCommittedButStaleMessage(outcome: "skipped" | "failed", cause?: unknown): string {
@@ -78,7 +62,13 @@ type SetNotice = ReturnType<typeof useStore.getState>["setNotice"];
 
 interface ServerLifecycleContext {
   activeAccountId: string;
+  planningContext: ReturnType<typeof useStore.getState>["planning"]["context"];
   setNotice: SetNotice;
+}
+
+function ownsLifecycleContext(context: ServerLifecycleContext): boolean {
+  const state = useStore.getState();
+  return state.activeAccountId === context.activeAccountId && state.planning.context === context.planningContext;
 }
 
 type ReconcileLifecycleFailureOptions = { context: ServerLifecycleContext; mutationConfirmed: boolean; cause: unknown };
@@ -88,7 +78,7 @@ async function reconcileLifecycleFailure({
   cause,
 }: ReconcileLifecycleFailureOptions): Promise<boolean> {
   const { activeAccountId, setNotice } = context;
-  if (useStore.getState().activeAccountId !== activeAccountId) return false;
+  if (!ownsLifecycleContext(context)) return false;
   if (mutationConfirmed) {
     const message = buildCommittedButStaleMessage("failed", cause);
     reloadRequiredByAccount.set(activeAccountId, message);
@@ -96,7 +86,7 @@ async function reconcileLifecycleFailure({
     return false;
   }
   try {
-    const outcome = await reloadFromServer(activeAccountId);
+    const outcome = await reloadFromServer(context);
     if (outcome.kind === "stale-account") return false;
     if (outcome.kind !== "reloaded") {
       throw new Error(`Authoritative reload did not complete (${outcome.kind}).`, { cause });
@@ -108,7 +98,7 @@ async function reconcileLifecycleFailure({
     return true;
   } catch (reloadError) {
     // If authoritative recovery fails after an uncertain mutation, retain the reload-required block so another destructive attempt cannot race unknown server state.
-    if (useStore.getState().activeAccountId !== activeAccountId) return false;
+    if (!ownsLifecycleContext(context)) return false;
     const message = `The lifecycle request had an unknown outcome and could not be reconciled. Reload before retrying. ${resolveErrorMessage(reloadError)} Original request: ${resolveErrorMessage(cause)}`;
     reloadRequiredByAccount.set(activeAccountId, message);
     setNotice(message, "error");
@@ -123,7 +113,18 @@ async function dispatchServerLifecycle(context: ServerLifecycleContext, id: stri
     setNotice(reloadRequiredMessage, "error");
     return false;
   }
+  if (!useStore.getState().planningReadyForReplacement()) {
+    setNotice("Finish loading or resolving company changes before anonymising a person.", "error");
+    return false;
+  }
+  const release = useStore.getState().suspendPlanningCommands();
+  if (!release) {
+    setNotice("Finish loading or resolving company changes before anonymising a person.", "error");
+    return false;
+  }
+  context.planningContext = useStore.getState().planning.context;
   let mutationConfirmed = false;
+  let keepBlocked = false;
   try {
     const response = await apiFetch(
       `${API_BASE}/api/accounts/${encodeURIComponent(activeAccountId)}/resources/${encodeURIComponent(id)}/anonymise`,
@@ -135,26 +136,33 @@ async function dispatchServerLifecycle(context: ServerLifecycleContext, id: stri
       },
       API_BULK_TIMEOUT_MS,
     );
+    if (!ownsLifecycleContext(context)) return false;
     if (isLifecycleOutcomeUnknown(response)) {
       throw new Error(`HTTP ${response.status} did not confirm whether the lifecycle mutation committed.`);
     }
     if (!response.ok && response.status !== 204) {
-      setNotice((await readApiError(response)) ?? m.settings_archived_err_action({ status: response.status }), "error");
+      const message = (await readApiError(response)) ?? m.settings_archived_err_action({ status: response.status });
+      if (ownsLifecycleContext(context)) setNotice(message, "error");
       return false;
     }
     mutationConfirmed = true;
-    const outcome = await reloadFromServer(activeAccountId);
+    const outcome = await reloadFromServer(context);
     if (outcome.kind === "stale-account") return false;
     if (outcome.kind !== "reloaded") {
       const message = buildCommittedButStaleMessage(outcome.kind);
       reloadRequiredByAccount.set(activeAccountId, message);
+      keepBlocked = true;
       setNotice(message, "error");
       return false;
     }
     return true;
   } catch (cause) {
     // Reconcile the lifecycle result using whether mutation was confirmed so a refresh failure cannot be mistaken for a refused write.
-    return reconcileLifecycleFailure({ context: context, mutationConfirmed: mutationConfirmed, cause: cause });
+    const reconciled = await reconcileLifecycleFailure({ context, mutationConfirmed, cause });
+    keepBlocked = !reconciled && ownsLifecycleContext(context);
+    return reconciled;
+  } finally {
+    if (!keepBlocked) release();
   }
 }
 
@@ -195,7 +203,10 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
     async (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
       if (!activeAccountId) return;
       if (verb !== "anonymise" || entity !== "resources") throw new Error("Unsupported anonymisation target.");
-      const reloaded = await dispatchServerLifecycle({ activeAccountId, setNotice }, id);
+      const reloaded = await dispatchServerLifecycle(
+        { activeAccountId, planningContext: useStore.getState().planning.context, setNotice },
+        id,
+      );
       if (reloaded) {
         notifyInactiveDataChanged(activeAccountId);
         onReloaded?.();

@@ -61,8 +61,8 @@ function registerSigningRevealsAppSigningOutTest() {
     page,
     request,
   }) => {
-    // A fresh per-run user guarantees the sign-up cookie (no 422 on a reused DB); /api/orgs
-    // creates the first company and makes the caller its Owner.
+    // A fresh per-run user guarantees the sign-up cookie; the isolated fixture then
+    // creates one company and makes that principal its owner.
     const { email, cookie } = await signUpUser(`login-${Date.now()}@capacitylens.dev`);
     await bootstrapOrg(request, cookie, ORG_NAME);
 
@@ -137,8 +137,7 @@ function registerLoginWithoutMembershipTests() {
     page,
     request,
   }, testInfo) => {
-    // A user with no account memberships sees no company data. Company creation requires the owner
-    // or admin role enforced by POST /api/orgs, so the empty state tells them to request an invitation.
+    // A user with no memberships sees no company data and must request an invitation.
     const isolationSuffix = `${Date.now()}-${testInfo.workerIndex}`;
     const controlOrgName = `Isolation Control ${isolationSuffix}`;
     const controlOwner = await signUpUser(`isolation-owner-${isolationSuffix}@capacitylens.dev`);

@@ -120,6 +120,8 @@ export interface StoreState extends StoreEntityActions {
   future: AppData[];
   /** Planning cache metadata, including the typed allocation Undo/Redo history. Page-local. */
   planning: PlanningControllerMetadata;
+  /** Advances only when a current planning request confirms that sign-in authority was lost. */
+  planningAuthLossVersion: number;
   /** Submit one typed planning command and resolve after authoritative reconciliation. */
   sendPlanningCommand: (command: PlanningCommand, original?: unknown) => Promise<void>;
   persistError: boolean;
@@ -265,7 +267,13 @@ export interface StoreState extends StoreEntityActions {
   /** Re-apply the most recently undone snapshot, if any. */
   redo: () => void;
   /** Load the active company's canonical planning snapshot, entering its planning context first. */
-  refreshPlanning: () => Promise<boolean>;
+  refreshPlanning: (options?: { fresh?: boolean }) => Promise<boolean>;
+  /** End the current planning context and discard private planning rows. */
+  clearPlanning: () => void;
+  /** Atomically claim an out-of-band replacement; release is idempotent for its context. */
+  suspendPlanningCommands: () => (() => void) | null;
+  /** Whether the active canonical planning view is settled enough for a bulk replacement. */
+  planningReadyForReplacement: () => boolean;
   /** Publish a strict demo import and invalidate page-local planning history in one store change. */
   replaceAfterDemoImport: (data: AppData) => void;
   /** Undo the latest typed allocation change as one typed planning write. */

@@ -1,16 +1,13 @@
 import { test, expect } from "./dbFixtures";
-import { API, resetServer } from "./serverTestState";
+import { resetServer } from "./serverTestState";
 import { waitForAppLanding } from "./browserTestSupport";
 
 test.describe("single-company reload entry", () => {
   test.beforeEach(async ({ request }) => {
-    await resetServer({ request: request, withSeed: false });
+    await resetServer({ request: request, withSeed: true });
   });
 
-  test("opens and resumes a deep route without a company picker", async ({ page, request }) => {
-    const created = await request.post(`${API}/api/orgs`, { data: { name: "Wayne Enterprises" } });
-    expect(created.status()).toBe(201);
-
+  test("opens and resumes a deep route without a company picker", async ({ page }) => {
     await page.goto("/clients");
     await waitForAppLanding(page, page.locator("#main"));
     await expect(page.getByRole("heading", { name: "Clients", exact: true })).toBeVisible();

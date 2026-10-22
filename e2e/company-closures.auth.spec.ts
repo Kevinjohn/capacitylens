@@ -1,6 +1,15 @@
 import { test, expect } from "./fixtures";
 import type { APIRequestContext, Page } from "./fixtures";
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./authTestSupport";
+import {
+  AUTH_API,
+  AUTH_PASSWORD,
+  bootstrapOrg,
+  createFixturePerson,
+  seedFixtureMember,
+  sendPlanningFixtureCommand,
+  signUpUser,
+} from "./authTestSupport";
+import { externalCapacityDefaults } from "@capacitylens/shared/types/entities";
 import {
   computedStyles,
   disableCssMotion,
@@ -18,23 +27,9 @@ const ORG = `Gotham Closures ${STAMP}`;
 const OWNER = `closure-owner-${STAMP}@capacitylens.dev`;
 const EDITOR = `closure-editor-${STAMP}@capacitylens.dev`;
 const IDS = {
-  person: `barbara-${STAMP}`,
-  external: `kord-${STAMP}`,
+  person: crypto.randomUUID(),
+  external: crypto.randomUUID(),
 };
-
-async function putEntity(
-  request: APIRequestContext,
-  cookie: string,
-  entity: string,
-  id: string,
-  data: Record<string, unknown>,
-) {
-  const response = await request.post(`${AUTH_API}/api/batch`, {
-    headers: { cookie, "content-type": "application/json" },
-    data: { ops: [{ method: "PUT", table: entity, id, row: { id, ...data } }] },
-  });
-  expect(response.status(), `seed ${entity}/${id}`).toBe(200);
-}
 
 async function signInAsEditor(page: Page) {
   await freezeBrowserDate(page);
@@ -51,38 +46,39 @@ async function seedClosureAccount(request: APIRequestContext) {
   const owner = await signUpUser(OWNER);
   const editor = await signUpUser(EDITOR);
   const accountId = await bootstrapOrg(request, owner.cookie, ORG);
-  const seededAt = new Date().toISOString();
-  const scoped = { accountId, createdAt: seededAt, updatedAt: seededAt };
+  await sendPlanningFixtureCommand(
+    request,
+    owner.cookie,
+    accountId,
+    "settings",
+    {
+      operation: "settings.update",
+      changes: { externalEnabled: true },
+    },
+    "patch",
+  );
 
-  const accountUpdate = await request.patch(`${AUTH_API}/api/accounts/${accountId}`, {
-    headers: { cookie: owner.cookie },
-    data: { externalEnabled: true },
-  });
-  expect(accountUpdate.status()).toBe(200);
-
-  await putEntity(request, owner.cookie, "resources", IDS.person, {
-    ...scoped,
-    kind: "person",
+  await createFixturePerson(request, owner.cookie, accountId, {
+    id: IDS.person,
     name: "Barbara Gordon",
     role: "Designer",
-    employmentType: "permanent",
-    engagement: "studio",
-    workingHoursPerDay: 8,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-    color: "#76a5e7",
   });
-  await putEntity(request, owner.cookie, "resources", IDS.external, {
-    ...scoped,
-    kind: "external",
-    name: "Kord Industries",
-    role: "Partner studio",
-    employmentType: "permanent",
-    engagement: "studio",
-    workingHoursPerDay: 8,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-    color: "#9ca3af",
+  await sendPlanningFixtureCommand(request, owner.cookie, accountId, "resources", {
+    operation: "resource.create",
+    id: IDS.external,
+    fields: {
+      kind: "external",
+      name: "Kord Industries",
+      role: "Partner studio",
+      avatarUrl: null,
+      disciplineId: null,
+      ...externalCapacityDefaults(),
+      projectId: null,
+      color: "#9ca3af",
+      isFavourite: null,
+      firstAvailableDate: null,
+      lastAvailableDate: null,
+    },
   });
 
   seedFixtureMember(accountId, editor.email, "editor");

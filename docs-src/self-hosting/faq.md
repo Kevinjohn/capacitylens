@@ -24,8 +24,10 @@ records.
 
 ### Who creates the first company?
 
-The first identity completes setup using `CAPACITYLENS_SETUP_TOKEN`; that person becomes the first
-Owner and creates the company. Remove the token after setup.
+The first identity can complete sign-in setup using `CAPACITYLENS_SETUP_TOKEN`. This does not
+create a company or Owner membership. The current native release has no supported first-company
+provisioning command or screen, so an empty installation cannot yet be put into service. Remove
+the token after identity setup.
 
 ### Which company sign-in providers are available?
 
