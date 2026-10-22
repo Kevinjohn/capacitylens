@@ -1,6 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import type { AppData } from '@capacitylens/shared/types/entities'
+import type { Allocation, AppData } from '@capacitylens/shared/types/entities'
+import {
+  assertAllocationRefs,
+  assertScopedRefs,
+  assertDateRange,
+} from '@capacitylens/shared/domain/mutations'
+import { assertAllocationPlacement } from '@capacitylens/shared/domain/placement'
+import { DomainError } from '@capacitylens/shared/domain/errors'
+import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays'
 import { encodeRow } from '#services/state_repository'
 import { existingRow, PlanningOperationError } from './writer.js'
 
@@ -54,6 +62,7 @@ export async function deleteAllocations(
 export async function restoreGroup(
   trx: TransactionClientContract,
   accountId: string,
+  data: AppData,
   groupId: string,
   identity: RestorationIdentity
 ) {
@@ -81,8 +90,38 @@ export async function restoreGroup(
     .from('deleted_rows')
     .where({ group_id: groupId, entity: 'allocations' })
     .select('payload_json')
-  for (const { payload_json: payload } of saved)
-    await trx.table('allocations').insert(encodeRow('allocations', JSON.parse(String(payload))))
+  const rows = saved.map(({ payload_json: payload }) => JSON.parse(String(payload)) as Allocation)
+  const account = data.accounts.find((row) => row.id === accountId)
+  const accountWorkingDays = normalizeAccountWorkingDays(
+    account?.workingDays,
+    account?.weekStartsOn === 0 ? 0 : 1
+  )
+  try {
+    for (const row of rows) {
+      const activity = data.activities.find((item) => item.id === row.activityId)
+      if (activity) assertScopedRefs(data, accountId, 'activities', { ...activity })
+      assertAllocationRefs(
+        data,
+        accountId,
+        row.resourceId,
+        row.activityId,
+        row.hoursPerDay,
+        row.projectId
+      )
+      assertDateRange(row.startDate, row.endDate)
+      const resource = data.resources.find((item) => item.id === row.resourceId)!
+      assertAllocationPlacement({ allocation: row, resource, accountWorkingDays })
+    }
+  } catch (error) {
+    if (!(error instanceof DomainError)) throw error
+    throw new PlanningOperationError(
+      409,
+      'restoration_conflict',
+      'The saved allocations no longer fit the current planning data.'
+    )
+  }
+  for (const row of rows)
+    await trx.table('allocations').insert(encodeRow('allocations', { ...row }))
 }
 
 /** Lookup exposes only the caller's own unconsumed handle for the original mutation. */

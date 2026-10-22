@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Refuse allocation restoration when current references or resource availability are incompatible, keeping the deletion available for retry.
+
 ### Added
 
 - Typed allocation deletion and restoration routes. Deleting one allocation or a listed set saves
