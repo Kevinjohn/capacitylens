@@ -195,9 +195,9 @@ test.group('M1 HTTP contract', (group) => {
       assert.deepEqual(response.body(), {
         server: {
           connectivity: 'ok',
-          database: { status: 'unavailable', schemaVersion: null },
-          persistence: 'unknown',
-          backup: { status: 'unavailable', lastSuccessAt: null },
+          database: { status: 'unavailable' },
+          schema: { migration: null },
+          backup: { newestSnapshotAt: null },
         },
       })
     } finally {

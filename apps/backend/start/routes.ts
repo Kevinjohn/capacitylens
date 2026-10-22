@@ -1,5 +1,9 @@
 import '#start/planning_routes'
 import env from '#start/env'
+import db from '@adonisjs/lucid/services/db'
+import { statSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { listSnapshots, type FileIdentity } from '#services/backup/retention'
 import router from '@adonisjs/core/services/router'
 import { checkDatabase, readState, resetState } from '#services/state_repository'
 import { fileURLToPath } from 'node:url'
@@ -67,21 +71,48 @@ router.get('/api/meta', async () => {
 router.get('/api/diagnostics', async ({ response }) => {
   try {
     await checkDatabase()
+    const lastMigration = await db
+      .from('adonis_schema')
+      .select('name')
+      .orderBy('id', 'desc')
+      .first()
+    const backupDir = env.get('CAPACITYLENS_BACKUP_DIR')
+    const connectionConfig = db.getRawConnection(db.primaryConnectionName)?.config
+    const databasePath =
+      connectionConfig?.client === 'better-sqlite3'
+        ? (connectionConfig.connection.filename as string)
+        : null
+    let databaseIdentity: FileIdentity | null = null
+    if (databasePath && databasePath !== ':memory:') {
+      const file = statSync(databasePath, { bigint: true })
+      databaseIdentity = { path: resolve(databasePath), device: file.dev, inode: file.ino }
+    }
+    const newestSnapshotMtime = backupDir
+      ? listSnapshots(backupDir, databaseIdentity)
+          .map((file) => statSync(join(backupDir, file)).mtimeMs)
+          .reduce<number | null>(
+            (newest, mtime) => (newest === null ? mtime : Math.max(newest, mtime)),
+            null
+          )
+      : null
     return {
       server: {
         connectivity: 'ok',
-        database: { status: 'ok', schemaVersion: 4 },
-        persistence: 'unknown',
-        backup: { status: 'unavailable', lastSuccessAt: null },
+        database: { status: 'ok' },
+        schema: { migration: lastMigration?.name ?? null },
+        backup: {
+          newestSnapshotAt:
+            newestSnapshotMtime === null ? null : new Date(newestSnapshotMtime).toISOString(),
+        },
       },
     }
   } catch {
     return response.serviceUnavailable({
       server: {
         connectivity: 'ok',
-        database: { status: 'unavailable', schemaVersion: null },
-        persistence: 'unknown',
-        backup: { status: 'unavailable', lastSuccessAt: null },
+        database: { status: 'unavailable' },
+        schema: { migration: null },
+        backup: { newestSnapshotAt: null },
       },
     })
   }

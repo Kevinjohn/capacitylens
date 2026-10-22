@@ -850,18 +850,17 @@ The page (`data-testid="diagnostics-report"`) shows a **Support report** as plai
 timestamp captured by the client when the server response arrives or its failure is observed; the
 server values are a point-in-time snapshot, not a live monitor, and copying does not request them
 again. The fixed allowlist is: app version, a validated build revision when present, deployment
-mode and export schema; separately labelled server connectivity, database schema, persistence and
-backup status; the sign-in mode (`off`, `password-only`, `sso-only` or `password-and-sso`); this
+mode and export schema; separately labelled server connectivity, database status, last applied
+migration and newest completed snapshot modification time; the sign-in mode (`off`, `password-only`, `sso-only` or `password-and-sso`); this
 browser session's save counters (saves failed, retries armed, reconciliations resolved, reloads
 superseded, edits rebased, edits discarded, saving suspended); and the browser's user agent,
 viewport, time zone and language. A browser value outside its expected shape reads **Unknown**.
 The page is present in demo mode too, with server values unavailable. A missing or unavailable
-value is shown as **Unknown** or **unavailable**; a `null` schema means that value was unavailable
-or invalid, not zero or a browser fallback, while an unknown backup timestamp does not assert that
-no backup exists. The native backend leaves backup status unavailable: operators verify service logs
-and completed snapshots separately from database readiness. Browser constants are never presented
-as the server's database schema. The report
-contains no names, emails, identifiers, paths, hostnames, secrets, invite or session values, raw
+value is shown as **Unknown** or **unavailable**; a missing migration means it was unavailable
+or invalid, while an unknown snapshot timestamp does not assert that no backup exists. Operators
+verify service logs and completed snapshots separately from database readiness. Browser constants
+are never presented as the server's migration. The report
+contains no customer names, emails, identifiers, filesystem paths, hostnames, secrets, invite or session values, raw
 errors or arbitrary response fields. The button reports a generic success or clipboard failure
 message.
 
