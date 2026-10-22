@@ -23,9 +23,6 @@ import { BASE } from "../docs-src/.vitepress/base.mjs";
 const repoDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 const siteDir = join(repoDir, "docs");
 
-// Files a page links to that VitePress does not treat as a page asset, so the
-// build leaves them behind. Source path → path in the built site.
-
 if (!existsSync(join(siteDir, "index.html"))) {
   console.error(`docs-standalone: no build found at ${siteDir} — run \`vitepress build docs-src\` first.`);
   process.exit(1);
