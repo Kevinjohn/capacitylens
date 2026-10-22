@@ -95,8 +95,8 @@ photo from Microsoft Graph on the server, even though it cannot be used as an av
 
 - Anonymising a resource replaces its name and role with obfuscated labels, removes its avatar,
   and clears notes from its bookings and time off. The resource and its links remain.
-- Whole-company anonymisation applies the same scrub to every resource while retaining the
-  company, Owner, memberships and planning links.
+- **Anonymise all people** applies the same scrub to every resource. Client, project and activity
+  catalogue fields, the company, Owner, memberships and planning links stay unchanged.
 - Anonymisation does not change audit files, existing backups or off-host copies. The operator
   needs a separate process to remove data from them.
 

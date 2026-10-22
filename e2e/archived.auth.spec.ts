@@ -50,10 +50,10 @@ test("an Owner archives, restores and anonymises a resource, then confirms a who
   await expect(archive.getByTestId("archived-row").filter({ hasText: /Removed person/ })).toBeVisible();
 
   await page.getByRole("link", { name: "Settings" }).click();
-  await page.getByTestId("settings-company-anonymise").getByRole("button", { name: "Anonymise all resources" }).click();
+  await page.getByTestId("settings-company-anonymise").getByRole("button", { name: "Anonymise all people" }).click();
   await page
     .getByRole("dialog", { name: "Anonymise all company resources?" })
-    .getByRole("button", { name: "Anonymise all resources" })
+    .getByRole("button", { name: "Anonymise all people" })
     .click();
   await page.getByLabel("Password").fill(AUTH_PASSWORD);
   const reloaded = page.waitForEvent("load");

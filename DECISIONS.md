@@ -112,8 +112,9 @@ This is the short, present-tense record of decisions that constrain future work.
   while unchanged imports do neither.
 - Resource and catalogue lifecycle uses archive/restore (Editor and up). Resource anonymisation
   (Owner/Admin) irreversibly removes identifying details and dependent notes while retaining the
-  resource and its links. Whole-company anonymisation applies the same scrub to every resource and
-  requires action-specific proof; the company, Owner and memberships remain. There is no company
+  resource and its links. The **Anonymise all people** action applies the same scrub to every resource and requires
+  action-specific proof. Client, project and activity catalogue fields, the company, Owner and
+  memberships remain unchanged. There is no company
   deletion, soft-delete or purge action.
 - Editor and up may change company-wide planning and display configuration (company name,
   scheduling mode, disciplines, colour mode, feature visibility, time zone, week start). Identity,
@@ -161,19 +162,21 @@ This is the short, present-tense record of decisions that constrain future work.
 - A verified provider email that matches an unused invitation records invitation evidence at
   account creation. Identities are otherwise never merged by email.
 - Sessions follow the kit's idle expiry, configured once. Ownership transfer, whole-company import
-  and whole-company anonymisation require proof for each action; a time-based fresh-session window cannot replace
+  and company-wide people anonymisation require proof for each action; a time-based fresh-session window cannot replace
   it. Other sensitive actions retain their native fresh-session gates.
-- Ownership transfer, whole-company import and whole-company anonymisation use a single-use proof bound to the
+- Ownership transfer, whole-company import and company-wide people anonymisation use a single-use proof bound to the
   real principal, native session, company and exact operation. The proof is spent in the same
   transaction as the change. Password proof verifies the current credential; linked Google proof
   verifies the stable Google identity through an interactive account-selection journey. That
   Google journey does not guarantee a fresh password or MFA challenge.
 - Password hashing uses the framework's default hasher through the kit. There is no breach
   screening and no custom hashing queue.
-- First sign-in setup can create an identity, but does not provision a company. The native release
-  currently has no supported first-company initialisation command or screen; closing that gap is
-  required before an empty installation can be used. No environment variable grants company
-  bootstrap authority.
+- First sign-in setup creates an identity without company access. On an empty installation, the
+  stopped-server `company:initialize <existing-email> <company-name> --confirm-server-stopped`
+  command establishes its first company and active Owner membership for one existing identity
+  with an enabled sign-in method. It runs under an exclusive database lock, refuses existing
+  companies or memberships, and leaves credentials and admission unchanged. No environment
+  variable grants company bootstrap authority.
 - Each company has exactly one Owner. Ownership moves only by one atomic transfer to an existing
   member; the former Owner becomes Admin. Admins cannot administer an Owner. Credential recovery
   for a locked-out Owner is the kit's operator command, never an in-product action.

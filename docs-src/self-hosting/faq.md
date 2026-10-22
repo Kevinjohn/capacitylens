@@ -25,9 +25,10 @@ records.
 ### Who creates the first company?
 
 The first identity can complete sign-in setup using `CAPACITYLENS_SETUP_TOKEN`. This does not
-create a company or Owner membership. The current native release has no supported first-company
-provisioning command or screen, so an empty installation cannot yet be put into service. Remove
-the token after identity setup.
+create a company or Owner membership. Stop the service and run
+`node ace company:initialize <existing-email> <company-name> --confirm-server-stopped`
+from the backend directory, then restart and sign in. See [first-company setup](/owner/create-your-company).
+Remove the token after identity setup.
 
 ### Which company sign-in providers are available?
 

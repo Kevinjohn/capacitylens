@@ -61,11 +61,12 @@ In a signed-in installation, confirm the exact file and destination with your pa
 Google identity. The confirmation cannot be reused for a different import.
 [Import and export](/using/settings#import-and-export) has the steps.
 
-## Anonymise the company
+## Anonymise all people
 
-Whole-company anonymisation replaces every resource's identifying name and role, removes avatars
+**Anonymise all people** replaces every resource's identifying name and role, removes avatars
 and clears dependent booking and time-off notes. The company, Owner, memberships and planning links
-remain. This cannot be undone and requires proof of your identity for this action. Export what you
+remain. Client, project and activity catalogue fields stay unchanged. This cannot be undone and
+requires proof of your identity for this action. Export what you
 need before confirming.
 
 The app does not provide a company deletion action. Ask the installer about retiring an

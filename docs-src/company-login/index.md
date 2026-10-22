@@ -14,7 +14,7 @@ account alone does not grant access: a new identity needs a verified email and a
 Only when an installation has no identities yet can a new Google identity use an address on the
 operator's bootstrap allowlist instead. Signing in creates an identity, not a company or Owner
 membership. A member still needs an invitation or an enabled joining policy to enter an existing
-company. The current native release has no supported first-company provisioning path.
+company. For a new installation, the operator then [initialises company access](/owner/create-your-company).
 
 ## Passwords and company sign-in
 
@@ -26,7 +26,7 @@ sign-in shows no provider action.
 
 When no identity exists yet, a new Google identity must use an address in the operator's bootstrap
 allowlist. Signing in creates the identity only; it does not create a company or make that person its
-Owner. The current native release has no supported first-company provisioning path.
+Owner. For a new installation, the operator then [initialises company access](/owner/create-your-company).
 
 When Google sign-in is required (`sso-only`), password sessions cannot satisfy it. The company
 provider is Google.

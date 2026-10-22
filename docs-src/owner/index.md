@@ -26,8 +26,8 @@ whoever installed it.
    paste the setup token into **Owner setup token**. Select **Create my sign-in**. The token works
    once. If your installer set up Google sign-in, choose that instead.
 
-2. **Check company access.** If the installation has no company, the current native release has no
-   supported first-company provisioning screen or command. Ask your installer about this limitation.
+2. **Check company access.** After first sign-in setup, ask your installer to run the stopped-server
+   [first-company command](/owner/create-your-company), then sign in again to open your company.
    The [demo](/getting-started/try-the-demo) lets you edit fictional companies, but its changes are
    lost on reload.
 
@@ -59,7 +59,7 @@ and importing data stay with you.
 ## Go further
 
 - [Access your company](/owner/create-your-company): company login, a rejected token, and the
-  first-company limitation.
+  first-company setup.
 - [Appoint an Admin](/owner/appoint-an-admin): lost links, pending invitations and linking a
   scheduled person.
 - [Roles and permissions](/getting-started/roles-and-permissions) for what each role can see and

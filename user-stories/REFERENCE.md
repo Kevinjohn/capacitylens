@@ -60,17 +60,17 @@ accept responses never include it.
    multiple stored companies, the server returns an actionable conflict and the UI offers no
    selection controls. The temporary in-memory demo retains its fictional two-company picker and
    switch action. While signed in, its picker shows _"Signed in as Bruce Wayne"_ with a **Sign out**
-   link. **`New company`**
+   link. In the demo, **`New company`**
    (`data-testid="new-company-button"`) opens an inline create form that captures the company
    name and the three **frozen-after-creation** fields: **Week starts on** (segmented
    Monday/Sunday, default Monday), **Timezone** (a searchable combobox that detects and preselects
    the browser's IANA zone, puts local/common choices first, and shows a friendly name, current
    abbreviation and numeric UTC offset for every option), and **Language** (read-only **English** —
    `data-testid="create-language"`; English-only until Paraglide). Company colour uses the default
-   preset automatically rather than asking for a one-off choice during onboarding. On a
-   server-backed deploy the form also shows a **Start with example data** checkbox, ticked when it
-   is the user's first company and unticked otherwise; the in-memory demo does not offer it. These three are set ONCE here and are then **disabled** in
-   Settings; the server rejects a later change with **409**.
+   preset automatically rather than asking for a one-off choice during demo onboarding. The demo
+   does not offer **Start with example data**. The calendar fields are set once during creation
+   and are then disabled in Settings. The native installation uses the operator command below;
+   it has no company creation form or example-data checkbox.
    On an empty native installation, create the first identity, stop the service and run
    `company:initialize <existing-email> <company-name> --confirm-server-stopped`, then restart
    and sign in normally. The command creates one company and active Owner membership without

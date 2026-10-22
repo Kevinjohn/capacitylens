@@ -46,13 +46,12 @@ for your own Linux server.
    Select **Create my sign-in**.
 
 2. **Check company access.** First sign-in setup does not create a company or membership. The
-   current native release has no supported first-company provisioning path, so an empty
-   installation cannot yet reach the schedule. If your installation already has a provisioned
-   company and membership, sign in to open its schedule.
+   installer must stop the service, run the [first-company command](/owner/create-your-company),
+   then restart it. Sign in again to open the company schedule.
 
 </div>
 
-[Access your company](/owner/) covers company login and the current limitation.
+[Access your company](/owner/) covers company login and first-company setup.
 
 ## Make the schedule yours
 

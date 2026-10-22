@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Align remaining security-header and first-company guides with native setup and the supported Google provider.
+
 ### Changed
 
 - Require `--disposable` for non-production `app:reset`; production resets are refused before archiving. The nginx example no longer duplicates application HSTS or configures obsolete CSP reporting. `db:seed` now adds missing fixture rows without replacing existing product data or audit history. Diagnostics now show the last applied migration and newest completed snapshot modification time.
