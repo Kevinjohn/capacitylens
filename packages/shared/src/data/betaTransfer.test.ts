@@ -10,6 +10,7 @@ import {
   serializeBetaExport,
 } from "./betaTransfer.js";
 import { APP_DATA_KEYS } from "../types/entityKeys.js";
+import { internalClientIdFor } from "./internalClient.js";
 
 const original = seed();
 const accountId = original.accounts[0]?.id ?? "";
@@ -23,6 +24,19 @@ function fixture<T>(value: T | undefined, label: string): T {
 }
 
 describe("beta-native transfer", () => {
+  it("round-trips the Internal client ID created for a new company", () => {
+    const source = structuredClone(original);
+    const internal = fixture(
+      source.clients.find((row) => row.accountId === accountId && row.builtin),
+      "Internal client",
+    );
+    internal.id = internalClientIdFor(accountId);
+    const exported = buildBetaExport(source, { accountId, completeness: "full" });
+    const parsed = parseBetaExport(serializeBetaExport(exported));
+    expect(parsed.data.clients.find((row) => row.builtin)?.id).toBe(internal.id);
+    expect(prepareBetaImport(parsed, context).data.clients.find((row) => row.builtin)?.id).toBe(internal.id);
+  });
+
   it("round-trips every table, supported private content, archived rows, settings and IDs", () => {
     const source = structuredClone(original);
     const account = fixture(source.accounts[0], "account");

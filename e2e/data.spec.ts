@@ -73,10 +73,18 @@ test.describe("Beta company transfer in the demo", () => {
     test(`refuses ${name} and preserves the current company`, async ({ page }) => {
       await openApp(page);
       await importFile(page, body);
-      await expect(page.getByRole("alert")).toContainText(message);
-      await expect(page.getByRole("alertdialog", { name: "Import data?" })).toHaveCount(0);
+      if (name === "redacted document") {
+        const preview = page.getByRole("dialog", { name: "Import data?" });
+        await expect(preview.getByRole("alert")).toContainText(message);
+        await page.keyboard.press("Escape");
+        await expect(preview).toHaveCount(0);
+      } else {
+        await expect(page.locator("[data-sonner-toast]")).toContainText(message);
+        await expect(page.getByRole("dialog", { name: "Import data?" })).toHaveCount(0);
+      }
       await page.getByRole("link", { name: "Schedule", exact: true }).click();
       await expect(page.getByText("Bruce Wayne")).toBeVisible();
+      await expect(page.getByText("Terry McGinnis")).toHaveCount(0);
     });
   }
 });
