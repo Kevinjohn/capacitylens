@@ -1523,7 +1523,8 @@ and invalidates local undo history and company restoration groups. The resource,
 memberships and planning links remain. Clients, projects and activities have no anonymise action.
 Settings has no deleted-items section or permanent-deletion control.
 The Owner also sees **Anonymise all people** in Settings. It applies the same people-only scrub in
-the selected company, including their dependent booking and time-off notes. Clients, projects and
+the selected company, including placeholders, external people and their dependent booking and
+time-off notes. Clients, projects and
 activities stay unchanged, as do the company, memberships and planning links. In a server
 deployment the Owner confirms the exact action with password or linked Google proof; in the
 editable demo it happens in temporary page memory without login or proof.

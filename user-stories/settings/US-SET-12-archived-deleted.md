@@ -32,8 +32,8 @@ personal details and dependent notes unrecoverable through Undo.
 - ✅ A resource's **Anonymise** action asks for confirmation. After confirmation, the resource stays
   in the company with an obfuscated name and role, no avatar, and no dependent allocation or
   time-off notes. Undo cannot restore those personal details.
-- ✅ An Owner can select **Anonymise all people** in Settings. Clients, projects and activities
-  stay unchanged, as do the company, memberships and planning links. A signed-in Owner confirms
+- ✅ An Owner can select **Anonymise all people** in Settings. Placeholders and external people are
+  included; the confirmation says so. Clients, projects and activities stay unchanged, as do the company, memberships and planning links. A signed-in Owner confirms
   this exact action with a fresh proof; the editable demo applies it in page memory without sign-in.
 - ✅ Clients, projects and activities can be archived and restored. They have no anonymise action.
 - ✅ An Editor may archive and restore through planning controls but cannot anonymise a resource.
