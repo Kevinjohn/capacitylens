@@ -10,9 +10,11 @@ demo does not require a real sign-in. Every persisted server requires an authent
 member; `CAPACITYLENS_MODE=off` is not a supported sign-in mode.
 
 With Google sign-in, CapacityLens sends you to Google and never sees your Google password. A Google
-account alone does not grant access: the first person on an empty installation needs the installer's
-approval, and later new Google identities need an addressed invitation. A member still needs an
-invitation or enabled joining policy to enter the installation company.
+account alone does not grant access: a new identity needs a verified email and an unused invitation.
+Only when an installation has no identities yet can a new Google identity use an address on the
+operator's bootstrap allowlist instead. Signing in creates an identity, not a company or Owner
+membership. A member still needs an invitation or an enabled joining policy to enter an existing
+company. The current native release has no supported first-company provisioning path.
 
 ## Passwords and company sign-in
 
@@ -22,8 +24,9 @@ In mixed mode (`password-and-sso`), **Sign in with Google** appears above the pa
 **or use your password** divider. Google-only sign-in shows no password form; password-only
 sign-in shows no provider action.
 
-On a fresh installation, the first Google identity must use an address in the operator's bootstrap
-allowlist. Signing in creates the identity, not a company; that Owner then completes company setup.
+When no identity exists yet, a new Google identity must use an address in the operator's bootstrap
+allowlist. Signing in creates the identity only; it does not create a company or make that person its
+Owner. The current native release has no supported first-company provisioning path.
 
 When Google sign-in is required (`sso-only`), password sessions cannot satisfy it. The company
 provider is Google.
@@ -32,11 +35,10 @@ provider is Google.
 settings. [Require Google sign-in](/company-login/move-to-single-sign-on) covers the operator
 procedure.
 
-## Invitations and the first Owner
+## Invitations and joining a company
 
-On an empty installation, the installer can allow a specific email address to create the first
-Google identity. That person follows [Set up your company](/owner/) to become its
-Owner. The allowance closes once the first identity exists.
+For an existing company, new Google identities need an unused invitation addressed to their
+verified email.
 
 After that, the Owner chooses **Who can join** in **Team & access**: **Invitation only** (the
 default), open registration, approved email domains, or approved domains plus invitations. An
@@ -89,10 +91,12 @@ different Google account.
 A session lasts at most twelve hours from sign-in; activity does not extend it. Thirty minutes
 without activity also signs you out.
 
-These actions ask you to confirm your identity again when needed: connecting or repairing a
-company identity, transferring ownership, resetting another member's password, revoking another
-member's sessions, deleting a company, and importing or purging company data. Invitations, role
-changes and removing members need only the right role.
+Transferring ownership, importing company data, and anonymising the company require proof of your
+identity for each action. Connecting or repairing a company identity, resetting another member's
+password, and revoking another member's sessions may ask you to confirm your identity again when
+needed. An Owner or Admin can anonymise an individual resource with their role; it does not require
+separate identity proof. Invitations, role changes and removing members also need only the right
+role.
 
 If confirming through Google takes you away from the page, return and submit the
 action again. Confirming does not apply the original change.

@@ -10,7 +10,7 @@ next: false
 Choose how the schedule looks in your browser, and set the planning rules your whole company
 shares.
 
-![Settings showing My display and this-browser preferences](../screenshots/flows/using_settings_1.png)
+![Settings showing My display preferences and the company anonymisation action](../screenshots/flows/using_settings_1.png)
 
 Open **Settings** near the bottom of the left menu. One scrollable page holds four groups. Each
 row's question-mark button, **About &lt;section&gt;**, opens a fuller explanation.
@@ -32,7 +32,7 @@ managing the plan.
 These preferences are saved in this browser. They don't change a teammate's display or travel
 with an export.
 
-![The My display group with Schedule on this device, allocation labels, utilisation figures and appearance preferences](../screenshots/flows/settings_schedule_device.png)
+![My display preferences above Data and support, including the company anonymisation action](../screenshots/flows/settings_schedule_device.png)
 
 - **Schedule on this device:** **Minimise weekends** narrows Saturday and Sunday so the working
   week gets more room. Weekend work still appears.
@@ -199,7 +199,7 @@ created and cannot be changed.
 Owners and Admins can copy build details and a support report from
 [Diagnostics](/admin/diagnostics).
 
-![Appearance preferences above Data and support, with Import and export closed](../screenshots/flows/settings_account_disclosures.png)
+![Data and support with company anonymisation, Import and export closed, and company details](../screenshots/flows/settings_account_disclosures.png)
 
 ## Change your sign-in or password
 

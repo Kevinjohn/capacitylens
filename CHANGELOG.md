@@ -22,6 +22,8 @@ new features and **patch** versions carry fixes.
   memberships and planning links remain while names, roles, avatars and dependent notes are scrubbed.
 - Removed company deletion, lifecycle soft-delete and purge actions, including the 30-day purge
   countdown and generic lifecycle routes.
+- Clarified that creating a sign-in identity does not provision a company or Owner membership, and
+  refreshed Settings guide screenshots.
 
 ### Added
 
