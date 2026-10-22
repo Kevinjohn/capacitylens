@@ -203,8 +203,8 @@ function registerImportHardening5(): void {
 }
 
 function registerImportHardening6(): void {
-  it("refuses a zero-record import rather than wiping the active account", () => {
-    s().addClient({ name: "Keep me", color: "#123456" });
+  it("refuses a zero-record import rather than wiping the active account", async () => {
+    await s().addClient({ name: "Keep me", color: "#123456" });
     const before = s().data.clients.filter((c) => c.accountId === DEFAULT_ACCOUNT_ID).length;
     expect(before).toBeGreaterThan(0);
     // An empty (or all-dropped) dataset would otherwise replace the slice with nothing.

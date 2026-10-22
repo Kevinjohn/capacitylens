@@ -1,4 +1,3 @@
-import { requireCreated } from "@/test/requireCreated";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import type { PersistenceAdapter } from "./PersistenceAdapter";
@@ -11,7 +10,7 @@ import {
   switchAndAwaitHydration,
 } from "./persist";
 import { useStore } from "@/store/useStore";
-import { DEFAULT_ACCOUNT_ID, makeAccount, makeAppData, resetStoreWithAccount } from "@/test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeAccount, makeAppData, makeClient, resetStoreWithAccount } from "@/test/fixtures";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -25,6 +24,15 @@ function deferred<T>() {
 
 const secondAccount = makeAccount({ id: "a-loft", name: "Stark Industries" });
 let detach: (() => void) | undefined;
+let stagedClientNumber = 0;
+
+// A legacy delta can arrive while a company load is held; typed catalogue writes require
+// the new planning context to be active, so stage that valid store delta directly.
+function stageLegacyClient(accountId: string, name: string) {
+  const client = makeClient({ id: `overlap-client-${++stagedClientNumber}`, accountId, name });
+  useStore.setState((state) => ({ data: { ...state.data, clients: [...state.data.clients, client] } }));
+  return client;
+}
 
 beforeEach(async () => {
   localStorage.clear();
@@ -48,13 +56,14 @@ describe("persistence save/reload/switch overlap", () => {
     const loadAll = vi.fn(async () => loading.promise);
     const saveAll = vi.fn<PersistenceAdapter["saveAll"]>().mockResolvedValue(undefined);
     saveAll.mockImplementationOnce(() => saving.promise);
+    const firstClient = stageLegacyClient(DEFAULT_ACCOUNT_ID, "Wayne Enterprises");
     detach = attachPersistence({
       store: useStore,
       adapter: { loadAll, saveAll },
       debounceMs: 0,
       serverMode: true,
     });
-    useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" });
+    useStore.getState().archiveEntity("clients", firstClient.id);
 
     const refreshing = refreshActiveAccountSlice(DEFAULT_ACCOUNT_ID);
     const switching = switchAndAwaitHydration(secondAccount.id);
@@ -64,7 +73,7 @@ describe("persistence save/reload/switch overlap", () => {
     saving.resolve();
     await expect(refreshing).resolves.toEqual({ kind: "skipped" });
     await vi.waitFor(() => expect(loadAll).toHaveBeenCalledExactlyOnceWith(secondAccount.id));
-    const parked = requireCreated(useStore.getState().addClient({ name: "Stark Industries", color: "#222222" }));
+    const parked = stageLegacyClient(secondAccount.id, "Stark Industries");
     expect(saveAll).toHaveBeenCalledTimes(1);
     expect(await flushPendingWrites()).toEqual({ kind: "blocked" });
 
@@ -94,6 +103,7 @@ describe("persistence reconciliation overlap", () => {
       .mockImplementationOnce(() => newLoad.promise);
     const saveAll = vi.fn<PersistenceAdapter["saveAll"]>().mockResolvedValue(undefined);
     saveAll.mockRejectedValueOnce(conflict);
+    const firstClient = stageLegacyClient(DEFAULT_ACCOUNT_ID, "Wayne Enterprises");
     detach = attachPersistence({
       store: useStore,
       adapter: { loadAll, saveAll },
@@ -101,7 +111,7 @@ describe("persistence reconciliation overlap", () => {
       onError: onError,
       serverMode: true,
     });
-    useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" });
+    useStore.getState().archiveEntity("clients", firstClient.id);
     await vi.waitFor(() => expect(loadAll).toHaveBeenCalledExactlyOnceWith(DEFAULT_ACCOUNT_ID));
 
     const switching = switchAndAwaitHydration(secondAccount.id);
@@ -114,7 +124,7 @@ describe("persistence reconciliation overlap", () => {
 
     expect(onError).toHaveBeenCalledExactlyOnceWith(conflict);
     expect(useStore.getState().data.accounts).toEqual(authoritative.accounts);
-    const client = requireCreated(useStore.getState().addClient({ name: "Stark Industries", color: "#222222" }));
+    const client = stageLegacyClient(secondAccount.id, "Stark Industries");
     expect(await flushPendingWrites()).toEqual({ kind: "clean" });
     const lastSave = saveAll.mock.lastCall;
     expect(lastSave).toBeDefined();

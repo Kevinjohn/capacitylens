@@ -54,7 +54,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     });
     const detach = await attachActiveA2({ adapter: { loadAll, saveAll } });
 
-    useStore.getState().addClient({ name: "Undo me", color: "#222222" });
+    useStore.getState().archiveEntity("clients", "c2");
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
     expect(useStore.getState().past).toHaveLength(1);
 
@@ -63,7 +63,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
 
     expect(useStore.getState().past).toHaveLength(1);
     useStore.getState().undo();
-    expect(useStore.getState().data.clients.some((client) => client.name === "Undo me")).toBe(false);
+    expect(useStore.getState().data.clients.find((client) => client.id === "c2")?.archivedAt).toBeNull();
     detach();
   });
 
@@ -211,7 +211,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     const detach = await attachActiveA2({ adapter: adapter, debounceMs: 300 });
     order.length = 0;
 
-    useStore.getState().addClient({ name: "Unsaved", color: "#222222" });
+    useStore.getState().archiveEntity("clients", "c2");
     expect(saveAll).not.toHaveBeenCalled();
 
     window.dispatchEvent(new Event("focus"));
@@ -253,7 +253,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     const loadsAfterPick = loadAll.mock.calls.length;
     saveAll.mockRejectedValue(new Error("write unavailable"));
 
-    useStore.getState().addClient({ name: "Unsynced", color: "#222222" });
+    useStore.getState().archiveEntity("clients", "c2");
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
     await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
 
@@ -263,7 +263,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
 
     expect(loadAll.mock.calls.length).toBe(loadsAfterPick);
 
-    expect(useStore.getState().data.clients.some((c) => c.name === "Unsynced")).toBe(true);
+    expect(typeof useStore.getState().data.clients.find((client) => client.id === "c2")?.archivedAt).toBe("string");
     detach();
   });
 
@@ -283,7 +283,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
       const detach = await detachPromise;
       const loadsAfterPick = loadAll.mock.calls.length;
 
-      useStore.getState().addClient({ name: "Stranded", color: "#222222" });
+      useStore.getState().archiveEntity("clients", "c2");
       await vi.advanceTimersByTimeAsync(31_000);
       const savesAfterBudget = saveAll.mock.calls.length;
 
@@ -298,7 +298,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
 
       expect(saveAll.mock.calls.length).toBe(savesAfterBudget + 2);
       expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
-      expect(remote.clients.some((client) => client.name === "Stranded")).toBe(true);
+      expect(typeof remote.clients.find((client) => client.id === "c2")?.archivedAt).toBe("string");
       detach();
     } finally {
       visibility.mockRestore();
@@ -340,7 +340,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     await vi.waitFor(() => expect(loadAll).toHaveBeenCalledWith("a1"));
 
     rejectSaves = true;
-    useStore.getState().addClient({ name: "Unsynced in A", color: "#222222" });
+    useStore.getState().archiveEntity("clients", "ca");
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
     useStore.getState().setActiveAccount("b1");
     await vi.waitFor(() => expect(releaseB).not.toBeNull());
@@ -414,7 +414,7 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
     const detach = await attachActiveA2({ adapter: adapter, debounceMs: 300 });
     order.length = 0;
 
-    useStore.getState().addClient({ name: "Mid-debounce", color: "#222222" });
+    useStore.getState().archiveEntity("clients", "c2");
     expect(await refreshActiveAccountSlice("a2")).toEqual({ kind: "reloaded" });
 
     expect(order[0]).toBe("saveAll");
@@ -428,11 +428,11 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
     const loadsAfterPick = loadAll.mock.calls.length;
     saveAll.mockRejectedValue(new Error("write unavailable"));
 
-    useStore.getState().addClient({ name: "Unsynced", color: "#222222" });
+    useStore.getState().archiveEntity("clients", "c2");
     expect(await refreshActiveAccountSlice("a2")).toEqual({ kind: "skipped" });
 
     expect(loadAll.mock.calls.length).toBe(loadsAfterPick);
-    expect(useStore.getState().data.clients.some((c) => c.name === "Unsynced")).toBe(true);
+    expect(typeof useStore.getState().data.clients.find((client) => client.id === "c2")?.archivedAt).toBe("string");
     detach();
   });
 

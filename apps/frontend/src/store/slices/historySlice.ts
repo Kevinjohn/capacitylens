@@ -85,6 +85,7 @@ function replaceAllState(state: StoreState, data: StoreState["data"]): Partial<S
       ...buildClearedSession(),
       past: [],
       future: [],
+      ...clearPlanningHistory(state),
       // No anchor: a publication is not a navigation, so the week in view is left alone.
       ui: resetSchedulerView(state.ui),
     };
@@ -97,12 +98,17 @@ function replaceAllState(state: StoreState, data: StoreState["data"]): Partial<S
     // authoritative revisions prove that no row changed. Preserve undo/redo only in that
     // exact case. Any remote addition, deletion or revision change clears history because a
     // historical whole-slice snapshot could otherwise resurrect or overwrite remote work.
-    return unchangedActiveSlice ? { data } : { data, past: [], future: [] };
+    return unchangedActiveSlice ? { data } : { data, past: [], future: [], ...clearPlanningHistory(state) };
   }
   return {
     data,
     past: [],
     future: [],
+    ...clearPlanningHistory(state),
     ui: { ...state.ui, ...readCurrentWeekAnchor(data, account.id) },
   };
+}
+
+function clearPlanningHistory(state: StoreState): Pick<StoreState, "planning"> {
+  return { planning: { ...state.planning, history: { past: [], future: [], tipRevision: null } } };
 }

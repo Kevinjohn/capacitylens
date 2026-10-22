@@ -147,7 +147,9 @@ describe("CapacityOverviewTable date style", () => {
     renderTable();
     expect(screen.getByRole("columnheader", { name: /10 – 13 Sep/ })).toBeInTheDocument();
 
-    act(() => useStore.getState().updateAccount("account", { dateStyle: "month-day" }));
+    await act(async () => {
+      await useStore.getState().updateAccount("account", { dateStyle: "month-day" });
+    });
 
     expect(screen.getByRole("columnheader", { name: /Sep 10 – 13/ })).toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: /10 – 13 Sep/ })).not.toBeInTheDocument();

@@ -266,6 +266,15 @@ function registerSchedulerUiPart2(): void {
 
   it("clears history when a same-account replacement contains a remote revision", async () => {
     const client = await requireCreated(s().addClient({ name: "Local", color: "#111111" }));
+    await s().addClient({ name: "Another local client", color: "#222222" });
+    await s().undoPlanning();
+    s().archiveEntity("clients", client.id);
+    s().unarchiveEntity("clients", client.id);
+    s().undo();
+    expect(s().past).toHaveLength(1);
+    expect(s().future).toHaveLength(1);
+    expect(s().planning.history.past).toHaveLength(1);
+    expect(s().planning.history.future).toHaveLength(1);
     const replacement = structuredClone(s().data);
     replacement.clients = replacement.clients.map((row) =>
       row.id === client.id ? { ...row, name: "Remote", updatedAt: "2099-01-01T00:00:00.000Z" } : row,
@@ -275,6 +284,8 @@ function registerSchedulerUiPart2(): void {
 
     expect(s().past).toEqual([]);
     expect(s().future).toEqual([]);
+    expect(s().planning.history.past).toEqual([]);
+    expect(s().planning.history.future).toEqual([]);
   });
 
   it("re-anchors after the first slice for a selected account replaces the temporary fallback", () => {

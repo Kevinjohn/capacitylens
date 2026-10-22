@@ -10,7 +10,7 @@ import {
 import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { resetStoreWithAccount, requireValue } from "@/test/fixtures";
+import { makeClient, resetStoreWithAccount, requireValue } from "@/test/fixtures";
 import { readPersistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
 import type { PersistenceAdapter } from "./PersistenceAdapter";
 import { deferredSignal, requireCallback, recordingAdapter, a2Slice, attachActiveA2 } from "./__tests__/persistTestKit";
@@ -20,6 +20,29 @@ beforeEach(async () => {
   // Seed an active account because store additions require an account scope.
   await resetStoreWithAccount();
 });
+
+let nextClientId = 0;
+
+function createLegacyClient(name: string) {
+  const accountId = useStore.getState().activeAccountId;
+  if (accountId === null) throw new Error("Expected an active account for the legacy client fixture.");
+  return makeClient({ id: `suspension-client-${++nextClientId}`, accountId, name });
+}
+
+function seedLegacyClient(name: string) {
+  const client = createLegacyClient(name);
+  const state = useStore.getState();
+  state.replaceAll({ ...state.data, clients: [...state.data.clients, client] });
+  return client;
+}
+
+// A store delta can arrive while a reload is held even though typed catalogue commands are
+// unavailable until the planning context is ready. Stage the valid row at that boundary.
+function stageLegacyClient(name: string) {
+  const client = createLegacyClient(name);
+  useStore.setState((state) => ({ data: { ...state.data, clients: [...state.data.clients, client] } }));
+  return client;
+}
 
 function heldFirstSaveAdapter() {
   let release: (() => void) | null = null;
@@ -42,13 +65,13 @@ describe("flushPendingWrites (the import seam)", () => {
     const detach = await attachActiveA2({ adapter: adapter, debounceMs: 300 });
     saveAll.mockClear();
 
-    useStore.getState().addClient({ name: "Pending", color: "#222222" });
+    useStore.getState().archiveEntity("clients", "c2");
     expect(saveAll).not.toHaveBeenCalled();
     expect(await flushPendingWrites()).toEqual({ kind: "clean" });
     expect(saveAll).toHaveBeenCalledTimes(1);
 
     saveAll.mockRejectedValueOnce(new Error("server down"));
-    useStore.getState().addClient({ name: "Doomed", color: "#333333" });
+    useStore.getState().unarchiveEntity("clients", "c2");
     await expect(flushPendingWrites()).resolves.toMatchObject({ kind: "failed", error: new Error("server down") });
     detach();
   });
@@ -62,12 +85,12 @@ describe("flushPendingWrites (the import seam)", () => {
     const { adapter, releaseFirst, saveAll } = heldFirstSaveAdapter();
     const detach = await attachActiveA2({ adapter, debounceMs: 300 });
 
-    useStore.getState().addClient({ name: "First", color: "#222222" });
+    useStore.getState().archiveEntity("clients", "c2");
     const flush = flushPendingWrites();
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalledTimes(1));
     expect(saveAll).toHaveBeenCalledTimes(1);
 
-    useStore.getState().addClient({ name: "Mid-flush", color: "#333333" });
+    stageLegacyClient("Mid-flush");
     releaseFirst();
     expect(await flush).toEqual({ kind: "clean" });
 
@@ -88,7 +111,7 @@ describe("flushPendingWrites (the import seam)", () => {
     const detach = await attachActiveA2({ adapter: { loadAll, saveAll }, debounceMs: 300 });
     loadAll.mockClear();
 
-    useStore.getState().addClient({ name: "Pending", color: "#222222" });
+    useStore.getState().archiveEntity("clients", "c2");
     const flush = flushPendingWrites();
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
     const refresh = refreshActiveAccountSlice("a2");
@@ -107,6 +130,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
   // post-import reload against the pre-import snapshot (stale rows upserted into the imported
   // slice: remapped ids insert cleanly, no 409 stops them).
   it("parks an already armed retry until the suspension resumes", async () => {
+    const client = seedLegacyClient("Retry me");
     vi.useFakeTimers();
     try {
       const saveAll = vi.fn().mockRejectedValueOnce(new Error("temporary failure")).mockResolvedValue(undefined);
@@ -118,7 +142,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
         serverMode: true,
       });
 
-      useStore.getState().addClient({ name: "Retry me", color: "#222222" });
+      useStore.getState().archiveEntity("clients", client.id);
       await vi.advanceTimersByTimeAsync(0);
       expect(saveAll).toHaveBeenCalledOnce();
 
@@ -138,6 +162,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
   });
 
   it("keeps a hidden-tab visibility flush parked until an external suspension resumes", async () => {
+    const client = seedLegacyClient("Parked while hidden");
     vi.useFakeTimers();
     const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
     try {
@@ -149,7 +174,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
         serverMode: true,
       });
       const resume = suspendServerWrites();
-      useStore.getState().addClient({ name: "Parked while hidden", color: "#222222" });
+      useStore.getState().archiveEntity("clients", client.id);
 
       document.dispatchEvent(new Event("visibilitychange"));
       await vi.advanceTimersByTimeAsync(35_000);
@@ -171,7 +196,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     const detach = await attachActiveA2({ adapter: adapter, debounceMs: 300, onError: onError });
     saveAll.mockClear();
     const resume = suspendServerWrites();
-    useStore.getState().addClient({ name: "Parked at teardown", color: "#222222" });
+    useStore.getState().archiveEntity("clients", "c2");
 
     window.dispatchEvent(new Event("pagehide"));
 
@@ -187,7 +212,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     saveAll.mockClear();
 
     const resume = suspendServerWrites();
-    useStore.getState().addClient({ name: "Mid-import", color: "#222222" });
+    stageLegacyClient("Mid-import");
     expect(saveAll).not.toHaveBeenCalled();
 
     // The suspending operation failed before any reload (e.g. the POST was refused): the slice is
@@ -208,7 +233,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     onSuccess.mockClear();
 
     const resume = suspendServerWrites();
-    useStore.getState().addClient({ name: "Mid-import", color: "#222222" });
+    stageLegacyClient("Mid-import");
     expect(await refreshActiveAccountSlice("a2")).toEqual({ kind: "reloaded" });
     resume();
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalledTimes(1));
@@ -235,7 +260,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     saveAll.mockClear();
 
     const resume = suspendServerWrites();
-    useStore.getState().addClient({ name: "Mid-import", color: "#222222" });
+    useStore.getState().archiveEntity("clients", "c2");
     resume({ dropParkedEdits: true });
     expect(saveAll).not.toHaveBeenCalled();
     expect(onError.mock.calls.some(([e]) => e instanceof ReloadDiscardedEditError)).toBe(true);
@@ -262,11 +287,11 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
       const onError = vi.fn();
       detach = await attachActiveA2({ adapter: { loadAll, saveAll }, debounceMs: 300, onError: onError });
 
-      useStore.getState().addClient({ name: "Pre-reload", color: "#222222" });
+      useStore.getState().archiveEntity("clients", "c2");
       const refresh = refreshActiveAccountSlice("a2");
       await saveStarted.promise;
 
-      useStore.getState().addClient({ name: "During flush", color: "#333333" });
+      stageLegacyClient("During flush");
       await vi.advanceTimersByTimeAsync(300);
       expect(saveAll).toHaveBeenCalledTimes(1);
 
@@ -302,7 +327,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     hold = true;
     const refresh = refreshActiveAccountSlice("a2");
     await vi.waitFor(() => expect(release).toBeTypeOf("function"));
-    useStore.getState().addClient({ name: "Mid-failed-reload", color: "#222222" });
+    stageLegacyClient("Mid-failed-reload");
     requireCallback(release, "failed reload release")();
     expect(await refresh).toEqual({ kind: "failed" });
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalledTimes(1));
@@ -335,7 +360,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     hold = true;
     const refresh = refreshActiveAccountSlice("a2");
     await vi.waitFor(() => expect(release).toBeTypeOf("function"));
-    useStore.getState().addClient({ name: "Mid-reload", color: "#222222" });
+    stageLegacyClient("Mid-reload");
     window.dispatchEvent(new Event("pagehide"));
     expect(saveAll).toHaveBeenCalledTimes(1);
     expect(saveAll.mock.calls[0]?.[1]).toEqual({ unload: true });
@@ -375,7 +400,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     hold = true;
     const refresh = refreshActiveAccountSlice("a2");
     await vi.waitFor(() => expect(releaseLoad).toBeTypeOf("function"));
-    useStore.getState().addClient({ name: "Hidden-tab edit", color: "#222222" });
+    stageLegacyClient("Hidden-tab edit");
     window.dispatchEvent(new Event("pagehide"));
 
     requireCallback(releaseLoad, "reload release")();
@@ -477,7 +502,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     saveAll.mockClear();
 
     const resume = suspendServerWrites();
-    useStore.getState().addClient({ name: "Mid-import", color: "#222222" });
+    useStore.getState().archiveEntity("clients", "c2");
     window.dispatchEvent(new Event("pagehide"));
     expect(saveAll).not.toHaveBeenCalled();
     resume({ dropParkedEdits: true });
@@ -518,7 +543,7 @@ describe("mid-reload edits are rebased onto the fresh server slice", () => {
     hold = true;
     const refresh = refreshActiveAccountSlice("a2");
     await vi.waitFor(() => expect(release).toBeTypeOf("function"));
-    useStore.getState().addClient({ name: "Mid-reload", color: "#222222" });
+    stageLegacyClient("Mid-reload");
     expect(saveAll).not.toHaveBeenCalled();
 
     requireCallback(release, "refresh release")();

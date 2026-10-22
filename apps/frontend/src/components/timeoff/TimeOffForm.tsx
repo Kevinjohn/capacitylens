@@ -10,6 +10,7 @@ import { DateField, FormActions, Modal, RequiredLegend, SelectField, TextField }
 import type { Option } from "@/components/common/ui";
 import { FieldError } from "@/components/ui/field";
 import { buildTimeOffTypeOptions, resolveResourceDisplayName } from "@/lib/metadata";
+import { resolveErrorMessage } from "@/lib/errorMessage";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import type { ISODate, TimeOff, TimeOffType } from "@capacitylens/shared/types/entities";
 import { canSeeTimeOffNote } from "@capacitylens/shared/domain/access";
@@ -166,7 +167,9 @@ export function TimeOffForm({ timeOff, defaults, onClose }: TimeOffFormProps) {
     <Modal
       title={timeOff ? m.form_timeoff_edit_title() : m.form_timeoff_add_title()}
       onClose={onClose}
-      onSubmit={submit}
+      onSubmit={() => {
+        submit().catch((error: unknown) => fail(null, resolveErrorMessage(error)));
+      }}
       onEdit={clear}
       footer={<FormActions onCancel={onClose} />}
     >
