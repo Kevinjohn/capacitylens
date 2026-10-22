@@ -123,52 +123,58 @@ describe("useCanEdit gates the AllocationBar resize grips", () => {
 describe("store viewer guard (defense-in-depth) no-ops a viewer mutation", () => {
   beforeEach(() => resetStoreWithAccount());
 
-  it("add*/update*/delete* NO-OP for a viewer and surface a read-only notice", () => {
+  it("add*/update*/delete* NO-OP for a viewer and surface a read-only notice", async () => {
     useStore.getState().setActiveRole("viewer");
 
-    const result = useStore.getState().addResource(makeResourceDraft());
+    const result = await useStore.getState().addResource(makeResourceDraft());
     expect(result).toEqual({ kind: "blocked" });
     expect(useStore.getState().data.resources).toHaveLength(0);
     expect(useStore.getState().notice?.message).toMatch(/read-only/i);
 
     useStore.getState().setActiveRole(null);
-    const seeded = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Seeded" })));
+    const seeded = await requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Seeded" })));
     expect(useStore.getState().data.resources).toHaveLength(1);
 
     useStore.getState().setActiveRole("viewer");
-    useStore.getState().updateResource(seeded.id, { name: "Renamed" });
+    await useStore.getState().updateResource(seeded.id, { name: "Renamed" });
     expect(useStore.getState().data.resources[0]?.name).toBe("Seeded");
 
     // Lifecycle mutations must apply the same Viewer guard as direct entity updates.
-    useStore.getState().archiveEntity("resources", seeded.id);
+    await useStore.getState().archiveEntity("resources", seeded.id);
     expect(useStore.getState().data.resources).toHaveLength(1);
     expect(requireValue(useStore.getState().data.resources[0], "viewer resource")).toHaveProperty("archivedAt", null);
 
     expect(useStore.getState().data.resources).toHaveLength(1);
   });
 
-  it.each([null, "editor", "owner", "admin"] as const)("role %s permits the mutation outside masquerade", (role) => {
-    useStore.getState().setActiveRole(role);
-    const r = requireCreated(useStore.getState().addResource(makeResourceDraft()));
-    expect(useStore.getState().data.resources.some((x) => x.id === r.id)).toBe(true);
-  });
+  it.each([null, "editor", "owner", "admin"] as const)(
+    "role %s permits the mutation outside masquerade",
+    async (role) => {
+      useStore.getState().setActiveRole(role);
+      const r = await requireCreated(useStore.getState().addResource(makeResourceDraft()));
+      expect(useStore.getState().data.resources.some((x) => x.id === r.id)).toBe(true);
+    },
+  );
 
   it.each([
     ["pending", /membership is being verified/i],
     ["unavailable", /role could not be verified/i],
-  ] as const)("attributes a %s fail-closed mutation to role resolution, not Viewer membership", (status, message) => {
-    useStore.getState().setActiveRole("viewer", status);
+  ] as const)(
+    "attributes a %s fail-closed mutation to role resolution, not Viewer membership",
+    async (status, message) => {
+      useStore.getState().setActiveRole("viewer", status);
 
-    useStore.getState().addResource(makeResourceDraft());
+      await useStore.getState().addResource(makeResourceDraft());
 
-    expect(useStore.getState().data.resources).toHaveLength(0);
-    expect(useStore.getState().notice?.message).toMatch(message);
-    expect(useStore.getState().notice?.message).not.toMatch(/you don't have edit access/i);
-  });
+      expect(useStore.getState().data.resources).toHaveLength(0);
+      expect(useStore.getState().notice?.message).toMatch(message);
+      expect(useStore.getState().notice?.message).not.toMatch(/you don't have edit access/i);
+    },
+  );
 
-  it("importData no-ops for a viewer (zero-effect summary, slice untouched)", () => {
+  it("importData no-ops for a viewer (zero-effect summary, slice untouched)", async () => {
     useStore.getState().setActiveRole(null);
-    useStore.getState().addResource(makeResourceDraft({ name: "Existing" }));
+    await useStore.getState().addResource(makeResourceDraft({ name: "Existing" }));
     useStore.getState().setActiveRole("viewer");
     const summary = useStore.getState().importData({ ...emptyAppData(), resources: [] });
     expect(summary).toEqual({ imported: 0, skipped: 0 });

@@ -10,7 +10,7 @@ import { BatchCommitUncertainError, BatchConflictError } from "./ServerSyncAdapt
 import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { makeAccount, resetStoreWithAccount } from "@/test/fixtures";
+import { makeAccount, makeClient, resetStoreWithAccount } from "@/test/fixtures";
 import { readPersistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
 import { a2Slice, attachActiveA2 } from "./__tests__/persistTestKit";
 
@@ -20,8 +20,20 @@ beforeEach(async () => {
   await resetStoreWithAccount();
 });
 
+let nextClientId = 0;
+
+function seedLegacyClient(name: string) {
+  const state = useStore.getState();
+  const accountId = state.activeAccountId;
+  if (accountId === null) throw new Error("Expected an active account for the legacy client fixture.");
+  const client = makeClient({ id: `fault-client-${++nextClientId}`, accountId, name });
+  state.replaceAll({ ...state.data, clients: [...state.data.clients, client] });
+  return client;
+}
+
 describe("persistence coordinator fault-injection branches", () => {
   it("owns a reconciliation failure after sign-out without starting a reload", async () => {
+    const client = seedLegacyClient("Pending");
     let rejectSave!: (error: Error) => void;
     const saveAll = vi.fn(
       () =>
@@ -38,7 +50,7 @@ describe("persistence coordinator fault-injection branches", () => {
       onError: onError,
       serverMode: true,
     });
-    useStore.getState().addClient({ name: "Pending", color: "#111111" });
+    useStore.getState().archiveEntity("clients", client.id);
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
     useStore.getState().setActiveAccount(null);
     rejectSave(new BatchCommitUncertainError("uncertain"));
@@ -97,6 +109,8 @@ describe("persistence coordinator fault-injection branches", () => {
   });
 
   it("retries the current store data when an older failure lands after the latest snapshot was acknowledged", async () => {
+    const firstClient = seedLegacyClient("First");
+    const latestClient = seedLegacyClient("Latest");
     let rejectFirst!: (error: Error) => void;
     const first = new Promise<void>((_resolve, reject) => {
       rejectFirst = reject;
@@ -109,8 +123,8 @@ describe("persistence coordinator fault-injection branches", () => {
       debounceMs: 0,
       onError,
     });
-    useStore.getState().addClient({ name: "First", color: "#111111" });
-    useStore.getState().addClient({ name: "Latest", color: "#222222" });
+    useStore.getState().archiveEntity("clients", firstClient.id);
+    useStore.getState().archiveEntity("clients", latestClient.id);
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalledTimes(2));
     rejectFirst(new Error("older failure"));
     await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
@@ -118,11 +132,14 @@ describe("persistence coordinator fault-injection branches", () => {
     window.dispatchEvent(new Event("online"));
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalledTimes(3));
     expect(saveAll).toHaveBeenCalledTimes(3);
-    expect((saveAll.mock.calls[2]?.[0] as AppData).clients.map((row) => row.name)).toEqual(["First", "Latest"]);
+    expect(
+      (saveAll.mock.calls[2]?.[0] as AppData).clients.find((row) => row.id === latestClient.id)?.archivedAt,
+    ).toBeTruthy();
     detach();
   });
 
   it("does not replay an armed retry after disposal", async () => {
+    const client = seedLegacyClient("Retry");
     vi.useFakeTimers();
     try {
       const saveAll = vi.fn().mockRejectedValue(new Error("offline"));
@@ -131,7 +148,7 @@ describe("persistence coordinator fault-injection branches", () => {
         adapter: { loadAll: async () => emptyAppData(), saveAll },
         debounceMs: 0,
       });
-      useStore.getState().addClient({ name: "Retry", color: "#111111" });
+      useStore.getState().archiveEntity("clients", client.id);
       await vi.advanceTimersByTimeAsync(0);
       expect(saveAll).toHaveBeenCalledOnce();
 
@@ -144,6 +161,7 @@ describe("persistence coordinator fault-injection branches", () => {
   });
 
   it("does not replay an armed retry while an external suspension is active", async () => {
+    const client = seedLegacyClient("Retry");
     vi.useFakeTimers();
     try {
       const saveAll = vi.fn().mockRejectedValue(new Error("offline"));
@@ -153,7 +171,7 @@ describe("persistence coordinator fault-injection branches", () => {
         debounceMs: 0,
         serverMode: true,
       });
-      useStore.getState().addClient({ name: "Retry", color: "#111111" });
+      useStore.getState().archiveEntity("clients", client.id);
       await vi.advanceTimersByTimeAsync(0);
       const resume = suspendServerWrites();
       await vi.advanceTimersByTimeAsync(30_000);
@@ -168,6 +186,7 @@ describe("persistence coordinator fault-injection branches", () => {
   it.each(["resolve", "reject"] as const)(
     "ignores a teardown keepalive that settles after disposal (%s)",
     async (settlement) => {
+      const client = seedLegacyClient("Pending");
       let settleKeepalive!: () => void;
       const keepalive = new Promise<void>((resolve, reject) => {
         settleKeepalive = () => (settlement === "resolve" ? resolve() : reject(new Error("late failure")));
@@ -183,7 +202,7 @@ describe("persistence coordinator fault-injection branches", () => {
         onError: onError,
         onSuccess: onSuccess,
       });
-      useStore.getState().addClient({ name: "Pending", color: "#111111" });
+      useStore.getState().archiveEntity("clients", client.id);
       await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
       window.dispatchEvent(new Event("pagehide"));
       expect(saveAll).toHaveBeenCalledTimes(2);
@@ -197,6 +216,7 @@ describe("persistence coordinator fault-injection branches", () => {
   );
 
   it("makes resume idempotent and keeps a nested external suspension active until its final owner resumes", async () => {
+    const client = seedLegacyClient("Parked");
     const saveAll = vi.fn().mockResolvedValue(undefined);
     const detach = attachPersistence({
       store: useStore,
@@ -206,7 +226,7 @@ describe("persistence coordinator fault-injection branches", () => {
     });
     const resumeOuter = suspendServerWrites();
     const resumeInner = suspendServerWrites();
-    useStore.getState().addClient({ name: "Parked", color: "#111111" });
+    useStore.getState().archiveEntity("clients", client.id);
 
     resumeInner();
     resumeInner();
@@ -290,6 +310,7 @@ describe("persistence coordinator fault-injection branches", () => {
   });
 
   it("waits for an in-flight-only flush round and reports quiescence after it settles", async () => {
+    const client = seedLegacyClient("In flight");
     let resolveSave!: () => void;
     const saveAll = vi.fn(
       () =>
@@ -303,7 +324,7 @@ describe("persistence coordinator fault-injection branches", () => {
       debounceMs: 0,
       serverMode: true,
     });
-    useStore.getState().addClient({ name: "In flight", color: "#111111" });
+    useStore.getState().archiveEntity("clients", client.id);
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
     const flushing = flushPendingWrites();
     resolveSave();
@@ -319,7 +340,7 @@ describe("persistence coordinator fault-injection branches", () => {
     const detach = await attachActiveA2({ adapter: { loadAll, saveAll } });
     holdReload = true;
     saveAll.mockRejectedValueOnce(new BatchCommitUncertainError("uncertain"));
-    useStore.getState().addClient({ name: "Uncertain", color: "#111111" });
+    useStore.getState().archiveEntity("clients", "c2");
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
 
     await expect(flushPendingWrites()).resolves.toEqual({ kind: "blocked" });
@@ -338,7 +359,7 @@ describe("persistence coordinator fault-injection branches", () => {
       await vi.advanceTimersByTimeAsync(5);
       const detach = await detachPromise;
       const loadsAfterPick = loadAll.mock.calls.length;
-      useStore.getState().addClient({ name: "Pending", color: "#111111" });
+      useStore.getState().archiveEntity("clients", "c2");
       window.dispatchEvent(new Event("pagehide"));
       await vi.advanceTimersByTimeAsync(5);
 
@@ -377,7 +398,7 @@ describe("persistence coordinator fault-injection branches", () => {
     const reconciliationsResolvedBefore = readPersistenceDiagnosticsSnapshot().reconciliationsResolved;
     changeActiveAccountOnReloadSuccess = true;
     saveAll.mockRejectedValueOnce(new BatchCommitUncertainError("uncertain"));
-    useStore.getState().addClient({ name: "Uncertain", color: "#111111" });
+    useStore.getState().archiveEntity("clients", "c2");
     await vi.waitFor(() => expect(releaseReload).toBeTypeOf("function"));
 
     releaseReload();

@@ -25,21 +25,21 @@ vi.mock("@/lib/capacity", async (importOriginal) => ({
   buildCapacityAdvisoryFromLoad: capacityAdvisoryMock,
 }));
 
-beforeEach(() => {
-  resetAllocationModalStore();
+beforeEach(async () => {
+  await resetAllocationModalStore();
   capacityAdvisoryMock.mockClear();
   capacityAdvisoryMock.mockImplementation(() => ({ overDays: 0, timeOffDays: 0 }));
 });
 
-function addInlineActivityTestPerson() {
-  useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
+async function addInlineActivityTestPerson() {
+  await useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
   return first(useStore.getState().data.resources).id;
 }
 
 describe("AllocationModal inline activity creation pref", () => {
-  it('renders the inline "Add activity" input + button when explicitly enabled', () => {
-    const resourceId = addInlineActivityTestPerson();
-    useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
+  it('renders the inline "Add activity" input + button when explicitly enabled', async () => {
+    const resourceId = await addInlineActivityTestPerson();
+    await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     render(
       <AllocationModal
         kind="create"
@@ -52,9 +52,9 @@ describe("AllocationModal inline activity creation pref", () => {
   });
 
   it("places an inline-created project activity in the project-specific group", async () => {
-    useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
-    const resourceId = addInlineActivityTestPerson();
-    useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
+    await useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
+    const resourceId = await addInlineActivityTestPerson();
+    await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -79,8 +79,8 @@ describe("AllocationModal inline activity creation pref", () => {
       }),
     ).toBeInTheDocument();
   });
-  it('hides the inline "Add activity" controls by default while retaining the Activity picker', () => {
-    const resourceId = addInlineActivityTestPerson();
+  it('hides the inline "Add activity" controls by default while retaining the Activity picker', async () => {
+    const resourceId = await addInlineActivityTestPerson();
     render(
       <AllocationModal
         kind="create"
@@ -93,9 +93,9 @@ describe("AllocationModal inline activity creation pref", () => {
     expect(screen.getByRole("combobox", { name: "Activity" })).toBeInTheDocument();
   });
 
-  it('hides the inline "Add activity" input + button when inlineActivityCreateEnabled is false — the Activity picker still works', () => {
-    const resourceId = addInlineActivityTestPerson();
-    useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: false });
+  it('hides the inline "Add activity" input + button when inlineActivityCreateEnabled is false — the Activity picker still works', async () => {
+    const resourceId = await addInlineActivityTestPerson();
+    await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: false });
     render(
       <AllocationModal
         kind="create"
@@ -111,8 +111,8 @@ describe("AllocationModal inline activity creation pref", () => {
   });
 
   it("removes inline activity creation when an open editor modal is downgraded to viewer", async () => {
-    const resourceId = addInlineActivityTestPerson();
-    useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
+    const resourceId = await addInlineActivityTestPerson();
+    await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
     const view = render(
       <PermissionContext.Provider value={{ role: "editor" }}>
@@ -143,8 +143,8 @@ describe("AllocationModal inline activity creation pref", () => {
 
 describe("AllocationModal task field", () => {
   it("shows and saves an optional single-line task when the workspace setting is enabled", async () => {
-    const resourceId = addInlineActivityTestPerson();
-    useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
+    const resourceId = await addInlineActivityTestPerson();
+    await useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -160,7 +160,7 @@ describe("AllocationModal task field", () => {
     expect(useStore.getState().data.allocations[0]?.task).toBe("Launch review");
   });
   it("allows an existing task to be cleared", async () => {
-    const resourceId = addInlineActivityTestPerson();
+    const resourceId = await addInlineActivityTestPerson();
     const allocation = requireCreated(
       await useStore.getState().addAllocation({
         resourceId,
@@ -172,7 +172,7 @@ describe("AllocationModal task field", () => {
         task: "Original task",
       }),
     );
-    useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
+    await useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
     await user.clear(screen.getByLabelText("Task"));
@@ -180,7 +180,7 @@ describe("AllocationModal task field", () => {
     expect(useStore.getState().data.allocations[0]).toHaveProperty("task", null);
   });
   it("preserves a hidden task while an unrelated allocation is edited and restores it when enabled", async () => {
-    const resourceId = addInlineActivityTestPerson();
+    const resourceId = await addInlineActivityTestPerson();
     const taskAllocation = requireCreated(
       await useStore.getState().addAllocation({
         resourceId,
@@ -202,7 +202,7 @@ describe("AllocationModal task field", () => {
         status: "confirmed",
       }),
     );
-    useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: false });
+    await useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: false });
     const user = userEvent.setup();
     const view = render(<AllocationModal kind="edit" allocationId={unrelated.id} onClose={vi.fn()} />);
     expect(screen.queryByLabelText("Task")).not.toBeInTheDocument();
@@ -210,7 +210,7 @@ describe("AllocationModal task field", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
     view.unmount();
 
-    useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
+    await useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
     render(<AllocationModal kind="edit" allocationId={taskAllocation.id} onClose={vi.fn()} />);
     expect(screen.getByLabelText("Task")).toHaveValue("Keep this task");
     expect(useStore.getState().data.allocations.find(({ id }) => id === taskAllocation.id)?.task).toBe(

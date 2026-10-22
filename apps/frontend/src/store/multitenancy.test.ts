@@ -9,6 +9,11 @@ import { makeAccount, WORKDAYS } from "@/test/fixtures";
 
 const s = () => useStore.getState();
 
+async function selectAccount(accountId: string): Promise<void> {
+  s().setActiveAccount(accountId);
+  await s().refreshPlanning();
+}
+
 function present<T>(value: T | null | undefined): T {
   if (value == null) throw new Error("Expected a value");
   return value;
@@ -244,15 +249,15 @@ describe("account CRUD", () => {
     });
   });
 
-  it("updateAccount renames", () => {
+  it("updateAccount renames", async () => {
     const a = present(s().addAccount({ name: "Old", color: "#1" }));
-    s().setActiveAccount(a.id);
-    s().updateAccount(a.id, { name: "New" });
+    await selectAccount(a.id);
+    await s().updateAccount(a.id, { name: "New" });
     expect(s().data.accounts[0]?.name).toBe("New");
   });
 
-  it("scoped add* throws without an active account", () => {
-    expect(() => requireCreated(s().addClient({ name: "X", color: "#1" }))).toThrow(/no active account/i);
+  it("scoped add* throws without an active account", async () => {
+    await expect(requireCreated(s().addClient({ name: "X", color: "#1" }))).rejects.toThrow(/no active company/i);
   });
 
   it("deleteAccount cascade-drops all of that account’s scoped data and clears it if active", () => {
@@ -277,7 +282,11 @@ describe("account CRUD", () => {
 });
 
 describe("setActiveAccount resets per-account view state", () => {
-  beforeEach(() => s().replaceAll(twoAccountData()));
+  beforeEach(async () => {
+    s().replaceAll(twoAccountData());
+    s().setActiveAccount("a1");
+    await s().refreshPlanning();
+  });
 
   it("switching the active account changes the rows in scope (read-side isolation)", () => {
     // Drives the switch the way useScopedData composes it (scopeData(data, activeAccountId))
@@ -293,13 +302,13 @@ describe("setActiveAccount resets per-account view state", () => {
     expect(a2.projects.map((p) => p.id)).toEqual(["p2"]);
   });
 
-  it("clears filters, collapsed groups, selection and history on switch", () => {
+  it("clears filters, collapsed groups, selection and history on switch", async () => {
     s().setActiveAccount("a1");
     s().setFilters({ search: "x" });
     s().toggleGroup("g");
     s().selectAllocation("alloc");
-    s().addClient({ name: "New", color: "#1" });
-    expect(s().past.length).toBeGreaterThan(0);
+    await s().addClient({ name: "New", color: "#1" });
+    expect(s().planning.history.past.length).toBeGreaterThan(0);
 
     s().setActiveAccount("a2");
     expect(s().ui.filters.search).toBe("");
@@ -307,6 +316,8 @@ describe("setActiveAccount resets per-account view state", () => {
     expect(s().ui.selectedAllocationId).toBeNull();
     expect(s().past).toEqual([]);
     expect(s().future).toEqual([]);
+    expect(s().planning.history.past).toEqual([]);
+    expect(s().planning.history.future).toEqual([]);
   });
 
   it("atomically clears tenant-bound navigation and interaction state on switch", () => {
@@ -355,8 +366,8 @@ function registerScopedImportPart1(): void {
     expect(s().data.accounts).toHaveLength(2);
   });
 
-  it("gives imported entities fresh ids so a re-import into another account can’t corrupt the source", () => {
-    s().setActiveAccount("a2");
+  it("gives imported entities fresh ids so a re-import into another account can’t corrupt the source", async () => {
+    await selectAccount("a2");
     s().importData({
       ...emptyAppData(),
       clients: [
@@ -371,10 +382,11 @@ function registerScopedImportPart1(): void {
         },
       ],
     });
+    await s().refreshPlanning();
 
     const importedId = present(s().data.clients.find((c) => c.accountId === "a2")).id;
     expect(importedId).not.toBe("c1");
-    s().updateClient(importedId, { name: "Changed" });
+    await s().updateClient(importedId, { name: "Changed" });
     expect(present(s().data.clients.find((c) => c.accountId === "a1")).name).toBe("Client A1");
   });
 }
@@ -471,9 +483,10 @@ function registerScopedImportPart2(): void {
 }
 
 describe("importData (account-scoped)", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     s().replaceAll(twoAccountData());
     s().setActiveAccount("a1");
+    await s().refreshPlanning();
   });
   registerScopedImportPart1();
   registerScopedImportPart3();

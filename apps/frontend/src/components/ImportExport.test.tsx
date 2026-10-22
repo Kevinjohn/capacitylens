@@ -283,8 +283,8 @@ describe("ImportExport – Import", () => {
 describe("ImportExport – Import", () => {
   it("import is undoable with ⌘Z (routes through the history stack)", async () => {
     // Undo must restore the whole pre-import slice after a confirmed demo replacement.
-    useStore.getState().addResource(makeResourceDraft({ name: "Alice" }));
-    useStore.getState().addResource(makeResourceDraft({ name: "Bob" }));
+    await useStore.getState().addResource(makeResourceDraft({ name: "Alice" }));
+    await useStore.getState().addResource(makeResourceDraft({ name: "Bob" }));
     const before = useStore.getState().data.resources.length;
     render(<ImportExport />);
 
@@ -324,7 +324,7 @@ describe("ImportExport – Import", () => {
 describe("ImportExport – Import", () => {
   it("shows an error (NOT an undo prompt) when an import drops every record", async () => {
     // A real prior edit, so there's an undo entry a wrongful "Press ⌘Z" prompt could target.
-    useStore.getState().addClient({ name: "Real Edit", color: "#111111" });
+    await useStore.getState().addClient({ name: "Real Edit", color: "#111111" });
     render(<ImportExport />);
 
     // A CapacityLens-shaped file that parses (non-empty → dialog appears) but whose only record

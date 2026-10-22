@@ -154,7 +154,9 @@ export function TimeOffList() {
         <ConfirmDialog
           title={m.list_timeoff_delete_title()}
           message={m.list_timeoff_delete_message()}
-          onConfirm={() => confirmDelete(confirming.id)}
+          onConfirm={() => {
+            void confirmDelete(confirming.id);
+          }}
           onCancel={() => setConfirming(null)}
         />
       )}

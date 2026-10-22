@@ -80,7 +80,7 @@ it("reads the planning revision again after acknowledging a legacy write", async
   const spy = vi.fn(refreshPlanning);
   useStore.setState({ refreshPlanning: spy });
   try {
-    useStore.getState().updateResource("r1", { name: "Pepper Potts" });
+    useStore.getState().archiveEntity("resources", "r1");
     expect(await flushPendingWrites()).toEqual({ kind: "clean" });
     expect(server.readTables()).toEqual(["resources"]);
     expect(spy).toHaveBeenCalled();
@@ -106,13 +106,13 @@ it("reads the planning snapshot again alongside every legacy reload", async () =
 
 it("does not publish an old receipt to a detached persistence owner", async () => {
   const server = await attachAcknowledgingServer({ holdFirst: true });
-  useStore.getState().updateResource("r1", { name: "Pepper Potts" });
+  useStore.getState().archiveEntity("resources", "r1");
   await vi.waitFor(() => expect(server.readBatches()).toBe(1));
   server.detach();
   const data = useStore.getState().data;
   server.release.resolve();
   await vi.waitFor(() =>
-    expect(requireValue(server.readRemote().resources[0], "remote resource").name).toBe("Pepper Potts"),
+    expect(typeof requireValue(server.readRemote().resources[0], "remote resource").archivedAt).toBe("string"),
   );
   expect(useStore.getState().data).toBe(data);
 });

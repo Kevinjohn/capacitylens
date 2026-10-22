@@ -3,7 +3,7 @@ import type { PlanningIntent } from "@capacitylens/backend/planning";
 import { assertAllocationWithinResourceAvailability, assertDateRange } from "@capacitylens/shared/domain/mutations";
 import { assertAllocationPlacement } from "@capacitylens/shared/domain/placement";
 import { newId } from "@capacitylens/shared/lib/id";
-import { clampHoursPerDay, emptyAppData } from "@capacitylens/shared/types/entities";
+import { clampHoursPerDay, emptyAppData, SCOPED_KEYS } from "@capacitylens/shared/types/entities";
 import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import type { Allocation, AppData, ID } from "@capacitylens/shared/types/entities";
@@ -21,6 +21,7 @@ import type { Draft, Patch, StoreState } from "@/store/types";
 type AllocationSlice = Pick<
   StoreState,
   | "planning"
+  | "sendPlanningCommand"
   | "addAllocation"
   | "addAllocations"
   | "duplicateAllocation"
@@ -46,9 +47,8 @@ const PAGE_IDENTITY = Symbol("page planning identity");
 const RESTORE_FROM_RECEIPT: PlanningIntent = { operation: "planning.restoreGroup", restorationGroupId: "" };
 
 /**
- * Publishes the controller's view into the one store. The controller owns allocations and its
- * metadata; legacy persistence still owns every other table, so ordinary publications replace only
- * the planning company's allocations. Losing authority clears the whole cache and both histories.
+ * Publishes the controller's company slice without replacing rows belonging to other companies.
+ * Losing authority clears the whole cache and both histories.
  */
 function publishPlanning(state: StoreState, next: Partial<PlanningCacheState>): Partial<StoreState> {
   const planning = next.planning ?? state.planning;
@@ -66,18 +66,32 @@ function publishPlanning(state: StoreState, next: Partial<PlanningCacheState>): 
       accountSummariesRequestId: state.accountSummariesRequestId + 1,
     };
   }
-  // A new context publishes nothing yet: its first canonical read replaces its allocations.
+  // A new context publishes nothing yet: its first canonical read replaces its scoped rows.
   if (state.planning.context?.companyId !== planning.context.companyId) return { planning };
   const companyId = planning.context.companyId;
+  const data = { ...state.data };
+  data.accounts = [
+    ...state.data.accounts.filter((account) => account.id !== companyId),
+    ...next.data.accounts.filter((account) => account.id === companyId),
+  ];
+  for (const key of SCOPED_KEYS) {
+    const rows = [
+      ...state.data[key].filter((row) => row.accountId !== companyId),
+      ...next.data[key].filter((row) => row.accountId === companyId),
+    ];
+    Object.assign(data, { [key]: rows });
+  }
+  const account = data.accounts.find((row) => row.id === companyId);
   return {
     planning,
-    data: {
-      ...state.data,
-      allocations: [
-        ...state.data.allocations.filter((allocation) => allocation.accountId !== companyId),
-        ...next.data.allocations.filter((allocation) => allocation.accountId === companyId),
-      ],
-    },
+    data,
+    ...(account
+      ? {
+          accountSummaries: state.accountSummaries.map((summary) =>
+            summary.id === companyId ? { ...summary, name: account.name } : summary,
+          ),
+        }
+      : {}),
   };
 }
 
@@ -156,6 +170,7 @@ export function createAllocationSlice(
 
     return {
       planning: createPlanningCacheState().planning,
+      sendPlanningCommand: send,
       addAllocation: async (input) => {
         const prepared = prepareNew([input]);
         if (!prepared) return { kind: "blocked" };

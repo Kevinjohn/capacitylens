@@ -8,7 +8,7 @@ import { serializeData } from "@capacitylens/shared/data/transfer";
 import { attachPersistence, ReloadDiscardedEditError } from "@/data/persist";
 import { InMemoryDemoAdapter } from "@/data/InMemoryDemoAdapter";
 import { useStore } from "@/store/useStore";
-import { DEFAULT_ACCOUNT_ID, makeAppData, makeResourceDraft, resetStoreWithAccount } from "@/test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeAppData, makeClient, makeResourceDraft, resetStoreWithAccount } from "@/test/fixtures";
 import { ImportExport } from "./ImportExport";
 import { useServerImport } from "./import-export/useServerImport";
 
@@ -93,6 +93,15 @@ function savedData(saveAll: Mock<(data: AppData) => Promise<void>>): AppData {
   return saved;
 }
 
+function stageClient(name: string, id: string): void {
+  const client = makeClient({ id, accountId: DEFAULT_ACCOUNT_ID, name });
+  useStore.setState((state) => ({ data: { ...state.data, clients: [...state.data.clients, client] } }));
+}
+
+function archiveClient(id: string): void {
+  useStore.getState().archiveEntity("clients", id);
+}
+
 let detachPersistence: (() => void) | null = null;
 let adapter: InMemoryDemoAdapter;
 let saveAll: Mock<(data: AppData) => Promise<void>>;
@@ -100,6 +109,8 @@ let onPersistenceError: Mock<(error: unknown) => void>;
 
 beforeEach(async () => {
   await resetStoreWithAccount();
+  stageClient("Parked during import", "parked-during-import");
+  stageClient("Keep after refused import", "keep-after-refused-import");
   adapter = new InMemoryDemoAdapter();
   await adapter.saveAll(structuredClone(useStore.getState().data));
   saveAll = vi.spyOn(adapter, "saveAll");
@@ -136,7 +147,7 @@ async function dropsParkedEditDuringCommittedImport(): Promise<void> {
   await chooseAndConfirmImport();
   await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
 
-  useStore.getState().addClient({ name: "Parked during import", color: "#dc2626" });
+  archiveClient("parked-during-import");
   await new Promise((resolve) => setTimeout(resolve, 0));
   expect(saveAll).not.toHaveBeenCalled();
 
@@ -159,7 +170,7 @@ async function dropsParkedEditDuringCommittedImport(): Promise<void> {
   expect(saveAll).not.toHaveBeenCalled();
 
   // A later ordinary edit must not smuggle the dropped pre-import edit back into persistence.
-  useStore.getState().addClient({ name: "After import", color: "#16a34a" });
+  stageClient("After import", "after-import");
   await waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
   const saved = savedData(saveAll);
   expect(saved.clients.map((client) => client.name)).toContain("Imported client");
@@ -181,7 +192,7 @@ async function reschedulesParkedEditDuringZeroRecordImport(): Promise<void> {
   await chooseAndConfirmImport();
   await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
 
-  useStore.getState().addClient({ name: "Keep after refused import", color: "#16a34a" });
+  archiveClient("keep-after-refused-import");
   await new Promise((resolve) => setTimeout(resolve, 0));
   expect(saveAll).not.toHaveBeenCalled();
 
@@ -195,6 +206,7 @@ async function reschedulesParkedEditDuringZeroRecordImport(): Promise<void> {
   await waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
   const saved = savedData(saveAll);
   expect(saved.clients.map((client) => client.name)).toContain("Keep after refused import");
+  expect(typeof saved.clients.find((client) => client.id === "keep-after-refused-import")?.archivedAt).toBe("string");
   expect(onPersistenceError.mock.calls.some(([error]) => error instanceof ReloadDiscardedEditError)).toBe(false);
   expect(useStore.getState().notice).toMatchObject({
     tone: "error",
@@ -211,7 +223,7 @@ describe("ImportExport with the real persistence coordinator", () => {
     fireEvent.click(screen.getByRole("button", { name: "Confirm twice" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
 
-    useStore.getState().addClient({ name: "Parked during import", color: "#dc2626" });
+    archiveClient("parked-during-import");
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(saveAll).not.toHaveBeenCalled();
   });

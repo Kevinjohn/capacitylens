@@ -44,16 +44,16 @@ function registerStoreCrudPart1(): void {
     });
   });
 
-  it("adds entities with a generated id and timestamps", () => {
-    const r = requireCreated(s().addResource({ ...personDraft }));
+  it("adds entities with a generated id and timestamps", async () => {
+    const r = await requireCreated(s().addResource({ ...personDraft }));
     expect(r.id).toBeTruthy();
     expect(r.createdAt).toBeTruthy();
     expect(r.updatedAt).toBeTruthy();
     expect(s().data.resources).toHaveLength(1);
   });
 
-  it("generates a bounded revision when an existing timestamp has no representable successor", () => {
-    const client = requireCreated(s().addClient({ name: "Boundary", color: "#111111" }));
+  it("generates a bounded revision when an existing timestamp has no representable successor", async () => {
+    const client = await requireCreated(s().addClient({ name: "Boundary", color: "#111111" }));
     const data = s().data;
     s().replaceAll({
       ...data,
@@ -61,7 +61,7 @@ function registerStoreCrudPart1(): void {
         row.id === client.id ? { ...row, updatedAt: "+275760-09-12T23:59:59.999Z" } : row,
       ),
     });
-    s().updateClient(client.id, { name: "Last successor" });
+    await s().updateClient(client.id, { name: "Last successor" });
     expect(s().data.clients.find((row) => row.id === client.id)?.updatedAt).toBe("+275760-09-13T00:00:00.000Z");
 
     const atMaximum = s().data;
@@ -72,7 +72,9 @@ function registerStoreCrudPart1(): void {
       ),
     });
 
-    expect(() => s().updateClient(client.id, { name: "Must be refused" })).toThrow(/no representable successor/i);
+    await expect(s().updateClient(client.id, { name: "Must be refused" })).rejects.toThrow(
+      /no representable successor/i,
+    );
     expect(s().data.clients.find((row) => row.id === client.id)).toMatchObject({
       name: "Last successor",
       updatedAt: "+275760-09-13T00:00:00.000Z",
@@ -81,10 +83,10 @@ function registerStoreCrudPart1(): void {
 }
 
 function registerStoreCrudPart2(): void {
-  it("updates fields, advances updatedAt and emits a sync PUT", () => {
-    const r = requireCreated(s().addResource({ ...personDraft }));
+  it("updates fields, advances updatedAt and emits a sync PUT", async () => {
+    const r = await requireCreated(s().addResource({ ...personDraft }));
     const before = s().data;
-    s().updateResource(r.id, { name: "Tyler" });
+    await s().updateResource(r.id, { name: "Tyler" });
     const updated = s().data.resources[0];
     if (!updated) throw new Error("Expected updated resource");
     expect(updated.name).toBe("Tyler");
@@ -95,17 +97,17 @@ function registerStoreCrudPart2(): void {
   });
 
   it("rejects assigning a placeholder to an activity outside its bound project", async () => {
-    const client = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
-    const p1 = requireCreated(s().addProject({ name: "P1", clientId: client.id, color: "#2" }));
-    const p2 = requireCreated(s().addProject({ name: "P2", clientId: client.id, color: "#3" }));
-    const activityP2 = requireCreated(
+    const client = await requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
+    const p1 = await requireCreated(s().addProject({ name: "P1", clientId: client.id, color: "#2" }));
+    const p2 = await requireCreated(s().addProject({ name: "P2", clientId: client.id, color: "#3" }));
+    const activityP2 = await requireCreated(
       s().addActivity({
         name: "T2",
         kind: "project",
         projectId: p2.id,
       }),
     );
-    const ph = requireCreated(
+    const ph = await requireCreated(
       s().addResource({
         kind: "placeholder",
         role: "Designer",
@@ -250,20 +252,29 @@ function registerSchedulerUiPart2(): void {
     }).toEqual(before);
   });
 
-  it("preserves undo and redo across an unchanged same-account replacement", () => {
-    s().addClient({ name: "Undoable", color: "#111111" });
-    s().undo();
-    expect(s().future).toHaveLength(1);
+  it("preserves undo and redo across an unchanged same-account replacement", async () => {
+    await s().addClient({ name: "Undoable", color: "#111111" });
+    await s().undoPlanning();
+    expect(s().planning.history.future).toHaveLength(1);
 
     s().replaceAll(structuredClone(s().data));
 
-    expect(s().future).toHaveLength(1);
-    s().redo();
+    expect(s().planning.history.future).toHaveLength(1);
+    await s().redoPlanning();
     expect(s().data.clients.some((client) => client.name === "Undoable")).toBe(true);
   });
 
-  it("clears history when a same-account replacement contains a remote revision", () => {
-    const client = requireCreated(s().addClient({ name: "Local", color: "#111111" }));
+  it("clears history when a same-account replacement contains a remote revision", async () => {
+    const client = await requireCreated(s().addClient({ name: "Local", color: "#111111" }));
+    await s().addClient({ name: "Another local client", color: "#222222" });
+    await s().undoPlanning();
+    s().archiveEntity("clients", client.id);
+    s().unarchiveEntity("clients", client.id);
+    s().undo();
+    expect(s().past).toHaveLength(1);
+    expect(s().future).toHaveLength(1);
+    expect(s().planning.history.past).toHaveLength(1);
+    expect(s().planning.history.future).toHaveLength(1);
     const replacement = structuredClone(s().data);
     replacement.clients = replacement.clients.map((row) =>
       row.id === client.id ? { ...row, name: "Remote", updatedAt: "2099-01-01T00:00:00.000Z" } : row,
@@ -273,6 +284,8 @@ function registerSchedulerUiPart2(): void {
 
     expect(s().past).toEqual([]);
     expect(s().future).toEqual([]);
+    expect(s().planning.history.past).toEqual([]);
+    expect(s().planning.history.future).toEqual([]);
   });
 
   it("re-anchors after the first slice for a selected account replaces the temporary fallback", () => {
@@ -300,25 +313,25 @@ function registerSchedulerUiPart3(): void {
     expect(s().weekSnapEnabled).toBe(true);
   });
 
-  it("the date format is account data: undoable, exported, and mirrored to the formatters", () => {
+  it("the date format is account data: undoable, exported, and mirrored to the formatters", async () => {
     const accountId = s().activeAccountId;
     if (!accountId) throw new Error("Expected an active account.");
-    s().updateAccount(accountId, { dateStyle: "month-day" });
+    await s().updateAccount(accountId, { dateStyle: "month-day" });
     expect(resolveDateStyle(s().data, accountId)).toBe("month-day");
 
     expect(readActiveDateStyle()).toBe("month-day");
     expect(formatDayMonth("2026-09-09")).toBe("Sep 9");
 
-    s().undo();
+    await s().undoPlanning();
     expect(resolveDateStyle(s().data, accountId)).toBe("day-month");
     expect(readActiveDateStyle()).toBe("day-month");
 
-    s().updateAccount(accountId, { dateStyle: "month-day" });
+    await s().updateAccount(accountId, { dateStyle: "month-day" });
     expect(serializeData(s().data)).toContain("dateStyle");
 
     // Restore the default. The store is a singleton, so leaving it changed would bleed into
     // later specs that format a date.
-    s().updateAccount(accountId, { dateStyle: "day-month" });
+    await s().updateAccount(accountId, { dateStyle: "day-month" });
   });
 
   it("setDrawMode toggles between work and time off", () => {
@@ -339,28 +352,30 @@ function registerSchedulerUiPart3(): void {
 function registerSchedulerUiPart4(): void {
   it("undo and redo move through mutation history", async () => {
     await resetStoreWithAccount();
-    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
+    const c = await requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
     expect(s().data.clients).toHaveLength(1);
-    s().undo();
-    expect(s().data.clients).toHaveLength(0);
-    s().redo();
+    await s().undoPlanning();
     expect(s().data.clients).toHaveLength(1);
     expect(s().data.clients[0]?.id).toBe(c.id);
+    expect(typeof s().data.clients[0]?.archivedAt).toBe("string");
+    await s().redoPlanning();
+    expect(s().data.clients).toHaveLength(1);
+    expect(s().data.clients[0]).toMatchObject({ id: c.id, archivedAt: null });
   });
 
-  it("re-stamps a changed revision without serializing content unnecessarily", async () => {
+  it("re-stamps a changed revision without serializing each row unnecessarily", async () => {
     await resetStoreWithAccount();
-    const clients = Array.from({ length: 100 }, (_, index) =>
-      requireCreated(s().addClient({ name: `Client ${index}`, color: "#1" })),
-    );
-    useStore.setState({ past: [], future: [] });
-    s().updateClient(requireValue(clients[0], "first client").id, { name: "Changed" });
+    const clients = [];
+    for (let index = 0; index < 100; index += 1) {
+      clients.push(await requireCreated(s().addClient({ name: `Client ${index}`, color: "#1" })));
+    }
+    await s().updateClient(requireValue(clients[0], "first client").id, { name: "Changed" });
     const stringify = vi.spyOn(JSON, "stringify");
 
-    s().undo();
+    await s().undoPlanning();
 
     expect(s().data.clients[0]?.name).toBe("Client 0");
-    expect(stringify).not.toHaveBeenCalled();
+    expect(stringify).toHaveBeenCalledTimes(4);
     stringify.mockRestore();
   });
 }
@@ -397,18 +412,22 @@ function registerSchedulerUiPart6(): void {
     expect(s().ui.filters.activityKind).toBe("internal");
     expect(s().ui.filters.activityId).toBeNull();
   });
-  it("clears a stale project when the client filter changes", () => {
-    const queen = requireCreated(s().addClient({ name: "Queen Consolidated", color: "#111" }));
-    const lex = requireCreated(s().addClient({ name: "LexCorp", color: "#222" }));
-    const project = requireCreated(s().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" }));
+  it("clears a stale project when the client filter changes", async () => {
+    const queen = await requireCreated(s().addClient({ name: "Queen Consolidated", color: "#111" }));
+    const lex = await requireCreated(s().addClient({ name: "LexCorp", color: "#222" }));
+    const project = await requireCreated(
+      s().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" }),
+    );
     s().setFilters({ clientId: queen.id, projectId: project.id });
     s().setFilters({ clientId: lex.id });
     expect(s().ui.filters).toMatchObject({ clientId: lex.id, projectId: null });
   });
 
-  it("keeps a project when the client filter changes to its client", () => {
-    const queen = requireCreated(s().addClient({ name: "Queen Consolidated", color: "#111" }));
-    const project = requireCreated(s().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" }));
+  it("keeps a project when the client filter changes to its client", async () => {
+    const queen = await requireCreated(s().addClient({ name: "Queen Consolidated", color: "#111" }));
+    const project = await requireCreated(
+      s().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" }),
+    );
     s().setFilters({ projectId: project.id });
     s().setFilters({ clientId: queen.id });
     expect(s().ui.filters).toMatchObject({ clientId: queen.id, projectId: project.id });

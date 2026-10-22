@@ -15,14 +15,14 @@ import {
   settlePlanning,
 } from "./__tests__/allocationBarInteractionTestKit";
 
-beforeEach(() => resetStoreWithAccount());
+beforeEach(async () => resetStoreWithAccount());
 
 async function seedConflictPair() {
   const st = useStore.getState();
-  const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-  const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
-  const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
-  const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+  const c = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+  const p = await requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+  const t = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+  const r = await requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
   await st.addAllocation({
     resourceId: r.id,
     activityId: t.id,
@@ -87,10 +87,10 @@ function registerVisibleWindowAnnouncementTest() {
   it("does NOT count an over-day OUTSIDE the visible window (spoken count == rendered row summary)", async () => {
     useStore.setState((s) => ({ ui: { ...s.ui, originDate: "2026-06-01", rangeDays: 14 } }));
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
-    const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+    const c = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const p = await requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const r = await requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
 
     await st.addAllocation({
       resourceId: r.id,

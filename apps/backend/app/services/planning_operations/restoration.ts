@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { assertScopedRefs } from '@capacitylens/shared/domain/mutations'
+import { assertResourceExists, assertScopedRefs } from '@capacitylens/shared/domain/mutations'
 import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities'
 import { encodeRow, readStateWithClient } from '#services/state_repository'
 import { TABLE_NAMES } from '#services/planning_operations/entity_policy'
@@ -155,6 +155,16 @@ export async function restoreGroup(
         parentId: payload.parentId,
       })
   }
+  const dependencies = await readStateWithClient(trx, accountId, true)
+  for (const { entity, row } of rows) {
+    try {
+      if (entity === 'phases') assertScopedRefs(dependencies, accountId, 'phases', row)
+      if (entity === 'timeOff')
+        assertResourceExists(dependencies, accountId, String(row.resourceId))
+    } catch {
+      conflict()
+    }
+  }
   for (const { entity, row } of rows) {
     if (
       row.accountId !== accountId ||
@@ -164,14 +174,6 @@ export async function restoreGroup(
     await trx.table(TABLE_NAMES[entity]).insert(encodeRow(TABLE_NAMES[entity], row))
   }
   const current = await readStateWithClient(trx, accountId, true)
-  for (const { entity, row } of rows) {
-    if (entity !== 'phases') continue
-    try {
-      assertScopedRefs(current, accountId, 'phases', row)
-    } catch {
-      conflict()
-    }
-  }
   for (const { entity, rowId, parentId } of links) {
     const field = entity === 'activities' ? 'phaseId' : 'disciplineId'
     const column = entity === 'activities' ? 'phase_id' : 'discipline_id'

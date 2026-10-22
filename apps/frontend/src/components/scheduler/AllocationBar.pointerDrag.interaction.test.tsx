@@ -18,7 +18,7 @@ import {
   settlePlanning,
 } from "./__tests__/allocationBarInteractionTestKit";
 
-beforeEach(() => resetStoreWithAccount());
+beforeEach(async () => resetStoreWithAccount());
 
 function registerBasicPointerTests() {
   it("commits a move drag to the store (shifts both dates by a day)", async () => {
@@ -100,13 +100,13 @@ function registerBasicPointerTests() {
 function registerRejectedReassignmentTest() {
   it("leaves assignee, dates and hours unchanged when a diagonal reassign is rejected", async () => {
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const p1 = requireCreated(st.addProject({ name: "P1", clientId: c.id, color: "#2" }));
-    const p2 = requireCreated(st.addProject({ name: "P2", clientId: c.id, color: "#3" }));
-    const t1 = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p1.id }));
-    const person = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+    const c = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const p1 = await requireCreated(st.addProject({ name: "P1", clientId: c.id, color: "#2" }));
+    const p2 = await requireCreated(st.addProject({ name: "P2", clientId: c.id, color: "#3" }));
+    const t1 = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p1.id }));
+    const person = await requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
     // A placeholder bound to p2 cannot take a p1 activity, dropping onto it must be rejected.
-    const slot = requireCreated(
+    const slot = await requireCreated(
       st.addResource({
         kind: "placeholder",
         role: "Slot",
@@ -162,11 +162,11 @@ function registerRejectedReassignmentTest() {
 function registerValidReassignmentTest() {
   it("reassigns to another row (and highlights it mid-drag) when dropped on a valid lane", async () => {
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
-    const r1 = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
-    const r2 = requireCreated(
+    const c = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const p = await requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const r1 = await requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+    const r2 = await requireCreated(
       st.addResource({
         kind: "person",
         name: "Sam",
@@ -249,11 +249,11 @@ async function verifyWorkingDayRejection({
   targetWorkingDays,
 }: (typeof workingDayRejectionCases)[number]) {
   const st = useStore.getState();
-  st.updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: accountWorkingDays });
-  const client = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-  const project = requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
-  const activity = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
-  const source = requireCreated(
+  await st.updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: accountWorkingDays });
+  const client = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+  const project = await requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
+  const activity = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
+  const source = await requireCreated(
     st.addResource({
       kind: "person",
       name: "Jess Chambers",
@@ -266,7 +266,7 @@ async function verifyWorkingDayRejection({
       color: "#3",
     }),
   );
-  const destination = requireCreated(
+  const destination = await requireCreated(
     st.addResource({
       kind: "person",
       name: "Marie Moreau",
@@ -321,11 +321,11 @@ function registerWorkingDayRejectionTests() {
 function registerIgnoredWorkingDayTest() {
   it("allows that literal vertical drop when the allocation ignores working days", async () => {
     const st = useStore.getState();
-    st.updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: [1, 2, 3, 4] });
-    const client = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const project = requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
-    const activity = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
-    const source = requireCreated(
+    await st.updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: [1, 2, 3, 4] });
+    const client = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const project = await requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
+    const activity = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
+    const source = await requireCreated(
       st.addResource({
         kind: "person",
         name: "Jess Chambers",
@@ -338,7 +338,7 @@ function registerIgnoredWorkingDayTest() {
         color: "#3",
       }),
     );
-    const destination = requireCreated(
+    const destination = await requireCreated(
       st.addResource({
         kind: "person",
         name: "Marie Moreau",
@@ -410,11 +410,11 @@ function registerDragPreviewTests() {
 
   it("assigns a shared lane-boundary drop to the following lane", async () => {
     const st = useStore.getState();
-    const client = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const project = requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
-    const activity = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
-    const source = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
-    const destination = requireCreated(
+    const client = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const project = await requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
+    const activity = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
+    const source = await requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+    const destination = await requireCreated(
       st.addResource({
         kind: "person",
         name: "Sam",
@@ -463,11 +463,11 @@ function registerDragPreviewTests() {
 function registerExternalReassignmentTest() {
   it("keeps an External block at zero hours when it is reassigned to a person", async () => {
     const st = useStore.getState();
-    st.updateAccount(DEFAULT_ACCOUNT_ID, { schedulingMode: "blocks" });
-    const client = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const project = requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
-    const activity = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
-    const external = requireCreated(
+    await st.updateAccount(DEFAULT_ACCOUNT_ID, { schedulingMode: "blocks" });
+    const client = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const project = await requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
+    const activity = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
+    const external = await requireCreated(
       st.addResource({
         kind: "external",
         name: "Kord Industries",
@@ -480,7 +480,7 @@ function registerExternalReassignmentTest() {
         color: "#3",
       }),
     );
-    const person = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#4" })));
+    const person = await requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#4" })));
     const allocation = requireCreated(
       await st.addAllocation({
         resourceId: external.id,
@@ -529,11 +529,11 @@ function registerGeometryRefreshTests() {
       const cancelFrame = vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => undefined);
       try {
         const st = useStore.getState();
-        const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-        const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
-        const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
-        const r1 = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
-        const r2 = requireCreated(
+        const c = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+        const p = await requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+        const t = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+        const r1 = await requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+        const r2 = await requireCreated(
           st.addResource({
             kind: "person",
             name: "Sam",

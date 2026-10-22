@@ -481,7 +481,7 @@ describe("MembersSection — owner affordances", () => {
 
   it("exposes the current Resource link and eligible choices from its resource dialog", async () => {
     const user = userEvent.setup();
-    const resource = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
+    const resource = await requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     vi.stubGlobal(
       "fetch",
       mockApi([

@@ -11,6 +11,7 @@ import type { Role } from "@capacitylens/shared/domain/access";
 import type { MasqueradeState } from "@capacitylens/shared/domain/masquerade";
 import type { Account, AppData, ID, ISODate } from "@capacitylens/shared/types/entities";
 import type { PlanningControllerMetadata } from "@/data/planning/planningCacheController";
+import type { PlanningCommand } from "@/data/planning/planningCommands";
 
 /** Runtime state for the current masquerade session. */
 export type MasqueradeRuntimeState =
@@ -119,6 +120,8 @@ export interface StoreState extends StoreEntityActions {
   future: AppData[];
   /** Planning cache metadata, including the typed allocation Undo/Redo history. Page-local. */
   planning: PlanningControllerMetadata;
+  /** Submit one typed planning command and resolve after authoritative reconciliation. */
+  sendPlanningCommand: (command: PlanningCommand, original?: unknown) => Promise<void>;
   persistError: boolean;
   /** True when stored data existed but could not be read (corrupt JSON / failed
    * migrate). Distinct from persistError (a write failure): on a load error the
@@ -191,7 +194,7 @@ export interface StoreState extends StoreEntityActions {
   /** Create a company with its built-in Internal client and list it for the picker. Null when a Viewer is blocked. */
   addAccount: (input: Draft<Account>) => Account | null;
   /** Patch a company's settings; undoable. Throws a display-safe `Error` on invalid working days. */
-  updateAccount: (id: ID, patch: Patch<Account>) => void;
+  updateAccount: (id: ID, patch: Patch<Account>) => Promise<void>;
   /**
    * Delete a company and everything it owns, clearing undo history. With a company active, only that
    * company may be deleted and any other id throws; from the picker (no active company) any existing

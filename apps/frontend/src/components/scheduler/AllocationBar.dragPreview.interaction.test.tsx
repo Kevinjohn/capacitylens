@@ -15,16 +15,16 @@ import {
   settlePlanning,
 } from "./__tests__/allocationBarInteractionTestKit";
 
-beforeEach(() => resetStoreWithAccount());
+beforeEach(async () => resetStoreWithAccount());
 
 function registerTargetCalendarTest() {
   it("a cross-row reassign computes dates against the TARGET resource’s working week, not the source’s", async () => {
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const c = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const p = await requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
 
-    const src = requireCreated(
+    const src = await requireCreated(
       st.addResource({
         kind: "person",
         name: "Sev",
@@ -37,7 +37,7 @@ function registerTargetCalendarTest() {
         color: "#3",
       }),
     );
-    const dst = requireCreated(
+    const dst = await requireCreated(
       st.addResource({
         kind: "person",
         name: "Wk",
@@ -93,11 +93,11 @@ function registerTargetCalendarTest() {
 
   it("does not reread a destination resource from the store on every preview frame", async () => {
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
-    const src = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
-    const dst = requireCreated(st.addResource(makeResourceDraft({ name: "Sam", role: "Dev", color: "#4" })));
+    const c = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const p = await requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const src = await requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+    const dst = await requireCreated(st.addResource(makeResourceDraft({ name: "Sam", role: "Dev", color: "#4" })));
     const a = requireCreated(
       await st.addAllocation({
         resourceId: src.id,
@@ -154,13 +154,13 @@ function registerSourceCalendarTest() {
 
   async function seedCrossWeekPair() {
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
-    const src = requireCreated(
+    const c = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const p = await requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const src = await requireCreated(
       st.addResource(makeResourceDraft({ name: "Mid", role: "Dev", color: "#3", workingDays: [...midWeek] })),
     );
-    const dst = requireCreated(
+    const dst = await requireCreated(
       st.addResource(makeResourceDraft({ name: "Full", role: "Dev", color: "#4", workingDays: [...monToFri] })),
     );
 
@@ -228,13 +228,13 @@ function registerSourceCalendarTest() {
   it("a reassignment the drop will refuse previews nothing, so the bar does not stretch then snap back", async () => {
     // A refused drop must preview the source-row range, not a destination range that would snap back after rejection.
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
-    const src = requireCreated(
+    const c = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const p = await requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const src = await requireCreated(
       st.addResource(makeResourceDraft({ name: "Full", role: "Dev", color: "#3", workingDays: [...monToFri] })),
     );
-    const dst = requireCreated(
+    const dst = await requireCreated(
       st.addResource(makeResourceDraft({ name: "Mid", role: "Dev", color: "#4", workingDays: [...midWeek] })),
     );
     const a = requireCreated(
@@ -295,13 +295,13 @@ function registerSourceCalendarTest() {
     // take the destination's re-placement, and it must not freeze at its old column either: it
     // previews the range this drag would give it on its own row, so it tracks the pointer.
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
-    const src = requireCreated(
+    const c = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const p = await requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const src = await requireCreated(
       st.addResource(makeResourceDraft({ name: "Full", role: "Dev", color: "#3", workingDays: [...monToFri] })),
     );
-    const dst = requireCreated(
+    const dst = await requireCreated(
       st.addResource(makeResourceDraft({ name: "Mid", role: "Dev", color: "#4", workingDays: [...midWeek] })),
     );
     const a = requireCreated(
@@ -360,13 +360,13 @@ function registerSourceCalendarTest() {
 
   it("keeps previewing a zero-column reassignment when the source resource disappears", async () => {
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
-    const src = requireCreated(
+    const c = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const p = await requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const src = await requireCreated(
       st.addResource(makeResourceDraft({ name: "Full", role: "Dev", color: "#3", workingDays: [...monToFri] })),
     );
-    const dst = requireCreated(
+    const dst = await requireCreated(
       st.addResource(makeResourceDraft({ name: "Full", role: "Dev", color: "#4", workingDays: [...monToFri] })),
     );
     // The stored range ends on a Sunday. Reinterpreting its seven target working days should end
@@ -434,10 +434,10 @@ function registerSourceCalendarTest() {
 
   it("a same-row vertical wiggle previews nothing, even for a range its own week would renormalise", async () => {
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
-    const r = requireCreated(
+    const c = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const p = await requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const r = await requireCreated(
       st.addResource(makeResourceDraft({ name: "Full", role: "Dev", color: "#3", workingDays: [...monToFri] })),
     );
     // Thu 06-04 - Sun 06-07: two working days drawn over four calendar days, so re-deriving the
@@ -497,10 +497,10 @@ function registerSourceCalendarTest() {
 function registerWeekendPreviewTests() {
   it("previews the SAME weekend-snapped geometry the commit applies (no jump on release)", async () => {
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
-    const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+    const c = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const p = await requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const r = await requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
 
     const a = requireCreated(
       await st.addAllocation({

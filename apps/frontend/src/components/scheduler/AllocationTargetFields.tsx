@@ -39,11 +39,11 @@ function InlineActivityField({
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault();
-              onAddActivity();
+              void onAddActivity();
             }
           }}
         />
-        <Button size="sm" type="button" variant="outline" onClick={onAddActivity}>
+        <Button size="sm" type="button" variant="outline" onClick={() => void onAddActivity()}>
           <Plus data-icon="inline-start" />
           {m.form_allocation_add_activity()}
         </Button>

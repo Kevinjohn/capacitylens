@@ -11,7 +11,7 @@ import { SettingsDateFormatSection } from "./SettingsDateFormatSection";
 import { SettingsWorkingDaysSection } from "./SettingsWorkingDaysSection";
 import { CAPACITY_OVERVIEW_ACCESS_MESSAGES, SCHEDULING_MESSAGES } from "./settingsLabels";
 
-type UpdateSetting = (patch: Parameters<StoreState["updateAccount"]>[1]) => void;
+type UpdateSetting = (patch: Parameters<StoreState["updateAccount"]>[1]) => Promise<void>;
 type SettingsSchedulingSectionProps = {
   canEdit: boolean;
   canManageCapacityOverviewAccess: boolean;
@@ -46,7 +46,9 @@ function CapacityOverviewAccessSection({
         variant="recessed"
         ariaLabel={m.settings_capacity_overview_access_aria()}
         value={capacityOverviewAccess}
-        onChange={(value) => updateSetting({ capacityOverviewAccess: value })}
+        onChange={(value) => {
+          void updateSetting({ capacityOverviewAccess: value });
+        }}
         options={buildLabelOptions(buildLabels(CAPACITY_OVERVIEW_ACCESS_MESSAGES))}
         disabled={!canManageCapacityOverviewAccess}
         fullWidth
@@ -86,7 +88,9 @@ function SchedulingModeSection({
         variant="recessed"
         ariaLabel={m.settings_scheduling_aria()}
         value={schedulingMode}
-        onChange={(value) => updateSetting({ schedulingMode: value })}
+        onChange={(value) => {
+          void updateSetting({ schedulingMode: value });
+        }}
         options={buildLabelOptions(buildLabels(SCHEDULING_MESSAGES))}
         disabled={!canEdit}
         fullWidth
@@ -141,31 +145,41 @@ export function CompanyFeaturesSection(props: CompanyFeaturesSectionProps) {
         <SwitchField
           label={m.settings_disciplines_toggle()}
           checked={props.disciplinesEnabled}
-          onChange={(next) => updateSetting({ disciplinesEnabled: next })}
+          onChange={(next) => {
+            void updateSetting({ disciplinesEnabled: next });
+          }}
           disabled={!canEdit}
         />
         <SwitchField
           label={m.settings_placeholders_toggle()}
           checked={props.placeholdersEnabled}
-          onChange={(next) => updateSetting({ placeholdersEnabled: next })}
+          onChange={(next) => {
+            void updateSetting({ placeholdersEnabled: next });
+          }}
           disabled={!canEdit}
         />
         <SwitchField
           label={m.settings_external_toggle()}
           checked={props.externalEnabled}
-          onChange={(next) => updateSetting({ externalEnabled: next })}
+          onChange={(next) => {
+            void updateSetting({ externalEnabled: next });
+          }}
           disabled={!canEdit}
         />
         <SwitchField
           label={m.settings_inline_activity_create_toggle()}
           checked={props.inlineActivityCreateEnabled}
-          onChange={(next) => updateSetting({ inlineActivityCreateEnabled: next })}
+          onChange={(next) => {
+            void updateSetting({ inlineActivityCreateEnabled: next });
+          }}
           disabled={!canEdit}
         />
         <SwitchField
           label={m.settings_task_field_toggle()}
           checked={props.showTaskFieldInSchedule}
-          onChange={(next) => updateSetting({ showTaskFieldInSchedule: next })}
+          onChange={(next) => {
+            void updateSetting({ showTaskFieldInSchedule: next });
+          }}
           disabled={!canEdit}
         />
       </div>
@@ -208,7 +222,9 @@ export function SettingsCompanySetupSections(props: SettingsCompanySetupSections
       <SettingsDateFormatSection
         canEdit={props.canEdit}
         dateStyle={props.dateStyle}
-        onChange={(dateStyle) => props.updateSetting({ dateStyle })}
+        onChange={(dateStyle) => {
+          void props.updateSetting({ dateStyle });
+        }}
       />
       <CapacityOverviewAccessSection
         canManageCapacityOverviewAccess={props.canManageCapacityOverviewAccess}

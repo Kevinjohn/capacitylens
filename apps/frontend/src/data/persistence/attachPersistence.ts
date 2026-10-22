@@ -3,7 +3,6 @@ import type { StoreApi } from "zustand";
 import type { StoreState } from "@/store/useStore";
 import type { PersistenceAdapter } from "@/data/PersistenceAdapter";
 import { withoutAllocationAttribution } from "@capacitylens/shared/lib/integrity";
-import { APP_DATA_KEYS } from "@capacitylens/shared/types/entities";
 import { resetPersistenceDiagnostics } from "@/data/persistenceDiagnostics";
 import { persistenceCoordinator } from "./coordinator";
 import { createAttachmentState } from "./attachmentState";
@@ -39,13 +38,12 @@ function attachStoreSubscription(
   const { store, owner, writes, debounceMs } = input;
   return store.subscribe((state, previous) => {
     if (owner.current.disposed || state.data === owner.current.lastData) return;
-    const lastData = owner.current.lastData;
     owner.update({ lastData: state.data });
     // Hydration must not echo a server slice back as a user write.
     if (owner.current.loadingSlice) return;
-    // The planning controller owns allocations; its publications are not legacy edits, and losing
-    // planning authority clears the cache without turning that clear into deletions.
-    if (APP_DATA_KEYS.every((key) => key === "allocations" || state.data[key] === lastData[key])) return;
+    // Planning publications carry their metadata in the same state update; only remaining
+    // import/lifecycle writers without that change may enter the legacy persistence queue.
+    if (state.planning !== previous.planning) return;
     if (state.planning.context === null && previous.planning.context !== null) return;
     owner.update({ unacknowledged: state.data, lastError: null });
     // Suspended (a slice replacement is in flight): park the edit, record it in `pending` with no

@@ -60,7 +60,9 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
     <Modal
       title={project ? m.form_project_edit_title() : m.form_project_add_title()}
       onClose={onClose}
-      onSubmit={submit}
+      onSubmit={() => {
+        void submit();
+      }}
       footer={<FormActions onCancel={onClose} />}
     >
       <ProjectFormFields
@@ -126,7 +128,7 @@ function useProjectSubmit({
   update: ReturnType<typeof useStore.getState>["updateProject"];
   onClose: () => void;
 }) {
-  return () => {
+  return async () => {
     const trimmed = parseName(name, fail);
     if (!trimmed) return;
     const privacy = privateNameFields.parsePrivacyPatch();
@@ -144,7 +146,7 @@ function useProjectSubmit({
         fail(null, m.form_project_err_changed());
         return;
       }
-      if (!saveProject({ project, trimmed, clientId, color, privacy, add, update })) return;
+      if (!(await saveProject({ project, trimmed, clientId, color, privacy, add, update }))) return;
       onClose();
     } catch (error) {
       // Surface store rejection at the project form so invalid writes cannot escape the event boundary.
@@ -153,7 +155,7 @@ function useProjectSubmit({
   };
 }
 
-function saveProject({
+async function saveProject({
   project,
   trimmed,
   clientId,
@@ -171,16 +173,18 @@ function saveProject({
   update: ReturnType<typeof useStore.getState>["updateProject"];
 }) {
   if (project) {
-    update(project.id, { name: trimmed, clientId, color, ...privacy });
+    await update(project.id, { name: trimmed, clientId, color, ...privacy });
     return true;
   }
   return (
-    add({
-      name: trimmed,
-      clientId,
-      color,
-      ...(privacy.isPrivate && privacy.codeName ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName } : {}),
-    }).kind === "created"
+    (
+      await add({
+        name: trimmed,
+        clientId,
+        color,
+        ...(privacy.isPrivate && privacy.codeName ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName } : {}),
+      })
+    ).kind === "created"
   );
 }
 

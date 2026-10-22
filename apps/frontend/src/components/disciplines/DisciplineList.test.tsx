@@ -12,10 +12,10 @@ beforeEach(async () => {
 });
 
 describe("DisciplineList", () => {
-  it("sorts the management view alphabetically without changing stored sort order", () => {
-    useStore.getState().addDiscipline({ name: "Zulu", color: "#111111", sortOrder: 0 });
-    useStore.getState().addDiscipline({ name: "alpha", color: "#222222", sortOrder: 2 });
-    useStore.getState().addDiscipline({ name: "Bravo", color: "#333333", sortOrder: 1 });
+  it("sorts the management view alphabetically without changing stored sort order", async () => {
+    await useStore.getState().addDiscipline({ name: "Zulu", color: "#111111", sortOrder: 0 });
+    await useStore.getState().addDiscipline({ name: "alpha", color: "#222222", sortOrder: 2 });
+    await useStore.getState().addDiscipline({ name: "Bravo", color: "#333333", sortOrder: 1 });
     const storedIds = useStore.getState().data.disciplines.map((discipline) => discipline.id);
 
     render(<DisciplineList />);
@@ -29,9 +29,9 @@ describe("DisciplineList", () => {
     expect(screen.getByText(/no disciplines yet/i)).toBeInTheDocument();
   });
 
-  it("lists disciplines that already exist in the store", () => {
-    useStore.getState().addDiscipline({ name: "Engineering", color: "#6366f1", sortOrder: 0 });
-    useStore.getState().addDiscipline({ name: "Design", color: "#ec4899", sortOrder: 1 });
+  it("lists disciplines that already exist in the store", async () => {
+    await useStore.getState().addDiscipline({ name: "Engineering", color: "#6366f1", sortOrder: 0 });
+    await useStore.getState().addDiscipline({ name: "Design", color: "#ec4899", sortOrder: 1 });
     render(<DisciplineList />);
     expect(screen.getByText("Engineering")).toBeInTheDocument();
     expect(screen.getByText("Design")).toBeInTheDocument();
@@ -74,7 +74,7 @@ describe("DisciplineList", () => {
 
   it("edit renames a discipline", async () => {
     const user = userEvent.setup();
-    useStore.getState().addDiscipline({ name: "OldName", color: "#aabbcc", sortOrder: 0 });
+    await useStore.getState().addDiscipline({ name: "OldName", color: "#aabbcc", sortOrder: 0 });
     render(<DisciplineList />);
 
     const row = screen.getByTestId("discipline-row");
@@ -96,7 +96,7 @@ describe("DisciplineList", () => {
 
   it("delete opens a ConfirmDialog and removes it on confirm", async () => {
     const user = userEvent.setup();
-    useStore.getState().addDiscipline({ name: "ToDelete", color: "#ff0000", sortOrder: 0 });
+    await useStore.getState().addDiscipline({ name: "ToDelete", color: "#ff0000", sortOrder: 0 });
     render(<DisciplineList />);
 
     expect(screen.getByText("ToDelete")).toBeInTheDocument();
@@ -118,7 +118,7 @@ describe("DisciplineList", () => {
 
   it("cancel on the delete ConfirmDialog keeps the discipline", async () => {
     const user = userEvent.setup();
-    useStore.getState().addDiscipline({ name: "KeepMe", color: "#00ff00", sortOrder: 0 });
+    await useStore.getState().addDiscipline({ name: "KeepMe", color: "#00ff00", sortOrder: 0 });
     render(<DisciplineList />);
 
     const row = screen.getByTestId("discipline-row");
@@ -134,14 +134,16 @@ describe("DisciplineList", () => {
 
   it("keeps the edit form open when its discipline vanished during editing", async () => {
     const user = userEvent.setup();
-    const discipline = requireCreated(
+    const discipline = await requireCreated(
       useStore.getState().addDiscipline({ name: "Design", color: "#00ff00", sortOrder: 0 }),
     );
     render(<DisciplineList />);
 
     await user.click(within(screen.getByTestId("discipline-row")).getByRole("button", { name: "Edit Design" }));
     const dialog = screen.getByRole("dialog", { name: "Edit discipline" });
-    act(() => useStore.getState().deleteDiscipline(discipline.id));
+    await act(async () => {
+      await useStore.getState().deleteDiscipline(discipline.id);
+    });
     await user.clear(within(dialog).getByLabelText("Name"));
     await user.type(within(dialog).getByLabelText("Name"), "Product");
     await user.click(within(dialog).getByRole("button", { name: "Save" }));

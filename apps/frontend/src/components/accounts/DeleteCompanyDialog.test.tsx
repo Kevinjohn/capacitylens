@@ -93,17 +93,18 @@ it("autofocuses the type-to-confirm field, not a leading button", () => {
 // "Export first" is the last backup before a no-undo cascade delete, so it must be complete
 // (server mode fetches the full ?includeInactive=1 slice) and must never silently save an empty
 // file or pretend a failed fetch produced a backup.
-const seedLocalData = () => {
+const seedLocalData = async () => {
   useStore.getState().replaceAll(makeAppData());
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
-  useStore.getState().addClient({ name: "Ferris Corp", color: "#111" });
+  await useStore.getState().refreshPlanning();
+  await useStore.getState().addClient({ name: "Ferris Corp", color: "#111" });
 };
 
 it("DEMO build: exports the local scoped slice without any fetch", async () => {
   vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
   const fetchSpy = vi.fn();
   vi.stubGlobal("fetch", fetchSpy);
-  seedLocalData();
+  await seedLocalData();
   render(<DeleteCompanyDialog account={makeAccount()} onConfirm={() => {}} onCancel={() => {}} />);
 
   fireEvent.click(screen.getByRole("button", { name: "Export first" }));

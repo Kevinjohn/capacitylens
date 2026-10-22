@@ -39,7 +39,7 @@ async function send(
   const response = await session(method === 'post' ? client.post(url) : client.patch(url), cookie)
     .json({ mutationId, baseRevision, intent })
     .send()
-  // The new routes are untyped until the registry is regenerated; only these reply fields are read.
+  // Only the receipt fields exercised by these restoration tests are read.
   return response as unknown as Omit<typeof response, 'body'> & { body(): Reply }
 }
 
@@ -572,6 +572,43 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     assert.equal(after.resources.find((row) => row.id === resource.id)?.role, 'Updated Gotham role')
   })
 
+  test('a reassigned child prevents partial discipline relinking and leaves the group usable', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup)
+    const { cookie } = await signIn(client)
+    const before = await readState(accountId, true)
+    const discipline = before.disciplines.find(
+      (row) => before.resources.filter((resource) => resource.disciplineId === row.id).length >= 2
+    )!
+    const children = before.resources.filter((row) => row.disciplineId === discipline.id)
+    const other = before.disciplines.find((row) => row.id !== discipline.id)!
+    const deleted = await send(
+      client,
+      cookie,
+      `/api/accounts/${accountId}/disciplines/${discipline.id}/delete`,
+      0,
+      { operation: 'catalogue.delete', entity: { entity: 'disciplines', id: discipline.id } }
+    )
+    deleted.assertStatus(200)
+    const groupId = deleted.body().restoration.replacementGroupId
+    await db.from('resources').where('id', children[1]!.id).update({ discipline_id: other.id })
+    const auditBefore = await planningAudit()
+    const mutationsBefore = await markers()
+    const refused = await restore(client, cookie, groupId, 1)
+    refused.assertStatus(409)
+    const after = await readState(accountId, true)
+    assert.isUndefined(after.disciplines.find((row) => row.id === discipline.id))
+    assert.isNull(after.resources.find((row) => row.id === children[0]!.id)?.disciplineId)
+    assert.equal(after.resources.find((row) => row.id === children[1]!.id)?.disciplineId, other.id)
+    assert.isNull(await consumedAt(groupId))
+    assert.equal(await currentRevision(client, cookie), 1)
+    assert.deepEqual(await markers(), mutationsBefore)
+    assert.deepEqual(await planningAudit(), auditBefore)
+  })
+
   test('phase deletion nulls activity links and refuses a changed project without consuming the group', async ({
     client,
     assert,
@@ -612,6 +649,57 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const after = await readState(accountId, true)
     assert.equal(after.activities.find((row) => row.id === activity.id)?.phaseId, phaseId)
     assert.equal(after.activities.find((row) => row.id === activity.id)?.name, 'Gotham review')
+  })
+
+  test('a missing phase project returns a restoration conflict without consuming its group', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup)
+    const { cookie } = await signIn(client)
+    const before = await readState(accountId, true)
+    const clientId = before.clients.find((row) => !row.builtin)!.id
+    const projectId = randomUUID()
+    const phaseId = randomUUID()
+    const project = await send(client, cookie, `/api/accounts/${accountId}/projects`, 0, {
+      operation: 'catalogue.create',
+      entity: {
+        entity: 'projects',
+        id: projectId,
+        fields: {
+          name: 'Gotham restoration project',
+          color: before.clients.find((row) => row.id === clientId)!.color,
+          clientId,
+        },
+      },
+    })
+    project.assertStatus(200)
+    const phase = await send(client, cookie, `/api/accounts/${accountId}/phases`, 1, {
+      operation: 'catalogue.create',
+      entity: { entity: 'phases', id: phaseId, fields: { name: 'Survey', projectId } },
+    })
+    phase.assertStatus(200)
+    const deleted = await send(
+      client,
+      cookie,
+      `/api/accounts/${accountId}/phases/${phaseId}/delete`,
+      2,
+      { operation: 'catalogue.delete', entity: { entity: 'phases', id: phaseId } }
+    )
+    deleted.assertStatus(200)
+    const groupId = deleted.body().restoration.replacementGroupId
+    await db.from('projects').where('id', projectId).delete()
+    const auditBefore = await planningAudit()
+    const mutationsBefore = await markers()
+    const refused = await restore(client, cookie, groupId, 3)
+    refused.assertStatus(409)
+    const after = await readState(accountId, true)
+    assert.isUndefined(after.phases.find((row) => row.id === phaseId))
+    assert.isNull(await consumedAt(groupId))
+    assert.equal(await currentRevision(client, cookie), 3)
+    assert.deepEqual(await markers(), mutationsBefore)
+    assert.deepEqual(await planningAudit(), auditBefore)
   })
 
   test('time-off subset deletion keeps other rows and restores a hidden note without exposing it', async ({
@@ -778,6 +866,53 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     changed.assertStatus(200)
     assert.isNull(await group(groupId))
     assert.isDefined(await group(foreignGroup))
+  })
+
+  test('only an actual activity-kind change clears pending groups', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup)
+    const { cookie } = await signIn(client)
+    const [allocationId] = await createAllocations(client, cookie, 1)
+    const deleted = await deleteOne(client, cookie, allocationId!, 1)
+    deleted.assertStatus(200)
+    const groupId = deleted.body().restoration.replacementGroupId
+    const before = await readState(accountId, true)
+    const activity = before.activities.find((row) => row.kind === 'internal')!
+    const renamed = await send(
+      client,
+      cookie,
+      `/api/accounts/${accountId}/activities/${activity.id}`,
+      2,
+      {
+        operation: 'catalogue.update',
+        entity: {
+          entity: 'activities',
+          id: activity.id,
+          changes: { kind: activity.kind, name: 'Gotham planning' },
+        },
+      },
+      randomUUID(),
+      'patch'
+    )
+    renamed.assertStatus(200)
+    assert.isDefined(await group(groupId))
+    const changed = await send(
+      client,
+      cookie,
+      `/api/accounts/${accountId}/activities/${activity.id}`,
+      3,
+      {
+        operation: 'catalogue.update',
+        entity: { entity: 'activities', id: activity.id, changes: { kind: 'repeatable' } },
+      },
+      randomUUID(),
+      'patch'
+    )
+    changed.assertStatus(200)
+    assert.isNull(await group(groupId))
   })
 
   test('a failed privacy transaction retains its data and restoration group', async ({

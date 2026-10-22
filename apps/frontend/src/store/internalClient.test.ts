@@ -29,17 +29,18 @@ function addsAccountWithBuiltinClient(): void {
   expect(internalClientFor(s().data.clients, b.id)).toBeDefined();
 }
 
-function rejectsBuiltinRename(): void {
+async function rejectsBuiltinRename(): Promise<void> {
   const a = expectPresent(
     s().addAccount({ name: "Ferris Co", color: "#6366f1" }),
     "Expected the test account to be created.",
   );
   s().setActiveAccount(a.id);
+  await s().refreshPlanning();
   const internal = expectPresent(
     internalClientFor(s().data.clients, a.id),
     "Expected the built-in client to be present.",
   );
-  expect(() => s().updateClient(internal.id, { name: "Renamed" })).toThrow(/built in/i);
+  await expect(s().updateClient(internal.id, { name: "Renamed" })).rejects.toThrow(/built in/i);
 
   const unchanged = expectPresent(
     internalClientFor(s().data.clients, a.id),
@@ -48,14 +49,15 @@ function rejectsBuiltinRename(): void {
   expect(unchanged.name).toBe("Internal");
 }
 
-function renamesNormalClient(): void {
+async function renamesNormalClient(): Promise<void> {
   const a = expectPresent(
     s().addAccount({ name: "Ferris Co", color: "#6366f1" }),
     "Expected the test account to be created.",
   );
   s().setActiveAccount(a.id);
-  const c = requireCreated(s().addClient({ name: "Globex", color: "#3b82f6" }));
-  s().updateClient(c.id, { name: "Globex 2" });
+  await s().refreshPlanning();
+  const c = await requireCreated(s().addClient({ name: "Globex", color: "#3b82f6" }));
+  await s().updateClient(c.id, { name: "Globex 2" });
   const renamed = expectPresent(
     s().data.clients.find((x) => x.id === c.id),
     "Expected the renamed client to be present.",
@@ -63,14 +65,15 @@ function renamesNormalClient(): void {
   expect(renamed.name).toBe("Globex 2");
 }
 
-function stripsAddedBuiltinFlag(): void {
+async function stripsAddedBuiltinFlag(): Promise<void> {
   const a = expectPresent(
     s().addAccount({ name: "Ferris Co", color: "#6366f1" }),
     "Expected the test account to be created.",
   );
   s().setActiveAccount(a.id);
+  await s().refreshPlanning();
   // A cast payload smuggling builtin:true must not mint a second Internal, the store strips it.
-  const c = requireCreated(s().addClient({ name: "Sneaky", color: "#3b82f6", builtin: true } as never));
+  const c = await requireCreated(s().addClient({ name: "Sneaky", color: "#3b82f6", builtin: true } as never));
   const sneaky = expectPresent(
     s().data.clients.find((x) => x.id === c.id),
     "Expected the added client to be present.",
@@ -80,14 +83,15 @@ function stripsAddedBuiltinFlag(): void {
   expect(s().data.clients.filter((x) => x.builtin && x.accountId === a.id)).toHaveLength(1);
 }
 
-function stripsPromotedBuiltinFlag(): void {
+async function stripsPromotedBuiltinFlag(): Promise<void> {
   const a = expectPresent(
     s().addAccount({ name: "Ferris Co", color: "#6366f1" }),
     "Expected the test account to be created.",
   );
   s().setActiveAccount(a.id);
-  const c = requireCreated(s().addClient({ name: "Globex", color: "#3b82f6" }));
-  s().updateClient(c.id, { builtin: true } as never);
+  await s().refreshPlanning();
+  const c = await requireCreated(s().addClient({ name: "Globex", color: "#3b82f6" }));
+  await s().updateClient(c.id, { builtin: true } as never);
   const promoted = expectPresent(
     s().data.clients.find((x) => x.id === c.id),
     "Expected the promoted client to be present.",

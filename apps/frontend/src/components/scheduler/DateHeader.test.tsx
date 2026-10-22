@@ -224,7 +224,9 @@ function registerDateStyleReactivityTests() {
       renderHeader(17);
       expect(screen.getByText("1 Jun")).toBeInTheDocument();
 
-      act(() => useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { dateStyle: "month-day" }));
+      await act(async () => {
+        await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { dateStyle: "month-day" });
+      });
 
       expect(screen.getByText("Jun 1")).toBeInTheDocument();
       expect(screen.queryByText("1 Jun")).not.toBeInTheDocument();

@@ -72,7 +72,7 @@ describe("Overview route access", () => {
     await resetStoreWithAccount();
     const accountId = useStore.getState().activeAccountId;
     if (!accountId) throw new Error("Expected an active account");
-    useStore.getState().updateAccount(accountId, { capacityOverviewAccess: "everyone" });
+    await useStore.getState().updateAccount(accountId, { capacityOverviewAccess: "everyone" });
     renderRoute("viewer", "resolved");
 
     expect(await screen.findByText("Overview content")).toBeInTheDocument();
