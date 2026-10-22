@@ -1,18 +1,11 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { DatabaseSync } from "node:sqlite";
 import { mkdtempSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import {
-  buildSmokeEnvironment,
-  createSmokeCompany,
-  startServer,
-  waitFor,
-  writeSmokeSchedule,
-} from "./smoke-packaged-server.mjs";
+import { buildSmokeEnvironment, startServer, waitFor, writeSmokeSchedule } from "./smoke-packaged-server.mjs";
 
 test("packaged smoke strips deployment settings before applying its loopback fixture", () => {
   const inherited = {
@@ -103,47 +96,12 @@ test("failure preservation errors do not hide the original failure or leave scra
   }
 });
 
-test("smoke fixture creates one isolated company and owner membership for an existing principal", () => {
-  const workDir = mkdtempSync(join(tmpdir(), "capacitylens-smoke-company-"));
-  const databasePath = join(workDir, "fixture.db");
-  const database = new DatabaseSync(databasePath);
-  try {
-    database.exec(`
-      CREATE TABLE users (id TEXT PRIMARY KEY);
-      CREATE TABLE accounts (id TEXT PRIMARY KEY, name TEXT, color TEXT, scheduling_mode TEXT, inline_activity_create_enabled TEXT, created_at TEXT, updated_at TEXT);
-      CREATE TABLE clients (id TEXT PRIMARY KEY, account_id TEXT, name TEXT, color TEXT, builtin TEXT, created_at TEXT, updated_at TEXT);
-      CREATE TABLE memberships (id TEXT PRIMARY KEY, account_id TEXT, user_id TEXT, role TEXT, status TEXT, created_at TEXT, updated_at TEXT);
-      CREATE TABLE company_planning_revisions (account_id TEXT PRIMARY KEY, revision INTEGER);
-      INSERT INTO users (id) VALUES ('smoke-owner');
-    `);
-    const accountId = createSmokeCompany(
-      databasePath,
-      "smoke-owner",
-      { name: "Wayne Enterprises", color: "#5c34d4" },
-      (id) => ({ id: `internal:${id}`, name: "Internal", color: "#2d75da" }),
-    );
-    assert.equal(database.prepare("SELECT name FROM accounts WHERE id = ?").get(accountId).name, "Wayne Enterprises");
-    assert.equal(
-      database.prepare("SELECT user_id FROM memberships WHERE account_id = ?").get(accountId).user_id,
-      "smoke-owner",
-    );
-    assert.equal(database.prepare("SELECT builtin FROM clients WHERE account_id = ?").get(accountId).builtin, "true");
-    assert.equal(
-      database.prepare("SELECT revision FROM company_planning_revisions WHERE account_id = ?").get(accountId).revision,
-      1,
-    );
-  } finally {
-    database.close();
-    rmSync(workDir, { recursive: true, force: true });
-  }
-});
-
-test("authenticated smoke writes one typed resource under its isolated company", async () => {
+test("authenticated smoke writes a typed allocation under its isolated company", async () => {
   const originalFetch = globalThis.fetch;
   const requests = [];
   globalThis.fetch = async (url, options) => {
     requests.push({ url, headers: options.headers, body: JSON.parse(options.body) });
-    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    return new Response(JSON.stringify({ revision: requests.length + 1 }), { status: 200 });
   };
   try {
     const fixture = {
@@ -169,6 +127,20 @@ test("authenticated smoke writes one typed resource under its isolated company",
     assert.equal(requests[0].body.baseRevision, 1);
     assert.equal(requests[0].body.intent.operation, "resource.create");
     assert.equal(requests[0].body.intent.fields.name, "Bruce Wayne Packaged Schedule");
+    assert.equal(requests[1].url, "http://localhost:8787/api/accounts/isolated-company/activities");
+    assert.equal(requests[1].headers.cookie, "fixture-session");
+    assert.equal(requests[1].body.baseRevision, 2);
+    assert.equal(requests[1].body.intent.operation, "catalogue.create");
+    assert.equal(requests[1].body.intent.entity.entity, "activities");
+    assert.equal(requests[1].body.intent.entity.fields.kind, "internal");
+    assert.equal(requests[2].url, "http://localhost:8787/api/accounts/isolated-company/allocations");
+    assert.equal(requests[2].headers.cookie, "fixture-session");
+    assert.equal(requests[2].body.baseRevision, 3);
+    assert.equal(requests[2].body.intent.operation, "allocation.create");
+    assert.equal(requests[2].body.intent.allocation.resourceId, written.resource.id);
+    assert.equal(requests[2].body.intent.allocation.activityId, written.activity.id);
+    assert.equal(written.allocation.id, requests[2].body.intent.allocation.id);
+    assert.equal(requests.length, 3);
     assert.equal(written.accountId, "isolated-company");
     assert.equal(fixture.resources[0].accountId, "a-studio");
   } finally {

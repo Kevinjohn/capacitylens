@@ -14,8 +14,8 @@ const STARTUP_TIMEOUT_MS = 30_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 const RESOURCE_NAME = "Bruce Wayne Packaged Schedule";
-// The packaged schema includes the baseline, restoration groups, action proofs, and restoration origin.
-const MIGRATION_COUNT = 4;
+// The unreleased native schema is installed by one complete baseline.
+const MIGRATION_COUNT = 1;
 
 function message(error) {
   return error instanceof Error ? error.message : String(error);
@@ -89,6 +89,31 @@ function inspectDatabase(path, expectedResourceName) {
       assert.equal(count, 1, `${path} did not preserve the scheduling write.`);
     }
     return journal;
+  } finally {
+    database.close();
+  }
+}
+
+function assertAllocationInDatabase(path, accountId, allocation) {
+  const database = new DatabaseSync(path, { readOnly: true });
+  try {
+    const row = database
+      .prepare(
+        "SELECT account_id, resource_id, activity_id, start_date, end_date, hours_per_day, status FROM allocations WHERE id = ?",
+      )
+      .get(allocation.id);
+    assert.deepEqual(
+      { ...row },
+      {
+        account_id: accountId,
+        resource_id: allocation.resourceId,
+        activity_id: allocation.activityId,
+        start_date: allocation.startDate,
+        end_date: allocation.endDate,
+        hours_per_day: allocation.hoursPerDay,
+        status: allocation.status,
+      },
+    );
   } finally {
     database.close();
   }
@@ -170,45 +195,7 @@ async function assertReady(baseUrl, child) {
   );
 }
 
-/** Set up one disposable company for a real signed-in principal in the private smoke database. */
-export function createSmokeCompany(databasePath, userId, account, internalClient) {
-  const database = new DatabaseSync(databasePath);
-  const accountId = randomUUID();
-  const now = new Date().toISOString();
-  try {
-    database.exec("PRAGMA foreign_keys = ON; BEGIN IMMEDIATE");
-    assert.ok(database.prepare("SELECT id FROM users WHERE id = ?").get(userId), "Smoke principal must exist");
-    const internal = internalClient(accountId, now);
-    database
-      .prepare(
-        `INSERT INTO accounts (id, name, color, scheduling_mode, inline_activity_create_enabled, created_at, updated_at)
-       VALUES (?, ?, ?, 'days', 'false', ?, ?)`,
-      )
-      .run(accountId, account.name, account.color, now, now);
-    database
-      .prepare(
-        `INSERT INTO clients (id, account_id, name, color, builtin, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'true', ?, ?)`,
-      )
-      .run(internal.id, accountId, internal.name, internal.color, now, now);
-    database
-      .prepare(
-        `INSERT INTO memberships (id, account_id, user_id, role, status, created_at, updated_at)
-       VALUES (?, ?, ?, 'owner', 'active', ?, ?)`,
-      )
-      .run(randomUUID(), accountId, userId, now, now);
-    database.prepare("INSERT INTO company_planning_revisions (account_id, revision) VALUES (?, 1)").run(accountId);
-    database.exec("COMMIT");
-    return accountId;
-  } catch (error) {
-    database.exec("ROLLBACK");
-    throw error;
-  } finally {
-    database.close();
-  }
-}
-
-/** Write one resource through the authenticated typed planning route. */
+/** Write one scheduled allocation through authenticated typed planning routes. */
 export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture) {
   const account = fixture.accounts.find((row) => row.id === "a-studio");
   assert.ok(account);
@@ -218,7 +205,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture) {
     name: RESOURCE_NAME,
   };
   assert.ok(resource.id);
-  await fetchOk(`${baseUrl}/api/accounts/${accountId}/resources`, {
+  const createdResource = await fetchOk(`${baseUrl}/api/accounts/${accountId}/resources`, {
     method: "POST",
     headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", cookie },
     body: JSON.stringify({
@@ -247,7 +234,48 @@ export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture) {
       },
     }),
   });
-  return { accountId, resource };
+  assert.equal(JSON.parse(createdResource.body).revision, 2);
+
+  const activity = { id: randomUUID(), name: "Packaged Planning", kind: "internal", projectId: null, phaseId: null };
+  const createdActivity = await fetchOk(`${baseUrl}/api/accounts/${accountId}/activities`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", cookie },
+    body: JSON.stringify({
+      mutationId: randomUUID(),
+      baseRevision: 2,
+      intent: {
+        operation: "catalogue.create",
+        entity: {
+          entity: "activities",
+          id: activity.id,
+          fields: { name: activity.name, kind: activity.kind, projectId: null, phaseId: null },
+        },
+      },
+    }),
+  });
+  assert.equal(JSON.parse(createdActivity.body).revision, 3);
+
+  const allocation = {
+    id: randomUUID(),
+    resourceId: resource.id,
+    activityId: activity.id,
+    projectId: null,
+    startDate: "2026-11-02",
+    endDate: "2026-11-06",
+    hoursPerDay: 7.5,
+    status: "confirmed",
+  };
+  const createdAllocation = await fetchOk(`${baseUrl}/api/accounts/${accountId}/allocations`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", cookie },
+    body: JSON.stringify({
+      mutationId: randomUUID(),
+      baseRevision: 3,
+      intent: { operation: "allocation.create", allocation },
+    }),
+  });
+  assert.equal(JSON.parse(createdAllocation.body).revision, 4);
+  return { accountId, resource, activity, allocation };
 }
 
 async function main() {
@@ -339,20 +367,57 @@ async function main() {
     const session = JSON.parse((await fetchOk(`${baseUrl}/api/auth/me`, { headers: { cookie } })).body);
     assert.equal(session.user.email, credentials.email);
 
-    const sharedDataUrl = join(backend, "node_modules", "@capacitylens", "shared", "dist", "data");
+    assert.deepEqual(await stopServer(child), { code: 0, signal: null });
+    const initialize = command(
+      backend,
+      environment,
+      "company:initialize",
+      credentials.email,
+      "Wayne Enterprises",
+      "--confirm-server-stopped",
+    );
+    assert.equal(initialize.status, 0, initialize.output);
+    const { accountId } = JSON.parse(initialize.output.trim());
+    const secondInitialize = command(
+      backend,
+      environment,
+      "company:initialize",
+      credentials.email,
+      "Stark Industries",
+      "--confirm-server-stopped",
+    );
+    assert.notEqual(secondInitialize.status, 0, "Second company initialization must be refused");
+    child = startServer(backend, environment, (chunk) => {
+      log += chunk;
+    });
+    await assertReady(baseUrl, child);
+    const ownerSignin = await fetch(`${baseUrl}/api/auth/sign-in`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "sec-fetch-site": "same-origin" },
+      body: JSON.stringify(credentials),
+    });
+    assert.equal(ownerSignin.status, 200, "Initialized Owner must sign in normally");
+    cookie = ownerSignin.headers
+      .getSetCookie()
+      .map((value) => value.split(";", 1)[0])
+      .join("; ");
+    const companies = JSON.parse((await fetchOk(`${baseUrl}/api/accounts`, { headers: { cookie } })).body);
+    assert.equal(companies.length, 1);
+    assert.equal(companies[0].id, accountId);
+    assert.equal(companies[0].role, "owner");
+    const initializedState = JSON.parse(
+      (await fetchOk(`${baseUrl}/api/state?accountId=${encodeURIComponent(accountId)}`, { headers: { cookie } })).body,
+    );
+    assert.equal(initializedState.clients.length, 1);
+    assert.equal(initializedState.clients[0].builtin, true);
+    assert.equal(initializedState.accounts[0].name, "Wayne Enterprises");
     const { seed } = await import(
       pathToFileURL(join(backend, "node_modules", "@capacitylens", "shared", "dist", "data", "seed.js")).href
     );
-    const { buildInternalClient } = await import(pathToFileURL(join(sharedDataUrl, "internalClient.js")).href);
     const fixture = seed();
-    const accountId = createSmokeCompany(
-      databasePath,
-      session.user.id,
-      fixture.accounts.find((row) => row.id === "a-studio"),
-      buildInternalClient,
-    );
-    const { resource } = await writeSmokeSchedule(baseUrl, cookie, accountId, fixture);
+    const { resource, allocation } = await writeSmokeSchedule(baseUrl, cookie, accountId, fixture);
     assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, MIGRATION_COUNT);
+    assertAllocationInDatabase(databasePath, accountId, allocation);
 
     const beforeExplicit = await snapshotFiles(backupDir);
     const explicit = command(backend, environment, "db:backup");
@@ -363,6 +428,7 @@ async function main() {
     assert.ok(!beforeExplicit.includes(explicitPath.split("/").at(-1)));
     assert.ok(afterExplicit.includes(explicitPath.split("/").at(-1)));
     assert.equal(inspectDatabase(explicitPath, RESOURCE_NAME).length, MIGRATION_COUNT);
+    assertAllocationInDatabase(explicitPath, accountId, allocation);
 
     assert.deepEqual(await stopServer(child), { code: 0, signal: null });
     child = startServer(backend, environment, (chunk) => {
@@ -373,6 +439,7 @@ async function main() {
       (await fetchOk(`${baseUrl}/api/state?accountId=${encodeURIComponent(accountId)}`, { headers: { cookie } })).body,
     );
     assert.equal(state.resources.find((row) => row.id === resource.id)?.name, RESOURCE_NAME);
+    assert.equal(state.allocations.find((row) => row.id === allocation.id)?.hoursPerDay, allocation.hoursPerDay);
     assert.deepEqual(await stopServer(child), { code: 0, signal: null });
     passed = true;
     console.log(
@@ -381,6 +448,7 @@ async function main() {
         nativeArtifact: "passed",
         migrations: MIGRATION_COUNT,
         passwordAuthentication: "verified",
+        firstCompanyInitialization: "verified",
         databaseSession: "survived restart",
         scheduleWrite: "persisted",
         explicitBackup: "verified",

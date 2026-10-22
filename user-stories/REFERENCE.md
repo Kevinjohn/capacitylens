@@ -70,7 +70,10 @@ accept responses never include it.
    server-backed deploy the form also shows a **Start with example data** checkbox, ticked when it
    is the user's first company and unticked otherwise; the in-memory demo does not offer it. These three are set ONCE here and are then **disabled** in
    Settings; the server rejects a later change with **409**.
-   When there is no company, the supported first-company setup or invitation path remains available.
+   On an empty native installation, create the first identity, stop the service and run
+   `company:initialize <existing-email> <company-name> --confirm-server-stopped`, then restart
+   and sign in normally. The command creates one company and active Owner membership without
+   changing credentials or identity admission; it refuses any existing company or membership.
    Production does not offer company selection, switching, ordinary additional-company creation or
    in-app company deletion. The server summary supplies the sole installation company; scoped APIs
    still authorize every requested id from the caller's server-side membership. If the summary
@@ -281,8 +284,8 @@ success for the rebase never hides the independent loss.
 > This auto-seed is **DEMO-BUILD-ONLY** going forward (one-company server policy). A
 > real, server-backed instance (the default deploy) no longer auto-seeds from the client side.
 > The demo build (`VITE_CAPACITYLENS_DEMO=1`) starts with a volatile seed dataset. A fresh
-> server-backed instance has no supported
-> first-company creation flow; the Owner needs a provisioned company. The two-company seed
+> server-backed instance uses the stopped-server `company:initialize` command for an existing
+> native identity to establish its first company and Owner, with no seed scheduling data. The two-company seed
 > described below happens in the demo build (`pnpm run dev:demo`, what these stories run against)
 > and in backend tenant-isolation tests. The database-backed E2E server resets to a single-company
 > fixture so its user journeys match production. Browser requests cannot reset persisted company

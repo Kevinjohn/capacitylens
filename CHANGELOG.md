@@ -9,11 +9,13 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Native installations can initialize their first company and Owner for an existing identity with
+  the stopped-server `company:initialize` command. Setup refuses existing company access and
+  leaves credentials and identity admission unchanged.
 - Persisted access now requires an authenticated principal and one provisioned company. The
   temporary demo keeps its editable, volatile multi-company picker. Retired generic company and
   batch writes, browser sync queues and their recovery controls; scheduling changes use typed
-  planning commands and server revisions. First-company provisioning remains unavailable in the
-  native release.
+  planning commands and server revisions.
 - Frozen company calendar fields now reject a second typed settings change with 409.
 - Resource and catalogue records now use typed archive and restore actions. Owners and Admins can
   anonymise a resource; only an Owner can anonymise every company resource. The company,
