@@ -11,18 +11,20 @@ async function waitForReadiness(
   flavour: string,
   output: () => string
 ) {
-  for (let attempt = 0; attempt < 80; attempt++) {
+  for (let attempt = 0; attempt < 200; attempt++) {
     if (child.exitCode !== null || child.signalCode !== null) {
       throw new Error(`The ${flavour} E2E server exited before readiness. ${output()}`)
     }
     try {
       const response = await fetch(url, { signal: AbortSignal.timeout(1000) })
-      if (response.ok) return
+      if (response.ok && (flavour !== 'auth' || output().includes('Auth E2E fixture ready'))) return
     } catch {
       await wait(100)
+      continue
     }
+    await wait(100)
   }
-  throw new Error(`The ${flavour} E2E server did not become ready.`)
+  throw new Error(`The ${flavour} E2E server did not become ready. ${output()}`)
 }
 
 async function waitForPortRelease(port: number) {
@@ -92,7 +94,11 @@ test('both E2E server flavours require sign-in and refuse installation reset', a
             password: 'auth-e2e-password-2026',
           }),
         })
-        assert.equal(signedIn.status, 200, 'the disposable credential-only bootstrap signs in')
+        assert.equal(
+          signedIn.status,
+          200,
+          'the disposable administrator signs in after fixture readiness'
+        )
         const cookie = signedIn.headers
           .getSetCookie()
           .map((value) => value.split(';', 1)[0])

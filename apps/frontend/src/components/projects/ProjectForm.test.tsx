@@ -1,3 +1,4 @@
+import { RestorationCleanupDialog } from "@/data/planning/RestorationCleanupDialog";
 import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -20,6 +21,37 @@ describe("ProjectForm", () => {
     await useStore.getState().refreshPlanning();
     return internal;
   };
+
+  it("keeps the edited draft open without error when Restore cleanup is cancelled", async () => {
+    const user = userEvent.setup();
+    const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111111" }));
+    const project = await requireCreated(
+      useStore.getState().addProject({ name: "Gotham", clientId: client.id, color: "#ec4899" }),
+    );
+    const closure = await requireCreated(
+      useStore.getState().addClosure({ name: "Gotham holiday", startDate: "2026-12-24", endDate: "2026-12-25" }),
+    );
+    await useStore.getState().deleteClosure(closure.id);
+    const before = structuredClone(useStore.getState().data);
+    const history = useStore.getState().planning.history;
+    const onClose = vi.fn();
+    render(
+      <>
+        <ProjectForm project={project} onClose={onClose} />
+        <RestorationCleanupDialog />
+      </>,
+    );
+    await user.click(screen.getByRole("switch", { name: "Use code name" }));
+    await user.type(screen.getByLabelText("Code name"), "Nightwatch");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent("This change clears 1 restorable item");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Code name")).toHaveValue("Nightwatch");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(useStore.getState().data).toEqual(before);
+    expect(useStore.getState().planning.history).toEqual(history);
+  });
 
   it("stores an owner-configured private project and normalizes display quotes out of storage", async () => {
     const user = userEvent.setup();

@@ -1,3 +1,4 @@
+import { PlanningSaveCancelledError } from "@/data/planning/PlanningSaveCancelledError";
 import { useMemo, useState } from "react";
 import { useStore } from "@/store/useStore";
 import { useActiveScopedData, useScopedData } from "@/store/useScopedData";
@@ -149,6 +150,7 @@ function useProjectSubmit({
       if (!(await saveProject({ project, trimmed, clientId, color, privacy, add, update }))) return;
       onClose();
     } catch (error) {
+      if (error instanceof PlanningSaveCancelledError) return;
       // Surface store rejection at the project form so invalid writes cannot escape the event boundary.
       fail(null, resolveErrorMessage(error));
     }

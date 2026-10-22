@@ -1,6 +1,6 @@
 ---
 title: Access your company
-description: Create your sign-in and ask the installer to initialize company access.
+description: Create your sign-in, name your company in the browser and open its schedule.
 prev: false
 next: false
 ---
@@ -12,7 +12,7 @@ next: false
 # Access your company
 
 Sign in with the setup token from your installer. You need the CapacityLens address and that token.
-An identity needs a provisioned company and membership before it can use the schedule.
+The first sign-in leads to company setup in the browser.
 
 ## Sign in for the first time
 
@@ -29,17 +29,21 @@ instead and use the email address the installer approved for the first Owner. If
 accepts your address, ask the installer to check the first-Owner setup before you try a different
 identity.
 
-## Company access
+## Set up your company
 
-First sign-in creates your identity. The installer then stops the service and runs
-`company:initialize` for your existing email and company name. This creates the first company
-and makes your identity its Owner. It does not create or change your password, provider identity
-or admission settings. After the installer restarts the service, sign in normally to open Schedule.
+![Set up your company screen with one Company name field and Create company](../screenshots/flows/company_first_run_setup.png)
+
+Enter **Company name** and select **Create company**. Your company opens on Schedule, with you as
+Owner. The service keeps running throughout setup. If a save fails, the name stays in the form and
+the error explains what to do before trying again.
 
 The company starts with Monday as the first day of the week, Monday–Friday as working days and
 day-based scheduling. It contains the built-in Internal client and no sample scheduling records.
-The setup command works only before any company or membership exists. Ask the installer to
-resolve access if the command refuses; it cannot add a second company or replace an Owner.
+Setup is available only when your identity is the only sign-in and no company or membership exists.
+The server blocks additional open signup until your company exists, so another signup cannot
+interrupt this first-run setup.
+If multiple identities already exist, ask whoever manages hosting to resolve access. Setup cannot
+create a second company or replace an Owner.
 The temporary [demo](/getting-started/try-the-demo) lets you explore fictional companies without
 storing their records.
 

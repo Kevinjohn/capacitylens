@@ -16,6 +16,11 @@ from that trusted proxy. The application trusts forwarded headers from loopback 
 so the proxy must run on the same host. The provided native archive includes Caddy and nginx examples; review them
 for your hostname, certificate paths and network before installation.
 
+A proxy on a separate machine or in a separate container is not supported for the first release.
+Until private-network proxy support is added, those clients may share the proxy's request-limit
+budget. Use a same-machine proxy that connects over loopback; do not widen trust to arbitrary
+forwarded headers.
+
 ## Caddy
 
 Use the release's `Caddyfile.example`, replacing the hostname. Caddy obtains and renews public

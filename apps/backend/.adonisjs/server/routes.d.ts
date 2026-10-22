@@ -45,6 +45,7 @@ export type ScannedRoutes = {
     'api.planning.allocation.repeat': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.timeOff.repeat': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.settings.update': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.installation.company': { paramsTuple?: []; params?: {} }
     'api.transfer.preview': { paramsTuple?: []; params?: {} }
     'api.transfer.apply': { paramsTuple?: []; params?: {} }
     'api.state': { paramsTuple?: []; params?: {} }
@@ -169,6 +170,7 @@ export type ScannedRoutes = {
     'api.planning.allocation.duplicate': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.allocation.repeat': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.timeOff.repeat': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.installation.company': { paramsTuple?: []; params?: {} }
     'api.transfer.preview': { paramsTuple?: []; params?: {} }
     'api.transfer.apply': { paramsTuple?: []; params?: {} }
     'api.accounts.anonymise': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }

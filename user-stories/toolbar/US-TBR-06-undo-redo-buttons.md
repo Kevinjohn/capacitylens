@@ -1,6 +1,6 @@
 # US-TBR-06 — Undo / Redo toolbar buttons
 
-**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "undoes and redoes with the toolbar buttons, disabled when the stack is empty"
+**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/restoration-cleanup.spec.ts`, `e2e/toolbar.spec.ts` → "undoes and redoes with the toolbar buttons, disabled when the stack is empty"
 
 ## Goal
 
@@ -30,3 +30,11 @@ The keyboard path (**⌘Z** / **⌘⇧Z**, see US-TBR-07) is fast for power user
 - ✅ The buttons act on booking (allocation) history only. Other changes, such as archiving,
   time off, catalogue edits and imports, do not enter it and do not enable the buttons.
 - ✅ The global **⌘Z** / **⌘⇧Z** shortcut still performs the same undo/redo and is ignored while typing in a text field — that keyboard path and its typing guard are covered by **US-TBR-07**.
+
+- ✅ An actual client/project privacy or code-name change, or activity-kind change, asks once before
+  clearing pending company-wide deleted-item recovery: **This change clears N restorable items**.
+  It skips the confirmation for zero items or unchanged relevant fields. Cancelling keeps the draft
+  and recovery copies; confirming saves and clears them together. Ordinary edits keep the copies.
+
+**Documentation:** [Clients and projects](../../docs-src/using/projects.md),
+[Activities](../../docs-src/using/activities.md).

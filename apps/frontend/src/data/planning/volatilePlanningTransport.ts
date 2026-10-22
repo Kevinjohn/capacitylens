@@ -258,6 +258,7 @@ function apply(data: AppData, companyId: string, intent: PlanningIntent, groups:
   let replacementGroupId: string | null = null;
   let consumedGroupId: string | null = null;
   let refetch = false;
+  let clearsRestoration = false;
   switch (intent.operation) {
     case "allocation.create":
       insert(data, "allocations", rowId(intent.allocation.id), intent.allocation, companyId);
@@ -294,10 +295,23 @@ function apply(data: AppData, companyId: string, intent: PlanningIntent, groups:
     case "catalogue.update": {
       const { entity, id, changes } = intent.entity;
       validateCatalogue(data, companyId, entity, changes, find(data, entity, id));
+      const previous = { ...find(data, entity, id) };
       patch(data, entity, id, changes);
+      const current = find(data, entity, id);
+      const sensitiveFields =
+        entity === "activities"
+          ? ["kind"]
+          : entity === "clients" || entity === "projects"
+            ? ["isPrivate", "codeName"]
+            : [];
+      clearsRestoration = sensitiveFields.some(
+        (field) => Object.hasOwn(changes, field) && previous[field] !== current[field],
+      );
       refetch =
         ((entity === "clients" || entity === "projects") && ("isPrivate" in changes || "codeName" in changes)) ||
         (entity === "activities" && "kind" in changes);
+      if (refetch && !Object.keys(changes).some((field) => previous[field] !== current[field]))
+        throw new PlanningControllerError("The operation does not change planning data.", "no_change", 400);
       if (entity === "activities" && "kind" in changes && changes.kind !== "project") {
         for (const row of rows(data, "allocations"))
           if (row.activityId === id && row.projectId !== null) patch(data, "allocations", row.id, { projectId: null });
@@ -373,7 +387,7 @@ function apply(data: AppData, companyId: string, intent: PlanningIntent, groups:
       break;
     }
   }
-  return { replacementGroupId, consumedGroupId, refetch };
+  return { replacementGroupId, consumedGroupId, refetch, clearsRestoration };
 }
 
 function changed(
@@ -449,7 +463,28 @@ export function createVolatilePlanningTransport(readData: () => AppData): Planni
         if (error instanceof DomainError) throw new PlanningControllerError(error.message, error.code, 400);
         throw error;
       }
-      if (result.refetch)
+      if (result.clearsRestoration) {
+        const count = [...groups.values()]
+          .filter((group) => group.companyId === context.companyId)
+          .reduce((sum, group) => sum + group.rows.length, 0);
+        if (execution.confirmedRestorationCount !== undefined && execution.confirmedRestorationCount !== count)
+          throw new PlanningControllerError(
+            "The restorable items changed. Review this change again.",
+            "restoration_confirmation_stale",
+            409,
+            false,
+            count,
+          );
+        if (count > 0 && execution.confirmedRestorationCount === undefined)
+          throw new PlanningControllerError(
+            `This change clears ${count} restorable items`,
+            "restoration_confirmation_required",
+            409,
+            false,
+            count,
+          );
+      }
+      if (result.clearsRestoration)
         for (const [id, group] of draftGroups) if (group.companyId === context.companyId) draftGroups.delete(id);
       company.data = after;
       company.revision += 1;
@@ -480,7 +515,9 @@ export function createVolatilePlanningTransport(readData: () => AppData): Planni
             status: "committed",
             mutationId,
             revision: commitment.revision,
-            ...(commitment.restorationGroupId ? { restorationGroupId: commitment.restorationGroupId } : {}),
+            ...(commitment.restorationGroupId && groups.has(commitment.restorationGroupId)
+              ? { restorationGroupId: commitment.restorationGroupId }
+              : {}),
           }
         : { status: "unknown", mutationId };
     },

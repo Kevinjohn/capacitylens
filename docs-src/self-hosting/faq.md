@@ -24,11 +24,15 @@ records.
 
 ### Who creates the first company?
 
-The first identity can complete sign-in setup using `CAPACITYLENS_SETUP_TOKEN`. This does not
-create a company or Owner membership. Stop the service and run
-`node ace company:initialize <existing-email> <company-name> --confirm-server-stopped`
-from the backend directory, then restart and sign in. See [first-company setup](/owner/create-your-company).
-Remove the token after identity setup.
+The first identity completes sign-in with the setup token or configured Google sign-in, then
+enters **Company name** in the browser and selects **Create company**. The company opens with that
+identity as Owner. No company command or service restart is needed. See
+[first-company setup](/owner/create-your-company).
+
+The server blocks additional open signup until the first company exists, even when enabled in
+configuration. If multiple identities already exist before the company,
+browser setup refuses; resolving that exceptional state currently needs the hosting operator's
+stopped-server `company:initialize` initializer. It is not part of the normal five-step installation.
 
 ### Which company sign-in providers are available?
 

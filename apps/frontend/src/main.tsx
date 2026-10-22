@@ -1,3 +1,4 @@
+import { RestorationCleanupDialog } from "./data/planning/RestorationCleanupDialog";
 import { StrictMode } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createRoot } from "react-dom/client";
@@ -40,6 +41,7 @@ reactRoot.render(
         <AuthProvider onTenantAccessReady={startData}>
           <QueryCacheLifecycle />
           <RouterProvider router={router} />
+          <RestorationCleanupDialog />
         </AuthProvider>
       </ErrorBoundary>
     </QueryClientProvider>

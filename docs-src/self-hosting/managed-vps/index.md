@@ -43,7 +43,8 @@ API from the same process. Do not add a second server or public listener for the
 
 ## Route HTTPS traffic
 
-Terminate public TLS at the platform proxy or a separate Caddy/nginx service. Forward requests to
+Terminate public TLS at the platform proxy or a Caddy/nginx service on the same machine. A proxy
+in another container or on another machine is not yet supported. Forward requests to
 the loopback listener and overwrite forwarded host, address and scheme headers at that trusted
 boundary. Do not expose the application port directly. See [TLS and networking](/self-hosting/tls-and-networking).
 
@@ -51,10 +52,13 @@ boundary. Do not expose the application port directly. See [TLS and networking](
 
 With the service stopped, run `node ace.js app:upgrade` from `current/backend` under the same
 environment. Start the service, check `/health/ready`, then complete the first-run page with the
-private `CAPACITYLENS_SETUP_TOKEN`. Remove that token and restart after the first identity exists.
+private `CAPACITYLENS_SETUP_TOKEN`. Enter the company name in the browser to become Owner and open
+Schedule. No company command or restart is needed. The server blocks additional open signup until
+the first company exists, even when enabled in configuration. Remove the token at the next routine
+configuration change.
 Set up Google only if you intend to offer company sign-in; Microsoft remains deferred and GitHub
 sign-in is retired. Deterministic checks do not establish live Google acceptance.
 
 Before handover, prove the service restarts cleanly, confirm a scheduled snapshot exists, and give
-the Owner the [backup](/self-hosting/backups-and-restore), [upgrade](/self-hosting/upgrades),
+whoever will maintain hosting the [backup](/self-hosting/backups-and-restore), [upgrade](/self-hosting/upgrades),
 [monitoring](/self-hosting/monitoring) and [incident](/self-hosting/incidents) procedures.

@@ -368,40 +368,20 @@ async function main() {
     const session = JSON.parse((await fetchOk(`${baseUrl}/api/auth/me`, { headers: { cookie } })).body);
     assert.equal(session.user.email, credentials.email);
 
-    assert.deepEqual(await stopServer(child), { code: 0, signal: null });
-    const initialize = command(
-      backend,
-      environment,
-      "company:initialize",
-      credentials.email,
-      "Wayne Enterprises",
-      "--confirm-server-stopped",
-    );
-    assert.equal(initialize.status, 0, initialize.output);
-    const { accountId } = JSON.parse(initialize.output.trim());
-    const secondInitialize = command(
-      backend,
-      environment,
-      "company:initialize",
-      credentials.email,
-      "Stark Industries",
-      "--confirm-server-stopped",
-    );
-    assert.notEqual(secondInitialize.status, 0, "Second company initialization must be refused");
-    child = startServer(backend, environment, (chunk) => {
-      log += chunk;
-    });
-    await assertReady(baseUrl, child);
-    const ownerSignin = await fetch(`${baseUrl}/api/auth/sign-in`, {
+    assert.equal(session.companySetupRequired, true);
+    const initialize = await fetch(`${baseUrl}/api/installation/company`, {
       method: "POST",
-      headers: { "content-type": "application/json", "sec-fetch-site": "same-origin" },
-      body: JSON.stringify(credentials),
+      headers: { cookie, "content-type": "application/json", "sec-fetch-site": "same-origin" },
+      body: JSON.stringify({ name: "Wayne Enterprises" }),
     });
-    assert.equal(ownerSignin.status, 200, "Initialized Owner must sign in normally");
-    cookie = ownerSignin.headers
-      .getSetCookie()
-      .map((value) => value.split(";", 1)[0])
-      .join("; ");
+    assert.equal(initialize.status, 201, "Authenticated browser company setup failed");
+    const { accountId } = await initialize.json();
+    const secondInitialize = await fetch(`${baseUrl}/api/installation/company`, {
+      method: "POST",
+      headers: { cookie, "content-type": "application/json", "sec-fetch-site": "same-origin" },
+      body: JSON.stringify({ name: "Stark Industries" }),
+    });
+    assert.equal(secondInitialize.status, 409, "Second company initialization must be refused");
     const companies = JSON.parse((await fetchOk(`${baseUrl}/api/accounts`, { headers: { cookie } })).body);
     assert.equal(companies.length, 1);
     assert.equal(companies[0].id, accountId);

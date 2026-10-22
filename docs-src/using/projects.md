@@ -58,3 +58,13 @@ Select **Restore** to bring the item and its bookings back. Archiving keeps the 
 links; clients and projects have no anonymise action.
 
 Next: [Schedule and change work](/using/schedule-work) — book against a project.
+
+## Before clearing deleted-item recovery
+
+![Confirmation showing the number of restorable items, Cancel and Save change](../screenshots/flows/restoration_cleanup_confirmation.png)
+
+Changing client/project privacy or a code name, or an activity's kind, clears pending deleted-item
+recovery copies for the whole company, including unrelated deleted items. If any exist, one
+confirmation says **This change clears N restorable items**. Select **Cancel** to keep the draft
+and recovery options, or **Save change** to save and clear those copies together. With none to
+clear, or no change to those fields, the warning is skipped. Ordinary edits keep the copies.

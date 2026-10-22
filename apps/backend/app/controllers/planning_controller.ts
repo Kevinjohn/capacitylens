@@ -7,6 +7,7 @@ import {
   validatePlanningMutationId,
 } from '#services/planning'
 import { BatchRequestError } from '#services/planning_operations/errors'
+import { RestorationConfirmationError } from '#services/planning_operations/restoration'
 import { PlanningOperationError } from '#services/planning_operations/execute'
 import { SessionAuthorityError } from '#services/auth/session_authority'
 import { IdentityAuthorityError } from '#services/auth/authorization'
@@ -27,6 +28,15 @@ import type {
 } from '#validators/planning_operations'
 
 function refusal(error: unknown): { status: number; body: PlanningMutationFailure } {
+  if (error instanceof RestorationConfirmationError)
+    return {
+      status: 409,
+      body: {
+        error: error.message,
+        code: error.code as 'restoration_confirmation_required' | 'restoration_confirmation_stale',
+        restorableItemCount: error.restorableItemCount,
+      },
+    }
   if (error instanceof PlanningOperationError) {
     const code =
       planningMutationErrorCodes.find((candidate) => candidate === error.code) ??

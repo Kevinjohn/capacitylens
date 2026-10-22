@@ -19,13 +19,15 @@ export const AUTH_API = `http://localhost:${ports().authApi}`;
 export const AUTH_PASSWORD = "demo-password-123456";
 
 /**
- * Fixed first-run administrator credentials used only by the disposable auth server.
- * Their presence selects the ordinary sign-in screen rather than zero-user setup.
+ * Fixed membership-free administrator credentials used only by the disposable auth server.
+ * The server creates this principal after first-company setup for recovery scenarios.
  * Keep these literals aligned with start:auth-e2e; importing auth.ts would load the auth runtime into Playwright.
  */
 export const BOOTSTRAP_ADMIN = { email: "admin@admin.admin", password: "auth-e2e-password-2026" };
 
 const AUTH_E2E_DATABASE = fileURLToPath(new URL("../apps/backend/.auth-e2e.db", import.meta.url));
+const AUTH_E2E_BASELINE_COMPANY = "Daily Planet E2E Baseline";
+const AUTH_E2E_BASELINE_OWNER = "baseline-owner@capacitylens.dev";
 
 /** Rejects a fixture target outside the one disposable native auth E2E database. */
 export function assertAuthE2EFixturePath(databasePath: string): void {
@@ -127,6 +129,208 @@ export function revokeFixtureSessions(email: string): void {
   }
 }
 
+function ensureAuthE2EFixtureCompanyTable(db: DatabaseSync): void {
+  db.exec("CREATE TABLE IF NOT EXISTS auth_e2e_fixture_companies (account_id TEXT PRIMARY KEY)");
+}
+
+function removeAuthE2EAccount(db: DatabaseSync, accountId: string): void {
+  db.prepare("DELETE FROM audit_entries WHERE account_id = ?").run(accountId);
+  db.prepare("DELETE FROM account_member_resources WHERE account_id = ?").run(accountId);
+  db.prepare("DELETE FROM accounts WHERE id = ?").run(accountId);
+}
+
+function insertAuthE2ECompany(
+  db: DatabaseSync,
+  input: {
+    accountId: string;
+    name: string;
+    ownerId: string;
+    now: string;
+    track: boolean;
+    recordInitialization: boolean;
+  },
+): void {
+  const { accountId, name, ownerId, now, track, recordInitialization } = input;
+  const internal = buildInternalClient(accountId, now);
+  db.prepare(
+    `INSERT INTO accounts (
+       id, name, color, scheduling_mode, timezone, week_starts_on, working_days, language,
+       disciplines_enabled, placeholders_enabled, external_enabled, inline_activity_create_enabled,
+       show_task_field_in_schedule, capacity_overview_access, date_style, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    accountId,
+    name,
+    FALLBACK_PRESET_COLOR,
+    "days",
+    null,
+    JSON.stringify(1),
+    JSON.stringify([1, 2, 3, 4, 5]),
+    null,
+    JSON.stringify(false),
+    JSON.stringify(false),
+    JSON.stringify(false),
+    JSON.stringify(false),
+    null,
+    null,
+    null,
+    now,
+    now,
+  );
+  db.prepare(
+    `INSERT INTO clients (id, account_id, name, color, builtin, created_at, updated_at)
+     VALUES (?, ?, ?, ?, 'true', ?, ?)`,
+  ).run(internal.id, accountId, internal.name, internal.color, now, now);
+  db.prepare(
+    `INSERT INTO memberships (id, account_id, user_id, role, status, created_at, updated_at)
+     VALUES (?, ?, ?, 'owner', 'active', ?, ?)`,
+  ).run(crypto.randomUUID(), accountId, ownerId, now, now);
+  db.prepare("INSERT INTO company_planning_revisions (account_id, revision) VALUES (?, 1)").run(accountId);
+  if (track) db.prepare("INSERT INTO auth_e2e_fixture_companies (account_id) VALUES (?)").run(accountId);
+  if (recordInitialization) {
+    db.prepare(
+      `INSERT INTO audit_entries (id, account_id, actor_id, action, entity, entity_id, details, created_at, updated_at)
+       VALUES (?, ?, ?, 'company.initialized', 'account', ?, ?, ?, ?)`,
+    ).run(
+      crypto.randomUUID(),
+      accountId,
+      ownerId,
+      accountId,
+      JSON.stringify({ changedFields: ["company", "owner"] }),
+      now,
+      now,
+    );
+  }
+}
+
+/** Resolves only the untracked placeholder owned by the real first-run fixture identity. */
+function temporaryBaselineAccountIds(db: DatabaseSync): string[] {
+  const rows = db
+    .prepare(
+      `SELECT accounts.id
+       FROM accounts
+       JOIN memberships ON memberships.account_id = accounts.id
+       JOIN users ON users.id = memberships.user_id
+       WHERE accounts.name = ?
+         AND users.email = ?
+         AND memberships.role = 'owner'
+         AND memberships.status = 'active'
+         AND NOT EXISTS (
+           SELECT 1 FROM auth_e2e_fixture_companies WHERE account_id = accounts.id
+         )`,
+    )
+    .all(AUTH_E2E_BASELINE_COMPANY, AUTH_E2E_BASELINE_OWNER) as Array<{ id: string }>;
+  if (rows.length > 1) throw new Error("Multiple retained Auth E2E placeholder companies were found.");
+  return rows.map(({ id }) => id);
+}
+
+function removeTemporaryBaselineCompany(db: DatabaseSync): void {
+  for (const accountId of temporaryBaselineAccountIds(db)) removeAuthE2EAccount(db, accountId);
+}
+
+/** Restores the disposable one-company server state after scenario companies are removed. */
+function ensureTemporaryBaselineCompany(db: DatabaseSync): void {
+  if (db.prepare("SELECT id FROM accounts LIMIT 1").get()) return;
+  const owner = db.prepare("SELECT id FROM users WHERE email = ?").get(AUTH_E2E_BASELINE_OWNER) as
+    { id: string } | undefined;
+  if (!owner) throw new Error("The real Auth E2E baseline owner is unavailable.");
+  const now = new Date().toISOString();
+  insertAuthE2ECompany(db, {
+    accountId: crypto.randomUUID(),
+    name: AUTH_E2E_BASELINE_COMPANY,
+    ownerId: owner.id,
+    now,
+    track: false,
+    recordInitialization: true,
+  });
+}
+
+/** Reads the temporary company owned by the real first-run fixture principal. */
+export function readAuthE2EBaselineSnapshot(): {
+  account: Record<string, unknown>;
+  client: Record<string, unknown>;
+  revision: number;
+  owner: { id: string; email: string; role: string; status: string };
+  administrator: { id: string; email: string; memberships: number };
+  initializationHistory: number;
+} {
+  const db = openAuthE2EDatabase();
+  try {
+    const baselineRows = db
+      .prepare(
+        `SELECT accounts.*
+         FROM accounts
+         JOIN memberships ON memberships.account_id = accounts.id
+         JOIN users ON users.id = memberships.user_id
+         WHERE accounts.name = ? AND users.email = ? AND memberships.role = 'owner' AND memberships.status = 'active'`,
+      )
+      .all(AUTH_E2E_BASELINE_COMPANY, AUTH_E2E_BASELINE_OWNER) as Array<Record<string, unknown>>;
+    if (baselineRows.length > 1) throw new Error("Multiple retained Auth E2E baseline companies were found.");
+    const account = baselineRows[0];
+    if (!account) throw new Error("The retained Auth E2E baseline company is unavailable.");
+    if (typeof account.id !== "string") throw new Error("The retained Auth E2E baseline company has no ID.");
+    const client = db.prepare("SELECT * FROM clients WHERE account_id = ? AND builtin = 'true'").get(account.id) as
+      Record<string, unknown> | undefined;
+    const revision = db
+      .prepare("SELECT revision FROM company_planning_revisions WHERE account_id = ?")
+      .get(account.id) as { revision: number } | undefined;
+    const owner = db
+      .prepare(
+        `SELECT users.id, users.email, memberships.role, memberships.status
+         FROM memberships JOIN users ON users.id = memberships.user_id
+         WHERE memberships.account_id = ? AND users.email = 'baseline-owner@capacitylens.dev'`,
+      )
+      .get(account.id) as { id: string; email: string; role: string; status: string } | undefined;
+    const administrator = db
+      .prepare(
+        `SELECT users.id, users.email, COUNT(memberships.id) AS memberships
+         FROM users LEFT JOIN memberships ON memberships.user_id = users.id
+         WHERE users.email = 'admin@admin.admin'
+         GROUP BY users.id, users.email`,
+      )
+      .get() as { id: string; email: string; memberships: number } | undefined;
+    const history = db
+      .prepare("SELECT COUNT(*) AS count FROM audit_entries WHERE account_id = ? AND action = 'company.initialized'")
+      .get(account.id) as { count: number } | undefined;
+    if (
+      !client ||
+      !revision ||
+      !owner ||
+      !administrator ||
+      administrator.memberships !== 0 ||
+      !history ||
+      history.count < 1
+    )
+      throw new Error("The retained Auth E2E baseline company is incomplete.");
+    return {
+      account,
+      client,
+      revision: revision.revision,
+      owner,
+      administrator,
+      initializationHistory: history.count,
+    };
+  } finally {
+    db.close();
+  }
+}
+
+/** Waits until the auth server has completed its real first-run fixture setup. */
+export async function waitForAuthE2EBaseline(): Promise<void> {
+  const deadline = Date.now() + 20_000;
+  let lastError: unknown;
+  while (Date.now() < deadline) {
+    try {
+      readAuthE2EBaselineSnapshot();
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error("Auth E2E server did not finish baseline setup.", { cause: lastError });
+}
+
 /**
  * Sign up one user in an isolated request context and return its email and auto-signed-in session
  * cookie in one HTTP request. Use this when the test needs the cookie for API calls or browser
@@ -149,7 +353,7 @@ export async function signUpUser(email: string, name?: string): Promise<{ email:
   }
 }
 
-/** Creates only this signed-in principal's disposable company and canonical Internal client. */
+/** Replaces the placeholder when needed, then creates this principal's fixture company. */
 export async function bootstrapOrg(request: APIRequestContext, cookie: string, name: string): Promise<string> {
   const identity = await request.get(`${AUTH_API}/api/auth/me`, {
     headers: { cookie, "sec-fetch-site": "same-origin" },
@@ -168,26 +372,20 @@ export async function bootstrapOrg(request: APIRequestContext, cookie: string, n
     const foreignKeysEnabled = db.prepare("PRAGMA foreign_keys").get() as { foreign_keys: number };
     if (foreignKeysEnabled.foreign_keys !== 1)
       throw new Error("Auth E2E fixture creation requires SQLite foreign keys.");
-    db.exec("CREATE TABLE IF NOT EXISTS auth_e2e_fixture_companies (account_id TEXT PRIMARY KEY)");
+    ensureAuthE2EFixtureCompanyTable(db);
     const accountId = crypto.randomUUID();
     const now = new Date().toISOString();
-    const internal = buildInternalClient(accountId, now);
     db.exec("BEGIN IMMEDIATE");
     try {
-      db.prepare(
-        `INSERT INTO accounts (id, name, color, scheduling_mode, inline_activity_create_enabled, created_at, updated_at)
-         VALUES (?, ?, ?, 'days', 'false', ?, ?)`,
-      ).run(accountId, companyName, FALLBACK_PRESET_COLOR, now, now);
-      db.prepare(
-        `INSERT INTO clients (id, account_id, name, color, builtin, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 'true', ?, ?)`,
-      ).run(internal.id, accountId, internal.name, internal.color, now, now);
-      db.prepare(
-        `INSERT INTO memberships (id, account_id, user_id, role, status, created_at, updated_at)
-         VALUES (?, ?, ?, 'owner', 'active', ?, ?)`,
-      ).run(crypto.randomUUID(), accountId, userId, now, now);
-      db.prepare("INSERT INTO company_planning_revisions (account_id, revision) VALUES (?, 1)").run(accountId);
-      db.prepare("INSERT INTO auth_e2e_fixture_companies (account_id) VALUES (?)").run(accountId);
+      removeTemporaryBaselineCompany(db);
+      insertAuthE2ECompany(db, {
+        accountId,
+        name: companyName,
+        ownerId: userId,
+        now,
+        track: true,
+        recordInitialization: false,
+      });
       db.exec("COMMIT");
     } catch (error) {
       db.exec("ROLLBACK");
@@ -199,21 +397,20 @@ export async function bootstrapOrg(request: APIRequestContext, cookie: string, n
   }
 }
 
-/** Remove only companies registered by this disposable auth fixture between serial browser tests. */
+/** Removes scenario companies and restores one temporary company when the installation is empty. */
 export function clearAuthE2ECompanies(): void {
   const db = openAuthE2EDatabase();
   try {
     db.exec("PRAGMA foreign_keys = ON");
-    db.exec("CREATE TABLE IF NOT EXISTS auth_e2e_fixture_companies (account_id TEXT PRIMARY KEY)");
+    ensureAuthE2EFixtureCompanyTable(db);
     const rows = db.prepare("SELECT account_id FROM auth_e2e_fixture_companies").all() as Array<{ account_id: string }>;
     db.exec("BEGIN IMMEDIATE");
     try {
       for (const { account_id: accountId } of rows) {
-        db.prepare("DELETE FROM audit_entries WHERE account_id = ?").run(accountId);
-        db.prepare("DELETE FROM account_member_resources WHERE account_id = ?").run(accountId);
-        db.prepare("DELETE FROM accounts WHERE id = ?").run(accountId);
+        removeAuthE2EAccount(db, accountId);
         db.prepare("DELETE FROM auth_e2e_fixture_companies WHERE account_id = ?").run(accountId);
       }
+      ensureTemporaryBaselineCompany(db);
       db.exec("COMMIT");
     } catch (error) {
       db.exec("ROLLBACK");

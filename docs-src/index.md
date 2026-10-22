@@ -31,12 +31,11 @@ own server, and the only cost is that server ([server size](/self-hosting/instal
 <span id="day-to-day-usage"></span>
 <span id="self-hosting-operations"></span>
 
-**I'm installing it.** You put CapacityLens on a server and give the Owner its address: install it
-(five short steps, about ten minutes on a host that already runs Node 24), add HTTPS, check
-backups and hand over. [Start the installation](/self-hosting/)
+**I manage the hosting.** Install CapacityLens in five steps on a Node 24 host, ending with Open.
+You handle HTTPS, backups, upgrades and service health. [Start the installation](/self-hosting/)
 
-**I own the company.** Once your installation has a provisioned company and your Owner membership,
-you can invite someone to run it day to day. [Access your company](/owner/)
+**I own the company.** Create your sign-in, name the company in the browser and invite someone
+to run it day to day. [Access your company](/owner/)
 
 **I set the work.** You add the team, the clients and the projects, then book people onto work.
 Five steps to a working schedule. [Get the schedule ready](/admin/)
@@ -45,8 +44,7 @@ Five steps to a working schedule. [Get the schedule ready](/admin/)
 the first screen. [See your work](/using/)
 
 Doing all of it yourself? Small agencies often do.
-[The quick start](/getting-started/quick-start) covers installation, the current first-company
-limitation and the first booking once a company is available.
+[The quick start](/getting-started/quick-start) covers installation, browser company setup and the first booking.
 
 Want a look first? Watch the walkthrough above. If you are comfortable with a terminal,
 [try the demo](/getting-started/try-the-demo) on your own computer with sample data: it needs the

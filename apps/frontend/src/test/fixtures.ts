@@ -198,9 +198,12 @@ export function makeBar(overrides: Partial<BarLayout> = {}): BarLayout {
  * Use in beforeEach so `add*` (which requires an active account) works. The returned promise
  * settles once the planning cache has read the account, so allocation writes can begin. */
 export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): Promise<boolean> {
-  useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ id: accountId })] }));
+  const data = makeAppData({ accounts: [makeAccount({ id: accountId })] });
+  useStore.getState().replaceAll(data);
   useStore.setState({ planning: createPlanningCacheState().planning });
   useStore.getState().setActiveAccount(accountId);
+  // Visible rows alone do not reset the volatile transport’s pending Restore groups and commitments.
+  useStore.getState().replaceAfterDemoImport(data);
   // Clear transient notices so the singleton store cannot leak another test’s toast.
   useStore.getState().setNotice(null);
   // Clear transient announcements and membership state so singleton fixtures remain order-independent.

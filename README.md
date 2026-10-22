@@ -21,8 +21,8 @@ own server, and the only cost is that server
 
 ## Get started
 
-**Installing it?** Install it (five short steps, about ten minutes on a host that already runs
-Node 24), add HTTPS, check backups and hand over:
+**Manage the hosting?** Install it in five steps on a host that runs Node 24, ending with
+opening the address. You manage HTTPS, backups and upgrades:
 [install CapacityLens](https://kevinjohn.github.io/capacitylens/self-hosting/index.html).
 
 **Own the company?** Sign in with the setup token, create the company, invite an Admin:
@@ -77,12 +77,14 @@ in the app, and the JSON import only moves data between CapacityLens installatio
 
 CapacityLens is currently supplied as a native Node.js release archive. Follow the
 [installation guide](https://kevinjohn.github.io/capacitylens/self-hosting/install.html), then
-configure HTTPS at an external reverse proxy. The operator guides cover
+configure HTTPS at a proxy on the same machine. Whoever manages your hosting handles ongoing
+maintenance. The operator guides cover
 [configuration](https://kevinjohn.github.io/capacitylens/self-hosting/configuration.html),
 [backups](https://kevinjohn.github.io/capacitylens/self-hosting/backups-and-restore.html),
 [upgrades](https://kevinjohn.github.io/capacitylens/self-hosting/upgrades.html) and
 [monitoring](https://kevinjohn.github.io/capacitylens/self-hosting/monitoring.html). Docker
-deployment uses separate web and API images with a checked upgrade step before startup. Google company sign-in is supported; Microsoft is deferred
+support remains optional. Proxies in separate containers or on separate machines are not yet
+supported; use the native same-machine proxy setup for the first release. Google company sign-in is supported; Microsoft is deferred
 and GitHub sign-in is retired. See [company login](https://kevinjohn.github.io/capacitylens/company-login/index.html).
 
 ## Documentation

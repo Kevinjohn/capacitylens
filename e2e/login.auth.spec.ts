@@ -110,11 +110,8 @@ function registerSigningRevealsAppSigningOutTest() {
 }
 
 function registerCreateOwnerAdminAdminBootstrapTest() {
-  test("the --create-owner-admin-admin bootstrap credential signs in through the real form", async ({
-    page,
-    request,
-  }, testInfo) => {
-    // The disposable server pins an administrator credential, allowing this test to exercise access recovery without company membership.
+  test("the membership-free administrator signs in through the real form", async ({ page, request }, testInfo) => {
+    // The disposable server creates this administrator after first-company setup, without membership, to exercise access recovery.
     const suffix = `${Date.now()}-${testInfo.workerIndex}`;
     const controlOrgName = `Wayne Enterprises ${suffix}`;
     const controlOwner = await signUpUser(`bootstrap-control-${suffix}@capacitylens.dev`);

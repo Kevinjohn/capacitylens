@@ -66,6 +66,9 @@ export interface ApiDefinition {
         update: typeof routes['api.planning.settings.update']
       }
     }
+    installation: {
+      company: typeof routes['api.installation.company']
+    }
     transfer: {
       preview: typeof routes['api.transfer.preview']
       apply: typeof routes['api.transfer.apply']

@@ -245,3 +245,32 @@ export async function unconsumedGroupId(
     .first()
   return group ? String(group.group_id) : undefined
 }
+
+/** Counts deleted records across every pending company group; surviving-child links are not items. */
+export async function countRestorableItems(trx: TransactionClientContract, accountId: string) {
+  const result = await trx
+    .from('deleted_rows')
+    .join('deleted_groups', 'deleted_groups.group_id', 'deleted_rows.group_id')
+    .where('deleted_groups.account_id', accountId)
+    .whereNull('deleted_groups.consumed_at')
+    .whereRaw("json_extract(deleted_rows.payload_json, '$.kind') = ?", ['row'])
+    .count('* as total')
+    .first()
+  return Number(result?.total ?? 0)
+}
+
+/** Carries only the count required for an explicit, revision-bound cleanup decision. */
+export class RestorationConfirmationError extends PlanningOperationError {
+  constructor(
+    readonly restorableItemCount: number,
+    stale: boolean
+  ) {
+    super(
+      409,
+      stale ? 'restoration_confirmation_stale' : 'restoration_confirmation_required',
+      stale
+        ? 'The restorable items changed. Review this change again.'
+        : `This change clears ${restorableItemCount} restorable ${restorableItemCount === 1 ? 'item' : 'items'}`
+    )
+  }
+}

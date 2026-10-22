@@ -128,7 +128,11 @@ const entityMatches = (value: unknown, entity: string): boolean =>
   !Array.isArray(value) &&
   (value as { entity?: unknown }).entity === entity
 
-const meta = () => ({ mutationId: uuid(), baseRevision: revision() })
+const meta = () => ({
+  mutationId: uuid(),
+  baseRevision: revision(),
+  confirmedRestorationCount: revision().optional(),
+})
 
 const allocationCreate = vine
   .object({
@@ -856,6 +860,7 @@ export interface PlanningExecution<TIntent = PlanningIntent> {
   mutationId: string
   baseRevision: number
   intent: TIntent
+  confirmedRestorationCount?: number
 }
 
 /** A history entry stores ordinary inputs; every Undo and Redo gets new execution metadata. */
@@ -938,16 +943,23 @@ export const planningMutationErrorCodes = [
   'stale_revision',
   'mutation_id_reused',
   'no_change',
+  'restoration_confirmation_required',
+  'restoration_confirmation_stale',
 ] as const
 
 /** Flat command failure body; transport maps stale_revision to HTTP 409. */
 export interface PlanningMutationFailure {
   error: string
+  restorableItemCount?: number
   code?: (typeof planningMutationErrorCodes)[number]
 }
 
 export const planningMutationFailureValidator = vine.compile(
-  vine.object({ error: vine.string(), code: vine.enum(planningMutationErrorCodes).optional() })
+  vine.object({
+    error: vine.string(),
+    code: vine.enum(planningMutationErrorCodes).optional(),
+    restorableItemCount: revision().optional(),
+  })
 )
 export type PlanningMutationFailureInput = Infer<typeof planningMutationFailureValidator>
 

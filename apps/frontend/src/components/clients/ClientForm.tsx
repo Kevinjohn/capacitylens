@@ -1,3 +1,4 @@
+import { PlanningSaveCancelledError } from "@/data/planning/PlanningSaveCancelledError";
 import { useState } from "react";
 import { useStore } from "@/store/useStore";
 import { useFieldError } from "@/hooks/useFieldError";
@@ -94,6 +95,7 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
       }
       onClose();
     } catch (e) {
+      if (e instanceof PlanningSaveCancelledError) return;
       fail(null, resolveErrorMessage(e));
     }
   };

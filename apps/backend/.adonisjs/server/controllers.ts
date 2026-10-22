@@ -11,6 +11,7 @@ export const controllers = {
   Credential: () => import('#controllers/credential_controller'),
   ExampleData: () => import('#controllers/example_data_controller'),
   Exports: () => import('#controllers/exports_controller'),
+  FirstCompanySetup: () => import('#controllers/first_company_setup_controller'),
   GettingStarted: () => import('#controllers/getting_started_controller'),
   Google: () => import('#controllers/google_controller'),
   Invitations: () => import('#controllers/invitations_controller'),
