@@ -245,6 +245,11 @@ describe("Whole-company anonymisation", () => {
     expect(suspendServerWrites).not.toHaveBeenCalled();
     useStore.setState({ activeAccountId: DEFAULT_ACCOUNT_ID });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Anonymise all resources" }));
+    const reopened = screen.getByRole("dialog", { name: "Anonymise all company resources?" });
+    expect(within(reopened).getByRole("button", { name: "Cancel" })).toBeEnabled();
+    await user.click(within(reopened).getByRole("button", { name: "Cancel" }));
+    expect(reopened).not.toBeInTheDocument();
   });
 
   it.each([408, 500])("keeps writes suspended after an uncertain HTTP %s", async (status) => {

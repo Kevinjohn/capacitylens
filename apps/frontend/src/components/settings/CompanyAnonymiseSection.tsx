@@ -153,10 +153,8 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
       if (!mustReload && !committed) {
         resumeWrites?.();
         inFlight.current = false;
-        if (stillCurrent()) {
-          setBusy(false);
-          setConfirming(false);
-        }
+        setBusy(false);
+        if (stillCurrent()) setConfirming(false);
       }
     }
   };
