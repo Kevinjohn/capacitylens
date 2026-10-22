@@ -8,7 +8,7 @@ import type { LifecycleEntity, StoreState } from "@/store/types";
 type LifecycleSlice = Pick<StoreState, "archiveEntity" | "unarchiveEntity" | "anonymiseResource">;
 type LifecycleSliceInternals = Pick<
   StoreInternals,
-  "createGuardedAction" | "resolveOwnedRow" | "assertNotBuiltinClient" | "mutate" | "mutateIrreversible"
+  "createGuardedAction" | "resolveOwnedRow" | "assertNotBuiltinClient" | "mutate"
 >;
 
 /** Local lifecycle transitions for the volatile demo. */
@@ -16,7 +16,7 @@ export function createLifecycleSlice(
   internals: LifecycleSliceInternals,
 ): StateCreator<StoreState, [], [], LifecycleSlice> {
   return (_set, get) => {
-    const { createGuardedAction, resolveOwnedRow, assertNotBuiltinClient, mutate, mutateIrreversible } = internals;
+    const { createGuardedAction, resolveOwnedRow, assertNotBuiltinClient, mutate } = internals;
     return {
       archiveEntity: createGuardedAction((entity: LifecycleEntity, id: ID) => {
         if (!resolveOwnedRow(get().data, entity, id)) return;
@@ -41,7 +41,8 @@ export function createLifecycleSlice(
       }),
       anonymiseResource: createGuardedAction((id: ID) => {
         if (!resolveOwnedRow(get().data, "resources", id)) return;
-        mutateIrreversible((data) => ({
+        const data = get().data;
+        get().replaceAfterDemoImport({
           ...data,
           resources: data.resources.map((row) =>
             row.id === id ? { ...obfuscateResource(row), avatarUrl: null, updatedAt: touchAfter(row.updatedAt) } : row,
@@ -56,7 +57,7 @@ export function createLifecycleSlice(
               ? { ...row, note: null, updatedAt: touchAfter(row.updatedAt) }
               : row,
           ),
-        }));
+        });
       }),
     };
   };

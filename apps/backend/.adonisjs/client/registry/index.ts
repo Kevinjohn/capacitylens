@@ -294,11 +294,17 @@ const routes = {
     tokens: [{"old":"/api/accounts/:id","type":0,"val":"api","end":""},{"old":"/api/accounts/:id","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['api.accounts.update']['types'],
   },
-  'api.accounts.destroy': {
-    methods: ["DELETE"],
-    pattern: '/api/accounts/:id',
-    tokens: [{"old":"/api/accounts/:id","type":0,"val":"api","end":""},{"old":"/api/accounts/:id","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:id","type":1,"val":"id","end":""}],
-    types: placeholder as Registry['api.accounts.destroy']['types'],
+  'api.accounts.anonymise': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/anonymise',
+    tokens: [{"old":"/api/accounts/:accountId/anonymise","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/anonymise","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/anonymise","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/anonymise","type":0,"val":"anonymise","end":""}],
+    types: placeholder as Registry['api.accounts.anonymise']['types'],
+  },
+  'api.resources.anonymise': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/resources/:id/anonymise',
+    tokens: [{"old":"/api/accounts/:accountId/resources/:id/anonymise","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/resources/:id/anonymise","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/resources/:id/anonymise","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/resources/:id/anonymise","type":0,"val":"resources","end":""},{"old":"/api/accounts/:accountId/resources/:id/anonymise","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/resources/:id/anonymise","type":0,"val":"anonymise","end":""}],
+    types: placeholder as Registry['api.resources.anonymise']['types'],
   },
   'api.example-data': {
     methods: ["POST"],
@@ -587,12 +593,6 @@ const routes = {
     pattern: '/api/company-join/complete-provider',
     tokens: [{"old":"/api/company-join/complete-provider","type":0,"val":"api","end":""},{"old":"/api/company-join/complete-provider","type":0,"val":"company-join","end":""},{"old":"/api/company-join/complete-provider","type":0,"val":"complete-provider","end":""}],
     types: placeholder as Registry['api.google.join-complete']['types'],
-  },
-  'api.lifecycle': {
-    methods: ["POST"],
-    pattern: '/api/:entity/:id/:action',
-    tokens: [{"old":"/api/:entity/:id/:action","type":0,"val":"api","end":""},{"old":"/api/:entity/:id/:action","type":1,"val":"entity","end":""},{"old":"/api/:entity/:id/:action","type":1,"val":"id","end":""},{"old":"/api/:entity/:id/:action","type":1,"val":"action","end":""}],
-    types: placeholder as Registry['api.lifecycle']['types'],
   },
   'api.health': {
     methods: ["GET","HEAD"],

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { m } from "@/i18n";
 import { ActionProofDialog } from "@/auth/ActionProofDialog";
 import { useCan } from "@/auth/permissionContext";
@@ -28,6 +28,25 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
   const [readyProof, setReadyProof] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [requiresReload, setRequiresReload] = useState(false);
+  const generation = useRef(0);
+  const inFlight = useRef(false);
+
+  useEffect(() => {
+    let previous = useStore.getState().activeAccountId;
+    return useStore.subscribe((state) => {
+      if (state.activeAccountId === previous) return;
+      const leavingCompany = previous !== null;
+      previous = state.activeAccountId;
+      generation.current += 1;
+      if (leavingCompany) {
+        sessionStorage.removeItem(PENDING_PROOF_KEY);
+        setReadyProof(null);
+        setProving(false);
+        setConfirming(false);
+        setRequiresReload(false);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const saved = sessionStorage.getItem(PENDING_PROOF_KEY);
@@ -84,17 +103,24 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
   };
 
   const submit = async (proofId: string) => {
-    if (busy || requiresReload || useStore.getState().activeAccountId !== accountId) return;
+    if (inFlight.current || requiresReload || useStore.getState().activeAccountId !== accountId) return;
+    inFlight.current = true;
+    const submittedGeneration = generation.current;
+    const stillCurrent = () =>
+      generation.current === submittedGeneration && useStore.getState().activeAccountId === accountId;
     setBusy(true);
     let resumeWrites: ReturnType<typeof suspendServerWrites> | null = null;
     let committed = false;
     let mustReload = false;
+    let dispatched = false;
     try {
       if ((await flushPendingWrites()).kind !== "clean") {
-        setNotice(m.data_import_blocked_unsynced(), "error");
+        if (stillCurrent()) setNotice(m.data_import_blocked_unsynced(), "error");
         return;
       }
+      if (!stillCurrent()) return;
       resumeWrites = suspendServerWrites();
+      dispatched = true;
       const response = await apiFetch(
         `${API_BASE}/api/accounts/${encodeURIComponent(accountId)}/anonymise`,
         {
@@ -112,18 +138,23 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
         reloadPage();
         return;
       }
-      if (response.status >= 500) throw new Error(`HTTP ${response.status} left the operation outcome uncertain.`);
-      setNotice((await readApiError(response)) ?? m.settings_archived_err_action({ status: response.status }), "error");
+      if (response.status === 408 || response.status >= 500)
+        throw new Error(`HTTP ${response.status} left the operation outcome uncertain.`);
+      const message = (await readApiError(response)) ?? m.settings_archived_err_action({ status: response.status });
+      if (stillCurrent()) setNotice(message, "error");
     } catch (cause) {
-      // A lost response may follow a commit. Keep the old slice blocked until a fresh load.
-      setRequiresReload(true);
-      mustReload = true;
-      setNotice(resolveErrorMessage(cause), "error");
+      // A lost response after dispatch may follow a commit. Keep the old slice blocked until a fresh load.
+      mustReload = dispatched;
+      if (stillCurrent()) {
+        if (dispatched) setRequiresReload(true);
+        setNotice(resolveErrorMessage(cause), "error");
+      } else if (dispatched) reloadPage();
     } finally {
       if (!mustReload && !committed) {
         resumeWrites?.();
+        inFlight.current = false;
         setBusy(false);
-        setConfirming(false);
+        if (stillCurrent()) setConfirming(false);
       }
     }
   };
@@ -143,9 +174,21 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
           title={m.settings_company_anonymise_confirm_title()}
           description={m.settings_company_anonymise_confirm_body()}
           guardDirty={false}
-          onClose={() => !busy && setConfirming(false)}
+          onClose={() => {
+            if (busy) return;
+            setConfirming(false);
+            setReadyProof(null);
+          }}
           footer={
-            <Button type="button" variant="outline" onClick={() => setConfirming(false)} disabled={busy}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setConfirming(false);
+                setReadyProof(null);
+              }}
+              disabled={busy}
+            >
               {m.form_cancel()}
             </Button>
           }

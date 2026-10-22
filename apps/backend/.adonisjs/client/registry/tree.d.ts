@@ -78,8 +78,11 @@ export interface ApiDefinition {
     accounts: {
       store: typeof routes['api.accounts.store']
       update: typeof routes['api.accounts.update']
-      destroy: typeof routes['api.accounts.destroy']
+      anonymise: typeof routes['api.accounts.anonymise']
       index: typeof routes['api.accounts.index']
+    }
+    resources: {
+      anonymise: typeof routes['api.resources.anonymise']
     }
     exampleData: typeof routes['api.example-data']
     gettingStarted: {
@@ -149,7 +152,6 @@ export interface ApiDefinition {
       joinCancel: typeof routes['api.google.join-cancel']
       joinComplete: typeof routes['api.google.join-complete']
     }
-    lifecycle: typeof routes['api.lifecycle']
     health: typeof routes['api.health']
   }
 }
