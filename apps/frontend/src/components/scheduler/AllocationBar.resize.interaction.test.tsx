@@ -13,13 +13,13 @@ import {
   settlePlanning,
 } from "./__tests__/allocationBarInteractionTestKit";
 
-beforeEach(() => resetStoreWithAccount());
+beforeEach(async () => resetStoreWithAccount());
 
 const enableDays = () => useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { schedulingMode: "days" });
 
 function registerDayModeResizeTests() {
   it("rescales hours/day when the end is resized by keyboard (Shift+arrow)", async () => {
-    enableDays();
+    await enableDays();
 
     const a = await seedAllocation();
     render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
@@ -33,7 +33,7 @@ function registerDayModeResizeTests() {
   });
 
   it("leaves hours/day untouched on a move (span unchanged)", async () => {
-    enableDays();
+    await enableDays();
     const a = await seedAllocation();
     render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
@@ -44,7 +44,7 @@ function registerDayModeResizeTests() {
   });
 
   it("rescales hours/day when the end grip is dragged", async () => {
-    enableDays();
+    await enableDays();
     const a = await seedAllocation();
     render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
@@ -62,12 +62,12 @@ function registerDayModeResizeTests() {
 
 function registerDayModeKeyboardNoticeTests() {
   it("surfaces a non-blocking notice when a shrink-resize clamps the work volume at the cap", async () => {
-    enableDays();
+    await enableDays();
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
-    const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+    const c = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const p = await requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const r = await requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
     // Mon 06-01..Tue 06-02 = 2 working days at 24h/day = 48h of work. Shrinking to 1 working
     // day would need 48h/day, clamped to 24, so half the volume is lost (the user must be told).
     const a = requireCreated(
@@ -94,7 +94,7 @@ function registerDayModeKeyboardNoticeTests() {
   });
 
   it("does NOT show the cap notice on a normal in-range resize", async () => {
-    enableDays();
+    await enableDays();
 
     const a = await seedAllocation();
     render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
@@ -111,12 +111,12 @@ function registerDayModeKeyboardNoticeTests() {
 function registerDayModePointerNoticeTests() {
   it("raises the PERSISTENT warning tone when a POINTER shrink-resize clamps the work volume", async () => {
     // Pointer resize must publish the same persistent truncation warning as keyboard resize when the hours cap reduces work volume.
-    enableDays();
+    await enableDays();
     const st = useStore.getState();
-    const c = requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
-    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
-    const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+    const c = await requireCreated(st.addClient({ name: "Ferris", color: "#1" }));
+    const p = await requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = await requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const r = await requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
 
     const a = requireCreated(
       await st.addAllocation({
@@ -145,7 +145,7 @@ function registerDayModePointerNoticeTests() {
   });
 
   it("keeps the POINTER move confirmation TRANSIENT (info) when nothing is clamped", async () => {
-    enableDays();
+    await enableDays();
 
     const a = await seedAllocation();
     render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);

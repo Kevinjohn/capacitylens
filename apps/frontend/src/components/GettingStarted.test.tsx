@@ -77,7 +77,7 @@ describe("Getting started", () => {
   it("keeps the completed bar until dismissal and skips the warning at 5/5", async () => {
     await resetStoreWithAccount("acct-complete-checklist");
     const store = useStore.getState();
-    const person = requireCreated(
+    const person = await requireCreated(
       store.addResource({
         kind: "person",
         name: "Bruce Wayne",
@@ -90,9 +90,9 @@ describe("Getting started", () => {
         color: "#2d75da",
       }),
     );
-    const client = requireCreated(store.addClient({ name: "Wayne Enterprises", color: "#2d75da" }));
-    store.addProject({ name: "Wayne redesign", clientId: client.id, color: "#2d75da" });
-    const activity = requireCreated(store.addActivity({ name: "Planning", kind: "internal" }));
+    const client = await requireCreated(store.addClient({ name: "Wayne Enterprises", color: "#2d75da" }));
+    await store.addProject({ name: "Wayne redesign", clientId: client.id, color: "#2d75da" });
+    const activity = await requireCreated(store.addActivity({ name: "Planning", kind: "internal" }));
     await store.addAllocation({
       resourceId: person.id,
       activityId: activity.id,

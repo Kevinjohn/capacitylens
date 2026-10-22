@@ -6,20 +6,23 @@ import userEvent from "@testing-library/user-event";
 import { ResourceForm } from "./ResourceForm";
 import { useStore } from "@/store/useStore";
 import { requireValue, resetStoreWithAccount } from "@/test/fixtures";
-import * as persistence from "@/data/persist";
-import { BatchConflictError, BatchValidationError } from "@/data/sync/batchErrors";
+import { PlanningControllerError } from "@/data/planning/planningCacheController";
+
+const addResource = useStore.getState().addResource;
+const updateResource = useStore.getState().updateResource;
 
 beforeEach(() => resetStoreWithAccount());
 
 afterEach(async () => {
+  useStore.setState({ addResource, updateResource });
   cleanup();
   // Radix dispatches its unmount autofocus event on the next timer turn, while this jsdom realm is still alive.
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
 });
 
 describe("ResourceForm layout", () => {
-  it("uses compact label-control rows while leaving working days full width", () => {
-    useStore.getState().addDiscipline({ name: "Design", color: "#737373", sortOrder: 0 });
+  it("uses compact label-control rows while leaving working days full width", async () => {
+    await useStore.getState().addDiscipline({ name: "Design", color: "#737373", sortOrder: 0 });
     render(<ResourceForm kind="person" onClose={vi.fn()} />);
 
     for (const label of ["Name", "Role", "Discipline", "Engagement"]) {
@@ -73,7 +76,7 @@ describe("ResourceForm layout", () => {
 describe("ResourceForm availability dates", () => {
   it("preserves an existing avatar URL when a manager edits resource metadata", async () => {
     const user = userEvent.setup();
-    const resource = requireCreated(
+    const resource = await requireCreated(
       useStore.getState().addResource({
         kind: "person",
         name: "Barbara Gordon",
@@ -120,7 +123,7 @@ describe("ResourceForm availability dates", () => {
   it("clears one existing boundary while preserving the other and metadata", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    const resource = requireCreated(
+    const resource = await requireCreated(
       useStore.getState().addResource({
         kind: "person",
         name: "Dinah Lance",
@@ -175,8 +178,8 @@ describe("ResourceForm disciplines", () => {
     expect(screen.queryByLabelText("Discipline")).not.toBeInTheDocument();
   });
 
-  it("shows Discipline for people and placeholders when enabled with a scoped discipline", () => {
-    useStore.getState().addDiscipline({ name: "Design", color: "#737373", sortOrder: 0 });
+  it("shows Discipline for people and placeholders when enabled with a scoped discipline", async () => {
+    await useStore.getState().addDiscipline({ name: "Design", color: "#737373", sortOrder: 0 });
 
     const person = render(<ResourceForm kind="person" onClose={vi.fn()} />);
     expect(screen.getByLabelText("Discipline")).toBeVisible();
@@ -188,10 +191,10 @@ describe("ResourceForm disciplines", () => {
 
   it("preserves an existing discipline when the disabled control is hidden", async () => {
     const user = userEvent.setup();
-    const discipline = requireCreated(
+    const discipline = await requireCreated(
       useStore.getState().addDiscipline({ name: "Design", color: "#737373", sortOrder: 0 }),
     );
-    const resource = requireCreated(
+    const resource = await requireCreated(
       useStore.getState().addResource({
         kind: "person",
         name: "Barbara Gordon",
@@ -205,7 +208,7 @@ describe("ResourceForm disciplines", () => {
         color: "#737373",
       }),
     );
-    useStore
+    await useStore
       .getState()
       .updateAccount(requireValue(useStore.getState().data.accounts[0], "account").id, { disciplinesEnabled: false });
     render(<ResourceForm resource={resource} onClose={vi.fn()} />);
@@ -225,7 +228,7 @@ describe("ResourceForm disciplines", () => {
 it("rejects a stale person edit instead of overwriting a concurrent change", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  const resource = requireCreated(
+  const resource = await requireCreated(
     useStore.getState().addResource({
       kind: "person",
       name: "Alice",
@@ -240,7 +243,7 @@ it("rejects a stale person edit instead of overwriting a concurrent change", asy
   );
   render(<ResourceForm resource={resource} onClose={onClose} />);
 
-  useStore.getState().updateResource(resource.id, { role: "Design lead" });
+  await useStore.getState().updateResource(resource.id, { role: "Design lead" });
   await user.clear(screen.getByLabelText("Name"));
   await user.type(screen.getByLabelText("Name"), "Alice renamed");
   await user.click(screen.getByRole("button", { name: "Save" }));
@@ -253,10 +256,9 @@ it("rejects a stale person edit instead of overwriting a concurrent change", asy
 it("keeps the dialog open and shows the persistence error when the server rejects a new person", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  vi.spyOn(persistence, "flushPendingWrites").mockResolvedValue({
-    kind: "failed",
-    error: new Error("Resource could not be saved by the server."),
-  });
+  vi.spyOn(useStore.getState(), "addResource").mockRejectedValue(
+    new Error("Resource could not be saved by the server."),
+  );
   try {
     render(<ResourceForm kind="person" onClose={onClose} />);
     await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
@@ -269,19 +271,18 @@ it("keeps the dialog open and shows the persistence error when the server reject
   }
 });
 
-it("shows the generic persistence message for a batch reconciliation conflict", async () => {
+it("shows a planning conflict when the typed write is refused", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  vi.spyOn(persistence, "flushPendingWrites").mockResolvedValue({
-    kind: "failed",
-    error: new BatchConflictError("Row is stale."),
-  });
+  vi.spyOn(useStore.getState(), "addResource").mockRejectedValue(
+    new PlanningControllerError("Row is stale.", "revision_conflict", 409),
+  );
   try {
     render(<ResourceForm kind="person" onClose={onClose} />);
     await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(screen.getByRole("alert")).toHaveTextContent("Changes aren’t being saved right now — we’ll keep retrying.");
+    expect(screen.getByRole("alert")).toHaveTextContent("Row is stale.");
     expect(onClose).not.toHaveBeenCalled();
   } finally {
     vi.restoreAllMocks();
@@ -291,12 +292,9 @@ it("shows the generic persistence message for a batch reconciliation conflict", 
 it("keeps the server's own reason when a save is rejected as invalid", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  // A codeless BatchValidationError: resolvePersistenceErrorNotice only restates a coded one, so
-  // this message is the only account the user ever gets of why the save was refused.
-  vi.spyOn(persistence, "flushPendingWrites").mockResolvedValue({
-    kind: "failed",
-    error: new BatchValidationError("That discipline no longer exists."),
-  });
+  vi.spyOn(useStore.getState(), "addResource").mockRejectedValue(
+    new PlanningControllerError("That discipline no longer exists.", "validation_error", 400),
+  );
   try {
     render(<ResourceForm kind="person" onClose={onClose} />);
     await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
@@ -312,20 +310,20 @@ it("keeps the server's own reason when a save is rejected as invalid", async () 
 it("retries a transient rejected save without adding a duplicate person", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  vi.spyOn(persistence, "flushPendingWrites")
-    .mockResolvedValueOnce({ kind: "failed", error: new Error("Temporary server failure.") })
-    .mockResolvedValueOnce({ kind: "failed", error: new Error("Temporary server failure again.") })
-    .mockResolvedValueOnce({ kind: "clean" });
+  vi.spyOn(useStore.getState(), "addResource")
+    .mockRejectedValueOnce(new Error("Temporary server failure."))
+    .mockRejectedValueOnce(new Error("Temporary server failure again."))
+    .mockImplementation(addResource);
   try {
     render(<ResourceForm kind="person" onClose={onClose} />);
     await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(screen.getByRole("alert")).toHaveTextContent("Temporary server failure.");
-    expect(useStore.getState().data.resources).toHaveLength(1);
+    expect(useStore.getState().data.resources).toHaveLength(0);
 
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(screen.getByRole("alert")).toHaveTextContent("Temporary server failure again.");
-    expect(useStore.getState().data.resources).toHaveLength(1);
+    expect(useStore.getState().data.resources).toHaveLength(0);
 
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
@@ -338,7 +336,7 @@ it("retries a transient rejected save without adding a duplicate person", async 
 it("retries an existing edit from its latest optimistic snapshot", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  const resource = requireCreated(
+  const resource = await requireCreated(
     useStore.getState().addResource({
       kind: "person",
       name: "Bruce Wayne",
@@ -351,10 +349,10 @@ it("retries an existing edit from its latest optimistic snapshot", async () => {
       color: "#737373",
     }),
   );
-  vi.spyOn(persistence, "flushPendingWrites")
-    .mockResolvedValueOnce({ kind: "failed", error: new Error("Temporary server failure.") })
-    .mockResolvedValueOnce({ kind: "failed", error: new Error("Temporary server failure again.") })
-    .mockResolvedValueOnce({ kind: "clean" });
+  vi.spyOn(useStore.getState(), "updateResource")
+    .mockRejectedValueOnce(new Error("Temporary server failure."))
+    .mockRejectedValueOnce(new Error("Temporary server failure again."))
+    .mockImplementation(updateResource);
   try {
     render(<ResourceForm resource={resource} onClose={onClose} />);
     await user.clear(screen.getByLabelText("Role"));
@@ -386,15 +384,18 @@ it("closes after a successful save under StrictMode", async () => {
   await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
 });
 
-it("ignores a second submit while the first persistence round-trip is pending", async () => {
+it("ignores a second submit while the first typed write is pending", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  let resolveFlush!: (result: persistence.FlushPendingWritesResult) => void;
-  vi.spyOn(persistence, "flushPendingWrites").mockReturnValue(
-    new Promise((resolve) => {
-      resolveFlush = resolve;
-    }),
-  );
+  let releaseWrite!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    releaseWrite = resolve;
+  });
+  vi.spyOn(useStore.getState(), "addResource").mockImplementation(async (input) => {
+    const saved = await addResource(input);
+    await pending;
+    return saved;
+  });
   try {
     render(<ResourceForm kind="person" onClose={onClose} />);
     await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
@@ -407,22 +408,25 @@ it("ignores a second submit while the first persistence round-trip is pending", 
     expect(useStore.getState().data.resources).toHaveLength(1);
     expect(onClose).not.toHaveBeenCalled();
 
-    resolveFlush({ kind: "clean" });
+    releaseWrite();
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   } finally {
     vi.restoreAllMocks();
   }
 });
 
-it("does not let a late save response close a form after its company changed", async () => {
+it("does not let a late typed write response close a form after its company changed", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  let resolveFlush!: (result: persistence.FlushPendingWritesResult) => void;
-  vi.spyOn(persistence, "flushPendingWrites").mockReturnValue(
-    new Promise((resolve) => {
-      resolveFlush = resolve;
-    }),
-  );
+  let releaseWrite!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    releaseWrite = resolve;
+  });
+  vi.spyOn(useStore.getState(), "addResource").mockImplementation(async (input) => {
+    const saved = await addResource(input);
+    await pending;
+    return saved;
+  });
   try {
     render(<ResourceForm kind="person" onClose={onClose} />);
     await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
@@ -431,7 +435,7 @@ it("does not let a late save response close a form after its company changed", a
     if (!other) throw new Error("Expected second account");
     useStore.getState().setActiveAccount(other.id);
 
-    resolveFlush({ kind: "clean" });
+    releaseWrite();
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(onClose).not.toHaveBeenCalled();
   } finally {
@@ -439,15 +443,18 @@ it("does not let a late save response close a form after its company changed", a
   }
 });
 
-it("does not surface a late save rejection after its company changed", async () => {
+it("does not surface a late typed write rejection after its company changed", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  let rejectFlush!: (error: Error) => void;
-  vi.spyOn(persistence, "flushPendingWrites").mockReturnValue(
-    new Promise((_resolve, reject) => {
-      rejectFlush = reject;
-    }),
-  );
+  let releaseWrite!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    releaseWrite = resolve;
+  });
+  vi.spyOn(useStore.getState(), "addResource").mockImplementation(async (input) => {
+    await addResource(input);
+    await pending;
+    throw new Error("stale save failure");
+  });
   try {
     render(<ResourceForm kind="person" onClose={onClose} />);
     await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
@@ -456,7 +463,7 @@ it("does not surface a late save rejection after its company changed", async () 
     if (!other) throw new Error("Expected second account");
     useStore.getState().setActiveAccount(other.id);
 
-    rejectFlush(new Error("stale save failure"));
+    releaseWrite();
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -483,11 +490,11 @@ it("requires a placeholder to be bound to a project", async () => {
 it("saves a placeholder once a bound project is chosen", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  useStore
+  await useStore
     .getState()
     .updateAccount(requireValue(useStore.getState().data.accounts[0], "account").id, { workingDays: [1, 3, 5] });
-  const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
-  const project = requireCreated(
+  const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
+  const project = await requireCreated(
     useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
   );
   render(<ResourceForm kind="placeholder" onClose={onClose} />);
@@ -511,11 +518,11 @@ it("saves a placeholder once a bound project is chosen", async () => {
 it("edits a placeholder bound to an archived project without forcing a reassignment", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
-  const project = requireCreated(
+  const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
+  const project = await requireCreated(
     useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
   );
-  const placeholder = requireCreated(
+  const placeholder = await requireCreated(
     useStore.getState().addResource({
       kind: "placeholder",
       role: "Designer",
@@ -571,7 +578,7 @@ describe("ResourceForm engagement", () => {
 
   it("preserves hidden employment data when engagement is edited", async () => {
     const user = userEvent.setup();
-    const resource = requireCreated(
+    const resource = await requireCreated(
       useStore.getState().addResource({
         kind: "person",
         name: "Barry Allen",
@@ -637,7 +644,7 @@ it("persists a mutually exclusive mixed full, half and non-working pattern", asy
 it("hides working hours and normalises a legacy custom value to eight on edit", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  const resource = requireCreated(
+  const resource = await requireCreated(
     useStore.getState().addResource({
       kind: "person",
       name: "Alice",

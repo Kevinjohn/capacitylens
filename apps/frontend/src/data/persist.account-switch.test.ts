@@ -7,7 +7,7 @@ import type { PersistenceAdapter } from "./PersistenceAdapter";
 import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { makeAccount, resetStoreWithAccount } from "@/test/fixtures";
+import { makeAccount, makeClient, resetStoreWithAccount } from "@/test/fixtures";
 import { internalClient, requireCallback, makeLocalTwoAccounts, accountSwitchSlices } from "./__tests__/persistTestKit";
 
 beforeEach(async () => {
@@ -15,6 +15,16 @@ beforeEach(async () => {
   // Seed an active account because store additions require an account scope.
   await resetStoreWithAccount();
 });
+
+let stagedClientNumber = 0;
+
+// A legacy edit can land while the next company's slice is still loading. Typed catalogue
+// commands require an activated planning context, so stage that store delta directly here.
+function stageLegacyClient(accountId: string, name: string) {
+  const client = makeClient({ id: `staged-client-${++stagedClientNumber}`, accountId, name });
+  useStore.setState((state) => ({ data: { ...state.data, clients: [...state.data.clients, client] } }));
+  return client;
+}
 
 interface AccountSwitchWireEntry {
   url: string;
@@ -33,7 +43,11 @@ function recordingAccountSwitchAdapter() {
     accounts: [{ ...NULLABLE_FIELDS.accounts, id: accountId, name, color: "#1", createdAt: "t", updatedAt: "t" }],
     clients: [internalClient(accountId)],
   });
-  const aSlice = slice("a1", "Alpha");
+  const aSliceBase = slice("a1", "Alpha");
+  const aSlice = {
+    ...aSliceBase,
+    clients: [...aSliceBase.clients, makeClient({ id: "a1-ordinary", accountId: "a1", name: "Wayne Enterprises" })],
+  };
   const bSlice = slice("b1", "Beta");
   const wire: AccountSwitchWireEntry[] = [];
   const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
@@ -99,7 +113,7 @@ async function attachFailedSwitchWithParkedEdit() {
   await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
   const switching = switchAndAwaitHydration("b1");
   await bStarted;
-  useStore.getState().addClient({ name: "Parker Industries", color: "#222222" });
+  stageLegacyClient("b1", "Parker Industries");
   rejectB(new Error("B unavailable"));
   await expect(switching).resolves.toEqual({ kind: "failed" });
   return { detach, saveAll };
@@ -172,11 +186,11 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     });
 
     await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
-    useStore.getState().addClient({ name: "Wayne Enterprises", color: "#222222" });
+    useStore.getState().archiveEntity("clients", "ca");
     await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
     const switchingToB = switchAndAwaitHydration("b1");
     await bStarted;
-    useStore.getState().addClient({ name: "Parker Industries", color: "#222222" });
+    stageLegacyClient("b1", "Parker Industries");
     rejectB(new Error("B unavailable"));
     await expect(switchingToB).resolves.toEqual({ kind: "failed" });
 
@@ -295,7 +309,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
       const switching = switchAndAwaitHydration("b1");
       await vi.advanceTimersByTimeAsync(0);
-      const edit = requireCreated(useStore.getState().addClient({ name: "Parker Industries", color: "#222222" }));
+      const edit = stageLegacyClient("b1", "Parker Industries");
       rejectB(new Error("B unavailable"));
       await expect(switching).resolves.toEqual({ kind: "failed" });
       await vi.advanceTimersByTimeAsync(31_000);
@@ -341,15 +355,15 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     await expect(switchAndAwaitHydration("b1")).resolves.toEqual({ kind: "failed" });
     expect(useStore.getState().activeAccountLoadFailed).toBe("b1");
     expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["ca"]);
-    expect(() => requireCreated(useStore.getState().addClient({ name: "Oscorp", color: "#222222" }))).toThrow(
-      /not loaded/i,
+    await expect(requireCreated(useStore.getState().addClient({ name: "Oscorp", color: "#222222" }))).rejects.toThrow(
+      /No active company is selected/,
     );
     expect(saveAll).not.toHaveBeenCalled();
 
     await expect(retryActiveAccountLoad("b1")).resolves.toEqual({ kind: "reloaded" });
     expect(useStore.getState().activeAccountLoadFailed).toBeNull();
     expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["cb"]);
-    useStore.getState().addClient({ name: "Rand Enterprises", color: "#222222" });
+    useStore.getState().archiveEntity("clients", "cb");
     await expect(flushPendingWrites()).resolves.toEqual({ kind: "clean" });
     expect(saveAll).toHaveBeenCalledTimes(1);
     detach();
@@ -380,7 +394,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     });
 
     await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
-    useStore.getState().addClient({ name: "Wayne Enterprises", color: "#222222" });
+    useStore.getState().archiveEntity("clients", "ca");
     await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
     await expect(switchAndAwaitHydration("b1")).resolves.toEqual({ kind: "failed" });
     await expect(retryActiveAccountLoad("b1")).resolves.toEqual({ kind: "reloaded" });
@@ -483,7 +497,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
     const switchingToB = switchAndAwaitHydration("b1");
     await bStarted;
-    const edit = requireCreated(useStore.getState().addClient({ name: "Parker Industries", color: "#222222" }));
+    const edit = stageLegacyClient("b1", "Parker Industries");
     rejectB(new Error("B unavailable"));
     await expect(switchingToB).resolves.toEqual({ kind: "failed" });
 
@@ -601,6 +615,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       const a2Slice = {
         ...emptyAppData(),
         accounts: [makeAccount({ id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" })],
+        clients: [makeClient({ id: "a2-ordinary", accountId: "a2", name: "Stark Industries" })],
       };
       const loadAll = vi.fn(async () => a2Slice);
       const saveAll = vi.fn().mockResolvedValue(undefined);
@@ -619,7 +634,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       await expect(switchAndAwaitHydration("a2")).resolves.toEqual({ kind: "reloaded" });
       expect(saveAll).not.toHaveBeenCalled();
 
-      useStore.getState().addClient({ name: "New Client", color: "#222222" });
+      useStore.getState().archiveEntity("clients", "a2-ordinary");
       await vi.advanceTimersByTimeAsync(299);
       expect(saveAll).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(1);
@@ -654,7 +669,8 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
     expect(useStore.getState().activeAccountId).toBe("a1");
 
-    const edited = requireCreated(useStore.getState().addClient({ name: "A only", color: "#222222" }));
+    useStore.getState().archiveEntity("clients", "a1-ordinary");
+    const edited = { id: "a1-ordinary" };
     expect(wire.some((w) => w.ops)).toBe(false);
 
     await expect(switchAndAwaitHydration("b1")).resolves.toEqual({ kind: "reloaded" });
@@ -717,7 +733,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       await bStarted;
       expect(releaseB).not.toBeNull();
 
-      const edit = requireCreated(useStore.getState().addClient({ name: "Mid-switch edit", color: "#222222" }));
+      const edit = stageLegacyClient("b1", "Mid-switch edit");
       saveAll.mockClear();
       requireCallback(releaseB, "account B load release")();
       await expect(switchingToB).resolves.toEqual({ kind: "reloaded" });

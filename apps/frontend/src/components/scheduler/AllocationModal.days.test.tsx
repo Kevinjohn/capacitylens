@@ -31,15 +31,15 @@ vi.mock("@/lib/capacity", async (importOriginal) => ({
   buildCapacityAdvisoryFromLoad: capacityAdvisoryMock,
 }));
 
-beforeEach(() => {
-  resetAllocationModalStore();
+beforeEach(async () => {
+  await resetAllocationModalStore();
   capacityAdvisoryMock.mockClear();
   capacityAdvisoryMock.mockImplementation(() => ({ overDays: 0, timeOffDays: 0 }));
 });
 
 describe("AllocationModal days mode", () => {
   it("keeps a missing resource distinct from a resource with no effective working days", async () => {
-    enableDays();
+    await enableDays();
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -60,8 +60,8 @@ describe("AllocationModal days mode", () => {
   });
 
   it("counts and derives spans through a company-narrowed effective week", async () => {
-    enableDays([1, 2, 3, 4]);
-    const resource = requireCreated(
+    await enableDays([1, 2, 3, 4]);
+    const resource = await requireCreated(
       useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const user = userEvent.setup();
@@ -88,8 +88,8 @@ describe("AllocationModal days mode", () => {
   });
 
   it("validates the maximum working span against the narrowed company week", async () => {
-    enableDays([1, 2, 3, 4]);
-    const resource = requireCreated(
+    await enableDays([1, 2, 3, 4]);
+    const resource = await requireCreated(
       useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const user = userEvent.setup();
@@ -116,8 +116,8 @@ describe("AllocationModal days mode", () => {
   });
 
   it("keeps zero-overlap date math finite but rejects creating a normal allocation", async () => {
-    enableDays([2]);
-    const resource = requireCreated(useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] }));
+    await enableDays([2]);
+    const resource = await requireCreated(useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] }));
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -141,8 +141,8 @@ describe("AllocationModal days mode", () => {
   });
 
   it("rejects even an ignored creation for a zero-overlap person (no escape hatch, decision 6)", async () => {
-    useStore.getState().updateAccount(ACC, { workingDays: [2] });
-    const resource = requireCreated(useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] }));
+    await useStore.getState().updateAccount(ACC, { workingDays: [2] });
+    const resource = await requireCreated(useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] }));
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -164,8 +164,10 @@ describe("AllocationModal days mode", () => {
   });
 
   it("leaves Ignore working days unchecked and skips personal non-working weekdays", async () => {
-    enableDays();
-    const resource = requireCreated(useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 3, 5] }));
+    await enableDays();
+    const resource = await requireCreated(
+      useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 3, 5] }),
+    );
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -190,8 +192,10 @@ describe("AllocationModal days mode", () => {
   });
 
   it("includes every calendar day when Ignore working days is checked", async () => {
-    enableDays();
-    const resource = requireCreated(useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 3, 5] }));
+    await enableDays();
+    const resource = await requireCreated(
+      useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 3, 5] }),
+    );
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -217,8 +221,10 @@ describe("AllocationModal days mode", () => {
   });
 
   it("reopens and resaves an existing checked allocation without changing its span or semantics", async () => {
-    enableDays();
-    const resource = requireCreated(useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 3, 5] }));
+    await enableDays();
+    const resource = await requireCreated(
+      useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 3, 5] }),
+    );
     const allocation = requireCreated(
       await useStore.getState().addAllocation({
         resourceId: resource.id,
@@ -244,8 +250,8 @@ describe("AllocationModal days mode", () => {
   });
 
   it("derives end date + hours/day from start, days of work and days over", async () => {
-    enableDays();
-    const r = requireCreated(
+    await enableDays();
+    const r = await requireCreated(
       useStore.getState().addResource({ ...person("Bruce"), workingHoursPerDay: 6, workingDays: [1, 2, 3, 4, 5] }),
     );
     const onClose = vi.fn();
@@ -287,8 +293,10 @@ describe("AllocationModal days mode", () => {
   });
 
   it("rejects zero days of work", async () => {
-    enableDays();
-    const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
+    await enableDays();
+    const r = await requireCreated(
+      useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
+    );
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -314,8 +322,10 @@ describe("AllocationModal days mode", () => {
   });
 
   it("rejects a derived span that would leave the four-digit-year date domain", async () => {
-    enableDays();
-    const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
+    await enableDays();
+    const r = await requireCreated(
+      useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
+    );
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -345,8 +355,10 @@ describe("AllocationModal days mode", () => {
   it("rejects a work volume that would derive more than 24h/day (no silent clamp)", async () => {
     // 5 days of work crammed into a 1-day span = 40h/day, which the store would clamp to 24,
     // silently discarding the entered volume. The modal must reject so preview === saved.
-    enableDays();
-    const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
+    await enableDays();
+    const r = await requireCreated(
+      useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
+    );
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -376,8 +388,10 @@ describe("AllocationModal days mode", () => {
 
   it('rejects an EMPTY "Days over" submitted via Enter (no blur) instead of saving a 0-hour allocation', async () => {
     // Submitting from an empty Days over field bypasses the blur minimum. The resulting zero span must fail validation before an allocation is written.
-    enableDays();
-    const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
+    await enableDays();
+    const r = await requireCreated(
+      useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
+    );
     const onClose = vi.fn();
     const addAllocation = vi.spyOn(useStore.getState(), "addAllocation");
     const user = userEvent.setup();
@@ -411,8 +425,10 @@ describe("AllocationModal days mode", () => {
   });
 
   it("honours the drawn span when creating (days over = the dragged-out length)", async () => {
-    enableDays();
-    const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
+    await enableDays();
+    const r = await requireCreated(
+      useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
+    );
     const user = userEvent.setup();
 
     render(
@@ -441,9 +457,9 @@ describe("AllocationModal days mode", () => {
     });
   });
 
-  it("seeds a half day as half a day of work in days mode", () => {
-    enableDays();
-    const resource = requireCreated(
+  it("seeds a half day as half a day of work in days mode", async () => {
+    await enableDays();
+    const resource = await requireCreated(
       useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5], halfDays: [2] }),
     );
     render(
@@ -459,8 +475,10 @@ describe("AllocationModal days mode", () => {
   });
 
   it("does not drift hours when an unevenly-dividing allocation is re-saved unchanged", async () => {
-    enableDays();
-    const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
+    await enableDays();
+    const r = await requireCreated(
+      useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
+    );
     // A 1.875-day seed must retain its precision; rounding it to two decimal places would alter work volume on an unchanged save.
     const alloc = requireCreated(
       await useStore.getState().addAllocation({
@@ -485,8 +503,8 @@ describe("AllocationModal days mode", () => {
   });
 
   it("preserves a stored non-working end date when an existing allocation is saved unchanged", async () => {
-    enableDays();
-    const resource = requireCreated(
+    await enableDays();
+    const resource = await requireCreated(
       useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const allocation = requireCreated(
@@ -510,8 +528,10 @@ describe("AllocationModal days mode", () => {
   });
 
   it("seeds the days inputs by inverting an existing allocation", async () => {
-    enableDays();
-    const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
+    await enableDays();
+    const r = await requireCreated(
+      useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
+    );
 
     const alloc = requireCreated(
       await useStore.getState().addAllocation({

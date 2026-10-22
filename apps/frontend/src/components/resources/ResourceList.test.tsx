@@ -19,7 +19,7 @@ beforeEach(async () => {
   await resetStoreWithAccount();
   useStore.getState().clearFilters();
   // Enable placeholders for this suite because the management cases require their otherwise-hidden section.
-  setPlaceholdersEnabled({ on: true });
+  await setPlaceholdersEnabled({ on: true });
 });
 
 const personDraft = (name: string) => ({
@@ -60,13 +60,15 @@ describe("ResourceList display", () => {
     expect(screen.queryByText(/manage team links/i)).not.toBeInTheDocument();
   });
 
-  it("sorts each visible section by displayed name without changing stored resource order", () => {
-    setExternalEnabled({ on: true });
-    useStore.getState().addResource(personDraft("Zulu"));
-    useStore.getState().addResource(personDraft("alpha"));
-    useStore.getState().addResource(personDraft("Bravo"));
-    useStore.getState().addResource({ ...personDraft("Zeta Partners"), kind: "external", role: "Partner studio" });
-    useStore.getState().addResource({ ...personDraft("Ferris Print"), kind: "external", role: "Print partner" });
+  it("sorts each visible section by displayed name without changing stored resource order", async () => {
+    await setExternalEnabled({ on: true });
+    await useStore.getState().addResource(personDraft("Zulu"));
+    await useStore.getState().addResource(personDraft("alpha"));
+    await useStore.getState().addResource(personDraft("Bravo"));
+    await useStore
+      .getState()
+      .addResource({ ...personDraft("Zeta Partners"), kind: "external", role: "Partner studio" });
+    await useStore.getState().addResource({ ...personDraft("Ferris Print"), kind: "external", role: "Print partner" });
     const storedIds = useStore.getState().data.resources.map((resource) => resource.id);
 
     render(<ResourceList />);
@@ -85,11 +87,11 @@ describe("ResourceList display", () => {
 
   it("puts favourites first within People and External and toggles them accessibly", async () => {
     const user = userEvent.setup();
-    setExternalEnabled({ on: true });
-    useStore.getState().addResource(personDraft("Alpha"));
-    useStore.getState().addResource({ ...personDraft("Zulu"), isFavourite: true });
-    useStore.getState().addResource({ ...personDraft("Ferris"), kind: "external", role: "Print partner" });
-    useStore
+    await setExternalEnabled({ on: true });
+    await useStore.getState().addResource(personDraft("Alpha"));
+    await useStore.getState().addResource({ ...personDraft("Zulu"), isFavourite: true });
+    await useStore.getState().addResource({ ...personDraft("Ferris"), kind: "external", role: "Print partner" });
+    await useStore
       .getState()
       .addResource({ ...personDraft("Zeta"), kind: "external", role: "Partner studio", isFavourite: true });
 
@@ -120,14 +122,14 @@ describe("ResourceList display", () => {
 });
 
 describe("ResourceList display", () => {
-  it("separates Studio and Supplementary once a Supplementary person exists, with favourites first inside each", () => {
-    useStore.getState().addResource(personDraft("Studio Zulu"));
-    useStore.getState().addResource({ ...personDraft("Studio Alpha"), isFavourite: true });
-    useStore.getState().addResource({
+  it("separates Studio and Supplementary once a Supplementary person exists, with favourites first inside each", async () => {
+    await useStore.getState().addResource(personDraft("Studio Zulu"));
+    await useStore.getState().addResource({ ...personDraft("Studio Alpha"), isFavourite: true });
+    await useStore.getState().addResource({
       ...personDraft("Supplementary Alpha"),
       engagement: "supplementary",
     });
-    useStore.getState().addResource({
+    await useStore.getState().addResource({
       ...personDraft("Supplementary Zulu"),
       engagement: "supplementary",
       isFavourite: true,
@@ -151,10 +153,10 @@ describe("ResourceList display", () => {
     ).toEqual([expect.stringContaining("Supplementary Zulu"), expect.stringContaining("Supplementary Alpha")]);
   });
 
-  it("keeps a Studio-only company in one favourites-first list", () => {
-    useStore.getState().addResource(personDraft("Studio Zulu"));
-    useStore.getState().addResource({ ...personDraft("Studio Alpha"), isFavourite: true });
-    useStore.getState().addResource(personDraft("Studio Bravo"));
+  it("keeps a Studio-only company in one favourites-first list", async () => {
+    await useStore.getState().addResource(personDraft("Studio Zulu"));
+    await useStore.getState().addResource({ ...personDraft("Studio Alpha"), isFavourite: true });
+    await useStore.getState().addResource(personDraft("Studio Bravo"));
 
     render(<ResourceList />);
 
@@ -169,8 +171,8 @@ describe("ResourceList display", () => {
 });
 
 describe("ResourceList display", () => {
-  it("hides direct section create actions from viewers", () => {
-    useStore.getState().addResource(personDraft("Alice"));
+  it("hides direct section create actions from viewers", async () => {
+    await useStore.getState().addResource(personDraft("Alice"));
     render(
       <PermissionContext.Provider value={{ role: "viewer" }}>
         <ResourceList />
@@ -189,15 +191,15 @@ describe("ResourceList display", () => {
 });
 
 describe("ResourceList display", () => {
-  it("shows the name of a person resource", () => {
-    useStore.getState().addResource(personDraft("Alice"));
+  it("shows the name of a person resource", async () => {
+    await useStore.getState().addResource(personDraft("Alice"));
     render(<ResourceList />);
     expect(screen.getByText("Alice")).toBeInTheDocument();
   });
 
-  it("omits both fixed hours text and dangling metadata separators", () => {
-    useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { disciplinesEnabled: false });
-    useStore.getState().addResource({ ...personDraft("Alice"), role: "" });
+  it("omits both fixed hours text and dangling metadata separators", async () => {
+    await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { disciplinesEnabled: false });
+    await useStore.getState().addResource({ ...personDraft("Alice"), role: "" });
     render(<ResourceList />);
 
     const row = screen.getByTestId("resource-row");
@@ -205,14 +207,14 @@ describe("ResourceList display", () => {
     expect(row).not.toHaveTextContent("·");
   });
 
-  it("omits missing and dangling disciplines without losing valid role or discipline metadata", () => {
-    const discipline = requireCreated(
+  it("omits missing and dangling disciplines without losing valid role or discipline metadata", async () => {
+    const discipline = await requireCreated(
       useStore.getState().addDiscipline({ name: "Design", color: "#123456", sortOrder: 0 }),
     );
-    useStore.getState().addResource(personDraft("Role only"));
-    useStore.getState().addResource({ ...personDraft("Discipline only"), role: "", disciplineId: discipline.id });
-    useStore.getState().addResource({ ...personDraft("No metadata"), role: "" });
-    const dangling = requireCreated(
+    await useStore.getState().addResource(personDraft("Role only"));
+    await useStore.getState().addResource({ ...personDraft("Discipline only"), role: "", disciplineId: discipline.id });
+    await useStore.getState().addResource({ ...personDraft("No metadata"), role: "" });
+    const dangling = await requireCreated(
       useStore.getState().addResource({ ...personDraft("Dangling discipline"), role: "Researcher" }),
     );
     // Ordinary writes reject dangling references. Inject one at the view boundary to prove a
@@ -245,9 +247,9 @@ describe("ResourceList display", () => {
 });
 
 describe("ResourceList display", () => {
-  it("gives repeated resource edit controls distinct contextual names", () => {
-    useStore.getState().addResource(personDraft("Alice"));
-    useStore.getState().addResource(personDraft("Bob"));
+  it("gives repeated resource edit controls distinct contextual names", async () => {
+    await useStore.getState().addResource(personDraft("Alice"));
+    await useStore.getState().addResource(personDraft("Bob"));
     render(<ResourceList />);
 
     expect(screen.getByRole("button", { name: "Edit Alice" })).toBeInTheDocument();
@@ -255,10 +257,12 @@ describe("ResourceList display", () => {
     expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
   });
 
-  it("gives repeated external-party edit controls distinct contextual names", () => {
-    setExternalEnabled({ on: true });
-    useStore.getState().addResource({ ...personDraft("Kord Industries"), kind: "external", role: "Partner studio" });
-    useStore.getState().addResource({ ...personDraft("Pixel Forge"), kind: "external", role: "Print partner" });
+  it("gives repeated external-party edit controls distinct contextual names", async () => {
+    await setExternalEnabled({ on: true });
+    await useStore
+      .getState()
+      .addResource({ ...personDraft("Kord Industries"), kind: "external", role: "Partner studio" });
+    await useStore.getState().addResource({ ...personDraft("Pixel Forge"), kind: "external", role: "Print partner" });
     render(<ResourceList />);
 
     expect(screen.getByRole("button", { name: "Edit Kord Industries" })).toBeInTheDocument();
@@ -269,8 +273,10 @@ describe("ResourceList display", () => {
 describe("ResourceList display", () => {
   it("keeps the External explainer behind the section's labelled help action", async () => {
     const user = userEvent.setup();
-    setExternalEnabled({ on: true });
-    useStore.getState().addResource({ ...personDraft("Kord Industries"), kind: "external", role: "Partner studio" });
+    await setExternalEnabled({ on: true });
+    await useStore
+      .getState()
+      .addResource({ ...personDraft("Kord Industries"), kind: "external", role: "Partner studio" });
     render(<ResourceList />);
 
     expect(screen.queryByText(/never count toward your team’s capacity or utilisation/i)).not.toBeInTheDocument();
@@ -280,8 +286,8 @@ describe("ResourceList display", () => {
     expect(within(dialog).getByText(/never count toward your team’s capacity or utilisation/i)).toBeInTheDocument();
   });
 
-  it('does not show a "placeholder" tag or "Temp" tag for a permanent person', () => {
-    useStore.getState().addResource(personDraft("Alice"));
+  it('does not show a "placeholder" tag or "Temp" tag for a permanent person', async () => {
+    await useStore.getState().addResource(personDraft("Alice"));
     render(<ResourceList />);
     const rows = screen.getAllByTestId("resource-row");
     expect(rows).toHaveLength(1);
@@ -292,8 +298,8 @@ describe("ResourceList display", () => {
 });
 
 describe("ResourceList display", () => {
-  it("renders a freelancer with no employment-type badge", () => {
-    useStore.getState().addResource(freelancerDraft("Bob"));
+  it("renders a freelancer with no employment-type badge", async () => {
+    await useStore.getState().addResource(freelancerDraft("Bob"));
     render(<ResourceList />);
     const rows = screen.getAllByTestId("resource-row");
     expect(rows).toHaveLength(1);
@@ -302,12 +308,12 @@ describe("ResourceList display", () => {
     expect(within(row).queryByText("placeholder")).not.toBeInTheDocument();
   });
 
-  it('shows a "placeholder" tag for a placeholder resource and its role as its label', () => {
-    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
-    const project = requireCreated(
+  it('shows a "placeholder" tag for a placeholder resource and its role as its label', async () => {
+    const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
+    const project = await requireCreated(
       useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" }),
     );
-    useStore.getState().addResource({
+    await useStore.getState().addResource({
       kind: "placeholder",
       role: "Senior Designer",
       employmentType: "permanent" as const,
@@ -333,12 +339,12 @@ describe("ResourceList display", () => {
 });
 
 describe("ResourceList display", () => {
-  it("does not show global first-resource onboarding when only a visible later section has rows", () => {
-    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
-    const project = requireCreated(
+  it("does not show global first-resource onboarding when only a visible later section has rows", async () => {
+    const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
+    const project = await requireCreated(
       useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" }),
     );
-    useStore.getState().addResource({
+    await useStore.getState().addResource({
       kind: "placeholder",
       role: "Senior Designer",
       employmentType: "permanent",
@@ -358,13 +364,13 @@ describe("ResourceList display", () => {
     expect(screen.queryByText("Resources are the people you schedule work for.")).not.toBeInTheDocument();
   });
 
-  it("hides the Placeholders section + its placeholders when the pref is OFF (default)", () => {
-    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
-    const project = requireCreated(
+  it("hides the Placeholders section + its placeholders when the pref is OFF (default)", async () => {
+    const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
+    const project = await requireCreated(
       useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" }),
     );
-    useStore.getState().addResource(personDraft("Alice"));
-    useStore.getState().addResource({
+    await useStore.getState().addResource(personDraft("Alice"));
+    await useStore.getState().addResource({
       kind: "placeholder",
       role: "Senior Designer",
       employmentType: "permanent" as const,
@@ -376,7 +382,7 @@ describe("ResourceList display", () => {
       projectId: project.id,
     });
 
-    setPlaceholdersEnabled({ on: false });
+    await setPlaceholdersEnabled({ on: false });
     render(<ResourceList />);
 
     expect(screen.getByText("Alice")).toBeInTheDocument();
@@ -388,15 +394,15 @@ describe("ResourceList display", () => {
 });
 
 describe("ResourceList display", () => {
-  it("renders all three resource types together", () => {
-    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
-    const project = requireCreated(
+  it("renders all three resource types together", async () => {
+    const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
+    const project = await requireCreated(
       useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" }),
     );
 
-    useStore.getState().addResource(personDraft("Alice"));
-    useStore.getState().addResource(freelancerDraft("Bob"));
-    useStore.getState().addResource({
+    await useStore.getState().addResource(personDraft("Alice"));
+    await useStore.getState().addResource(freelancerDraft("Bob"));
+    await useStore.getState().addResource({
       kind: "placeholder",
       role: "Senior Designer",
       employmentType: "permanent" as const,
@@ -447,7 +453,7 @@ describe("ResourceList archive flow", () => {
 
   it("shows an Archive confirm dialog and cancelling keeps the resource visible", async () => {
     const user = userEvent.setup();
-    useStore.getState().addResource(personDraft("Alice"));
+    await useStore.getState().addResource(personDraft("Alice"));
     render(<ResourceList />);
 
     expect(screen.getByText("Alice")).toBeInTheDocument();
@@ -465,7 +471,7 @@ describe("ResourceList archive flow", () => {
 
   it("archives a resource after confirming and shows it below the active sections", async () => {
     const user = userEvent.setup();
-    useStore.getState().addResource(personDraft("Alice"));
+    await useStore.getState().addResource(personDraft("Alice"));
     render(<ResourceList />);
 
     await user.click(screen.getByRole("button", { name: "Archive Alice" }));
@@ -483,15 +489,15 @@ describe("ResourceList archived grouping", () => {
   beforeEach(() => vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1"));
   afterEach(() => vi.unstubAllEnvs());
 
-  it("groups archived resources by kind and engagement, hides empty groups, and preserves placeholders", () => {
-    const studio = requireCreated(useStore.getState().addResource(personDraft("Bruce Wayne")));
-    const supplementary = requireCreated(
+  it("groups archived resources by kind and engagement, hides empty groups, and preserves placeholders", async () => {
+    const studio = await requireCreated(useStore.getState().addResource(personDraft("Bruce Wayne")));
+    const supplementary = await requireCreated(
       useStore.getState().addResource({ ...personDraft("Barry Allen"), engagement: "supplementary" }),
     );
-    const external = requireCreated(
+    const external = await requireCreated(
       useStore.getState().addResource({ ...personDraft("Kord Industries"), kind: "external", engagement: "studio" }),
     );
-    const placeholder = requireCreated(
+    const placeholder = await requireCreated(
       useStore.getState().addResource({
         kind: "placeholder",
         role: "Senior Designer",
@@ -504,7 +510,7 @@ describe("ResourceList archived grouping", () => {
       }),
     );
     for (const id of [studio.id, supplementary.id, external.id, placeholder.id]) {
-      useStore.getState().archiveEntity("resources", id);
+      await useStore.getState().archiveEntity("resources", id);
     }
 
     render(<ResourceList />);
@@ -532,9 +538,9 @@ describe("ResourceList archived grouping", () => {
     );
   });
 
-  it("omits empty archived resource groups", () => {
-    const studio = requireCreated(useStore.getState().addResource(personDraft("Bruce Wayne")));
-    useStore.getState().archiveEntity("resources", studio.id);
+  it("omits empty archived resource groups", async () => {
+    const studio = await requireCreated(useStore.getState().addResource(personDraft("Bruce Wayne")));
+    await useStore.getState().archiveEntity("resources", studio.id);
 
     render(<ResourceList />);
 
@@ -552,8 +558,8 @@ describe("ResourceList archive flow", () => {
 
   it("archives the correct resource when multiple exist", async () => {
     const user = userEvent.setup();
-    useStore.getState().addResource(personDraft("Alice"));
-    useStore.getState().addResource(personDraft("Bob"));
+    await useStore.getState().addResource(personDraft("Alice"));
+    await useStore.getState().addResource(personDraft("Bob"));
     render(<ResourceList />);
 
     const rows = screen.getAllByTestId("resource-row");
@@ -584,7 +590,7 @@ describe("ResourceList archive flow", () => {
 
   it("archives a freelancer resource", async () => {
     const user = userEvent.setup();
-    useStore.getState().addResource(freelancerDraft("Bob"));
+    await useStore.getState().addResource(freelancerDraft("Bob"));
     render(<ResourceList />);
 
     expect(screen.getByText("Bob")).toBeInTheDocument();
@@ -600,11 +606,11 @@ describe("ResourceList archive flow", () => {
 
   it("archives a placeholder resource", async () => {
     const user = userEvent.setup();
-    const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
-    const project = requireCreated(
+    const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
+    const project = await requireCreated(
       useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" }),
     );
-    useStore.getState().addResource({
+    await useStore.getState().addResource({
       kind: "placeholder",
       role: "Senior Designer",
       employmentType: "permanent" as const,

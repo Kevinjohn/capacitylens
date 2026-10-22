@@ -147,7 +147,7 @@ test("edits an activity name", async ({ page }) => {
   await expect(page.getByTestId("activity-row").filter({ hasText: "CMS Build" })).toBeVisible();
 });
 
-test("archives an activity and hides its allocation bars, and undo leaves it archived", async ({ page }) => {
+test("archives an activity and hides its allocation bars, and Undo restores it", async ({ page }) => {
   await openApp(page);
   await setZoom(page, 4);
   await resetSchedulerScroll(page);
@@ -168,7 +168,7 @@ test("archives an activity and hides its allocation bars, and undo leaves it arc
   await expect(page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" })).toHaveCount(0);
 
   await page.keyboard.press("Meta+z");
-  await expect(page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" })).toHaveCount(0);
+  await expect(page.getByTestId("allocation-bar").filter({ hasText: "Wireframes" })).toBeVisible();
   await page.getByRole("link", { name: "Activities" }).click();
-  await expect(page.getByTestId("activity-row").filter({ hasText: "Wireframes" })).toHaveCount(0);
+  await expect(page.getByTestId("activity-row").filter({ hasText: "Wireframes" })).toBeVisible();
 });

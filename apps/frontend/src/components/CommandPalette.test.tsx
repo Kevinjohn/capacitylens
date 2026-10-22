@@ -7,10 +7,9 @@ import { CommandPalette } from "./CommandPalette";
 import { PermissionContext } from "@/auth/permissionContext";
 import { useStore, buildEmptyFilters } from "@/store/useStore";
 import {
-  makeAppData,
-  makeAccount,
   makeResourceDraft,
   DEFAULT_ACCOUNT_ID,
+  resetStoreWithAccount,
   setExternalEnabled,
   setPlaceholdersEnabled,
 } from "@/test/fixtures";
@@ -41,7 +40,7 @@ function LocationProbe() {
   return <output data-testid="location-probe">{`${location.pathname}${location.hash}`}</output>;
 }
 
-function addInternalSearchItems() {
+async function addInternalSearchItems() {
   const data = useStore.getState().data;
   const internal =
     data.clients.find((client) => client.builtin === true) ??
@@ -51,32 +50,32 @@ function addInternalSearchItems() {
     clients: data.clients.some((client) => client.id === internal.id) ? data.clients : [...data.clients, internal],
   });
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
-  useStore.getState().addProject({
+  await useStore.getState().addProject({
     name: "Obsidian Programme",
     clientId: internal.id,
     color: "#6366f1",
   });
-  useStore.getState().addActivity({ name: "Office Ritual", kind: "internal" });
+  await useStore.getState().addActivity({ name: "Office Ritual", kind: "internal" });
 }
 
-function addOptionalResources() {
+async function addOptionalResources() {
   const client = useStore.getState().data.clients.find((candidate) => candidate.name === "Queen Consolidated");
   if (!client) throw new Error("Expected Queen Consolidated client");
-  const project = requireCreated(
+  const project = await requireCreated(
     useStore.getState().addProject({
       name: "Placeholder Project",
       clientId: client.id,
       color: "#6366f1",
     }),
   );
-  useStore.getState().addResource(
+  await useStore.getState().addResource(
     makeResourceDraft({
       kind: "placeholder",
       role: "Senior Designer",
       projectId: project.id,
     }),
   );
-  useStore.getState().addResource(
+  await useStore.getState().addResource(
     makeResourceDraft({
       kind: "external",
       name: "Kord Industries",
@@ -85,17 +84,11 @@ function addOptionalResources() {
   );
 }
 
-beforeEach(() => {
-  useStore.getState().replaceAll(
-    makeAppData({
-      accounts: [makeAccount()],
-    }),
-  );
-  useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
-
-  useStore.getState().addClient({ name: "Queen Consolidated", color: "#6366f1" });
-  useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne", role: "Designer" }));
-  useStore.getState().addResource(makeResourceDraft({ name: "Diana Prince", role: "Copywriter" }));
+beforeEach(async () => {
+  await resetStoreWithAccount();
+  await useStore.getState().addClient({ name: "Queen Consolidated", color: "#6366f1" });
+  await useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne", role: "Designer" }));
+  await useStore.getState().addResource(makeResourceDraft({ name: "Diana Prince", role: "Copywriter" }));
 });
 
 describe("CommandPalette", () => {
@@ -153,7 +146,7 @@ describe("CommandPalette", () => {
     expect(screen.queryByText("Overview", { exact: true })).not.toBeInTheDocument();
   });
 
-  it("lists every page exactly once, including Account, with disciplines on or off", () => {
+  it("lists every page exactly once, including Account, with disciplines on or off", async () => {
     const expectedWithDisciplines = [
       "Overview",
       "Schedule",
@@ -192,8 +185,8 @@ describe("CommandPalette", () => {
     expect(pageLabels()).toEqual(expectedWithDisciplines);
     expect(screen.getAllByText("Account", { exact: true })).toHaveLength(1);
 
-    act(() => {
-      useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { disciplinesEnabled: false });
+    await act(async () => {
+      await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { disciplinesEnabled: false });
     });
     expect(pageLabels()).toEqual(expectedWithoutDisciplines);
     expect(screen.getAllByText("Account", { exact: true })).toHaveLength(1);
@@ -272,8 +265,8 @@ describe("CommandPalette", () => {
     expect(tylerOption).toBeTruthy();
   });
 
-  it("omits placeholder and external jump targets while their account settings are off", () => {
-    addOptionalResources();
+  it("omits placeholder and external jump targets while their account settings are off", async () => {
+    await addOptionalResources();
     renderPalette();
     const input = screen.getByTestId("command-palette-input");
 
@@ -284,10 +277,10 @@ describe("CommandPalette", () => {
     expect(screen.queryByText(/Kord Industries/)).not.toBeInTheDocument();
   });
 
-  it("includes enabled optional resources and labels an external jump target", () => {
-    addOptionalResources();
-    setPlaceholdersEnabled({ on: true });
-    setExternalEnabled({ on: true });
+  it("includes enabled optional resources and labels an external jump target", async () => {
+    await addOptionalResources();
+    await setPlaceholdersEnabled({ on: true });
+    await setExternalEnabled({ on: true });
     renderPalette();
     const input = screen.getByTestId("command-palette-input");
 
@@ -298,8 +291,8 @@ describe("CommandPalette", () => {
     expect(screen.getByText("Kord Industries (external)")).toBeInTheDocument();
   });
 
-  it("finds an accented resource name from its unaccented spelling", () => {
-    useStore.getState().addResource(makeResourceDraft({ name: "José Müller", role: "Strategist" }));
+  it("finds an accented resource name from its unaccented spelling", async () => {
+    await useStore.getState().addResource(makeResourceDraft({ name: "José Müller", role: "Strategist" }));
     renderPalette();
 
     fireEvent.change(screen.getByTestId("command-palette-input"), {
@@ -312,8 +305,8 @@ describe("CommandPalette", () => {
 });
 
 describe("CommandPalette", () => {
-  it("keeps an Internal project searchable", () => {
-    addInternalSearchItems();
+  it("keeps an Internal project searchable", async () => {
+    await addInternalSearchItems();
     renderPalette();
 
     fireEvent.change(screen.getByTestId("command-palette-input"), {
@@ -323,8 +316,8 @@ describe("CommandPalette", () => {
     expect(screen.getByText("Obsidian Programme")).toBeInTheDocument();
   });
 
-  it("keeps an Internal activity searchable", () => {
-    addInternalSearchItems();
+  it("keeps an Internal activity searchable", async () => {
+    await addInternalSearchItems();
     renderPalette();
 
     fireEvent.change(screen.getByTestId("command-palette-input"), {
@@ -476,16 +469,14 @@ describe("CommandPalette", () => {
 });
 
 describe("CommandPalette", () => {
-  it("setFilters is called with projectId when a project is selected", () => {
+  it("setFilters is called with projectId when a project is selected", async () => {
     const clients = useStore.getState().data.clients;
     const client = clients[0];
     if (!client) throw new Error("Expected client");
-    act(() => {
-      useStore.getState().addProject({
-        name: "Project Watchtower",
-        clientId: client.id,
-        color: "#6366f1",
-      });
+    await useStore.getState().addProject({
+      name: "Project Watchtower",
+      clientId: client.id,
+      color: "#6366f1",
     });
 
     renderPalette();
@@ -511,8 +502,8 @@ describe("CommandPalette", () => {
 });
 
 describe("CommandPalette", () => {
-  it("carries the selected activity identity to the complete activity list", () => {
-    const activity = requireCreated(useStore.getState().addActivity({ name: "Kickoff", kind: "internal" }));
+  it("carries the selected activity identity to the complete activity list", async () => {
+    const activity = await requireCreated(useStore.getState().addActivity({ name: "Kickoff", kind: "internal" }));
     renderPalette();
 
     fireEvent.change(screen.getByTestId("command-palette-input"), { target: { value: "Kickoff" } });
@@ -534,21 +525,18 @@ describe("CommandPalette", () => {
 });
 
 describe("CommandPalette", () => {
-  it("project selection REPLACES stale filters with only projectId set", () => {
+  it("project selection REPLACES stale filters with only projectId set", async () => {
     const clients = useStore.getState().data.clients;
     const client = clients[0];
     if (!client) throw new Error("Expected client");
-    let projectId: string | undefined;
-    act(() => {
-      const p = requireCreated(
-        useStore.getState().addProject({
-          name: "Project Alpha",
-          clientId: client.id,
-          color: "#6366f1",
-        }),
-      );
-      projectId = p.id;
-    });
+    const p = await requireCreated(
+      useStore.getState().addProject({
+        name: "Project Alpha",
+        clientId: client.id,
+        color: "#6366f1",
+      }),
+    );
+    const projectId = p.id;
 
     act(() => {
       useStore.getState().setFilters({
@@ -584,12 +572,9 @@ describe("CommandPalette", () => {
 });
 
 describe("CommandPalette", () => {
-  it("client selection REPLACES stale filters with only clientId set", () => {
-    let clientId: string | undefined;
-    act(() => {
-      const c = requireCreated(useStore.getState().addClient({ name: "Client Zeta", color: "#6366f1" }));
-      clientId = c.id;
-    });
+  it("client selection REPLACES stale filters with only clientId set", async () => {
+    const c = await requireCreated(useStore.getState().addClient({ name: "Client Zeta", color: "#6366f1" }));
+    const clientId = c.id;
 
     act(() => {
       useStore.getState().setFilters({

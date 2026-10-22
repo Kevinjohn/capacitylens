@@ -213,14 +213,20 @@ export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): Promi
 
 type SetPlaceholdersEnabledOptions = { on: boolean; accountId?: ID };
 /** Set the test account placeholder setting. */
-export function setPlaceholdersEnabled({ on, accountId = DEFAULT_ACCOUNT_ID }: SetPlaceholdersEnabledOptions): void {
-  useStore.getState().updateAccount(accountId, { placeholdersEnabled: on });
+export async function setPlaceholdersEnabled({
+  on,
+  accountId = DEFAULT_ACCOUNT_ID,
+}: SetPlaceholdersEnabledOptions): Promise<void> {
+  await useStore.getState().updateAccount(accountId, { placeholdersEnabled: on });
 }
 
 type SetExternalEnabledOptions = { on: boolean; accountId?: ID };
 /** Set the test account external resource setting. */
-export function setExternalEnabled({ on, accountId = DEFAULT_ACCOUNT_ID }: SetExternalEnabledOptions): void {
-  useStore.getState().updateAccount(accountId, { externalEnabled: on });
+export async function setExternalEnabled({
+  on,
+  accountId = DEFAULT_ACCOUNT_ID,
+}: SetExternalEnabledOptions): Promise<void> {
+  await useStore.getState().updateAccount(accountId, { externalEnabled: on });
 }
 
 /** Creates a fresh JSON Response for one mocked request. Bodies are single-use, so

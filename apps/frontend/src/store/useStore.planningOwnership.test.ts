@@ -27,8 +27,8 @@ vi.mock("@/data/planning/volatilePlanningTransport", async (importOriginal) => {
 });
 
 async function seedTypedAllocation() {
-  const resource = requireCreated(useStore.getState().addResource(makeResourceDraft()));
-  const activity = requireCreated(useStore.getState().addActivity({ name: "Operations", kind: "internal" }));
+  const resource = await requireCreated(useStore.getState().addResource(makeResourceDraft()));
+  const activity = await requireCreated(useStore.getState().addActivity({ name: "Operations", kind: "internal" }));
   return requireCreated(
     await useStore.getState().addAllocation({
       resourceId: resource.id,
@@ -62,10 +62,10 @@ describe("planning authority publication", () => {
       debounceMs: 0,
     });
     try {
-      useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" });
-      await vi.waitFor(() => expect(saveAll).toHaveBeenCalledTimes(1));
-      expect(useStore.getState().past.length).toBeGreaterThan(0);
-      expect(useStore.getState().planning.history.past).toHaveLength(1);
+      await useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" });
+      expect(saveAll).not.toHaveBeenCalled();
+      expect(useStore.getState().past).toEqual([]);
+      expect(useStore.getState().planning.history.past).toHaveLength(4);
 
       failure.read = new PlanningControllerError("Sign in again.", "unauthenticated", 401);
       await useStore.getState().refreshPlanning();
@@ -80,7 +80,7 @@ describe("planning authority publication", () => {
       expect(state.planning.context).toBeNull();
       expect(state.activeAccountId).toBeNull();
       await new Promise((resolve) => setTimeout(resolve, 0));
-      expect(saveAll).toHaveBeenCalledTimes(1);
+      expect(saveAll).not.toHaveBeenCalled();
     } finally {
       detach();
     }
@@ -90,6 +90,7 @@ describe("planning authority publication", () => {
     const allocation = await seedTypedAllocation();
     const data = useStore.getState().data;
     const legacyPast = useStore.getState().past;
+    const planningPast = useStore.getState().planning.history.past;
     failure.execute = new PlanningControllerError(
       "You no longer belong to this company.",
       "account_membership_lost",
@@ -103,7 +104,7 @@ describe("planning authority publication", () => {
     const state = useStore.getState();
     expect(state.data).toBe(data);
     expect(state.past).toBe(legacyPast);
-    expect(state.planning.history.past).toHaveLength(1);
+    expect(state.planning.history.past).toBe(planningPast);
     expect(state.planning.context).not.toBeNull();
     expect(state.activeAccountId).not.toBeNull();
     expect(readPlanningProblem(state.planning)).toBe("refused");
@@ -141,15 +142,16 @@ describe("planning ownership of allocations", () => {
     await vi.waitFor(() => expect(useStore.getState().planning.status).toBe("ready"));
   });
 
-  it("keeps typed allocations when legacy Undo reverts a catalogue change", async () => {
+  it("undoes the latest typed allocation edit without removing a preceding catalogue change", async () => {
     const allocation = await seedTypedAllocation();
-    useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" });
+    const client = await requireCreated(useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" }));
     await useStore.getState().updateAllocation(allocation.id, { endDate: "2026-06-05" });
-    const moved = useStore.getState().data.allocations;
 
-    useStore.getState().undo();
+    await useStore.getState().undoPlanning();
 
-    expect(useStore.getState().data.clients).toEqual([]);
-    expect(useStore.getState().data.allocations).toBe(moved);
+    expect(useStore.getState().data.clients.find((row) => row.id === client.id)).toEqual(client);
+    expect(useStore.getState().data.allocations.find((row) => row.id === allocation.id)?.endDate).toBe(
+      allocation.endDate,
+    );
   });
 });
