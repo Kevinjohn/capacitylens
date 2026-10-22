@@ -87,6 +87,14 @@ export async function applyBetaAccountTransfer(
   if (portableFingerprint(current, accountId) === fingerprint(prepared.data))
     return { imported: prepared.imported, changed: false, revision }
 
+  // Deleting resources sets every pending invitation proposal's resource_id to NULL, and
+  // reinserting the same ids does not undo that, so the proposals are restored afterwards.
+  const proposals: { id: string; resource_id: string }[] = await trx
+    .from('invitation_proposals')
+    .join('invitations', 'invitations.id', 'invitation_proposals.invitation_id')
+    .where('invitations.account_id', accountId)
+    .whereNotNull('invitation_proposals.resource_id')
+    .select('invitation_proposals.id as id', 'invitation_proposals.resource_id as resource_id')
   for (const key of [...INSERT_ORDER].reverse())
     await trx.from(TABLE_NAMES[key]).where('account_id', accountId).delete()
   const account = prepared.data.accounts[0]!
@@ -105,6 +113,13 @@ export async function applyBetaAccountTransfer(
             .map((row) => encodeRow(TABLE_NAMES[key], row as unknown as Record<string, unknown>))
         )
   }
+  const importedResourceIds = new Set(prepared.data.resources.map((row) => row.id))
+  for (const proposal of proposals)
+    if (importedResourceIds.has(proposal.resource_id))
+      await trx
+        .from('invitation_proposals')
+        .where('id', proposal.id)
+        .update({ resource_id: proposal.resource_id })
   await trx.from('deleted_groups').where('account_id', accountId).delete()
   await writeAudit(trx, {
     accountId,

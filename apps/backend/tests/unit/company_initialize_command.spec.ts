@@ -14,6 +14,11 @@ function seedPrincipal(database: ReturnType<ReturnType<typeof operatorFixture>['
       'INSERT INTO users (id,email,email_verified,display_name,password_hash,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'
     )
     .run('bruce', 'bruce@wayne.example', 1, 'Bruce Wayne', 'existing-credential', now, now)
+  database
+    .prepare(
+      'INSERT INTO password_reset_tokens (tokenable_id,email,hash,expires_at,created_at) VALUES (?,?,?,?,?)'
+    )
+    .run('bruce', 'bruce@wayne.example', 'a'.repeat(64), '2999-01-01T00:00:00.000Z', now)
 }
 
 test('company initialization creates canonical defaults and refuses a second setup without changes', ({
@@ -46,6 +51,7 @@ test('company initialization creates canonical defaults and refuses a second set
       inspect.prepare('SELECT revision FROM company_planning_revisions').get()!.revision,
       1
     )
+    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 0)
     const before = inspect.prepare('SELECT * FROM accounts').all()
     inspect.close()
     assert.notEqual(f.command(args).status, 0)
@@ -112,6 +118,7 @@ test('company initialization rolls back every row if its audit cannot be recorde
       'audit_entries',
     ])
       assert.equal(inspect.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n, 0)
+    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 1)
     inspect.close()
   } finally {
     f.cleanup()
