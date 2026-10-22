@@ -78,6 +78,8 @@ booking ignores working days.
 Choose how planning dates read for everyone: **9 Sep**, **9th Sep**, **Sep 9** or **Sep 9th**.
 It applies to dates and ranges across the app, including Schedule and Time off, and takes effect
 without a reload.
+Saved company setting changes, including date format, can be undone and redone in the current page
+session. Reloading starts a new history; the saved setting remains shared by the company.
 
 - Compact weekday dates on Time off always keep the ordinal: with **9 Sep**, a Wednesday reads
   **Wed 9th Sep**.

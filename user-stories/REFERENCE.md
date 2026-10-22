@@ -472,7 +472,7 @@ The company section uses
 `data-testid="company-closures-section"`; each dated row uses
 `data-testid="company-closure-row"` and shows the required closure name plus its inclusive date
 span. Closure rows have the same edit and confirm-delete behaviour and permissions as personal
-entries; like other time off, they are outside booking Undo/Redo.
+entries. Time-off and closure changes join the page-local planning Undo/Redo history after saving.
 
 **Repeat personal time-off creation.** New personal time-off forms opened from either **Add time
 off** or a drawn schedule range include a create-only **Repeat** dropdown with
@@ -598,7 +598,11 @@ Switching modes is announced in the scheduler's polite live region. In Time-off 
 omit work-allocation counts, and each eligible non-external resource row exposes a keyboard
 **Add time off for <name>** button that opens the same prefilled time-off form as drawing the lane.
 External rows expose no time-off creation action.
-Undo and Redo act on booking (allocation) history only; other changes do not enter it.
+Undo and Redo act on saved planning changes: bookings, catalogue and resource edits, personal time off,
+company closures and company settings. Deleting a discipline or phase leaves its people or activities
+in place without that grouping; Undo restores only the removed link, preserving other edits made
+since deletion. A created Client, Project, Activity or Resource is archived on Undo and unarchived
+with the same ID on Redo.
 Saved booking changes remain undoable after a background refresh that contains only their own
 acknowledged revisions. A genuine remote row change, addition or deletion clears history so
 Undo cannot overwrite or resurrect another writer’s work.

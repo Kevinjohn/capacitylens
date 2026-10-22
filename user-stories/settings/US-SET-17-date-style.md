@@ -33,6 +33,8 @@ seed window — see _Seed data_ in REFERENCE.md).
    reads `Sep 9 – Oct 14`; one that crosses a year reads `Dec 28, 2026 – Jan 8, 2027`.
 5. Reload, or sign in from another browser: **Sep 9** is still the checked option, because the
    choice belongs to the company.
+6. In the same page session, change the format again and use **Undo** and **Redo**. Each action updates
+   the checked option and visible planning dates for the company.
 
 ## Acceptance criteria
 
@@ -43,6 +45,8 @@ seed window — see _Seed data_ in REFERENCE.md).
   every other account setting gives a role that cannot change it.
 - The choice sets day/month order and whether the day number carries an ordinal on planning dates,
   including single calendar dates and ranges, and takes effect **without a reload**.
+- A saved date-format change enters page-local Undo/Redo history; Undo restores the previous company
+  setting and Redo reapplies the new one.
 - A date range inside one month shows the month once (`9 – 14 Sep`, `Sep 9 – 14`); a range across two
   months shows both (`9 Sep – 14 Oct`, `Sep 9 – Oct 14`).
 - A standalone date range that crosses a year collapses nothing: both ends carry the year

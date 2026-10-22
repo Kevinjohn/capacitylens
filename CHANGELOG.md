@@ -9,6 +9,11 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Typed planning writes now cover disciplines, phases, personal time off, closures and company
+  settings. Session-bound deletion restoration reconnects surviving phase and discipline links
+  without overwriting later edits, and Undo/Redo covers the migrated actions in the editable demo
+  and authenticated app.
+
 - Typed allocation deletion and restoration routes. Deleting one allocation or a listed set saves
   the complete rows as a restoration group bound to the deleting company, person and session;
   restoring it reinserts them unchanged, once, with one revision and audit entry per action.

@@ -18,7 +18,7 @@ Reorganising the team should never cost you people. Deleting a discipline is int
 2. Read the dialog: it states that the discipline's resources will be **ungrouped, not deleted**.
 3. Click **Delete** to confirm. The dialog closes.
 4. Click **Schedule** in the sidebar (`/`); click **Today** to see the seed bars.
-5. Press **⌘Z**. The deletion stays: Undo and Redo currently cover booking changes only.
+5. Press **⌘Z**. The discipline and its resource grouping return.
 
 ## Acceptance criteria
 
@@ -28,4 +28,6 @@ Reorganising the team should never cost you people. Deleting a discipline is int
   appear under **Unassigned**, the band for people without a discipline, on the seeded Studio-only
   schedule (or **Studio** once the company has a Supplementary person), not removed.
 - ✅ Bruce's existing allocations and the placeholder's binding are untouched (only the grouping changed).
-- ✅ Pressing **⌘Z** does not restore the **Design** discipline; Bruce and the placeholder stay ungrouped.
+- ✅ Pressing **⌘Z** restores **Design** and reassigns its surviving resources without undoing other resource edits. **Redo** removes the discipline and ungroups them again.
+
+**Docs:** [Disciplines](../../docs-src/using/disciplines.md)
