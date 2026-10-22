@@ -12,6 +12,7 @@ const failure = vi.hoisted(() => ({
   holdNextRead: null as Promise<void> | null,
   onHeldRead: null as (() => void) | null,
 }));
+const lookups = vi.hoisted(() => ({ count: 0 }));
 
 vi.mock("@/data/planning/volatilePlanningTransport", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/data/planning/volatilePlanningTransport")>();
@@ -34,6 +35,10 @@ vi.mock("@/data/planning/volatilePlanningTransport", async (importOriginal) => {
         },
         execute: (...args: Parameters<typeof transport.execute>) =>
           failure.execute ? Promise.reject(failure.execute) : transport.execute(...args),
+        lookup: (...args: Parameters<typeof transport.lookup>) => {
+          lookups.count += 1;
+          return transport.lookup(...args);
+        },
       };
     },
   };
@@ -126,6 +131,21 @@ describe("planning authority publication", () => {
     expect(state.activeAccountId).not.toBeNull();
     expect(state.planningAuthLossVersion).toBe(authLossVersion);
     expect(readPlanningProblem(state.planning)).toBe("refused");
+  });
+
+  it("settles an uncertain write through its commitment lookup on the next refresh", async () => {
+    const allocation = await seedTypedAllocation();
+    failure.execute = new TypeError("response lost");
+    await expect(useStore.getState().updateAllocation(allocation.id, { endDate: "2026-06-03" })).rejects.toThrow(
+      "response lost",
+    );
+    expect(useStore.getState().planning.status).toBe("uncertain");
+    failure.execute = null;
+    lookups.count = 0;
+
+    await useStore.getState().refreshPlanning();
+
+    expect(lookups.count).toBe(1);
   });
 });
 

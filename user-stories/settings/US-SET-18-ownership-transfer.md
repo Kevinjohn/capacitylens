@@ -12,7 +12,7 @@ Let the current Owner transfer company ownership to an eligible Admin in one con
 
 ## Why
 
-Ownership carries authority to delete the company or replace its data. The Owner makes this decision
+Ownership carries authority to replace the company's data or anonymise all its people. The Owner makes this decision
 and the interface must state its immediate effect: the selected Admin becomes Owner and the current
 Owner becomes Admin. The nominated Admin does not separately authenticate or consent to the change.
 

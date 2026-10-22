@@ -91,7 +91,7 @@ without activity also signs you out.
 
 These actions ask you to confirm your identity again when needed: connecting or repairing a
 company identity, transferring ownership, resetting another member's password, revoking another
-member's sessions, deleting a company, and importing or purging company data. Invitations, role
+member's sessions, importing company data, and anonymising all people. Invitations, role
 changes and removing members need only the right role.
 
 If confirming through Google takes you away from the page, return and submit the
