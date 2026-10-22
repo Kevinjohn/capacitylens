@@ -186,8 +186,17 @@ function registerCreatesRepeatedTimeOffIndependentTests() {
     await page.getByRole("link", { name: "Schedule" }).click();
     const bruceLane = page.locator('[data-resource-id="r-tyler"]');
     await expect.poll(() => bruceLane.getByTestId("timeoff-block").count()).toBeGreaterThan(1);
-    // Undo covers bookings only, so the series has no Undo step.
-    await expect(page.getByTestId("undo-button")).toBeDisabled();
+    const undo = page.getByTestId("undo-button");
+    await expect(undo).toBeEnabled();
+    await undo.click();
+    await expect(bruceLane.getByTestId("timeoff-block")).toHaveCount(1);
+    await page.getByRole("link", { name: "Time off" }).click();
+    await expect(bruceRows).toHaveCount(1);
+    await page.getByRole("link", { name: "Schedule" }).click();
+    await page.getByTestId("redo-button").click();
+    await expect.poll(() => bruceLane.getByTestId("timeoff-block").count()).toBeGreaterThan(1);
+    await page.getByRole("link", { name: "Time off" }).click();
+    await expect(bruceRows).toHaveCount(13);
   });
 }
 

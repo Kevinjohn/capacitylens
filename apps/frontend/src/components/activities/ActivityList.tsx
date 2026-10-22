@@ -8,7 +8,9 @@ import { Fragment, useEffect, useMemo, useRef } from "react";
 import { ClipboardCheck } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "@/components/ui/item";
 import { buildActivityListModel } from "./activityListModel";
-import { useLifecycleActions } from "@/hooks/useLifecycleActions";
+import { useStore } from "@/store/useStore";
+import { isShownByPlanningState } from "@/data/planning/planningCacheController";
+import { resolveErrorMessage } from "@/lib/errorMessage";
 import { ArchivedEntitySection } from "@/components/common/ArchivedEntitySection";
 import { buildActivityArchiveImpactCopy, safeArchiveImpact } from "@/lib/archiveImpactCopy";
 
@@ -183,7 +185,8 @@ export function ActivityList({ selectedActivityId }: { selectedActivityId?: stri
   const activities = data.activities;
   const projects = data.projects;
   const clients = data.clients;
-  const { archive } = useLifecycleActions();
+  const archiveActivity = useStore((state) => state.deleteActivity);
+  const setNotice = useStore((state) => state.setNotice);
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<Activity>();
   const selectedRowRef = useRef<HTMLDivElement | null>(null);
 
@@ -227,7 +230,9 @@ export function ActivityList({ selectedActivityId }: { selectedActivityId?: stri
           message={buildActivityArchiveMessage(data, confirming)}
           confirmLabel={m.list_archive()}
           onConfirm={() => {
-            void archive("activities", confirming.id);
+            void archiveActivity(confirming.id).catch((error: unknown) => {
+              if (!isShownByPlanningState(error)) setNotice(resolveErrorMessage(error), "error");
+            });
             setConfirming(null);
           }}
           onCancel={() => setConfirming(null)}

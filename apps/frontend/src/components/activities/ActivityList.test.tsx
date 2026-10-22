@@ -421,9 +421,9 @@ describe("ActivityList", () => {
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
     const user = userEvent.setup();
     const activity = await requireCreated(useStore.getState().addActivity({ name: "Internal sync", kind: "internal" }));
-    const originalArchive = useStore.getState().archiveEntity;
+    const originalArchive = useStore.getState().deleteActivity;
     useStore.setState({
-      archiveEntity: () => {
+      deleteActivity: async () => {
         throw new Error("Stored activity is inconsistent.");
       },
     });
@@ -437,12 +437,14 @@ describe("ActivityList", () => {
       await user.click(within(dialog).getByRole("button", { name: "Archive" }));
 
       expect(useStore.getState().data.activities).toContainEqual(activity);
-      expect(useStore.getState().notice).toMatchObject({
-        message: "Stored activity is inconsistent.",
-        tone: "error",
-      });
+      await vi.waitFor(() =>
+        expect(useStore.getState().notice).toMatchObject({
+          message: "Stored activity is inconsistent.",
+          tone: "error",
+        }),
+      );
     } finally {
-      useStore.setState({ archiveEntity: originalArchive });
+      useStore.setState({ deleteActivity: originalArchive });
       vi.unstubAllEnvs();
     }
   });
