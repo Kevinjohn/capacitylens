@@ -15,6 +15,7 @@ describe("ownership transfer access", () => {
       ownershipTransferAccess.transferOwnership({
         workspaceId: "wayne-enterprises",
         targetPrincipalId: "selina",
+        proofId: "proof-1",
       }),
     ).resolves.toEqual({
       kind: "ok",
@@ -30,6 +31,7 @@ describe("ownership transfer access", () => {
       ownershipTransferAccess.transferOwnership({
         workspaceId: "wayne-enterprises",
         targetPrincipalId: "selina",
+        proofId: "proof-1",
       }),
     ).resolves.toMatchObject({ kind: "invalid", status: 200 });
   });

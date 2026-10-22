@@ -1337,6 +1337,8 @@
   "swatch_group_label": "{label} swatches",
   "reauth_title": "Confirm it's you",
   "reauth_body": "For your security, changes like managing members or deleting data need a recent sign-in. Confirm your password to continue — you won't lose your place.",
+  "action_proof_password_body": "Enter your current password to confirm this specific action. A recent sign-in alone is not enough.",
+  "action_proof_google_body": "Choose your linked Google account to confirm this specific action. You will return here before it is applied.",
   "reauth_body_sso": "Sign in with your identity provider to confirm it's you. You'll return to this page, then need to repeat the original action; signing in does not make that change.",
   "reauth_submit": "Confirm",
   "reauth_failed": "Could not confirm your identity. Check your password and try again.",

@@ -171,6 +171,7 @@ function registerMutationRouteTests(): void {
     await accountClient.transferOwnership({
       workspaceId: "workspace / one",
       targetPrincipalId: "person / one",
+      proofId: "proof-1",
       command,
     });
     await accountClient.issuePasswordReset("workspace / one", "person / one", command);
@@ -197,7 +198,6 @@ function registerMutationRouteTests(): void {
     expect(urls).toEqual(
       expect.arrayContaining([
         "https://app.example/api/accounts/workspace%20%2F%20one/members/person%20%2F%20one",
-        "https://app.example/api/accounts/workspace%20%2F%20one/ownership-transfer",
         "https://app.example/api/accounts/workspace%20%2F%20one/members/person%20%2F%20one/reset-password",
         "https://app.example/api/accounts/workspace%20%2F%20one/members/person%20%2F%20one/revoke-sessions",
         "https://app.example/api/accounts/workspace%20%2F%20one/invites/invite%20%2F%20one",
@@ -207,33 +207,33 @@ function registerMutationRouteTests(): void {
 }
 
 function registerOwnershipTransferTests(): void {
-  it("sends one command to the typed ownership route with only the target ID", async () => {
+  it("sends one command and bound proof to the typed ownership route", async () => {
     await accountClient.transferOwnership({
       workspaceId: "workspace / one",
       targetPrincipalId: "person / one",
+      proofId: "proof-1",
       command,
     });
 
-    const [url, init, options] = mocks.apiFetchReauth.mock.calls[0] ?? [];
+    const [url, init] = mocks.apiFetch.mock.calls[0] ?? [];
     expect(url).toBe("https://app.example/api/accounts/workspace%20%2F%20one/ownership-transfer");
     expectCommand(init as RequestInit, "POST");
-    expect(JSON.parse(String(init?.body))).toEqual({ toUserId: "person / one" });
-    expect(options).toEqual({ action: "transfer-ownership" });
+    expect(JSON.parse(String(init?.body))).toEqual({ toUserId: "person / one", proofId: "proof-1" });
   });
 
   it("reuses the same command and target after an uncertain response", async () => {
     vi.spyOn(globalThis.crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000201")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000202");
-    mocks.apiFetchReauth
+    mocks.apiFetch
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(Response.json({ fromUserId: "bruce", toUserId: "selina" }));
-    const input = { workspaceId: "wayne-enterprises", targetPrincipalId: "selina" };
+    const input = { workspaceId: "wayne-enterprises", targetPrincipalId: "selina", proofId: "proof-1" };
 
     await accountClient.transferOwnership(input);
     await accountClient.transferOwnership(input);
 
-    const headers = mocks.apiFetchReauth.mock.calls.map((call) => new Headers(call[1]?.headers));
+    const headers = mocks.apiFetch.mock.calls.map((call) => new Headers(call[1]?.headers));
     expect(headers[0]?.get("x-account-command-id")).toBe("00000000-0000-4000-8000-000000000201");
     expect(headers[0]?.get("idempotency-key")).toBe("00000000-0000-4000-8000-000000000202");
     expect(headers[1]?.get("x-account-command-id")).toBe(headers[0]?.get("x-account-command-id"));

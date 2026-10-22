@@ -54,6 +54,7 @@ test.describe("CRUD + demo lifecycle", () => {
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await page.getByRole("button", { name: "Import and export", exact: true }).click();
     await page.getByTestId("import-input").setInputFiles(file);
+    await page.getByRole("button", { name: "Continue" }).click();
     await expect(page.getByRole("alertdialog", { name: "Import data?" })).toBeVisible();
     await page.getByRole("button", { name: "Replace data" }).click();
     await page.getByRole("link", { name: "Clients" }).click();

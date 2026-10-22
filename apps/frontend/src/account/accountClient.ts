@@ -28,6 +28,7 @@ interface ChangeMemberRoleInput {
 interface TransferOwnershipInput {
   workspaceId: string;
   targetPrincipalId: string;
+  proofId: string;
   command?: BrowserAccountCommand | undefined;
 }
 
@@ -231,15 +232,14 @@ export const accountClient = {
     });
   },
 
-  transferOwnership({ workspaceId, targetPrincipalId, command }: TransferOwnershipInput): Promise<Response> {
+  transferOwnership({ workspaceId, targetPrincipalId, proofId, command }: TransferOwnershipInput): Promise<Response> {
     return runCommand({
       operationKey: `ownership-transfer:${workspaceId}:${targetPrincipalId}`,
       explicit: command,
       request: (resolved) =>
-        apiFetchReauth(
+        apiFetch(
           apiRouteUrl("api.ownership.transfer", { params: { accountId: workspaceId } }),
-          buildJsonCommandRequestInit("POST", { toUserId: targetPrincipalId }, resolved),
-          { action: "transfer-ownership" satisfies ReauthAction },
+          buildJsonCommandRequestInit("POST", { toUserId: targetPrincipalId, proofId }, resolved),
         ),
     });
   },

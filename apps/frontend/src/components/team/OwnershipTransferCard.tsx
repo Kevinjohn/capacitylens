@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { m } from "@/i18n";
 import { useAuth } from "@/auth/authContext";
 import { useStore } from "@/store/useStore";
@@ -8,15 +8,20 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useOwnershipTransfer } from "./useOwnershipTransfer";
 import type { OwnershipTransferController } from "./useOwnershipTransfer";
+import { ActionProofDialog } from "@/auth/ActionProofDialog";
+
+const PENDING_KEY = "capacitylens/ownership-action-proof";
 
 function TransferForm({
   controller,
   selected,
   setSelected,
+  onTransfer,
 }: {
   controller: OwnershipTransferController;
   selected: string;
   setSelected: (value: string) => void;
+  onTransfer: (value: string) => void;
 }) {
   const selectedMember = controller.candidates.find((member) => member.userId === selected);
   return (
@@ -43,7 +48,7 @@ function TransferForm({
           size="sm"
           disabled={controller.busy || selectedMember === undefined}
           data-testid="ownership-transfer-complete"
-          onClick={() => void controller.transfer(selected)}
+          onClick={() => onTransfer(selected)}
         >
           {controller.busy ? m.ownership_transfer_working() : m.ownership_transfer_submit()}
         </Button>
@@ -56,10 +61,12 @@ function TransferContent({
   controller,
   selected,
   setSelected,
+  onTransfer,
 }: {
   controller: OwnershipTransferController;
   selected: string;
   setSelected: (value: string) => void;
+  onTransfer: (value: string) => void;
 }) {
   if (!controller.directoryLoaded && controller.loading) {
     return (
@@ -88,7 +95,9 @@ function TransferContent({
           {m.ownership_transfer_no_candidates()}
         </p>
       )}
-      {showForm && <TransferForm controller={controller} selected={selected} setSelected={setSelected} />}
+      {showForm && (
+        <TransferForm controller={controller} selected={selected} setSelected={setSelected} onTransfer={onTransfer} />
+      )}
     </div>
   );
 }
@@ -97,9 +106,49 @@ function TransferContent({
 export function OwnershipTransferCard() {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState("");
+  const [proofTarget, setProofTarget] = useState<string | null>(null);
+  const [readyProof, setReadyProof] = useState<{ target: string; id: string } | null>(null);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const { refreshAuth } = useAuth();
   const controller = useOwnershipTransfer(activeAccountId, refreshAuth);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("capacitylensActionConfirmed") !== "1") return;
+    if (!activeAccountId) return;
+    const saved = sessionStorage.getItem(PENDING_KEY);
+    if (!saved) return;
+    const timer = window.setTimeout(() => {
+      sessionStorage.removeItem(PENDING_KEY);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("capacitylensActionConfirmed");
+      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}`);
+      try {
+        const pending: unknown = JSON.parse(saved);
+        if (
+          !pending ||
+          typeof pending !== "object" ||
+          !("accountId" in pending) ||
+          pending.accountId !== activeAccountId ||
+          !("target" in pending) ||
+          typeof pending.target !== "string" ||
+          !("proofId" in pending) ||
+          typeof pending.proofId !== "string"
+        )
+          throw new Error("Ownership confirmation could not be resumed.");
+        setSelected(pending.target);
+        setReadyProof({ target: pending.target, id: pending.proofId });
+        setOpen(true);
+      } catch {
+        useStore.getState().setNotice(m.reauth_failed(), "error");
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [activeAccountId]);
+  const requestTransfer = (target: string) => {
+    if (readyProof?.target === target) {
+      setReadyProof(null);
+      void controller.transfer(target, readyProof.id);
+    } else setProofTarget(target);
+  };
   if (!controller.available) return null;
 
   return (
@@ -118,7 +167,7 @@ export function OwnershipTransferCard() {
       >
         {m.ownership_transfer_open()}
       </Button>
-      {open && (
+      {open && !proofTarget && (
         <Modal
           title={m.ownership_transfer_heading()}
           description={m.ownership_transfer_intro()}
@@ -130,8 +179,32 @@ export function OwnershipTransferCard() {
             </Button>
           }
         >
-          <TransferContent controller={controller} selected={selected} setSelected={setSelected} />
+          <TransferContent
+            controller={controller}
+            selected={selected}
+            setSelected={setSelected}
+            onTransfer={requestTransfer}
+          />
         </Modal>
+      )}
+      {proofTarget && activeAccountId && (
+        <ActionProofDialog
+          action="transfer-ownership"
+          accountId={activeAccountId}
+          intent={{ toUserId: proofTarget }}
+          onConfirmed={(id) => {
+            const target = proofTarget;
+            setProofTarget(null);
+            void controller.transfer(target, id);
+          }}
+          onProviderStart={(id) =>
+            sessionStorage.setItem(
+              PENDING_KEY,
+              JSON.stringify({ accountId: activeAccountId, target: proofTarget, proofId: id }),
+            )
+          }
+          onCancel={() => setProofTarget(null)}
+        />
       )}
     </section>
   );

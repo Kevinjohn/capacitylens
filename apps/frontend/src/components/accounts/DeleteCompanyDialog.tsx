@@ -1,7 +1,7 @@
 import { useId, useState } from "react";
 import { useStore } from "@/store/useStore";
 import { scopeData } from "@/store/selectors";
-import { serializeData } from "@capacitylens/shared/data/transfer";
+import { buildBetaExport, serializeBetaExport } from "@capacitylens/shared/data/betaTransfer";
 import { todayISO } from "@capacitylens/shared/lib/dateMath";
 import { isServerConfigured } from "@/data/apiConfig";
 import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } from "@/data/fetchInactiveSlice";
@@ -50,7 +50,10 @@ function useCompanyExport(account: { id: ID; name: string }) {
         setExportEmpty(true);
         return;
       }
-      downloadTextFile(`capacitylens-${slug}-${todayISO()}.json`, serializeData(scoped));
+      downloadTextFile(
+        `capacitylens-${slug}-${todayISO()}.json`,
+        serializeBetaExport(buildBetaExport(scoped, { accountId: account.id, completeness: "full" })),
+      );
       setExportError(null);
       setExportEmpty(false);
     } catch (error) {

@@ -2,14 +2,12 @@ import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { serializeData } from "@capacitylens/shared/data/transfer";
+import type { BetaExportDocument } from "@capacitylens/shared/data/betaTransfer";
 import { attachPersistence, ReloadDiscardedEditError } from "@/data/persist";
 import { InMemoryDemoAdapter } from "@/data/InMemoryDemoAdapter";
 import { useStore } from "@/store/useStore";
-import { DEFAULT_ACCOUNT_ID, makeAppData, makeResourceDraft, resetStoreWithAccount } from "@/test/fixtures";
-import { ImportExport } from "./ImportExport";
+import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from "@/test/fixtures";
 import { useServerImport } from "./import-export/useServerImport";
 
 vi.mock("@/data/apiConfig", () => ({
@@ -20,35 +18,8 @@ vi.mock("@/data/apiConfig", () => ({
 
 const TS = "2026-05-01T00:00:00.000Z";
 
-function incomingFile(): File {
-  return new File(
-    [
-      serializeData({
-        ...emptyAppData(),
-        resources: [
-          {
-            ...NULLABLE_FIELDS.resources,
-            ...makeResourceDraft({ name: "Imported person" }),
-            id: "import-resource",
-            accountId: "source-account",
-            createdAt: TS,
-            updatedAt: TS,
-            engagement: "studio",
-            halfDays: [],
-          },
-        ],
-      }),
-    ],
-    "incoming.json",
-    { type: "application/json" },
-  );
-}
-
 async function chooseAndConfirmImport(): Promise<void> {
-  const input = screen.getByTestId("import-input");
-  Object.defineProperty(input, "files", { value: [incomingFile()], configurable: true });
-  fireEvent.change(input);
-  fireEvent.click(await screen.findByRole("button", { name: "Replace data" }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirm twice" }));
 }
 
 function RepeatedConfirmationHarness() {
@@ -56,8 +27,14 @@ function RepeatedConfirmationHarness() {
   return (
     <button
       onClick={() => {
-        void confirm(importedSlice());
-        void confirm(importedSlice());
+        const document: BetaExportDocument = {
+          format: "capacitylens-beta",
+          schemaVersion: 1,
+          completeness: "full",
+          data: importedSlice(),
+        };
+        void confirm(document, 1, "proof-1");
+        void confirm(document, 1, "proof-1");
       }}
     >
       Confirm twice
@@ -73,7 +50,7 @@ function importedSlice(): AppData {
         id: "import-client",
         accountId: DEFAULT_ACCOUNT_ID,
         name: "Imported client",
-        color: "#2563eb",
+        color: "#2d75da",
         createdAt: TS,
         updatedAt: TS,
       },
@@ -131,7 +108,7 @@ async function dropsParkedEditDuringCommittedImport(): Promise<void> {
       }),
   );
   vi.stubGlobal("fetch", fetchMock);
-  render(<ImportExport />);
+  render(<RepeatedConfirmationHarness />);
 
   await chooseAndConfirmImport();
   await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
@@ -176,7 +153,7 @@ async function reschedulesParkedEditDuringZeroRecordImport(): Promise<void> {
       }),
   );
   vi.stubGlobal("fetch", fetchMock);
-  render(<ImportExport />);
+  render(<RepeatedConfirmationHarness />);
 
   await chooseAndConfirmImport();
   await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());

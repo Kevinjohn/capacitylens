@@ -23,8 +23,8 @@ preparation without exporting identity or authentication records.
 
 ## Acceptance criteria
 
-- ✅ The MIME type is JSON and the top level is `{ "schemaVersion", "data" }`.
-- ✅ The data contains the current scoped entities, including activities and lifecycle fields.
+- ✅ The MIME type is JSON and the top level is `{ "format": "capacitylens-beta", "schemaVersion": 1, "completeness", "data" }`.
+- ✅ The data contains exactly one company and all of its scoped entities, including activities and lifecycle fields, with stable IDs and supported settings.
 - ✅ Auth, memberships, sessions and invitations are never exported.
 - ✅ Export is not a replacement for server backups.
 
@@ -39,8 +39,5 @@ preparation without exporting identity or authentication records.
 - ✅ Redacted exports preserve server-projected confidential values and cannot be restored as a
   full-completeness replacement.
 
-The current Settings controls still use the legacy importer/exporter. This slice adds the beta
-format's shared validation/preparation and frontend preview; it does not activate the format in
-those controls or establish privileged-auth proof. See the [accepted replacement map for issue
-#1482](https://github.com/Kevinjohn/capacitylens/issues/1482#issuecomment-6276475651) and
-[implementation issue #1520](https://github.com/Kevinjohn/capacitylens/issues/1520).
+Settings exports this format. A redacted export is for inspection only; only a full export can
+replace company data through the Owner's import flow.
