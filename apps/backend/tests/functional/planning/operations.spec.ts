@@ -362,7 +362,25 @@ test.group('authenticated planning operations', (group) => {
       .send()
     setting.assertStatus(200)
     assert.equal(body(setting).revision, 2)
-    assert.deepEqual(body(setting).projection, { mode: 'refetch', history: 'clear' })
+    const projection = body(setting).projection as {
+      mode: string
+      history: string
+      changed: {
+        upserts: Array<{ entity: string; row: { id: string; weekStartsOn: number | null } }>
+        removed: unknown[]
+      }
+    }
+    assert.equal(projection.mode, 'patch')
+    assert.equal(projection.history, 'retain')
+    assert.deepEqual(
+      projection.changed.upserts.map(({ entity, row }) => ({
+        entity,
+        id: row.id,
+        weekStartsOn: row.weekStartsOn,
+      })),
+      [{ entity: 'accounts', id: accountId, weekStartsOn: 0 }]
+    )
+    assert.isEmpty(projection.changed.removed)
     const state = await readState(accountId, true)
     assert.equal(state.accounts[0]?.weekStartsOn, 0)
     assert.equal(state.closures.find((row) => row.id === closureId)?.name, 'Gotham Founders Day')
