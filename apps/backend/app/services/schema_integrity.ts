@@ -153,6 +153,44 @@ export async function assertSchemaIntegrity() {
   ])
     await assertIndex(table, 'account_id')
   for (const [table, columns] of [
+    [
+      'deleted_groups',
+      [
+        'group_id',
+        'account_id',
+        'actor_id',
+        'session_id',
+        'mutation_id',
+        'created_at',
+        'consumed_at',
+      ],
+    ],
+    ['deleted_rows', ['id', 'group_id', 'entity', 'row_id', 'payload_json']],
+    [
+      'action_proofs',
+      [
+        'id',
+        'user_id',
+        'session_id',
+        'account_id',
+        'action',
+        'intent_hash',
+        'expires_at',
+        'verified_at',
+        'consumed_at',
+      ],
+    ],
+    [
+      'planning_mutations',
+      [
+        'account_id',
+        'mutation_id',
+        'actor_id',
+        'revision',
+        'restoration_group_id',
+        'origin_session_id',
+      ],
+    ],
     ['account_getting_started_dismissals', ['id', 'account_id', 'created_at', 'updated_at']],
     [
       'account_joining_policies',
