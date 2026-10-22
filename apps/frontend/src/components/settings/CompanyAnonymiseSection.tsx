@@ -16,7 +16,7 @@ import { SettingsSection } from "./SettingsSection";
 
 const PENDING_PROOF_KEY = "capacitylens/company-anonymise-action-proof";
 
-/** Confirms whole-company anonymisation against the active native session. */
+/** Confirms anonymising all people against the active native session. */
 export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean }) {
   const accountId = useStore((state) => state.activeAccountId);
   const setNotice = useStore((state) => state.setNotice);

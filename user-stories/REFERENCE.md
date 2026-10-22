@@ -1522,10 +1522,11 @@ replaces the resource's name and role with obfuscated labels, clears its avatar 
 and invalidates local undo history and company restoration groups. The resource, company,
 memberships and planning links remain. Clients, projects and activities have no anonymise action.
 Settings has no deleted-items section or permanent-deletion control.
-The Owner also sees **Anonymise all resources** in Settings. It applies the same scrub to every
-resource in the selected company while retaining company, membership and planning links. In a
-server deployment the Owner confirms the exact action with password or linked Google proof; in
-the editable demo it happens in temporary page memory without login or proof.
+The Owner also sees **Anonymise all people** in Settings. It applies the same people-only scrub in
+the selected company, including their dependent booking and time-off notes. Clients, projects and
+activities stay unchanged, as do the company, memberships and planning links. In a server
+deployment the Owner confirms the exact action with password or linked Google proof; in the
+editable demo it happens in temporary page memory without login or proof.
 
 ### Generic scoped write privacy
 
@@ -1553,10 +1554,11 @@ An Owner or Admin can anonymise one resource with
 `POST /api/accounts/:accountId/resources/:id/anonymise`. The resource remains in the company with
 its links, while name and role become stable obfuscation tokens, the avatar and dependent notes are
 cleared, and restoration groups for the company are invalidated. The operation is atomic and
-irreversible. An Editor receives **403**. Whole-company anonymisation uses
+irreversible. An Editor receives **403**. Whole-company people anonymisation uses
 `POST /api/accounts/:accountId/anonymise` after action-specific proof; it applies the same scrub to
-every resource while retaining the company, Owner, memberships and links. Legacy generic lifecycle
-action routes and company deletion return **404**.
+people and dependent notes while leaving clients, projects, activities, the company, Owner,
+memberships and links unchanged. Legacy generic lifecycle action routes and company deletion
+return **404**.
 
 - **Error mapping:** an illegal archive transition returns **409**; a cross-account or absent target
   follows the typed planning tenant guard; insufficient role returns **403**.

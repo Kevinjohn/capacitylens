@@ -1,7 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { assertResourceExists, assertScopedRefs } from '@capacitylens/shared/domain/mutations'
-import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities'
+import {
+  assertAllocationRefs,
+  assertDateRange,
+  assertResourceExists,
+  assertScopedRefs,
+} from '@capacitylens/shared/domain/mutations'
+import { assertAllocationPlacement } from '@capacitylens/shared/domain/placement'
+import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays'
+import type { Allocation, AppData, AppDataKey } from '@capacitylens/shared/types/entities'
 import { encodeRow, readStateWithClient } from '#services/state_repository'
 import { TABLE_NAMES } from '#services/planning_operations/entity_policy'
 import { createServerRevision } from '#services/planning_operations/revision'
@@ -156,8 +163,29 @@ export async function restoreGroup(
       })
   }
   const dependencies = await readStateWithClient(trx, accountId, true)
+  const account = dependencies.accounts.find((row) => row.id === accountId)
+  const accountWorkingDays = normalizeAccountWorkingDays(
+    account?.workingDays,
+    account?.weekStartsOn === 0 ? 0 : 1
+  )
   for (const { entity, row } of rows) {
     try {
+      if (entity === 'allocations') {
+        const allocation = row as unknown as Allocation
+        const activity = dependencies.activities.find((item) => item.id === allocation.activityId)
+        if (activity) assertScopedRefs(dependencies, accountId, 'activities', { ...activity })
+        assertAllocationRefs(
+          dependencies,
+          accountId,
+          allocation.resourceId,
+          allocation.activityId,
+          allocation.hoursPerDay,
+          allocation.projectId
+        )
+        assertDateRange(allocation.startDate, allocation.endDate)
+        const resource = dependencies.resources.find((item) => item.id === allocation.resourceId)!
+        assertAllocationPlacement({ allocation, resource, accountWorkingDays })
+      }
       if (entity === 'phases') assertScopedRefs(dependencies, accountId, 'phases', row)
       if (entity === 'timeOff')
         assertResourceExists(dependencies, accountId, String(row.resourceId))

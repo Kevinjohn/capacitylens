@@ -6,6 +6,7 @@ import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { archive, unarchive } from "@capacitylens/shared/domain/lifecycle";
 import {
   assertActivityProjectAllowsDependents,
+  assertAllocationRefs,
   assertDateRange,
   assertResourceExists,
   assertResourceKindAllowsDependents,
@@ -16,9 +17,10 @@ import {
 import { hasUsablePrivateCodeName } from "@capacitylens/shared/domain/privateNames";
 import { DomainError } from "@capacitylens/shared/domain/errors";
 import { isBuiltinClient } from "@capacitylens/shared/data/internalClient";
-import { isWeekdaySet } from "@capacitylens/shared/lib/accountWorkingDays";
+import { assertAllocationPlacement } from "@capacitylens/shared/domain/placement";
+import { normalizeAccountWorkingDays, isWeekdaySet } from "@capacitylens/shared/lib/accountWorkingDays";
 import { NEUTRAL_COLOR, snapToPresetColor } from "@capacitylens/shared/lib/color";
-import type { Activity, Resource, TimeOff } from "@capacitylens/shared/types/entities";
+import type { Activity, Allocation, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 import { isServerConfigured } from "@/data/apiConfig";
 import { stamp, touchAfter } from "@/store/revisions";
 import { PlanningControllerError } from "./planningCacheController";
@@ -117,6 +119,28 @@ function restore(data: AppData, group: Group): void {
   for (const link of group.links) if (find(data, link.key, link.id)[link.field] !== null) throw conflict();
   for (const row of group.rows) {
     try {
+      if (group.key === "allocations") {
+        const allocation = row as unknown as Allocation;
+        const activity = data.activities.find((item) => item.id === allocation.activityId);
+        if (activity) assertScopedRefs(data, group.companyId, "activities", { ...activity });
+        assertAllocationRefs(
+          data,
+          group.companyId,
+          allocation.resourceId,
+          allocation.activityId,
+          allocation.hoursPerDay,
+          allocation.projectId,
+        );
+        assertDateRange(allocation.startDate, allocation.endDate);
+        const resource = data.resources.find((item) => item.id === allocation.resourceId);
+        if (!resource) throw conflict();
+        const account = data.accounts.find((item) => item.id === group.companyId);
+        const accountWorkingDays = normalizeAccountWorkingDays(
+          account?.workingDays,
+          account?.weekStartsOn === 0 ? 0 : 1,
+        );
+        assertAllocationPlacement({ allocation, resource, accountWorkingDays });
+      }
       if (group.key === "phases") assertScopedRefs(data, group.companyId, "phases", row);
       if (group.key === "timeOff") assertResourceExists(data, group.companyId, String(row.resourceId));
     } catch (error) {
