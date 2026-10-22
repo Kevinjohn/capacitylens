@@ -259,26 +259,6 @@ describe("account CRUD", () => {
   it("scoped add* throws without an active account", async () => {
     await expect(requireCreated(s().addClient({ name: "X", color: "#1" }))).rejects.toThrow(/no active company/i);
   });
-
-  it("deleteAccount cascade-drops all of that account’s scoped data and clears it if active", () => {
-    s().replaceAll(twoAccountData());
-    s().setActiveAccount("a1");
-    s().deleteAccount("a1");
-    expect(s().data.accounts.map((a) => a.id)).toEqual(["a2"]);
-
-    expect(s().data.clients.map((c) => c.id)).toEqual(["c2"]);
-    expect(s().data.projects.map((p) => p.id)).toEqual(["p2"]);
-
-    expect(s().activeAccountId).toBeNull();
-  });
-
-  it("refuses to delete a non-active account", () => {
-    s().replaceAll(twoAccountData());
-    s().setActiveAccount("a1");
-    expect(() => s().deleteAccount("a2")).toThrow(/active company/i);
-    expect(s().activeAccountId).toBe("a1");
-    expect(s().data.clients.map((c) => c.id)).toEqual(["c1", "c2"]);
-  });
 });
 
 describe("setActiveAccount resets per-account view state", () => {

@@ -2,7 +2,7 @@ import { readIdentityProvider, linkIdentityProvider } from "./identityProviderCl
 import { joiningPolicyClient } from "./joiningPolicyClient";
 import { apiFetchReauth } from "@/auth/apiFetchReauth";
 import { API_BASE } from "@/data/apiConfig";
-import { apiFetch, API_BULK_TIMEOUT_MS } from "@/data/requestTimeout";
+import { apiFetch } from "@/data/requestTimeout";
 import type { BrowserAccountCommand } from "./accountCommands";
 import type { MembershipStatus, Role } from "@capacitylens/shared/account/types";
 import type { EndMasqueradePayload, StartMasqueradePayload } from "@capacitylens/shared/domain/masquerade";
@@ -106,20 +106,6 @@ export const accountClient = {
     return apiFetch(apiRouteUrl("api.example-data", { params: { accountId: workspaceId } }), {
       method: "POST",
       credentials: "include",
-    });
-  },
-
-  eraseWorkspace(workspaceId: string, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand({
-      operationKey: `workspace-erase:${workspaceId}`,
-      explicit: command,
-      request: (resolved) =>
-        apiFetchReauth(
-          apiRouteUrl("api.accounts.destroy", { params: { id: workspaceId } }),
-          buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
-          { timeoutMs: API_BULK_TIMEOUT_MS, action: "delete-company" satisfies ReauthAction },
-        ),
-      ambiguousStatus: 403,
     });
   },
 

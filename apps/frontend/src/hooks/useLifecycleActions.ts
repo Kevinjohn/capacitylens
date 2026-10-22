@@ -1,25 +1,21 @@
 import { useCallback, useMemo, useRef } from "react";
-import { newId } from "@capacitylens/shared/lib/id";
 import { API_BASE, isServerConfigured } from "@/data/apiConfig";
 import { persistenceAdapter } from "@/data/storageAdapter";
 import { refreshActiveAccountSlice } from "@/data/persist";
 import { useStore } from "@/store/useStore";
 import type { LifecycleEntity } from "@/store/useStore";
+import type { PlanningCommand } from "@/data/planning/planningCommands";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import { readApiError } from "@/lib/readApiError";
 import { m } from "@/i18n";
-import { apiFetchReauth } from "@/auth/apiFetchReauth";
+import { apiFetch } from "@/data/requestTimeout";
 import { API_BULK_TIMEOUT_MS } from "@/data/requestTimeout";
 import { notifyInactiveDataChanged } from "@/data/inactiveDataEvents";
-import type { ReauthAction } from "@/auth/reauthCoordinator";
 
-// Lifecycle writes use dedicated server routes and then reload through persistence
-// coordination to keep the store and sync baseline paired. Uncertain write outcomes
-// require authoritative recovery before another destructive attempt. Demo builds
-// use the same domain transitions locally.
+// Archive and restore use typed planning commands. Anonymisation has a named server route;
+// uncertain results require authoritative recovery before another irreversible attempt.
 
-/** A lifecycle transition verb. Mirrors the four dedicated server routes + the four store actions. */
-export type LifecycleVerb = "archive" | "unarchive" | "delete" | "purge";
+type LifecycleVerb = "archive" | "unarchive" | "anonymise";
 
 // A timeout or intermediary failure cannot prove whether the dispatched write committed.
 function isLifecycleOutcomeUnknown(response: Response): boolean {
@@ -28,22 +24,18 @@ function isLifecycleOutcomeUnknown(response: Response): boolean {
 
 /**
  * The dispatch surface returned by {@link useLifecycleActions}. Each method runs one lifecycle
- * transition for one entity row, branching server vs local internally. They are async because the
- * server path awaits the route POST + the reload; in the demo build they resolve synchronously after the
- * store mutation. The promise never rejects. A failure is surfaced as a notice and the promise still
+ * transition for one entity row. Planning operations use the shared typed command controller;
+ * anonymisation uses the server or volatile demo store. The promise never rejects. A failure is surfaced as a notice and the promise still
  * resolves, so a caller can `void` it without an unhandled rejection (the MembersSection idiom).
  */
 export interface LifecycleActions {
   archive: (entity: LifecycleEntity, id: string) => Promise<void>;
   unarchive: (entity: LifecycleEntity, id: string) => Promise<void>;
-  /** Soft-delete (archived → tombstone; a resource's name is scrubbed server- or store-side). */
-  softDelete: (entity: LifecycleEntity, id: string) => Promise<void>;
-  /** Hard-purge a ≥30-day tombstone (admin-only / purge tier server-side). */
-  purge: (entity: LifecycleEntity, id: string) => Promise<void>;
+  anonymise: (id: string) => Promise<void>;
 }
 
 // Reload through the persistence orchestrator so pending ordinary edits settle before
-// a lifecycle write reseeds the baseline. An unattached fallback has no queued writes
+// anonymisation reseeds the baseline. An unattached fallback has no queued writes
 // to race; a failed save preserves the optimistic edit until recovery.
 type LifecycleReloadOutcome =
   { kind: "reloaded" } | { kind: "skipped" } | { kind: "failed" } | { kind: "stale-account" };
@@ -77,7 +69,7 @@ function buildCommittedButStaleMessage(outcome: "skipped" | "failed", cause?: un
   return cause === undefined ? guidance : `${guidance} ${resolveErrorMessage(cause)}`;
 }
 
-// A confirmed mutation without its mandatory refresh must stay gated across route/component
+// A confirmed anonymisation without its mandatory refresh must stay gated across route/component
 // remounts: the same stale store slice is shared across those surfaces. Module lifetime matches the
 // required recovery boundary, a full page reload boots, hydrates, and creates a fresh gate map.
 const reloadRequiredByAccount = new Map<string, string>();
@@ -124,12 +116,8 @@ async function reconcileLifecycleFailure({
   }
 }
 
-async function dispatchServerLifecycle(
-  context: ServerLifecycleContext,
-  transition: { verb: LifecycleVerb; entity: LifecycleEntity; id: string },
-): Promise<boolean> {
+async function dispatchServerLifecycle(context: ServerLifecycleContext, id: string): Promise<boolean> {
   const { activeAccountId, setNotice } = context;
-  const { verb, entity, id } = transition;
   const reloadRequiredMessage = reloadRequiredByAccount.get(activeAccountId);
   if (reloadRequiredMessage) {
     setNotice(reloadRequiredMessage, "error");
@@ -137,18 +125,15 @@ async function dispatchServerLifecycle(
   }
   let mutationConfirmed = false;
   try {
-    const response = await apiFetchReauth(
-      `${API_BASE}/api/${entity}/${encodeURIComponent(id)}/${verb}`,
+    const response = await apiFetch(
+      `${API_BASE}/api/accounts/${encodeURIComponent(activeAccountId)}/resources/${encodeURIComponent(id)}/anonymise`,
       {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json", "Idempotency-Key": newId() },
-        body: JSON.stringify({ accountId: activeAccountId }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
       },
-      {
-        timeoutMs: API_BULK_TIMEOUT_MS,
-        action: (verb === "unarchive" ? "lifecycle-restore" : `lifecycle-${verb}`) satisfies ReauthAction,
-      },
+      API_BULK_TIMEOUT_MS,
     );
     if (isLifecycleOutcomeUnknown(response)) {
       throw new Error(`HTTP ${response.status} did not confirm whether the lifecycle mutation committed.`);
@@ -176,8 +161,7 @@ async function dispatchServerLifecycle(
 interface LocalLifecycleActions {
   archive: (entity: LifecycleEntity, id: string) => void;
   unarchive: (entity: LifecycleEntity, id: string) => void;
-  delete: (entity: LifecycleEntity, id: string) => void;
-  purge: (entity: LifecycleEntity, id: string) => void;
+  anonymise: (id: string) => void;
 }
 
 function dispatchLocalLifecycle(
@@ -187,7 +171,8 @@ function dispatchLocalLifecycle(
 ): void {
   const { verb, entity, id } = transition;
   try {
-    actions[verb](entity, id);
+    if (verb === "anonymise") actions.anonymise(id);
+    else actions[verb](entity, id);
   } catch (cause) {
     // Surface local lifecycle rejection so the calling event does not throw without user feedback.
     setNotice(resolveErrorMessage(cause), "error");
@@ -204,13 +189,13 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
   const setNotice = useStore((state) => state.setNotice);
   const archiveEntity = useStore((state) => state.archiveEntity);
   const unarchiveEntity = useStore((state) => state.unarchiveEntity);
-  const softDeleteEntity = useStore((state) => state.softDeleteEntity);
-  const purgeEntity = useStore((state) => state.purgeEntity);
+  const anonymiseResource = useStore((state) => state.anonymiseResource);
 
   const dispatchServer = useCallback(
     async (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
       if (!activeAccountId) return;
-      const reloaded = await dispatchServerLifecycle({ activeAccountId, setNotice }, { verb, entity, id });
+      if (verb !== "anonymise" || entity !== "resources") throw new Error("Unsupported anonymisation target.");
+      const reloaded = await dispatchServerLifecycle({ activeAccountId, setNotice }, id);
       if (reloaded) {
         notifyInactiveDataChanged(activeAccountId);
         onReloaded?.();
@@ -222,19 +207,37 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
   const dispatchLocal = useCallback(
     (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
       dispatchLocalLifecycle(
-        { archive: archiveEntity, unarchive: unarchiveEntity, delete: softDeleteEntity, purge: purgeEntity },
+        { archive: archiveEntity, unarchive: unarchiveEntity, anonymise: anonymiseResource },
         setNotice,
         { verb, entity, id },
       );
     },
-    [archiveEntity, unarchiveEntity, softDeleteEntity, purgeEntity, setNotice],
+    [archiveEntity, unarchiveEntity, anonymiseResource, setNotice],
   );
 
   const run = useCallback(
     (verb: LifecycleVerb, entity: LifecycleEntity, id: string): Promise<void> => {
       const execute = async () => {
         try {
-          if (isServerConfigured()) {
+          if (!activeAccountId || useStore.getState().activeAccountId !== activeAccountId) return;
+          if (verb === "archive" || verb === "unarchive") {
+            const command: PlanningCommand =
+              entity === "resources"
+                ? verb === "archive"
+                  ? { intent: { operation: "resource.archive", id }, inverse: { operation: "resource.unarchive", id } }
+                  : { intent: { operation: "resource.unarchive", id }, inverse: { operation: "resource.archive", id } }
+                : verb === "archive"
+                  ? {
+                      intent: { operation: "catalogue.archive", entity: { entity, id } },
+                      inverse: { operation: "catalogue.unarchive", entity: { entity, id } },
+                    }
+                  : {
+                      intent: { operation: "catalogue.unarchive", entity: { entity, id } },
+                      inverse: { operation: "catalogue.archive", entity: { entity, id } },
+                    };
+            await useStore.getState().sendPlanningCommand(command);
+            if (activeAccountId) notifyInactiveDataChanged(activeAccountId);
+          } else if (isServerConfigured()) {
             await dispatchServer(verb, entity, id);
           } else {
             dispatchLocal(verb, entity, id);
@@ -245,14 +248,14 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
         }
       };
 
-      // Lifecycle routes mutate outside snapshot-diff sync, and each operation must complete its
+      // Anonymisation mutates outside typed planning sync, and each operation must complete its
       // authoritative reload before the next starts. Queue confirmed intent instead of silently
       // discarding a second click while the first transition is still settling.
       const scheduled = mutationQueue.current.then(execute, execute);
       mutationQueue.current = scheduled;
       return scheduled;
     },
-    [dispatchServer, dispatchLocal, setNotice],
+    [activeAccountId, dispatchServer, dispatchLocal, setNotice],
   );
 
   // Stabilize the returned surface so consumers do not rerender solely because its object identity changes.
@@ -260,8 +263,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
     () => ({
       archive: (entity, id) => run("archive", entity, id),
       unarchive: (entity, id) => run("unarchive", entity, id),
-      softDelete: (entity, id) => run("delete", entity, id),
-      purge: (entity, id) => run("purge", entity, id),
+      anonymise: (id) => run("anonymise", "resources", id),
     }),
     [run],
   );

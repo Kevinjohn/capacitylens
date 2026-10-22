@@ -123,7 +123,7 @@ function useExportAction() {
       let exported = data;
       if (serverMode) {
         if (!activeAccountId) throw new Error("Choose a company before exporting.");
-        if (role === null || can(role, "purge")) exported = await fetchInactiveSlice(activeAccountId);
+        if (role === null || can(role, "anonymise")) exported = await fetchInactiveSlice(activeAccountId);
       }
       downloadTextFile("capacitylens-data.json", serializeData(exported));
     } catch (error) {

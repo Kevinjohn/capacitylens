@@ -1,7 +1,6 @@
 import type { StateCreator } from "zustand";
 import { newId } from "@capacitylens/shared/lib/id";
 import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
-import { deleteAccountCascade } from "@capacitylens/shared/domain/mutations";
 import { m } from "@/i18n";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
@@ -22,7 +21,6 @@ type AccountSlice = Pick<
   | "accountSummariesAmbiguous"
   | "accountSummariesRequestId"
   | "addAccount"
-  | "deleteAccount"
   | "setActiveAccount"
   | "beginAccountSummariesRequest"
   | "setAccountSummaries"
@@ -76,31 +74,6 @@ function createAddAccountAction({ internals, set }: AccountActionContext): Store
     }));
     return entity;
   }, null);
-}
-
-function createDeleteAccountAction({ internals, set, get }: AccountActionContext): StoreState["deleteAccount"] {
-  return internals.createGuardedAction((id: ID) => {
-    if (!get().data.accounts.some((account) => account.id === id)) return;
-    if (get().activeAccountId !== null && get().activeAccountId !== id) {
-      throw new Error("Cannot delete a company other than the active company.");
-    }
-    set((state) => {
-      const data = deleteAccountCascade(state.data, id);
-      return {
-        data,
-        past: [],
-        future: [],
-        activeAccountId: state.activeAccountId === id ? null : state.activeAccountId,
-        previousAccountId: state.activeAccountId === id ? id : state.previousAccountId,
-        accountSummaries: state.accountSummaries.filter((account) => account.id !== id),
-        accountSummariesComplete: true,
-        accountSummariesRequestId: state.accountSummariesRequestId + 1,
-        notice: null,
-        ...buildClearedSession(),
-        ui: resetSchedulerView(state.ui, readCurrentWeekAnchor(data, null)),
-      };
-    });
-  });
 }
 
 function resolveAccountSelection(rawId: ID | null, get: AccountSliceGet): { id: ID | null; unknown: boolean } {
@@ -179,7 +152,6 @@ export function createAccountSlice(internals: AccountSliceInternals): StateCreat
       accountSummariesAmbiguous: false,
       accountSummariesRequestId: 0,
       addAccount: createAddAccountAction(context),
-      deleteAccount: createDeleteAccountAction(context),
       setActiveAccount: createSetActiveAccountAction(context),
 
       // Plain transient state (not mutate): never on the undo/redo stack or in AppData/export.

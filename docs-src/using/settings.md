@@ -149,8 +149,8 @@ was saved. The app never replaces a failed read with a browser snapshot or queue
 
 Owners and Admins see **Example data** only while the company has no people, clients, projects or
 bookings. **Add example data** adds two people, a client, a project and a few bookings across
-this week and next. They are ordinary records; delete them like any others. The request is refused
-if the company already holds any of these, including archived or deleted ones.
+this week and next. They are ordinary records that can be archived. The request is refused
+if the company already holds any of these, including archived ones.
 
 <!-- Compatibility anchor for existing links to import and export. -->
 

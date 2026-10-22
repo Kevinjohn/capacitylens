@@ -92,7 +92,7 @@ This is the short, present-tense record of decisions that constrain future work.
 - Undo and redo are typed inverse operations held page-locally in the browser. Hard-deleted planning
   rows are kept in a server tombstone table bound to session, actor and company so that restore
   is one atomic operation under current authority and hidden fields never leave the server.
-  Tombstones are removed in the same transaction as purge, anonymisation, import and erasure.
+  Restoration groups are removed in the same transaction as anonymisation and import.
   A change to a client or project privacy or code-name field, or to an activity kind, also clears that company's
   pending tombstones in the change transaction. Those saved before-images can contain names or
   relationships that should no longer be restorable under the new visibility rules. Unchanged
@@ -106,9 +106,11 @@ This is the short, present-tense record of decisions that constrain future work.
 - The portable export is this product's own document and the only import source. Import is
   Owner-only, atomic and not undoable. A malformed or foreign document is rejected, never repaired.
   Identity, sessions, membership and admission records are never part of the export.
-- Lifecycle entities have two irreversible-safe verbs: archive/restore (Editor and up) and
-  anonymise (Owner/Admin, irreversible, removes a person's identifying data). There is no separate
-  soft-delete or purge.
+- Resource and catalogue lifecycle uses archive/restore (Editor and up). Resource anonymisation
+  (Owner/Admin) irreversibly removes identifying details and dependent notes while retaining the
+  resource and its links. Whole-company anonymisation applies the same scrub to every resource and
+  requires action-specific proof; the company, Owner and memberships remain. There is no company
+  deletion, soft-delete or purge action.
 - Editor and up may change company-wide planning and display configuration (company name,
   scheduling mode, disciplines, colour mode, feature visibility, time zone, week start). Identity,
   membership, privacy, lifecycle, import and erasure keep their Owner/Admin gates.
@@ -156,7 +158,7 @@ This is the short, present-tense record of decisions that constrain future work.
   account creation. Identities are otherwise never merged by email.
 - Sessions follow the kit's idle expiry, configured once. Sensitive actions re-prove the password
   (or the social equivalent) per action; there is no time-based freshness window. The sensitive
-  set is: ownership transfer, company deletion, import and anonymisation.
+  set is: ownership transfer, whole-company import and whole-company anonymisation.
 - Password hashing uses the framework's default hasher through the kit. There is no breach
   screening and no custom hashing queue.
 - The first Owner is created by the operator through the kit's command line (invite, accept,

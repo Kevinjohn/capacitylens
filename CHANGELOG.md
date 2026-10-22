@@ -7,6 +7,14 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Resource and catalogue records now use typed archive and restore actions. Owners and Admins can
+  anonymise one resource or the whole company while retaining the company, memberships and planning
+  links; names, roles, avatars and dependent notes are scrubbed.
+- Removed company deletion, lifecycle soft-delete and purge actions, including the 30-day purge
+  countdown and generic lifecycle routes.
+
 ### Added
 
 - Typed planning writes now cover disciplines, phases, personal time off, closures and company

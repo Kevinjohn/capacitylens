@@ -120,7 +120,7 @@ describe("ClientList archive flow", () => {
     await user.click(screen.getByRole("button", { name: "Archive Ferris" }));
 
     expect(screen.getByRole("alertdialog")).toHaveTextContent(
-      "An owner or admin can restore or delete it from Archived clients.",
+      "An owner or admin can restore it from Archived clients.",
     );
   });
 
@@ -162,20 +162,6 @@ describe("ClientList archive flow", () => {
     expect(useStore.getState().data.clients[0]).toHaveProperty("archivedAt", null);
     expect(screen.getByTestId("client-row")).toHaveTextContent("Ferris");
     expect(screen.queryByTestId("archived-clients-section")).not.toBeInTheDocument();
-  });
-
-  it("uses one quote pair around a private display name in delete confirmation", async () => {
-    const user = userEvent.setup();
-    const client = await requireCreated(
-      useStore.getState().addClient({ name: '"Nightwing"', color: "#111", isPrivate: true, codeName: "Nightwing" }),
-    );
-    useStore.getState().archiveEntity("clients", client.id);
-    render(<ClientList />);
-
-    await user.click(screen.getByRole("button", { name: 'Delete "Nightwing"' }));
-
-    expect(screen.getByRole("alertdialog")).toHaveTextContent('Delete "Nightwing"?');
-    expect(screen.getByRole("alertdialog")).not.toHaveTextContent('""Nightwing""');
   });
 });
 

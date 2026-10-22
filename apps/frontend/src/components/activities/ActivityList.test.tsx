@@ -421,9 +421,9 @@ describe("ActivityList", () => {
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
     const user = userEvent.setup();
     const activity = await requireCreated(useStore.getState().addActivity({ name: "Internal sync", kind: "internal" }));
-    const originalArchive = useStore.getState().archiveEntity;
+    const originalSend = useStore.getState().sendPlanningCommand;
     useStore.setState({
-      archiveEntity: () => {
+      sendPlanningCommand: async () => {
         throw new Error("Stored activity is inconsistent.");
       },
     });
@@ -442,7 +442,7 @@ describe("ActivityList", () => {
         tone: "error",
       });
     } finally {
-      useStore.setState({ archiveEntity: originalArchive });
+      useStore.setState({ sendPlanningCommand: originalSend });
       vi.unstubAllEnvs();
     }
   });

@@ -186,12 +186,7 @@ function registerAccountOwnershipTests(): void {
     expect(s().notice).toMatchObject({ tone: "error" });
   });
 
-  it("refuses to delete a non-active account", () => {
-    expect(() => s().deleteAccount(B)).toThrow(/active company/i);
-    expect(s().data.accounts.some((account) => account.id === B)).toBe(true);
-  });
-
-  it("treats stale account update and delete ids as true no-ops that preserve undo and redo", async () => {
+  it("treats stale account update ids as true no-ops that preserve undo and redo", async () => {
     await s().updateAccount(A, { name: "Changed once" });
     await s().undoPlanning();
     const dataBefore = s().data;
@@ -199,11 +194,6 @@ function registerAccountOwnershipTests(): void {
     const futureBefore = s().planning.history.future;
 
     await expect(s().updateAccount("missing-account", { name: "Gone" })).rejects.toThrow(/active company/i);
-    expect(s().data).toBe(dataBefore);
-    expect(s().planning.history.past).toBe(pastBefore);
-    expect(s().planning.history.future).toBe(futureBefore);
-
-    expect(() => s().deleteAccount("missing-account")).not.toThrow();
     expect(s().data).toBe(dataBefore);
     expect(s().planning.history.past).toBe(pastBefore);
     expect(s().planning.history.future).toBe(futureBefore);

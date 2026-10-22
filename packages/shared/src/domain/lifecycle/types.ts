@@ -32,18 +32,6 @@ export type LifecycleEntityKey = (typeof LIFECYCLE_ENTITY_KEYS)[number];
 export const isLifecycleEntityKey = (entityKey: string): entityKey is LifecycleEntityKey =>
   (LIFECYCLE_ENTITY_KEYS as readonly string[]).includes(entityKey);
 
-/**
- * The minimum age (in days) a soft-deleted tombstone must reach before it may be hard-purged
- * (Admin-only, server-side). Per the CapacityLens Decisions data-lifecycle rule: a tombstone
- * is retained for a grace window before the row is physically removed, so an accidental delete is
- * recoverable for at least this long. Consumed by {@link canPurge}.
- */
-export const PURGE_MIN_AGE_DAYS = 30;
-
-/** The purge grace window expressed in milliseconds (derived from PURGE_MIN_AGE_DAYS, no magic
- * numbers), the unit `Date.parse` works in, so {@link canPurge} can compare tombstone age directly. */
-export const PURGE_MIN_AGE_MS = PURGE_MIN_AGE_DAYS * 24 * 60 * 60 * 1000;
-
 /** Lifecycle state is derived only from a canonical, parseable tombstone. Import repair uses the
  * same nearest-valid-state rule; applying it at this read boundary prevents legacy/direct database
  * corruption from creating a hidden state with no legal transition. Purge remains independently

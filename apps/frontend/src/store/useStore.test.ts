@@ -22,28 +22,6 @@ beforeEach(() => resetStoreWithAccount());
 const personDraft = makeResourceDraft({ name: "Ty", role: "Dev", color: "#1" });
 
 function registerStoreCrudPart1(): void {
-  it("publishes account deletion without an invalid active-tenant snapshot", () => {
-    const accountId = s().activeAccountId;
-    if (!accountId) throw new Error("Expected active account");
-    const snapshots: Array<{ activeAccountId: string | null; accountExists: boolean }> = [];
-    const unsubscribe = useStore.subscribe((state) => {
-      snapshots.push({
-        activeAccountId: state.activeAccountId,
-        accountExists: state.data.accounts.some((account) => account.id === accountId),
-      });
-    });
-    try {
-      s().deleteAccount(accountId);
-    } finally {
-      unsubscribe();
-    }
-    expect(snapshots).toHaveLength(1);
-    expect(requireValue(snapshots[0], "account deletion snapshot")).toEqual({
-      activeAccountId: null,
-      accountExists: false,
-    });
-  });
-
   it("adds entities with a generated id and timestamps", async () => {
     const r = await requireCreated(s().addResource({ ...personDraft }));
     expect(r.id).toBeTruthy();

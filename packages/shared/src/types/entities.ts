@@ -157,15 +157,10 @@ export interface Resource extends ScopedEntity {
   firstAvailableDate: ISODate | null;
   /** Inclusive last date on which this person may be scheduled. Null = unbounded. */
   lastAvailableDate: ISODate | null;
-  /** ISO 8601 timestamp of when this resource was archived (soft, reversible): hidden from
-   * scheduling but fully retained. Null = active (not archived). Part of the
-   * Active→Archived→Soft-deleted→Purged lifecycle; set/cleared only by the state machine in
-   * shared/src/domain/lifecycle.ts. Non-active rows are hidden from normal views/reads (activeOnly). */
+  /** ISO 8601 timestamp of when this resource was archived. Null = active.
+   * Archived rows are hidden from normal scheduling views. */
   archivedAt: ISOTimestamp | null;
-  /** ISO 8601 timestamp of the soft-delete tombstone: when this resource was soft-deleted.
-   * Null = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
-   * soft-delete requires prior archival, and a tombstone is hard-purged only after
-   * PURGE_MIN_AGE_DAYS, all enforced by shared/src/domain/lifecycle.ts. */
+  /** Retained import field for previously exported deleted records. New lifecycle actions do not set it. */
   deletedAt: ISOTimestamp | null;
 }
 
@@ -185,15 +180,9 @@ export interface Client extends ScopedEntity {
    * user-managed client. Identified at runtime by this flag, never a hard-coded id (so it survives
    * import-remap). See shared/src/data/internalClient.ts. */
   builtin: boolean | null;
-  /** ISO 8601 timestamp of when this client was archived (soft, reversible): hidden from
-   * scheduling but fully retained. Null = active (not archived). Part of the
-   * Active→Archived→Soft-deleted→Purged lifecycle; set/cleared only by the state machine in
-   * shared/src/domain/lifecycle.ts. Non-active rows are hidden from normal views/reads (activeOnly). */
+  /** ISO 8601 archive timestamp; null means active. Archived rows are hidden from scheduling. */
   archivedAt: ISOTimestamp | null;
-  /** ISO 8601 timestamp of the soft-delete tombstone: when this client was soft-deleted.
-   * Null = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
-   * soft-delete requires prior archival, and a tombstone is hard-purged only after
-   * PURGE_MIN_AGE_DAYS, all enforced by shared/src/domain/lifecycle.ts. */
+  /** Retained import field for previously exported deleted records. New lifecycle actions do not set it. */
   deletedAt: ISOTimestamp | null;
 }
 
@@ -208,15 +197,9 @@ export interface Project extends ScopedEntity {
   /** Owner-managed cover name for a private project. Stored without quotation marks; the read
    * projection adds them consistently wherever the code name is displayed. */
   codeName: string | null;
-  /** ISO 8601 timestamp of when this project was archived (soft, reversible): hidden from
-   * scheduling but fully retained. Null = active (not archived). Part of the
-   * Active→Archived→Soft-deleted→Purged lifecycle; set/cleared only by the state machine in
-   * shared/src/domain/lifecycle.ts. Non-active rows are hidden from normal views/reads (activeOnly). */
+  /** ISO 8601 archive timestamp; null means active. Archived rows are hidden from scheduling. */
   archivedAt: ISOTimestamp | null;
-  /** ISO 8601 timestamp of the soft-delete tombstone: when this project was soft-deleted.
-   * Null = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
-   * soft-delete requires prior archival, and a tombstone is hard-purged only after
-   * PURGE_MIN_AGE_DAYS, all enforced by shared/src/domain/lifecycle.ts. */
+  /** Retained import field for previously exported deleted records. New lifecycle actions do not set it. */
   deletedAt: ISOTimestamp | null;
 }
 
@@ -237,10 +220,9 @@ export interface Activity extends ScopedEntity {
    * allocations may carry their own project attribution. */
   projectId: ID | null;
   phaseId: ID | null;
-  /** ISO 8601 timestamp of when this activity was archived (soft, reversible): hidden from
-   * scheduling but fully retained. Null = active (not archived). */
+  /** ISO 8601 archive timestamp; null means active. Archived rows are hidden from scheduling. */
   archivedAt: ISOTimestamp | null;
-  /** ISO 8601 timestamp of the soft-delete tombstone. Null = not deleted. */
+  /** Retained import field for previously exported deleted records. New lifecycle actions do not set it. */
   deletedAt: ISOTimestamp | null;
 }
 

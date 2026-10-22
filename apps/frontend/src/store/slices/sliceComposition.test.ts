@@ -51,7 +51,6 @@ describe("store slice composition", () => {
       expect.arrayContaining([
         "addAccount",
         "updateAccount",
-        "deleteAccount",
         "setActiveAccount",
         "beginAccountSummariesRequest",
         "setAccountSummaries",
@@ -108,8 +107,7 @@ describe("store slice composition", () => {
         "deleteClosure",
         "archiveEntity",
         "unarchiveEntity",
-        "softDeleteEntity",
-        "purgeEntity",
+        "anonymiseResource",
         "setZoom",
         "setOriginDate",
         "panDays",

@@ -200,7 +200,6 @@ export interface StoreState extends StoreEntityActions {
    * company may be deleted and any other id throws; from the picker (no active company) any existing
    * company may be deleted. An unknown id is ignored.
    */
-  deleteAccount: (id: ID) => void;
   /** Enter a company, or pass null for the picker. Clears undo history; an unknown id returns to the picker with a notice. */
   setActiveAccount: (id: ID | null) => void;
   /** Start one server-directory read and return its monotonic identity. */

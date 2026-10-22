@@ -1,6 +1,5 @@
 import { m } from "@/i18n";
 import { isServerConfigured } from "@/data/apiConfig";
-import { can } from "@capacitylens/shared/domain/access";
 import { useId } from "react";
 import type { ReactNode } from "react";
 import { transitionAccount } from "@/auth/accountTransition";
@@ -12,7 +11,7 @@ import { useDemoAuthActive } from "@/lib/fakeAuth";
 import { DEFAULT_COLORS } from "@/lib/palette";
 import type { AccountSummary } from "@/store/useStore";
 import { useStore } from "@/store/useStore";
-import { AddButton, Avatar, CheckboxField, DeleteButton, SegmentedControl, TextField } from "@/components/common/ui";
+import { AddButton, Avatar, CheckboxField, SegmentedControl, TextField } from "@/components/common/ui";
 import type { Option, SegmentedOption } from "@/components/common/ui";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -20,19 +19,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldError } from "@/components/ui/field";
 import { Item, ItemGroup } from "@/components/ui/item";
-import { DeleteCompanyDialog } from "./DeleteCompanyDialog";
 import { TimeZoneField } from "./TimeZoneField";
 import { AccountPickerHeader } from "./AccountPickerHeader";
 import { useCreateAccountForm } from "./useCreateAccountForm";
 import type { ExampleDataChoice } from "./useCreateAccountForm";
-import { useDeleteAccount } from "./useDeleteAccount";
 
 interface AccountItemsProps {
   accounts: AccountSummary[];
   accessExperience: AccessExperience;
   roleDescriptionPrefix: string;
   onActivate: (id: string) => void;
-  onConfirmDelete: (account: AccountSummary) => void;
 }
 
 function AccountItems(input: AccountItemsProps) {
@@ -67,12 +63,6 @@ function AccountItems(input: AccountItemsProps) {
                 </Badge>
               </span>
             </Button>
-            {account.roleStatus !== "unavailable" && can(account.role, "deleteAccount") && (
-              <DeleteButton
-                label={m.picker_delete_company({ name: account.name })}
-                onClick={() => input.onConfirmDelete(account)}
-              />
-            )}
           </Item>
         );
       })}
@@ -289,26 +279,6 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
   );
 }
 
-interface AccountDeletionDialogProps {
-  account: AccountSummary;
-  deleting: boolean;
-  onConfirm: (id: string) => void;
-  onCancel: () => void;
-}
-
-function AccountDeletionDialog({ account, deleting, onConfirm, onCancel }: AccountDeletionDialogProps) {
-  return (
-    <DeleteCompanyDialog
-      account={account}
-      busy={deleting}
-      onConfirm={() => onConfirm(account.id)}
-      onCancel={() => {
-        if (!deleting) onCancel();
-      }}
-    />
-  );
-}
-
 function CreateAccountAffordance({ onCreate }: { onCreate: () => void }) {
   return (
     <div className="mt-4">
@@ -343,7 +313,6 @@ export function AccountPicker() {
   const { canCreateAccount, refreshAuth } = useAuth();
   const roleDescriptionPrefix = useId();
   const { form, submit, reset } = useCreateAccountForm({ refreshAuth });
-  const accountDeletion = useDeleteAccount({ refreshAuth });
   const beginCreating = () => form.setCreating(true);
   const companySetupEligible = accounts.length === 0 && accountSummariesComplete && canCreateAccount;
   const productionMode = isServerConfigured();
@@ -394,7 +363,6 @@ export function AccountPicker() {
           accessExperience={resolveAccessExperience()}
           roleDescriptionPrefix={roleDescriptionPrefix}
           onActivate={activateAccount}
-          onConfirmDelete={accountDeletion.setConfirming}
         />
       )}
       <AccountCreationPanel
@@ -405,14 +373,6 @@ export function AccountPicker() {
       />
       {!productionMode && !form.creating && accounts.length > 0 && canCreateAccount && (
         <CreateAccountAffordance onCreate={beginCreating} />
-      )}
-      {accountDeletion.confirming && (
-        <AccountDeletionDialog
-          account={accountDeletion.confirming}
-          deleting={accountDeletion.deleting}
-          onConfirm={accountDeletion.confirmDelete}
-          onCancel={() => accountDeletion.setConfirming(null)}
-        />
       )}
     </PickerLayout>
   );

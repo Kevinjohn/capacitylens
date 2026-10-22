@@ -58,14 +58,15 @@ Import replaces the active company's planning records; it does not add to them. 
 destination and file before you confirm. It needs a recent sign-in.
 [Import and export](/using/settings#import-and-export) has the steps.
 
-## Delete the company
+## Anonymise the company
 
-::: warning
-Deleting the company permanently removes it and all its data for everyone. There is no undo.
-:::
+Whole-company anonymisation replaces every resource's identifying name and role, removes avatars
+and clears dependent booking and time-off notes. The company, Owner, memberships and planning links
+remain. This cannot be undone and requires proof of your identity for this action. Export what you
+need before confirming.
 
-The app does not provide a company chooser or deletion action. Export a copy, then ask the
-installer to retire the installation and its data.
+The app does not provide a company deletion action. Ask the installer about retiring an
+installation and its data.
 
 To take away one person's access instead, use [Stop access](/admin/invite-teammates#stop-access).
 

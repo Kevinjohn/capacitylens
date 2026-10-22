@@ -87,9 +87,7 @@ export interface StoreEntityActions {
   /** Delete a company closure from the active account. */
   deleteClosure: (id: ID) => Promise<void>;
 
-  // These actions mutate the local snapshot in demo mode; server mode uses lifecycle routes.
-  // Viewer and stale-ID calls no-op; callers must surface errors these actions throw.
-  // Soft-delete and purge clear both history stacks so erased data cannot be restored by undo.
+  // These actions mutate the volatile demo snapshot. Server mode uses named planning routes.
   /** Archive an active entity.
    *
    * @throws When the entity is not active; no state changes.
@@ -100,13 +98,6 @@ export interface StoreEntityActions {
    * @throws When the entity is not archived; no state changes.
    */
   unarchiveEntity: (entity: LifecycleEntity, id: ID) => void;
-  /** Soft-delete an archived entity; resource names are scrubbed while the tombstone awaits purge.
-   *
-   * @throws When the entity is not archived; no state changes.
-   */
-  softDeleteEntity: (entity: LifecycleEntity, id: ID) => void;
-  /** Purge a soft-deleted entity and its dependents after the {@link PURGE_MIN_AGE_DAYS} grace period.
-   * An early request surfaces a notice without mutation.
-   */
-  purgeEntity: (entity: LifecycleEntity, id: ID) => void;
+  /** Irreversibly obfuscate one resource and its dependent notes. */
+  anonymiseResource: (id: ID) => void;
 }

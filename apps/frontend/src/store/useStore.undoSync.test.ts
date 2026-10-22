@@ -2,18 +2,10 @@ import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { beforeEach, describe, expect, it } from "vitest";
 import { diffOps } from "@/data/syncOps";
 import { useStore } from "./useStore";
-import {
-  DEFAULT_ACCOUNT_ID,
-  makeAppData,
-  makeResource,
-  requireValue,
-  resetStoreWithAccount,
-  WORKDAYS,
-} from "@/test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeAppData, makeResource, requireValue, resetStoreWithAccount } from "@/test/fixtures";
 import type { AppData } from "@capacitylens/shared/types/entities";
 
 const T = "2026-01-01T00:00:00.000Z";
-const OLD = "2020-01-01T00:00:00.000Z";
 const meta = { accountId: DEFAULT_ACCOUNT_ID, createdAt: T, updatedAt: T };
 
 beforeEach(() => resetStoreWithAccount());
@@ -130,104 +122,7 @@ function registerUndoSyncPart2(): void {
   });
 }
 
-function registerUndoSyncPart3(): void {
-  it("keeps a placeholder projectId removed after project purge and emits no undo sync", async () => {
-    useStore.getState().replaceAll(
-      makeAppData({
-        clients: [{ ...NULLABLE_FIELDS.clients, ...meta, id: "c1", name: "Client", color: "#111111" }],
-        projects: [
-          {
-            ...NULLABLE_FIELDS.projects,
-            ...meta,
-            id: "p1",
-            clientId: "c1",
-            name: "Project",
-            color: "#222222",
-            archivedAt: OLD,
-            deletedAt: OLD,
-          },
-        ],
-        resources: [
-          {
-            ...NULLABLE_FIELDS.resources,
-            ...meta,
-            id: "placeholder",
-            kind: "placeholder",
-            role: "Designer",
-            projectId: "p1",
-            employmentType: "permanent",
-            engagement: "studio" as const,
-            workingHoursPerDay: 8,
-            workingDays: WORKDAYS,
-            halfDays: [],
-            color: "#333333",
-          },
-        ],
-      }),
-    );
-    useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
-    await useStore.getState().refreshPlanning();
-
-    useStore.getState().purgeEntity("projects", "p1");
-    const afterDelete = useStore.getState().data;
-    expect(requireValue(afterDelete.resources[0], "resource")).toHaveProperty("projectId", null);
-    const ops = await undoOps(afterDelete);
-    expect(ops).toEqual([]);
-    expect(requireValue(useStore.getState().data.resources[0], "resource")).toHaveProperty("projectId", null);
-  });
-}
-
-function registerUndoSyncPart4(): void {
-  it("keeps a placeholder projectId removed after client purge and emits no undo sync", async () => {
-    useStore.getState().replaceAll(
-      makeAppData({
-        clients: [
-          {
-            ...NULLABLE_FIELDS.clients,
-            ...meta,
-            id: "c1",
-            name: "Client",
-            color: "#111111",
-            archivedAt: OLD,
-            deletedAt: OLD,
-          },
-        ],
-        projects: [
-          { ...NULLABLE_FIELDS.projects, ...meta, id: "p1", clientId: "c1", name: "Project", color: "#222222" },
-        ],
-        resources: [
-          {
-            ...NULLABLE_FIELDS.resources,
-            ...meta,
-            id: "placeholder",
-            kind: "placeholder",
-            role: "Designer",
-            projectId: "p1",
-            employmentType: "permanent",
-            engagement: "studio" as const,
-            workingHoursPerDay: 8,
-            workingDays: WORKDAYS,
-            halfDays: [],
-            color: "#333333",
-          },
-        ],
-      }),
-    );
-    useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
-    await useStore.getState().refreshPlanning();
-
-    useStore.getState().purgeEntity("clients", "c1");
-    const afterDelete = useStore.getState().data;
-    expect(requireValue(afterDelete.resources[0], "resource")).toHaveProperty("projectId", null);
-    const ops = await undoOps(afterDelete);
-    expect(ops).toEqual([]);
-    expect(requireValue(useStore.getState().data.resources[0], "resource")).toHaveProperty("projectId", null);
-  });
-}
-
 describe("undo emits synchronization revisions for cascade-restored bindings", () => {
   registerUndoSyncPart1();
   registerUndoSyncPart2();
-  registerUndoSyncPart3();
-  registerUndoSyncPart4();
 });

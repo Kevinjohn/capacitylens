@@ -8,7 +8,6 @@ import {
   assertResourceKindAllowsDependents,
   assertResourceProjectAllowsDependents,
   assertScopedRefs,
-  deleteAccountCascade,
   getOwned,
   remapAndValidateImport,
 } from "./mutations.js";
@@ -1166,28 +1165,6 @@ describe("parent project edits preserve placeholder allocation assignments", () 
   registerParentProjectEditsPart3(rejectResource, rejectActivity);
   registerParentProjectEditsPart4();
   registerParentProjectEditsPart5();
-});
-
-describe("deleteAccountCascade", () => {
-  it("drops the account and all its scoped rows, leaving other accounts intact", () => {
-    const data: AppData = {
-      ...base(),
-      clients: [client("c1", A1), client("c2", A2)],
-      projects: [project("p1", A1, "c1")],
-      activities: [activity({ id: "t1", accountId: A1, projectId: "p1" })],
-      resources: [person("r1", A1)],
-      allocations: [allocation({ id: "al1", accountId: A1, resourceId: "r1", activityId: "t1" })],
-      timeOff: [timeOff({ id: "to1", accountId: A1, resourceId: "r1" })],
-    };
-    const next = deleteAccountCascade(data, A1);
-    expect(next.accounts.map((a) => a.id)).toEqual([A2]);
-    expect(next.clients).toEqual([client("c2", A2)]);
-    expect(next.projects).toHaveLength(0);
-    expect(next.activities).toHaveLength(0);
-    expect(next.resources).toHaveLength(0);
-    expect(next.allocations).toHaveLength(0);
-    expect(next.timeOff).toHaveLength(0);
-  });
 });
 
 const registerRemapAndValidateImportPart1 = (incoming: () => AppData) => {

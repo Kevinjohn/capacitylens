@@ -23,10 +23,15 @@ function createMutationActions(set: StoreApi<StoreState>["setState"]) {
       future: [],
     }));
 
-  // Erasure/purge actions must not leave a recoverable pre-erasure snapshot in memory. They also
+  // Anonymisation must not leave a recoverable pre-erasure snapshot in memory. It also
   // cannot honestly be undoable, so clear both history directions as part of the same state write.
   const mutateIrreversible = (producer: (data: AppData) => AppData) =>
-    set((state) => ({ data: producer(state.data), past: [], future: [] }));
+    set((state) => ({
+      data: producer(state.data),
+      past: [],
+      future: [],
+      planning: { ...state.planning, history: { past: [], future: [], tipRevision: null } },
+    }));
 
   return { mutate, mutateIrreversible };
 }

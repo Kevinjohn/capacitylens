@@ -91,7 +91,6 @@ describe("browser account client", () => {
   registerReconciliationTests();
   registerStoredCommandTests();
   registerStorageFallbackTests();
-  registerConflictTests();
   registerCeremonyCleanupTests();
   registerIdentityCleanupTests();
   registerCleanupStorageTests();
@@ -160,7 +159,6 @@ function registerAuditWarningTests(): void {
 function registerMutationRouteTests(): void {
   it("adds command headers, JSON encoding, safe path encoding, reauth, and bulk timeout policy", async () => {
     await accountClient.createWorkspace({ name: "Studio" }, command);
-    await accountClient.eraseWorkspace("workspace / one", command);
     await accountClient.changeMemberRole({
       workspaceId: "workspace / one",
       principalId: "person / one",
@@ -183,15 +181,6 @@ function registerMutationRouteTests(): void {
     expectCommand(createInit, "POST");
     expect(new Headers(createInit.headers).get("content-type")).toBe("application/json");
     expect(createInit.body).toBe(JSON.stringify({ name: "Studio" }));
-
-    const [eraseUrl, eraseInit, eraseOptions] = mocks.apiFetchReauth.mock.calls[0] as unknown as [
-      string,
-      RequestInit,
-      { timeoutMs?: number; action?: string },
-    ];
-    expect(eraseUrl).toBe("https://app.example/api/accounts/workspace%20%2F%20one");
-    expectCommand(eraseInit, "DELETE");
-    expect(eraseOptions).toEqual({ timeoutMs: 120_000, action: "delete-company" });
 
     const urls = mocks.apiFetchReauth.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual(
@@ -390,34 +379,6 @@ function registerStorageFallbackTests(): void {
       "00000000-0000-4000-8000-000000000071",
       "00000000-0000-4000-8000-000000000071",
       "00000000-0000-4000-8000-000000000073",
-    ]);
-  });
-}
-
-function registerConflictTests(): void {
-  it("retains an implicit erasure command across an ambiguous post-delete 403", async () => {
-    vi.spyOn(globalThis.crypto, "randomUUID")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000061")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000062")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000063")
-      .mockReturnValueOnce("00000000-0000-4000-8000-000000000064");
-    mocks.apiFetchReauth
-      .mockResolvedValueOnce(new Response(null, { status: 403 }))
-      .mockResolvedValueOnce(new Response(null, { status: 204 }))
-      .mockResolvedValueOnce(new Response(null, { status: 204 }));
-
-    const ambiguous = await accountClient.eraseWorkspace("workspace-1");
-    expect(hasUnknownAccountCommandOutcome(ambiguous)).toBe(true);
-    await accountClient.eraseWorkspace("workspace-1");
-    await accountClient.eraseWorkspace("workspace-1");
-
-    const commandIds = mocks.apiFetchReauth.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get("x-account-command-id"),
-    );
-    expect(commandIds).toEqual([
-      "00000000-0000-4000-8000-000000000061",
-      "00000000-0000-4000-8000-000000000061",
-      "00000000-0000-4000-8000-000000000063",
     ]);
   });
 }

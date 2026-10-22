@@ -76,20 +76,8 @@ accept responses never include it.
    still authorize every requested id from the caller's server-side membership. If the summary
    detects multiple stored companies, the app asks the administrator to resolve the installation.
    The in-memory demo retains its picker, temporary company creation and switching.
-   Company deletion remains an administrative API capability but is not offered in the production
-   UI. When an authorized deletion is used, it is atomic and fail-closed: if a corrupt stored
-   relationship would cascade a delete or unbind into another company, both companies remain
-   intact and the server refuses the operation for operator repair. A completed authenticated
-   deletion retains its anonymized command receipt briefly. If the response is lost, the same
-   authenticated principal can retry the command and receive success even though the deleted
-   company's membership is gone. Deleting the principal's last company also removes that principal
-   and invalidates its session, so the receipt cannot be replayed without a surviving authenticated session. A post-delete `403` from an
-   older/mixed server is treated as an unknown outcome, so the browser retains the command and
-   refreshes the company list from the server instead of converting uncertainty
-   into a new destructive ceremony. The picker consumes that same erasure outcome classification
-   rather than independently reclassifying the response status.
-   After a confirmed deletion completes, the picker announces that the named company was
-   permanently deleted.
+   The server has no company deletion action. Whole-company anonymisation keeps the company,
+   its Owner and memberships.
 5. The application opens with a non-blocking **How CapacityLens works** region
    (`data-testid="product-orientation"`) above the page. It explains the week-by-week people and
    work model and says CapacityLens does not manage tasks, tickets or deadlines. **Got it**
@@ -1511,61 +1499,34 @@ multiple).
   tab (with a labelled question-mark explainer modal + an `Add external party` button) and the band appears on the schedule. When
   off they're hidden everywhere (schedule band, assignee picker, command palette, Resources tab) but
   their data is kept. The old standalone `/external` route now **redirects to `/resources`**.
-- **Archived & soft-deleted resources/clients/projects/activities are hidden from scheduling,
-  active list sections, form option-pickers and the command palette** — they remain in the DB **and
-  in export**. Archived rows surface in the owner/admin section at the bottom of their management
-  page. Settings does not show a Deleted items section.
-  A non-active entity is one with `archivedAt` set (archived) or `deletedAt` set (soft-deleted); the
-  hide is applied by the shared `activeOnly` projection in both the client view seam
-  (`useActiveScopedData`) and the server per-account read (`GET /api/state?accountId=` →
-  `includeInactive:false`). The tester-facing affordances are: each management list's **per-row
-  archive** action (Resources / Clients / Projects / Activities — see below), inline archive sections
-  that restore or soft-delete them. Settings does not expose permanent deletion; server lifecycle
-  routes retain purge-tier and 30-day enforcement. The server
-  lifecycle routes (below) enforce the same machine server-side. The **"archived vanishes"
-  end-to-end story is `e2e/archived.spec.ts`** (authenticated SQLite mode).
+- **Archived resources/clients/projects/activities are hidden from scheduling, active lists,
+  form option-pickers and the command palette.** They remain in the database and exports. Owners
+  and Admins see them in inline archive sections on their management pages. The shared `activeOnly`
+  projection applies to client views and ordinary server reads; `includeInactive=1` is a separate
+  privileged read. `e2e/archived.spec.ts` covers the visible archive journey.
 
-### List archive affordance (P2.5b)
+### List archive affordance
 
-On the **Resources**, **Clients**, **Projects** and **Activities** management lists, the per-row destructive action
-is **Archive**. The row's icon button has the accessible name
-**"Archive <name>"** (e.g. _Archive Barry Rivera_); clicking it opens a confirm dialog (title
-**"Archive resource?" / "Archive client?" / "Archive project?"**, body _"Archive '<name>'? … You can
-restore it from the archived section below this list."_, confirm button
-**"Archive"**). Confirming hides the row from the list **and** from the schedule (it becomes
-archived), but the record + its children are **retained** (archiving is reversible, unlike the old
-cascade-delete). Client, project and activity confirmations count the projects, phases and
-allocations the archive will additionally hide, using singular nouns only when a count is exactly
-one; the activity confirmation counts allocations only, and appends its sentence only when at least
-one allocation would be hidden. The affordance is gated by `useCanEdit` (a Viewer sees nothing). In **server mode**
-the row POSTs `POST /api/:entity/:id/archive {accountId}` and reloads the active slice; in
-**demo mode** it calls the store's `archiveEntity`. Built-in **Internal** client has no archive
-button (it's hidden from the Clients list and the store/server backstop it). Hook:
-`src/hooks/useLifecycleActions.ts` (the shared server/local dispatch).
+On the Resources, Clients, Projects and Activities lists, the per-row action is **Archive** with an
+accessible name such as **Archive Barry Allen**. Confirmation hides the row and its scheduled
+work without removing records or links. Editors and higher may archive. The built-in **Internal**
+client has no archive control and the server rejects a crafted archive request. Persisted writes
+use typed planning archive/unarchive operations; the editable demo uses the volatile planning
+transport. Undo uses the typed inverse operation.
 
-### Inline archives and deleted records
+### Inline archives and resource anonymisation
 
-Each management page ends with expanded archive sections for owners and administrators. The Resources section mirrors the active grouping with non-empty
-**Archived Studio**, **Archived Supplementary** and **Archived External** groups in that order, followed
-by **Archived placeholders** when archived placeholders exist. Directly archived rows offer
-Restore and Delete. Active descendants hidden by an archived client or project explain that ancestry
-and link to the controlling parent's archived section instead of presenting a false independent
-archive action. In the in-memory demo everyone has owner access;
-in **server mode** it self-gates by trying the `GET /api/state?accountId=…&includeInactive=1` read and
-rendering **nothing** if the server replies **403** (a non-admin — the inactive read is purge-tier).
-The inactive-row **source** is the store (`useInactiveScopedData`) in the in-memory demo and that
-`includeInactive=1` fetch in server mode. Server inactive data stays outside the ordinary store so it
-cannot leak into scheduling or persistence. Each successful lifecycle action refetches this source.
+Each management page ends with archive sections for Owners and Admins. Resources group non-empty
+Archived Studio, Supplementary, External and placeholder rows. **Restore** returns a directly
+archived row to active planning. Descendants hidden by an archived parent link to that parent
+instead of offering a misleading restore action. Inactive server rows stay outside the ordinary
+planning store and are refetched after a lifecycle change.
 
-- **Archived** (`data-testid="archived-row"`, one per archived resource/client/project/activity) — each shows
-  the entity name and two actions: **Restore** (aria
-  _"Restore <name>"_ → unarchive, back to active) and **Delete** (aria _"Delete <name>"_ → a confirm
-  dialog _"Delete this item?"_, then soft-delete: its state changes and a resource's name
-  is scrubbed to _"Removed person #…"_).
-- Soft-deleted rows remain in company data and exports; Settings does not expose a deleted-record
-  or permanent-delete control. Server lifecycle routes retain purge-tier and 30-day enforcement.
-  Component tests cover inactive-row permissions and confirmation behavior; `e2e/archived.spec.ts`
-  covers archive, restore and soft-delete.
+Archived resources also offer **Anonymise** to Owners and Admins, with confirmation. Anonymising
+replaces the resource's name and role with obfuscated labels, clears its avatar and dependent notes,
+and invalidates local undo history and company restoration groups. The resource, company,
+memberships and planning links remain. Clients, projects and activities have no anonymise action.
+Settings has no deleted-items section or permanent-deletion control.
 
 ### Generic scoped write privacy
 
@@ -1582,32 +1543,24 @@ The built-in **Internal** client remains server-managed: generic POST cannot cre
 writes cannot modify the active singleton. A legacy-id PUT that atomically replaces the generated
 singleton and reparents its projects is an Admin/Owner operation; an Editor receives 403. The same authority applies to a direct PUT and the atomic batch path.
 
-### Server lifecycle routes (P2.5a)
+### Server lifecycle routes
 
-The Active → Archived → Soft-deleted → Purged data-lifecycle is enforced **server-side** by four
-dedicated action routes (entity ∈ `resources` | `clients` | `projects` **only** — any other entity is
-a **404**). Each takes a JSON body `{ accountId }` (**required** — the tenant assertion, mirroring the
-scoped-write contract; a missing/empty one is a **400**). Every persisted-server action also
-requires an authenticated member with the listed role.
+Resources, clients, projects and activities use named planning archive and unarchive operations.
+An Editor or higher can archive an active row and restore an archived row. An invalid transition
+returns **409**; a guessed foreign row is not disclosed. The built-in **Internal** client cannot be
+archived or unarchived (**409**).
 
-| Route                             | Tier               | Transition                                                                 | Result            |
-| --------------------------------- | ------------------ | -------------------------------------------------------------------------- | ----------------- |
-| `POST /api/:entity/:id/archive`   | write (editor+)    | active → archived                                                          | `200` updated row |
-| `POST /api/:entity/:id/unarchive` | write (editor+)    | archived → active                                                          | `200` updated row |
-| `POST /api/:entity/:id/delete`    | purge (admin+)     | archived → soft-deleted (resource: `name` scrubbed to `Removed person #…`) | `200` updated row |
-| `POST /api/:entity/:id/purge`     | **purge (admin+)** | ≥30-day-old tombstone → **HARD delete + cascade**                          | `204`             |
+An Owner or Admin can anonymise one resource with
+`POST /api/accounts/:accountId/resources/:id/anonymise`. The resource remains in the company with
+its links, while name and role become stable obfuscation tokens, the avatar and dependent notes are
+cleared, and restoration groups for the company are invalidated. The operation is atomic and
+irreversible. An Editor receives **403**. Whole-company anonymisation uses
+`POST /api/accounts/:accountId/anonymise` after action-specific proof; it applies the same scrub to
+every resource while retaining the company, Owner, memberships and links. Legacy generic lifecycle
+action routes and company deletion return **404**.
 
-- **Error mapping:** an **illegal transition** (e.g. deleting a row that was never archived, archiving
-  an already-archived row) → **409** with the state machine's own message; a **cross-account** target →
-  the standard tenant guard (**403** non-member, or **404** when the id isn't in the asserted account's
-  slice); an **absent** row → **404**; an insufficient role → **403**.
-- **Purge interlock (server-enforced):** purge is refused (**409**) unless the row is a **soft-deleted
-  tombstone aged ≥ 30 days** (`PURGE_MIN_AGE_DAYS`); the cascade then removes the row and its
-  owned descendants. All-projects allocations attributed to a removed client/project survive with
-  that attribution cleared.
-- **Built-in Internal client guard:** the protected built-in **Internal** client cannot be
-  archived/deleted/purged — any of the three on it is a **409**. Import and load repair also clear
-  legacy or hand-edited lifecycle tombstones so the singleton always returns active.
+- **Error mapping:** an illegal archive transition returns **409**; a cross-account or absent target
+  follows the typed planning tenant guard; insufficient role returns **403**.
 - **Inactive-ancestor write guard:** generic POST/PUT/PATCH and batch writes return **400** when the
   target row would sit beneath an archived or soft-deleted client, project or resource, including
   inherited ancestry such as phase → project → client and allocation → activity → project → client.
@@ -1615,18 +1568,11 @@ requires an authenticated member with the listed role.
   cannot immediately disappear from that view. Demo/local store creates and reparenting apply the
   same closure, while an unrelated edit may retain its already-stored parent reference. Existing
   retained rows are not deleted by this guard.
-- **Admin "read inactive":** `GET /api/state?accountId=…&includeInactive=1` returns the **full** slice
-  (archived + soft-deleted rows retained). It is gated at the **purge tier (admin+ with a session
-  signed in within the last 15 minutes)**: a non-admin gets **403**, while a stale privileged session
-  gets `403 SESSION_NOT_FRESH`; omitting the flag = today's active-only read.
-- **Cascade deletes:** deleting a client removes its projects and their project-specific activities
-  and allocations; deleting a project removes its phases/project-specific activities and allocations
-  and _unbinds_ (does not delete) placeholders. In either case, an All-projects allocation attributed
-  to the removed project survives and becomes unattributed. Deleting an activity removes its allocations; deleting a resource removes its
-  allocations + time off. Deleting a **discipline** or **phase** is _non-destructive_
-  (ungroups resources / ungroups activities). Undo does not reverse these deletes. Lifecycle
-  **soft-delete and purge** of an archived person, client or project are irreversible and clear the
-  local undo/redo history so a destructive lifecycle action cannot be restored accidentally.
+- **Admin "read inactive":** `GET /api/state?accountId=…&includeInactive=1` returns archived rows
+  to Owners and Admins; omitting the flag returns the active-only view.
+- **Typed planning deletes** for allocations, time off, phases and disciplines preserve their
+  respective association rules. Archive and restore retain resource, client, project and
+  activity records and their links; resource anonymisation scrubs identifying details.
 - **Disciplines are optional (account-level).** Default **on**. When a company turns them off
   (Settings → Disciplines → _Use disciplines_) disciplines are hidden everywhere and the schedule
   uses engagement fallback bands — see the _Disciplines (account-level)_ note above. The seed companies leave it

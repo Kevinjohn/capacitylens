@@ -5,7 +5,6 @@ export type ReauthAction =
   | "connect-provider"
   | "correct-member-email"
   | "remove-federated-link"
-  | "delete-company"
   | "change-sign-in-tracking"
   | "change-member-role"
   | "change-member-status"
@@ -16,9 +15,7 @@ export type ReauthAction =
   | "create-invitation"
   | "revoke-invitation"
   | "lifecycle-archive"
-  | "lifecycle-restore"
-  | "lifecycle-delete"
-  | "lifecycle-purge";
+  | "lifecycle-restore";
 
 /** Result delivered to callers when the shared re-authentication flow finishes. */
 export type ReauthResult = { kind: "authenticated" } | { kind: "cancelled" };
