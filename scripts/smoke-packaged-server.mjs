@@ -13,8 +13,8 @@ const STARTUP_TIMEOUT_MS = 30_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 const RESOURCE_NAME = "Bruce Wayne Packaged Schedule";
-// The packaged schema is the forward-only baseline plus the restoration-group migration.
-const MIGRATION_COUNT = 2;
+// The packaged schema includes the baseline, restoration groups, and action proofs.
+const MIGRATION_COUNT = 3;
 
 function message(error) {
   return error instanceof Error ? error.message : String(error);
