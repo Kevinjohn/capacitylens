@@ -3,15 +3,13 @@ name: AdonisJS fork gate
 on:
   push:
     branches: [platform/adonisjs]
-  pull_request:
-    branches: [platform/adonisjs]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: adonis-fork-${{ github.event.pull_request.number || github.ref }}
+  group: adonis-fork-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

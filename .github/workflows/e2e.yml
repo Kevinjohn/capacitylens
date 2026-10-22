@@ -20,7 +20,7 @@ jobs:
   browser-e2e:
     name: ${{ matrix.label }} E2E
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -40,6 +40,10 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
+      # The native first-company journey serves the built SPA from the backend's public directory.
+      - name: Build and sync the production SPA
+        if: matrix.browser == 'chromium'
+        run: pnpm --dir apps/frontend build && node scripts/sync-adonis-public.mjs
       - run: ${{ matrix.command }}
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
