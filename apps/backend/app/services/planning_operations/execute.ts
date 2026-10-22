@@ -70,8 +70,8 @@ async function transitionLifecycle(
   const current = existingRow(data, table, id)
   if (table === 'clients' && current.builtin === true)
     throw new PlanningOperationError(
-      400,
-      'validation_error',
+      409,
+      'conflict',
       `The built-in Internal client cannot be ${action === 'archive' ? 'archived' : 'unarchived'}.`
     )
   const now = createServerRevision(current.updatedAt)

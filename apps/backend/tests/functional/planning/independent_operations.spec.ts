@@ -238,6 +238,43 @@ test.group('independent typed planning operations', (group) => {
     )
   })
 
+  test('the built-in Internal client rejects both lifecycle verbs without mutation', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup)
+    const data = await readState(accountId, true)
+    const { cookie } = await signIn(client)
+    const internal = data.clients.find((row) => row.accountId === accountId && row.builtin)!
+    const before = await db.from('clients').where({ id: internal.id }).first()
+    assert.isDefined(before)
+
+    for (const [action, operation] of [
+      ['archive', 'catalogue.archive'],
+      ['unarchive', 'catalogue.unarchive'],
+    ] as const) {
+      const response = await session(client.post(route(`clients/${internal.id}/${action}`)), cookie)
+        .json(
+          input(0, {
+            operation,
+            entity: { entity: 'clients', id: internal.id },
+          })
+        )
+        .send()
+      response.assertStatus(409)
+      assert.deepEqual(await db.from('clients').where({ id: internal.id }).first(), before)
+    }
+
+    const snapshot = await session(client.get(planningUrl), cookie).send()
+    assert.equal(snapshot.body().revision, 0)
+    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0)
+    assert.lengthOf(
+      await db.from('audit_entries').where({ account_id: accountId, entity: 'planning' }),
+      0
+    )
+  })
+
   test('anonymous planning cannot read or write persisted allocations', async ({
     client,
     assert,

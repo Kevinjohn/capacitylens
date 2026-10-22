@@ -225,7 +225,7 @@ test.group('beta transfer apply', (group) => {
         intent: { operation: 'planning.restoreGroup', restorationGroupId: selectedDelete.groupId },
       })
       .send()
-    restore.assertStatus(403)
+    restore.assertStatus(409)
     const selectedAfter = await readState(accountId, true)
     assert.isUndefined(
       selectedAfter.allocations.find((row) => row.id === selectedDelete.allocationId)
