@@ -306,7 +306,11 @@ describe("SettingsView — date style", () => {
 describe("SettingsView — Import and export disclosure (issue #169)", () => {
   it("keeps import/export closed by default above company details", async () => {
     const user = userEvent.setup();
-    render(<SettingsView />);
+    render(
+      <PermissionContext.Provider value={{ role: "owner", status: "resolved" }}>
+        <SettingsView />
+      </PermissionContext.Provider>,
+    );
 
     expect(screen.getByRole("heading", { name: "Import and export" })).toBeInTheDocument();
     const disclosure = screen.getByRole("button", { name: "Import and export" });
@@ -503,7 +507,11 @@ it("opens and focuses the Import section reached from onboarding", () => {
   const scroll = vi.spyOn(HTMLElement.prototype, "scrollIntoView");
   try {
     window.history.replaceState(null, "", "/settings#getting-started-import");
-    render(<SettingsView />);
+    render(
+      <PermissionContext.Provider value={{ role: "owner", status: "resolved" }}>
+        <SettingsView />
+      </PermissionContext.Provider>,
+    );
     const section = document.getElementById("getting-started-import");
     expect(section).toHaveFocus();
     expect(section).toHaveTextContent("Import JSON");

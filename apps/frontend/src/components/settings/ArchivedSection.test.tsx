@@ -4,6 +4,7 @@ import { ArchivedSection } from "./ArchivedSection";
 import { useStore } from "@/store/useStore";
 import { DEFAULT_ACCOUNT_ID, makeAccount, makeActivity, makeClient, makeResource } from "@/test/fixtures";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
+import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { PermissionContext } from "@/auth/permissionContext";
 
 const cfg = vi.hoisted(() => ({ serverOn: false }));
@@ -133,7 +134,18 @@ describe("Settings deleted items", () => {
         json: async () => ({
           ...emptyAppData(),
           accounts: [makeAccount()],
-          clients: [makeClient({ accountId: DEFAULT_ACCOUNT_ID, name: "Old client", archivedAt: OLD, deletedAt: OLD })],
+          clients: [
+            buildInternalClient(DEFAULT_ACCOUNT_ID, OLD),
+            makeClient({
+              accountId: DEFAULT_ACCOUNT_ID,
+              name: "Old client",
+              color: "#2d75da",
+              createdAt: OLD,
+              updatedAt: OLD,
+              archivedAt: OLD,
+              deletedAt: OLD,
+            }),
+          ],
         }),
       }),
     );

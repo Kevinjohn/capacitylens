@@ -52,7 +52,7 @@ function useCompanyExport(account: { id: ID; name: string }) {
       }
       downloadTextFile(
         `capacitylens-${slug}-${todayISO()}.json`,
-        serializeBetaExport(buildBetaExport(scoped, { accountId: account.id, completeness: "full" })),
+        serializeBetaExport(buildBetaExport(source, { accountId: account.id, completeness: "full" })),
       );
       setExportError(null);
       setExportEmpty(false);

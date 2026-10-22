@@ -5,6 +5,8 @@ import { DeleteCompanyDialog } from "./DeleteCompanyDialog";
 import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
+import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
+import { parseBetaExport } from "@capacitylens/shared/data/betaTransfer";
 import { downloadTextFile } from "@/lib/download";
 
 vi.mock("@/lib/download", () => ({ downloadTextFile: vi.fn() }));
@@ -94,10 +96,12 @@ it("autofocuses the type-to-confirm field, not a leading button", () => {
 // (server mode fetches the full ?includeInactive=1 slice) and must never silently save an empty
 // file or pretend a failed fetch produced a backup.
 const seedLocalData = async () => {
-  useStore.getState().replaceAll(makeAppData());
+  useStore
+    .getState()
+    .replaceAll(makeAppData({ clients: [buildInternalClient(DEFAULT_ACCOUNT_ID, "2026-05-01T00:00:00.000Z")] }));
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   await useStore.getState().refreshPlanning();
-  await useStore.getState().addClient({ name: "Ferris Corp", color: "#111" });
+  await useStore.getState().addClient({ name: "Ferris Corp", color: "#2d75da" });
 };
 
 it("DEMO build: exports the local scoped slice without any fetch", async () => {
@@ -105,6 +109,12 @@ it("DEMO build: exports the local scoped slice without any fetch", async () => {
   const fetchSpy = vi.fn();
   vi.stubGlobal("fetch", fetchSpy);
   await seedLocalData();
+  const selected = useStore.getState().data;
+  useStore.getState().replaceAll({
+    ...selected,
+    accounts: [...selected.accounts, makeAccount({ id: "acct-stark", name: "Stark Industries" })],
+    clients: [...selected.clients, buildInternalClient("acct-stark", "2026-05-01T00:00:00.000Z")],
+  });
   render(<DeleteCompanyDialog account={makeAccount()} onConfirm={() => {}} onCancel={() => {}} />);
 
   fireEvent.click(screen.getByRole("button", { name: "Export first" }));
@@ -115,6 +125,9 @@ it("DEMO build: exports the local scoped slice without any fetch", async () => {
   if (!call) throw new Error("Expected export download");
   const [, content] = call;
   expect(content).toContain("Ferris Corp");
+  const exported = parseBetaExport(content);
+  expect(exported.data.accounts.map((account) => account.id)).toEqual([DEFAULT_ACCOUNT_ID]);
+  expect(exported.data.clients.every((client) => client.accountId === DEFAULT_ACCOUNT_ID)).toBe(true);
 });
 
 it("DEMO build: refuses an all-empty export with a loud inline warning (no file saved)", async () => {
@@ -135,15 +148,16 @@ it("SERVER mode: exports the fetched COMPLETE (?includeInactive=1) slice, not th
   // slice carries an archived client. Both must still land in the export.
   const slice = makeAppData({
     clients: [
+      buildInternalClient(DEFAULT_ACCOUNT_ID, "2026-05-01T00:00:00.000Z"),
       {
         ...NULLABLE_FIELDS.clients,
         id: "c1",
         accountId: DEFAULT_ACCOUNT_ID,
-        createdAt: "t",
-        updatedAt: "t",
+        createdAt: "2026-05-01T00:00:00.000Z",
+        updatedAt: "2026-05-01T00:00:00.000Z",
         name: "Archived Ghost",
-        color: "#111",
-        archivedAt: "t",
+        color: "#2d75da",
+        archivedAt: "2026-05-01T00:00:00.000Z",
       },
     ],
   });
