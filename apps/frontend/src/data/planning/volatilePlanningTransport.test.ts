@@ -172,6 +172,25 @@ describe("demo Restore cleanup", () => {
     const h = harness(makeAppData({ allocations: [original], activities: [activity], resources: [makeResource()] }));
     const deleted = await h.run("delete", { operation: "allocation.delete", id: original.id });
     const revision = (await h.transport.read(context, signal)).revision;
+    await expect(
+      h.transport.execute(
+        context,
+        {
+          mutationId: "unchanged",
+          baseRevision: revision,
+          intent: {
+            operation: "catalogue.update",
+            entity: { entity: "activities", id: activity.id, changes: { kind: activity.kind } },
+          },
+        },
+        signal,
+      ),
+    ).rejects.toMatchObject({ code: "no_change" });
+    expect((await h.transport.read(context, signal)).revision).toBe(revision);
+    await expect(h.transport.lookup(context, "unchanged", signal)).resolves.toEqual({
+      status: "unknown",
+      mutationId: "unchanged",
+    });
     const intent = {
       operation: "catalogue.update",
       entity: { entity: "activities", id: activity.id, changes: { name: "Gotham planning", kind: activity.kind } },

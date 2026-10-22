@@ -310,6 +310,8 @@ function apply(data: AppData, companyId: string, intent: PlanningIntent, groups:
       refetch =
         ((entity === "clients" || entity === "projects") && ("isPrivate" in changes || "codeName" in changes)) ||
         (entity === "activities" && "kind" in changes);
+      if (refetch && !Object.keys(changes).some((field) => previous[field] !== current[field]))
+        throw new PlanningControllerError("The operation does not change planning data.", "no_change", 400);
       if (entity === "activities" && "kind" in changes && changes.kind !== "project") {
         for (const row of rows(data, "allocations"))
           if (row.activityId === id && row.projectId !== null) patch(data, "allocations", row.id, { projectId: null });
@@ -461,10 +463,6 @@ export function createVolatilePlanningTransport(readData: () => AppData): Planni
         if (error instanceof DomainError) throw new PlanningControllerError(error.message, error.code, 400);
         throw error;
       }
-      const semantic = (data: AppData) =>
-        JSON.stringify(data, (key, value: unknown) => (key === "updatedAt" ? undefined : value));
-      if (semantic(before) === semantic(after))
-        throw new PlanningControllerError("The operation does not change planning data.", "no_change", 400);
       if (result.clearsRestoration) {
         const count = [...groups.values()]
           .filter((group) => group.companyId === context.companyId)

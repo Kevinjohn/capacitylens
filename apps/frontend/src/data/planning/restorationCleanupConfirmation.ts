@@ -7,7 +7,7 @@ const emit = () => {
 
 /** Opens one cleanup decision; context cancellation releases it without authorizing a retry. */
 export function requestRestorationCleanup(count: number, signal: AbortSignal): Promise<boolean> {
-  if (signal.aborted || pending) return Promise.resolve(false);
+  if (signal.aborted || pending || listeners.size === 0) return Promise.resolve(false);
   return new Promise((resolve) => {
     const abort = () => completeRestorationCleanup(false);
     pending = { count, resolve, detach: () => signal.removeEventListener("abort", abort) };

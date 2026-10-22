@@ -44,7 +44,7 @@ describe("ProjectForm", () => {
     await user.click(screen.getByRole("switch", { name: "Use code name" }));
     await user.type(screen.getByLabelText("Code name"), "Nightwatch");
     await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(await screen.findByRole("alertdialog")).toHaveTextContent("This change clears 1 restorable items");
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent("This change clears 1 restorable item");
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Code name")).toHaveValue("Nightwatch");

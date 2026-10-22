@@ -6,6 +6,9 @@ import { completeRestorationCleanup, requestRestorationCleanup } from "./restora
 
 afterEach(() => completeRestorationCleanup(false));
 describe("Restore cleanup dialog", () => {
+  it("fails closed when no dialog host is mounted", async () => {
+    await expect(requestRestorationCleanup(2, new AbortController().signal)).resolves.toBe(false);
+  });
   it("stays absent without pending items and cancels without authorizing a save", async () => {
     render(<RestorationCleanupDialog />);
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
