@@ -39,7 +39,9 @@ Microsoft sign-in is deferred and GitHub sign-in is retired. Live Google accepta
 with the operator's actual registration; deterministic tests do not prove it.
 
 Keep `CAPACITYLENS_ALLOW_OPEN_SIGNUP` unset unless you intentionally allow open registration.
-All persisted data access still requires a signed-in company member.
+Until the first company exists, the server blocks additional open signup even when this setting is
+enabled. The initial identity still signs in and completes company setup. After setup, this setting
+controls open registration. All persisted data access still requires a signed-in company member.
 
 ## Email
 

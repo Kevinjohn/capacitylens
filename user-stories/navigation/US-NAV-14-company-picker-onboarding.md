@@ -23,6 +23,7 @@ Small agencies need a direct path from installation setup to planning. Keeping t
 ## Acceptance criteria
 
 - ✅ First-company setup is available in the browser to the initial authenticated identity only while the installation has no company or membership. One company-name field creates canonical defaults, Internal client and one active Owner atomically, leaves credentials and admission unchanged, and refuses competing or second initialization. A failed save keeps the draft and visible retry feedback.
+- ✅ Before the first company exists, open signup cannot create a second identity, even when enabled in configuration or requested concurrently. The controlled first identity can sign in and finish company setup. After setup, the configured signup policy applies.
 - ✅ Server company-creation and generic batch write routes are retired and return 404.
 - ✅ Production asks the server for the installation company. Exactly one accessible company opens automatically; zero companies offer first-run setup only to the initial authenticated identity; other identities show the empty access state; multiple stored companies fail closed with an actionable error and no company list.
 - ✅ Production never renders company selection, switching or additional-company creation controls, including during loading and recovery states.

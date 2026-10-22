@@ -183,8 +183,10 @@ This is the short, present-tense record of decisions that constrain future work.
   The current session, absence of companies/memberships and sole-principal identity are checked
   under the transaction lock. Defaults, Internal client, membership, revision and audit commit
   together. Credentials and existing admission remain unchanged. Multiple pre-company identities
-  refuse browser setup rather than assigning ownership to an arbitrary signed-in person; keep open
-  signup disabled until setup is complete. The stopped-server operator initializer remains a
+  refuse browser setup rather than assigning ownership to an arbitrary signed-in person. The server
+  refuses additional open signup until the first company exists, even when open signup is enabled
+  in configuration. Identity creation rechecks this under the transaction lock. The controlled first
+  identity can still sign in and complete setup; afterwards the configured signup policy applies. The stopped-server operator initializer remains a
   recovery option for that limitation, never a normal installation step. No environment variable
   grants company ownership.
 - Each company has exactly one Owner. Ownership moves only by one atomic transfer to an existing

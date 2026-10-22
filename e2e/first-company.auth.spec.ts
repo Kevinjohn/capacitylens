@@ -8,7 +8,7 @@ import { once } from "node:events";
 import { fileURLToPath } from "node:url";
 
 // This journey needs an empty native installation, independently of the shared role fixtures.
-test("native first sign-in creates one company and opens a usable schedule", async ({ page }, testInfo) => {
+test("native first sign-in creates one company and opens a usable schedule", async ({ page, request }, testInfo) => {
   test.setTimeout(90_000);
   const backend = fileURLToPath(new URL("../apps/backend/", import.meta.url));
   expect(existsSync(join(backend, "public/index.html")), "Build and sync the production SPA before this journey.").toBe(
@@ -37,7 +37,7 @@ test("native first sign-in creates one company and opens a usable schedule", asy
     CAPACITYLENS_SETUP_TOKEN: token,
     CAPACITYLENS_PASSWORD_BREACH_CHECK: "false",
     CAPACITYLENS_CREATE_ADMIN_ADMIN: "false",
-    CAPACITYLENS_ALLOW_OPEN_SIGNUP: "false",
+    CAPACITYLENS_ALLOW_OPEN_SIGNUP: "true",
     CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: "",
     CAPACITYLENS_BACKUP_DIR: "",
   };
@@ -74,6 +74,17 @@ test("native first sign-in creates one company and opens a usable schedule", asy
     await page.getByTestId("owner-setup-token").fill(token);
     await page.getByTestId("owner-setup-submit").click();
     await expect(page.getByTestId("company-setup")).toBeVisible();
+    const additionalIdentity = {
+      name: "Clark Kent",
+      email: "clark@wayne.example",
+      password: "first-company-teammate-password-2026",
+    };
+    const prematureSignup = await request.post(`${origin}/api/auth/sign-up`, {
+      data: additionalIdentity,
+      headers: { "x-capacitylens-setup-token": token, "sec-fetch-site": "same-origin" },
+    });
+    expect(prematureSignup.status()).toBe(403);
+    expect((await prematureSignup.json()).code).toBe("SIGN_UP_CLOSED");
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
     await page.getByLabel("Email", { exact: true }).fill("bruce@wayne.example");
     await page.getByLabel("Password", { exact: true }).fill("first-company-password-2026");
@@ -102,6 +113,11 @@ test("native first sign-in creates one company and opens a usable schedule", asy
       headers: { "sec-fetch-site": "same-origin" },
     });
     expect(duplicate.status()).toBe(409);
+    const permittedSignup = await request.post(`${origin}/api/auth/sign-up`, {
+      data: additionalIdentity,
+      headers: { "sec-fetch-site": "same-origin" },
+    });
+    expect(permittedSignup.status()).toBe(201);
     await page.reload();
     await expect(page.getByTestId("app-sidebar")).toBeVisible();
     await expect(page.getByTestId("company-setup")).toHaveCount(0);

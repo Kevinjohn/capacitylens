@@ -17,7 +17,8 @@ new features and **patch** versions carry fixes.
 
 - Native first-run setup now lets the sole signed-in identity enter a company name in the browser
   and become its Owner without stopping the service. Setup refuses existing company access or
-  multiple pre-company identities and leaves credentials and admission unchanged.
+  multiple pre-company identities and leaves credentials and admission unchanged. Additional open
+  signup is blocked until the first company exists, even when enabled in configuration.
 - Privacy, code-name and activity-kind changes ask once before clearing pending company-wide
   deleted-item recovery copies, showing the number affected and skipping the warning when none
   are lost. Cancellation keeps the draft and recovery copies unchanged.

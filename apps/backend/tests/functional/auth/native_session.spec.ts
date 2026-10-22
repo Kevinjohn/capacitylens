@@ -254,7 +254,11 @@ test.group('native password sessions', (group) => {
   test('concurrent first-owner setup admits one credential without an orphan', async ({
     client,
     assert,
+    cleanup,
   }) => {
+    const previous = env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP')
+    env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', true)
+    cleanup(() => env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', previous))
     const addresses = ['bruce.wayne@wayne.example', 'clark.kent@wayne.example']
     const attempts = await Promise.all(
       addresses.map((address) =>

@@ -1,4 +1,6 @@
 import { test } from '@japa/runner'
+import { googleSignInUser, GoogleIdentityError } from '#services/auth/google_identity'
+import { withTransaction } from '#services/with_transaction'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
 import limiter from '@adonisjs/limiter/services/main'
@@ -74,6 +76,104 @@ test.group('authenticated first company setup', (group) => {
       .send()
     duplicate.assertStatus(409)
     assert.lengthOf(await db.from('accounts'), 1)
+  })
+
+  test('open signup waits for a company and ignores a reused setup token', async ({
+    client,
+    assert,
+  }) => {
+    const previous = env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP')
+    env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', true)
+    try {
+      const signup = await client
+        .post('/api/auth/sign-up')
+        .header('x-capacitylens-setup-token', token)
+        .json({ ...credentials, name: 'Bruce Wayne' })
+        .send()
+      signup.assertStatus(201)
+      for (const submitted of ['', token]) {
+        const refused = await client
+          .post('/api/auth/sign-up')
+          .header('x-capacitylens-setup-token', submitted)
+          .json({
+            email: 'clark@wayne.example',
+            password: credentials.password,
+            name: 'Clark Kent',
+          })
+          .send()
+        refused.assertStatus(403)
+        assert.equal((refused.body() as unknown as { code: string }).code, 'SIGN_UP_CLOSED')
+      }
+      for (const table of ['users', 'user_session_index', 'adonis_sessions'])
+        assert.lengthOf(await db.from(table), 1)
+      const setup = await asDataOwner(
+        client.post('/api/installation/company'),
+        signup.cookie('adonis-session')!.value
+      )
+        .json({ name: 'Wayne Enterprises' })
+        .send()
+      setup.assertStatus(201)
+      const admitted = await client
+        .post('/api/auth/sign-up')
+        .json({ email: 'clark@wayne.example', password: credentials.password, name: 'Clark Kent' })
+        .send()
+      admitted.assertStatus(201)
+      env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', false)
+      const closed = await client
+        .post('/api/auth/sign-up')
+        .json({
+          email: 'diana@wayne.example',
+          password: credentials.password,
+          name: 'Diana Prince',
+        })
+        .send()
+      closed.assertStatus(403)
+      assert.lengthOf(await db.from('users'), 2)
+    } finally {
+      env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', previous)
+    }
+  })
+
+  test('concurrent Google and password bootstrap leave one principal for company setup', async ({
+    client,
+    assert,
+  }) => {
+    const previous = env.get('CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS')
+    const previousOpen = env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP')
+    env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', true)
+    env.set('CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS', 'clark@wayne.example')
+    try {
+      const [passwordResult, googleResult] = await Promise.all([
+        client
+          .post('/api/auth/sign-up')
+          .header('x-capacitylens-setup-token', token)
+          .json({ ...credentials, name: 'Bruce Wayne' })
+          .send(),
+        withTransaction((trx) =>
+          googleSignInUser(trx, {
+            subject: 'clark-bootstrap',
+            email: 'clark@wayne.example',
+            name: 'Clark Kent',
+          })
+        ).then(
+          () => true,
+          (error: unknown) => {
+            if (!(error instanceof GoogleIdentityError)) throw error
+            return false
+          }
+        ),
+      ])
+      assert.equal(Number(passwordResult.status() === 201) + Number(googleResult), 1)
+      assert.include([201, 403], passwordResult.status())
+      assert.lengthOf(await db.from('users'), 1)
+      assert.lengthOf(await db.from('provider_identities'), googleResult ? 1 : 0)
+      assert.lengthOf(await db.from('user_session_index'), googleResult ? 0 : 1)
+      assert.lengthOf(await db.from('adonis_sessions'), googleResult ? 0 : 1)
+      assert.lengthOf(await db.from('accounts'), 0)
+    } finally {
+      env.set('CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS', previous ?? '')
+      env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', previousOpen)
+    }
   })
 
   test('refuses anonymous setup and malformed or owner-nominating payloads without writes', async ({

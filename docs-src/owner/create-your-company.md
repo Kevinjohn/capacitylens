@@ -40,6 +40,8 @@ the error explains what to do before trying again.
 The company starts with Monday as the first day of the week, Monday–Friday as working days and
 day-based scheduling. It contains the built-in Internal client and no sample scheduling records.
 Setup is available only when your identity is the only sign-in and no company or membership exists.
+The server blocks additional open signup until your company exists, so another signup cannot
+interrupt this first-run setup.
 If multiple identities already exist, ask whoever manages hosting to resolve access. Setup cannot
 create a second company or replace an Owner.
 The temporary [demo](/getting-started/try-the-demo) lets you explore fictional companies without

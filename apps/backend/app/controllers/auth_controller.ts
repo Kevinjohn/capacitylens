@@ -148,7 +148,11 @@ export default class AuthController {
     if (!email || !password || !name || name.length > 200)
       return ctx.response.badRequest({ error: 'Invalid sign-up details.' })
     const usersExist = Boolean(await db.from('users').select('id').first())
-    if (usersExist && !env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP'))
+    if (
+      usersExist &&
+      (!env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP') ||
+        !(await db.from('accounts').select('id').first()))
+    )
       return ctx.response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' })
     if (!usersExist) {
       const configured = env.get('CAPACITYLENS_SETUP_TOKEN')
@@ -168,8 +172,14 @@ export default class AuthController {
     try {
       await withTransaction(async (trx) => {
         await trx.from('account_transaction_lock').where('id', 1).increment('version', 1)
-        if (!usersExist && (await trx.from('users').select('id').first()))
-          throw new SessionAuthorityError('Setup has already completed.')
+        const currentUsersExist = Boolean(await trx.from('users').select('id').first())
+        if (
+          currentUsersExist !== usersExist ||
+          (currentUsersExist &&
+            (!env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP') ||
+              !(await trx.from('accounts').select('id').first())))
+        )
+          throw new SessionAuthorityError('Sign-up is closed.')
         await trx.table('users').insert({
           id,
           email,

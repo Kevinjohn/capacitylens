@@ -75,7 +75,9 @@ accept responses never include it.
    **Create company** (`company-setup-submit`) to become its Owner and open Schedule without
    stopping or restarting the service. Failed setup keeps the name and displays a retryable error.
    Setup creates defaults, Internal client and one active Owner atomically; it leaves credentials
-   and existing admission rules unchanged and refuses any existing company or membership.
+   and existing admission rules unchanged and refuses any existing company or membership. Until
+   the first company exists, the server refuses additional open signup even when configured on;
+   the initial identity can still sign in and finish setup. Afterwards the configured signup policy applies.
    Production does not offer company selection, switching, ordinary additional-company creation or
    in-app company deletion. The server summary supplies the sole installation company; scoped APIs
    still authorize every requested id from the caller's server-side membership. If the summary

@@ -98,7 +98,8 @@ that identity as Owner. There is no server stop, company command or restart duri
 Send the address and setup token separately if someone else will become Owner.
 
 The company starts with Monday, Monday–Friday working days, day-based scheduling and the Internal
-client, without a sample schedule. Keep open signup disabled until company setup is complete.
+client, without a sample schedule. The server blocks additional open signup until the first company
+exists, even when open signup is enabled in configuration.
 Remove the first-run token from the private environment at the next routine configuration change;
 the server refuses its reuse once an identity exists.
 
