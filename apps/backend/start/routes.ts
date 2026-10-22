@@ -13,14 +13,15 @@ import { registerGoogleRoutes } from '#start/google_routes'
 
 const BatchController = () => import('#controllers/batch_controller')
 const LifecycleController = () => import('#controllers/lifecycle_controller')
-const ImportsController = () => import('#controllers/imports_controller')
+const TransferController = () => import('#controllers/transfer_controller')
 const ExportsController = () => import('#controllers/exports_controller')
 const ExampleDataController = () => import('#controllers/example_data_controller')
 const GettingStartedController = () => import('#controllers/getting_started_controller')
 const CompaniesController = () => import('#controllers/companies_controller')
 
 router.post('/api/batch', [BatchController, 'store']).as('api.batch')
-router.post('/api/import', [ImportsController, 'store']).as('api.import')
+router.post('/api/transfer/preview', [TransferController, 'preview']).as('api.transfer.preview')
+router.post('/api/transfer/apply', [TransferController, 'apply']).as('api.transfer.apply')
 router.get('/api/state', [ExportsController, 'show']).as('api.state')
 router.post('/api/orgs', [CompaniesController, 'storeOrg']).as('api.orgs.store')
 router.post('/api/accounts', [CompaniesController, 'store']).as('api.accounts.store')

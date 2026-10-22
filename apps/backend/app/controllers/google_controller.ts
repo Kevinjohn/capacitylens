@@ -36,6 +36,7 @@ import {
 import { hasCurrentEmailProof } from '#services/admission/joining_policy'
 import { renderAdmissionFailure } from '#services/admission/http'
 import { AdmissionError } from '#services/admission/errors'
+import { actionProofActor, ActionProofError, verifyActionProof } from '#services/auth/action_proof'
 
 function requireGoogle() {
   if (!googleEnabled())
@@ -207,8 +208,54 @@ export default class GoogleController {
       const state = ctx.request.input('state')
       if (typeof state !== 'string' || !state)
         throw new GoogleIdentityError('Google state is missing.', 403, 'GOOGLE_STATE_MISMATCH')
+      if (intent.kind === 'action-proof' && state !== intent.expectedState)
+        throw new GoogleIdentityError(
+          'Google state did not match this action.',
+          403,
+          'GOOGLE_STATE_MISMATCH'
+        )
       const profile = verifiedGoogleProfile(await driver.user())
       if (intent.actorId) await ctx.auth.use('web').authenticate()
+      if (intent.kind === 'action-proof') {
+        await withTransaction(async (trx) => {
+          const proof = await trx
+            .from('action_proofs')
+            .where('id', intent.proofId!)
+            .select('account_id')
+            .first()
+          if (!proof)
+            throw new GoogleIdentityError(
+              'Action confirmation expired.',
+              403,
+              'GOOGLE_REAUTH_DENIED'
+            )
+          const actor = await actionProofActor(ctx, String(proof.account_id), trx)
+          if (actor.userId !== intent.actorId || actor.sessionId !== intent.sessionId)
+            throw new GoogleIdentityError(
+              'Google confirmation session changed.',
+              403,
+              'GOOGLE_REAUTH_DENIED'
+            )
+          const binding = await trx
+            .from('provider_identities')
+            .where({
+              provider: 'google',
+              issuer: GOOGLE_ISSUER,
+              subject: profile.subject,
+              user_id: actor.userId,
+            })
+            .first()
+          if (!binding)
+            throw new GoogleIdentityError(
+              'Google confirmation identity changed.',
+              403,
+              'GOOGLE_REAUTH_DENIED'
+            )
+          await verifyActionProof(trx, intent.proofId!, actor)
+        })
+        clearGoogleIntent(ctx)
+        return redirectTo(ctx, marker(intent.successPath, 'capacitylensActionConfirmed', '1'))
+      }
       if (intent.kind === 'link') {
         await withTransaction((trx) =>
           linkGoogleIdentity(ctx, profile, intent.actorId!, intent.sessionId!, trx)
@@ -260,7 +307,8 @@ export default class GoogleController {
       if (
         !(error instanceof GoogleIdentityError) &&
         !(error instanceof AdmissionError) &&
-        !(error instanceof SessionAuthorityError)
+        !(error instanceof SessionAuthorityError) &&
+        !(error instanceof ActionProofError)
       )
         reportPrivateFailure(
           ctx,
@@ -270,7 +318,8 @@ export default class GoogleController {
       const code =
         error instanceof GoogleIdentityError ||
         error instanceof AdmissionError ||
-        error instanceof SessionAuthorityError
+        error instanceof SessionAuthorityError ||
+        error instanceof ActionProofError
           ? error.code.toLowerCase()
           : 'provider_unavailable'
       const path =

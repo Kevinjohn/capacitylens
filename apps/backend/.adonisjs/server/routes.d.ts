@@ -46,7 +46,8 @@ export type ScannedRoutes = {
     'api.planning.timeOff.repeat': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.settings.update': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.batch': { paramsTuple?: []; params?: {} }
-    'api.import': { paramsTuple?: []; params?: {} }
+    'api.transfer.preview': { paramsTuple?: []; params?: {} }
+    'api.transfer.apply': { paramsTuple?: []; params?: {} }
     'api.state': { paramsTuple?: []; params?: {} }
     'api.orgs.store': { paramsTuple?: []; params?: {} }
     'api.accounts.store': { paramsTuple?: []; params?: {} }
@@ -59,6 +60,8 @@ export type ScannedRoutes = {
     'api.auth.sign-up': { paramsTuple?: []; params?: {} }
     'api.auth.sign-in': { paramsTuple?: []; params?: {} }
     'api.auth.sign-out': { paramsTuple?: []; params?: {} }
+    'api.auth.action-proof.password': { paramsTuple?: []; params?: {} }
+    'api.auth.action-proof.google-start': { paramsTuple?: []; params?: {} }
     'api.auth.provider-start': { paramsTuple?: []; params?: {} }
     'api.auth.request-reset': { paramsTuple?: []; params?: {} }
     'api.auth.reset-password': { paramsTuple?: []; params?: {} }
@@ -171,13 +174,16 @@ export type ScannedRoutes = {
     'api.planning.allocation.repeat': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.timeOff.repeat': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.batch': { paramsTuple?: []; params?: {} }
-    'api.import': { paramsTuple?: []; params?: {} }
+    'api.transfer.preview': { paramsTuple?: []; params?: {} }
+    'api.transfer.apply': { paramsTuple?: []; params?: {} }
     'api.orgs.store': { paramsTuple?: []; params?: {} }
     'api.accounts.store': { paramsTuple?: []; params?: {} }
     'api.example-data': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.auth.sign-up': { paramsTuple?: []; params?: {} }
     'api.auth.sign-in': { paramsTuple?: []; params?: {} }
     'api.auth.sign-out': { paramsTuple?: []; params?: {} }
+    'api.auth.action-proof.password': { paramsTuple?: []; params?: {} }
+    'api.auth.action-proof.google-start': { paramsTuple?: []; params?: {} }
     'api.auth.provider-start': { paramsTuple?: []; params?: {} }
     'api.auth.request-reset': { paramsTuple?: []; params?: {} }
     'api.auth.reset-password': { paramsTuple?: []; params?: {} }

@@ -2,7 +2,8 @@ import type { HttpContext } from '@adonisjs/core/http'
 import type { OwnershipTransferReceipt } from '@capacitylens/shared/account/types'
 import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization'
 import { activeMasquerade } from '#services/auth/masquerade'
-import { assertFreshSession, resolveCurrentActor } from '#services/auth/session_authority'
+import { resolveCurrentActor } from '#services/auth/session_authority'
+import { consumeActionProof } from '#services/auth/action_proof'
 import {
   claimAccountCommand,
   completeAccountCommand,
@@ -28,6 +29,7 @@ export async function transferOwnership(
   ctx: HttpContext,
   accountId: string,
   toUserId: string,
+  proofId: string,
   command: AccountCommandIdentity
 ): Promise<OwnershipTransferReceipt> {
   return withTransaction(async (trx) => {
@@ -38,7 +40,6 @@ export async function transferOwnership(
     if (!account) throw new OwnershipTransferError('Company not found.', 404, 'NOT_FOUND')
     const currentRole = await activeCompanyRole(actor.userId, accountId, trx)
     if (!currentRole) throw new IdentityAuthorityError('Forbidden.')
-    assertFreshSession(actor)
 
     const claim = await claimAccountCommand(trx, {
       actorId: actor.userId,
@@ -75,6 +76,8 @@ export async function transferOwnership(
       )
     if ((await activeCompanyRole(toUserId, accountId, trx)) !== 'admin')
       throw new OwnershipTransferError('Target access is restricted.', 409, 'TARGET_INELIGIBLE')
+
+    await consumeActionProof(trx, actor, proofId, 'transfer-ownership', accountId, { toUserId })
 
     const now = new Date().toISOString()
     const demoted = await trx

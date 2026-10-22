@@ -67,7 +67,10 @@ export interface ApiDefinition {
       }
     }
     batch: typeof routes['api.batch']
-    import: typeof routes['api.import']
+    transfer: {
+      preview: typeof routes['api.transfer.preview']
+      apply: typeof routes['api.transfer.apply']
+    }
     state: typeof routes['api.state']
     orgs: {
       store: typeof routes['api.orgs.store']
@@ -88,6 +91,10 @@ export interface ApiDefinition {
       signUp: typeof routes['api.auth.sign-up']
       signIn: typeof routes['api.auth.sign-in']
       signOut: typeof routes['api.auth.sign-out']
+      actionProof: {
+        password: typeof routes['api.auth.action-proof.password']
+        googleStart: typeof routes['api.auth.action-proof.google-start']
+      }
       providerStart: typeof routes['api.auth.provider-start']
       requestReset: typeof routes['api.auth.request-reset']
       resetPassword: typeof routes['api.auth.reset-password']

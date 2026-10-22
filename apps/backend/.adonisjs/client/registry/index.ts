@@ -258,11 +258,17 @@ const routes = {
     tokens: [{"old":"/api/batch","type":0,"val":"api","end":""},{"old":"/api/batch","type":0,"val":"batch","end":""}],
     types: placeholder as Registry['api.batch']['types'],
   },
-  'api.import': {
+  'api.transfer.preview': {
     methods: ["POST"],
-    pattern: '/api/import',
-    tokens: [{"old":"/api/import","type":0,"val":"api","end":""},{"old":"/api/import","type":0,"val":"import","end":""}],
-    types: placeholder as Registry['api.import']['types'],
+    pattern: '/api/transfer/preview',
+    tokens: [{"old":"/api/transfer/preview","type":0,"val":"api","end":""},{"old":"/api/transfer/preview","type":0,"val":"transfer","end":""},{"old":"/api/transfer/preview","type":0,"val":"preview","end":""}],
+    types: placeholder as Registry['api.transfer.preview']['types'],
+  },
+  'api.transfer.apply': {
+    methods: ["POST"],
+    pattern: '/api/transfer/apply',
+    tokens: [{"old":"/api/transfer/apply","type":0,"val":"api","end":""},{"old":"/api/transfer/apply","type":0,"val":"transfer","end":""},{"old":"/api/transfer/apply","type":0,"val":"apply","end":""}],
+    types: placeholder as Registry['api.transfer.apply']['types'],
   },
   'api.state': {
     methods: ["GET","HEAD"],
@@ -335,6 +341,18 @@ const routes = {
     pattern: '/api/auth/sign-out',
     tokens: [{"old":"/api/auth/sign-out","type":0,"val":"api","end":""},{"old":"/api/auth/sign-out","type":0,"val":"auth","end":""},{"old":"/api/auth/sign-out","type":0,"val":"sign-out","end":""}],
     types: placeholder as Registry['api.auth.sign-out']['types'],
+  },
+  'api.auth.action-proof.password': {
+    methods: ["POST"],
+    pattern: '/api/auth/action-proof/password',
+    tokens: [{"old":"/api/auth/action-proof/password","type":0,"val":"api","end":""},{"old":"/api/auth/action-proof/password","type":0,"val":"auth","end":""},{"old":"/api/auth/action-proof/password","type":0,"val":"action-proof","end":""},{"old":"/api/auth/action-proof/password","type":0,"val":"password","end":""}],
+    types: placeholder as Registry['api.auth.action-proof.password']['types'],
+  },
+  'api.auth.action-proof.google-start': {
+    methods: ["POST"],
+    pattern: '/api/auth/action-proof/google-start',
+    tokens: [{"old":"/api/auth/action-proof/google-start","type":0,"val":"api","end":""},{"old":"/api/auth/action-proof/google-start","type":0,"val":"auth","end":""},{"old":"/api/auth/action-proof/google-start","type":0,"val":"action-proof","end":""},{"old":"/api/auth/action-proof/google-start","type":0,"val":"google-start","end":""}],
+    types: placeholder as Registry['api.auth.action-proof.google-start']['types'],
   },
   'api.auth.provider-start': {
     methods: ["POST"],

@@ -195,6 +195,10 @@ export default class AuthController {
           .from('user_session_index')
           .where({ user_id: actor.userId, session_id: actor.sessionId })
           .delete()
+        await trx
+          .from('action_proofs')
+          .where({ user_id: actor.userId, session_id: actor.sessionId })
+          .delete()
       })
       try {
         await ctx.auth.use('web').logout()

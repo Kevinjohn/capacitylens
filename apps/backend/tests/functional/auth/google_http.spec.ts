@@ -7,6 +7,7 @@ import db from '@adonisjs/lucid/services/db'
 import { createHash } from 'node:crypto'
 import { googleSignInUser } from '#services/auth/google_identity'
 import { withTransaction } from '#services/with_transaction'
+import { asDataOwner, resetAuthenticatedData } from '../../helpers/authenticated_data_fixture.js'
 
 function browserRequest<
   T extends {
@@ -753,5 +754,138 @@ test.group('Google browser entry', (group) => {
       .json({ email: 'bruce.wayne@wayne.example', password: 'batman-secret-2026' })
       .send()
     password.assertStatus(404)
+  })
+
+  test('verifies only the linked Google subject for the pending action without rotating the native session', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    const priorSetup = env.get('CAPACITYLENS_SETUP_TOKEN')
+    env.set('CAPACITYLENS_SETUP_TOKEN', 'capacitylens-japa-setup-token-0123456789abcdef')
+    cleanup(() => env.set('CAPACITYLENS_SETUP_TOKEN', priorSetup))
+    const { cookie, userId } = await resetAuthenticatedData(client)
+    const now = new Date().toISOString()
+    await db.table('provider_identities').insert({
+      id: 'google-bruce-action',
+      user_id: userId,
+      provider: 'google',
+      issuer: 'https://accounts.google.com',
+      subject: 'google-subject-bruce',
+      email: 'bruce.wayne@wayne.example',
+      created_at: now,
+      updated_at: now,
+    })
+    const indexedBefore = await db.from('user_session_index').where('user_id', userId)
+    const callbackURL = new URL('/settings', env.get('APP_URL')).href
+    const start = () =>
+      asDataOwner(client.post('/api/auth/action-proof/google-start'), cookie)
+        .json({
+          action: 'anonymise',
+          accountId: 'a-studio',
+          intent: {},
+          callbackURL,
+          errorCallbackURL: callbackURL,
+        })
+        .send()
+    const first = await start()
+    first.assertStatus(200)
+    const firstProof = (first.body() as { proofId: string }).proofId
+    const firstState = new URL((first.body() as { url: string }).url).searchParams.get('state')!
+    assert.include((first.body() as { url: string }).url, 'prompt=select_account')
+    await withGoogleHttp(
+      { sub: 'different-subject', email: 'bruce.wayne@wayne.example', email_verified: true },
+      async () => {
+        const denied = await browserRequest(
+          client.get(`/api/auth/callback/google?state=${firstState}&code=test-code`).redirects(0),
+          {
+            session: first.cookie('adonis-session')!.value,
+            state: first.cookie('google_oauth_state')!.value,
+          }
+        ).send()
+        denied.assertStatus(302)
+        assert.include(denied.header('location'), 'google_reauth_denied')
+      }
+    )
+    assert.isNull((await db.from('action_proofs').where('id', firstProof).first())?.verified_at)
+
+    const second = await start()
+    second.assertStatus(200)
+    const secondProof = (second.body() as { proofId: string }).proofId
+    const secondState = new URL((second.body() as { url: string }).url).searchParams.get('state')!
+    await withGoogleHttp(
+      { sub: 'google-subject-bruce', email: 'bruce.wayne@wayne.example', email_verified: true },
+      async () => {
+        const accepted = await browserRequest(
+          client.get(`/api/auth/callback/google?state=${secondState}&code=test-code`).redirects(0),
+          {
+            session: second.cookie('adonis-session')!.value,
+            state: second.cookie('google_oauth_state')!.value,
+          }
+        ).send()
+        accepted.assertStatus(302)
+        assert.include(accepted.header('location'), 'capacitylensActionConfirmed=1')
+      }
+    )
+    assert.isNotNull((await db.from('action_proofs').where('id', secondProof).first())?.verified_at)
+    assert.isNull((await db.from('action_proofs').where('id', firstProof).first())?.verified_at)
+    const indexedAfter = await db.from('user_session_index').where('user_id', userId)
+    assert.lengthOf(indexedAfter, 1)
+    assert.equal(indexedAfter[0]?.session_id, indexedBefore[0]?.session_id)
+    assert.equal(indexedAfter[0]?.authenticated_at, indexedBefore[0]?.authenticated_at)
+  })
+
+  test('a late callback for an earlier Google start cannot verify the newer action proof', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    const priorSetup = env.get('CAPACITYLENS_SETUP_TOKEN')
+    env.set('CAPACITYLENS_SETUP_TOKEN', 'capacitylens-japa-setup-token-0123456789abcdef')
+    cleanup(() => env.set('CAPACITYLENS_SETUP_TOKEN', priorSetup))
+    const { cookie, userId } = await resetAuthenticatedData(client)
+    const now = new Date().toISOString()
+    await db.table('provider_identities').insert({
+      id: 'google-bruce-late',
+      user_id: userId,
+      provider: 'google',
+      issuer: 'https://accounts.google.com',
+      subject: 'google-subject-bruce',
+      email: 'bruce.wayne@wayne.example',
+      created_at: now,
+      updated_at: now,
+    })
+    const callbackURL = new URL('/settings', env.get('APP_URL')).href
+    const start = () =>
+      asDataOwner(client.post('/api/auth/action-proof/google-start'), cookie)
+        .json({
+          action: 'anonymise',
+          accountId: 'a-studio',
+          intent: {},
+          callbackURL,
+          errorCallbackURL: callbackURL,
+        })
+        .send()
+    const first = await start()
+    const second = await start()
+    first.assertStatus(200)
+    second.assertStatus(200)
+    const firstState = new URL((first.body() as { url: string }).url).searchParams.get('state')!
+    const secondProof = (second.body() as { proofId: string }).proofId
+    await withGoogleHttp(
+      { sub: 'google-subject-bruce', email: 'bruce.wayne@wayne.example', email_verified: true },
+      async () => {
+        const late = await browserRequest(
+          client.get(`/api/auth/callback/google?state=${firstState}&code=test-code`).redirects(0),
+          {
+            session: second.cookie('adonis-session')!.value,
+            state: first.cookie('google_oauth_state')!.value,
+          }
+        ).send()
+        late.assertStatus(302)
+        assert.include(late.header('location'), 'google_state_mismatch')
+      }
+    )
+    assert.isNull((await db.from('action_proofs').where('id', secondProof).first())?.verified_at)
   })
 })

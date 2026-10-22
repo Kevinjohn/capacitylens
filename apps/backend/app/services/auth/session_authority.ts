@@ -153,6 +153,7 @@ export async function invalidateUserSessions(
   const ids = rows.map((row) => String(row.session_id))
   if (ids.length) {
     await trx.from('user_session_index').whereIn('session_id', ids).delete()
+    await trx.from('action_proofs').whereIn('session_id', ids).delete()
     // Restoration groups are bound to the invalidated session; their saved rows cascade.
     await trx.from('deleted_groups').whereIn('session_id', ids).delete()
   }

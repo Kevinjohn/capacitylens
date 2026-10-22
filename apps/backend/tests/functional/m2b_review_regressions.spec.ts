@@ -3,8 +3,10 @@ import { resetAuthenticatedClient } from '../helpers/authenticated_data_fixture.
 import { freshDatabase } from '../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
-import { serializeData } from '@capacitylens/shared/data/transfer'
+import { buildBetaExport } from '@capacitylens/shared/data/betaTransfer'
 import { readState } from '#services/state_repository'
+import { withTransaction } from '#services/with_transaction'
+import { getPlanningRevision } from '#services/planning_revision'
 import { interceptChildLoggers } from '../helpers/logger.js'
 
 const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
@@ -83,15 +85,38 @@ test.group('M2b review regressions', (group) => {
     const before = await readState('a-studio', true)
     const incoming = structuredClone(before)
     const template = incoming.disciplines[0]!
-    incoming.disciplines = Array.from({ length: 501 }, (_, index) => ({
-      ...template,
-      id: `d-review-${index}`,
-      name: `Discipline ${index}`,
-    }))
-    const request = () =>
-      trusted(client.post('/api/import'))
-        .json({ accountId: 'a-studio', data: JSON.parse(serializeData(incoming)) })
+    const existingDisciplines = incoming.disciplines
+    const added = 501 - existingDisciplines.length
+    incoming.disciplines = [
+      ...existingDisciplines,
+      ...Array.from({ length: added }, (_, index) => ({
+        ...template,
+        id: `d-review-${index + 1}`,
+        name: `Discipline ${index === added - 1 ? 500 : index + 1}`,
+      })),
+    ]
+    const request = async () => {
+      const accountId = 'a-studio'
+      const document = buildBetaExport(incoming, { accountId, completeness: 'full' })
+      const baseRevision = await withTransaction((trx) => getPlanningRevision(trx, accountId))
+      const issued = await trusted(client.post('/api/auth/action-proof/password'))
+        .json({
+          accountId,
+          action: 'import',
+          intent: { baseRevision, document },
+          password: 'fixture-password-2026',
+        })
         .send()
+      issued.assertStatus(200)
+      return trusted(client.post('/api/transfer/apply'))
+        .json({
+          accountId,
+          document,
+          baseRevision,
+          proofId: (issued.body() as { proofId: string }).proofId,
+        })
+        .send()
+    }
     const accepted = await request()
     accepted.assertStatus(200)
     const committed = await readState('a-studio', true)
@@ -100,6 +125,7 @@ test.group('M2b review regressions', (group) => {
       "CREATE TRIGGER m2b_fail_second_chunk BEFORE INSERT ON disciplines WHEN NEW.name = 'Discipline 500' BEGIN SELECT RAISE(ABORT, 'later chunk failed'); END"
     )
     try {
+      incoming.accounts[0]!.name += ' second import'
       const failed = await request()
       failed.assertStatus(500)
       assert.deepEqual(await readState('a-studio', true), committed)

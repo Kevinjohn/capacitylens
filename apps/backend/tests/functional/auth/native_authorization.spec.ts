@@ -6,6 +6,8 @@ import type { ApiClient } from '@japa/api-client'
 import env from '#start/env'
 import { resetState } from '#services/state_repository'
 import { seed } from '@capacitylens/shared/data/seed'
+import { buildBetaExport } from '@capacitylens/shared/data/betaTransfer'
+import { readState } from '#services/state_repository'
 
 const accountId = 'a-studio'
 const otherAccountId = 'a-loft'
@@ -105,8 +107,12 @@ async function writeDismissal(client: ApiClient, cookie: string) {
 }
 
 async function importSeed(client: ApiClient, cookie: string) {
-  return withSession(trusted(client.post('/api/import')), cookie)
-    .json({ accountId, data: seed() })
+  const document = buildBetaExport(await readState(accountId, true), {
+    accountId,
+    completeness: 'full',
+  })
+  return withSession(trusted(client.post('/api/transfer/apply')), cookie)
+    .json({ accountId, document, baseRevision: 0 })
     .send()
 }
 
@@ -250,7 +256,7 @@ test.group('native authorization and role projections', (group) => {
       )
 
       const importing = await importSeed(client, cookie)
-      assert.equal(importing.status(), role === 'owner' ? 200 : 403, `${role} import`)
+      assert.equal(importing.status(), 403, `${role} import without action proof`)
 
       if (role === 'owner') {
         const reset = await withSession(trusted(client.post('/api/test/reset')), cookie)
@@ -316,7 +322,7 @@ test.group('native authorization and role projections', (group) => {
     }
   })
 
-  test('freshness is exclusive at 15 minutes and ordinary read/write remain available', async ({
+  test('import needs action proof before and after 15 minutes while ordinary read/write remain available', async ({
     client,
     assert,
     cleanup,
@@ -331,7 +337,8 @@ test.group('native authorization and role projections', (group) => {
     try {
       Date.now = () => authenticatedAt + 15 * 60 * 1000 - 1
       const justFresh = await importing()
-      justFresh.assertStatus(200)
+      justFresh.assertStatus(403)
+      assert.equal((justFresh.body() as { code?: string }).code, 'ACTION_PROOF_REQUIRED')
 
       Date.now = () => authenticatedAt + 15 * 60 * 1000
       const staleExport = await stateFor(client, cookie)
@@ -340,7 +347,7 @@ test.group('native authorization and role projections', (group) => {
       staleWrite.assertStatus(200)
       const staleImport = await importing()
       staleImport.assertStatus(403)
-      assert.equal((staleImport.body() as { code?: string }).code, 'SESSION_NOT_FRESH')
+      assert.equal((staleImport.body() as { code?: string }).code, 'ACTION_PROOF_REQUIRED')
     } finally {
       Date.now = realNow
     }

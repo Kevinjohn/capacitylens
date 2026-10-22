@@ -511,16 +511,28 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/batch_controller').default['store']>>>
     }
   }
-  'api.import': {
+  'api.transfer.preview': {
     methods: ["POST"]
-    pattern: '/api/import'
+    pattern: '/api/transfer/preview'
     types: {
       body: {}
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['store']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['store']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['preview']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['preview']>>>
+    }
+  }
+  'api.transfer.apply': {
+    methods: ["POST"]
+    pattern: '/api/transfer/apply'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['apply']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['apply']>>>
     }
   }
   'api.state': {
@@ -665,6 +677,30 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signOut']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signOut']>>>
+    }
+  }
+  'api.auth.action-proof.password': {
+    methods: ["POST"]
+    pattern: '/api/auth/action-proof/password'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/action_proofs_controller').default['password']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/action_proofs_controller').default['password']>>>
+    }
+  }
+  'api.auth.action-proof.google-start': {
+    methods: ["POST"]
+    pattern: '/api/auth/action-proof/google-start'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/action_proofs_controller').default['googleStart']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/action_proofs_controller').default['googleStart']>>>
     }
   }
   'api.auth.provider-start': {

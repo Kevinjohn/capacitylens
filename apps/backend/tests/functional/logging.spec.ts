@@ -253,7 +253,7 @@ test.group('general HTTP logging privacy', (group) => {
     assert.notInclude(output, secret)
   })
 
-  test('serializes logged import parser errors without private messages or stacks', async ({
+  test('rejects transfer parser input without logging private messages or stacks', async ({
     client,
     assert,
   }) => {
@@ -261,15 +261,14 @@ test.group('general HTTP logging privacy', (group) => {
     const secret = 'SENTINEL_IMPORT_PARSER_VALUE'
     const { output, result } = await captureLogs(() =>
       client
-        .post('/api/import')
+        .post('/api/transfer/apply')
         .header('sec-fetch-site', 'same-origin')
-        .json({ accountId: 'a-studio', data: { secret } })
+        .json({ accountId: 'a-studio', document: { secret }, baseRevision: 0 })
         .send()
     )
 
     assert.equal(result.status(), 400)
-    assert.include(output, 'Import data rejected')
-    assert.include(output, '"err":{"category":"unexpected"}')
+    assert.include(output, '/api/transfer/apply')
     assert.notInclude(output, secret)
     assert.notInclude(output, 'stack')
   })
