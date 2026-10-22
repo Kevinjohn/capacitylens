@@ -37,9 +37,9 @@ describe("named lifecycle actions", () => {
       await result.current.archive("clients", "c-1");
       await result.current.unarchive("clients", "c-1");
     });
-    expect(send.mock.calls.map(([command]) => command.intent)).toEqual([
-      { operation: "catalogue.archive", entity: { entity: "clients", id: "c-1" } },
-      { operation: "catalogue.unarchive", entity: { entity: "clients", id: "c-1" } },
+    expect(send.mock.calls.map(([command]) => command)).toEqual([
+      { intent: { operation: "catalogue.archive", entity: { entity: "clients", id: "c-1" } }, inverse: null },
+      { intent: { operation: "catalogue.unarchive", entity: { entity: "clients", id: "c-1" } }, inverse: null },
     ]);
     expect(fetch).not.toHaveBeenCalled();
   });
