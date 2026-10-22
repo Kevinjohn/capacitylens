@@ -159,9 +159,9 @@ This is the short, present-tense record of decisions that constrain future work.
 - A verified provider email that matches an unused invitation records invitation evidence at
   account creation. Identities are otherwise never merged by email.
 - Sessions follow the kit's idle expiry, configured once. Ownership transfer, whole-company import
-  and anonymisation require proof for each action; a time-based fresh-session window cannot replace
+  and whole-company anonymisation require proof for each action; a time-based fresh-session window cannot replace
   it. Other sensitive actions retain their native fresh-session gates.
-- Ownership transfer, whole-company import and anonymisation use a single-use proof bound to the
+- Ownership transfer, whole-company import and whole-company anonymisation use a single-use proof bound to the
   real principal, native session, company and exact operation. The proof is spent in the same
   transaction as the change. Password proof verifies the current credential; linked Google proof
   verifies the stable Google identity through an interactive account-selection journey. That

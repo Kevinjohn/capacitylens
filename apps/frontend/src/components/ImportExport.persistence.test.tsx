@@ -58,6 +58,26 @@ function importedSlice(): AppData {
   });
 }
 
+function publishParkedClient(name: string): void {
+  useStore.setState((state) => ({
+    data: {
+      ...state.data,
+      clients: [
+        ...state.data.clients,
+        {
+          ...NULLABLE_FIELDS.clients,
+          id: `client-${name.replaceAll(" ", "-")}`,
+          accountId: DEFAULT_ACCOUNT_ID,
+          name,
+          color: "#16a34a",
+          createdAt: TS,
+          updatedAt: TS,
+        },
+      ],
+    },
+  }));
+}
+
 function stringMatching(pattern: RegExp): unknown {
   return expect.stringMatching(pattern);
 }
@@ -113,7 +133,7 @@ async function dropsParkedEditDuringCommittedImport(): Promise<void> {
   await chooseAndConfirmImport();
   await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
 
-  useStore.getState().addClient({ name: "Parked during import", color: "#dc2626" });
+  publishParkedClient("Parked during import");
   await new Promise((resolve) => setTimeout(resolve, 0));
   expect(saveAll).not.toHaveBeenCalled();
 
@@ -136,7 +156,7 @@ async function dropsParkedEditDuringCommittedImport(): Promise<void> {
   expect(saveAll).not.toHaveBeenCalled();
 
   // A later ordinary edit must not smuggle the dropped pre-import edit back into persistence.
-  useStore.getState().addClient({ name: "After import", color: "#16a34a" });
+  publishParkedClient("After import");
   await waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
   const saved = savedData(saveAll);
   expect(saved.clients.map((client) => client.name)).toContain("Imported client");
@@ -144,7 +164,7 @@ async function dropsParkedEditDuringCommittedImport(): Promise<void> {
   expect(saved.clients.map((client) => client.name)).not.toContain("Parked during import");
 }
 
-async function reschedulesParkedEditDuringZeroRecordImport(): Promise<void> {
+async function reschedulesParkedEditDuringUnchangedImport(): Promise<void> {
   let finishImport!: (response: Response) => void;
   const fetchMock = vi.fn(
     () =>
@@ -158,12 +178,12 @@ async function reschedulesParkedEditDuringZeroRecordImport(): Promise<void> {
   await chooseAndConfirmImport();
   await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
 
-  useStore.getState().addClient({ name: "Keep after refused import", color: "#16a34a" });
+  publishParkedClient("Keep after unchanged import");
   await new Promise((resolve) => setTimeout(resolve, 0));
   expect(saveAll).not.toHaveBeenCalled();
 
   finishImport(
-    new Response(JSON.stringify({ imported: 0, skipped: 1 }), {
+    new Response(JSON.stringify({ imported: 1, changed: false, revision: 1 }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     }),
@@ -171,12 +191,9 @@ async function reschedulesParkedEditDuringZeroRecordImport(): Promise<void> {
 
   await waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
   const saved = savedData(saveAll);
-  expect(saved.clients.map((client) => client.name)).toContain("Keep after refused import");
+  expect(saved.clients.map((client) => client.name)).toContain("Keep after unchanged import");
   expect(onPersistenceError.mock.calls.some(([error]) => error instanceof ReloadDiscardedEditError)).toBe(false);
-  expect(useStore.getState().notice).toMatchObject({
-    tone: "error",
-    message: stringMatching(/no records imported/i),
-  });
+  expect(useStore.getState().notice).toMatchObject({ message: stringMatching(/Import complete/i) });
 }
 
 describe("ImportExport with the real persistence coordinator", () => {
@@ -188,7 +205,7 @@ describe("ImportExport with the real persistence coordinator", () => {
     fireEvent.click(screen.getByRole("button", { name: "Confirm twice" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
 
-    useStore.getState().addClient({ name: "Parked during import", color: "#dc2626" });
+    publishParkedClient("Parked during import");
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(saveAll).not.toHaveBeenCalled();
   });
@@ -197,7 +214,7 @@ describe("ImportExport with the real persistence coordinator", () => {
     await dropsParkedEditDuringCommittedImport();
   });
 
-  it("re-schedules an edit parked during a zero-record import", async () => {
-    await reschedulesParkedEditDuringZeroRecordImport();
+  it("re-schedules an edit parked during an unchanged import", async () => {
+    await reschedulesParkedEditDuringUnchangedImport();
   });
 });

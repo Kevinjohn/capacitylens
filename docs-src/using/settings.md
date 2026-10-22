@@ -171,7 +171,8 @@ and record count, then select **Replace data**. In a signed-in installation, con
 import with your password or linked Google identity. A recent sign-in alone is not enough. A
 password confirmation is bound to this file and company; Google confirmation checks the linked
 Google identity on return. Cancel leaves the company unchanged. If the company changed since the
-preview, preview again before retrying.
+preview, preview again before retrying. After returning from Google, choose the same file again;
+the browser does not keep its contents during the confirmation journey.
 
 ### Beta transfer contract {#beta-transfer-contract}
 

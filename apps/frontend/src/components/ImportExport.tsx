@@ -213,8 +213,7 @@ function confirmLocalImport(
         ...prepared.data[key],
       ];
     }
-    useStore.getState().replaceAll(next);
-    useStore.setState({ past: [], future: [] });
+    useStore.getState().replaceAfterDemoImport(next);
     setNotice(buildImportedMessage(prepared.imported, 0));
   } catch (error) {
     setNotice(resolveErrorMessage(error) || m.data_import_failed({ status: 0 }), "error");
@@ -297,11 +296,16 @@ export function ImportExport() {
   const [previewBusy, setPreviewBusy] = useState(false);
   const [confirmingAction, setConfirmingAction] = useState(false);
   const [readyProof, setReadyProof] = useState<string | null>(null);
+  const [returnedProof, setReturnedProof] = useState<{ id: string; baseRevision: number } | null>(null);
+  const proofAccountRef = useRef(activeAccountId);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("capacitylensActionConfirmed") !== "1") return;
-    if (!activeAccountId) return;
     const saved = sessionStorage.getItem(PENDING_PROOF_KEY);
+    if (new URLSearchParams(window.location.search).get("capacitylensActionConfirmed") !== "1") {
+      if (saved) sessionStorage.removeItem(PENDING_PROOF_KEY);
+      return;
+    }
+    if (!activeAccountId) return;
     if (!saved) return;
     const timer = window.setTimeout(() => {
       sessionStorage.removeItem(PENDING_PROOF_KEY);
@@ -315,23 +319,26 @@ export function ImportExport() {
           typeof value !== "object" ||
           !("accountId" in value) ||
           value.accountId !== activeAccountId ||
-          !("document" in value) ||
           !("baseRevision" in value) ||
           !Number.isSafeInteger(value.baseRevision) ||
           !("proofId" in value) ||
           typeof value.proofId !== "string"
         )
           throw new Error("Import confirmation could not be resumed.");
-        const document = parseBetaExport(JSON.stringify(value.document));
-        setPendingImport({ accountId: activeAccountId, document, name: "CapacityLens transfer" });
-        setPreviewRevision(value.baseRevision as number);
-        setReadyProof(value.proofId);
+        setReturnedProof({ id: value.proofId, baseRevision: value.baseRevision as number });
       } catch {
         setNotice(m.data_import_failed({ status: 0 }), "error");
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [activeAccountId, setNotice, setPendingImport]);
+  }, [activeAccountId, setNotice]);
+
+  useEffect(() => {
+    if (proofAccountRef.current === activeAccountId) return;
+    proofAccountRef.current = activeAccountId;
+    setReturnedProof(null);
+    setReadyProof(null);
+  }, [activeAccountId]);
 
   const continuePreview = async () => {
     if (!pendingImport || !activeAccountId) return;
@@ -339,6 +346,9 @@ export function ImportExport() {
       setPreviewRevision(0);
       return;
     }
+    const selection = selectionRef.current;
+    const isCurrent = () =>
+      selectionRef.current === selection && useStore.getState().activeAccountId === activeAccountId;
     setPreviewBusy(true);
     try {
       const response = await apiFetch(`${API_BASE}/api/transfer/preview`, {
@@ -357,11 +367,21 @@ export function ImportExport() {
         !Number.isSafeInteger(result.baseRevision)
       )
         throw new Error(m.data_import_failed({ status: 0 }));
-      setPreviewRevision(result.baseRevision as number);
+      if (!isCurrent()) return;
+      const revision = result.baseRevision as number;
+      if (returnedProof && returnedProof.baseRevision !== revision) {
+        setReturnedProof(null);
+        throw new Error("The company changed. Preview the current data again and confirm a new import.");
+      }
+      setPreviewRevision(revision);
+      if (returnedProof) {
+        setReadyProof(returnedProof.id);
+        setReturnedProof(null);
+      }
     } catch (error) {
-      setNotice(resolveErrorMessage(error), "error");
+      if (isCurrent()) setNotice(resolveErrorMessage(error), "error");
     } finally {
-      setPreviewBusy(false);
+      if (isCurrent()) setPreviewBusy(false);
     }
   };
 
@@ -395,16 +415,27 @@ export function ImportExport() {
         onExport={() => void exportData()}
         onFile={(file) => {
           setPreviewRevision(null);
-          setReadyProof(null);
+          setPreviewBusy(false);
+          if (!returnedProof) setReadyProof(null);
           void readFile(file);
         }}
       />
+
+      {returnedProof && <p role="status">{m.data_import_reselect_after_google()}</p>}
 
       {/* The progress dialog stays open until the import and authoritative reload settle. Its no-op dismissal handler prevents Escape or backdrop interaction from exposing a stale slice. */}
       {importBusy && <ImportProgress requiresReload={importRequiresReload} />}
 
       {pendingImport && canImport && previewRevision === null && (
-        <Modal title={m.data_import_confirm_title()} onClose={() => setPendingImport(null)} guardDirty={false}>
+        <Modal
+          title={m.data_import_confirm_title()}
+          onClose={() => {
+            selectionRef.current += 1;
+            setPendingImport(null);
+            setPreviewBusy(false);
+          }}
+          guardDirty={false}
+        >
           {previewBusy ? (
             <p role="status">{m.data_importing_body()}</p>
           ) : (
@@ -422,6 +453,7 @@ export function ImportExport() {
           serverMode={serverMode}
           onConfirm={confirmImport}
           onCancel={() => {
+            selectionRef.current += 1;
             setPendingImport(null);
             setReadyProof(null);
             setPreviewRevision(null);
@@ -443,7 +475,6 @@ export function ImportExport() {
               PENDING_PROOF_KEY,
               JSON.stringify({
                 accountId: activeAccountId,
-                document: pendingImport.document,
                 baseRevision: previewRevision,
                 proofId,
               }),

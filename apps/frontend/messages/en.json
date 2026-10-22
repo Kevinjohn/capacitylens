@@ -967,6 +967,7 @@
   "data_import_unknown_reload_required": "The import result could not be verified. Reload this page before making changes.",
   "data_import_unknown_reloaded": "The import outcome was unknown, so the latest server data was reloaded. Check the imported records before continuing.",
   "data_import_done": "Import complete.",
+  "data_import_reselect_after_google": "Choose the same import file again, preview it, then select Replace data. The file was not kept in this browser while you confirmed your Google account.",
   "data_import_refresh_failed": "The import was applied on the server, but this view couldn't be refreshed — reload the page to see the imported data.",
   "data_importing_title": "Importing data…",
   "data_importing_body": "Replacing this company's data on the server. Don't close this tab.",

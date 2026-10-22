@@ -77,6 +77,11 @@ const completeImport = async (response: Response, context: ImportContext): Promi
     await reportCommittedImport(context, m.data_import_done());
     return;
   }
+  if (isRecord(body) && body.changed === false) {
+    context.transaction.committed = false;
+    context.setNotice(m.data_import_done());
+    return;
+  }
   if (imported === 0) {
     context.transaction.committed = false;
     const why = buildSkippedMessage(skipped, { one: m.data_why_skipped_one, other: m.data_why_skipped_other });

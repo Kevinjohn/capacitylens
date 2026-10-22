@@ -374,7 +374,7 @@ function changed(
 /** Executes the same typed planning intents in page memory; reload resets the demo. */
 export function createVolatilePlanningTransport(readData: () => AppData): PlanningTransport {
   const companies = new Map<string, Company>();
-  const commitments = new Map<string, { revision: number; restorationGroupId?: string }>();
+  const commitments = new Map<string, { companyId: string; revision: number; restorationGroupId?: string }>();
   const groups = new Map<string, Group>();
   const current = (companyId: string): Company => {
     let company = companies.get(companyId);
@@ -385,6 +385,15 @@ export function createVolatilePlanningTransport(readData: () => AppData): Planni
     return company;
   };
   return {
+    resetAfterDemoImport(companyId, data) {
+      const company = current(companyId);
+      company.data = slice(data, companyId);
+      company.revision += 1;
+      company.pendingRefetch = false;
+      for (const [id, group] of groups) if (group.companyId === companyId) groups.delete(id);
+      for (const [id, commitment] of commitments) if (commitment.companyId === companyId) commitments.delete(id);
+      return company.revision;
+    },
     async read(context) {
       const company = current(context.companyId);
       const visible = slice(readData(), context.companyId);
@@ -426,6 +435,7 @@ export function createVolatilePlanningTransport(readData: () => AppData): Planni
       if (result.consumedGroupId) groups.delete(result.consumedGroupId);
       const restorationGroupId = result.replacementGroupId ?? undefined;
       commitments.set(execution.mutationId, {
+        companyId: context.companyId,
         revision: company.revision,
         ...(restorationGroupId ? { restorationGroupId } : {}),
       });
@@ -441,7 +451,14 @@ export function createVolatilePlanningTransport(readData: () => AppData): Planni
     },
     async lookup(_context, mutationId) {
       const commitment = commitments.get(mutationId);
-      return commitment ? { status: "committed", mutationId, ...commitment } : { status: "unknown", mutationId };
+      return commitment
+        ? {
+            status: "committed",
+            mutationId,
+            revision: commitment.revision,
+            ...(commitment.restorationGroupId ? { restorationGroupId: commitment.restorationGroupId } : {}),
+          }
+        : { status: "unknown", mutationId };
     },
   };
 }
