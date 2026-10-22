@@ -9,6 +9,7 @@ import { useScopedData } from "@/store/useScopedData";
 import { useStore } from "@/store/useStore";
 import { Button } from "@/components/ui/button";
 import { SettingsSection } from "./SettingsSection";
+import { CompanyAnonymiseSection } from "./CompanyAnonymiseSection";
 
 // Ignore the infrastructure Internal client when deciding whether the company has user-created content.
 function useCompanyIsEmpty(): boolean {
@@ -72,5 +73,10 @@ function ExampleDataSection() {
 export function SettingsDataSection({ serverMode }: { serverMode: boolean }) {
   const canAddExampleData = useCan("manageMembers");
   const companyIsEmpty = useCompanyIsEmpty();
-  return <>{serverMode && canAddExampleData && companyIsEmpty && <ExampleDataSection />}</>;
+  return (
+    <>
+      {serverMode && canAddExampleData && companyIsEmpty && <ExampleDataSection />}
+      <CompanyAnonymiseSection serverMode={serverMode} />
+    </>
+  );
 }

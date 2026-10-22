@@ -1519,6 +1519,10 @@ replaces the resource's name and role with obfuscated labels, clears its avatar 
 and invalidates local undo history and company restoration groups. The resource, company,
 memberships and planning links remain. Clients, projects and activities have no anonymise action.
 Settings has no deleted-items section or permanent-deletion control.
+The Owner also sees **Anonymise all resources** in Settings. It applies the same scrub to every
+resource in the selected company while retaining company, membership and planning links. In a
+server deployment the Owner confirms the exact action with password or linked Google proof; in
+the editable demo it happens in temporary page memory without login or proof.
 
 ### Generic scoped write privacy
 

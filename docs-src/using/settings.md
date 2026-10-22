@@ -20,7 +20,7 @@ row's question-mark button, **About &lt;section&gt;**, opens a fuller explanatio
 | My display          | Only you, in this browser. Everyone can change it.                                                                     |
 | Company setup       | Everyone. Editors and above change units, working days and date format; only Owners and Admins change Overview access. |
 | Scheduling features | Everyone. Editors and above change the **Company features** switches. A Viewer sees them disabled.                     |
-| Data and support    | Example data, import and export and company details. Actions depend on your role.                      |
+| Data and support    | Example data, import and export, resource anonymisation and company details. Actions depend on your role. |
 
 ![Settings with the Company setup group, full-width choices and compact rows](../screenshots/flows/settings_overview.png)
 
@@ -181,6 +181,14 @@ keeps the IDs in the file and existing member-to-person links, which means every
 must still be present. Another company's data stays in place. An import cannot be undone. Export
 before replacing data if you may need the current version. The temporary demo performs the same
 strict file checks in page memory; refreshing restores the demo seed.
+
+### Anonymise company resources
+
+An Owner can select **Anonymise all resources** to remove every resource's name, role and avatar,
+along with notes on their bookings and time off. The company, members and planning links remain.
+This cannot be undone. A signed-in Owner confirms the exact action with their password or linked
+Google identity. In the editable demo, the same change stays in temporary page memory and does
+not require sign-in. Refreshing resets the demo.
 
 ### Company details {#calendar}
 

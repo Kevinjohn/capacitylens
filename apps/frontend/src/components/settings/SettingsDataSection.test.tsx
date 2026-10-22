@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,6 +6,9 @@ import type { Role } from "@capacitylens/shared/domain/access";
 import { accountClient } from "@/account/accountClient";
 import { PermissionContext } from "@/auth/permissionContext";
 import { refreshActiveAccountSlice } from "@/data/persist";
+import { flushPendingWrites } from "@/data/persist";
+import { apiFetch } from "@/data/requestTimeout";
+import { reloadPage } from "@/lib/reloadPage";
 import { useStore } from "@/store/useStore";
 import {
   DEFAULT_ACCOUNT_ID,
@@ -19,8 +22,17 @@ import { SettingsDataSection } from "./SettingsDataSection";
 
 vi.mock("@/data/persist", () => ({
   refreshActiveAccountSlice: vi.fn(async () => ({ kind: "reloaded" })),
-  flushPendingWrites: vi.fn(),
-  suspendServerWrites: vi.fn(),
+  flushPendingWrites: vi.fn(async () => ({ kind: "clean" })),
+  suspendServerWrites: vi.fn(() => vi.fn()),
+}));
+vi.mock("@/data/requestTimeout", () => ({ apiFetch: vi.fn(), API_BULK_TIMEOUT_MS: 30000 }));
+vi.mock("@/lib/reloadPage", () => ({ reloadPage: vi.fn() }));
+vi.mock("@/auth/ActionProofDialog", () => ({
+  ActionProofDialog: ({ onConfirmed }: { onConfirmed: (id: string) => void }) => (
+    <button type="button" onClick={() => onConfirmed("proof-one")}>
+      Confirm identity
+    </button>
+  ),
 }));
 
 type Props = ComponentProps<typeof SettingsDataSection>;
@@ -102,5 +114,96 @@ describe("Settings example data", () => {
       }),
     );
     expect(refreshActiveAccountSlice).not.toHaveBeenCalled();
+  });
+});
+
+describe("Whole-company anonymisation", () => {
+  it("offers the server action to an Owner, but not an Admin or Editor", () => {
+    const owner = renderSection({ role: "owner" });
+    expect(screen.getByTestId("settings-company-anonymise")).toBeInTheDocument();
+    owner.unmount();
+    const admin = renderSection({ role: "admin" });
+    expect(screen.queryByTestId("settings-company-anonymise")).not.toBeInTheDocument();
+    admin.unmount();
+    renderSection({ role: "editor" });
+    expect(screen.queryByTestId("settings-company-anonymise")).not.toBeInTheDocument();
+  });
+
+  it("scrubs only the selected company's demo resources in one volatile replacement", async () => {
+    const resource = makeResource({ id: "r-private", accountId: DEFAULT_ACCOUNT_ID, name: "Bruce Wayne" });
+    const foreign = makeResource({ id: "r-foreign", accountId: "a-loft", name: "Tony Stark" });
+    const allocation = makeAllocation({
+      id: "al-private",
+      accountId: DEFAULT_ACCOUNT_ID,
+      resourceId: resource.id,
+      note: "Private note",
+    });
+    const foreignAllocation = makeAllocation({
+      id: "al-foreign",
+      accountId: "a-loft",
+      resourceId: foreign.id,
+      note: "Foreign note",
+    });
+    useStore.setState((state) => ({
+      data: { ...state.data, resources: [resource, foreign], allocations: [allocation, foreignAllocation] },
+    }));
+    renderSection({ serverMode: false });
+    await userEvent.setup().click(screen.getByRole("button", { name: "Anonymise all resources" }));
+    const observed: string[] = [];
+    const unsubscribe = useStore.subscribe((state) => {
+      observed.push(state.data.resources.find((row) => row.id === resource.id)?.name ?? "missing");
+    });
+    await userEvent
+      .setup()
+      .click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
+    const data = useStore.getState().data;
+    expect(data.resources.find((row) => row.id === resource.id)?.name).toMatch(/^Removed person/);
+    expect(data.resources.find((row) => row.id === foreign.id)).toEqual(foreign);
+    expect(data.allocations.find((row) => row.id === foreignAllocation.id)).toEqual(foreignAllocation);
+    expect(data.allocations.find((row) => row.id === allocation.id)?.note).toBeNull();
+    expect(useStore.getState().past).toEqual([]);
+    expect(apiFetch).not.toHaveBeenCalled();
+    expect(observed.length).toBeGreaterThan(0);
+    expect(observed.every((name) => name.startsWith("Removed person"))).toBe(true);
+    unsubscribe();
+  });
+
+  it("invalidates a deleted booking's restoration handle and Undo after the demo scrub", async () => {
+    const resource = makeResource({ id: "r-private", accountId: DEFAULT_ACCOUNT_ID });
+    const allocation = makeAllocation({
+      id: "al-private",
+      accountId: DEFAULT_ACCOUNT_ID,
+      resourceId: resource.id,
+      note: "Private note",
+    });
+    useStore.setState((state) => ({
+      data: { ...state.data, resources: [resource], allocations: [allocation] },
+    }));
+    await useStore.getState().deleteAllocation(allocation.id);
+    expect(useStore.getState().planning.history.past.length).toBeGreaterThan(0);
+    renderSection({ serverMode: false });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
+    expect(useStore.getState().planning.history.past).toEqual([]);
+    await useStore.getState().undoPlanning();
+    expect(useStore.getState().data.allocations).toEqual([]);
+  });
+
+  it("sends a bound proof to the named server endpoint after pending writes settle", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(new Response(null, { status: 204 }));
+    renderSection({ role: "owner" });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(screen.getByRole("button", { name: "Confirm identity" }));
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledOnce());
+    expect(flushPendingWrites).toHaveBeenCalledOnce();
+    expect(apiFetch).toHaveBeenCalledWith(
+      expect.stringMatching(new RegExp(`/api/accounts/${DEFAULT_ACCOUNT_ID}/anonymise$`)),
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ proofId: "proof-one" }) }),
+      expect.any(Number),
+    );
+    expect(reloadPage).toHaveBeenCalledOnce();
   });
 });

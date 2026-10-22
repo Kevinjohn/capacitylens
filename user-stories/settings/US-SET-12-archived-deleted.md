@@ -17,6 +17,9 @@ anonymise a resource when its identifying details must be removed while its plan
 - A resource's **Anonymise** action asks for confirmation. After confirmation, the resource stays
   in the company with an obfuscated name and role, no avatar, and no dependent allocation or
   time-off notes. Undo cannot restore those personal details.
+- An Owner can anonymise every resource in the company from Settings. The company, memberships
+  and planning links remain. A signed-in Owner confirms this exact action with a fresh proof;
+  the editable demo applies it in page memory without sign-in.
 - Clients, projects and activities can be archived and restored. They have no anonymise action.
 - An Editor may archive and restore through planning controls but cannot anonymise a resource.
   Viewers cannot edit. The built-in **Internal** client cannot be archived.
