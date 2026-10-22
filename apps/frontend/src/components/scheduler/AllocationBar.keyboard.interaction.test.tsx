@@ -17,7 +17,7 @@ import {
   settlePlanning,
 } from "./__tests__/allocationBarInteractionTestKit";
 
-beforeEach(() => resetStoreWithAccount());
+beforeEach(async () => resetStoreWithAccount());
 afterEach(() => vi.restoreAllMocks());
 
 function registerViewerAndAnnotationPopoverTests() {
@@ -297,7 +297,7 @@ function registerKeyboardMovementTests() {
 
   it("rejects and announces a keyboard move beyond the person's availability", async () => {
     const allocation = await seedAllocation();
-    useStore.getState().updateResource(allocation.resourceId, { lastAvailableDate: "2026-06-03" });
+    await useStore.getState().updateResource(allocation.resourceId, { lastAvailableDate: "2026-06-03" });
     render(<AllocationBar bar={barFor(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });

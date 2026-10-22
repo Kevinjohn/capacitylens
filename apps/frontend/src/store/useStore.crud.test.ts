@@ -34,24 +34,24 @@ const unflaggedDraft = { ...personDraft };
 delete unflaggedDraft.isFavourite;
 
 function registerStoreCrudEntity1(): void {
-  it("accounts: update", () => {
+  it("accounts: update", async () => {
     const account = requireValue(s().data.accounts[0], "account");
-    s().updateAccount(account.id, { name: "Renamed company" });
+    await s().updateAccount(account.id, { name: "Renamed company" });
     expect(s().data.accounts[0]?.name).toBe("Renamed company");
     expectRevisionAdvanced(account, requireValue(s().data.accounts[0], "updated account"));
   });
 }
 
 function registerStoreCrudEntity2(): void {
-  it("accounts: defaults, stores and validates company working days", () => {
+  it("accounts: defaults, stores and validates company working days", async () => {
     const account = requireValue(s().data.accounts[0], "account");
-    s().updateAccount(account.id, { workingDays: [1, 3, 5] });
+    await s().updateAccount(account.id, { workingDays: [1, 3, 5] });
     expect(s().data.accounts[0]?.workingDays).toEqual([1, 3, 5]);
 
-    expect(() => s().updateAccount(account.id, { workingDays: [] })).toThrow(/at least one working day/i);
+    await expect(s().updateAccount(account.id, { workingDays: [] })).rejects.toThrow(/at least one working day/i);
     expect(s().data.accounts[0]?.workingDays).toEqual([1, 3, 5]);
 
-    expect(() => s().updateAccount(account.id, { workingDays: [1, 9] as Resource["workingDays"] })).toThrow(
+    await expect(s().updateAccount(account.id, { workingDays: [1, 9] as Resource["workingDays"] })).rejects.toThrow(
       /working day/i,
     );
     expect(s().data.accounts[0]?.workingDays).toEqual([1, 3, 5]);
@@ -72,21 +72,21 @@ function registerStoreCrudEntity2(): void {
       }),
     ).toThrow(/working day/i);
 
-    s().updateAccount(account.id, { workingDays: [2, 4] });
-    s().undo();
-    expect(s().data.accounts[0]?.workingDays).toEqual([1, 3, 5]);
-    s().redo();
-    expect(s().data.accounts[0]?.workingDays).toEqual([2, 4]);
+    await s().updateAccount(account.id, { workingDays: [2, 4] });
+    await s().undoPlanning();
+    expect(s().data.accounts.find((candidate) => candidate.id === account.id)?.workingDays).toEqual([1, 3, 5]);
+    await s().redoPlanning();
+    expect(s().data.accounts.find((candidate) => candidate.id === account.id)?.workingDays).toEqual([2, 4]);
   });
 }
 
 function registerStoreCrudEntity3(): void {
-  it("disciplines: add / update / delete", () => {
-    const d = requireCreated(s().addDiscipline({ name: "Design", color: "#1", sortOrder: 0 }));
-    s().updateDiscipline(d.id, { name: "Design 2" });
+  it("disciplines: add / update / delete", async () => {
+    const d = await requireCreated(s().addDiscipline({ name: "Design", color: "#1", sortOrder: 0 }));
+    await s().updateDiscipline(d.id, { name: "Design 2" });
     expect(s().data.disciplines[0]?.name).toBe("Design 2");
     expectRevisionAdvanced(d, requireValue(s().data.disciplines[0], "updated discipline"));
-    s().deleteDiscipline(d.id);
+    await s().deleteDiscipline(d.id);
     expect(s().data.disciplines).toHaveLength(0);
   });
 
@@ -96,32 +96,32 @@ function registerStoreCrudEntity3(): void {
 }
 
 function registerStoreCrudEntity4(): void {
-  it("clients: add / update", () => {
-    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
-    s().updateClient(c.id, { name: "Ferris 2" });
+  it("clients: add / update", async () => {
+    const c = await requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
+    await s().updateClient(c.id, { name: "Ferris 2" });
     expect(s().data.clients[0]?.name).toBe("Ferris 2");
     expectRevisionAdvanced(c, requireValue(s().data.clients[0], "updated client"));
   });
 }
 
 function registerStoreCrudEntity5(): void {
-  it("projects: add / update", () => {
-    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
-    const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
-    s().updateProject(p.id, { name: "P2" });
+  it("projects: add / update", async () => {
+    const c = await requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
+    const p = await requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
+    await s().updateProject(p.id, { name: "P2" });
     expect(s().data.projects[0]?.name).toBe("P2");
     expectRevisionAdvanced(p, requireValue(s().data.projects[0], "updated project"));
   });
 }
 
 function registerStoreCrudEntity6(): void {
-  it("rejects private clients and projects without a usable code name", () => {
-    expect(() => requireCreated(s().addClient({ name: "Secret", color: "#1", isPrivate: true }))).toThrow(
+  it("rejects private clients and projects without a usable code name", async () => {
+    await expect(requireCreated(s().addClient({ name: "Secret", color: "#1", isPrivate: true }))).rejects.toThrow(
       /private client requires a code name/i,
     );
 
-    const client = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
-    expect(() =>
+    const client = await requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
+    await expect(
       requireCreated(
         s().addProject({
           name: "Secret project",
@@ -131,7 +131,7 @@ function registerStoreCrudEntity6(): void {
           codeName: '""',
         }),
       ),
-    ).toThrow(/private project requires a code name/i);
+    ).rejects.toThrow(/private project requires a code name/i);
 
     expect(s().data.clients).toHaveLength(1);
     expect(s().data.projects).toHaveLength(0);
@@ -139,11 +139,11 @@ function registerStoreCrudEntity6(): void {
 }
 
 function registerStoreCrudEntity7(): void {
-  it("phases: add / update / delete (activities survive)", () => {
-    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
-    const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const ph = requireCreated(s().addPhase({ name: "Discovery", projectId: p.id }));
-    const t = requireCreated(
+  it("phases: add / update / delete (activities survive)", async () => {
+    const c = await requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
+    const p = await requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const ph = await requireCreated(s().addPhase({ name: "Discovery", projectId: p.id }));
+    const t = await requireCreated(
       s().addActivity({
         name: "T",
         kind: "project",
@@ -151,10 +151,10 @@ function registerStoreCrudEntity7(): void {
         phaseId: ph.id,
       }),
     );
-    s().updatePhase(ph.id, { name: "Disco" });
+    await s().updatePhase(ph.id, { name: "Disco" });
     expect(s().data.phases[0]?.name).toBe("Disco");
     expectRevisionAdvanced(ph, requireValue(s().data.phases[0], "updated phase"));
-    s().deletePhase(ph.id);
+    await s().deletePhase(ph.id);
     expect(s().data.phases).toHaveLength(0);
     expect(
       requireValue(
@@ -166,21 +166,23 @@ function registerStoreCrudEntity7(): void {
 }
 
 function registerStoreCrudEntity8(): void {
-  it("activities: add / update / delete", () => {
-    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
-    const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
-    s().updateActivity(t.id, { name: "T2" });
+  it("activities: add / update / delete", async () => {
+    const c = await requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
+    const p = await requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = await requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
+    await s().updateActivity(t.id, { name: "T2" });
     expect(s().data.activities[0]?.name).toBe("T2");
     expectRevisionAdvanced(t, requireValue(s().data.activities[0], "updated activity"));
-    s().deleteActivity(t.id);
-    expect(s().data.activities).toHaveLength(0);
+    await s().deleteActivity(t.id);
+    expect(s().data.activities).toHaveLength(1);
+    expect(s().data.activities[0]?.id).toBe(t.id);
+    expect(typeof s().data.activities[0]?.archivedAt).toBe("string");
   });
 }
 
 function registerStoreCrudEntity9(): void {
-  it("activities: a general (no-project) activity can be added without a projectId", () => {
-    const t = requireCreated(s().addActivity({ name: "Admin", kind: "repeatable" }));
+  it("activities: a general (no-project) activity can be added without a projectId", async () => {
+    const t = await requireCreated(s().addActivity({ name: "Admin", kind: "repeatable" }));
     expect(t.projectId).toBeNull();
     expect(requireValue(s().data.activities[0], "activity")).toHaveProperty("projectId", null);
     expect(s().data.activities[0]?.name).toBe("Admin");
@@ -188,25 +190,27 @@ function registerStoreCrudEntity9(): void {
 }
 
 function registerStoreCrudEntity10(): void {
-  it("activities: a project-specific activity converts to all-projects by clearing its project + kind together", () => {
-    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
-    const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
-    s().updateActivity(t.id, { kind: "repeatable", projectId: null });
+  it("activities: a project-specific activity converts to all-projects by clearing its project + kind together", async () => {
+    const c = await requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
+    const p = await requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = await requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
+    await s().updateActivity(t.id, { kind: "repeatable", projectId: null });
     expect(s().data.activities[0]?.kind).toBe("repeatable");
     expect(requireValue(s().data.activities[0], "activity")).toHaveProperty("projectId", null);
   });
 }
 
 function registerStoreCrudEntity11(): void {
-  it("activities: kind ⇆ projectId coherence is enforced — clearing a project activity’s project alone throws", () => {
-    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
-    const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
+  it("activities: kind ⇆ projectId coherence is enforced — clearing a project activity’s project alone throws", async () => {
+    const c = await requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
+    const p = await requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = await requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
 
-    expect(() => s().updateActivity(t.id, { projectId: null })).toThrow(/project-specific activity must be assigned/i);
+    await expect(s().updateActivity(t.id, { projectId: null })).rejects.toThrow(
+      /project-specific activity must be assigned/i,
+    );
 
-    expect(() => requireCreated(s().addActivity({ name: "X", kind: "internal", projectId: p.id }))).toThrow(
+    await expect(requireCreated(s().addActivity({ name: "X", kind: "internal", projectId: p.id }))).rejects.toThrow(
       /cannot belong to a project/i,
     );
   });
@@ -214,10 +218,10 @@ function registerStoreCrudEntity11(): void {
 
 function registerStoreCrudEntity12(): void {
   it("activities: moving out of repeatable atomically clears allocation attribution", async () => {
-    const resource = requireCreated(s().addResource({ ...personDraft }));
-    const client = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
-    const project = requireCreated(s().addProject({ name: "P", clientId: client.id, color: "#2" }));
-    const activity = requireCreated(s().addActivity({ name: "Shared", kind: "repeatable" }));
+    const resource = await requireCreated(s().addResource({ ...personDraft }));
+    const client = await requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
+    const project = await requireCreated(s().addProject({ name: "P", clientId: client.id, color: "#2" }));
+    const activity = await requireCreated(s().addActivity({ name: "Shared", kind: "repeatable" }));
     const allocation = requireCreated(
       await s().addAllocation({
         resourceId: resource.id,
@@ -230,7 +234,7 @@ function registerStoreCrudEntity12(): void {
       }),
     );
 
-    s().updateActivity(activity.id, { kind: "internal" });
+    await s().updateActivity(activity.id, { kind: "internal" });
     expect(s().data.activities.find((row) => row.id === activity.id)?.kind).toBe("internal");
     const cleared = requireValue(
       s().data.allocations.find((row) => row.id === allocation.id),
@@ -242,12 +246,12 @@ function registerStoreCrudEntity12(): void {
 }
 
 function registerStoreCrudEntity13(): void {
-  it("updateActivity validates the MERGED row, not the raw patch (partial phase/project patches)", () => {
-    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
-    const p1 = requireCreated(s().addProject({ name: "P1", clientId: c.id, color: "#2" }));
-    const p2 = requireCreated(s().addProject({ name: "P2", clientId: c.id, color: "#3" }));
-    const ph1 = requireCreated(s().addPhase({ name: "Disco", projectId: p1.id }));
-    const t = requireCreated(
+  it("updateActivity validates the MERGED row, not the raw patch (partial phase/project patches)", async () => {
+    const c = await requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
+    const p1 = await requireCreated(s().addProject({ name: "P1", clientId: c.id, color: "#2" }));
+    const p2 = await requireCreated(s().addProject({ name: "P2", clientId: c.id, color: "#3" }));
+    const ph1 = await requireCreated(s().addPhase({ name: "Disco", projectId: p1.id }));
+    const t = await requireCreated(
       s().addActivity({
         name: "T",
         kind: "project",
@@ -256,45 +260,55 @@ function registerStoreCrudEntity13(): void {
       }),
     );
 
-    expect(() => s().updateActivity(t.id, { phaseId: ph1.id })).not.toThrow();
+    await expect(s().updateActivity(t.id, { phaseId: ph1.id })).resolves.toBeUndefined();
 
-    expect(() => s().updateActivity(t.id, { projectId: p2.id })).toThrow(/phase/i);
+    await expect(s().updateActivity(t.id, { projectId: p2.id })).rejects.toThrow(/phase/i);
     expect(s().data.activities[0]?.projectId).toBe(p1.id);
   });
 }
 
 function registerStoreCrudEntity14(): void {
-  it("resources: add / update", () => {
-    const r = requireCreated(s().addResource({ ...personDraft }));
-    s().updateResource(r.id, { role: "Lead" });
+  it("resources: add / update", async () => {
+    const r = await requireCreated(s().addResource({ ...personDraft }));
+    await s().updateResource(r.id, { role: "Lead" });
     expect(s().data.resources[0]?.role).toBe("Lead");
     expectRevisionAdvanced(r, requireValue(s().data.resources[0], "updated resource"));
   });
 }
 
 function registerStoreCrudEntity15(): void {
-  it("resources: defaults legacy people and forces placeholders to Studio engagement", () => {
+  it("resources: defaults legacy people and placeholders to Studio engagement", async () => {
     const legacyPersonDraft = { ...personDraft };
     delete legacyPersonDraft.engagement;
-    const person = requireCreated(s().addResource(legacyPersonDraft));
+    const person = await requireCreated(s().addResource(legacyPersonDraft));
     expect(person.engagement).toBe("studio");
 
-    const client = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
-    const project = requireCreated(s().addProject({ name: "Project", clientId: client.id, color: "#2" }));
-    const placeholder = requireCreated(
+    const client = await requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
+    const project = await requireCreated(s().addProject({ name: "Project", clientId: client.id, color: "#2" }));
+    await expect(
       s().addResource({
         ...personDraft,
         kind: "placeholder",
         projectId: project.id,
         engagement: "supplementary",
       }),
+    ).rejects.toThrow(/placeholder must use Studio engagement/i);
+    expect(s().data.resources.filter((resource) => resource.kind === "placeholder")).toHaveLength(0);
+    const placeholder = await requireCreated(
+      s().addResource({
+        ...personDraft,
+        kind: "placeholder",
+        projectId: project.id,
+      }),
     );
     expect(placeholder.engagement).toBe("studio");
 
-    s().updateResource(placeholder.id, { engagement: "supplementary" });
+    await expect(s().updateResource(placeholder.id, { engagement: "supplementary" })).rejects.toThrow(
+      /placeholder must use Studio engagement/i,
+    );
     expect(s().data.resources.find((resource) => resource.id === placeholder.id)?.engagement).toBe("studio");
 
-    const personToPlaceholder = requireCreated(
+    const personToPlaceholder = await requireCreated(
       s().addResource({
         ...personDraft,
         engagement: "supplementary",
@@ -302,9 +316,9 @@ function registerStoreCrudEntity15(): void {
         lastAvailableDate: "2026-06-30",
       }),
     );
-    expect(() => s().updateResource(personToPlaceholder.id, { kind: "placeholder", projectId: project.id })).toThrow(
-      /kind cannot change/i,
-    );
+    await expect(
+      s().updateResource(personToPlaceholder.id, { kind: "placeholder", projectId: project.id }),
+    ).rejects.toThrow(/kind cannot change/i);
     const converted = s().data.resources.find((resource) => resource.id === personToPlaceholder.id);
     expect(converted?.kind).toBe("person");
     expect(converted?.engagement).toBe("supplementary");
@@ -314,23 +328,23 @@ function registerStoreCrudEntity15(): void {
 }
 
 function registerStoreCrudEntity16(): void {
-  it("resources: favourite updates are account data and undoable", () => {
-    const resource = requireCreated(s().addResource({ ...unflaggedDraft }));
+  it("resources: favourite updates are account data and undoable", async () => {
+    const resource = await requireCreated(s().addResource({ ...unflaggedDraft }));
 
-    s().updateResource(resource.id, { isFavourite: true });
+    await s().updateResource(resource.id, { isFavourite: true });
     expect(s().data.resources[0]?.isFavourite).toBe(true);
 
-    s().undo();
+    await s().undoPlanning();
     expect(requireValue(s().data.resources[0], "resource")).toHaveProperty("isFavourite", null);
   });
 }
 
 function registerStoreCrudEntity17(): void {
-  it("resources: a viewer cannot change an account favourite", () => {
-    const resource = requireCreated(s().addResource({ ...unflaggedDraft }));
+  it("resources: a viewer cannot change an account favourite", async () => {
+    const resource = await requireCreated(s().addResource({ ...unflaggedDraft }));
 
     s().setActiveRole("viewer");
-    s().updateResource(resource.id, { isFavourite: true });
+    await s().updateResource(resource.id, { isFavourite: true });
 
     expect(requireValue(s().data.resources[0], "resource")).toHaveProperty("isFavourite", null);
     expect(s().notice).toMatchObject({ tone: "error" });
@@ -339,10 +353,10 @@ function registerStoreCrudEntity17(): void {
 
 function registerStoreCrudEntity18(): void {
   it("allocations: add / update / delete", async () => {
-    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
-    const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
-    const r = requireCreated(s().addResource({ ...personDraft }));
+    const c = await requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
+    const p = await requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = await requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
+    const r = await requireCreated(s().addResource({ ...personDraft }));
     const a = requireCreated(
       await s().addAllocation({
         resourceId: r.id,
@@ -365,9 +379,9 @@ function registerStoreCrudEntity18(): void {
 }
 
 function registerStoreCrudEntity19(): void {
-  it("time off: add / update / delete", () => {
-    const r = requireCreated(s().addResource({ ...personDraft }));
-    const to = requireCreated(
+  it("time off: add / update / delete", async () => {
+    const r = await requireCreated(s().addResource({ ...personDraft }));
+    const to = await requireCreated(
       s().addTimeOff({
         resourceId: r.id,
         startDate: "2026-06-10",
@@ -375,31 +389,31 @@ function registerStoreCrudEntity19(): void {
         type: "holiday",
       }),
     );
-    s().updateTimeOff(to.id, { type: "sick" });
+    await s().updateTimeOff(to.id, { type: "sick" });
     expect(s().data.timeOff[0]?.type).toBe("sick");
     expectRevisionAdvanced(to, requireValue(s().data.timeOff[0], "updated time off"));
-    s().deleteTimeOff(to.id);
+    await s().deleteTimeOff(to.id);
     expect(s().data.timeOff).toHaveLength(0);
   });
 }
 
 function registerStoreCrudEntity20(): void {
-  it("company closure: add / update / delete with range validation", () => {
-    expect(() =>
+  it("company closure: add / update / delete with range validation", async () => {
+    await expect(
       requireCreated(s().addClosure({ name: "  ", startDate: "2026-12-24", endDate: "2026-12-25" })),
-    ).toThrow(expect.objectContaining<Partial<DomainError>>({ code: "closure_name_required" }));
-    const closure = requireCreated(
+    ).rejects.toThrow(expect.objectContaining<Partial<DomainError>>({ code: "closure_name_required" }));
+    const closure = await requireCreated(
       s().addClosure({ name: "Christmas shutdown", startDate: "2026-12-24", endDate: "2026-12-25" }),
     );
-    s().updateClosure(closure.id, { name: "Winter shutdown" });
+    await s().updateClosure(closure.id, { name: "Winter shutdown" });
     expect(s().data.closures[0]).toMatchObject({ name: "Winter shutdown" });
-    expect(() => s().updateClosure(closure.id, { endDate: "2026-12-23" })).toThrow(
+    await expect(s().updateClosure(closure.id, { endDate: "2026-12-23" })).rejects.toThrow(
       /end date cannot be before the start date/i,
     );
-    expect(() => s().updateClosure(closure.id, { name: "  " })).toThrow(
+    await expect(s().updateClosure(closure.id, { name: "  " })).rejects.toThrow(
       expect.objectContaining<Partial<DomainError>>({ code: "closure_name_required" }),
     );
-    s().deleteClosure(closure.id);
+    await s().deleteClosure(closure.id);
     expect(s().data.closures).toHaveLength(0);
   });
 }
@@ -437,79 +451,79 @@ describe("store UI + history extras", () => {
     expect(s().ui.originDate).not.toBe("2026-01-01");
   });
 
-  it("undo/redo are no-ops on empty history", () => {
-    expect(() => s().undo()).not.toThrow();
-    expect(() => s().redo()).not.toThrow();
+  it("undo/redo are no-ops on empty history", async () => {
+    await expect(s().undoPlanning()).resolves.toBe(false);
+    await expect(s().redoPlanning()).resolves.toBe(false);
     expect(s().data.clients).toHaveLength(0);
   });
 
-  it("a new mutation clears the redo stack", () => {
-    s().addClient({ name: "A", color: "#1" });
-    s().undo();
-    expect(s().future).toHaveLength(1);
-    s().addClient({ name: "B", color: "#2" });
-    expect(s().future).toHaveLength(0);
+  it("a new mutation clears the redo stack", async () => {
+    await s().addClient({ name: "A", color: "#1" });
+    await s().undoPlanning();
+    expect(s().planning.history.future).toHaveLength(1);
+    await s().addClient({ name: "B", color: "#2" });
+    expect(s().planning.history.future).toHaveLength(0);
   });
 
-  it("bounds full-state history at 50 entries and drops the oldest snapshots", () => {
+  it("bounds typed history at 50 entries and drops the oldest entries", async () => {
     for (let index = 0; index < 60; index += 1) {
-      s().addClient({ name: `Client ${index}`, color: "#1" });
+      await s().addClient({ name: `Client ${index}`, color: "#1" });
     }
 
-    expect(s().past).toHaveLength(50);
-    for (let index = 0; index < 50; index += 1) s().undo();
-    expect(s().data.clients).toHaveLength(10);
-    expect(s().past).toHaveLength(0);
+    expect(s().planning.history.past).toHaveLength(50);
+    for (let index = 0; index < 50; index += 1) await s().undoPlanning();
+    expect(s().data.clients.filter((client) => client.archivedAt === null)).toHaveLength(10);
+    expect(s().planning.history.past).toHaveLength(0);
 
-    s().undo();
-    expect(s().data.clients).toHaveLength(10);
+    expect(await s().undoPlanning()).toBe(false);
+    expect(s().data.clients.filter((client) => client.archivedAt === null)).toHaveLength(10);
   });
 
-  it("informs a viewer when undo and redo are refused", () => {
-    s().addClient({ name: "A", color: "#1" });
-    s().undo();
+  it("informs a viewer when undo and redo are refused", async () => {
+    await s().addClient({ name: "A", color: "#1" });
+    await s().undoPlanning();
     const afterUndo = s().data;
-    const futureAfterUndo = s().future;
+    const futureAfterUndo = s().planning.history.future;
 
     s().setActiveRole("viewer");
-    s().redo();
+    expect(await s().redoPlanning()).toBe(false);
     expect(s().data).toBe(afterUndo);
-    expect(s().future).toBe(futureAfterUndo);
+    expect(s().planning.history.future).toBe(futureAfterUndo);
     expect(s().notice).toMatchObject({ tone: "error" });
 
     s().setActiveRole("editor");
-    s().redo();
+    await s().redoPlanning();
     const afterRedo = s().data;
-    const pastAfterRedo = s().past;
+    const pastAfterRedo = s().planning.history.past;
     s().setNotice(null);
     s().setActiveRole("viewer");
-    s().undo();
+    expect(await s().undoPlanning()).toBe(false);
     expect(s().data).toBe(afterRedo);
-    expect(s().past).toBe(pastAfterRedo);
+    expect(s().planning.history.past).toBe(pastAfterRedo);
     expect(s().notice).toMatchObject({ tone: "error" });
   });
 });
 
 describe("allocation integrity at the store boundary", () => {
   it("updateAllocation enforces the placeholder binding", async () => {
-    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
-    const p1 = requireCreated(s().addProject({ name: "P1", clientId: c.id, color: "#2" }));
-    const p2 = requireCreated(s().addProject({ name: "P2", clientId: c.id, color: "#3" }));
-    const t1 = requireCreated(
+    const c = await requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
+    const p1 = await requireCreated(s().addProject({ name: "P1", clientId: c.id, color: "#2" }));
+    const p2 = await requireCreated(s().addProject({ name: "P2", clientId: c.id, color: "#3" }));
+    const t1 = await requireCreated(
       s().addActivity({
         name: "T1",
         kind: "project",
         projectId: p1.id,
       }),
     );
-    const t2 = requireCreated(
+    const t2 = await requireCreated(
       s().addActivity({
         name: "T2",
         kind: "project",
         projectId: p2.id,
       }),
     );
-    const ph = requireCreated(
+    const ph = await requireCreated(
       s().addResource({
         kind: "placeholder",
         role: "Designer",
@@ -556,17 +570,17 @@ describe("allocation integrity at the store boundary", () => {
   });
 });
 
-const seedAlloc = () => {
-  const c = requireCreated(s().addClient({ name: "Ferris", color: "#111111" }));
-  const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#222222" }));
-  const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
-  const r = requireCreated(s().addResource({ ...personDraft }));
+const seedAlloc = async () => {
+  const c = await requireCreated(s().addClient({ name: "Ferris", color: "#111111" }));
+  const p = await requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#222222" }));
+  const t = await requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
+  const r = await requireCreated(s().addResource({ ...personDraft }));
   return { r, t };
 };
 
 function registerDateRangeGuard1(): void {
   it("addAllocation rejects an empty or reversed date range", async () => {
-    const { r, t } = seedAlloc();
+    const { r, t } = await seedAlloc();
     await expect(
       s().addAllocation({
         resourceId: r.id,
@@ -593,7 +607,7 @@ function registerDateRangeGuard1(): void {
 
 function registerDateRangeGuard2(): void {
   it("clamps allocation hoursPerDay to a real working day (<= 24) on add and update", async () => {
-    const { r, t } = seedAlloc();
+    const { r, t } = await seedAlloc();
     const a = requireCreated(
       await s().addAllocation({
         resourceId: r.id,
@@ -612,7 +626,7 @@ function registerDateRangeGuard2(): void {
 
 function registerDateRangeGuard3(): void {
   it("updateAllocation allows a note/status-only patch (validates the effective range, not the patch)", async () => {
-    const { r, t } = seedAlloc();
+    const { r, t } = await seedAlloc();
     const a = requireCreated(
       await s().addAllocation({
         resourceId: r.id,
@@ -634,9 +648,9 @@ function registerDateRangeGuard3(): void {
 }
 
 function registerDateRangeGuard4(): void {
-  it("addTimeOff rejects a dangling resource and a reversed range", () => {
-    const r = requireCreated(s().addResource({ ...personDraft }));
-    expect(() =>
+  it("addTimeOff rejects a dangling resource and a reversed range", async () => {
+    const r = await requireCreated(s().addResource({ ...personDraft }));
+    await expect(
       requireCreated(
         s().addTimeOff({
           resourceId: "nope",
@@ -645,8 +659,8 @@ function registerDateRangeGuard4(): void {
           type: "holiday",
         }),
       ),
-    ).toThrow(/time off must reference an existing resource/i);
-    expect(() =>
+    ).rejects.toThrow(/time off must reference an existing resource/i);
+    await expect(
       requireCreated(
         s().addTimeOff({
           resourceId: r.id,
@@ -655,39 +669,41 @@ function registerDateRangeGuard4(): void {
           type: "holiday",
         }),
       ),
-    ).toThrow(/end date cannot be before the start date/i);
+    ).rejects.toThrow(/end date cannot be before the start date/i);
     expect(s().data.timeOff).toHaveLength(0);
   });
 }
 
 function registerDateRangeGuard5(): void {
-  it("addResource / updateResource reject an empty working-days set", () => {
-    expect(() => requireCreated(s().addResource({ ...personDraft, workingDays: [] }))).toThrow(
+  it("addResource / updateResource reject an empty working-days set", async () => {
+    await expect(requireCreated(s().addResource({ ...personDraft, workingDays: [] }))).rejects.toThrow(
       /at least one working day/i,
     );
-    const r = requireCreated(s().addResource({ ...personDraft }));
-    expect(() => s().updateResource(r.id, { workingDays: [] })).toThrow(/at least one working day/i);
-    expect(() => s().updateResource(r.id, { name: "Renamed" })).not.toThrow();
+    const r = await requireCreated(s().addResource({ ...personDraft }));
+    await expect(s().updateResource(r.id, { workingDays: [] })).rejects.toThrow(/at least one working day/i);
+    await expect(s().updateResource(r.id, { name: "Renamed" })).resolves.toBeUndefined();
   });
 }
 
 function registerDateRangeGuard6(): void {
-  it("requires half days to be a unique subset of the working week", () => {
-    expect(() => requireCreated(s().addResource({ ...personDraft, workingDays: [1, 2], halfDays: [3] }))).toThrow(
+  it("requires half days to be a unique subset of the working week", async () => {
+    await expect(
+      requireCreated(s().addResource({ ...personDraft, workingDays: [1, 2], halfDays: [3] })),
+    ).rejects.toThrow(/half days must be.*contained/i);
+    const resource = await requireCreated(s().addResource({ ...personDraft, workingDays: [1, 2], halfDays: [2] }));
+    expect(resource.halfDays).toEqual([2]);
+    await expect(s().updateResource(resource.id, { workingDays: [1] })).rejects.toThrow(
       /half days must be.*contained/i,
     );
-    const resource = requireCreated(s().addResource({ ...personDraft, workingDays: [1, 2], halfDays: [2] }));
-    expect(resource.halfDays).toEqual([2]);
-    expect(() => s().updateResource(resource.id, { workingDays: [1] })).toThrow(/half days must be.*contained/i);
-    expect(() => s().updateResource(resource.id, { halfDays: [2, 2] })).toThrow(/half days must be unique/i);
+    await expect(s().updateResource(resource.id, { halfDays: [2, 2] })).rejects.toThrow(/half days must be unique/i);
   });
 }
 
 function registerDateRangeGuard7(): void {
-  it("normalizes placeholder working patterns on add and update", () => {
-    const client = requireCreated(s().addClient({ name: "Wayne Enterprises", color: "#737373" }));
-    const project = requireCreated(s().addProject({ name: "Watchtower", clientId: client.id, color: "#737373" }));
-    const resource = requireCreated(
+  it("defaults placeholder working patterns on add and rejects invalid add and update", async () => {
+    const client = await requireCreated(s().addClient({ name: "Wayne Enterprises", color: "#737373" }));
+    const project = await requireCreated(s().addProject({ name: "Watchtower", clientId: client.id, color: "#737373" }));
+    await expect(
       s().addResource({
         ...personDraft,
         kind: "placeholder",
@@ -695,10 +711,20 @@ function registerDateRangeGuard7(): void {
         workingDays: [],
         halfDays: [6],
       }),
+    ).rejects.toThrow(/must match its default working pattern/i);
+    expect(s().data.resources.filter((resource) => resource.kind === "placeholder")).toHaveLength(0);
+    const resource = await requireCreated(
+      s().addResource({
+        ...personDraft,
+        kind: "placeholder",
+        projectId: project.id,
+      }),
     );
 
     expect(resource).toMatchObject({ workingDays: [1, 2, 3, 4, 5], halfDays: [] });
-    s().updateResource(resource.id, { workingDays: [0, 6], halfDays: [6] });
+    await expect(s().updateResource(resource.id, { workingDays: [0, 6], halfDays: [6] })).rejects.toThrow(
+      /must match its default working pattern/i,
+    );
     expect(s().data.resources.find((candidate) => candidate.id === resource.id)).toMatchObject({
       workingDays: [1, 2, 3, 4, 5],
       halfDays: [],
@@ -707,25 +733,25 @@ function registerDateRangeGuard7(): void {
 }
 
 function registerDateRangeGuard8(): void {
-  it("clamps resource workingHoursPerDay to (0, 24] on add and update (0/junk → 8, >24 → 24)", () => {
+  it("clamps resource workingHoursPerDay to (0, 24] on add and update (0/junk → 8, >24 → 24)", async () => {
     // The store is the last line for the resource path too (the form caps it, but a non-form
     // or pre-blur-paste write must not persist NaN / 0 / >24h capacity). 0 is not legal for a
     // resource: no working day, so it falls back to 8 (distinct from an allocation, where 0 is fine).
-    const over = requireCreated(
+    const over = await requireCreated(
       s().addResource({
         ...personDraft,
         workingHoursPerDay: 1000,
       }),
     );
     expect(over.workingHoursPerDay).toBe(24);
-    const zero = requireCreated(
+    const zero = await requireCreated(
       s().addResource({
         ...personDraft,
         workingHoursPerDay: 0,
       }),
     );
     expect(zero.workingHoursPerDay).toBe(8);
-    s().updateResource(over.id, { workingHoursPerDay: NaN });
+    await s().updateResource(over.id, { workingHoursPerDay: NaN });
     expect(
       requireValue(
         s().data.resources.find((r) => r.id === over.id),
@@ -736,8 +762,8 @@ function registerDateRangeGuard8(): void {
 }
 
 function registerDateRangeGuard9(): void {
-  it("importData replaces the active account slice and is undoable via ⌘Z", () => {
-    s().addClient({ name: "Keep", color: "#111111" });
+  it("importData replaces the active account slice and is undoable via ⌘Z", async () => {
+    await s().addClient({ name: "Keep", color: "#111111" });
     s().setFilters({
       clientId: "stale-client",
       search: "retained search",
@@ -786,8 +812,8 @@ function registerDateRangeGuard9(): void {
 }
 
 function registerDateRangeGuard10(): void {
-  it("importData refuses a zero-record import (no silent wipe)", () => {
-    s().addClient({ name: "Keep", color: "#111111" });
+  it("importData refuses a zero-record import (no silent wipe)", async () => {
+    await s().addClient({ name: "Keep", color: "#111111" });
     const summary = s().importData(emptyAppData());
     expect(summary.imported).toBe(0);
     expect(s().data.clients.map((c) => c.name)).toEqual(["Keep"]);
@@ -825,10 +851,10 @@ const externalResource = (id: string): Resource =>
 
 function registerMergedRow1(): void {
   it("a normal-resource note/date-only updateAllocation + updateTimeOff still succeed (no false reject)", async () => {
-    const c = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
-    const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
-    const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
-    const r = requireCreated(s().addResource({ ...personDraft }));
+    const c = await requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
+    const p = await requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = await requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
+    const r = await requireCreated(s().addResource({ ...personDraft }));
     const a = requireCreated(
       await s().addAllocation({
         resourceId: r.id,
@@ -845,7 +871,7 @@ function registerMergedRow1(): void {
     expect(s().data.allocations[0]?.note).toBe("ping");
     expect(s().data.allocations[0]?.startDate).toBe("2026-06-02");
 
-    const to = requireCreated(
+    const to = await requireCreated(
       s().addTimeOff({
         resourceId: r.id,
         startDate: "2026-06-10",
@@ -853,8 +879,8 @@ function registerMergedRow1(): void {
         type: "holiday",
       }),
     );
-    expect(() => s().updateTimeOff(to.id, { type: "sick" })).not.toThrow();
-    expect(() => s().updateTimeOff(to.id, { startDate: "2026-06-09" })).not.toThrow();
+    await expect(s().updateTimeOff(to.id, { type: "sick" })).resolves.toBeUndefined();
+    await expect(s().updateTimeOff(to.id, { startDate: "2026-06-09" })).resolves.toBeUndefined();
     expect(s().data.timeOff[0]?.type).toBe("sick");
   });
 }
@@ -902,7 +928,7 @@ function registerMergedRow2(): void {
 }
 
 function registerMergedRow3(): void {
-  it("rejects a date-only updateTimeOff on an external resource", () => {
+  it("rejects a date-only updateTimeOff on an external resource", async () => {
     const ext = externalResource("ext-2");
     const timeOff: TimeOff = {
       id: "to-1",
@@ -919,13 +945,13 @@ function registerMergedRow3(): void {
     s().replaceAll(data);
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
 
-    expect(() => s().updateTimeOff(timeOff.id, { startDate: "2026-06-11" })).toThrow(/external.*3rd-party/i);
+    await expect(s().updateTimeOff(timeOff.id, { startDate: "2026-06-11" })).rejects.toThrow(/external.*3rd-party/i);
     expect(s().data.timeOff[0]?.startDate).toBe("2026-06-10");
   });
 }
 
 function registerMergedRow4(): void {
-  it("a name-only updateResource on an external resource that still carries a loaded allocation THROWS", () => {
+  it("a name-only updateResource on an external resource that still carries a loaded allocation THROWS", async () => {
     const ext = externalResource("ext-3");
     const data: AppData = makeAppData({
       resources: [ext],
@@ -959,7 +985,7 @@ function registerMergedRow4(): void {
     s().replaceAll(data);
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
 
-    expect(() => s().updateResource(ext.id, { name: "Outsource Co Ltd" })).toThrow(
+    await expect(s().updateResource(ext.id, { name: "Outsource Co Ltd" })).rejects.toThrow(
       /work and time off before making it external/i,
     );
     expect(s().data.resources[0]?.name).toBe("Outsource Co");
@@ -977,12 +1003,12 @@ const NON_PRESET = "#7cd9e4";
 const NEAREST_PRESET = "#7adae3";
 
 function registerColourSnap1(): void {
-  it("addClient / addProject / addDiscipline / addResource snap a non-preset colour to its nearest preset", () => {
-    const client = requireCreated(s().addClient({ name: "Ferris", color: NON_PRESET }));
+  it("addClient / addProject / addDiscipline / addResource snap a non-preset colour to its nearest preset", async () => {
+    const client = await requireCreated(s().addClient({ name: "Ferris", color: NON_PRESET }));
     expect(client.color).toBe(NEAREST_PRESET);
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET);
 
-    const project = requireCreated(
+    const project = await requireCreated(
       s().addProject({
         name: "P",
         clientId: client.id,
@@ -991,7 +1017,7 @@ function registerColourSnap1(): void {
     );
     expect(project.color).toBe(NEAREST_PRESET);
 
-    const discipline = requireCreated(
+    const discipline = await requireCreated(
       s().addDiscipline({
         name: "Design",
         color: NON_PRESET,
@@ -1000,7 +1026,7 @@ function registerColourSnap1(): void {
     );
     expect(discipline.color).toBe(NEAREST_PRESET);
 
-    const resource = requireCreated(
+    const resource = await requireCreated(
       s().addResource({
         ...personDraft,
         color: NON_PRESET,
@@ -1011,48 +1037,48 @@ function registerColourSnap1(): void {
 }
 
 function registerColourSnap2(): void {
-  it("updateClient / updateProject / updateDiscipline / updateResource / updateAccount snap a non-preset colour on patch", () => {
-    const client = requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
-    s().updateClient(client.id, { color: NON_PRESET });
+  it("updateClient / updateProject / updateDiscipline / updateResource / updateAccount snap a non-preset colour on patch", async () => {
+    const client = await requireCreated(s().addClient({ name: "Ferris", color: "#1" }));
+    await s().updateClient(client.id, { color: NON_PRESET });
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET);
 
-    const project = requireCreated(
+    const project = await requireCreated(
       s().addProject({
         name: "P",
         clientId: client.id,
         color: "#1",
       }),
     );
-    s().updateProject(project.id, { color: NON_PRESET });
+    await s().updateProject(project.id, { color: NON_PRESET });
     expect(s().data.projects.find((p) => p.id === project.id)?.color).toBe(NEAREST_PRESET);
 
-    const discipline = requireCreated(
+    const discipline = await requireCreated(
       s().addDiscipline({
         name: "Design",
         color: "#1",
         sortOrder: 0,
       }),
     );
-    s().updateDiscipline(discipline.id, { color: NON_PRESET });
+    await s().updateDiscipline(discipline.id, { color: NON_PRESET });
     expect(s().data.disciplines.find((d) => d.id === discipline.id)?.color).toBe(NEAREST_PRESET);
 
-    const resource = requireCreated(
+    const resource = await requireCreated(
       s().addResource({
         ...personDraft,
       }),
     );
-    s().updateResource(resource.id, { color: NON_PRESET });
+    await s().updateResource(resource.id, { color: NON_PRESET });
     expect(s().data.resources.find((r) => r.id === resource.id)?.color).toBe(NEAREST_PRESET);
 
-    s().updateAccount(DEFAULT_ACCOUNT_ID, { color: NON_PRESET });
+    await s().updateAccount(DEFAULT_ACCOUNT_ID, { color: NON_PRESET });
     expect(s().data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID)?.color).toBe(NEAREST_PRESET);
   });
 }
 
 function registerColourSnap3(): void {
-  it("an external resource keeps NEUTRAL_COLOR (the one deliberate non-preset exception) instead of snapping", () => {
+  it("an external resource keeps NEUTRAL_COLOR (the one deliberate non-preset exception) instead of snapping", async () => {
     const NEUTRAL_COLOR = "#9ca3af";
-    const ext = requireCreated(
+    const ext = await requireCreated(
       s().addResource({
         ...personDraft,
         kind: "external",
@@ -1065,10 +1091,10 @@ function registerColourSnap3(): void {
 
 function registerColourSnap4(): void {
   // Canonical spelling keeps client equality checks aligned with server-normalized colors.
-  it("a preset colour with stray whitespace/casing is stored normalized, not verbatim", () => {
+  it("a preset colour with stray whitespace/casing is stored normalized, not verbatim", async () => {
     const RAW = "  #E02727  ";
     const NORMALIZED = "#e02727";
-    const client = requireCreated(s().addClient({ name: "Ferris", color: RAW }));
+    const client = await requireCreated(s().addClient({ name: "Ferris", color: RAW }));
     expect(client.color).toBe(NORMALIZED);
     const stored = s().data.clients.find((c) => c.id === client.id)?.color;
     expect(stored).toBe(NORMALIZED);
@@ -1078,17 +1104,17 @@ function registerColourSnap4(): void {
 }
 
 function registerColourSnap5(): void {
-  it("a colourless patch leaves the stored colour untouched", () => {
-    const client = requireCreated(s().addClient({ name: "Ferris", color: NON_PRESET }));
-    s().updateClient(client.id, { name: "Ferris 2" });
+  it("a colourless patch leaves the stored colour untouched", async () => {
+    const client = await requireCreated(s().addClient({ name: "Ferris", color: NON_PRESET }));
+    await s().updateClient(client.id, { name: "Ferris 2" });
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET);
   });
 }
 
 function registerColourSnap6(): void {
-  it("a REJECTED add (viewer no-op) does NOT snap the colour and does NOT persist — the rejection surfaces via notice, not a silent repair", () => {
+  it("a REJECTED add (viewer no-op) does NOT snap the colour and does NOT persist — the rejection surfaces via notice, not a silent repair", async () => {
     s().setActiveRole("viewer");
-    const returned = s().addClient({ name: "Ferris", color: NON_PRESET });
+    const returned = await s().addClient({ name: "Ferris", color: NON_PRESET });
     expect(s().data.clients).toHaveLength(0);
     expect(s().notice).toMatchObject({ tone: "error" });
     expect(returned).toEqual({ kind: "blocked" });
@@ -1096,11 +1122,11 @@ function registerColourSnap6(): void {
 }
 
 function registerColourSnap7(): void {
-  it("a REJECTED update (viewer no-op) does not touch the stored colour", () => {
-    const client = requireCreated(s().addClient({ name: "Ferris", color: NON_PRESET }));
+  it("a REJECTED update (viewer no-op) does not touch the stored colour", async () => {
+    const client = await requireCreated(s().addClient({ name: "Ferris", color: NON_PRESET }));
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET);
     s().setActiveRole("viewer");
-    s().updateClient(client.id, { color: "#123456" });
+    await s().updateClient(client.id, { color: "#123456" });
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET);
     expect(s().notice).toMatchObject({ tone: "error" });
   });

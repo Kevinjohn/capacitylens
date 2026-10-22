@@ -68,7 +68,7 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
   const { error, errorField, errorId, fail } = useFieldError();
   const privateNameFields = usePrivateNameFields(client, fail);
 
-  const submit = () => {
+  const submit = async () => {
     const trimmed = parseName(name, fail);
     if (!trimmed) return;
     const privacy = privateNameFields.parsePrivacyPatch();
@@ -81,9 +81,9 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
           fail(null, m.form_client_err_changed());
           return;
         }
-        updateClient(client.id, { name: trimmed, color, ...privacy });
+        await updateClient(client.id, { name: trimmed, color, ...privacy });
       } else {
-        const result = addClient({
+        const result = await addClient({
           name: trimmed,
           color,
           ...(privacy.isPrivate && privacy.codeName
@@ -102,7 +102,9 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
     <Modal
       title={client ? m.form_client_edit_title() : m.form_client_add_title()}
       onClose={onClose}
-      onSubmit={submit}
+      onSubmit={() => {
+        void submit();
+      }}
       footer={<FormActions onCancel={onClose} />}
     >
       <ClientFormFields

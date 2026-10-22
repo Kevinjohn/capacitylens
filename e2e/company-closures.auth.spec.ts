@@ -202,9 +202,21 @@ async function assertEditedAndDeletedClosure(
   await setZoom(page, 1);
   await goToSeedWeek(page);
   await expect(page.getByTestId("scheduler-closure-band")).toHaveCount(0);
+
+  await page.getByTestId("undo-button").click();
+  await expect(page.getByTestId("scheduler-closure-band")).toHaveCount(1);
+  await expect
+    .poll(async () => {
+      const response = await request.get(`${AUTH_API}/api/state?accountId=${accountId}`, {
+        headers: { cookie: editorCookie },
+      });
+      const state = (await response.json()) as { closures: Array<{ id: string; name: string }> };
+      return state.closures.find((closure) => closure.id === closureId)?.name;
+    })
+    .toBe("Studio shutdown");
 }
 
-test("an editor creates, sees, edits and deletes a literal company closure band", async ({ page, request }) => {
+test("an editor creates, edits, deletes and restores a literal company closure band", async ({ page, request }) => {
   const { accountId, editorCookie } = await seedClosureAccount(request);
 
   await signInAsEditor(page);

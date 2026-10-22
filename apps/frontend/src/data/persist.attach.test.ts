@@ -8,7 +8,7 @@ import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { deleteProjectCascade } from "@capacitylens/shared/lib/integrity";
-import { resetStoreWithAccount, requireValue } from "@/test/fixtures";
+import { makeClient, resetStoreWithAccount, requireValue } from "@/test/fixtures";
 import { readPersistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
 import { requireCallback, a2Slice, attachActiveA2, deferredSignal } from "./__tests__/persistTestKit";
 
@@ -18,8 +18,23 @@ beforeEach(async () => {
   await resetStoreWithAccount();
 });
 
+let nextLegacyClient = 0;
+
+function seedLegacyClient(name: string) {
+  const state = useStore.getState();
+  const accountId = state.activeAccountId;
+  if (accountId === null) throw new Error("Expected an active account for the legacy client fixture.");
+  const client = makeClient({
+    id: `legacy-client-${++nextLegacyClient}`,
+    accountId,
+    name,
+  });
+  state.replaceAll({ ...state.data, clients: [...state.data.clients, client] });
+  return client;
+}
+
 const addAllocationFixture = async (projectName: string) => {
-  const resource = requireCreated(
+  const resource = await requireCreated(
     useStore.getState().addResource({
       kind: "person",
       name: "Bruce Wayne",
@@ -32,11 +47,11 @@ const addAllocationFixture = async (projectName: string) => {
       color: "#111111",
     }),
   );
-  const client = requireCreated(useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" }));
-  const project = requireCreated(
+  const client = await requireCreated(useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" }));
+  const project = await requireCreated(
     useStore.getState().addProject({ name: projectName, clientId: client.id, color: "#222222" }),
   );
-  const activity = requireCreated(useStore.getState().addActivity({ name: "Shared", kind: "repeatable" }));
+  const activity = await requireCreated(useStore.getState().addActivity({ name: "Shared", kind: "repeatable" }));
   const allocation = requireCreated(
     await useStore.getState().addAllocation({
       resourceId: resource.id,
@@ -80,7 +95,7 @@ it("attachPersistence publishes allocation rewrites into the visible Zustand row
   };
   const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 0 });
 
-  useStore.getState().updateActivity(activity.id, { name: "Trigger save" });
+  useStore.getState().archiveEntity("activities", activity.id);
   await vi.waitFor(() => expect(useStore.getState().data.allocations[0]?.updatedAt).toBe(rewrittenAt));
 
   expect(useStore.getState().data.allocations[0]).toHaveProperty("projectId", null);
@@ -89,7 +104,7 @@ it("attachPersistence publishes allocation rewrites into the visible Zustand row
 
 it("attachPersistence keeps a typed allocation edit made while a rewrite receipt is in flight", async () => {
   const { allocation, activity, client } = await addAllocationFixture("First");
-  const secondProject = requireCreated(
+  const secondProject = await requireCreated(
     useStore.getState().addProject({ name: "Second", clientId: client.id, color: "#333333" }),
   );
   const rewrittenAt = "2030-01-02T00:00:00.000Z";
@@ -126,7 +141,7 @@ it("attachPersistence keeps a typed allocation edit made while a rewrite receipt
   };
   const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 0 });
 
-  useStore.getState().updateActivity(activity.id, { name: "Flushed edit" });
+  useStore.getState().archiveEntity("activities", activity.id);
   await vi.waitFor(() => expect(saved).toHaveLength(1));
   const flushedStamp = requireValue(
     requireValue(saved[0], "flushed snapshot").allocations.find((row) => row.id === allocation.id),
@@ -154,6 +169,8 @@ it("attachPersistence keeps a typed allocation edit made while a rewrite receipt
 });
 
 it("attachPersistence rejects a second live persistence owner without leaving it able to save", async () => {
+  const firstClient = seedLegacyClient("Ferris");
+  const secondClient = seedLegacyClient("Wayne");
   const firstAdapter = new InMemoryDemoAdapter();
   const rejectedAdapter = new InMemoryDemoAdapter();
   const rejectedSave = vi.spyOn(rejectedAdapter, "saveAll");
@@ -162,28 +179,34 @@ it("attachPersistence rejects a second live persistence owner without leaving it
     expect(() => attachPersistence({ store: useStore, adapter: rejectedAdapter, debounceMs: 0 })).toThrow(
       "Persistence is already attached.",
     );
-    useStore.getState().addClient({ name: "Ferris", color: "#1" });
-    await vi.waitFor(async () => expect((await firstAdapter.loadAll()).clients).toHaveLength(1));
+    useStore.getState().archiveEntity("clients", firstClient.id);
+    await vi.waitFor(async () =>
+      expect(
+        (await firstAdapter.loadAll()).clients.find((saved) => saved.id === firstClient.id)?.archivedAt,
+      ).toBeTruthy(),
+    );
   } finally {
     detach();
   }
-  useStore.getState().addClient({ name: "Wayne", color: "#2" });
+  useStore.getState().archiveEntity("clients", secondClient.id);
   await new Promise((resolve) => setTimeout(resolve, 20));
   expect(rejectedSave).not.toHaveBeenCalled();
 });
 
 it("attachPersistence persists data changes (immediate mode)", async () => {
+  const client = seedLegacyClient("Ferris");
   const adapter = new InMemoryDemoAdapter();
   const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 0 });
-  useStore.getState().addClient({ name: "Ferris", color: "#1" });
-  const loaded = await adapter.loadAll();
-  expect(loaded.clients).toHaveLength(1);
+  useStore.getState().archiveEntity("clients", client.id);
+  await vi.waitFor(async () =>
+    expect((await adapter.loadAll()).clients.find((saved) => saved.id === client.id)?.archivedAt).toBeTruthy(),
+  );
   detach();
 });
 
 it("attachPersistence persists the demo project cascade with attributed bookings unbound", async () => {
   const adapter = new InMemoryDemoAdapter();
-  const resource = requireCreated(
+  const resource = await requireCreated(
     useStore.getState().addResource({
       kind: "person",
       name: "Bruce Wayne",
@@ -196,11 +219,11 @@ it("attachPersistence persists the demo project cascade with attributed bookings
       color: "#111111",
     }),
   );
-  const client = requireCreated(useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" }));
-  const project = requireCreated(
+  const client = await requireCreated(useStore.getState().addClient({ name: "Wayne Enterprises", color: "#111111" }));
+  const project = await requireCreated(
     useStore.getState().addProject({ name: "Project", clientId: client.id, color: "#222222" }),
   );
-  const activity = requireCreated(useStore.getState().addActivity({ name: "Shared", kind: "repeatable" }));
+  const activity = await requireCreated(useStore.getState().addActivity({ name: "Shared", kind: "repeatable" }));
   const allocation = requireCreated(
     await useStore.getState().addAllocation({
       resourceId: resource.id,
@@ -219,14 +242,16 @@ it("attachPersistence persists the demo project cascade with attributed bookings
 });
 
 it("attachPersistence stops persisting after detach", async () => {
+  const client = seedLegacyClient("Ferris");
   const adapter = new InMemoryDemoAdapter();
   const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 0 });
   detach();
-  useStore.getState().addClient({ name: "Ferris", color: "#1" });
+  useStore.getState().archiveEntity("clients", client.id);
   expect(await adapter.loadAll()).toEqual(emptyAppData());
 });
 
 it("attachPersistence detach cancels a pending debounce without initiating a cleanup write", async () => {
+  const client = seedLegacyClient("Pending at detach");
   vi.useFakeTimers();
   try {
     const saveAll = vi.fn().mockResolvedValue(undefined);
@@ -235,7 +260,7 @@ it("attachPersistence detach cancels a pending debounce without initiating a cle
       adapter: { loadAll: async () => emptyAppData(), saveAll },
       debounceMs: 300,
     });
-    useStore.getState().addClient({ name: "Pending at detach", color: "#111111" });
+    useStore.getState().archiveEntity("clients", client.id);
     detach();
     await vi.advanceTimersByTimeAsync(1_000);
     expect(saveAll).not.toHaveBeenCalled();
@@ -245,6 +270,8 @@ it("attachPersistence detach cancels a pending debounce without initiating a cle
 });
 
 it("attachPersistence a rejected save settling after detach cannot callback, retry, or write over a new owner", async () => {
+  const oldClient = seedLegacyClient("Old owner edit");
+  const newClient = seedLegacyClient("New owner edit");
   vi.useFakeTimers();
   try {
     let rejectOld!: (error: unknown) => void;
@@ -264,7 +291,7 @@ it("attachPersistence a rejected save settling after detach cannot callback, ret
       onSuccess: oldSuccess,
       serverMode: true,
     });
-    useStore.getState().addClient({ name: "Old owner edit", color: "#111111" });
+    useStore.getState().archiveEntity("clients", oldClient.id);
     expect(oldSave).toHaveBeenCalledOnce();
     detachOld();
 
@@ -283,7 +310,7 @@ it("attachPersistence a rejected save settling after detach cannot callback, ret
     expect(oldSave).toHaveBeenCalledOnce();
     expect(oldError).not.toHaveBeenCalled();
     expect(oldSuccess).not.toHaveBeenCalled();
-    useStore.getState().addClient({ name: "New owner edit", color: "#222222" });
+    useStore.getState().archiveEntity("clients", newClient.id);
     await vi.advanceTimersByTimeAsync(0);
     expect(newSave).toHaveBeenCalledOnce();
     expect(oldSave).toHaveBeenCalledOnce();
@@ -294,6 +321,7 @@ it("attachPersistence a rejected save settling after detach cannot callback, ret
 });
 
 it("attachPersistence a conflict settling after detach cannot start the old owner's resolution reload", async () => {
+  const client = seedLegacyClient("Conflicted old edit");
   let rejectSave!: (error: unknown) => void;
   const saveAll = vi.fn(
     () =>
@@ -310,7 +338,7 @@ it("attachPersistence a conflict settling after detach cannot start the old owne
     onError: onError,
     serverMode: true,
   });
-  useStore.getState().addClient({ name: "Conflicted old edit", color: "#111111" });
+  useStore.getState().archiveEntity("clients", client.id);
   detach();
 
   rejectSave(new BatchConflictError("late conflict"));
@@ -323,6 +351,7 @@ it("attachPersistence a conflict settling after detach cannot start the old owne
 });
 
 it("attachPersistence a successful save settling after detach cannot call the old owner's success callback", async () => {
+  const client = seedLegacyClient("Late success");
   let resolveSave!: () => void;
   const saveAll = vi.fn(
     () =>
@@ -337,7 +366,7 @@ it("attachPersistence a successful save settling after detach cannot call the ol
     debounceMs: 0,
     onSuccess: onSuccess,
   });
-  useStore.getState().addClient({ name: "Late success", color: "#111111" });
+  useStore.getState().archiveEntity("clients", client.id);
   detach();
 
   resolveSave();
@@ -349,16 +378,18 @@ it("attachPersistence a successful save settling after detach cannot call the ol
 });
 
 it("attachPersistence flushes a pending debounced write on pagehide (so a tab close does not lose it)", async () => {
+  const client = seedLegacyClient("Ferris");
   const adapter = new InMemoryDemoAdapter();
   const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 300 });
-  useStore.getState().addClient({ name: "Ferris", color: "#1" });
+  useStore.getState().archiveEntity("clients", client.id);
   expect((await adapter.loadAll()).clients).toHaveLength(0);
   window.dispatchEvent(new Event("pagehide"));
-  expect((await adapter.loadAll()).clients).toHaveLength(1);
+  expect((await adapter.loadAll()).clients.find((saved) => saved.id === client.id)?.archivedAt).toBeTruthy();
   detach();
 });
 
 it("attachPersistence uses the normal save path when a surviving tab becomes hidden", async () => {
+  const client = seedLegacyClient("Hidden tab");
   const saveAll = vi.fn().mockResolvedValue(undefined);
   const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
   const detach = attachPersistence({
@@ -366,7 +397,7 @@ it("attachPersistence uses the normal save path when a surviving tab becomes hid
     adapter: { loadAll: async () => emptyAppData(), saveAll },
     debounceMs: 300,
   });
-  useStore.getState().addClient({ name: "Hidden tab", color: "#111111" });
+  useStore.getState().archiveEntity("clients", client.id);
 
   document.dispatchEvent(new Event("visibilitychange"));
   await Promise.resolve();
@@ -378,6 +409,8 @@ it("attachPersistence uses the normal save path when a surviving tab becomes hid
 });
 
 it("attachPersistence keeps a newer failed teardown snapshot dirty when an older normal save later succeeds", async () => {
+  const firstClient = seedLegacyClient("First");
+  const latestClient = seedLegacyClient("Latest");
   vi.useFakeTimers();
   try {
     let releaseFirst: (() => void) | null = null;
@@ -400,9 +433,9 @@ it("attachPersistence keeps a newer failed teardown snapshot dirty when an older
       onError: onError,
     });
 
-    useStore.getState().addClient({ name: "First", color: "#111111" });
+    useStore.getState().archiveEntity("clients", firstClient.id);
     await vi.advanceTimersByTimeAsync(300);
-    useStore.getState().addClient({ name: "Latest", color: "#222222" });
+    useStore.getState().archiveEntity("clients", latestClient.id);
     window.dispatchEvent(new Event("pagehide"));
     await Promise.resolve();
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "keepalive dropped" }));
@@ -413,7 +446,7 @@ it("attachPersistence keeps a newer failed teardown snapshot dirty when an older
     await vi.advanceTimersByTimeAsync(1000);
 
     expect(normalSnapshots).toHaveLength(2);
-    expect(normalSnapshots[1]?.clients.some((client) => client.name === "Latest")).toBe(true);
+    expect(normalSnapshots[1]?.clients.find((client) => client.id === latestClient.id)?.archivedAt).toBeTruthy();
     expect(hasUnsavedPersistenceWrites()).toBe(false);
     detach();
   } finally {
@@ -483,6 +516,8 @@ it("attachPersistence keeps a lifecycle-only pagehide deletion dirty until its a
 });
 
 it("attachPersistence reports a failed write via onError, then a recovered write via onSuccess", async () => {
+  const firstClient = seedLegacyClient("A");
+  const secondClient = seedLegacyClient("B");
   const adapter = new InMemoryDemoAdapter();
   const realSave = adapter.saveAll.bind(adapter);
   let calls = 0;
@@ -501,16 +536,17 @@ it("attachPersistence reports a failed write via onError, then a recovered write
     onSuccess: onSuccess,
   });
 
-  useStore.getState().addClient({ name: "A", color: "#111111" });
+  useStore.getState().archiveEntity("clients", firstClient.id);
   await vi.waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
   expect(onSuccess).not.toHaveBeenCalled();
 
-  useStore.getState().addClient({ name: "B", color: "#222222" });
+  useStore.getState().archiveEntity("clients", secondClient.id);
   await vi.waitFor(() => expect(onSuccess).toHaveBeenCalled());
   detach();
 });
 
 it("attachPersistence retries a failed write in the background without waiting for another edit", async () => {
+  const client = seedLegacyClient("Retry Me");
   // Server-backed mode has no localStorage fallback: if a write fails and the user
   // reloads before their next edit, unsynced changes would be lost. A bounded
   // background retry (re-sending the latest store state) self-heals once the
@@ -533,7 +569,7 @@ it("attachPersistence retries a failed write in the background without waiting f
       onSuccess: onSuccess,
     });
 
-    useStore.getState().addClient({ name: "Retry Me", color: "#333333" });
+    useStore.getState().archiveEntity("clients", client.id);
     await vi.advanceTimersByTimeAsync(0);
     expect(calls).toBe(1);
     expect(onSuccess).not.toHaveBeenCalled();
@@ -542,7 +578,7 @@ it("attachPersistence retries a failed write in the background without waiting f
     await vi.advanceTimersByTimeAsync(1000);
     expect(calls).toBe(2);
     expect(onSuccess).toHaveBeenCalled();
-    expect((await adapter.loadAll()).clients.some((c) => c.name === "Retry Me")).toBe(true);
+    expect((await adapter.loadAll()).clients.find((saved) => saved.id === client.id)?.archivedAt).toBeTruthy();
     detach();
   } finally {
     vi.useRealTimers();
@@ -550,6 +586,7 @@ it("attachPersistence retries a failed write in the background without waiting f
 });
 
 it("attachPersistence re-attempts a write stranded after the retry budget is spent when the browser comes back online", async () => {
+  const client = seedLegacyClient("Stranded");
   // The bounded retry budget stops a permanently-failing write from retrying forever, but a
   // mere network outage shouldn't strand the delta until the next edit: an `online` event
   // re-attempts it with a fresh budget (so a reload after recovery doesn't lose it).
@@ -570,7 +607,7 @@ it("attachPersistence re-attempts a write stranded after the retry budget is spe
       onSuccess: onSuccess,
     });
 
-    useStore.getState().addClient({ name: "Stranded", color: "#444444" });
+    useStore.getState().archiveEntity("clients", client.id);
     await vi.advanceTimersByTimeAsync(0);
     await vi.advanceTimersByTimeAsync(60_000);
     expect(onSuccess).not.toHaveBeenCalled();
@@ -579,7 +616,7 @@ it("attachPersistence re-attempts a write stranded after the retry budget is spe
     window.dispatchEvent(new Event("online"));
     await vi.advanceTimersByTimeAsync(0);
     expect(onSuccess).toHaveBeenCalled();
-    expect((await adapter.loadAll()).clients.some((c) => c.name === "Stranded")).toBe(true);
+    expect((await adapter.loadAll()).clients.find((saved) => saved.id === client.id)?.archivedAt).toBeTruthy();
     detach();
   } finally {
     vi.useRealTimers();
@@ -587,10 +624,11 @@ it("attachPersistence re-attempts a write stranded after the retry budget is spe
 });
 
 it("attachPersistence does NOT re-write on an online event when nothing is stranded (no needless full rewrite)", async () => {
+  const client = seedLegacyClient("Synced");
   const adapter = new InMemoryDemoAdapter();
   const saveAll = vi.spyOn(adapter, "saveAll");
   const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 0 });
-  useStore.getState().addClient({ name: "Synced", color: "#555555" });
+  useStore.getState().archiveEntity("clients", client.id);
   await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
   const callsAfterSync = saveAll.mock.calls.length;
 

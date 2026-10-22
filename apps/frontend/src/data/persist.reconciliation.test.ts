@@ -1,5 +1,4 @@
 import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
-import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { attachPersistence, ReloadDiscardedEditError, flushPendingWrites, switchAndAwaitHydration } from "./persist";
 import { BatchCommitUncertainError, BatchConflictError, BatchValidationError } from "./ServerSyncAdapter";
@@ -7,7 +6,7 @@ import type { PersistenceAdapter } from "./PersistenceAdapter";
 import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { resetStoreWithAccount } from "@/test/fixtures";
+import { makeClient, resetStoreWithAccount } from "@/test/fixtures";
 import { readPersistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
 import { deferredSignal, requireCallback, recordingAdapter, a2Slice, attachActiveA2 } from "./__tests__/persistTestKit";
 
@@ -16,6 +15,16 @@ beforeEach(async () => {
   // Seed an active account because store additions require an account scope.
   await resetStoreWithAccount();
 });
+
+let stagedClientNumber = 0;
+
+// The next company's typed controller is not active while hydration is held, but an existing
+// legacy store delta can still race the reload. Stage that valid delta through the store boundary.
+function stageLegacyClient(accountId: string, name: string) {
+  const client = makeClient({ id: `staged-reconciliation-${++stagedClientNumber}`, accountId, name });
+  useStore.setState((state) => ({ data: { ...state.data, clients: [...state.data.clients, client] } }));
+  return client;
+}
 
 async function attachHeldLossSwitch() {
   const bSlice: AppData = {
@@ -50,9 +59,9 @@ async function attachHeldLossSwitch() {
     onError: onError,
     serverMode: true,
   });
-  useStore.getState().setActiveAccount("a2");
+  const hydration = switchAndAwaitHydration("a2");
   try {
-    await vi.waitFor(() => expect(loadAll).toHaveBeenCalledWith("a2"));
+    await expect(hydration).resolves.toEqual({ kind: "reloaded" });
   } catch (error) {
     // Detach the test persistence owner before propagating failure so later tests inherit no active listeners.
     detach();
@@ -104,7 +113,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
     const { detach, loadAll, onError, onSuccess, saveAll } = await attachRecoverableAccountSwitch();
 
     saveAll.mockRejectedValueOnce(new Error("server down"));
-    useStore.getState().addClient({ name: "Doomed in A", color: "#222222" });
+    useStore.getState().archiveEntity("clients", "c2");
     await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
     expect(await flushPendingWrites()).toEqual({ kind: "blocked" });
 
@@ -133,7 +142,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
       const { detach, loadStarted, onError, readReleaseB, saveAll } = await attachHeldLossSwitch();
 
       saveAll.mockRejectedValue(new Error("server down"));
-      useStore.getState().addClient({ name: "Doomed in A", color: "#222222" });
+      useStore.getState().archiveEntity("clients", "c2");
       await vi.advanceTimersByTimeAsync(5);
       const savesBeforeSwitch = saveAll.mock.calls.length;
 
@@ -142,7 +151,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
       await loadStarted.promise;
       const releaseB = readReleaseB();
       expect(releaseB).not.toBeNull();
-      const midSwitchEdit = requireCreated(useStore.getState().addClient({ name: "New in B", color: "#333333" }));
+      const midSwitchEdit = stageLegacyClient("b1", "New in B");
       requireCallback(releaseB, "account B load release")();
       await vi.advanceTimersByTimeAsync(5);
 
@@ -156,7 +165,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
 
       await vi.advanceTimersByTimeAsync(35_000);
       for (const [payload] of saveAll.mock.calls.slice(savesBeforeSwitch)) {
-        expect((payload as AppData).clients.some((c) => c.name === "Doomed in A")).toBe(false);
+        expect((payload as AppData).clients.some((c) => c.accountId === "a2")).toBe(false);
       }
       expect(
         saveAll.mock.calls
@@ -186,7 +195,7 @@ describe("batch reconciliation (authoritative reload)", () => {
       saveAll.mockClear();
       saveAll.mockRejectedValueOnce(new BatchConflictError("stale write"));
 
-      useStore.getState().addClient({ name: "Conflicted", color: "#222222" });
+      useStore.getState().archiveEntity("clients", "c2");
       await vi.advanceTimersByTimeAsync(5);
 
       // Conflict resolution must bypass the failed-save guard or it would block its own recovery load.
@@ -195,6 +204,7 @@ describe("batch reconciliation (authoritative reload)", () => {
       expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
 
       expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["c2", "internal:a2"]);
+      expect(useStore.getState().data.clients.find((client) => client.id === "c2")?.archivedAt).toBeNull();
 
       expect(onSuccess).toHaveBeenCalled();
       expect(readPersistenceDiagnosticsSnapshot()).toMatchObject({ savesFailed: 1, reconciliationsResolved: 1 });
@@ -221,12 +231,13 @@ describe("batch reconciliation (authoritative reload)", () => {
       saveAll.mockClear();
       saveAll.mockRejectedValueOnce(new BatchCommitUncertainError("incomplete revisions"));
 
-      useStore.getState().addClient({ name: "Uncertain", color: "#222222" });
+      useStore.getState().archiveEntity("clients", "c2");
       await vi.advanceTimersByTimeAsync(5);
 
       expect(onError.mock.calls[0]?.[0]).toBeInstanceOf(BatchCommitUncertainError);
       expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
       expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["c2", "internal:a2"]);
+      expect(useStore.getState().data.clients.find((client) => client.id === "c2")?.archivedAt).toBeNull();
       const savesAfterResolution = saveAll.mock.calls.length;
       expect(savesAfterResolution).toBe(2);
       await vi.advanceTimersByTimeAsync(35_000);
@@ -253,12 +264,13 @@ describe("batch reconciliation (authoritative reload)", () => {
         new BatchValidationError("Allocation must reference an active resource in this company."),
       );
 
-      useStore.getState().addClient({ name: "Rejected local edit", color: "#222222" });
+      useStore.getState().archiveEntity("clients", "c2");
       await vi.advanceTimersByTimeAsync(5);
 
       expect(onError.mock.calls[0]?.[0]).toBeInstanceOf(BatchValidationError);
       expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
       expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["c2", "internal:a2"]);
+      expect(useStore.getState().data.clients.find((client) => client.id === "c2")?.archivedAt).toBeNull();
       expect(onSuccess).toHaveBeenCalled();
 
       const savesAfterResolution = saveAll.mock.calls.length;
@@ -290,7 +302,7 @@ describe("batch reconciliation (authoritative reload)", () => {
       const reconciliationError = error();
       saveAll.mockRejectedValueOnce(reconciliationError);
 
-      useStore.getState().addClient({ name: "Uncertain", color: "#222222" });
+      useStore.getState().archiveEntity("clients", "c2");
       await vi.advanceTimersByTimeAsync(5);
 
       expect(saveAll).toHaveBeenCalledTimes(1);
@@ -309,6 +321,7 @@ describe("batch reconciliation (authoritative reload)", () => {
       await vi.advanceTimersByTimeAsync(5);
       expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 2);
       expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["c2", "internal:a2"]);
+      expect(useStore.getState().data.clients.find((client) => client.id === "c2")?.archivedAt).toBeNull();
       expect(saveAll).toHaveBeenCalledTimes(2);
       detach();
     } finally {
@@ -335,7 +348,7 @@ describe("batch reconciliation (authoritative reload)", () => {
         .mockRejectedValueOnce(new BatchConflictError("stale write"))
         .mockRejectedValueOnce(new BatchConflictError("still stale"));
 
-      useStore.getState().addClient({ name: "Conflicted", color: "#222222" });
+      useStore.getState().archiveEntity("clients", "c2");
       await vi.advanceTimersByTimeAsync(5);
 
       // The authoritative reload clears the banner before a follow-up conflict raises it again;
@@ -379,29 +392,32 @@ describe("batch reconciliation (authoritative reload)", () => {
     saveAll.mockRejectedValueOnce(new BatchConflictError("stale write"));
     hold = true;
 
-    useStore.getState().addClient({ name: "Conflicted", color: "#222222" });
+    useStore.getState().archiveEntity("clients", "c2");
     await vi.waitFor(() => expect(release).not.toBeNull());
 
     // Hold the reload open to expose edits whose pending save could otherwise replay the pre-reload tree.
-    useStore.getState().addClient({ name: "During reload", color: "#333333" });
+    stageLegacyClient("a2", "During reload");
     const savesBeforeReloadSettled = saveAll.mock.calls.length;
 
     requireCallback(release, "conflict reload release")();
-    await vi.waitFor(() =>
+    await vi.waitFor(() => {
       expect(useStore.getState().data.clients.map((client) => client.name)).toEqual([
         "Stark Industries",
         "Internal",
         "During reload",
-      ]),
-    );
+      ]);
+      expect(useStore.getState().data.clients.find((client) => client.id === "c2")?.archivedAt).toBeNull();
+    });
 
     const names = useStore.getState().data.clients.map((c) => c.name);
     expect(names).toEqual(["Stark Industries", "Internal", "During reload"]);
-    expect(names).not.toContain("Conflicted");
+    expect(useStore.getState().data.clients.find((client) => client.id === "c2")?.archivedAt).toBeNull();
     expect(onError.mock.calls.some(([e]) => e instanceof BatchConflictError)).toBe(true);
     const postReload = saveAll.mock.calls.slice(savesBeforeReloadSettled).map(([payload]) => payload as AppData);
     expect(postReload.some((payload) => payload.clients.some((c) => c.name === "During reload"))).toBe(true);
-    expect(postReload.every((payload) => !payload.clients.some((c) => c.name === "Conflicted"))).toBe(true);
+    expect(
+      postReload.every((payload) => payload.clients.find((client) => client.id === "c2")?.archivedAt == null),
+    ).toBe(true);
     detach();
   });
 
@@ -418,7 +434,7 @@ describe("batch reconciliation (authoritative reload)", () => {
       onSuccess.mockClear();
       saveAll.mockRejectedValueOnce(new Error("temporarily unavailable"));
 
-      useStore.getState().addClient({ name: "Transient", color: "#222222" });
+      useStore.getState().archiveEntity("clients", "c2");
       await vi.advanceTimersByTimeAsync(0);
       expect(onSuccess).not.toHaveBeenCalled();
       expect(loadAll.mock.calls.length).toBe(loadsAfterPick);
@@ -426,7 +442,7 @@ describe("batch reconciliation (authoritative reload)", () => {
       await vi.advanceTimersByTimeAsync(1000);
       expect(onSuccess).toHaveBeenCalled();
 
-      expect(useStore.getState().data.clients.some((c) => c.name === "Transient")).toBe(true);
+      expect(useStore.getState().data.clients.find((client) => client.id === "c2")?.archivedAt).toBeTruthy();
       detach();
     } finally {
       vi.useRealTimers();

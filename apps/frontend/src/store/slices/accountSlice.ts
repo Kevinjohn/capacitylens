@@ -10,7 +10,7 @@ import type { Account, ID } from "@capacitylens/shared/types/entities";
 import { buildClearedSession, resetSchedulerView, stamp } from "@/store/storeInternal";
 import type { StoreInternals } from "@/store/storeInternal";
 import { readCurrentWeekAnchor } from "./schedulerSlice";
-import type { Draft, Patch, StoreState } from "@/store/types";
+import type { Draft, StoreState } from "@/store/types";
 
 type AccountSlice = Pick<
   StoreState,
@@ -22,7 +22,6 @@ type AccountSlice = Pick<
   | "accountSummariesAmbiguous"
   | "accountSummariesRequestId"
   | "addAccount"
-  | "updateAccount"
   | "deleteAccount"
   | "setActiveAccount"
   | "beginAccountSummariesRequest"
@@ -32,13 +31,7 @@ type AccountSlice = Pick<
 type AccountSliceCreator = StateCreator<StoreState, [], [], AccountSlice>;
 type AccountSliceInternals = Pick<
   StoreInternals,
-  | "createGuardedAction"
-  | "createGuardedValueAction"
-  | "assertWorkingDays"
-  | "snapColor"
-  | "mutate"
-  | "updateById"
-  | "applySnappedColor"
+  "createGuardedAction" | "createGuardedValueAction" | "assertWorkingDays" | "snapColor" | "mutate"
 >;
 type AccountSliceSet = Parameters<AccountSliceCreator>[0];
 type AccountSliceGet = Parameters<AccountSliceCreator>[1];
@@ -83,28 +76,6 @@ function createAddAccountAction({ internals, set }: AccountActionContext): Store
     }));
     return entity;
   }, null);
-}
-
-function createUpdateAccountAction({ internals, get }: AccountActionContext): StoreState["updateAccount"] {
-  const { createGuardedAction, assertWorkingDays, mutate, updateById, applySnappedColor } = internals;
-  return createGuardedAction((id: ID, patch: Patch<Account>) => {
-    const state = get();
-    const existing = state.data.accounts.find((account) => account.id === id);
-    if (!existing) return;
-    if (state.activeAccountId !== id) throw new Error("Cannot update a company other than the active company.");
-    if (patch.workingDays != null) assertWorkingDays(patch.workingDays);
-    const safePatch =
-      patch.workingDays == null
-        ? patch
-        : {
-            ...patch,
-            workingDays: normalizeAccountWorkingDays(patch.workingDays, existing.weekStartsOn ?? 1),
-          };
-    mutate((data) => ({
-      ...data,
-      accounts: updateById(data.accounts, id, applySnappedColor({ patch: safePatch })),
-    }));
-  });
 }
 
 function createDeleteAccountAction({ internals, set, get }: AccountActionContext): StoreState["deleteAccount"] {
@@ -208,7 +179,6 @@ export function createAccountSlice(internals: AccountSliceInternals): StateCreat
       accountSummariesAmbiguous: false,
       accountSummariesRequestId: 0,
       addAccount: createAddAccountAction(context),
-      updateAccount: createUpdateAccountAction(context),
       deleteAccount: createDeleteAccountAction(context),
       setActiveAccount: createSetActiveAccountAction(context),
 

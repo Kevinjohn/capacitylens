@@ -218,7 +218,7 @@ function useAddInlineActivity({
   setActivityId: React.Dispatch<React.SetStateAction<string>>;
   setNewActivityName: React.Dispatch<React.SetStateAction<string>>;
 }) {
-  return () => {
+  return async () => {
     if (!canEdit) return;
     const cleanActivityName = parseText(newActivityName, fail, {
       field: "newactivity",
@@ -226,7 +226,7 @@ function useAddInlineActivity({
     });
     if (cleanActivityName === null) return;
     try {
-      const activity = addActivity({ name: cleanActivityName, ...activityScope });
+      const activity = await addActivity({ name: cleanActivityName, ...activityScope });
       if (activity.kind === "blocked") return;
       flushSync(() => {
         setInlineActivityOption({

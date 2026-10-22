@@ -6,7 +6,9 @@ import { resetStoreWithAccount } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
 import { ExternalForm } from "./ExternalForm";
 
-beforeEach(() => resetStoreWithAccount());
+beforeEach(async () => {
+  await resetStoreWithAccount();
+});
 
 describe("ExternalForm", () => {
   it("rejects a blank company name and associates the error with the field", async () => {
@@ -45,7 +47,7 @@ describe("ExternalForm", () => {
 
   it("prefills and updates an existing external party", async () => {
     const user = userEvent.setup();
-    const resource = requireCreated(
+    const resource = await requireCreated(
       useStore.getState().addResource({
         kind: "external",
         name: "Kord Industries",
@@ -81,7 +83,7 @@ describe("ExternalForm", () => {
 
   it("rejects a stale edit instead of overwriting a concurrent change", async () => {
     const user = userEvent.setup();
-    const resource = requireCreated(
+    const resource = await requireCreated(
       useStore.getState().addResource({
         kind: "external",
         name: "Kord Industries",
@@ -97,7 +99,7 @@ describe("ExternalForm", () => {
     const onClose = vi.fn();
     render(<ExternalForm resource={resource} onClose={onClose} />);
 
-    useStore.getState().updateResource(resource.id, { role: "Brand lead" });
+    await useStore.getState().updateResource(resource.id, { role: "Brand lead" });
     await user.clear(screen.getByLabelText("Company"));
     await user.type(screen.getByLabelText("Company"), "Kord Studio");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -119,7 +121,7 @@ describe("ExternalForm", () => {
     await user.type(screen.getByLabelText("Company"), "Unscoped partner");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(screen.getByRole("alert")).toHaveTextContent("No active account — cannot mutate scoped data.");
+    expect(screen.getByRole("alert")).toHaveTextContent(/No active company is selected/);
     expect(onClose).not.toHaveBeenCalled();
     expect(useStore.getState().data.resources).toEqual([]);
   });

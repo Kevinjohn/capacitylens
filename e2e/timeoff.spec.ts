@@ -117,7 +117,7 @@ function registerEditsTimeOffEntryListTest() {
 }
 
 function registerDeletesTimeOffEntryConfirmationTest() {
-  test("deletes a time-off entry after confirmation, and undo leaves it deleted", async ({ page }) => {
+  test("deletes a time-off entry after confirmation, and Undo restores it", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/timeoff");
     const bruceGroup = page
       .getByTestId("timeoff-group")
@@ -143,9 +143,9 @@ function registerDeletesTimeOffEntryConfirmationTest() {
     await expect(block).toHaveCount(0);
 
     await page.keyboard.press("Meta+z");
-    await expect(block).toHaveCount(0);
+    await expect(block).toContainText("Holiday");
     await page.getByRole("link", { name: "Time off" }).click();
-    await expect(bruceGroup.getByTestId("timeoff-row")).toHaveCount(0);
+    await expect(bruceGroup.getByTestId("timeoff-row")).toBeVisible();
   });
 }
 

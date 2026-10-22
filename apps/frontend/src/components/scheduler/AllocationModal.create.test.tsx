@@ -6,7 +6,7 @@ import { AllocationModal } from "./AllocationModal";
 import { useStore } from "@/store/useStore";
 import { makeResourceDraft } from "@/test/fixtures";
 import { chooseOption } from "./__tests__/schedulerTestKit";
-import { required, first, person, resetAllocationModalStore } from "./__tests__/allocationModalTestKit";
+import { required, person, resetAllocationModalStore } from "./__tests__/allocationModalTestKit";
 
 type CapacityAdvisoryMockInput =
   | Parameters<typeof import("@/lib/capacity").buildCapacityAdvisory>[0]
@@ -25,26 +25,26 @@ vi.mock("@/lib/capacity", async (importOriginal) => ({
   buildCapacityAdvisoryFromLoad: capacityAdvisoryMock,
 }));
 
-beforeEach(() => {
-  resetAllocationModalStore();
+beforeEach(async () => {
+  await resetAllocationModalStore();
   capacityAdvisoryMock.mockClear();
   capacityAdvisoryMock.mockImplementation(() => ({ overDays: 0, timeOffDays: 0 }));
 });
 
 describe("AllocationModal create", () => {
   it("orders project scopes and activities, and exposes status as a labelled radiogroup", async () => {
-    useStore.getState().addClient({ name: "Zeta", color: "#123456" });
+    await useStore.getState().addClient({ name: "Zeta", color: "#123456" });
     const zetaClient = required(
       useStore.getState().data.clients.find((client) => client.name === "Zeta"),
       "Expected the newly added Zeta client.",
     );
-    useStore.getState().addProject({ name: "Alpha", clientId: zetaClient.id, color: "#123456" });
-    useStore.getState().addActivity({ name: "Support", kind: "internal" });
-    useStore.getState().addActivity({ name: "Admin", kind: "internal" });
-    useStore.getState().addActivity({ name: "Strategy", kind: "repeatable" });
-    useStore.getState().addActivity({ name: "Retrospective", kind: "repeatable" });
+    await useStore.getState().addProject({ name: "Alpha", clientId: zetaClient.id, color: "#123456" });
+    await useStore.getState().addActivity({ name: "Support", kind: "internal" });
+    await useStore.getState().addActivity({ name: "Admin", kind: "internal" });
+    await useStore.getState().addActivity({ name: "Strategy", kind: "repeatable" });
+    await useStore.getState().addActivity({ name: "Retrospective", kind: "repeatable" });
     const barbara = person("Barbara");
-    const resource = requireCreated(
+    const resource = await requireCreated(
       useStore.getState().addResource({ ...barbara, workingDays: [...barbara.workingDays] }),
     );
     const user = userEvent.setup();
@@ -90,8 +90,8 @@ describe("AllocationModal create", () => {
     expect(screen.getByLabelText("Note").tagName).toBe("INPUT");
   });
 
-  it("defaults hourly load to four hours when creation starts on a half day", () => {
-    const resource = requireCreated(
+  it("defaults hourly load to four hours when creation starts on a half day", async () => {
+    const resource = await requireCreated(
       useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5], halfDays: [2] }),
     );
     render(
@@ -106,8 +106,8 @@ describe("AllocationModal create", () => {
   });
 
   it("gives same-named activity options distinct accessible labels", async () => {
-    useStore.getState().addActivity({ name: "Wireframes", kind: "project", projectId: "p1" });
-    const resource = requireCreated(
+    await useStore.getState().addActivity({ name: "Wireframes", kind: "project", projectId: "p1" });
+    const resource = await requireCreated(
       useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" })),
     );
     const user = userEvent.setup();
@@ -131,8 +131,10 @@ describe("AllocationModal create", () => {
   });
 
   it("creates an allocation for a person after picking project + activity", async () => {
-    useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    const resourceId = first(useStore.getState().data.resources).id;
+    const resource = await requireCreated(
+      useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" })),
+    );
+    const resourceId = resource.id;
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -164,9 +166,9 @@ describe("AllocationModal create", () => {
     ["No specific project", "Planning", undefined],
     ["Ferris / Lightning", "Planning", "p1"],
   ] as const)("derives create attribution for the %s scope", async (scope, activityName, expectedProjectId) => {
-    useStore.getState().addActivity({ name: "Operations", kind: "internal" });
-    useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
-    const resource = requireCreated(
+    await useStore.getState().addActivity({ name: "Operations", kind: "internal" });
+    await useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
+    const resource = await requireCreated(
       useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" })),
     );
     const user = userEvent.setup();
@@ -198,8 +200,10 @@ describe("AllocationModal create", () => {
     ["4 h - half day", 4],
     ["8 h - full day", 8],
   ] as const)("creates an allocation with the %s hours option", async (option, expectedHours) => {
-    useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    const resourceId = first(useStore.getState().data.resources).id;
+    const resource = await requireCreated(
+      useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" })),
+    );
+    const resourceId = resource.id;
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -219,8 +223,10 @@ describe("AllocationModal create", () => {
   });
 
   it("rejects an empty date instead of saving a broken allocation", async () => {
-    useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    const resourceId = first(useStore.getState().data.resources).id;
+    const resource = await requireCreated(
+      useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" })),
+    );
+    const resourceId = resource.id;
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -245,8 +251,8 @@ describe("AllocationModal create", () => {
   });
 
   it("books an All-projects activity for a bound placeholder under its locked project", async () => {
-    const planning = requireCreated(useStore.getState().addActivity({ name: "Planning", kind: "repeatable" }));
-    const ph = requireCreated(
+    const planning = await requireCreated(useStore.getState().addActivity({ name: "Planning", kind: "repeatable" }));
+    const ph = await requireCreated(
       useStore.getState().addResource({
         kind: "placeholder",
         role: "Senior Designer",
@@ -301,8 +307,8 @@ describe("AllocationModal create", () => {
   });
 
   it("cannot attribute an All-projects activity for an unbound placeholder", async () => {
-    useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
-    const placeholder = requireCreated(
+    await useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
+    const placeholder = await requireCreated(
       useStore.getState().addResource({
         kind: "placeholder",
         role: "Senior Designer",
@@ -340,8 +346,8 @@ describe("AllocationModal create", () => {
 });
 
 describe("AllocationModal advisory work bounds", () => {
-  it("does not recompute the advisory when only the note changes", () => {
-    const resource = requireCreated(
+  it("does not recompute the advisory when only the note changes", async () => {
+    const resource = await requireCreated(
       useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
     );
     render(
@@ -366,7 +372,7 @@ describe("AllocationModal advisory work bounds", () => {
   });
 
   it("skips the advisory and rejects an over-limit Hours-mode date span", async () => {
-    const resource = requireCreated(
+    const resource = await requireCreated(
       useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const onClose = vi.fn();
@@ -401,7 +407,7 @@ describe("AllocationModal advisory work bounds", () => {
   });
 
   it("rejects the same over-limit date span for an External resource", async () => {
-    const resource = requireCreated(
+    const resource = await requireCreated(
       useStore.getState().addResource({
         kind: "external",
         name: "Kord Industries",
@@ -441,7 +447,7 @@ describe("AllocationModal advisory work bounds", () => {
   });
 
   it("keeps Ignore working days hidden for an External while preserving its literal calendar span", async () => {
-    const resource = requireCreated(
+    const resource = await requireCreated(
       useStore.getState().addResource({
         kind: "external",
         name: "Kord Industries",

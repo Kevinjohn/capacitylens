@@ -8,7 +8,7 @@ import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "@/co
 import { SettingsSection } from "./SettingsSection";
 
 type WorkingDays = ReturnType<typeof listAccountWorkingDays>;
-type UpdateSetting = (patch: Parameters<StoreState["updateAccount"]>[1]) => void;
+type UpdateSetting = (patch: Parameters<StoreState["updateAccount"]>[1]) => Promise<void>;
 
 function WorkingDayCheckbox({
   canEdit,
@@ -44,13 +44,13 @@ function WorkingDayCheckbox({
           disabled={disabled}
           aria-label={resolveWeekdayLabel(day)}
           aria-describedby={isOnlyWorkingDay ? workingDaysMinimumId : undefined}
-          onCheckedChange={() =>
-            updateSetting({
+          onCheckedChange={() => {
+            void updateSetting({
               workingDays: checked
                 ? workingDays.filter((candidate) => candidate !== day)
                 : [...workingDays, day].sort((a, b) => a - b),
-            })
-          }
+            });
+          }}
         />
       </FieldLabel>
     </Field>

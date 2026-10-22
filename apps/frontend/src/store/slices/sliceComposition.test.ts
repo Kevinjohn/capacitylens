@@ -2,14 +2,13 @@ import { describe, expect, it } from "vitest";
 import { createVolatilePlanningTransport } from "@/data/planning/volatilePlanningTransport";
 import { createAccountSlice } from "./accountSlice";
 import { createAllocationSlice } from "./allocationSlice";
-import { createCatalogSlice } from "./catalogSlice";
 import { createHistorySlice } from "./historySlice";
 import { createLifecycleSlice } from "./lifecycleSlice";
-import { createResourceSlice } from "./resourceSlice";
 import { createRuntimeSlice } from "./runtimeSlice";
 import { createSchedulerSlice } from "./schedulerSlice";
 import { createStoreInternals } from "@/store/storeInternal";
 import { buildEmptyFilters, useStore } from "@/store/useStore";
+import { createTypedPlanningActions } from "@/store/typedPlanningActions";
 
 describe("store slice composition", () => {
   it("owns every store key exactly once", () => {
@@ -21,13 +20,12 @@ describe("store slice composition", () => {
       createHistorySlice(internals)(set, get, useStore),
       createRuntimeSlice(set, get, useStore),
       createSchedulerSlice(buildEmptyFilters)(set, get, useStore),
-      createCatalogSlice(internals)(set, get, useStore),
-      createResourceSlice(internals)(set, get, useStore),
       createAllocationSlice(
         internals,
         createVolatilePlanningTransport(() => get().data),
       )(set, get, useStore),
       createLifecycleSlice(internals)(set, get, useStore),
+      createTypedPlanningActions(get, internals.blockedByViewer),
     ];
 
     const keySets = slices.map((slice) => new Set(Object.keys(slice)));

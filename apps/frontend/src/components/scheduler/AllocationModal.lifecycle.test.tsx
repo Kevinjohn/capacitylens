@@ -11,7 +11,6 @@ import {
   addPerson,
   closestForm,
   completeAssignment,
-  first,
   person,
   resetAllocationModalStore,
 } from "./__tests__/allocationModalTestKit";
@@ -33,16 +32,18 @@ vi.mock("@/lib/capacity", async (importOriginal) => ({
   buildCapacityAdvisoryFromLoad: capacityAdvisoryMock,
 }));
 
-beforeEach(() => {
-  resetAllocationModalStore();
+beforeEach(async () => {
+  await resetAllocationModalStore();
   capacityAdvisoryMock.mockClear();
   capacityAdvisoryMock.mockImplementation(() => ({ overDays: 0, timeOffDays: 0 }));
 });
 
 describe("AllocationModal Enter key submission", () => {
   it("operates the Hours / day select with the keyboard", async () => {
-    useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    const resourceId = first(useStore.getState().data.resources).id;
+    const resource = await requireCreated(
+      useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" })),
+    );
+    const resourceId = resource.id;
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -68,8 +69,10 @@ describe("AllocationModal Enter key submission", () => {
   });
 
   it("submits when Enter is pressed in the single-line Note input", async () => {
-    useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    const resourceId = first(useStore.getState().data.resources).id;
+    const resource = await requireCreated(
+      useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" })),
+    );
+    const resourceId = resource.id;
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -93,9 +96,11 @@ describe("AllocationModal Enter key submission", () => {
   });
 
   it("pressing Enter in the new-activity input calls onAddActivity, not submit", async () => {
-    useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    const resourceId = first(useStore.getState().data.resources).id;
-    useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
+    const resource = await requireCreated(
+      useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" })),
+    );
+    const resourceId = resource.id;
+    await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -119,7 +124,7 @@ describe("AllocationModal Enter key submission", () => {
 
 describe("AllocationModal submit exclusion", () => {
   it("saves once when two real submit events target a form closed by the first", async () => {
-    const resource = addPerson();
+    const resource = await addPerson();
     const addAllocation = vi.spyOn(useStore.getState(), "addAllocation");
     const user = userEvent.setup();
     let closeModal = () => {};
@@ -145,7 +150,7 @@ describe("AllocationModal submit exclusion", () => {
 
 describe("AllocationModal lifecycle", () => {
   it("closes when the allocation being edited disappears from the store", async () => {
-    const resource = requireCreated(useStore.getState().addResource(person("Barbara")));
+    const resource = await requireCreated(useStore.getState().addResource(person("Barbara")));
     const allocation = requireCreated(
       await useStore.getState().addAllocation({
         resourceId: resource.id,
@@ -164,8 +169,8 @@ describe("AllocationModal lifecycle", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("preserves a partially edited draft across equivalent parent props", () => {
-    const resource = requireCreated(useStore.getState().addResource(person("Barbara")));
+  it("preserves a partially edited draft across equivalent parent props", async () => {
+    const resource = await requireCreated(useStore.getState().addResource(person("Barbara")));
     const onClose = vi.fn();
     const view = render(
       <AllocationModal

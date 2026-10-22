@@ -75,7 +75,7 @@ export function ClosureForm({ closure, onClose }: { closure?: Closure; onClose: 
   const { error, errorField, errorId, fail, clear } = fieldError;
   useFieldErrorFocus(fieldError);
 
-  const submit = () => {
+  const submit = async () => {
     const cleanName = parseText(name, fail, { requiredMessage: m.form_closure_err_name_required() });
     if (!cleanName) return;
     if (!startDate || !endDate) {
@@ -94,9 +94,9 @@ export function ClosureForm({ closure, onClose }: { closure?: Closure; onClose: 
           fail(null, m.form_closure_err_changed());
           return;
         }
-        update(closure.id, patch);
+        await update(closure.id, patch);
       } else {
-        if (add(patch).kind === "blocked") return;
+        if ((await add(patch)).kind === "blocked") return;
       }
       onClose();
     } catch (error) {
@@ -109,7 +109,9 @@ export function ClosureForm({ closure, onClose }: { closure?: Closure; onClose: 
     <Modal
       title={closure ? m.form_closure_edit_title() : m.form_closure_add_title()}
       onClose={onClose}
-      onSubmit={submit}
+      onSubmit={() => {
+        void submit();
+      }}
       onEdit={clear}
       footer={<FormActions onCancel={onClose} />}
     >

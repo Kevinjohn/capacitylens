@@ -93,7 +93,7 @@ This is the short, present-tense record of decisions that constrain future work.
   rows are kept in a server tombstone table bound to session, actor and company so that restore
   is one atomic operation under current authority and hidden fields never leave the server.
   Tombstones are removed in the same transaction as purge, anonymisation, import and erasure.
-  A change to a client or project privacy field or to an activity kind also clears that company's
+  A change to a client or project privacy or code-name field, or to an activity kind, also clears that company's
   pending tombstones in the change transaction. Those saved before-images can contain names or
   relationships that should no longer be restorable under the new visibility rules. Unchanged
   privacy fields and ordinary settings edits keep the groups. Changing this rule later requires

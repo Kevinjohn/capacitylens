@@ -78,23 +78,26 @@ function twoAccountData(): AppData {
   });
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   s().replaceAll(twoAccountData());
   s().setActiveAccount(A);
   s().setActiveRole(null);
+  await s().refreshPlanning();
   expect(s().activeAccountId).toBe(A);
 });
 
 describe("active-account replacement invariant", () => {
-  it("rejects scoped writes only while the active account's hydration is marked failed", () => {
+  it("rejects scoped writes only while the active account's hydration is marked failed", async () => {
     useStore.setState({ activeAccountLoadFailed: A });
-    expect(() => requireCreated(s().addClient({ name: "Wayne Enterprises", color: "#111111" }))).toThrow(/not loaded/i);
+    await expect(requireCreated(s().addClient({ name: "Wayne Enterprises", color: "#111111" }))).rejects.toThrow(
+      /not loaded/i,
+    );
 
     useStore.setState({ activeAccountLoadFailed: B });
-    expect(() => requireCreated(s().addClient({ name: "Wayne Foundation", color: "#111111" }))).not.toThrow();
+    await expect(requireCreated(s().addClient({ name: "Wayne Foundation", color: "#111111" }))).resolves.toBeDefined();
   });
 
-  it("atomically returns to the picker when a replacement omits the selected account", () => {
+  it("atomically returns to the picker when a replacement omits the selected account", async () => {
     const replacement = makeAppData({ accounts: [makeAccount({ id: B, name: "Company B" })] });
     s().setDirtyForm(true);
     s().setDraggingAllocation("allocation-a");
@@ -123,21 +126,25 @@ describe("active-account replacement invariant", () => {
     expect(s().draggingAllocationId).toBeNull();
     expect(s().srAnnouncement).toBeNull();
     expect(s().ui.scrollToResource).toBeNull();
-    expect(() => requireCreated(s().addClient({ name: "Orphan", color: "#111111" }))).toThrow(/no active account/i);
+    await expect(requireCreated(s().addClient({ name: "Orphan", color: "#111111" }))).rejects.toThrow(
+      /no active company/i,
+    );
     expect(s().data.clients).toEqual([]);
   });
 
-  it("rejects scoped writes when a non-null active id has no loaded account row", () => {
+  it("rejects scoped writes when a non-null active id has no loaded account row", async () => {
     s().setAccountSummaries({ list: [] });
     useStore.setState({ activeAccountId: "missing-account" });
 
-    expect(() => requireCreated(s().addClient({ name: "Orphan", color: "#111111" }))).toThrow(/not loaded/i);
+    await expect(requireCreated(s().addClient({ name: "Orphan", color: "#111111" }))).rejects.toThrow(
+      /no active company/i,
+    );
     expect(s().data.clients).toEqual(twoAccountData().clients);
   });
 });
 
 describe("active-account permission publication", () => {
-  it("atomically fail-closes a switched tenant before an imperative write can use the prior role", () => {
+  it("atomically fail-closes a switched tenant before an imperative write can use the prior role", async () => {
     s().setActiveRole("editor");
     const rolesPublishedForB: Array<string | null> = [];
     const unsubscribe = useStore.subscribe((state) => {
@@ -145,35 +152,36 @@ describe("active-account permission publication", () => {
     });
 
     s().setActiveAccount(B);
-    const beforeWrite = s().data;
-    s().addClient({ name: "Must not land", color: "#111111" });
+    await s().addClient({ name: "Must not land", color: "#111111" });
     unsubscribe();
 
     expect(rolesPublishedForB[0]).toBe("viewer");
     expect(new Set(rolesPublishedForB)).toEqual(new Set(["viewer"]));
     expect(s().activeRole).toBe("viewer");
-    expect(s().data).toBe(beforeWrite);
+    expect(s().data.clients.some((client) => client.name === "Must not land")).toBe(false);
+    expect(s().data.clients.find((client) => client.id === "cB")?.accountId).toBe(B);
     expect(s().notice).toMatchObject({ tone: "error" });
   });
 
-  it("keeps the auth-off null role editable across the same account switch", () => {
+  it("keeps the auth-off null role editable across the same account switch", async () => {
     s().setActiveRole(null);
     s().setActiveAccount(B);
+    await s().refreshPlanning();
 
     expect(s().activeRole).toBeNull();
-    const added = requireCreated(s().addClient({ name: "Open-mode client", color: "#111111" }));
+    const added = await requireCreated(s().addClient({ name: "Open-mode client", color: "#111111" }));
     expect(s().data.clients.some((client) => client.id === added.id)).toBe(true);
   });
 });
 
 function registerAccountOwnershipTests(): void {
-  it("refuses to update a non-active account", () => {
-    expect(() => s().updateAccount(B, { name: "Hijacked company" })).toThrow(/active company/i);
+  it("refuses to update a non-active account", async () => {
+    await expect(s().updateAccount(B, { name: "Hijacked company" })).rejects.toThrow(/active company/i);
     expect(s().data.accounts.find((account) => account.id === B)?.name).toBe("Company B");
 
     s().setActiveRole("viewer");
     const dataBefore = s().data;
-    expect(() => s().updateAccount(B, { name: "Viewer hijack" })).not.toThrow();
+    await expect(s().updateAccount(B, { name: "Viewer hijack" })).resolves.toBeUndefined();
     expect(s().data).toBe(dataBefore);
     expect(s().notice).toMatchObject({ tone: "error" });
   });
@@ -183,26 +191,28 @@ function registerAccountOwnershipTests(): void {
     expect(s().data.accounts.some((account) => account.id === B)).toBe(true);
   });
 
-  it("treats stale account update and delete ids as true no-ops that preserve undo and redo", () => {
-    s().updateAccount(A, { name: "Changed once" });
-    s().undo();
+  it("treats stale account update and delete ids as true no-ops that preserve undo and redo", async () => {
+    await s().updateAccount(A, { name: "Changed once" });
+    await s().undoPlanning();
     const dataBefore = s().data;
-    const pastBefore = s().past;
-    const futureBefore = s().future;
+    const pastBefore = s().planning.history.past;
+    const futureBefore = s().planning.history.future;
 
-    expect(() => s().updateAccount("missing-account", { name: "Gone" })).not.toThrow();
+    await expect(s().updateAccount("missing-account", { name: "Gone" })).rejects.toThrow(/active company/i);
     expect(s().data).toBe(dataBefore);
-    expect(s().past).toBe(pastBefore);
-    expect(s().future).toBe(futureBefore);
+    expect(s().planning.history.past).toBe(pastBefore);
+    expect(s().planning.history.future).toBe(futureBefore);
 
     expect(() => s().deleteAccount("missing-account")).not.toThrow();
     expect(s().data).toBe(dataBefore);
-    expect(s().past).toBe(pastBefore);
-    expect(s().future).toBe(futureBefore);
+    expect(s().planning.history.past).toBe(pastBefore);
+    expect(s().planning.history.future).toBe(futureBefore);
   });
 
-  it("refuses to update a row owned by another account", () => {
-    expect(() => s().updateClient("cB", { name: "hijacked" })).toThrow(/does not belong to the active company/i);
+  it("refuses to update a row owned by another account", async () => {
+    await expect(s().updateClient("cB", { name: "hijacked" })).rejects.toThrow(
+      /does not belong to the active company/i,
+    );
     const client = assertDefined(
       s().data.clients.find((c) => c.id === "cB"),
       "client cB",
@@ -229,9 +239,9 @@ function registerEntityOwnershipTests(): void {
     // outside React's error boundary), only a cross-account hit is a violation.
     expect(await s().updateAllocation("gone", { status: "tentative" })).toBe(false);
     await s().deleteAllocation("gone");
-    expect(() => s().updateClient("gone", { name: "x" })).not.toThrow();
+    await expect(s().updateClient("gone", { name: "x" })).resolves.toBeUndefined();
     expect(() => s().archiveEntity("projects", "gone")).not.toThrow();
-    expect(() => s().updateTimeOff("gone", { type: "sick" })).not.toThrow();
+    await expect(s().updateTimeOff("gone", { type: "sick" })).resolves.toBeUndefined();
   });
 
   it("refuses to update/delete an allocation owned by another account", async () => {
@@ -269,21 +279,21 @@ describe("ownership guard on update/delete", () => {
 });
 
 describe("foreign-key refs must stay in the active account", () => {
-  it("addProject rejects a client from another account", () => {
-    expect(() => requireCreated(s().addProject({ name: "X", clientId: "cB", color: "#444444" }))).toThrow(
+  it("addProject rejects a client from another account", async () => {
+    await expect(requireCreated(s().addProject({ name: "X", clientId: "cB", color: "#444444" }))).rejects.toThrow(
       /project must reference a client in this company/i,
     );
     expect(s().data.projects.some((p) => p.name === "X")).toBe(false);
   });
 
-  it("addActivity rejects a project from another account", () => {
-    expect(() => requireCreated(s().addActivity({ name: "X", kind: "project", projectId: "pB" }))).toThrow(
+  it("addActivity rejects a project from another account", async () => {
+    await expect(requireCreated(s().addActivity({ name: "X", kind: "project", projectId: "pB" }))).rejects.toThrow(
       /activity must reference a project in this company/i,
     );
   });
 
-  it("addPhase rejects a project from another account", () => {
-    expect(() => requireCreated(s().addPhase({ name: "X", projectId: "pB" }))).toThrow(
+  it("addPhase rejects a project from another account", async () => {
+    await expect(requireCreated(s().addPhase({ name: "X", projectId: "pB" }))).rejects.toThrow(
       /phase must reference a project in this company/i,
     );
   });
@@ -302,19 +312,19 @@ describe("foreign-key refs must stay in the active account", () => {
     expect(s().data.allocations).toHaveLength(0);
   });
 
-  it("addTimeOff rejects a resource from another account", () => {
-    expect(() =>
+  it("addTimeOff rejects a resource from another account", async () => {
+    await expect(
       requireCreated(
         s().addTimeOff({ resourceId: "rB", startDate: "2026-01-01", endDate: "2026-01-02", type: "holiday" }),
       ),
-    ).toThrow(/time off must reference an existing resource in this company/i);
+    ).rejects.toThrow(/time off must reference an existing resource in this company/i);
     expect(s().data.timeOff).toHaveLength(0);
   });
 
-  it("still allows valid in-account references", () => {
-    const c = requireCreated(s().addClient({ name: "A Client", color: "#555555" }));
-    const p = requireCreated(s().addProject({ name: "A Project", clientId: c.id, color: "#666666" }));
-    const t = requireCreated(s().addActivity({ name: "An Activity", kind: "project", projectId: p.id }));
+  it("still allows valid in-account references", async () => {
+    const c = await requireCreated(s().addClient({ name: "A Client", color: "#555555" }));
+    const p = await requireCreated(s().addProject({ name: "A Project", clientId: c.id, color: "#666666" }));
+    const t = await requireCreated(s().addActivity({ name: "An Activity", kind: "project", projectId: p.id }));
     expect(t.accountId).toBe(A);
     const project = assertDefined(
       s().data.projects.find((x) => x.id === p.id),
