@@ -11,7 +11,6 @@ import { EXPORT_SCHEMA_VERSION } from "@capacitylens/shared/types/entities";
 import packageJson from "../../../../package.json";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 import type { AccountMode } from "@capacitylens/shared/account/types";
-import type { PersistenceDiagnostics } from "./persistenceDiagnostics";
 
 /** Whether the observed diagnostics response was reachable; `unavailable` means no response was usable. */
 export type DiagnosticsConnectivity = "ok" | "unavailable";
@@ -47,10 +46,9 @@ export interface BrowserDiagnostics {
   language: string;
 }
 
-/** Facts known only to the running client: its sign-in mode, persistence counters and browser. */
+/** Facts known only to the running client: its sign-in mode and browser. */
 export interface ClientDiagnostics {
   signInMode: AccountMode;
-  persistence: PersistenceDiagnostics;
   browser: BrowserDiagnostics;
 }
 
@@ -184,14 +182,14 @@ export function readDiagnostics(
     // physical server schema, which is supplied separately by the authenticated diagnostics route.
     exportSchema: EXPORT_SCHEMA_VERSION,
     server: parseServerDiagnostics(isRecord(serverResponse) ? serverResponse.server : null),
-    client: { ...client, persistence: { ...client.persistence }, browser: readBrowserProjection(client.browser) },
+    client: { ...client, browser: readBrowserProjection(client.browser) },
   };
 }
 
 /** Format diagnostics as stable labelled text for support reports. It contains no raw response data. */
 export function formatDiagnostics(report: DiagnosticsReport): string {
   const { server } = report;
-  const { persistence, browser } = report.client;
+  const { browser } = report.client;
   return [
     `${APP_NAME} diagnostics`,
     `Snapshot observed: ${report.observedAt ?? UNKNOWN}`,
@@ -206,13 +204,6 @@ export function formatDiagnostics(report: DiagnosticsReport): string {
     `Backup: ${server.backup.status}`,
     `Backup last success: ${server.backup.lastSuccessAt ?? UNKNOWN}`,
     `Sign-in mode: ${report.client.signInMode}`,
-    `Saves failed: ${persistence.savesFailed}`,
-    `Retries armed: ${persistence.retriesArmed}`,
-    `Reconciliations resolved: ${persistence.reconciliationsResolved}`,
-    `Reloads superseded: ${persistence.reloadsSuperseded}`,
-    `Edits rebased: ${persistence.editsRebased}`,
-    `Edits discarded: ${persistence.editsDiscarded}`,
-    `Saving suspended: ${persistence.suspended ? "yes" : "no"}`,
     `User agent: ${browser.userAgent}`,
     `Viewport: ${browser.viewport}`,
     `Time zone: ${browser.timeZone}`,

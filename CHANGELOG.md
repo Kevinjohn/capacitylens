@@ -9,6 +9,12 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Persisted access now requires an authenticated principal and one provisioned company. The
+  temporary demo keeps its editable, volatile multi-company picker. Retired generic company and
+  batch writes, browser sync queues and their recovery controls; scheduling changes use typed
+  planning commands and server revisions. First-company provisioning remains unavailable in the
+  native release.
+- Frozen company calendar fields now reject a second typed settings change with 409.
 - Resource and catalogue records now use typed archive and restore actions. Owners and Admins can
   anonymise a resource; only an Owner can anonymise every company resource. The company,
   memberships and planning links remain while names, roles, avatars and dependent notes are scrubbed.

@@ -4,7 +4,6 @@ import { ActionProofDialog } from "@/auth/ActionProofDialog";
 import { useCan } from "@/auth/permissionContext";
 import { useRole } from "@/auth/permissionContext";
 import { API_BASE } from "@/data/apiConfig";
-import { flushPendingWrites, suspendServerWrites } from "@/data/persist";
 import { apiFetch, API_BULK_TIMEOUT_MS } from "@/data/requestTimeout";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import { readApiError } from "@/lib/readApiError";
@@ -109,17 +108,21 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
     const stillCurrent = () =>
       generation.current === submittedGeneration && useStore.getState().activeAccountId === accountId;
     setBusy(true);
-    let resumeWrites: ReturnType<typeof suspendServerWrites> | null = null;
+    let resumeWrites: (() => void) | null = null;
     let committed = false;
     let mustReload = false;
     let dispatched = false;
     try {
-      if ((await flushPendingWrites()).kind !== "clean") {
+      if (!useStore.getState().planningReadyForReplacement()) {
+        if (stillCurrent()) setNotice(m.data_import_blocked_unsynced(), "error");
+        return;
+      }
+      resumeWrites = useStore.getState().suspendPlanningCommands();
+      if (!resumeWrites) {
         if (stillCurrent()) setNotice(m.data_import_blocked_unsynced(), "error");
         return;
       }
       if (!stillCurrent()) return;
-      resumeWrites = suspendServerWrites();
       dispatched = true;
       const response = await apiFetch(
         `${API_BASE}/api/accounts/${encodeURIComponent(accountId)}/anonymise`,

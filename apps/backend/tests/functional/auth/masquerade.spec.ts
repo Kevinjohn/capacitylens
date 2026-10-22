@@ -3,6 +3,7 @@ import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
 import { resetState } from '#services/state_repository'
+import { createFixtureCompanyForOwner } from '../../helpers/authenticated_data_fixture.js'
 
 const setupToken = 'masquerade-setup-token-0123456789abcdef'
 const password = 'batman-secret-2026'
@@ -28,13 +29,7 @@ async function fixture(client: any, targetRole: 'viewer' | 'editor' = 'viewer') 
   owner.assertStatus(201)
   const cookie = owner.cookie('adonis-session')!.value
   const ownerId = String((owner.body() as { user: { id: string } }).user.id)
-  const company = await asSession(
-    client.post('/api/orgs').header('sec-fetch-site', 'same-origin'),
-    cookie
-  )
-    .json({ id: 'a-studio', name: 'Wayne Enterprises' })
-    .send()
-  company.assertStatus(201)
+  await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio')
   const targetId = crypto.randomUUID()
   const now = new Date().toISOString()
   await db.table('users').insert({

@@ -507,7 +507,7 @@ test.group('Google browser entry', (group) => {
     assert.include(denied.header('location'), 'google_state_mismatch')
   })
 
-  test('uses Ally state and mapped Google profile to create an indexed native session', async ({
+  test('uses Ally state and mapped Google profile to create an indexed provider session', async ({
     client,
     assert,
     cleanup,
@@ -559,61 +559,6 @@ test.group('Google browser entry', (group) => {
         ssoMe.assertStatus(200)
         assert.equal(ssoMe.body().reauthMethod, 'provider')
         assert.equal(ssoMe.body().reauthProviderId, 'google')
-        const first = await browserRequest(
-          client
-            .post('/api/orgs')
-            .header('sec-fetch-site', 'same-origin')
-            .json({ id: 'a-studio', name: 'Wayne Enterprises' }),
-          { session }
-        ).send()
-        first.assertStatus(201)
-        const owner = await db.from('memberships').where('account_id', 'a-studio').first()
-        assert.equal(owner.role, 'owner')
-        const second = await browserRequest(
-          client
-            .post('/api/orgs')
-            .header('sec-fetch-site', 'same-origin')
-            .json({ id: 'a-loft', name: 'Stark Industries' }),
-          { session }
-        ).send()
-        second.assertStatus(403)
-        assert.isNull(await db.from('accounts').where('id', 'a-loft').first())
-        await db.from('memberships').where('user_id', owner.user_id).update({ role: 'editor' })
-        const editorDenied = await browserRequest(
-          client
-            .post('/api/orgs')
-            .header('sec-fetch-site', 'same-origin')
-            .json({ id: 'a-denied', name: 'Denied Industries' }),
-          { session }
-        ).send()
-        editorDenied.assertStatus(403)
-        await db.from('memberships').where('user_id', owner.user_id).update({ role: 'admin' })
-        const eligible = await browserRequest(
-          client
-            .post('/api/orgs')
-            .header('sec-fetch-site', 'same-origin')
-            .json({ id: 'a-admin', name: 'Justice League' }),
-          { session }
-        ).send()
-        eligible.assertStatus(403)
-        const now = new Date().toISOString()
-        await db.table('account_access_restrictions').insert({
-          id: 'restriction-a-studio',
-          account_id: 'a-studio',
-          principal_id: String(owner.user_id),
-          verified_email: 'bruce.wayne@wayne.example',
-          role: 'admin',
-          created_at: now,
-        })
-        const restricted = await browserRequest(
-          client
-            .post('/api/orgs')
-            .header('sec-fetch-site', 'same-origin')
-            .json({ id: 'a-restricted', name: 'Restricted Industries' }),
-          { session }
-        ).send()
-        restricted.assertStatus(403)
-        assert.lengthOf(await db.from('accounts'), 1)
       }
     )
   })
@@ -640,10 +585,6 @@ test.group('Google browser entry', (group) => {
     for (const request of [
       client.get('/api/auth/me'),
       client.get('/api/state?accountId=a-studio'),
-      client
-        .post('/api/orgs')
-        .header('sec-fetch-site', 'same-origin')
-        .json({ id: 'a-studio', name: 'Wayne Enterprises' }),
     ]) {
       const denied = await browserRequest(request, { session }).send()
       denied.assertStatus(401)

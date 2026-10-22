@@ -9,7 +9,6 @@ import { AUDIT_WARNING_EVENT } from "@/lib/auditWarning";
 import { clearJoinedAccountHandoff, readJoinedAccountHandoff } from "@/lib/joinedAccountHandoff";
 import { ACCOUNT_LINK, ADMIN_LINKS, HELP_LINK, LINKS } from "@/lib/navLinks";
 import { hasOpenModal, isTextEntryShortcutOwner } from "@/lib/shortcutGuards";
-import { hasUnsavedPersistenceWrites } from "@/data/persist";
 import { isShownByPlanningState } from "@/data/planning/planningCacheController";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import { useStore } from "@/store/useStore";
@@ -194,7 +193,7 @@ function useBeforeUnloadWarning(input: BeforeUnloadWarningInput) {
   const { dirtyForm } = input;
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!dirtyForm && !hasUnsavedPersistenceWrites()) return;
+      if (!dirtyForm && useStore.getState().planning.pending === null) return;
       event.preventDefault();
       event.returnValue = "";
     };

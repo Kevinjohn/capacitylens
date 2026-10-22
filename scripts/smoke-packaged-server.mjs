@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { cp, mkdir, mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
@@ -169,35 +170,81 @@ async function assertReady(baseUrl, child) {
   );
 }
 
-/** Create an authenticated company and write scheduling rows scoped to its server-issued id. */
-export async function writeSmokeSchedule(baseUrl, cookie, fixture) {
+/** Set up one disposable company for a real signed-in principal in the private smoke database. */
+export function createSmokeCompany(databasePath, userId, account, internalClient) {
+  const database = new DatabaseSync(databasePath);
+  const accountId = randomUUID();
+  const now = new Date().toISOString();
+  try {
+    database.exec("PRAGMA foreign_keys = ON; BEGIN IMMEDIATE");
+    assert.ok(database.prepare("SELECT id FROM users WHERE id = ?").get(userId), "Smoke principal must exist");
+    const internal = internalClient(accountId, now);
+    database
+      .prepare(
+        `INSERT INTO accounts (id, name, color, scheduling_mode, inline_activity_create_enabled, created_at, updated_at)
+       VALUES (?, ?, ?, 'days', 'false', ?, ?)`,
+      )
+      .run(accountId, account.name, account.color, now, now);
+    database
+      .prepare(
+        `INSERT INTO clients (id, account_id, name, color, builtin, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'true', ?, ?)`,
+      )
+      .run(internal.id, accountId, internal.name, internal.color, now, now);
+    database
+      .prepare(
+        `INSERT INTO memberships (id, account_id, user_id, role, status, created_at, updated_at)
+       VALUES (?, ?, ?, 'owner', 'active', ?, ?)`,
+      )
+      .run(randomUUID(), accountId, userId, now, now);
+    database.prepare("INSERT INTO company_planning_revisions (account_id, revision) VALUES (?, 1)").run(accountId);
+    database.exec("COMMIT");
+    return accountId;
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  } finally {
+    database.close();
+  }
+}
+
+/** Write one resource through the authenticated typed planning route. */
+export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture) {
   const account = fixture.accounts.find((row) => row.id === "a-studio");
   assert.ok(account);
-  const created = await fetchOk(`${baseUrl}/api/orgs`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", cookie },
-    body: JSON.stringify({ name: account.name, color: account.color }),
-  });
-  const company = JSON.parse(created.body);
-  assert.ok(typeof company.id === "string" && company.id.length > 0, "Company creation returned no id");
-  const accountId = company.id;
   const resource = {
     ...fixture.resources.find((row) => row.kind === "person" && row.accountId === "a-studio"),
-    accountId,
+    id: randomUUID(),
     name: RESOURCE_NAME,
   };
   assert.ok(resource.id);
-  const sourceDiscipline = fixture.disciplines.find((row) => row.id === resource.disciplineId);
-  assert.ok(sourceDiscipline);
-  const discipline = { ...sourceDiscipline, accountId };
-  await fetchOk(`${baseUrl}/api/batch`, {
+  await fetchOk(`${baseUrl}/api/accounts/${accountId}/resources`, {
     method: "POST",
     headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", cookie },
     body: JSON.stringify({
-      ops: [
-        { method: "PUT", table: "disciplines", id: discipline.id, row: discipline },
-        { method: "PUT", table: "resources", id: resource.id, row: resource },
-      ],
+      mutationId: randomUUID(),
+      baseRevision: 1,
+      intent: {
+        operation: "resource.create",
+        id: resource.id,
+        fields: {
+          kind: "person",
+          name: resource.name,
+          role: resource.role,
+          avatarUrl: null,
+          disciplineId: null,
+          employmentType: resource.employmentType,
+          engagement: resource.engagement,
+          workingHoursPerDay: resource.workingHoursPerDay,
+          workingDays: resource.workingDays,
+          halfDays: resource.halfDays,
+          projectId: null,
+          color: resource.color,
+          isFavourite: false,
+          firstAvailableDate: null,
+          lastAvailableDate: null,
+        },
+      },
     }),
   });
   return { accountId, resource };
@@ -292,10 +339,19 @@ async function main() {
     const session = JSON.parse((await fetchOk(`${baseUrl}/api/auth/me`, { headers: { cookie } })).body);
     assert.equal(session.user.email, credentials.email);
 
+    const sharedDataUrl = join(backend, "node_modules", "@capacitylens", "shared", "dist", "data");
     const { seed } = await import(
       pathToFileURL(join(backend, "node_modules", "@capacitylens", "shared", "dist", "data", "seed.js")).href
     );
-    const { accountId, resource } = await writeSmokeSchedule(baseUrl, cookie, seed());
+    const { buildInternalClient } = await import(pathToFileURL(join(sharedDataUrl, "internalClient.js")).href);
+    const fixture = seed();
+    const accountId = createSmokeCompany(
+      databasePath,
+      session.user.id,
+      fixture.accounts.find((row) => row.id === "a-studio"),
+      buildInternalClient,
+    );
+    const { resource } = await writeSmokeSchedule(baseUrl, cookie, accountId, fixture);
     assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, MIGRATION_COUNT);
 
     const beforeExplicit = await snapshotFiles(backupDir);

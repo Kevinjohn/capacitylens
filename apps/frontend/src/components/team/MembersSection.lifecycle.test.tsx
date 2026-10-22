@@ -5,7 +5,6 @@ import userEvent from "@testing-library/user-event";
 
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse, makeResourceDraft } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
-import { refreshActiveAccountSlice } from "@/data/persist";
 import { m } from "@/i18n";
 import { teamAccessClient } from "@/account/teamAccessClient";
 import * as resourceAvatars from "@/account/useResourceAvatars";
@@ -37,20 +36,9 @@ vi.mock("@/data/apiConfig", () => ({
   isServerConfigured: () => true,
 }));
 
-vi.mock("@/data/persist", () => ({
-  refreshActiveAccountSlice: vi.fn(async () => ({ kind: "reloaded" })),
-  flushPendingWrites: vi.fn(async () => ({ kind: "clean" })),
-  suspendServerWrites: vi.fn(() => vi.fn()),
-  switchAndAwaitHydration: vi.fn(async (id: string | null) => {
-    useStore.getState().setActiveAccount(id);
-    return { kind: "reloaded" };
-  }),
-}));
-
 beforeEach(async () => {
   accountTransitionMocks.startMasquerade.mockClear();
   await resetStoreWithAccount();
-  vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -653,6 +641,10 @@ function registerLifecycleReconciliationTests(): void {
     });
     vi.stubGlobal("fetch", fetchMock);
     const revisionBefore = useStore.getState().membershipRevision;
+    let sawPlanningRead = false;
+    const unsubscribe = useStore.subscribe((state) => {
+      if (state.planning.status === "loading") sawPlanningRead = true;
+    });
     renderSection({ refreshAuth });
     await screen.findByTestId("members-section");
 
@@ -661,7 +653,8 @@ function registerLifecycleReconciliationTests(): void {
 
     await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
     expect(refreshAuth).toHaveBeenCalledTimes(1);
-    expect(refreshActiveAccountSlice).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
+    unsubscribe();
+    expect(sawPlanningRead).toBe(true);
     expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID);
     expect(useStore.getState().notice?.message).toMatch(/Your access was refreshed; verify the result/i);
     expect(useStore.getState().notice?.message).not.toMatch(/Reload the page/i);

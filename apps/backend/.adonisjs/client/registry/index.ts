@@ -252,12 +252,6 @@ const routes = {
     tokens: [{"old":"/api/accounts/:accountId/settings","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/settings","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/settings","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/settings","type":0,"val":"settings","end":""}],
     types: placeholder as Registry['api.planning.settings.update']['types'],
   },
-  'api.batch': {
-    methods: ["POST"],
-    pattern: '/api/batch',
-    tokens: [{"old":"/api/batch","type":0,"val":"api","end":""},{"old":"/api/batch","type":0,"val":"batch","end":""}],
-    types: placeholder as Registry['api.batch']['types'],
-  },
   'api.transfer.preview': {
     methods: ["POST"],
     pattern: '/api/transfer/preview',
@@ -275,24 +269,6 @@ const routes = {
     pattern: '/api/state',
     tokens: [{"old":"/api/state","type":0,"val":"api","end":""},{"old":"/api/state","type":0,"val":"state","end":""}],
     types: placeholder as Registry['api.state']['types'],
-  },
-  'api.orgs.store': {
-    methods: ["POST"],
-    pattern: '/api/orgs',
-    tokens: [{"old":"/api/orgs","type":0,"val":"api","end":""},{"old":"/api/orgs","type":0,"val":"orgs","end":""}],
-    types: placeholder as Registry['api.orgs.store']['types'],
-  },
-  'api.accounts.store': {
-    methods: ["POST"],
-    pattern: '/api/accounts',
-    tokens: [{"old":"/api/accounts","type":0,"val":"api","end":""},{"old":"/api/accounts","type":0,"val":"accounts","end":""}],
-    types: placeholder as Registry['api.accounts.store']['types'],
-  },
-  'api.accounts.update': {
-    methods: ["PATCH"],
-    pattern: '/api/accounts/:id',
-    tokens: [{"old":"/api/accounts/:id","type":0,"val":"api","end":""},{"old":"/api/accounts/:id","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:id","type":1,"val":"id","end":""}],
-    types: placeholder as Registry['api.accounts.update']['types'],
   },
   'api.accounts.anonymise': {
     methods: ["POST"],

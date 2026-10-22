@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/auth/authContext";
 import { isServerConfigured } from "@/data/apiConfig";
 import { formatDiagnostics, readBrowserDiagnostics, readDiagnostics } from "@/data/buildInfo";
-import { usePersistenceDiagnostics } from "@/data/usePersistenceDiagnostics";
 import { accountClient } from "@/account/accountClient";
 
 type ServerObservation = { response: unknown; observedAt: string | undefined };
@@ -11,7 +10,6 @@ type ServerObservation = { response: unknown; observedAt: string | undefined };
 export function useDiagnosticsController() {
   const serverMode = isServerConfigured();
   const { authMode } = useAuth();
-  const persistence = usePersistenceDiagnostics();
   const [observation, setObservation] = useState<ServerObservation>(() => ({
     response: null,
     observedAt: serverMode ? undefined : new Date().toISOString(),
@@ -36,7 +34,6 @@ export function useDiagnosticsController() {
   const report = formatDiagnostics(
     readDiagnostics(observation.response, observation.observedAt, {
       signInMode: authMode,
-      persistence,
       browser: readBrowserDiagnostics(),
     }),
   );

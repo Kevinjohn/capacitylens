@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from "./authTestSupport";
+import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, createFixturePerson, signUpUser } from "./authTestSupport";
 import { waitForAppLanding } from "./browserTestSupport";
 
 const suffix = Date.now();
@@ -11,40 +11,12 @@ test("an Owner archives, restores and anonymises a resource, then confirms a who
   const email = `bruce-wayne-lifecycle-${suffix}@capacitylens.dev`;
   const owner = await signUpUser(email, "Bruce Wayne");
   const accountId = await bootstrapOrg(request, owner.cookie, `Wayne Lifecycle Studio ${suffix}`);
-  const now = new Date().toISOString();
   const resources = [
     { id: crypto.randomUUID(), name: "Barry Allen" },
     { id: crypto.randomUUID(), name: "Clark Kent" },
   ];
   for (const resource of resources) {
-    const response = await request.post(`${AUTH_API}/api/batch`, {
-      headers: { cookie: owner.cookie, "content-type": "application/json" },
-      data: {
-        ops: [
-          {
-            method: "PUT",
-            table: "resources",
-            id: resource.id,
-            row: {
-              id: resource.id,
-              accountId,
-              createdAt: now,
-              updatedAt: now,
-              kind: "person",
-              name: resource.name,
-              role: "Planner",
-              employmentType: "permanent",
-              engagement: "studio",
-              workingHoursPerDay: 8,
-              workingDays: [1, 2, 3, 4, 5],
-              halfDays: [],
-              color: "#76a5e7",
-            },
-          },
-        ],
-      },
-    });
-    expect(response.status()).toBe(200);
+    await createFixturePerson(request, owner.cookie, accountId, { ...resource, role: "Planner" });
   }
 
   await page.goto("/");

@@ -3,7 +3,7 @@
 **Area:** Data management / privacy · **Persona:** Account owner and account administrator ·
 **Coverage:** `apps/backend/tests/functional/auth/native_authorization.spec.ts` → owner-only import + redacted re-import tests;
 `apps/frontend/src/components/ImportExport.test.tsx`; `packages/shared/src/lib/sanitizeImport.test.ts`; migration criterion
-`DAT-PRIV-01` → `packages/shared/src/data/migrate.test.ts`
+`DAT-PRIV-01` → `packages/shared/src/data/betaTransfer.test.ts`
 
 **Documentation:** [Settings — Import and export](../../docs-src/using/settings.md#import-and-export)
 
@@ -59,8 +59,5 @@ US-PRI-01. Have both the owner and an admin available.
   document cannot be prepared as a full replacement, and preparation never reconstructs
   confidential names from projected values.
 
-These beta rules apply to shared preparation only. The current Settings controls still use the
-legacy importer/exporter; backend writer replacement and privileged-auth proof are outside this
-slice. See the [accepted replacement map for issue
-#1482](https://github.com/Kevinjohn/capacitylens/issues/1482#issuecomment-6276475651) and
-[implementation issue #1520](https://github.com/Kevinjohn/capacitylens/issues/1520).
+The current Settings controls use Beta transfer preparation and the native authenticated import
+route. Server import is owner-only and atomic; demo import remains local to the browser session.

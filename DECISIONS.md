@@ -170,9 +170,10 @@ This is the short, present-tense record of decisions that constrain future work.
   Google journey does not guarantee a fresh password or MFA challenge.
 - Password hashing uses the framework's default hasher through the kit. There is no breach
   screening and no custom hashing queue.
-- The first Owner is created by the operator through the kit's command line (invite, accept,
-  approve). The first admitted Owner creates the single company, exactly once. No environment
-  variable grants bootstrap authority. Re-setup after erasure follows the same path.
+- First sign-in setup can create an identity, but does not provision a company. The native release
+  currently has no supported first-company initialisation command or screen; closing that gap is
+  required before an empty installation can be used. No environment variable grants company
+  bootstrap authority.
 - Each company has exactly one Owner. Ownership moves only by one atomic transfer to an existing
   member; the former Owner becomes Admin. Admins cannot administer an Owner. Credential recovery
   for a locked-out Owner is the kit's operator command, never an in-product action.
@@ -204,8 +205,9 @@ framework defaults; any other departure needs a decision recorded here first.
 2. Validation errors use the flat `{ error, code? }` contract with status 400, not Vine's 422
    `errors[]`. Empty strings are not converted to null; empty optionals are `null` on the wire,
    in storage and in the export.
-3. Product models fail closed without an explicit tenant scope. Bulk updates and deletes use a
-   scoped helper because model hooks do not cover them.
+3. Product models fail closed without an explicit tenant scope. Retained bulk services authorise
+   the company and scope their queries inside a transaction because model hooks do not cover bulk
+   updates and deletes.
 4. Columns are snake_case; transformers own the camelCase wire format. Calendar dates are date-only
    strings; instants may use Lucid date-time columns and serialise to ISO.
 5. Product environment variables use the `CAPACITYLENS_` prefix; framework variables keep the

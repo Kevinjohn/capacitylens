@@ -5,8 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { accountClient } from "@/account/accountClient";
 import { PermissionContext } from "@/auth/permissionContext";
-import { refreshActiveAccountSlice } from "@/data/persist";
-import { flushPendingWrites, suspendServerWrites } from "@/data/persist";
 import { apiFetch } from "@/data/requestTimeout";
 import { reloadPage } from "@/lib/reloadPage";
 import { useStore } from "@/store/useStore";
@@ -20,11 +18,6 @@ import {
 } from "@/test/fixtures";
 import { SettingsDataSection } from "./SettingsDataSection";
 
-vi.mock("@/data/persist", () => ({
-  refreshActiveAccountSlice: vi.fn(async () => ({ kind: "reloaded" })),
-  flushPendingWrites: vi.fn(async () => ({ kind: "clean" })),
-  suspendServerWrites: vi.fn(() => vi.fn()),
-}));
 vi.mock("@/data/requestTimeout", () => ({ apiFetch: vi.fn(), API_BULK_TIMEOUT_MS: 30000 }));
 vi.mock("@/lib/reloadPage", () => ({ reloadPage: vi.fn() }));
 vi.mock("@/auth/ActionProofDialog", () => ({
@@ -65,14 +58,41 @@ function renderSection({ role = "owner", serverMode = true }: { role?: Role | nu
 
 const owned = { accountId: DEFAULT_ACCOUNT_ID };
 const section = () => screen.queryByTestId("settings-example-data");
+const originalPlanning = {
+  refreshPlanning: useStore.getState().refreshPlanning,
+  planningReadyForReplacement: useStore.getState().planningReadyForReplacement,
+  suspendPlanningCommands: useStore.getState().suspendPlanningCommands,
+};
+const planningProbe = { reads: 0, freshReads: 0, suspends: 0, releases: 0, ready: true };
 
 beforeEach(async () => {
   vi.clearAllMocks();
   sessionStorage.clear();
   window.history.replaceState(null, "", "/");
   await resetStoreWithAccount();
+  planningProbe.reads = 0;
+  planningProbe.freshReads = 0;
+  planningProbe.suspends = 0;
+  planningProbe.releases = 0;
+  planningProbe.ready = true;
+  useStore.setState({
+    refreshPlanning: async (options) => {
+      planningProbe.reads += 1;
+      if (options?.fresh) planningProbe.freshReads += 1;
+      return true;
+    },
+    planningReadyForReplacement: () => planningProbe.ready,
+    suspendPlanningCommands: () => {
+      planningProbe.suspends += 1;
+      if (!planningProbe.ready) return null;
+      return () => {
+        planningProbe.releases += 1;
+      };
+    },
+  });
 });
 afterEach(() => {
+  useStore.setState(originalPlanning);
   vi.restoreAllMocks();
   sessionStorage.clear();
   window.history.replaceState(null, "", "/");
@@ -115,7 +135,9 @@ describe("Settings example data", () => {
     await userEvent.setup().click(screen.getByRole("button", { name: "Add example data" }));
     await waitFor(() => expect(useStore.getState().notice?.message).toBe("Example data added."));
     expect(add).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
-    expect(refreshActiveAccountSlice).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
+    expect(planningProbe.reads).toBe(1);
+    expect(planningProbe.freshReads).toBe(1);
+    expect(planningProbe.releases).toBe(1);
   });
 
   it("surfaces the server's refusal and does not reload", async () => {
@@ -130,7 +152,28 @@ describe("Settings example data", () => {
         message: "Example data can only be added to an empty company.",
       }),
     );
-    expect(refreshActiveAccountSlice).not.toHaveBeenCalled();
+    expect(planningProbe.reads).toBe(0);
+    expect(planningProbe.releases).toBe(1);
+  });
+
+  it("does not dispatch example data while a different replacement is unresolved", async () => {
+    const add = vi.spyOn(accountClient, "addExampleData");
+    useStore.setState({ suspendPlanningCommands: () => null });
+    renderSection();
+    await userEvent.setup().click(screen.getByRole("button", { name: "Add example data" }));
+    expect(add).not.toHaveBeenCalled();
+    expect(useStore.getState().notice?.tone).toBe("error");
+  });
+
+  it("keeps the replacement lock after an unknown example-data outcome and failed fresh read", async () => {
+    vi.spyOn(accountClient, "addExampleData").mockResolvedValue(jsonResponse({ error: "Unavailable" }, 503));
+    useStore.setState({ refreshPlanning: async () => false });
+    renderSection();
+    await userEvent.setup().click(screen.getByRole("button", { name: "Add example data" }));
+    await waitFor(() => expect(useStore.getState().notice?.tone).toBe("error"));
+    expect(planningProbe.releases).toBe(0);
+    expect(useStore.getState().notice?.message).toContain("Unavailable");
+    expect(useStore.getState().notice?.message).toContain("Reload this page before making changes.");
   });
 });
 
@@ -207,7 +250,7 @@ describe("Whole-company anonymisation", () => {
     expect(useStore.getState().data.allocations).toEqual([]);
   });
 
-  it("sends a bound proof to the named server endpoint after pending writes settle", async () => {
+  it("sends a bound proof to the named server endpoint from a settled planning view", async () => {
     vi.mocked(apiFetch).mockResolvedValue(new Response(null, { status: 204 }));
     renderSection({ role: "owner" });
     const user = userEvent.setup();
@@ -215,7 +258,7 @@ describe("Whole-company anonymisation", () => {
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
     await user.click(screen.getByRole("button", { name: "Confirm identity" }));
     await waitFor(() => expect(apiFetch).toHaveBeenCalledOnce());
-    expect(flushPendingWrites).toHaveBeenCalledOnce();
+    expect(planningProbe.suspends).toBe(1);
     expect(apiFetch).toHaveBeenCalledWith(
       expect.stringMatching(new RegExp(`/api/accounts/${DEFAULT_ACCOUNT_ID}/anonymise$`)),
       expect.objectContaining({ method: "POST", body: JSON.stringify({ proofId: "proof-one" }) }),
@@ -224,35 +267,31 @@ describe("Whole-company anonymisation", () => {
     expect(reloadPage).toHaveBeenCalledOnce();
   });
 
-  it("does not dispatch after the selected company changes during pending-write flush", async () => {
-    let finishFlush!: (value: { kind: "clean" }) => void;
-    vi.mocked(flushPendingWrites).mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          finishFlush = resolve;
-        }),
-    );
+  it("refuses replacement when the canonical planning view is unresolved", async () => {
+    planningProbe.ready = false;
     renderSection({ role: "owner" });
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "Anonymise all resources" }));
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
     await user.click(screen.getByRole("button", { name: "Confirm identity" }));
-    expect(flushPendingWrites).toHaveBeenCalledOnce();
-    useStore.setState({ activeAccountId: "a-loft" });
-    finishFlush({ kind: "clean" });
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(useStore.getState().notice?.tone).toBe("error"));
     expect(apiFetch).not.toHaveBeenCalled();
-    expect(suspendServerWrites).not.toHaveBeenCalled();
-    useStore.setState({ activeAccountId: DEFAULT_ACCOUNT_ID });
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Anonymise all resources" }));
-    const reopened = screen.getByRole("dialog", { name: "Anonymise all company resources?" });
-    expect(within(reopened).getByRole("button", { name: "Cancel" })).toBeEnabled();
-    await user.click(within(reopened).getByRole("button", { name: "Cancel" }));
-    expect(reopened).not.toBeInTheDocument();
+    expect(planningProbe.suspends).toBe(0);
+    expect(planningProbe.releases).toBe(0);
   });
 
-  it.each([408, 500])("keeps writes suspended after an uncertain HTTP %s", async (status) => {
+  it("refuses company anonymisation when another replacement owns the view", async () => {
+    useStore.setState({ suspendPlanningCommands: () => null });
+    renderSection({ role: "owner" });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
+    await user.click(screen.getByRole("button", { name: "Confirm identity" }));
+    await waitFor(() => expect(useStore.getState().notice?.tone).toBe("error"));
+    expect(apiFetch).not.toHaveBeenCalled();
+  });
+
+  it.each([408, 500])("keeps planning commands suspended after an uncertain HTTP %s", async (status) => {
     vi.mocked(apiFetch).mockResolvedValue(new Response(null, { status }));
     renderSection({ role: "owner" });
     const user = userEvent.setup();
@@ -260,11 +299,11 @@ describe("Whole-company anonymisation", () => {
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
     await user.click(screen.getByRole("button", { name: "Confirm identity" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Reload" })).toBeInTheDocument());
-    const resume = vi.mocked(suspendServerWrites).mock.results[0]?.value as ReturnType<typeof suspendServerWrites>;
-    expect(resume).not.toHaveBeenCalled();
+    expect(planningProbe.suspends).toBe(1);
+    expect(planningProbe.releases).toBe(0);
   });
 
-  it("keeps writes suspended after a lost response", async () => {
+  it("keeps planning commands suspended after a lost response", async () => {
     vi.mocked(apiFetch).mockRejectedValue(new Error("Connection lost"));
     renderSection({ role: "owner" });
     const user = userEvent.setup();
@@ -272,8 +311,8 @@ describe("Whole-company anonymisation", () => {
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
     await user.click(screen.getByRole("button", { name: "Confirm identity" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Reload" })).toBeInTheDocument());
-    const resume = vi.mocked(suspendServerWrites).mock.results[0]?.value as ReturnType<typeof suspendServerWrites>;
-    expect(resume).not.toHaveBeenCalled();
+    expect(planningProbe.suspends).toBe(1);
+    expect(planningProbe.releases).toBe(0);
   });
 
   it("stores only the opaque provider proof before leaving, without submitting", async () => {
@@ -346,7 +385,7 @@ describe("Whole-company anonymisation", () => {
     expect(apiFetch).not.toHaveBeenCalled();
   });
 
-  it("releases suspended writes after a definitive refusal", async () => {
+  it("releases suspended planning commands after a definitive refusal", async () => {
     vi.mocked(apiFetch).mockResolvedValue(new Response(JSON.stringify({ error: "Forbidden." }), { status: 403 }));
     renderSection({ role: "owner" });
     const user = userEvent.setup();
@@ -354,8 +393,7 @@ describe("Whole-company anonymisation", () => {
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all resources" }));
     await user.click(screen.getByRole("button", { name: "Confirm identity" }));
     await waitFor(() => expect(useStore.getState().notice?.message).toBe("Forbidden."));
-    const resume = vi.mocked(suspendServerWrites).mock.results[0]?.value as ReturnType<typeof suspendServerWrites>;
-    expect(resume).toHaveBeenCalledOnce();
+    expect(planningProbe.releases).toBe(1);
     expect(reloadPage).not.toHaveBeenCalled();
   });
 });

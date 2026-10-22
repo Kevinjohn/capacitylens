@@ -1,8 +1,8 @@
 import { allowsProviderSignIn } from "@capacitylens/shared/account/types";
-import { hasUnsavedPersistenceWrites } from "@/data/persist";
+import { useStore } from "@/store/useStore";
 import { readApiError } from "@/lib/readApiError";
 import { m } from "@/i18n";
-import { isAuthMode, parseAuthProviders, resolveBooleanField } from "./authStatus";
+import { isAuthMode, parseAuthProviders } from "./authStatus";
 import type { AuthStatusResult } from "./authStatus";
 import { parseAuthUser } from "./validateAuthUser";
 
@@ -45,7 +45,7 @@ function parseLoginResult(body: unknown): AuthStatusResult {
     kind: "login",
     authMode,
     degraded,
-    hadUnsavedChanges: hasUnsavedPersistenceWrites(),
+    hadUnsavedChanges: useStore.getState().planning.pending !== null,
     providers: allowsProviderSignIn(authMode) ? parseAuthProviders(fields?.providers) : [],
     needsSetup: fields?.needsSetup === true,
     passwordResetEmail: fields?.passwordResetEmail === true,
@@ -72,7 +72,7 @@ function parsePassResult(body: unknown): AuthStatusResult {
     identitySource: "live",
     authMode,
     user,
-    canCreateAccount: resolveBooleanField({ value: fields.canCreateAccount, fallback: true }),
+    canCreateAccount: false,
     providers: authMode === "password-only" ? [] : parseAuthProviders(fields.providers),
     reauthMethod: fields.reauthMethod === "provider" || authMode === "sso-only" ? "provider" : "password",
     reauthProviderId: typeof fields.reauthProviderId === "string" ? fields.reauthProviderId : null,

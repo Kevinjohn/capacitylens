@@ -13,7 +13,7 @@ function postRawJson(
       {
         hostname: '127.0.0.1',
         port,
-        path: '/api/batch',
+        path: '/api/accounts/a-studio/allocations/create-group',
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -41,20 +41,20 @@ function postRawJson(
 test.group('M1 framework JSON parsing', (group) => {
   group.setup(() => freshDatabase())
 
-  test('passes malformed UTF-8 through the framework parser to route validation', async ({
+  test('passes malformed UTF-8 bytes through parsing to typed route validation', async ({
     client,
     assert,
   }) => {
     const { cookieHeader } = await resetAuthenticatedData(client, true)
     const body = Buffer.concat([
-      Buffer.from('{"ops":"', 'utf8'),
+      Buffer.from('{"intent":"', 'utf8'),
       Buffer.from([0xc3, 0x28]),
       Buffer.from('"}', 'utf8'),
     ])
     const response = await postRawJson(body, cookieHeader)
 
     assert.equal(response.statusCode, 400)
-    assert.equal(JSON.parse(response.body).code, 'VALIDATION_ERROR')
+    assert.equal(JSON.parse(response.body).code, 'validation_error')
   })
 
   test('passes valid non-ASCII UTF-8 JSON bytes to normal route validation', async ({
@@ -62,10 +62,10 @@ test.group('M1 framework JSON parsing', (group) => {
     assert,
   }) => {
     const { cookieHeader } = await resetAuthenticatedData(client, true)
-    const body = Buffer.from('{"ops":"café"}', 'utf8')
+    const body = Buffer.from('{"intent":"café"}', 'utf8')
     const response = await postRawJson(body, cookieHeader)
 
     assert.equal(response.statusCode, 400)
-    assert.equal(JSON.parse(response.body).code, 'VALIDATION_ERROR')
+    assert.equal(JSON.parse(response.body).code, 'validation_error')
   })
 })

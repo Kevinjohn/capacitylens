@@ -1,8 +1,6 @@
 import { NULLABLE_FIELDS } from "../types/nullableFields.js";
 import { describe, it, expect } from "vitest";
-import { migrate } from "./migrate.js";
 import { seed } from "./seed.js";
-import { serializeData, parseData } from "./transfer.js";
 import {
   applyInternalClientRepairs,
   ensureInternalClients,
@@ -163,7 +161,7 @@ function registerSameIdDuplicateTests(): void {
 }
 
 function registerRepairRevisionTests(): void {
-  it("bumps only rewired projects so updatedAt-based sync persists a duplicate fold", () => {
+  it("bumps only rewired projects when folding a duplicate built-in", () => {
     const generated = buildInternalClient("a1", TS);
     const duplicate = { ...buildInternalClient("a1", TS), id: "legacy-internal" };
     const rewired = {
@@ -195,8 +193,7 @@ function registerRepairRevisionTests(): void {
   });
 
   it("stamps a REPAIRED retained builtin with a fresh updatedAt so the repair persists", () => {
-    // ServerSyncAdapter.diffOps detects changes solely by updatedAt, so a name/colour correction that
-    // left updatedAt untouched would be re-applied in memory on every load yet never emit a PUT.
+    // A repaired retained client needs a distinct revision so readers recognise the correction.
     const NOW = "2026-06-01T00:00:00.000Z";
     const data = {
       ...emptyAppData(),
@@ -307,55 +304,6 @@ function registerRepairBoundaryTests(): void {
   });
 }
 
-function registerMigrationTests(): void {
-  it("migrate (v5→v6) backfills one Internal per account, idempotently and without duplicating a pre-existing one", () => {
-    const blob = {
-      schemaVersion: 5,
-      data: {
-        accounts: [
-          { ...NULLABLE_FIELDS.accounts, id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" },
-          { ...NULLABLE_FIELDS.accounts, id: "a2", createdAt: TS, updatedAt: TS, name: "A2", color: "#222222" },
-        ],
-        // a1 already has a builtin Internal (must not be duplicated); a2 has none.
-        clients: [
-          {
-            id: "pre-internal",
-            accountId: "a1",
-            createdAt: TS,
-            updatedAt: TS,
-            name: "Internal",
-            color: "#9c3ace",
-            builtin: true,
-          },
-          { id: "acme", accountId: "a1", createdAt: TS, updatedAt: TS, name: "Ferris", color: "#ef4444" },
-        ],
-      },
-    };
-    const out = migrate(blob);
-    expect(out.clients.filter((c) => c.builtin && c.accountId === "a1")).toHaveLength(1);
-    expect(internalClientFor(out.clients, "a1")?.id).toBe("pre-internal");
-    expect(out.clients.filter((c) => c.builtin && c.accountId === "a2")).toHaveLength(1);
-    const again = migrate({ schemaVersion: 6, data: out });
-    expect(again.clients.filter((c) => c.builtin)).toHaveLength(2);
-  });
-
-  it("migrate does NOT add Internal clients to an account-less import slice", () => {
-    const out = migrate({
-      schemaVersion: 5,
-      data: {
-        accounts: [],
-        clients: [{ id: "c1", accountId: "a1", createdAt: TS, updatedAt: TS, name: "A", color: "#1" }],
-      },
-    });
-    expect(out.clients.filter((c) => c.builtin)).toHaveLength(0);
-  });
-
-  it("seed round-trips deep-equal through serialize → parse (migrate stays idempotent at the current version)", () => {
-    const data = seed();
-    expect(parseData(serializeData(data))).toEqual(data);
-  });
-}
-
 function registerPublicPredicateTests(): void {
   it("buildInternalClient uses the deterministic id and reserved name/colour with builtin:true", () => {
     const c = buildInternalClient("a9", TS);
@@ -391,6 +339,5 @@ describe("built-in Internal client", () => {
   registerRepairRevisionTests();
   registerReactivationTests();
   registerRepairBoundaryTests();
-  registerMigrationTests();
   registerPublicPredicateTests();
 });

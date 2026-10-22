@@ -7,7 +7,7 @@ import { resetAuthenticatedClient } from '../../helpers/authenticated_data_fixtu
 test.group('membership control-data isolation', (group) => {
   group.setup(() => freshDatabase())
 
-  test('keeps representative admission and membership controls out of export and generic CRUD', async ({
+  test('keeps representative admission and membership controls out of export and retired CRUD', async ({
     client,
     assert,
   }) => {
@@ -117,25 +117,21 @@ test.group('membership control-data isolation', (group) => {
     ])
       assert.notInclude(serialized, secret)
 
-    const controlTables = [
-      'loginLinkTokens',
-      'memberships',
-      'accountMemberResources',
-      'invitations',
-      'invitationProposals',
-      'companyJoinIntents',
-      'accountJoiningPolicies',
-    ] as const
-    for (const table of controlTables) {
-      const attempted = await client
-        .post('/api/batch')
-        .header('sec-fetch-site', 'same-origin')
-        .json({
-          ops: [{ method: 'PUT', table, id: `attempt-${table}`, row: { id: `attempt-${table}` } }],
-        } as never)
-        .send()
-      assert.equal(attempted.status(), 400, `${table} is not writable through generic batch CRUD`)
-    }
+    const attempted = await client
+      .post('/api/batch')
+      .header('sec-fetch-site', 'same-origin')
+      .json({
+        ops: [
+          {
+            method: 'PUT',
+            table: 'memberships',
+            id: 'attempt-control',
+            row: { id: 'attempt-control' },
+          },
+        ],
+      })
+      .send()
+    assert.equal(attempted.status(), 404)
 
     assert.isNotNull(
       await db.from('account_member_resources').where('id', 'link-control-isolation').first()

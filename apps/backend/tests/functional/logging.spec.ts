@@ -1,11 +1,15 @@
 import { test } from '@japa/runner'
-import { resetAuthenticatedClient } from '../helpers/authenticated_data_fixture.js'
+import {
+  authenticatedDataClient,
+  createFixtureCompanyForOwner,
+  resetAuthenticatedClient,
+  resetAuthenticatedData,
+} from '../helpers/authenticated_data_fixture.js'
 import { LoggerFactory } from '@adonisjs/logger/factories'
 import { freshDatabase } from '../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import Account from '#models/account'
 import logger from '@adonisjs/core/services/logger'
-import { seed } from '@capacitylens/shared/data/seed'
 import env from '#start/env'
 import loggerConfig from '#config/logger'
 
@@ -159,15 +163,16 @@ test.group('general HTTP logging privacy', (group) => {
     client,
     assert,
   }) => {
-    client = await resetAuthenticatedClient(client, false)
-    const accountId = 'a-logging-failure'
+    const session = await resetAuthenticatedData(client, false)
+    await createFixtureCompanyForOwner(session.userId, 'Wayne Enterprises', 'a-studio')
+    client = authenticatedDataClient(client, session.cookie)
     const secret = 'SENTINEL_COMPLETION_LOG_FAILURE'
     const { output, result } = await captureLogs(
       () =>
         client
-          .post('/api/orgs')
+          .post('/api/accounts/a-studio/example-data')
           .header('sec-fetch-site', 'same-origin')
-          .json({ ...seed().accounts[0]!, id: accountId })
+          .json({})
           .send(),
       (child) => {
         const originalLog = child.log
@@ -177,7 +182,10 @@ test.group('general HTTP logging privacy', (group) => {
         }) as typeof child.log
       }
     )
-    const committed = await db.from('accounts').where('id', accountId).first()
+    const committed = await db
+      .from('audit_entries')
+      .where({ account_id: 'a-studio', action: 'exampleData' })
+      .first()
 
     assert.isDefined(committed)
     assert.equal(result.status(), 201)
@@ -243,12 +251,12 @@ test.group('general HTTP logging privacy', (group) => {
   }) => {
     const secret = 'SENTINEL_MALFORMED_REQUEST_BODY'
     const { output, result } = await captureLogs(() =>
-      client.post('/api/batch').unsafeJson(`{"secret":"${secret}"`).send()
+      client.post('/api/transfer/apply').unsafeJson(`{"secret":"${secret}"`).send()
     )
 
     assert.equal(result.status(), 400)
     assert.include(output, 'POST')
-    assert.include(output, '"path":"/api/batch"')
+    assert.include(output, '"path":"/api/transfer/apply"')
     assert.include(output, '400')
     assert.notInclude(output, secret)
   })

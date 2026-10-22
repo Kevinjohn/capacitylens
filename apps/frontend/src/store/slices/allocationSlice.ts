@@ -29,6 +29,9 @@ type AllocationSlice = Pick<
   | "deleteAllocation"
   | "deleteAllocationSeriesFrom"
   | "refreshPlanning"
+  | "clearPlanning"
+  | "suspendPlanningCommands"
+  | "planningReadyForReplacement"
   | "replaceAfterDemoImport"
   | "undoPlanning"
   | "redoPlanning"
@@ -51,10 +54,15 @@ const RESTORE_FROM_RECEIPT: PlanningIntent = { operation: "planning.restoreGroup
  * Publishes the controller's company slice without replacing rows belonging to other companies.
  * Losing authority clears the whole cache and both histories.
  */
-function publishPlanning(state: StoreState, next: Partial<PlanningCacheState>): Partial<StoreState> {
+function publishPlanning(
+  state: StoreState,
+  next: Partial<PlanningCacheState>,
+  preserveOtherCompanies: boolean,
+): Partial<StoreState> {
   const planning = next.planning ?? state.planning;
   if (!next.data) return { planning };
   if (planning.context === null) {
+    if (preserveOtherCompanies) return { planning, past: [], future: [] };
     return {
       data: emptyAppData(),
       planning,
@@ -68,16 +76,18 @@ function publishPlanning(state: StoreState, next: Partial<PlanningCacheState>): 
     };
   }
   // A new context publishes nothing yet: its first canonical read replaces its scoped rows.
-  if (state.planning.context?.companyId !== planning.context.companyId) return { planning };
+  if (state.planning.context?.companyId !== planning.context.companyId) {
+    return preserveOtherCompanies ? { planning } : { planning, data: emptyAppData(), past: [], future: [] };
+  }
   const companyId = planning.context.companyId;
-  const data = { ...state.data };
+  const data = preserveOtherCompanies ? { ...state.data } : emptyAppData();
   data.accounts = [
-    ...state.data.accounts.filter((account) => account.id !== companyId),
+    ...(preserveOtherCompanies ? state.data.accounts.filter((account) => account.id !== companyId) : []),
     ...next.data.accounts.filter((account) => account.id === companyId),
   ];
   for (const key of SCOPED_KEYS) {
     const rows = [
-      ...state.data[key].filter((row) => row.accountId !== companyId),
+      ...(preserveOtherCompanies ? state.data[key].filter((row) => row.accountId !== companyId) : []),
       ...next.data[key].filter((row) => row.accountId === companyId),
     ];
     Object.assign(data, { [key]: rows });
@@ -149,13 +159,61 @@ export function createAllocationSlice(
 ): StateCreator<StoreState, [], [], AllocationSlice> {
   return (set, get) => {
     const { requireAccount, blockedByViewer, assertAllocation, resolveOwnedRow, applyPatch } = internals;
+    const preserveOtherCompanies = typeof transport.resetAfterDemoImport === "function";
     const controller = createPlanningCacheController({
       getState: () => ({ data: get().data, planning: get().planning }),
       setState: (update) =>
-        set((state) => publishPlanning(state, update({ data: state.data, planning: state.planning }))),
+        set((state) =>
+          publishPlanning(state, update({ data: state.data, planning: state.planning }), preserveOtherCompanies),
+        ),
       transport,
+      onAuthLoss: () => clearPrivatePlanning(true),
     });
+    let contextEpoch = 0;
+    let contextCompanyId: string | null = null;
+    const commandLocks = new Set<symbol>();
+    let activeRead: { companyId: string; promise: Promise<boolean> } | null = null;
+    const syncContext = (companyId: string | null) => {
+      const current = get().planning.context;
+      if (contextCompanyId === companyId && current?.companyId === (companyId ?? undefined)) return;
+      contextCompanyId = companyId;
+      contextEpoch += 1;
+      commandLocks.clear();
+      activeRead = null;
+      controller.setContext(companyId === null ? null : { identity: PAGE_IDENTITY, companyId });
+    };
+    const clearPrivatePlanning = (authLost = false) => {
+      syncContext(null);
+      set((state) => ({
+        data: emptyAppData(),
+        past: [],
+        future: [],
+        activeAccountId: null,
+        previousAccountId: null,
+        accountSummaries: [],
+        accountSummariesComplete: false,
+        accountSummariesRequestId: state.accountSummariesRequestId + 1,
+        ...(authLost ? { planningAuthLossVersion: state.planningAuthLossVersion + 1 } : {}),
+      }));
+    };
+    const commandsSuspended = () => {
+      syncContext(get().activeAccountId);
+      return commandLocks.size > 0;
+    };
+    const replacementReady = () => {
+      const companyId = get().activeAccountId;
+      const planning = get().planning;
+      return (
+        companyId !== null &&
+        commandLocks.size === 0 &&
+        planning.context?.companyId === companyId &&
+        planning.revision !== null &&
+        planning.pending === null &&
+        (planning.status === "ready" || planning.status === "refused")
+      );
+    };
     const send = async (command: PlanningCommand, original: unknown = null): Promise<void> => {
+      if (commandsSuspended()) throw new Error("Planning commands are suspended while company data changes.");
       await controller.execute(controller.begin(original), command.intent, command.inverse);
     };
     const prepareNew = (inputs: readonly Draft<Allocation>[]) => {
@@ -266,12 +324,43 @@ export function createAllocationSlice(
           .map((allocation) => allocation.id);
         await send({ intent: { operation: "allocation.deleteGroup", ids }, inverse: RESTORE_FROM_RECEIPT });
       },
-      refreshPlanning: () => {
+      refreshPlanning: (options) => {
         const companyId = get().activeAccountId;
-        if (companyId === null) return Promise.resolve(false);
-        controller.setContext({ identity: PAGE_IDENTITY, companyId });
-        return controller.refresh();
+        if (companyId === null) {
+          syncContext(null);
+          return Promise.resolve(false);
+        }
+        syncContext(companyId);
+        if (!options?.fresh && activeRead?.companyId === companyId) return activeRead.promise;
+        const promise = controller
+          .refresh()
+          .then((accepted) => accepted && get().activeAccountId === companyId && contextCompanyId === companyId);
+        activeRead = { companyId, promise };
+        void promise.finally(() => {
+          if (activeRead?.promise === promise) activeRead = null;
+        });
+        return promise;
       },
+      clearPlanning: () => clearPrivatePlanning(),
+      suspendPlanningCommands: () => {
+        const companyId = get().activeAccountId;
+        syncContext(companyId);
+        const planning = get().planning;
+        if (
+          companyId === null ||
+          planning.context?.companyId !== companyId ||
+          planning.pending !== null ||
+          commandLocks.size > 0
+        )
+          return null;
+        const epoch = contextEpoch;
+        const token = Symbol("planning suspension");
+        commandLocks.add(token);
+        return () => {
+          if (epoch === contextEpoch) commandLocks.delete(token);
+        };
+      },
+      planningReadyForReplacement: () => replacementReady(),
       replaceAfterDemoImport: (data) => {
         const companyId = get().activeAccountId;
         const account = data.accounts.find((row) => row.id === companyId);
@@ -289,8 +378,8 @@ export function createAllocationSlice(
           ),
         }));
       },
-      undoPlanning: () => (blockedByViewer() ? Promise.resolve(false) : controller.undo()),
-      redoPlanning: () => (blockedByViewer() ? Promise.resolve(false) : controller.redo()),
+      undoPlanning: () => (blockedByViewer() || commandsSuspended() ? Promise.resolve(false) : controller.undo()),
+      redoPlanning: () => (blockedByViewer() || commandsSuspended() ? Promise.resolve(false) : controller.redo()),
     };
   };
 }

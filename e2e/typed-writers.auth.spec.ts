@@ -1,6 +1,13 @@
 import { expect, test } from "./fixtures";
 import type { Page } from "@playwright/test";
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./authTestSupport";
+import {
+  AUTH_API,
+  AUTH_PASSWORD,
+  bootstrapOrg,
+  createFixturePerson,
+  seedFixtureMember,
+  signUpUser,
+} from "./authTestSupport";
 import { selectShadOption, waitForAppLanding } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
@@ -79,36 +86,12 @@ test("authenticated discipline and time-off deletion restore the same rows", asy
   const email = `diana-prince-writers-${suffix}@capacitylens.dev`;
   const owner = await signUpUser(email);
   const accountId = await bootstrapOrg(request, owner.cookie, `Wayne Planning Studio ${suffix}`);
-  const resourceId = `diana-${suffix}`;
-  const now = new Date().toISOString();
-  const seeded = await request.post(`${AUTH_API}/api/batch`, {
-    headers: { cookie: owner.cookie, "content-type": "application/json" },
-    data: {
-      ops: [
-        {
-          method: "PUT",
-          table: "resources",
-          id: resourceId,
-          row: {
-            id: resourceId,
-            accountId,
-            createdAt: now,
-            updatedAt: now,
-            kind: "person",
-            name: "Diana Prince",
-            role: "Designer",
-            employmentType: "permanent",
-            engagement: "studio",
-            workingHoursPerDay: 8,
-            workingDays: [1, 2, 3, 4, 5],
-            halfDays: [],
-            color: "#76a5e7",
-          },
-        },
-      ],
-    },
+  const resourceId = crypto.randomUUID();
+  await createFixturePerson(request, owner.cookie, accountId, {
+    id: resourceId,
+    name: "Diana Prince",
+    role: "Designer",
   });
-  expect(seeded.status()).toBe(200);
   await page.goto("/");
   await page.getByRole("heading", { name: "Sign in" }).waitFor();
   await page.getByLabel("Email").fill(email);
@@ -205,36 +188,12 @@ for (const repeat of [false, true]) {
     const owner = await signUpUser(`timeoff-owner-${suffix}@capacitylens.dev`);
     const editor = await signUpUser(`timeoff-editor-${suffix}@capacitylens.dev`);
     const accountId = await bootstrapOrg(request, owner.cookie, `Wayne Time Off ${suffix}`);
-    const resourceId = `barbara-${suffix}`;
-    const now = new Date().toISOString();
-    const seeded = await request.post(`${AUTH_API}/api/batch`, {
-      headers: { cookie: owner.cookie, "content-type": "application/json" },
-      data: {
-        ops: [
-          {
-            method: "PUT",
-            table: "resources",
-            id: resourceId,
-            row: {
-              id: resourceId,
-              accountId,
-              createdAt: now,
-              updatedAt: now,
-              kind: "person",
-              name: "Barbara Gordon",
-              role: "Designer",
-              employmentType: "permanent",
-              engagement: "studio",
-              workingHoursPerDay: 8,
-              workingDays: [1, 2, 3, 4, 5],
-              halfDays: [],
-              color: "#76a5e7",
-            },
-          },
-        ],
-      },
+    const resourceId = crypto.randomUUID();
+    await createFixturePerson(request, owner.cookie, accountId, {
+      id: resourceId,
+      name: "Barbara Gordon",
+      role: "Designer",
     });
-    expect(seeded.status()).toBe(200);
     seedFixtureMember(accountId, editor.email, "editor");
 
     await page.goto("/");

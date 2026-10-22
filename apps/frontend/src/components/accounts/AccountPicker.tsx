@@ -11,7 +11,7 @@ import { useDemoAuthActive } from "@/lib/fakeAuth";
 import { DEFAULT_COLORS } from "@/lib/palette";
 import type { AccountSummary } from "@/store/useStore";
 import { useStore } from "@/store/useStore";
-import { AddButton, Avatar, CheckboxField, SegmentedControl, TextField } from "@/components/common/ui";
+import { AddButton, Avatar, SegmentedControl, TextField } from "@/components/common/ui";
 import type { Option, SegmentedOption } from "@/components/common/ui";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +22,6 @@ import { Item, ItemGroup } from "@/components/ui/item";
 import { TimeZoneField } from "./TimeZoneField";
 import { AccountPickerHeader } from "./AccountPickerHeader";
 import { useCreateAccountForm } from "./useCreateAccountForm";
-import type { ExampleDataChoice } from "./useCreateAccountForm";
 
 interface AccountItemsProps {
   accounts: AccountSummary[];
@@ -110,7 +109,7 @@ function AccountCreationPanel({
   onSubmit: () => void;
   onCancel: () => void;
 }) {
-  if (form.createUnresolved || (!form.creating && !companySetupEligible)) return null;
+  if (!form.creating && !companySetupEligible) return null;
   const props = buildCreateAccountPanelProps(form, onSubmit, companySetupEligible ? undefined : onCancel);
   return <CreateAccountPanel {...props} />;
 }
@@ -121,11 +120,9 @@ interface CreateAccountPanelProps {
   language: string;
   weekStartsOn: 0 | 1;
   timezone: string;
-  exampleData: ExampleDataChoice | null;
   error: string | null;
   errorField: string | null;
   errorId: string;
-  submitting: boolean;
   timeZoneSelectOptions: Option[];
   weekStartSelectOptions: SegmentedOption<0 | 1>[];
   onNameChange: (name: string) => void;
@@ -137,7 +134,6 @@ interface CreateAccountPanelProps {
 }
 
 interface CreateAccountFormState {
-  createUnresolved: boolean;
   name: string;
   language: string;
   setName: (name: string) => void;
@@ -145,12 +141,10 @@ interface CreateAccountFormState {
   setWeekStartsOn: (weekStartsOn: 0 | 1) => void;
   timezone: string;
   setTimezone: (timezone: string) => void;
-  exampleData: ExampleDataChoice | null;
   error: string | null;
   errorField: string | null;
   errorId: string;
   clear: () => void;
-  submitting: boolean;
   timeZoneSelectOptions: Option[];
   weekStartSelectOptions: SegmentedOption<0 | 1>[];
 }
@@ -166,11 +160,9 @@ function buildCreateAccountPanelProps(
     language: form.language,
     weekStartsOn: form.weekStartsOn,
     timezone: form.timezone,
-    exampleData: form.exampleData,
     error: form.error,
     errorField: form.errorField,
     errorId: form.errorId,
-    submitting: form.submitting,
     timeZoneSelectOptions: form.timeZoneSelectOptions,
     weekStartSelectOptions: form.weekStartSelectOptions,
     onNameChange: form.setName,
@@ -255,13 +247,6 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
             />
             <AccountLanguageDisplay value={input.language} />
           </fieldset>
-          {input.exampleData && (
-            <CheckboxField
-              label={m.picker_example_data()}
-              checked={input.exampleData.checked}
-              onChange={input.exampleData.onChange}
-            />
-          )}
           <FieldError id={input.errorId}>{input.error}</FieldError>
         </CardContent>
         <CardFooter className="flex-col gap-2 sm:flex-row sm:justify-end [&>button]:w-full sm:[&>button]:w-auto">
@@ -270,7 +255,7 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
               {m.picker_cancel()}
             </Button>
           )}
-          <Button size="sm" type="submit" disabled={input.submitting}>
+          <Button size="sm" type="submit">
             {m.picker_create()}
           </Button>
         </CardFooter>
@@ -310,12 +295,13 @@ export function AccountPicker() {
   const signOutDemo = useStore((state) => state.signOutDemo);
   const demoAuthActive = useDemoAuthActive();
   const previous = demoAuthActive ? (accounts.find((account) => account.id === previousAccountId) ?? null) : null;
-  const { canCreateAccount, refreshAuth } = useAuth();
+  const { canCreateAccount: authCanCreateAccount } = useAuth();
   const roleDescriptionPrefix = useId();
-  const { form, submit, reset } = useCreateAccountForm({ refreshAuth });
+  const { form, submit, reset } = useCreateAccountForm();
   const beginCreating = () => form.setCreating(true);
-  const companySetupEligible = accounts.length === 0 && accountSummariesComplete && canCreateAccount;
   const productionMode = isServerConfigured();
+  const canCreateAccount = !productionMode && authCanCreateAccount;
+  const companySetupEligible = accounts.length === 0 && accountSummariesComplete && canCreateAccount;
   const conflictingProductionCompanies = productionMode && accounts.length > 1;
   const ambiguousInstallation = productionMode && (conflictingProductionCompanies || accountSummariesAmbiguous);
 

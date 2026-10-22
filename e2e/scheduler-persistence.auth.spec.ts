@@ -1,6 +1,14 @@
 import { expect, test } from "./fixtures";
 import type { APIRequestContext, Locator, Page } from "./fixtures";
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, revokeFixtureSessions, signUpUser } from "./authTestSupport";
+import {
+  AUTH_API,
+  AUTH_PASSWORD,
+  bootstrapOrg,
+  createFixturePerson,
+  revokeFixtureSessions,
+  sendPlanningFixtureCommand,
+  signUpUser,
+} from "./authTestSupport";
 import {
   boundingBoxOrThrow,
   goToSeedWeek,
@@ -24,73 +32,38 @@ type Allocation = {
   seriesId?: string | null;
 };
 
-async function seedEntity(
-  request: APIRequestContext,
-  cookie: string,
-  table: string,
-  id: string,
-  row: Record<string, unknown>,
-) {
-  const response = await request.post(`${AUTH_API}/api/batch`, {
-    headers: { cookie, "content-type": "application/json" },
-    data: { ops: [{ method: "PUT", table, id, row: { id, ...row } }] },
-  });
-  expect(response.status(), `seed ${table}/${id}`).toBe(200);
-}
-
 async function createScenario(request: APIRequestContext) {
   const suffix = `${STAMP}-${++scenarioNumber}`;
   const company = `Wayne Scheduler Studio ${suffix}`;
   const ownerEmail = `bruce-wayne-scheduler-${suffix}@capacitylens.dev`;
-  const resourceId = `scheduler-person-${suffix}`;
-  const secondResourceId = `scheduler-second-person-${suffix}`;
-  const clientId = `scheduler-client-${suffix}`;
-  const projectId = `scheduler-project-${suffix}`;
-  const activityId = `scheduler-activity-${suffix}`;
+  const resourceId = crypto.randomUUID();
+  const secondResourceId = crypto.randomUUID();
+  const clientId = crypto.randomUUID();
+  const projectId = crypto.randomUUID();
+  const activityId = crypto.randomUUID();
   const owner = await signUpUser(ownerEmail);
   const accountId = await bootstrapOrg(request, owner.cookie, company);
-  const now = new Date().toISOString();
-  const scoped = { accountId, createdAt: now, updatedAt: now };
-  await seedEntity(request, owner.cookie, "resources", resourceId, {
-    ...scoped,
-    kind: "person",
-    name: "Bruce Wayne",
-    role: "Planner",
-    employmentType: "permanent",
-    engagement: "studio",
-    workingHoursPerDay: 8,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-    color: "#76a5e7",
-  });
-  await seedEntity(request, owner.cookie, "resources", secondResourceId, {
-    ...scoped,
-    kind: "person",
+  await createFixturePerson(request, owner.cookie, accountId, { id: resourceId, name: "Bruce Wayne", role: "Planner" });
+  await createFixturePerson(request, owner.cookie, accountId, {
+    id: secondResourceId,
     name: "Clark Kent",
     role: "Planner",
-    employmentType: "permanent",
-    engagement: "studio",
-    workingHoursPerDay: 8,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-    color: "#76a5e7",
   });
-  await seedEntity(request, owner.cookie, "clients", clientId, {
-    ...scoped,
-    name: "Wayne Enterprises",
-    color: "#76a5e7",
+  await sendPlanningFixtureCommand(request, owner.cookie, accountId, "clients", {
+    operation: "catalogue.create",
+    entity: { entity: "clients", id: clientId, fields: { name: "Wayne Enterprises", color: "#76a5e7" } },
   });
-  await seedEntity(request, owner.cookie, "projects", projectId, {
-    ...scoped,
-    clientId,
-    name: "Gotham Renewal",
-    color: "#e776b8",
+  await sendPlanningFixtureCommand(request, owner.cookie, accountId, "projects", {
+    operation: "catalogue.create",
+    entity: { entity: "projects", id: projectId, fields: { clientId, name: "Gotham Renewal", color: "#e776b8" } },
   });
-  await seedEntity(request, owner.cookie, "activities", activityId, {
-    ...scoped,
-    name: "City planning",
-    kind: "project",
-    projectId,
+  await sendPlanningFixtureCommand(request, owner.cookie, accountId, "activities", {
+    operation: "catalogue.create",
+    entity: {
+      entity: "activities",
+      id: activityId,
+      fields: { name: "City planning", kind: "project", projectId, phaseId: null },
+    },
   });
   return { owner, accountId, ownerEmail, resourceId, secondResourceId, projectId, activityId };
 }
@@ -476,17 +449,18 @@ test("each scheduler gesture is one typed write with Undo and Redo, and reload c
 
 test("a weekly repeat persists all 14 occurrences as one series through one typed write", async ({ page, request }) => {
   const { owner, accountId, ownerEmail, resourceId, projectId, activityId } = await createScenario(request);
-  const now = new Date().toISOString();
-  await seedEntity(request, owner.cookie, "allocations", `scheduler-baseline-${accountId}`, {
-    accountId,
-    createdAt: now,
-    updatedAt: now,
-    resourceId,
-    activityId,
-    startDate: "2026-06-01",
-    endDate: "2026-06-02",
-    hoursPerDay: 8,
-    status: "confirmed",
+  await sendPlanningFixtureCommand(request, owner.cookie, accountId, "allocations", {
+    operation: "allocation.create",
+    allocation: {
+      id: crypto.randomUUID(),
+      resourceId,
+      activityId,
+      projectId: null,
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+      hoursPerDay: 8,
+      status: "confirmed",
+    },
   });
   const stored = () => persistedAllocations(request, owner.cookie, accountId);
   const baseline = await stored();
@@ -617,9 +591,9 @@ test("an ended session (401) clears the scheduler cache and history", async ({ p
   expect((await page.request.get(`${AUTH_API}/api/accounts/${accountId}/planning`)).status()).toBe(401);
   await page.clock.setFixedTime(new Date("2026-06-03T12:00:31"));
   // A late response may reissue a cookie, but the server-side session is revoked.
-  const read = page.waitForRequest((sent) => isPlanningRead(accountId, sent.method(), sent.url()));
+  const read = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/auth/me");
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-  expect((await (await read).response())?.status()).toBe(401);
+  expect((await read).status()).toBe(401);
 
   await expect(page.getByTestId("allocation-bar")).toHaveCount(0);
   await expect(page.locator('[data-testid="undo-button"]:enabled')).toHaveCount(0);

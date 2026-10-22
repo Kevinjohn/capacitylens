@@ -110,6 +110,7 @@ export interface PlanningControllerOptions {
   setState: PlanningCacheStore["setState"];
   transport: PlanningTransport;
   createMutationId?: () => string;
+  onAuthLoss?: () => void;
 }
 
 export class PlanningControllerError extends Error {
@@ -400,6 +401,11 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     store.setState(() => ({ data: emptyAppData(), planning: initialMetadata(frozenContext) }));
   }
 
+  function loseScope(): void {
+    setContext(null);
+    options.onAuthLoss?.();
+  }
+
   function invalidateAfterDemoImport(context: PlanningClientContext, revision: number): PlanningControllerMetadata {
     generation += 1;
     readSequence += 1;
@@ -505,7 +511,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       if (!isCurrent(capturedGeneration, context) || sequence !== readSequence || controller.signal.aborted)
         return false;
       if (losesScope(error)) {
-        setContext(null);
+        loseScope();
         return false;
       }
       store.setState((state) => ({
@@ -601,7 +607,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       return await refresh();
     } catch (error) {
       if (!currentLookup()) return false;
-      if (losesScope(error)) setContext(null);
+      if (losesScope(error)) loseScope();
       else
         store.setState((state) => ({
           planning: { ...state.planning, status: owner.pending.commitment ? "error" : "uncertain", error },
@@ -686,7 +692,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       const details = errorDetails(error);
       if (error instanceof PlanningControllerError && error.uncertain) throw error;
       if (losesScope(error)) {
-        if (ownsAttempt(owner)) setContext(null);
+        if (ownsAttempt(owner)) loseScope();
         throw new PlanningControllerError(details.message, details.code, details.status);
       }
       if (details.code === "mutation_id_reused") {

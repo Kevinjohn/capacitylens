@@ -12,9 +12,9 @@ import {
 import { addDaysISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { readActiveDateStyle, formatDayMonth } from "@/lib/dateDisplay";
 import { resolveDateStyle } from "./selectors";
-import { serializeData } from "@capacitylens/shared/data/transfer";
+import { buildBetaExport, serializeBetaExport } from "@capacitylens/shared/data/betaTransfer";
+import { seed } from "@capacitylens/shared/data/seed";
 import { PAST_BUFFER_DAYS } from "@/lib/schedulerConfig";
-import { diffOps } from "@/data/syncOps";
 
 const s = () => useStore.getState();
 beforeEach(() => resetStoreWithAccount());
@@ -61,17 +61,14 @@ function registerStoreCrudPart1(): void {
 }
 
 function registerStoreCrudPart2(): void {
-  it("updates fields, advances updatedAt and emits a sync PUT", async () => {
+  it("updates fields and advances updatedAt", async () => {
     const r = await requireCreated(s().addResource({ ...personDraft }));
-    const before = s().data;
     await s().updateResource(r.id, { name: "Tyler" });
     const updated = s().data.resources[0];
     if (!updated) throw new Error("Expected updated resource");
     expect(updated.name).toBe("Tyler");
     expect(Date.parse(updated.updatedAt)).toBeGreaterThan(Date.parse(r.updatedAt));
-    expect(diffOps(before, s().data)).toEqual([
-      expect.objectContaining({ method: "PUT", table: "resources", id: r.id }),
-    ]);
+    expect(updated.id).toBe(r.id);
   });
 
   it("rejects assigning a placeholder to an activity outside its bound project", async () => {
@@ -305,7 +302,13 @@ function registerSchedulerUiPart3(): void {
     expect(readActiveDateStyle()).toBe("day-month");
 
     await s().updateAccount(accountId, { dateStyle: "month-day" });
-    expect(serializeData(s().data)).toContain("dateStyle");
+    const exportData = seed();
+    const exportAccount = exportData.accounts[0];
+    if (!exportAccount) throw new Error("Expected a valid export fixture account.");
+    exportAccount.dateStyle = s().data.accounts.find((account) => account.id === accountId)?.dateStyle ?? null;
+    expect(
+      serializeBetaExport(buildBetaExport(exportData, { accountId: exportAccount.id, completeness: "full" })),
+    ).toContain('"dateStyle": "month-day"');
 
     // Restore the default. The store is a singleton, so leaving it changed would bleed into
     // later specs that format a date.

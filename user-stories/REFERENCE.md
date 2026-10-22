@@ -279,10 +279,10 @@ success for the rebase never hides the independent loss.
 ## Seed data (first run)
 
 > This auto-seed is **DEMO-BUILD-ONLY** going forward (one-company server policy). A
-> real, server-backed instance (the default deploy) no longer auto-seeds from the client side —
-> `bootstrap()` (src/main.tsx) only passes a seed dataset in the demo build
-> (`VITE_CAPACITYLENS_DEMO=1`); a fresh server-backed instance lands on the empty
-> create-your-company setup instead of a fabricated "Wayne Enterprises". The two-company seed
+> real, server-backed instance (the default deploy) no longer auto-seeds from the client side.
+> The demo build (`VITE_CAPACITYLENS_DEMO=1`) starts with a volatile seed dataset. A fresh
+> server-backed instance has no supported
+> first-company creation flow; the Owner needs a provisioned company. The two-company seed
 > described below happens in the demo build (`pnpm run dev:demo`, what these stories run against)
 > and in backend tenant-isolation tests. The database-backed E2E server resets to a single-company
 > fixture so its user journeys match production. Browser requests cannot reset persisted company
@@ -945,8 +945,8 @@ instead of sign-in. Fields are **name** (`data-testid="owner-setup-name"`), **em
 with its length validation, and **Owner setup token** (`data-testid="owner-setup-token"`) with
 installer guidance, plus a **Create my sign-in** button
 (`data-testid="owner-setup-submit"`); failures show the same inline alert. Success signs the
-owner in and reloads into **Set up your company**, where the owner creates the first company before
-entering the app. Ordinary edge whitespace around a pasted setup token is ignored; a token containing
+owner in. A sign-in alone does not provision the installation company; without a company the app
+shows the empty access state. Ordinary edge whitespace around a pasted setup token is ignored; a token containing
 characters that cannot be represented in an HTTP header stays in the form and shows an actionable
 inline error without sending a request. The setup-token value remains secret and is never displayed
 by the app. On a populated server the

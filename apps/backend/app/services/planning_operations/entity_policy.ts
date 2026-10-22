@@ -187,7 +187,7 @@ function assertManagedFields(
   }
 }
 
-/** Keep the dedicated company PATCH and batch write paths on one frozen-field policy. */
+/** Keep typed settings and entity writes on one frozen-field policy. */
 export function assertFrozenAccountFields(
   requested: Record<string, unknown>,
   candidate: Record<string, unknown>,

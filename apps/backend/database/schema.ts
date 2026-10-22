@@ -258,38 +258,6 @@ export class AuditEntrySchema extends BaseModel {
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }
 
-export class CapacitylensSyncRowProvenanceSchema extends BaseModel {
-  static $columns = ['accountId', 'id', 'rowHash', 'rowId', 'sequence', 'sessionId', 'tableName'] as const
-  $columns = CapacitylensSyncRowProvenanceSchema.$columns
-  @column()
-  declare accountId: string
-  @column({ isPrimary: true })
-  declare id: number
-  @column()
-  declare rowHash: string
-  @column()
-  declare rowId: string
-  @column()
-  declare sequence: number
-  @column()
-  declare sessionId: string
-  @column()
-  declare tableName: string
-}
-
-export class CapacitylensSyncSessionSchema extends BaseModel {
-  static $columns = ['id', 'lastSequence', 'sessionId', 'updatedAt'] as const
-  $columns = CapacitylensSyncSessionSchema.$columns
-  @column({ isPrimary: true })
-  declare id: number
-  @column()
-  declare lastSequence: number
-  @column()
-  declare sessionId: string
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-}
-
 export class ClientSchema extends BaseModel {
   static $columns = ['accountId', 'archivedAt', 'builtin', 'codeName', 'color', 'createdAt', 'deletedAt', 'id', 'isPrivate', 'name', 'updatedAt'] as const
   $columns = ClientSchema.$columns

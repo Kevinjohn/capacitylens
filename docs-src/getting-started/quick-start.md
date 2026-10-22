@@ -36,7 +36,7 @@ you never open a terminal.
 [Install CapacityLens](/self-hosting/install) has the exact commands for a managed host and
 for your own Linux server.
 
-## Create your company
+## Access a company
 
 <div class="steps">
 
@@ -45,15 +45,14 @@ for your own Linux server.
    **Sign in.** Enter your name, email and a password, and paste the setup token from step 3.
    Select **Create my sign-in**.
 
-2. ![Company form with Company name, Week starts on, Timezone, Language, Start with example data ticked and Create company](../screenshots/steps/owner_create_company_form.png)
-
-   **Create the company.** Name it and choose the day your week starts and your time zone. These
-   two **cannot be changed later**. Clear **Start with example data** if you'd rather start
-   empty. Select **Create company**.
+2. **Check company access.** First sign-in setup does not create a company or membership. The
+   current native release has no supported first-company provisioning path, so an empty
+   installation cannot yet reach the schedule. If your installation already has a provisioned
+   company and membership, sign in to open its schedule.
 
 </div>
 
-[Set up your company](/owner/) covers company login and what stays with the Owner.
+[Access your company](/owner/) covers company login and the current limitation.
 
 ## Make the schedule yours
 

@@ -32,6 +32,15 @@ import { announceAuditWarning, AUDIT_WARNING_EVENT } from "@/lib/auditWarning";
 
 const command = { commandId: "command-1", idempotencyKey: "key-1" };
 
+function transferOwner(input: { name: string; color?: string }, explicit?: typeof command): Promise<Response> {
+  return accountClient.transferOwnership({
+    workspaceId: "a-studio",
+    targetPrincipalId: input.name,
+    proofId: input.color ?? "proof-1",
+    ...(explicit ? { command: explicit } : {}),
+  });
+}
+
 function expectCommand(init: RequestInit, method: string): void {
   expect(init.method).toBe(method);
   const headers = new Headers(init.headers);
@@ -158,7 +167,7 @@ function registerAuditWarningTests(): void {
 
 function registerMutationRouteTests(): void {
   it("adds command headers, JSON encoding, safe path encoding, reauth, and bulk timeout policy", async () => {
-    await accountClient.createWorkspace({ name: "Studio" }, command);
+    await transferOwner({ name: "Studio" }, command);
     await accountClient.changeMemberRole({
       workspaceId: "workspace / one",
       principalId: "person / one",
@@ -178,10 +187,10 @@ function registerMutationRouteTests(): void {
     await accountClient.revokeInvitation("workspace / one", "invite / one", command);
 
     const [createUrl, createInit] = mocks.apiFetch.mock.calls[0] as unknown as [string, RequestInit];
-    expect(createUrl).toBe("https://app.example/api/orgs");
+    expect(createUrl).toBe("https://app.example/api/accounts/a-studio/ownership-transfer");
     expectCommand(createInit, "POST");
     expect(new Headers(createInit.headers).get("content-type")).toBe("application/json");
-    expect(createInit.body).toBe(JSON.stringify({ name: "Studio" }));
+    expect(createInit.body).toBe(JSON.stringify({ toUserId: "Studio", proofId: "proof-1" }));
 
     const urls = mocks.apiFetchReauth.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual(
@@ -341,9 +350,9 @@ function registerStoredCommandTests(): void {
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-    await accountClient.createWorkspace({ name: "Studio" });
-    await accountClient.createWorkspace({ name: "Studio" });
-    await accountClient.createWorkspace({ name: "Studio" });
+    await transferOwner({ name: "Studio" });
+    await transferOwner({ name: "Studio" });
+    await transferOwner({ name: "Studio" });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get("x-account-command-id"),
@@ -368,9 +377,9 @@ function registerStorageFallbackTests(): void {
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-    await accountClient.createWorkspace({ name: "Timeout Studio" });
-    await accountClient.createWorkspace({ name: "Timeout Studio" });
-    await accountClient.createWorkspace({ name: "Timeout Studio" });
+    await transferOwner({ name: "Timeout Studio" });
+    await transferOwner({ name: "Timeout Studio" });
+    await transferOwner({ name: "Timeout Studio" });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get("x-account-command-id"),
@@ -404,9 +413,9 @@ function registerCeremonyCleanupTests(): void {
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-    await accountClient.createWorkspace({ name: "Studio" });
-    await accountClient.createWorkspace({ name: "Studio" });
-    await accountClient.createWorkspace({ name: "Studio" });
+    await transferOwner({ name: "Studio" });
+    await transferOwner({ name: "Studio" });
+    await transferOwner({ name: "Studio" });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get("x-account-command-id"),
@@ -431,9 +440,9 @@ function registerIdentityCleanupTests(): void {
       .mockResolvedValueOnce(Response.json({ code: "IDEMPOTENCY_CONFLICT" }, { status: 409 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-    await accountClient.createWorkspace({ name: "Studio" });
-    await accountClient.createWorkspace({ name: "Studio" });
-    await accountClient.createWorkspace({ name: "Studio" });
+    await transferOwner({ name: "Studio" });
+    await transferOwner({ name: "Studio" });
+    await transferOwner({ name: "Studio" });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get("x-account-command-id"),
@@ -458,9 +467,9 @@ function registerCleanupStorageTests(): void {
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
     sessionStorage.setItem("capacitylens.unrelated-preference", "keep");
 
-    await accountClient.createWorkspace({ name: "Shared browser" });
+    await transferOwner({ name: "Shared browser" });
     clearStoredAccountCommands();
-    await accountClient.createWorkspace({ name: "Shared browser" });
+    await transferOwner({ name: "Shared browser" });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get("x-account-command-id"),
@@ -486,11 +495,11 @@ function registerIdentityRecoveryTests(): void {
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
     bindStoredAccountCommandsToIdentity("user-one");
-    await accountClient.createWorkspace({ name: "Shared browser" });
+    await transferOwner({ name: "Shared browser" });
     bindStoredAccountCommandsToIdentity("user-one");
-    await accountClient.createWorkspace({ name: "Shared browser" });
+    await transferOwner({ name: "Shared browser" });
     bindStoredAccountCommandsToIdentity("user-two");
-    await accountClient.createWorkspace({ name: "Shared browser" });
+    await transferOwner({ name: "Shared browser" });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get("x-account-command-id"),
@@ -516,12 +525,12 @@ function registerSurvivingCeremonyTests(): void {
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
     bindStoredAccountCommandsToIdentity("user-one");
-    await accountClient.createWorkspace({ name: "Shared browser" });
+    await transferOwner({ name: "Shared browser" });
     vi.spyOn(Storage.prototype, "length", "get").mockImplementationOnce(() => {
       throw new DOMException("Storage unavailable", "SecurityError");
     });
     bindStoredAccountCommandsToIdentity("user-two");
-    await accountClient.createWorkspace({ name: "Shared browser" });
+    await transferOwner({ name: "Shared browser" });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get("x-account-command-id"),
@@ -541,8 +550,8 @@ function registerUnreadableCommandResponseTests(): void {
       .mockResolvedValueOnce(new Response("truncated", { status: 409 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-    await accountClient.createWorkspace({ name: "Studio" });
-    await accountClient.createWorkspace({ name: "Studio" });
+    await transferOwner({ name: "Studio" });
+    await transferOwner({ name: "Studio" });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get("x-account-command-id"),
@@ -561,9 +570,9 @@ function registerExplicitCommandCeremonyTests(): void {
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-    await accountClient.createWorkspace({ name: "Studio" });
-    await accountClient.createWorkspace({ name: "Studio" }, command);
-    await accountClient.createWorkspace({ name: "Studio" });
+    await transferOwner({ name: "Studio" });
+    await transferOwner({ name: "Studio" }, command);
+    await transferOwner({ name: "Studio" });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get("x-account-command-id"),
@@ -577,7 +586,7 @@ function registerExplicitCommandCeremonyTests(): void {
 }
 
 function registerSemanticPayloadTests(): void {
-  it("keeps unknown-outcome ceremonies separate for different semantic payloads", async () => {
+  it("keeps unknown-outcome ceremonies separate for different ownership targets", async () => {
     vi.spyOn(globalThis.crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000011")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000012")
@@ -585,9 +594,9 @@ function registerSemanticPayloadTests(): void {
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000014");
     mocks.apiFetch.mockResolvedValue(new Response(null, { status: 503 }));
 
-    await accountClient.createWorkspace({ name: "Studio A" });
-    await accountClient.createWorkspace({ name: "Studio B" });
-    await accountClient.createWorkspace({ name: "Studio A" });
+    await transferOwner({ name: "Studio A" });
+    await transferOwner({ name: "Studio B" });
+    await transferOwner({ name: "Studio A" });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get("x-account-command-id"),
@@ -601,16 +610,16 @@ function registerSemanticPayloadTests(): void {
 }
 
 function registerSemanticPayloadOrderTests(): void {
-  it("treats object key order as irrelevant when binding a semantic payload", async () => {
+  it("treats invitation field order as irrelevant when binding a semantic payload", async () => {
     vi.spyOn(globalThis.crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000021")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000022");
-    mocks.apiFetch.mockResolvedValue(new Response(null, { status: 503 }));
+    mocks.apiFetchReauth.mockResolvedValue(new Response(null, { status: 503 }));
 
-    await accountClient.createWorkspace({ name: "Studio", color: "#fff" });
-    await accountClient.createWorkspace({ color: "#fff", name: "Studio" });
+    await accountClient.createInvitation({ accountId: "a-studio", role: "viewer", preauthEmail: "bruce@example.test" });
+    await accountClient.createInvitation({ preauthEmail: "bruce@example.test", role: "viewer", accountId: "a-studio" });
 
-    const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
+    const commandIds = mocks.apiFetchReauth.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get("x-account-command-id"),
     );
     expect(commandIds).toEqual(["00000000-0000-4000-8000-000000000021", "00000000-0000-4000-8000-000000000021"]);

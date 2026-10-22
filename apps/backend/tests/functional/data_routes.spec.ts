@@ -2,6 +2,7 @@ import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
 import {
   authenticatedDataClient,
+  createFixtureCompanyForOwner,
   grantDataOwner,
   resetAuthenticatedData,
 } from '../helpers/authenticated_data_fixture.js'
@@ -220,10 +221,26 @@ test.group('M2b data routes', (group) => {
     const account = { ...seed().accounts[0]!, id: 'a-example' }
     await db.table('accounts').insert(encodeRow('accounts', account))
     await grantDataOwner(dataOwnerId, account.id)
+    const otherAccountId = await createFixtureCompanyForOwner(
+      dataOwnerId,
+      'Stark Industries',
+      'a-example-other'
+    )
+    const person = seed().resources.find((row) => row.kind === 'person')!
+    await db.table('resources').insert(
+      encodeRow('resources', {
+        ...person,
+        id: 'r-example-other',
+        accountId: otherAccountId,
+        disciplineId: null,
+      })
+    )
+    const otherBefore = await readState(otherAccountId, true)
     const route = '/api/accounts/a-example/example-data'
     const first = await trusted(client.post(route)).json({}).send()
     assert.equal(first.status(), 201, JSON.stringify(first.body()))
     assert.isAbove((first.body() as { added: number }).added, 0)
+    assert.deepEqual(await readState(otherAccountId, true), otherBefore)
     const second = await trusted(client.post(route)).json({}).send()
     second.assertStatus(409)
     const audit = await db
@@ -302,46 +319,5 @@ test.group('M2b data routes', (group) => {
         .send()
       result.assertStatus(409)
     }
-  })
-
-  test('authenticated setup creates the first company and refuses another', async ({
-    client,
-    assert,
-  }) => {
-    client = await reset(client, false)
-    const first = await trusted(client.post('/api/orgs'))
-      .json({ ...seed().accounts[0]!, id: 'a-new' })
-      .send()
-    first.assertStatus(201)
-    const second = await trusted(client.post('/api/orgs'))
-      .json({ ...seed().accounts[1]!, id: 'a-second' })
-      .send()
-    second.assertStatus(403)
-    const current = await readState()
-    assert.lengthOf(current.accounts, 1)
-  })
-
-  test('authenticated company patch sets an initially null frozen setting once', async ({
-    client,
-    assert,
-  }) => {
-    client = await reset(client, false)
-    const account = { ...seed().accounts[0]!, id: 'a-patch', timezone: null }
-    await db.table('accounts').insert(encodeRow('accounts', account))
-    await grantDataOwner(dataOwnerId, account.id)
-    const first = await trusted(client.patch('/api/accounts/a-patch'))
-      .json({ timezone: 'Europe/London' })
-      .send()
-    first.assertStatus(200)
-    const patched = await readState('a-patch', true)
-    assert.equal(patched.accounts[0]?.timezone, 'Europe/London')
-    const second = await trusted(client.patch('/api/accounts/a-patch'))
-      .json({ timezone: 'America/New_York' })
-      .send()
-    second.assertStatus(409)
-    const missing = await trusted(client.patch('/api/accounts/unknown'))
-      .json({ name: 'Other' })
-      .send()
-    missing.assertStatus(404)
   })
 })

@@ -1,12 +1,17 @@
 import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
-import { asDataOwner, resetAuthenticatedData } from '../helpers/authenticated_data_fixture.js'
+import {
+  asDataOwner,
+  createFixtureCompanyForOwner,
+  resetAuthenticatedData,
+} from '../helpers/authenticated_data_fixture.js'
 import { freshDatabase } from '../helpers/fresh_database.js'
 import type { ApiClient } from '@japa/api-client'
 import { randomUUID } from 'node:crypto'
 import { withTransaction } from '#services/with_transaction'
 import { getPlanningRevision } from '#services/planning_revision'
-import { readState } from '#services/state_repository'
+import { encodeRow, readState } from '#services/state_repository'
+import { seed } from '@capacitylens/shared/data/seed'
 import env from '#start/env'
 
 const accountId = 'a-studio'
@@ -139,7 +144,22 @@ test.group('company anonymisation', (group) => {
     client,
     assert,
   }) => {
-    const { cookie } = await resetAuthenticatedData(client, true)
+    const { cookie, userId } = await resetAuthenticatedData(client, true)
+    const otherAccountId = await createFixtureCompanyForOwner(
+      userId,
+      'Stark Industries',
+      'a-anonymise-other'
+    )
+    const person = seed().resources.find((row) => row.kind === 'person')!
+    await db.table('resources').insert(
+      encodeRow('resources', {
+        ...person,
+        id: 'r-anonymise-other',
+        accountId: otherAccountId,
+        disciplineId: null,
+      })
+    )
+    const otherBefore = await readState(otherAccountId, true)
     const resources = await db.from('resources').where('account_id', accountId).limit(2)
     const target = resources[0]!
     const other = resources[1]!
@@ -170,6 +190,7 @@ test.group('company anonymisation', (group) => {
       .json({})
       .send()
     changed.assertStatus(204)
+    assert.deepEqual(await readState(otherAccountId, true), otherBefore)
     const scrubbed = await db.from('resources').where('id', target.id).first()
     assert.equal(
       scrubbed.name,

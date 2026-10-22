@@ -7,7 +7,7 @@ import type { BrowserAccountCommand } from "./accountCommands";
 import type { MembershipStatus, Role } from "@capacitylens/shared/account/types";
 import type { EndMasqueradePayload, StartMasqueradePayload } from "@capacitylens/shared/domain/masquerade";
 import { buildPayloadOperationKey } from "./commandOutcome";
-import type { CreateInvitationBody, CreateWorkspaceBody, InvitationSignupBody } from "./accountRequestTypes";
+import type { CreateInvitationBody, InvitationSignupBody } from "./accountRequestTypes";
 import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from "./commandRequest";
 import type { ReauthAction } from "@/auth/reauthCoordinator";
 import {
@@ -91,15 +91,6 @@ export const accountClient = {
       },
       { action: "remove-federated-link" satisfies ReauthAction },
     );
-  },
-
-  async createWorkspace(body: CreateWorkspaceBody, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand({
-      operationKey: await buildPayloadOperationKey("workspace-create", body),
-      explicit: command,
-      request: (resolved) =>
-        apiFetch(apiRouteUrl("api.orgs.store", {}), buildJsonCommandRequestInit("POST", body, resolved)),
-    });
   },
 
   /** Add the small example company to an empty company. Not idempotent: a second call is refused. */

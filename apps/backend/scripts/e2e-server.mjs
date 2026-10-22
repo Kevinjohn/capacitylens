@@ -56,7 +56,7 @@ function runAce(args) {
 }
 
 runAce(['migration:run', '--force'])
-runAce(['db:seed', '--files=database/seeders/main_seeder.ts'])
+if (flavour === 'db') runAce(['db:seed', '--files=database/seeders/main_seeder.ts'])
 
 const child = spawn(process.execPath, ['ace.js', 'serve'], {
   cwd: serverDirectory,

@@ -168,6 +168,7 @@ export async function bootstrapOrg(request: APIRequestContext, cookie: string, n
     const foreignKeysEnabled = db.prepare("PRAGMA foreign_keys").get() as { foreign_keys: number };
     if (foreignKeysEnabled.foreign_keys !== 1)
       throw new Error("Auth E2E fixture creation requires SQLite foreign keys.");
+    db.exec("CREATE TABLE IF NOT EXISTS auth_e2e_fixture_companies (account_id TEXT PRIMARY KEY)");
     const accountId = crypto.randomUUID();
     const now = new Date().toISOString();
     const internal = buildInternalClient(accountId, now);
@@ -186,6 +187,7 @@ export async function bootstrapOrg(request: APIRequestContext, cookie: string, n
          VALUES (?, ?, ?, 'owner', 'active', ?, ?)`,
       ).run(crypto.randomUUID(), accountId, userId, now, now);
       db.prepare("INSERT INTO company_planning_revisions (account_id, revision) VALUES (?, 1)").run(accountId);
+      db.prepare("INSERT INTO auth_e2e_fixture_companies (account_id) VALUES (?)").run(accountId);
       db.exec("COMMIT");
     } catch (error) {
       db.exec("ROLLBACK");
@@ -195,6 +197,86 @@ export async function bootstrapOrg(request: APIRequestContext, cookie: string, n
   } finally {
     db.close();
   }
+}
+
+/** Remove only companies registered by this disposable auth fixture between serial browser tests. */
+export function clearAuthE2ECompanies(): void {
+  const db = openAuthE2EDatabase();
+  try {
+    db.exec("PRAGMA foreign_keys = ON");
+    db.exec("CREATE TABLE IF NOT EXISTS auth_e2e_fixture_companies (account_id TEXT PRIMARY KEY)");
+    const rows = db.prepare("SELECT account_id FROM auth_e2e_fixture_companies").all() as Array<{ account_id: string }>;
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      for (const { account_id: accountId } of rows) {
+        db.prepare("DELETE FROM audit_entries WHERE account_id = ?").run(accountId);
+        db.prepare("DELETE FROM account_member_resources WHERE account_id = ?").run(accountId);
+        db.prepare("DELETE FROM accounts WHERE id = ?").run(accountId);
+        db.prepare("DELETE FROM auth_e2e_fixture_companies WHERE account_id = ?").run(accountId);
+      }
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+  } finally {
+    db.close();
+  }
+}
+
+/** Seeds scenario data through an authenticated typed planning command at the current revision. */
+export async function sendPlanningFixtureCommand(
+  request: APIRequestContext,
+  cookie: string,
+  accountId: string,
+  path: string,
+  intent: Record<string, unknown>,
+  method: "post" | "patch" = "post",
+): Promise<unknown> {
+  const headers = { cookie, "sec-fetch-site": "same-origin" };
+  const snapshot = await request.get(`${AUTH_API}/api/accounts/${accountId}/planning`, { headers });
+  expect(snapshot.status(), `read planning revision for ${path}`).toBe(200);
+  const revision = ((await snapshot.json()) as { revision?: unknown }).revision;
+  if (typeof revision !== "number" || !Number.isSafeInteger(revision))
+    throw new Error("The fixture planning read did not return a revision.");
+  const url = `${AUTH_API}/api/accounts/${accountId}/${path}`;
+  const options = {
+    headers,
+    data: { mutationId: crypto.randomUUID(), baseRevision: revision, intent },
+  };
+  const response = method === "patch" ? await request.patch(url, options) : await request.post(url, options);
+  expect(response.status(), `seed planning command ${path}: ${await response.text()}`).toBe(200);
+  return response.json();
+}
+
+/** Creates a fully specified person through the retained typed resource route for browser scenarios. */
+export async function createFixturePerson(
+  request: APIRequestContext,
+  cookie: string,
+  accountId: string,
+  person: { id: string; name: string; role: string; color?: string; avatarUrl?: string | null },
+): Promise<void> {
+  await sendPlanningFixtureCommand(request, cookie, accountId, "resources", {
+    operation: "resource.create",
+    id: person.id,
+    fields: {
+      kind: "person",
+      name: person.name,
+      role: person.role,
+      avatarUrl: person.avatarUrl ?? null,
+      disciplineId: null,
+      employmentType: "permanent",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      projectId: null,
+      color: person.color ?? "#76a5e7",
+      isFavourite: null,
+      firstAvailableDate: null,
+      lastAvailableDate: null,
+    },
+  });
 }
 
 /**

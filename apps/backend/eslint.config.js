@@ -35,7 +35,7 @@ export default configApp(
     },
   },
   {
-    files: ['app/services/audit.ts', 'app/services/batch/**/*.ts', 'app/services/lifecycle.ts'],
+    files: ['app/services/audit.ts', 'app/services/lifecycle.ts'],
     rules: {
       'no-restricted-imports': [
         'error',

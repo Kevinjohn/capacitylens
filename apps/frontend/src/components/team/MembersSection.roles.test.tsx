@@ -5,7 +5,6 @@ import userEvent from "@testing-library/user-event";
 
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse, makeResourceDraft } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
-import { refreshActiveAccountSlice } from "@/data/persist";
 import { m } from "@/i18n";
 import {
   accessibleMemberNames,
@@ -34,20 +33,9 @@ vi.mock("@/data/apiConfig", () => ({
   isServerConfigured: () => true,
 }));
 
-vi.mock("@/data/persist", () => ({
-  refreshActiveAccountSlice: vi.fn(async () => ({ kind: "reloaded" })),
-  flushPendingWrites: vi.fn(async () => ({ kind: "clean" })),
-  suspendServerWrites: vi.fn(() => vi.fn()),
-  switchAndAwaitHydration: vi.fn(async (id: string | null) => {
-    useStore.getState().setActiveAccount(id);
-    return { kind: "reloaded" };
-  }),
-}));
-
 beforeEach(async () => {
   accountTransitionMocks.startMasquerade.mockClear();
   await resetStoreWithAccount();
-  vi.mocked(refreshActiveAccountSlice).mockResolvedValue({ kind: "reloaded" });
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -390,6 +378,10 @@ function registerAdminProjectionTests(members: RawMember[]): void {
     const refreshAuth = vi.fn(async () => {});
     vi.stubGlobal("fetch", mockApi(members));
     const revisionBefore = useStore.getState().membershipRevision;
+    let sawPlanningRead = false;
+    const unsubscribe = useStore.subscribe((state) => {
+      if (state.planning.status === "loading") sawPlanningRead = true;
+    });
     renderSection({ refreshAuth });
 
     const selfRow = await waitForMemberRow(/me@x\.io/);
@@ -397,7 +389,8 @@ function registerAdminProjectionTests(members: RawMember[]): void {
 
     await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
     expect(refreshAuth).toHaveBeenCalledTimes(1);
-    expect(refreshActiveAccountSlice).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
+    unsubscribe();
+    expect(sawPlanningRead).toBe(true);
   });
 }
 

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { buildBetaExport, parseBetaExport, serializeBetaExport } from "@capacitylens/shared/data/betaTransfer";
 import type { BetaExportDocument } from "@capacitylens/shared/data/betaTransfer";
 import { seed } from "@capacitylens/shared/data/seed";
@@ -9,23 +9,20 @@ import { PermissionContext } from "@/auth/permissionContext";
 import { useStore } from "@/store/useStore";
 import { resetStoreWithAccount } from "@/test/fixtures";
 import { ImportExport } from "./ImportExport";
+import { useServerImport } from "./import-export/useServerImport";
 
 const serverFlag = { on: false };
 const refreshOverride = vi.hoisted(() => ({ result: { kind: "reloaded" } as { kind: string } }));
-const persistenceProbe = vi.hoisted(() => ({ resumes: [] as Array<{ dropParkedEdits: boolean }>, suspends: 0 }));
+const planningProbe = vi.hoisted(() => ({ releases: 0, suspends: 0 }));
+const originalPlanning = {
+  refreshPlanning: useStore.getState().refreshPlanning,
+  planningReadyForReplacement: useStore.getState().planningReadyForReplacement,
+  suspendPlanningCommands: useStore.getState().suspendPlanningCommands,
+};
 vi.mock("@/data/apiConfig", () => ({
   API_BASE: "",
   isServerConfigured: () => serverFlag.on,
   isDemoMode: () => !serverFlag.on,
-}));
-vi.mock("@/data/persist", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/data/persist")>()),
-  refreshActiveAccountSlice: async () => refreshOverride.result,
-  flushPendingWrites: async () => ({ kind: "clean" as const }),
-  suspendServerWrites: () => {
-    persistenceProbe.suspends += 1;
-    return (options: { dropParkedEdits: boolean }) => persistenceProbe.resumes.push(options);
-  },
 }));
 
 const accountId = "a-studio";
@@ -36,6 +33,18 @@ function document(): BetaExportDocument {
 
 function renderTools(server = false, reauthMethod: "password" | "provider" = "password") {
   serverFlag.on = server;
+  if (server) {
+    useStore.setState({
+      refreshPlanning: async () => refreshOverride.result.kind === "reloaded",
+      planningReadyForReplacement: () => true,
+      suspendPlanningCommands: () => {
+        planningProbe.suspends += 1;
+        return () => {
+          planningProbe.releases += 1;
+        };
+      },
+    });
+  }
   return render(
     <AuthContext.Provider
       value={{
@@ -86,14 +95,14 @@ async function submitServerImport(applyResponse: Response): Promise<void> {
   fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
   fireEvent.change(screen.getByLabelText("Password"), { target: { value: "current-password" } });
   fireEvent.click(screen.getByTestId("action-proof-confirm"));
-  await waitFor(() => expect(persistenceProbe.suspends).toBe(1));
+  await waitFor(() => expect(planningProbe.suspends).toBe(1));
 }
 
 beforeEach(async () => {
   serverFlag.on = false;
   refreshOverride.result = { kind: "reloaded" };
-  persistenceProbe.suspends = 0;
-  persistenceProbe.resumes.length = 0;
+  planningProbe.suspends = 0;
+  planningProbe.releases = 0;
   await resetStoreWithAccount(accountId);
   useStore.getState().replaceAll(seed());
   sessionStorage.clear();
@@ -101,11 +110,88 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  useStore.setState(originalPlanning);
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
 describe("beta import and export", () => {
+  it("dispatches one replacement when confirmation is pressed twice before a response", async () => {
+    let finish!: (response: Response) => void;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useServerImport());
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+
+    act(() => {
+      first = result.current.confirm(document(), 1, "proof-1");
+      second = result.current.confirm(document(), 1, "proof-1");
+    });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    finish(Response.json({ error: "Import refused." }, { status: 403 }));
+    await Promise.all([first, second]);
+  });
+
+  it("does not dispatch an ordinary import from an unsettled recovery-readable context", async () => {
+    useStore.setState((state) => ({ planning: { ...state.planning, status: "error", revision: null } }));
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useServerImport());
+
+    await result.current.confirm(document(), 1, "proof-1");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(useStore.getState().notice?.tone).toBe("error");
+    const releaseRecovery = useStore.getState().suspendPlanningCommands();
+    if (!releaseRecovery) throw new Error("The selected context was not available for authority recovery.");
+    releaseRecovery();
+  });
+
+  it.each([false, true])(
+    "does not recover an old import into a successor context (return to A: %s)",
+    async (returnToA) => {
+      let finish!: (response: Response) => void;
+      const fetchMock = vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            finish = resolve;
+          }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+      const first = renderHook(() => useServerImport());
+      const second = renderHook(() => useServerImport());
+      const oldOperation = first.result.current.confirm(document(), 1, "proof-old");
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+      await second.result.current.confirm(document(), 1, "proof-second");
+      expect(fetchMock).toHaveBeenCalledOnce();
+
+      useStore.getState().setActiveAccount("a-loft");
+      await useStore.getState().refreshPlanning();
+      if (returnToA) {
+        useStore.getState().setActiveAccount(accountId);
+        await useStore.getState().refreshPlanning();
+      }
+      const successorRelease = useStore.getState().suspendPlanningCommands();
+      if (!successorRelease) throw new Error("The successor planning context was not ready.");
+      const successorNotice = useStore.getState().notice;
+      const refresh = vi.fn(async () => true);
+      useStore.setState({ refreshPlanning: refresh });
+
+      finish(Response.json({ error: "Outcome unavailable" }, { status: 503 }));
+      await oldOperation;
+      expect(refresh).not.toHaveBeenCalled();
+      expect(useStore.getState().notice).toBe(successorNotice);
+      expect(useStore.getState().planningReadyForReplacement()).toBe(false);
+      successorRelease();
+    },
+  );
+
   it("exports the selected company's full beta document", async () => {
     let downloaded: Blob | undefined;
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
@@ -310,28 +396,25 @@ describe("beta import and export", () => {
     expect(requests[2]?.body).toMatchObject({ accountId, baseRevision: 7, document: incoming, proofId: "proof-7" });
   });
 
-  it.each([403, 409])("keeps parked edits after a refused %i import", async (status) => {
+  it.each([403, 409])("releases planning commands after a refused %i import", async (status) => {
     await submitServerImport(Response.json({ error: "Import refused." }, { status }));
-    await waitFor(() => expect(persistenceProbe.resumes).toEqual([{ dropParkedEdits: false }]));
+    await waitFor(() => expect(planningProbe.releases).toBe(1));
     expect(useStore.getState().notice).toMatchObject({ tone: "error", message: "Import refused." });
   });
 
   it("reloads the authoritative slice after an uncertain import response", async () => {
     await submitServerImport(Response.json({ error: "Unknown outcome." }, { status: 503 }));
-    await waitFor(() => expect(persistenceProbe.resumes).toEqual([{ dropParkedEdits: true }]));
+    await waitFor(() => expect(planningProbe.releases).toBe(1));
     expect(useStore.getState().notice?.tone).toBe("warning");
   });
 
-  it.each(["failed", "skipped", "unattached"])(
-    "keeps writes suspended and requires reload when a committed import refresh is %s",
-    async (kind) => {
-      refreshOverride.result = { kind };
-      await submitServerImport(Response.json({ imported: 5, changed: true, revision: 8 }));
-      await screen.findByTestId("import-reload-required");
-      expect(persistenceProbe.resumes).toEqual([]);
-      expect(useStore.getState().notice?.tone).toBe("error");
-    },
-  );
+  it("keeps commands suspended and requires reload when a committed import refresh fails", async () => {
+    refreshOverride.result = { kind: "failed" };
+    await submitServerImport(Response.json({ imported: 5, changed: true, revision: 8 }));
+    await screen.findByTestId("import-reload-required");
+    expect(planningProbe.releases).toBe(0);
+    expect(useStore.getState().notice?.tone).toBe("error");
+  });
 
   it("ignores a cancelled file's late preview before confirming a newer selection", async () => {
     const first = document();
@@ -471,7 +554,7 @@ describe("beta import and export", () => {
     fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
     await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/does not match this import/i));
     expect(useStore.getState().data).toEqual(before);
-    expect(persistenceProbe.resumes).toEqual([{ dropParkedEdits: false }]);
+    expect(planningProbe.releases).toBe(1);
   });
 
   it("waits for the selected company to hydrate before reading a returned provider proof", async () => {

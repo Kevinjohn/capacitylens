@@ -1,19 +1,12 @@
 import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
 import { beforeEach, describe, expect, it } from "vitest";
-import { diffOps } from "@/data/syncOps";
 import { useStore } from "./useStore";
 import { DEFAULT_ACCOUNT_ID, makeAppData, makeResource, requireValue, resetStoreWithAccount } from "@/test/fixtures";
-import type { AppData } from "@capacitylens/shared/types/entities";
 
 const T = "2026-01-01T00:00:00.000Z";
 const meta = { accountId: DEFAULT_ACCOUNT_ID, createdAt: T, updatedAt: T };
 
 beforeEach(() => resetStoreWithAccount());
-
-async function undoOps(afterDelete: AppData) {
-  await useStore.getState().undoPlanning();
-  return diffOps(afterDelete, useStore.getState().data);
-}
 
 function registerUndoSyncPart1(): void {
   it("re-stamps an undo whose content is identical but stored revision changed", async () => {
@@ -29,13 +22,12 @@ function registerUndoSyncPart1(): void {
     const afterNoOpSave = useStore.getState().data;
     const savedRevision = requireValue(afterNoOpSave.clients[0], "saved client").updatedAt;
     expect(afterNoOpSave.clients[0]?.name).toBe("Changed");
-    const ops = await undoOps(afterNoOpSave);
+    await useStore.getState().undoPlanning();
 
     expect(useStore.getState().data.clients[0]).toMatchObject({ name: "Client", color: "#111111" });
     expect(Date.parse(requireValue(useStore.getState().data.clients[0], "restored client").updatedAt)).toBeGreaterThan(
       Date.parse(savedRevision),
     );
-    expect(ops).toContainEqual(expect.objectContaining({ method: "PUT", table: "clients", id: "c1" }));
   });
 
   it("re-timestamps a tenant larger than the engine argument limit without throwing", async () => {
@@ -63,7 +55,7 @@ function registerUndoSyncPart1(): void {
 }
 
 function registerUndoSyncPart2(): void {
-  it("restores an activity phaseId with an activity PUT", async () => {
+  it("restores an activity phaseId after a phase delete", async () => {
     useStore.getState().replaceAll(
       makeAppData({
         clients: [{ ...NULLABLE_FIELDS.clients, ...meta, id: "c1", name: "Client", color: "#111111" }],
@@ -90,19 +82,11 @@ function registerUndoSyncPart2(): void {
     await useStore.getState().deletePhase("ph1");
     const afterDelete = useStore.getState().data;
     expect(requireValue(afterDelete.activities[0], "activity")).toHaveProperty("phaseId", null);
-    const ops = await undoOps(afterDelete);
-
-    expect(ops).toContainEqual(
-      expect.objectContaining({
-        method: "PUT",
-        table: "activities",
-        id: "act1",
-      }),
-    );
+    await useStore.getState().undoPlanning();
     expect(useStore.getState().data.activities[0]?.phaseId).toBe("ph1");
   });
 
-  it("restores a resource disciplineId with a resource PUT", async () => {
+  it("restores a resource disciplineId after a discipline delete", async () => {
     useStore.getState().replaceAll(
       makeAppData({
         disciplines: [{ ...NULLABLE_FIELDS.disciplines, ...meta, id: "d1", name: "Design", sortOrder: 0 }],
@@ -115,14 +99,12 @@ function registerUndoSyncPart2(): void {
     await useStore.getState().deleteDiscipline("d1");
     const afterDelete = useStore.getState().data;
     expect(requireValue(afterDelete.resources[0], "resource")).toHaveProperty("disciplineId", null);
-    const ops = await undoOps(afterDelete);
-
-    expect(ops).toContainEqual(expect.objectContaining({ method: "PUT", table: "resources", id: "r1" }));
+    await useStore.getState().undoPlanning();
     expect(useStore.getState().data.resources[0]?.disciplineId).toBe("d1");
   });
 }
 
-describe("undo emits synchronization revisions for cascade-restored bindings", () => {
+describe("typed undo restores cascade bindings", () => {
   registerUndoSyncPart1();
   registerUndoSyncPart2();
 });

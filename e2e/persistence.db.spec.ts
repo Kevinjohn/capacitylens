@@ -2,9 +2,8 @@ import { test, expect } from "./dbFixtures";
 import { openApp, selectShadOption } from "./browserTestSupport";
 import { resetServer, serverState, requireStateRows } from "./serverTestState";
 
-// This database-backed project uses VITE_CAPACITYLENS_API, so persistence runs through ServerSyncAdapter and SQLite.
-// The specs use the same UI flows as the in-memory demo, but reloads hydrate from GET /api/state without a
-// localStorage fallback. A record that survives reload proves the full UI-to-database round trip.
+// This database-backed project uses VITE_CAPACITYLENS_API, so typed writes persist in SQLite.
+// A record surviving a planning-read reload proves the full UI-to-database round trip.
 
 function registerBeforeEachHooks() {
   test.beforeEach(async ({ request }) => {
@@ -29,7 +28,7 @@ function registerCreateReloadNewClientRoundTest() {
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByText("Persisted DB Co")).toBeVisible();
 
-    // The write is debounced; confirm it actually reached the server tables.
+    // Confirm the accepted typed write reached the server tables.
     await expect
       .poll(
         async () => requireStateRows(await serverState(request), "clients").some((c) => c.name === "Persisted DB Co"),
