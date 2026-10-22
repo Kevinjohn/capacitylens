@@ -1,18 +1,11 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { DatabaseSync } from "node:sqlite";
 import { mkdtempSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import {
-  buildSmokeEnvironment,
-  createSmokeCompany,
-  startServer,
-  waitFor,
-  writeSmokeSchedule,
-} from "./smoke-packaged-server.mjs";
+import { buildSmokeEnvironment, startServer, waitFor, writeSmokeSchedule } from "./smoke-packaged-server.mjs";
 
 test("packaged smoke strips deployment settings before applying its loopback fixture", () => {
   const inherited = {
@@ -100,41 +93,6 @@ test("failure preservation errors do not hide the original failure or leave scra
     assert.deepEqual(readdirSync(parent).sort(), ["blocked-artifacts", "broken-deployment"]);
   } finally {
     rmSync(parent, { recursive: true, force: true });
-  }
-});
-
-test("smoke fixture creates one isolated company and owner membership for an existing principal", () => {
-  const workDir = mkdtempSync(join(tmpdir(), "capacitylens-smoke-company-"));
-  const databasePath = join(workDir, "fixture.db");
-  const database = new DatabaseSync(databasePath);
-  try {
-    database.exec(`
-      CREATE TABLE users (id TEXT PRIMARY KEY);
-      CREATE TABLE accounts (id TEXT PRIMARY KEY, name TEXT, color TEXT, scheduling_mode TEXT, inline_activity_create_enabled TEXT, created_at TEXT, updated_at TEXT);
-      CREATE TABLE clients (id TEXT PRIMARY KEY, account_id TEXT, name TEXT, color TEXT, builtin TEXT, created_at TEXT, updated_at TEXT);
-      CREATE TABLE memberships (id TEXT PRIMARY KEY, account_id TEXT, user_id TEXT, role TEXT, status TEXT, created_at TEXT, updated_at TEXT);
-      CREATE TABLE company_planning_revisions (account_id TEXT PRIMARY KEY, revision INTEGER);
-      INSERT INTO users (id) VALUES ('smoke-owner');
-    `);
-    const accountId = createSmokeCompany(
-      databasePath,
-      "smoke-owner",
-      { name: "Wayne Enterprises", color: "#5c34d4" },
-      (id) => ({ id: `internal:${id}`, name: "Internal", color: "#2d75da" }),
-    );
-    assert.equal(database.prepare("SELECT name FROM accounts WHERE id = ?").get(accountId).name, "Wayne Enterprises");
-    assert.equal(
-      database.prepare("SELECT user_id FROM memberships WHERE account_id = ?").get(accountId).user_id,
-      "smoke-owner",
-    );
-    assert.equal(database.prepare("SELECT builtin FROM clients WHERE account_id = ?").get(accountId).builtin, "true");
-    assert.equal(
-      database.prepare("SELECT revision FROM company_planning_revisions WHERE account_id = ?").get(accountId).revision,
-      1,
-    );
-  } finally {
-    database.close();
-    rmSync(workDir, { recursive: true, force: true });
   }
 });
 

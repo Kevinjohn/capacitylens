@@ -71,7 +71,10 @@ accept responses never include it.
    server-backed deploy the form also shows a **Start with example data** checkbox, ticked when it
    is the user's first company and unticked otherwise; the in-memory demo does not offer it. These three are set ONCE here and are then **disabled** in
    Settings; the server rejects a later change with **409**.
-   When there is no company, the supported first-company setup or invitation path remains available.
+   On an empty native installation, create the first identity, stop the service and run
+   `company:initialize <existing-email> <company-name> --confirm-server-stopped`, then restart
+   and sign in normally. The command creates one company and active Owner membership without
+   changing credentials or identity admission; it refuses any existing company or membership.
    Production does not offer company selection, switching, ordinary additional-company creation or
    in-app company deletion. The server summary supplies the sole installation company; scoped APIs
    still authorize every requested id from the caller's server-side membership. If the summary
@@ -282,8 +285,8 @@ success for the rebase never hides the independent loss.
 > This auto-seed is **DEMO-BUILD-ONLY** going forward (one-company server policy). A
 > real, server-backed instance (the default deploy) no longer auto-seeds from the client side.
 > The demo build (`VITE_CAPACITYLENS_DEMO=1`) starts with a volatile seed dataset. A fresh
-> server-backed instance has no supported
-> first-company creation flow; the Owner needs a provisioned company. The two-company seed
+> server-backed instance uses the stopped-server `company:initialize` command for an existing
+> native identity to establish its first company and Owner, with no seed scheduling data. The two-company seed
 > described below happens in the demo build (`pnpm run dev:demo`, what these stories run against)
 > and in backend tenant-isolation tests. The database-backed E2E server resets to a single-company
 > fixture so its user journeys match production. Browser requests cannot reset persisted company
@@ -1519,10 +1522,11 @@ replaces the resource's name and role with obfuscated labels, clears its avatar 
 and invalidates local undo history and company restoration groups. The resource, company,
 memberships and planning links remain. Clients, projects and activities have no anonymise action.
 Settings has no deleted-items section or permanent-deletion control.
-The Owner also sees **Anonymise all resources** in Settings. It applies the same scrub to every
-resource in the selected company while retaining company, membership and planning links. In a
-server deployment the Owner confirms the exact action with password or linked Google proof; in
-the editable demo it happens in temporary page memory without login or proof.
+The Owner also sees **Anonymise all people** in Settings. It applies the same people-only scrub in
+the selected company, including their dependent booking and time-off notes. Clients, projects and
+activities stay unchanged, as do the company, memberships and planning links. In a server
+deployment the Owner confirms the exact action with password or linked Google proof; in the
+editable demo it happens in temporary page memory without login or proof.
 
 ### Generic scoped write privacy
 
@@ -1550,10 +1554,11 @@ An Owner or Admin can anonymise one resource with
 `POST /api/accounts/:accountId/resources/:id/anonymise`. The resource remains in the company with
 its links, while name and role become stable obfuscation tokens, the avatar and dependent notes are
 cleared, and restoration groups for the company are invalidated. The operation is atomic and
-irreversible. An Editor receives **403**. Whole-company anonymisation uses
+irreversible. An Editor receives **403**. Whole-company people anonymisation uses
 `POST /api/accounts/:accountId/anonymise` after action-specific proof; it applies the same scrub to
-every resource while retaining the company, Owner, memberships and links. Legacy generic lifecycle
-action routes and company deletion return **404**.
+people and dependent notes while leaving clients, projects, activities, the company, Owner,
+memberships and links unchanged. Legacy generic lifecycle action routes and company deletion
+return **404**.
 
 - **Error mapping:** an illegal archive transition returns **409**; a cross-account or absent target
   follows the typed planning tenant guard; insufficient role returns **403**.

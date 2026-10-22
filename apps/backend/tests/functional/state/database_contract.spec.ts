@@ -48,6 +48,11 @@ test.group('M1 database contract', (group) => {
   test('creates the complete fresh baseline, including identity and control tables', async ({
     assert,
   }) => {
+    const journal = await db.from('adonis_schema').orderBy('id').select('name')
+    assert.deepEqual(
+      journal.map((row) => row.name),
+      ['database/migrations/202610120001_create_capacitylens_baseline']
+    )
     const rows = await db.from('sqlite_master').select('name').where('type', 'table')
     assert.includeMembers(
       rows.map((row) => row.name as string),

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PlanningIntent } from "@capacitylens/backend/planning";
 import type { AppData } from "@capacitylens/shared/types/entities";
-import { makeAllocation, makeAppData } from "@/test/fixtures";
+import { makeActivity, makeAllocation, makeAppData, makeResource } from "@/test/fixtures";
 import { createVolatilePlanningTransport } from "./volatilePlanningTransport";
 
 const context = { identity: "page", companyId: "a1" };
@@ -65,9 +65,65 @@ describe("volatile planning transport", () => {
     await expect(transport.lookup(context, "m2", signal)).resolves.toEqual({ status: "unknown", mutationId: "m2" });
   });
 
+  it.each(["missing activity", "archived activity", "invalid activity", "external resource", "changed availability"])(
+    "refuses restoration after %s without committing and permits repaired retry",
+    async (changed) => {
+      const original = makeAllocation();
+      const resource = makeResource({ name: "Bruce Wayne" });
+      const activity = makeActivity({ kind: "internal", projectId: null });
+      const { transport, run, read, write } = harness(
+        makeAppData({ resources: [resource], activities: [activity], allocations: [original] }),
+      );
+      const deleted = await run("delete", { operation: "allocation.delete", id: original.id });
+      const restorationGroupId = deleted.restoration.replacementGroupId;
+      if (!restorationGroupId) throw new Error("Expected a restoration handle.");
+      write({
+        ...read(),
+        activities:
+          changed === "missing activity"
+            ? []
+            : [
+                {
+                  ...activity,
+                  ...(changed === "archived activity" ? { archivedAt: "2026-10-22T00:00:00Z" } : {}),
+                  ...(changed === "invalid activity" ? { kind: "project" as const } : {}),
+                },
+              ],
+        resources: [
+          {
+            ...resource,
+            ...(changed === "external resource" ? { kind: "external" as const } : {}),
+            ...(changed === "changed availability" ? { firstAvailableDate: "2026-07-01" } : {}),
+          },
+        ],
+      });
+      const before = structuredClone(read());
+      const revision = (await transport.read(context, signal)).revision;
+      await expect(run("restore", { operation: "planning.restoreGroup", restorationGroupId })).rejects.toMatchObject({
+        status: 409,
+      });
+      expect(read()).toEqual(before);
+      expect((await transport.read(context, signal)).revision).toBe(revision);
+      await expect(transport.lookup(context, "restore", signal)).resolves.toEqual({
+        status: "unknown",
+        mutationId: "restore",
+      });
+      write({ ...read(), resources: [resource], activities: [activity] });
+      const retried = await run("restore", { operation: "planning.restoreGroup", restorationGroupId });
+      expect(retried.restoration.consumedGroupId).toBe(restorationGroupId);
+      expect(read().allocations).toEqual([expect.objectContaining({ id: original.id, resourceId: resource.id })]);
+    },
+  );
+
   it("restores a deleted group once from its restoration handle", async () => {
     const original = makeAllocation();
-    const { run, read } = harness(makeAppData({ allocations: [original] }));
+    const { run, read } = harness(
+      makeAppData({
+        resources: [makeResource({ name: "Bruce Wayne" })],
+        activities: [makeActivity({ kind: "internal", projectId: null })],
+        allocations: [original],
+      }),
+    );
     const deleted = await run("m1", { operation: "allocation.delete", id: original.id });
     const restorationGroupId = deleted.restoration.replacementGroupId;
     if (!restorationGroupId) throw new Error("Expected a restoration handle.");
