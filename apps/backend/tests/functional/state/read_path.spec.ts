@@ -29,7 +29,10 @@ test.group('M1 read path', (group) => {
       client,
       assert,
     }) => {
-      if (expected.path.startsWith('/api/state?') || expected.path === '/api/accounts')
+      if (
+        expected.path.startsWith('/api/state?') ||
+        ['/api/accounts', '/api/diagnostics'].includes(expected.path)
+      )
         client = await resetAuthenticatedClient(client, true)
       const response =
         expected.method === 'POST'

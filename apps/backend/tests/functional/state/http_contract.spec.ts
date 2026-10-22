@@ -193,6 +193,7 @@ test.group('M1 HTTP contract', (group) => {
   })
 
   test('diagnostics preserves the unavailable database projection', async ({ client, assert }) => {
+    client = await resetAuthenticatedClient(client, true)
     await db.rawQuery('DROP INDEX closures_account_id_index')
     try {
       const response = await client.get('/api/diagnostics')

@@ -6,6 +6,9 @@ import { join, resolve } from 'node:path'
 import { listSnapshots, type FileIdentity } from '#services/backup/retention'
 import router from '@adonisjs/core/services/router'
 import { checkDatabase, readState, resetState } from '#services/state_repository'
+import { resolveCurrentActor } from '#services/auth/session_authority'
+import { activeCompanyRole } from '#services/auth/authorization'
+import { withTransaction } from '#services/with_transaction'
 import { fileURLToPath } from 'node:url'
 import { healthChecks } from '#start/health'
 import { registerAuthRoutes } from '#start/auth_routes'
@@ -63,7 +66,23 @@ router.get('/api/meta', async () => {
   const state = await readState()
   return { hasData: state.accounts.length > 0 }
 })
-router.get('/api/diagnostics', async ({ response, logger }) => {
+router.get('/api/diagnostics', async (ctx) => {
+  const { response, logger } = ctx
+  // Release level and backup timing are administration facts: Owners and Admins only.
+  const administers = await withTransaction(async (trx) => {
+    const actor = await resolveCurrentActor(ctx, trx)
+    const memberships = await trx
+      .from('memberships')
+      .where({ user_id: actor.userId, status: 'active' })
+      .select('account_id')
+    for (const membership of memberships) {
+      const role = await activeCompanyRole(actor.userId, String(membership.account_id), trx)
+      if (role === 'owner' || role === 'admin') return true
+    }
+    return false
+  })
+  if (!administers)
+    return response.forbidden({ error: 'Diagnostics are limited to Owners and Admins.' })
   try {
     await checkDatabase()
     const lastMigration = await db
