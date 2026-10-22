@@ -1,6 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
-import env from '#start/env'
 import { isTrustedUnsafeOrigin } from '#services/cors_policy'
 export default class SecurityHeadersMiddleware {
   async handle({ request, response }: HttpContext, next: NextFn) {
@@ -23,8 +22,6 @@ export default class SecurityHeadersMiddleware {
         fetchSite: request.header('sec-fetch-site'),
         host: request.header('host'),
         protocol: request.protocol(),
-        forwardedProtocol: request.header('x-forwarded-proto')?.split(',')[0]?.trim(),
-        trustProxy: env.get('CAPACITYLENS_TRUST_PROXY_HEADERS') === true,
       })
     )
       return response.forbidden({ error: 'Cross-site request rejected.' })

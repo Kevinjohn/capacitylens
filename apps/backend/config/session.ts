@@ -1,5 +1,8 @@
-import app from '@adonisjs/core/services/app'
+import env from '#start/env'
 import { defineConfig, stores } from '@adonisjs/session'
+
+const secure =
+  new URL(env.get('CAPACITYLENS_PUBLIC_URL') || env.get('APP_URL')).protocol === 'https:'
 
 const sessionConfig = defineConfig({
   /**
@@ -10,7 +13,7 @@ const sessionConfig = defineConfig({
   /**
    * Cookie name storing the session identifier.
    */
-  cookieName: app.inProduction ? '__Host-adonis-session' : 'adonis-session',
+  cookieName: secure ? '__Host-adonis-session' : 'adonis-session',
 
   /**
    * When set to true, the session id cookie will be deleted
@@ -40,9 +43,9 @@ const sessionConfig = defineConfig({
     httpOnly: true,
 
     /**
-     * Send cookies only over HTTPS in production.
+     * Send cookies only over HTTPS when the public URL is HTTPS.
      */
-    secure: app.inProduction,
+    secure,
 
     /**
      * Cross-site policy for cookie sending.

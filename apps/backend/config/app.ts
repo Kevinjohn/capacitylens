@@ -1,5 +1,4 @@
 import env from '#start/env'
-import app from '@adonisjs/core/services/app'
 import { defineConfig } from '@adonisjs/core/http'
 
 /**
@@ -33,6 +32,12 @@ export const http = defineConfig({
    * from anywhere inside your application.
    */
   useAsyncLocalStorage: false,
+
+  /**
+   * Forwarded client address and protocol headers are trusted from loopback (the framework
+   * default) only when the operator enables them; otherwise no peer is trusted.
+   */
+  trustProxy: env.get('CAPACITYLENS_TRUST_PROXY_HEADERS') ? undefined : () => false,
 
   router: {
     matcher: 'tree',
@@ -78,9 +83,9 @@ export const http = defineConfig({
     httpOnly: true,
 
     /**
-     * Send cookies only over HTTPS in production.
+     * Send cookies only over HTTPS when the public URL is HTTPS.
      */
-    secure: app.inProduction,
+    secure: new URL(env.get('CAPACITYLENS_PUBLIC_URL') || env.get('APP_URL')).protocol === 'https:',
 
     /**
      * Cross-site policy for cookie sending.
