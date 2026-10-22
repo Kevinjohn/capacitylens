@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
@@ -123,11 +123,11 @@ describe("AppShell account gate", () => {
   });
 });
 
-describe("AccountPicker create + open + delete", () => {
+describe("AccountPicker create + open", () => {
   registerCreateAndActivateTests();
   registerCreateFormValidationTests();
   registerOpenAndEnterTests();
-  registerDeleteConfirmationTests();
+  registerNoCompanyDeletionTests();
 });
 
 function registerCreateAndActivateTests() {
@@ -268,26 +268,14 @@ function registerOpenAndEnterTests() {
   });
 }
 
-function registerDeleteConfirmationTests() {
-  it("deletes a company only after typing its name to confirm", async () => {
-    const user = userEvent.setup();
+function registerNoCompanyDeletionTests() {
+  it("does not offer company deletion from the picker", () => {
     seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "Delete Wayne Enterprises" }));
-    const dialog = screen.getByRole("dialog");
-    expect(dialog).toHaveTextContent(/Delete company\?/i);
-
-    // Company erasure requires exact-name confirmation because it cannot be undone.
-    const deleteBtn = within(dialog).getByRole("button", { name: "Delete" });
-    expect(deleteBtn).toBeEnabled();
-    expect(deleteBtn).toHaveAttribute("aria-disabled", "true");
-    await user.type(within(dialog).getByLabelText(/Type/i), "Wayne Enterprises");
-    expect(deleteBtn).toBeEnabled();
-    expect(deleteBtn).not.toHaveAttribute("aria-disabled");
-    await user.click(deleteBtn);
-
-    expect(useStore.getState().data.accounts).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Wayne Enterprises" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete Wayne Enterprises" })).not.toBeInTheDocument();
+    expect(useStore.getState().data.accounts).toHaveLength(1);
   });
 }
 
