@@ -1422,13 +1422,13 @@ multiple).
   The complete acceptance contract is split across five runnable stories so every boundary remains
   traceable when tests change:
 
-  | Criterion           | Required behaviour                                                                                       | Story       |
-  | ------------------- | -------------------------------------------------------------------------------------------------------- | ----------- |
-  | Client setup        | Owner-only switch; public by default; required, normalised code name; real name retained                 | `US-CLI-05` |
-  | Project setup       | Same privacy controls while preserving the required client relationship                                  | `US-PRJ-05` |
-  | Role projection     | Owner sees real/raw values; admin/editor/viewer see one quoted code name everywhere                      | `US-PRI-01` |
-  | Server integrity    | Non-owner creates cannot author privacy; writes pin protected fields; every response path stays redacted | `US-PRI-02` |
-  | Portability/upgrade | Role-safe export, owner-only server import, fail-closed repair and v6→v7 public defaults                 | `US-DAT-07` |
+  | Criterion        | Required behaviour                                                                                       | Story       |
+  | ---------------- | -------------------------------------------------------------------------------------------------------- | ----------- |
+  | Client setup     | Owner-only switch; public by default; required, normalised code name; real name retained                 | `US-CLI-05` |
+  | Project setup    | Same privacy controls while preserving the required client relationship                                  | `US-PRJ-05` |
+  | Role projection  | Owner sees real/raw values; admin/editor/viewer see one quoted code name everywhere                      | `US-PRI-01` |
+  | Server integrity | Non-owner creates cannot author privacy; writes pin protected fields; every response path stays redacted | `US-PRI-02` |
+  | Portability      | Role-safe export, owner-only server import and fail-closed refusal of invalid privacy fields             | `US-DAT-07` |
 
   “Everywhere” includes active and archived client/project lists, filters and pickers, project/client
   compound labels, scheduler bars and popovers, forms, confirmation dialogs and the command palette.
