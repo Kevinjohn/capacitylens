@@ -16,6 +16,10 @@ new features and **patch** versions carry fixes.
 - Removed company deletion, lifecycle soft-delete and purge actions, including the 30-day purge
   countdown and generic lifecycle routes.
 
+### Fixed
+
+- Refuse allocation restoration when current references or resource availability are incompatible, keeping the deletion available for retry.
+
 ### Added
 
 - Beta-native company export, preview and atomic Owner import now preserve stable planning IDs,

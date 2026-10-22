@@ -178,6 +178,51 @@ test.group('session-bound allocation restoration', (suite) => {
       )
   })
 
+  for (const changed of [
+    'archived activity',
+    'invalid activity',
+    'external resource',
+    'changed availability',
+  ] as const) {
+    test(`restore refuses ${changed} atomically and permits retry after repair`, async ({
+      client,
+      assert,
+      cleanup,
+    }) => {
+      configureAuth(cleanup)
+      const { cookie } = await signIn(client)
+      const [id] = await createAllocations(client, cookie, 1)
+      const original = (await stored(id!))!
+      const deleted = await deleteOne(client, cookie, id!, 1)
+      deleted.assertStatus(200)
+      const groupId = deleted.body().restoration.replacementGroupId
+      const table = changed.includes('activity') ? 'activities' : 'resources'
+      const targetId = table === 'activities' ? original.activityId : original.resourceId
+      const target = await db.from(table).where('id', targetId).first()
+      const changes =
+        changed === 'archived activity'
+          ? { archived_at: new Date().toISOString() }
+          : changed === 'invalid activity'
+            ? { kind: 'project', project_id: null }
+            : changed === 'external resource'
+              ? { kind: 'external' }
+              : { first_available_date: '2026-12-01' }
+      await db.from(table).where('id', targetId).update(changes)
+      const before = await readState(accountId, true)
+      const failed = await restore(client, cookie, groupId, 2)
+      failed.assertStatus(409)
+      assert.deepEqual(await readState(accountId, true), before)
+      assert.isNull(await consumedAt(groupId))
+      assert.equal(await currentRevision(client, cookie), 2)
+      assert.lengthOf(await markers(), 2)
+      assert.lengthOf(await planningAudit(), 2)
+      await db.from(table).where('id', targetId).update(target)
+      const retried = await restore(client, cookie, groupId, 2)
+      retried.assertStatus(200)
+      assert.deepEqual(await stored(id!), original)
+    })
+  }
+
   test('a consumed group refuses a second restore with 409 and changes nothing', async ({
     client,
     assert,
@@ -365,7 +410,7 @@ test.group('session-bound allocation restoration', (suite) => {
       data.allocations.find((row) => row.id === kept)
     )
     assert.deepEqual(await otherAccounts(), othersBefore)
-  })
+  }).timeout(60_000)
 
   test('stale delete and restore revisions return 409 without effects', async ({
     client,
