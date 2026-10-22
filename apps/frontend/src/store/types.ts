@@ -10,6 +10,8 @@ import type { ThemePreference } from "@/lib/theme";
 import type { Role } from "@capacitylens/shared/domain/access";
 import type { MasqueradeState } from "@capacitylens/shared/domain/masquerade";
 import type { Account, AppData, ID, ISODate } from "@capacitylens/shared/types/entities";
+import type { PlanningControllerMetadata } from "@/data/planning/planningCacheController";
+import type { PlanningCommand } from "@/data/planning/planningCommands";
 
 /** Runtime state for the current masquerade session. */
 export type MasqueradeRuntimeState =
@@ -113,8 +115,15 @@ export interface StoreState extends StoreEntityActions {
   /** Latest issued server-directory read. Direct list mutations advance this too, so an older
    * response cannot overwrite a create/delete/join result. Transient and never persisted. */
   accountSummariesRequestId: number;
+  /** Legacy whole-data history for writers that still use batch persistence; not shown in the UI. */
   past: AppData[];
   future: AppData[];
+  /** Planning cache metadata, including the typed allocation Undo/Redo history. Page-local. */
+  planning: PlanningControllerMetadata;
+  /** Advances only when a current planning request confirms that sign-in authority was lost. */
+  planningAuthLossVersion: number;
+  /** Submit one typed planning command and resolve after authoritative reconciliation. */
+  sendPlanningCommand: (command: PlanningCommand, original?: unknown) => Promise<void>;
   persistError: boolean;
   /** True when stored data existed but could not be read (corrupt JSON / failed
    * migrate). Distinct from persistError (a write failure): on a load error the
@@ -187,13 +196,12 @@ export interface StoreState extends StoreEntityActions {
   /** Create a company with its built-in Internal client and list it for the picker. Null when a Viewer is blocked. */
   addAccount: (input: Draft<Account>) => Account | null;
   /** Patch a company's settings; undoable. Throws a display-safe `Error` on invalid working days. */
-  updateAccount: (id: ID, patch: Patch<Account>) => void;
+  updateAccount: (id: ID, patch: Patch<Account>) => Promise<void>;
   /**
    * Delete a company and everything it owns, clearing undo history. With a company active, only that
    * company may be deleted and any other id throws; from the picker (no active company) any existing
    * company may be deleted. An unknown id is ignored.
    */
-  deleteAccount: (id: ID) => void;
   /** Enter a company, or pass null for the picker. Clears undo history; an unknown id returns to the picker with a notice. */
   setActiveAccount: (id: ID | null) => void;
   /** Start one server-directory read and return its monotonic identity. */
@@ -258,6 +266,20 @@ export interface StoreState extends StoreEntityActions {
   undo: () => void;
   /** Re-apply the most recently undone snapshot, if any. */
   redo: () => void;
+  /** Load the active company's canonical planning snapshot, entering its planning context first. */
+  refreshPlanning: (options?: { fresh?: boolean }) => Promise<boolean>;
+  /** End the current planning context and discard private planning rows. */
+  clearPlanning: () => void;
+  /** Atomically claim an out-of-band replacement; release is idempotent for its context. */
+  suspendPlanningCommands: () => (() => void) | null;
+  /** Whether the active canonical planning view is settled enough for a bulk replacement. */
+  planningReadyForReplacement: () => boolean;
+  /** Publish a strict demo import and invalidate page-local planning history in one store change. */
+  replaceAfterDemoImport: (data: AppData) => void;
+  /** Undo the latest typed allocation change as one typed planning write. */
+  undoPlanning: () => Promise<boolean>;
+  /** Redo the latest undone typed allocation change as one typed planning write. */
+  redoPlanning: () => Promise<boolean>;
 
   /** Set how many weeks the schedule shows. */
   setZoom: (zoom: WeeksZoom) => void;

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useCanEdit } from "@/auth/permissionContext";
+import { isPlanningHistoryReady, isShownByPlanningState } from "@/data/planning/planningCacheController";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import { hasActiveFilters, useStore } from "@/store/useStore";
 import { hasDisciplinesEnabled } from "@/store/selectors";
@@ -9,19 +10,21 @@ import { SchedulerToolbarChrome, SchedulerToolbarFilters } from "./SchedulerTool
 import { buildFilterOptions } from "./toolbarFilterOptions";
 import { useToolbarSearch } from "./useToolbarSearch";
 
+// Scheduler Undo and Redo replay the typed allocation history. Other legacy writes keep their own
+// history internally until they move to typed planning operations.
 function useToolbarHistory() {
-  const undo = useStore((state) => state.undo);
-  const redo = useStore((state) => state.redo);
-  const canUndo = useStore((state) => state.past.length > 0);
-  const canRedo = useStore((state) => state.future.length > 0);
+  const undo = useStore((state) => state.undoPlanning);
+  const redo = useStore((state) => state.redoPlanning);
+  const canUndo = useStore((state) => isPlanningHistoryReady(state.planning) && state.planning.history.past.length > 0);
+  const canRedo = useStore(
+    (state) => isPlanningHistoryReady(state.planning) && state.planning.history.future.length > 0,
+  );
   const setNotice = useStore((state) => state.setNotice);
-  const runHistoryAction = (action: () => void) => {
-    try {
-      action();
-    } catch (error) {
+  const runHistoryAction = (action: () => Promise<unknown>) => {
+    action().catch((error: unknown) => {
       // Surface a rejected toolbar mutation instead of letting it escape its event handler.
-      setNotice(resolveErrorMessage(error), "error");
-    }
+      if (!isShownByPlanningState(error)) setNotice(resolveErrorMessage(error), "error");
+    });
   };
   return { undo, redo, canUndo, canRedo, runHistoryAction };
 }

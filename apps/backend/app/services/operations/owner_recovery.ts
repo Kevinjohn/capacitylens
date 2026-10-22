@@ -7,7 +7,6 @@ import type { Trx } from 'adonisjs-account-kit/types'
 import { PostCommitError } from 'adonisjs-account-kit/errors'
 import env from '#start/env'
 import { usersAdapter } from '#services/account_kit/users_adapter'
-import { assertReleasedMigrations } from '#services/released_migrations'
 import { assertSchemaIntegrity } from '#services/schema_integrity'
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
 import { operatorDatabasePath, withOperatorDatabase } from './operator_database.js'
@@ -38,12 +37,13 @@ export async function recoverOwner(input: { email: string; confirmServerStopped:
   operatorDatabasePath(input.confirmServerStopped)
   const email = normalizeAccountEmail(input.email)
   if (!isAccountEmail(email)) throw new Error('The target is not a valid account address')
-  if (!['password-only', 'password-and-sso'].includes(env.get('CAPACITYLENS_MODE') || 'off'))
+  if (
+    !['password-only', 'password-and-sso'].includes(env.get('CAPACITYLENS_MODE') || 'password-only')
+  )
     throw new Error('CAPACITYLENS_MODE must be password-only or password-and-sso')
   const origin = env.get('CAPACITYLENS_PUBLIC_URL')
   if (!origin) throw new Error('CAPACITYLENS_PUBLIC_URL is required')
   return withOperatorDatabase(async () => {
-    await assertReleasedMigrations()
     await assertSchemaIntegrity()
     const identities = await db.from('users').select('id', 'email')
     const matches = identities.filter((row) => normalizeAccountEmail(String(row.email)) === email)

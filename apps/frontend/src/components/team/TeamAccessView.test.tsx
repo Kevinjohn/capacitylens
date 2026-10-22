@@ -81,14 +81,12 @@ describe("TeamAccessView access presentation", () => {
     expect(screen.queryByText("View the schedule")).not.toBeInTheDocument();
   });
 
-  it("distinguishes an auth-off persisted server from the in-memory demo", () => {
+  it("does not present a persisted server as open access", () => {
     renderView(null, "off");
 
-    expect(screen.getByTestId("current-access")).toHaveTextContent("Open access");
-    expect(
-      screen.getByText(/persisted on the server, but authentication and membership roles are disabled/i),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Anyone who can reach this installation can view and edit/i)).toBeInTheDocument();
+    expect(screen.getByTestId("current-access")).toHaveTextContent("Your access");
+    expect(screen.getByTestId("current-access")).not.toHaveTextContent("Open access");
+    expect(screen.queryByText(/Anyone who can reach this installation can view and edit/i)).not.toBeInTheDocument();
   });
 
   it("shows every Viewer capability and keeps management understandable but unavailable", () => {

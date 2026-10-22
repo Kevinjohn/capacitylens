@@ -16,7 +16,7 @@ export function useInactiveAccountData(): {
   reload: () => void;
 } {
   const server = isServerConfigured();
-  const mayViewInactive = useCan("purge");
+  const mayViewInactive = useCan("anonymise");
   const activeAccountId = useStore((state) => state.activeAccountId);
   const setNotice = useStore((state) => state.setNotice);
   const localData = useInactiveScopedData();

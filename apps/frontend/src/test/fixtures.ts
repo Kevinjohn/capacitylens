@@ -15,6 +15,7 @@ import type {
 import type { Draft } from "@/store/useStore";
 import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
+import { createPlanningCacheState } from "@/data/planning/planningCacheController";
 import type { BarLayout } from "@/components/scheduler/schedulerModel";
 
 // Shared fixtures establish an active account so scoped store mutations have a valid tenant.
@@ -194,9 +195,11 @@ export function makeBar(overrides: Partial<BarLayout> = {}): BarLayout {
 }
 
 /** Reset the store to a clean single-account state with that account active.
- * Use in beforeEach so `add*` (which requires an active account) works. */
-export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): void {
+ * Use in beforeEach so `add*` (which requires an active account) works. The returned promise
+ * settles once the planning cache has read the account, so allocation writes can begin. */
+export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): Promise<boolean> {
   useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ id: accountId })] }));
+  useStore.setState({ planning: createPlanningCacheState().planning });
   useStore.getState().setActiveAccount(accountId);
   // Clear transient notices so the singleton store cannot leak another test’s toast.
   useStore.getState().setNotice(null);
@@ -205,18 +208,25 @@ export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): void 
   // Likewise reset the transient access role so a prior viewer-guard test can't leave the
   // singleton store in 'viewer' and silently no-op the next spec's mutations. Default = editable.
   useStore.getState().setActiveRole(null);
+  return useStore.getState().refreshPlanning();
 }
 
 type SetPlaceholdersEnabledOptions = { on: boolean; accountId?: ID };
 /** Set the test account placeholder setting. */
-export function setPlaceholdersEnabled({ on, accountId = DEFAULT_ACCOUNT_ID }: SetPlaceholdersEnabledOptions): void {
-  useStore.getState().updateAccount(accountId, { placeholdersEnabled: on });
+export async function setPlaceholdersEnabled({
+  on,
+  accountId = DEFAULT_ACCOUNT_ID,
+}: SetPlaceholdersEnabledOptions): Promise<void> {
+  await useStore.getState().updateAccount(accountId, { placeholdersEnabled: on });
 }
 
 type SetExternalEnabledOptions = { on: boolean; accountId?: ID };
 /** Set the test account external resource setting. */
-export function setExternalEnabled({ on, accountId = DEFAULT_ACCOUNT_ID }: SetExternalEnabledOptions): void {
-  useStore.getState().updateAccount(accountId, { externalEnabled: on });
+export async function setExternalEnabled({
+  on,
+  accountId = DEFAULT_ACCOUNT_ID,
+}: SetExternalEnabledOptions): Promise<void> {
+  await useStore.getState().updateAccount(accountId, { externalEnabled: on });
 }
 
 /** Creates a fresh JSON Response for one mocked request. Bodies are single-use, so

@@ -1,10 +1,17 @@
 import { test } from '@japa/runner'
 import { createHash } from 'node:crypto'
+import env from '#start/env'
 import {
   assertPasswordAllowed,
   PasswordPolicyError,
   PasswordScreeningUnavailableError,
 } from '#services/password_screening'
+
+function enableScreening(cleanup: (callback: () => void) => void) {
+  const previous = env.get('CAPACITYLENS_PASSWORD_BREACH_CHECK')
+  env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', true)
+  cleanup(() => env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', previous))
+}
 
 test('password screening rejects product context words without making a network request', async ({
   assert,
@@ -17,7 +24,9 @@ test('password screening rejects product context words without making a network 
 
 test('password screening sends only the SHA-1 prefix and rejects a matching breach suffix', async ({
   assert,
+  cleanup,
 }) => {
+  enableScreening(cleanup)
   const password = 'correct horse battery staple'
   const digest = createHash('sha1').update(password, 'utf8').digest('hex').toUpperCase()
   const originalFetch = globalThis.fetch
@@ -46,7 +55,9 @@ test('password screening sends only the SHA-1 prefix and rejects a matching brea
 
 test('password screening fails closed when the breach service is unavailable', async ({
   assert,
+  cleanup,
 }) => {
+  enableScreening(cleanup)
   const originalFetch = globalThis.fetch
   globalThis.fetch = (async () => new Response('', { status: 503 })) as typeof fetch
   try {
@@ -59,7 +70,10 @@ test('password screening fails closed when the breach service is unavailable', a
   }
 })
 
-test('password screening accepts a clean range and ignores zero-count privacy padding', async () => {
+test('password screening accepts a clean range and ignores zero-count privacy padding', async ({
+  cleanup,
+}) => {
+  enableScreening(cleanup)
   const originalFetch = globalThis.fetch
   globalThis.fetch = (async () => new Response(`${'A'.repeat(35)}:0\r\n`)) as typeof fetch
   try {
@@ -71,7 +85,9 @@ test('password screening accepts a clean range and ignores zero-count privacy pa
 
 test('password screening treats malformed and oversized service responses as unavailable', async ({
   assert,
+  cleanup,
 }) => {
+  enableScreening(cleanup)
   const originalFetch = globalThis.fetch
   for (const response of [
     new Response('not a valid range row'),

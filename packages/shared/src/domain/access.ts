@@ -29,8 +29,7 @@ export type { Role } from "../account/types.js";
  * - `'manageInvites'`: create / revoke invites (link + email-preauth). Admin tier (owner | admin).
  * - `'masquerade'`: view the account through another active member's read projection. Admin tier.
  * - `'manageMemberSignInTracking'`: opt into coarse sign-in confirmation. Owner only.
- * - `'purge'`: hard-delete (purge) tombstoned data. Admin tier (owner | admin).
- * - `'deleteAccount'`: erase an entire account and its members' orphaned identities. Owner only.
+ * - `'anonymise'`: irreversibly remove resource identity. Admin tier (owner | admin).
  * - `'transferOwnership'`: propose, cancel or finally approve an ownership transfer. Owner only.
  * - `'actOnOwnershipTransfer'`: reach the ownership-transfer ceremony at all. Admin tier, because
  *   the nominated Admin must be able to give or withdraw their own consent; participant identity
@@ -47,8 +46,7 @@ export type Action =
   | "manageInvites"
   | "masquerade"
   | "manageMemberSignInTracking"
-  | "purge"
-  | "deleteAccount"
+  | "anonymise"
   | "transferOwnership"
   | "actOnOwnershipTransfer";
 
@@ -61,7 +59,7 @@ const MIN_TIER = {
   read: "viewer",
   write: "editor",
   manageInternalClient: "admin",
-  purge: "admin",
+  anonymise: "admin",
 } as const satisfies Record<ProductDataAction, Role>;
 
 // Map CapacityLens action names to canonical account-administration operations.
@@ -71,12 +69,11 @@ const ACCOUNT_ADMIN_ACTION = {
   manageInvites: "manage-invitations",
   masquerade: "masquerade-member",
   manageMemberSignInTracking: "manage-member-sign-in-tracking",
-  deleteAccount: "erase-workspace",
   transferOwnership: "transfer-ownership",
   actOnOwnershipTransfer: "act-on-ownership-transfer",
 } as const satisfies Record<AccountAdministrationAction, AccountAdminAction>;
 
-type ProductDataAction = "read" | "write" | "manageInternalClient" | "purge";
+type ProductDataAction = "read" | "write" | "manageInternalClient" | "anonymise";
 type AccountAdministrationAction = Exclude<Action, ProductDataAction>;
 
 /** Check the resolved account role against product or account-administration policy. Pure; unknown roles or actions return false. */

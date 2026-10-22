@@ -9,7 +9,7 @@ next: false
 
 Keep the team's plan up to date: bookings, resources, time off, clients, projects, activities and
 ordinary company settings. Admins and Owners manage membership. Only the Owner decides who can
-join, imports data, transfers ownership or deletes the company.
+join, imports data, transfers ownership or anonymises the company.
 
 ![Schedule showing existing bookings, time off, utilisation and the controls for adding work](../screenshots/flows/editor_schedule_current.jpg)
 
@@ -50,7 +50,7 @@ activity from the booking form.
 [Resources](/using/resources), [Disciplines](/using/disciplines),
 [Clients and projects](/using/projects) and [Activities](/using/activities) explain the forms,
 privacy and placeholders.
-[Archive or delete a client or project](/using/projects#archive-or-delete-a-client-or-project)
+[Archive or restore a client or project](/using/projects#archive-or-restore-a-client-or-project)
 explains what happens to their bookings.
 
 ## Book work

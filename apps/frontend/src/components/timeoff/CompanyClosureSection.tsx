@@ -93,7 +93,9 @@ export function CompanyClosureSection() {
         <ConfirmDialog
           title={m.list_closures_delete_title()}
           message={m.list_closures_delete_message()}
-          onConfirm={() => confirmDelete(confirming.id)}
+          onConfirm={() => {
+            void confirmDelete(confirming.id);
+          }}
           onCancel={() => setConfirming(null)}
         />
       )}

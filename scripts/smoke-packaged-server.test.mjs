@@ -96,29 +96,52 @@ test("failure preservation errors do not hide the original failure or leave scra
   }
 });
 
-test("authenticated smoke creates a company through orgs and binds every fixture row to its returned id", async () => {
+test("authenticated smoke writes a typed allocation under its isolated company", async () => {
   const originalFetch = globalThis.fetch;
   const requests = [];
   globalThis.fetch = async (url, options) => {
     requests.push({ url, headers: options.headers, body: JSON.parse(options.body) });
-    return new Response(JSON.stringify(requests.length === 1 ? { id: "created-company" } : { ok: true }), {
-      status: requests.length === 1 ? 201 : 200,
-    });
+    return new Response(JSON.stringify({ revision: requests.length + 1 }), { status: 200 });
   };
   try {
     const fixture = {
       accounts: [{ id: "a-studio", name: "Wayne Enterprises", color: "#6366f1" }],
-      disciplines: [{ id: "design", accountId: "a-studio", name: "Design" }],
-      resources: [{ id: "bruce", accountId: "a-studio", kind: "person", disciplineId: "design" }],
+      resources: [
+        {
+          id: "bruce",
+          accountId: "a-studio",
+          kind: "person",
+          role: "Planner",
+          employmentType: "permanent",
+          engagement: "studio",
+          workingHoursPerDay: 8,
+          workingDays: [1, 2, 3, 4, 5],
+          halfDays: [],
+          color: "#6366f1",
+        },
+      ],
     };
-    const written = await writeSmokeSchedule("http://localhost:8787", "fixture-session", fixture);
-    assert.equal(requests[0].url, "http://localhost:8787/api/orgs");
-    assert.deepEqual(requests[0].body, { name: "Wayne Enterprises", color: "#6366f1" });
+    const written = await writeSmokeSchedule("http://localhost:8787", "fixture-session", "isolated-company", fixture);
+    assert.equal(requests[0].url, "http://localhost:8787/api/accounts/isolated-company/resources");
     assert.equal(requests[0].headers.cookie, "fixture-session");
-    assert.equal(requests[1].url, "http://localhost:8787/api/batch");
-    assert.ok(requests[1].body.ops.every(({ row }) => row.accountId === "created-company"));
-    assert.equal(written.accountId, "created-company");
-    assert.equal(written.resource.accountId, "created-company");
+    assert.equal(requests[0].body.baseRevision, 1);
+    assert.equal(requests[0].body.intent.operation, "resource.create");
+    assert.equal(requests[0].body.intent.fields.name, "Bruce Wayne Packaged Schedule");
+    assert.equal(requests[1].url, "http://localhost:8787/api/accounts/isolated-company/activities");
+    assert.equal(requests[1].headers.cookie, "fixture-session");
+    assert.equal(requests[1].body.baseRevision, 2);
+    assert.equal(requests[1].body.intent.operation, "catalogue.create");
+    assert.equal(requests[1].body.intent.entity.entity, "activities");
+    assert.equal(requests[1].body.intent.entity.fields.kind, "internal");
+    assert.equal(requests[2].url, "http://localhost:8787/api/accounts/isolated-company/allocations");
+    assert.equal(requests[2].headers.cookie, "fixture-session");
+    assert.equal(requests[2].body.baseRevision, 3);
+    assert.equal(requests[2].body.intent.operation, "allocation.create");
+    assert.equal(requests[2].body.intent.allocation.resourceId, written.resource.id);
+    assert.equal(requests[2].body.intent.allocation.activityId, written.activity.id);
+    assert.equal(written.allocation.id, requests[2].body.intent.allocation.id);
+    assert.equal(requests.length, 3);
+    assert.equal(written.accountId, "isolated-company");
     assert.equal(fixture.resources[0].accountId, "a-studio");
   } finally {
     globalThis.fetch = originalFetch;

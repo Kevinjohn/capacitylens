@@ -144,21 +144,6 @@ export async function assertSchemaIntegrity() {
     'capacitylens_member_resource_kind_cleanup',
     "CREATE TRIGGER capacitylens_member_resource_kind_cleanup AFTER UPDATE OF kind ON resources WHEN OLD.kind = 'person' AND NEW.kind <> 'person' BEGIN DELETE FROM account_member_resources WHERE account_id = OLD.account_id AND resource_id = OLD.id; END"
   )
-  for (const [table, columns] of [
-    ['capacitylens_sync_sessions', ['id', 'session_id', 'last_sequence', 'updated_at']],
-    [
-      'capacitylens_sync_row_provenance',
-      ['id', 'table_name', 'row_id', 'account_id', 'session_id', 'sequence', 'row_hash'],
-    ],
-  ] as const) {
-    const actual = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>
-    if (JSON.stringify(actual.map((column) => column.name)) !== JSON.stringify(columns))
-      throw new Error(`Database schema drift: ${table} columns differ from the baseline`)
-  }
-  await assertIndex('capacitylens_sync_sessions', 'session_id')
-  await assertIndex('capacitylens_sync_row_provenance', 'table_name')
-  await assertIndex('capacitylens_sync_row_provenance', 'session_id')
-  await assertIndex('capacitylens_sync_row_provenance', 'account_id')
   for (const table of [
     'account_getting_started_dismissals',
     'account_joining_policies',
@@ -168,6 +153,44 @@ export async function assertSchemaIntegrity() {
   ])
     await assertIndex(table, 'account_id')
   for (const [table, columns] of [
+    [
+      'deleted_groups',
+      [
+        'group_id',
+        'account_id',
+        'actor_id',
+        'session_id',
+        'mutation_id',
+        'created_at',
+        'consumed_at',
+      ],
+    ],
+    ['deleted_rows', ['id', 'group_id', 'entity', 'row_id', 'payload_json']],
+    [
+      'action_proofs',
+      [
+        'id',
+        'user_id',
+        'session_id',
+        'account_id',
+        'action',
+        'intent_hash',
+        'expires_at',
+        'verified_at',
+        'consumed_at',
+      ],
+    ],
+    [
+      'planning_mutations',
+      [
+        'account_id',
+        'mutation_id',
+        'actor_id',
+        'revision',
+        'restoration_group_id',
+        'origin_session_id',
+      ],
+    ],
     ['account_getting_started_dismissals', ['id', 'account_id', 'created_at', 'updated_at']],
     [
       'account_joining_policies',

@@ -50,9 +50,10 @@ export async function signIn(
   client: ApiClient,
   role: 'owner' | 'admin' | 'editor' | 'viewer' = 'owner'
 ) {
+  const email = `bruce-${randomUUID()}@wayne.example`
   const signup = await trusted(client.post('/api/auth/sign-up'))
     .header('x-capacitylens-setup-token', setupToken)
-    .json({ email: `bruce-${randomUUID()}@wayne.example`, password, name: 'Bruce Wayne' })
+    .json({ email, password, name: 'Bruce Wayne' })
     .send()
   signup.assertStatus(201)
   const cookie = signup.cookie('adonis-session')?.value
@@ -68,7 +69,16 @@ export async function signIn(
     created_at: now,
     updated_at: now,
   })
-  return { cookie, userId }
+  return { cookie, userId, email }
+}
+
+/** A real password sign-in opens another native session for an existing user. */
+export async function signInAgain(client: ApiClient, email: string) {
+  const signin = await trusted(client.post('/api/auth/sign-in')).json({ email, password }).send()
+  signin.assertStatus(200)
+  const cookie = signin.cookie('adonis-session')?.value
+  if (!cookie) throw new Error('Sign-in did not return a native session')
+  return cookie
 }
 
 export async function resetPlanningFixture(): Promise<AppData> {

@@ -117,7 +117,7 @@ function registerEditsTimeOffEntryListTest() {
 }
 
 function registerDeletesTimeOffEntryConfirmationTest() {
-  test("deletes a time-off entry after confirmation and restores it with undo", async ({ page }) => {
+  test("deletes a time-off entry after confirmation, and Undo restores it", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/timeoff");
     const bruceGroup = page
       .getByTestId("timeoff-group")
@@ -150,7 +150,7 @@ function registerDeletesTimeOffEntryConfirmationTest() {
 }
 
 function registerCreatesRepeatedTimeOffIndependentTests() {
-  test("creates repeated time off as independent entries with one undo", async ({ page }) => {
+  test("creates repeated time off as independent entries", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/timeoff");
     await page.getByRole("button", { name: "Add time off" }).click();
     const dialog = page.getByRole("dialog", { name: "Add time off" });
@@ -186,8 +186,17 @@ function registerCreatesRepeatedTimeOffIndependentTests() {
     await page.getByRole("link", { name: "Schedule" }).click();
     const bruceLane = page.locator('[data-resource-id="r-tyler"]');
     await expect.poll(() => bruceLane.getByTestId("timeoff-block").count()).toBeGreaterThan(1);
-    await page.getByRole("button", { name: "Undo" }).click();
+    const undo = page.getByTestId("undo-button");
+    await expect(undo).toBeEnabled();
+    await undo.click();
     await expect(bruceLane.getByTestId("timeoff-block")).toHaveCount(1);
+    await page.getByRole("link", { name: "Time off" }).click();
+    await expect(bruceRows).toHaveCount(1);
+    await page.getByRole("link", { name: "Schedule" }).click();
+    await page.getByTestId("redo-button").click();
+    await expect.poll(() => bruceLane.getByTestId("timeoff-block").count()).toBeGreaterThan(1);
+    await page.getByRole("link", { name: "Time off" }).click();
+    await expect(bruceRows).toHaveCount(13);
   });
 }
 

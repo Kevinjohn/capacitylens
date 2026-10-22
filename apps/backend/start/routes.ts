@@ -11,21 +11,22 @@ import { registerMasqueradeRoutes } from '#start/masquerade_routes'
 import { registerOwnershipRoutes } from '#start/ownership_routes'
 import { registerGoogleRoutes } from '#start/google_routes'
 
-const BatchController = () => import('#controllers/batch_controller')
-const LifecycleController = () => import('#controllers/lifecycle_controller')
-const ImportsController = () => import('#controllers/imports_controller')
+const AnonymiseController = () => import('#controllers/anonymise_controller')
+const TransferController = () => import('#controllers/transfer_controller')
 const ExportsController = () => import('#controllers/exports_controller')
 const ExampleDataController = () => import('#controllers/example_data_controller')
 const GettingStartedController = () => import('#controllers/getting_started_controller')
 const CompaniesController = () => import('#controllers/companies_controller')
 
-router.post('/api/batch', [BatchController, 'store']).as('api.batch')
-router.post('/api/import', [ImportsController, 'store']).as('api.import')
+router.post('/api/transfer/preview', [TransferController, 'preview']).as('api.transfer.preview')
+router.post('/api/transfer/apply', [TransferController, 'apply']).as('api.transfer.apply')
 router.get('/api/state', [ExportsController, 'show']).as('api.state')
-router.post('/api/orgs', [CompaniesController, 'storeOrg']).as('api.orgs.store')
-router.post('/api/accounts', [CompaniesController, 'store']).as('api.accounts.store')
-router.patch('/api/accounts/:id', [CompaniesController, 'update']).as('api.accounts.update')
-router.delete('/api/accounts/:id', [CompaniesController, 'destroy']).as('api.accounts.destroy')
+router
+  .post('/api/accounts/:accountId/anonymise', [AnonymiseController, 'company'])
+  .as('api.accounts.anonymise')
+router
+  .post('/api/accounts/:accountId/resources/:id/anonymise', [AnonymiseController, 'resource'])
+  .as('api.resources.anonymise')
 router
   .post('/api/accounts/:accountId/example-data', [ExampleDataController, 'store'])
   .as('api.example-data')
@@ -41,7 +42,6 @@ registerAdmissionRoutes()
 registerMasqueradeRoutes()
 registerOwnershipRoutes()
 registerGoogleRoutes()
-router.post('/api/:entity/:id/:action', [LifecycleController, 'mutate']).as('api.lifecycle')
 
 router.get('/api/health', () => ({ ok: true })).as('api.health')
 router.get('/health/live', () => ({ ok: true }))

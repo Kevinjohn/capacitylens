@@ -10,9 +10,12 @@ export interface ApiDefinition {
         create: typeof routes['api.planning.allocation.create']
         update: typeof routes['api.planning.allocation.update']
         createGroup: typeof routes['api.planning.allocation.createGroup']
+        delete: typeof routes['api.planning.allocation.delete']
+        deleteGroup: typeof routes['api.planning.allocation.deleteGroup']
         duplicate: typeof routes['api.planning.allocation.duplicate']
         repeat: typeof routes['api.planning.allocation.repeat']
       }
+      restoreGroup: typeof routes['api.planning.restoreGroup']
       resource: {
         create: typeof routes['api.planning.resource.create']
         update: typeof routes['api.planning.resource.update']
@@ -22,11 +25,14 @@ export interface ApiDefinition {
       timeOff: {
         create: typeof routes['api.planning.timeOff.create']
         update: typeof routes['api.planning.timeOff.update']
+        delete: typeof routes['api.planning.timeOff.delete']
+        deleteGroup: typeof routes['api.planning.timeOff.deleteGroup']
         repeat: typeof routes['api.planning.timeOff.repeat']
       }
       closure: {
         create: typeof routes['api.planning.closure.create']
         update: typeof routes['api.planning.closure.update']
+        delete: typeof routes['api.planning.closure.delete']
       }
       client: {
         create: typeof routes['api.planning.client.create']
@@ -49,26 +55,28 @@ export interface ApiDefinition {
       phase: {
         create: typeof routes['api.planning.phase.create']
         update: typeof routes['api.planning.phase.update']
+        delete: typeof routes['api.planning.phase.delete']
       }
       discipline: {
         create: typeof routes['api.planning.discipline.create']
         update: typeof routes['api.planning.discipline.update']
+        delete: typeof routes['api.planning.discipline.delete']
       }
       settings: {
         update: typeof routes['api.planning.settings.update']
       }
     }
-    batch: typeof routes['api.batch']
-    import: typeof routes['api.import']
-    state: typeof routes['api.state']
-    orgs: {
-      store: typeof routes['api.orgs.store']
+    transfer: {
+      preview: typeof routes['api.transfer.preview']
+      apply: typeof routes['api.transfer.apply']
     }
+    state: typeof routes['api.state']
     accounts: {
-      store: typeof routes['api.accounts.store']
-      update: typeof routes['api.accounts.update']
-      destroy: typeof routes['api.accounts.destroy']
+      anonymise: typeof routes['api.accounts.anonymise']
       index: typeof routes['api.accounts.index']
+    }
+    resources: {
+      anonymise: typeof routes['api.resources.anonymise']
     }
     exampleData: typeof routes['api.example-data']
     gettingStarted: {
@@ -80,6 +88,10 @@ export interface ApiDefinition {
       signUp: typeof routes['api.auth.sign-up']
       signIn: typeof routes['api.auth.sign-in']
       signOut: typeof routes['api.auth.sign-out']
+      actionProof: {
+        password: typeof routes['api.auth.action-proof.password']
+        googleStart: typeof routes['api.auth.action-proof.google-start']
+      }
       providerStart: typeof routes['api.auth.provider-start']
       requestReset: typeof routes['api.auth.request-reset']
       resetPassword: typeof routes['api.auth.reset-password']
@@ -134,7 +146,6 @@ export interface ApiDefinition {
       joinCancel: typeof routes['api.google.join-cancel']
       joinComplete: typeof routes['api.google.join-complete']
     }
-    lifecycle: typeof routes['api.lifecycle']
     health: typeof routes['api.health']
   }
 }

@@ -24,8 +24,10 @@ records.
 
 ### Who creates the first company?
 
-The first identity completes setup using `CAPACITYLENS_SETUP_TOKEN`; that person becomes the first
-Owner and creates the company. Remove the token after setup.
+The first identity can complete sign-in setup using `CAPACITYLENS_SETUP_TOKEN`. This does not
+create a company or Owner membership. The current native release has no supported first-company
+provisioning command or screen, so an empty installation cannot yet be put into service. Remove
+the token after identity setup.
 
 ### Which company sign-in providers are available?
 
@@ -49,7 +51,7 @@ until a restore has passed startup checks. See [Backups and restore](/self-hosti
 ### Can I upgrade by replacing the files and restarting?
 
 No. Run `node ace.js app:upgrade` from the new release's `backend/` directory before restarting.
-It checks the released migration manifest and takes a verified pre-upgrade snapshot when needed.
+It takes a verified pre-upgrade snapshot of an existing database, then runs pending migrations.
 See [Upgrades](/self-hosting/upgrades).
 
 ### How do I recover the sole Owner's access?

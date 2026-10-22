@@ -7,7 +7,45 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Native installations can initialize their first company and Owner for an existing identity with
+  the stopped-server `company:initialize` command. Setup refuses existing company access and
+  leaves credentials and identity admission unchanged.
+- Persisted access now requires an authenticated principal and one provisioned company. The
+  temporary demo keeps its editable, volatile multi-company picker. Retired generic company and
+  batch writes, browser sync queues and their recovery controls; scheduling changes use typed
+  planning commands and server revisions.
+- Frozen company calendar fields now reject a second typed settings change with 409.
+- Resource and catalogue records now use typed archive and restore actions. Owners and Admins can
+  anonymise a person; only an Owner can anonymise all people in the company. Clients, projects,
+  activities, the company, memberships and planning links remain while personal details and
+  dependent notes are scrubbed.
+- Removed company deletion, lifecycle soft-delete and purge actions, including the 30-day purge
+  countdown and generic lifecycle routes.
+
+### Fixed
+
+- Refuse allocation restoration when current references or resource availability are incompatible, keeping the deletion available for retry.
+
 ### Added
+
+- Beta-native company export, preview and atomic Owner import now preserve stable planning IDs,
+  company settings and member links. Ownership transfer and import require a single-use
+  confirmation bound to the exact action and native session; password or linked Google identity
+  can confirm, and a recent sign-in alone cannot. Unchanged imports leave revision and audit
+  untouched.
+
+- Typed planning writes now cover disciplines, phases, personal time off, closures and company
+  settings. Session-bound deletion restoration reconnects surviving phase and discipline links
+  without overwriting later edits, and Undo/Redo covers the migrated actions in the editable demo
+  and authenticated app.
+
+- Typed allocation deletion and restoration routes. Deleting one allocation or a listed set saves
+  the complete rows as a restoration group bound to the deleting company, person and session;
+  restoring it reinserts them unchanged, once, with one revision and audit entry per action.
+  Commitment lookup returns the unconsumed group to its own session, and revoking a person's
+  sessions removes their groups.
 
 - Typed allocation-group creation and catalogue/resource archive and unarchive operations preserve
   stable IDs and commit one revision per action. Existing deletion and Undo paths remain active
@@ -23,6 +61,10 @@ new features and **patch** versions carry fixes.
   script-environment, import-cycle and dependency-scanner tests) and the automated cryptographic
   inventory check with its machine-readable ledger. The cryptographic inventory remains a reviewed
   document.
+
+- The released-migration manifest, its checksum checks and down migrations. The schema is one
+  forward-only baseline migration; `app:upgrade` writes a timestamped pre-upgrade snapshot of any
+  existing database before running pending migrations.
 
 - Production company selection, switching, multi-company configuration and ordinary additional-company creation. Server-backed installations now select their sole company; the in-memory demo retains its temporary company picker.
 - Optional offline scheduling snapshots, browser snapshot encryption and the offline application shell. The company schedule requires a server connection; display preferences and the temporary demo remain available.
@@ -55,6 +97,16 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Keep the no-login demo editable with temporary in-memory scheduling data, while requiring
+  authenticated company membership for every persisted server. Retire anonymous persisted
+  `CAPACITYLENS_MODE=off` access.
+- The schedule saves every booking change as one typed planning request: create, move, resize,
+  reassign, duplicate, repeat and delete. Toolbar and keyboard Undo and Redo replay those booking
+  changes through typed inverses, and Undo of a deletion restores the saved rows. Undo and Redo
+  now cover booking changes only, and import and deletion messages no longer offer an undo shortcut.
+  Other changes no longer send bookings in the general batch. A stale edit shows the server's schedule without a
+  toast, a refused change keeps the schedule and shows a refusal, and a lost sign-in clears the
+  schedule and its history together. The demo keeps booking changes in page memory only.
 - The server sends host-only one-year HSTS and `Secure` `__Host-` session cookies whenever
   `CAPACITYLENS_PUBLIC_URL` is HTTPS; `CAPACITYLENS_HTTPS` is removed. With
   `CAPACITYLENS_TRUST_PROXY_HEADERS` set, forwarded client address and scheme headers are trusted
@@ -69,9 +121,8 @@ new features and **patch** versions carry fixes.
   retain their original mutation for commitment lookup; obsolete contexts suppress completion
   results, and activity-kind updates clear incomplete typed history. Canonical reads require explicit
   server write authority, typed history keeps at most 50 entries, and pure non-delete command builders
-  prepare field-preserving typed requests. The schedule retains its current persistence, deletion
-  and Undo path; complete typed Undo and session-bound restoration remain unfinished. This milestone
-  uses the existing real authentication; later identity-link integration is separate.
+  prepare field-preserving typed requests. This milestone uses the existing real authentication;
+  later identity-link integration is separate.
 
 - Use Adonis BodyParser and compiled Vine validation for requests, with flat 400 errors and no CSP report endpoint.
 
@@ -79,7 +130,7 @@ new features and **patch** versions carry fixes.
 
 - Native operator commands provide verified online backups, backup-before-upgrade, audited
   sole-Owner recovery links and a guarded snapshot/archive reset into a new database path.
-  Readiness refuses unknown migration histories; backup outcomes are checked through logs and snapshots.
+  Backup outcomes are checked through logs and snapshots.
 
 - The AdonisJS fork uses native password sign-in and fixed-lifetime sessions, with credential
   changes, audit and session revocation committed together.

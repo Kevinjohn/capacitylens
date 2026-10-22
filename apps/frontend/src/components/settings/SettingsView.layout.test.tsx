@@ -6,8 +6,8 @@ import { useStore } from "@/store/useStore";
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
 import { PermissionContext } from "@/auth/permissionContext";
 
-beforeEach(() => {
-  resetStoreWithAccount();
+beforeEach(async () => {
+  await resetStoreWithAccount();
   useStore.getState().setTheme("light");
   vi.stubGlobal(
     "fetch",

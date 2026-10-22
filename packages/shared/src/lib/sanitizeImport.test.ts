@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { sanitizeImportedRecord, sanitizeAccount } from "./sanitizeImport.js";
 import { FALLBACK_PRESET_COLOR, snapToPresetColor } from "./color.js";
 import { DATE_STYLES, SCOPED_KEYS } from "../types/entities.js";
-import { softDelete } from "../domain/lifecycle.js";
 import { NULLABLE_FIELDS } from "../types/nullableFields.js";
 
 type LifecycleKey = "resources" | "clients" | "projects" | "activities";
@@ -497,14 +496,6 @@ function registerLifecycleTimestampOrdering(key: LifecycleKey): void {
       deletedAt: "2026-02-01T00:00:00Z",
     });
     expect(sameTimestamp.deletedAt).toBe("2026-02-01T00:00:00.000Z");
-  });
-
-  it("retains a soft-delete created while the caller clock trails a future archive", () => {
-    const transitioned = softDelete({ archivedAt: "2099-01-01T00:00:00.000Z" }, "2026-01-01T00:00:00.000Z");
-    const out = sanitizeImportedRecord(key, { ...transitioned });
-
-    expect(out.archivedAt).toBe("2099-01-01T00:00:00.000Z");
-    expect(out.deletedAt).toBe("2099-01-01T00:00:00.000Z");
   });
 }
 

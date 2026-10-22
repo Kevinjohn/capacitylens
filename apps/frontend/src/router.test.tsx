@@ -69,24 +69,24 @@ describe("Overview route access", () => {
   }
 
   it("allows a viewer when the company setting allows everyone", async () => {
-    resetStoreWithAccount();
+    await resetStoreWithAccount();
     const accountId = useStore.getState().activeAccountId;
     if (!accountId) throw new Error("Expected an active account");
-    useStore.getState().updateAccount(accountId, { capacityOverviewAccess: "everyone" });
+    await useStore.getState().updateAccount(accountId, { capacityOverviewAccess: "everyone" });
     renderRoute("viewer", "resolved");
 
     expect(await screen.findByText("Overview content")).toBeInTheDocument();
   });
 
-  it("redirects a viewer under the default policy", () => {
-    resetStoreWithAccount();
+  it("redirects a viewer under the default policy", async () => {
+    await resetStoreWithAccount();
     renderRoute("viewer", "resolved");
 
     expect(screen.getByText("Schedule content")).toBeInTheDocument();
   });
 
-  it("waits for role resolution before deciding", () => {
-    resetStoreWithAccount();
+  it("waits for role resolution before deciding", async () => {
+    await resetStoreWithAccount();
     renderRoute("viewer", "pending");
 
     expect(screen.getByRole("status")).toHaveTextContent("Loading…");

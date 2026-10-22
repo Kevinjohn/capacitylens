@@ -1,21 +1,19 @@
-# US-CLI-03 — Archive a client (hide from the schedule) and undo
+# US-CLI-03 — Archive a client (hide from the schedule) and restore
 
-**Area:** Clients · **Persona:** Studio manager · **Linked E2E:** `e2e/clients.spec.ts` → "archiving a client hides it from the list, restorable with undo"
+**Area:** Clients · **Persona:** Studio manager · **Linked E2E:** `e2e/clients.spec.ts` → "archiving a client hides it from the list, and undo leaves it archived"
 
 ## Goal
 
-Remove a client from the active views **reversibly** — archive it (with a clear warning and one-step
-undo) so the client and everything underneath it (its projects → activities → allocations) are
-retained and can be restored or deleted from Archived clients below the Clients list.
+Remove a client from the active views **reversibly** — archive it (with a clear warning) so the client and everything underneath it (its projects → activities → allocations) are
+retained and can be restored from Archived clients below the Clients list.
 
 ## Why
 
 When an account pauses or ends, the manager wants the client off the schedule in one action — but
 without destroying months of work. Archiving hides the client from the active views while retaining
-its data; soft-delete and permanent removal are separate lifecycle steps. Settings no longer shows
-a Deleted items section. Permanent removal cascades client-owned projects and project-specific work;
-shared All-projects bookings remain and become unattributed. Because archiving is reversible, the
-action is undoable.
+its data. There is no deletion step: an archived client stays until it is restored. Archiving is
+reversible through
+**Restore**.
 
 ## How (end-to-end)
 
@@ -26,9 +24,9 @@ allocations.
 1. On the **Queen Consolidated** row, click the **Archive Queen Consolidated** (trash) icon. The "Archive client?"
    confirmation dialog opens.
 2. Read the dialog: it explains the client's work will be hidden from the schedule and can be restored
-   or deleted from **Archived clients** below the list.
+   from **Archived clients** below the list.
 3. Click **Archive** to confirm. The dialog closes and **Queen Consolidated** leaves the Clients list.
-4. Press **⌘Z** (Undo, LOCAL mode) to reverse the archive — Queen Consolidated returns to the Clients list.
+4. Press **⌘Z**. Queen Consolidated stays archived: Undo and Redo currently cover booking changes only.
 
 ## Acceptance criteria
 
@@ -38,7 +36,6 @@ allocations.
 - ✅ The client, its projects, activities and allocations are **retained** in the data — the active
   view hides descendants through their archived ancestry, so a project under the archived client
   keeps its own active status.
-- ✅ Archived clients surface under **Archived clients**, where they can be restored or
-  (after soft-delete + the 30-day grace) permanently deleted.
-- ✅ (LOCAL mode) Pressing **⌘Z** restores the client to the active list; in server mode, **Restore**
-  from Archived clients brings it back.
+- ✅ Archived clients surface under **Archived clients**, where they can be restored. No permanent
+  deletion exists.
+- ✅ Pressing **⌘Z** leaves the client archived; **Restore** from Archived clients brings it back.

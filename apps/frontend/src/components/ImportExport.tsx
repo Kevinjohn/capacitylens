@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "@/store/useStore";
-import { useScopedData } from "@/store/useScopedData";
-import { parseData, serializeData } from "@capacitylens/shared/data/transfer";
+import {
+  buildBetaExport,
+  parseBetaExport,
+  prepareBetaImport,
+  serializeBetaExport,
+} from "@capacitylens/shared/data/betaTransfer";
+import type { BetaExportDocument } from "@capacitylens/shared/data/betaTransfer";
 import { downloadTextFile } from "@/lib/download";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import { isServerConfigured } from "@/data/apiConfig";
@@ -10,12 +15,19 @@ import { useRole } from "@/auth/permissionContext";
 import { can, canSeePrivateNames } from "@capacitylens/shared/domain/access";
 import { ConfirmDialog, Modal } from "./common/ui";
 import { m } from "@/i18n";
-import { buildUndoShortcut } from "@/lib/keyboardShortcuts";
 import type { AppData } from "@capacitylens/shared/types/entities";
+import { SCOPED_KEYS } from "@capacitylens/shared/types/entities";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { Button } from "./ui/button";
 import { reloadPage } from "@/lib/reloadPage";
 import { useServerImport } from "./import-export/useServerImport";
+import { BetaImportPreview } from "./import-export/BetaImportPreview";
+import { ActionProofDialog } from "@/auth/ActionProofDialog";
+import { API_BASE } from "@/data/apiConfig";
+import { apiFetch } from "@/data/requestTimeout";
+import { readApiError } from "@/lib/readApiError";
+
+const PENDING_PROOF_KEY = "capacitylens/import-action-proof";
 
 // Store message getters so import-summary labels follow the active locale at render time.
 const SUMMARY: [keyof AppData, () => string][] = [
@@ -35,7 +47,7 @@ function summarize(data: AppData): string {
   return parts.length ? parts.join(", ") : m.data_summary_none();
 }
 
-type PendingImport = { accountId: string | null; data: AppData; name: string };
+type PendingImport = { accountId: string | null; document: BetaExportDocument; name: string };
 
 function buildSkippedMessage(skipped: number, variant: "why" | "note"): string {
   if (skipped === 0) return "";
@@ -48,7 +60,7 @@ function buildSkippedMessage(skipped: number, variant: "why" | "note"): string {
 }
 
 function buildImportedMessage(imported: number, skipped: number): string {
-  const values = { count: imported, skipped: buildSkippedMessage(skipped, "note"), shortcut: buildUndoShortcut() };
+  const values = { count: imported, skipped: buildSkippedMessage(skipped, "note") };
   if (imported === 1) return m.data_imported_one(values);
   return m.data_imported_other(values);
 }
@@ -85,9 +97,7 @@ function ImportConfirmation({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const outro = serverMode
-    ? m.data_import_confirm_outro_server()
-    : m.data_import_confirm_outro({ shortcut: buildUndoShortcut() });
+  const outro = serverMode ? m.data_import_confirm_outro_server() : m.data_import_confirm_outro();
   return (
     <ConfirmDialog
       title={m.data_import_confirm_title()}
@@ -99,7 +109,7 @@ function ImportConfirmation({
           {m.data_import_confirm_mid1()}
           <span className="font-medium text-ink">{m.data_import_confirm_replaces()}</span>
           {m.data_import_confirm_mid2()}
-          {summarize(pending.data)}
+          {summarize(pending.document.data)}
           {outro}
         </>
       }
@@ -110,7 +120,7 @@ function ImportConfirmation({
 }
 
 function useExportAction() {
-  const data = useScopedData();
+  const data = useStore((state) => state.data);
   const setNotice = useStore((state) => state.setNotice);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const role = useRole();
@@ -126,9 +136,14 @@ function useExportAction() {
       let exported = data;
       if (serverMode) {
         if (!activeAccountId) throw new Error("Choose a company before exporting.");
-        if (role === null || can(role, "purge")) exported = await fetchInactiveSlice(activeAccountId);
+        if (role === null || can(role, "anonymise")) exported = await fetchInactiveSlice(activeAccountId);
       }
-      downloadTextFile("capacitylens-data.json", serializeData(exported));
+      if (!activeAccountId) throw new Error("Choose a company before exporting.");
+      const completeness = role === null || canSeePrivateNames(role) ? "full" : "redacted";
+      downloadTextFile(
+        "capacitylens-data.json",
+        serializeBetaExport(buildBetaExport(exported, { accountId: activeAccountId, completeness })),
+      );
     } catch (error) {
       // Report the export failure instead of suggesting that an incomplete or unavailable backup was saved.
       if (error instanceof InactiveSliceHttpError) {
@@ -164,11 +179,12 @@ function usePendingImport(
 
   const readFile = async (file: File) => {
     const selection = ++selectionRef.current;
+    setPending(null);
     try {
       const content = await file.text();
-      const parsed = parseData(content);
+      const parsed = parseBetaExport(content);
       if (selection !== selectionRef.current || useStore.getState().activeAccountId !== activeAccountId) return;
-      setPending({ accountId: activeAccountId, data: parsed, name: file.name });
+      setPending({ accountId: activeAccountId, document: parsed, name: file.name });
     } catch (error) {
       // Only the latest file selection may report a parse failure, or a stale read could overwrite a newer import choice.
       if (selection !== selectionRef.current) return;
@@ -180,24 +196,28 @@ function usePendingImport(
 }
 
 function confirmLocalImport(
-  incoming: AppData,
-  importData: ReturnType<typeof useStore.getState>["importData"],
+  document: BetaExportDocument,
+  accountId: string,
   setNotice: ReturnType<typeof useStore.getState>["setNotice"],
 ): void {
-  let imported: number;
-  let skipped: number;
   try {
-    ({ imported, skipped } = importData(incoming));
+    const prepared = prepareBetaImport(document, { accountId, memberResourceLinks: [] });
+    const current = useStore.getState().data;
+    const next = {
+      ...current,
+      accounts: [...current.accounts.filter((row) => row.id !== accountId), ...prepared.data.accounts],
+    };
+    for (const key of SCOPED_KEYS) {
+      (next as unknown as Record<string, unknown>)[key] = [
+        ...current[key].filter((row) => row.accountId !== accountId),
+        ...prepared.data[key],
+      ];
+    }
+    useStore.getState().replaceAfterDemoImport(next);
+    setNotice(buildImportedMessage(prepared.imported, 0));
   } catch (error) {
-    // Surface failed local import and stop before suggesting a successful replacement.
     setNotice(resolveErrorMessage(error) || m.data_import_failed({ status: 0 }), "error");
-    return;
   }
-  if (imported === 0) {
-    setNotice(m.data_no_records({ why: buildSkippedMessage(skipped, "why") }), "error");
-    return;
-  }
-  setNotice(buildImportedMessage(imported, skipped));
 }
 
 function DataToolControls({
@@ -258,20 +278,12 @@ function DataToolControls({
 
 /** Offers scoped data export and guarded import for the active account. */
 export function ImportExport() {
-  // Exports exclude the account row because import preserves the destination company settings. Demo exports include the full local slice; privileged server exports fetch inactive rows, while other roles export their visible active slice.
-  const importData = useStore((state) => state.importData);
   const setNotice = useStore((state) => state.setNotice);
   const role = useRole();
   const serverMode = isServerConfigured();
   const activeAccountId = useStore((state) => state.activeAccountId);
-  // Import is owner-only in server mode, mirroring the server's own POST /api/import gate: a slice
-  // replacement is destructive and id-remapping bypasses field-level write pins. In particular, an
-  // admin's valid redacted export has no private codeName/real-name fields and must never be accepted
-  // as a replacement that destroys those owner-confidential identities.
-  // `role === null` stays importable. That is the off/demo/no-provider regression guard
-  // (see permissionContext.ts); the server 403 remains the authoritative backstop either way.
-  const canImport = !serverMode || role === null || canSeePrivateNames(role);
-  // A full-slice replacement needs explicit confirmation. Demo imports can be undone; server imports replace the authoritative slice without local undo.
+  const canImport = !serverMode || role === "owner";
+  // A full-slice replacement needs explicit confirmation. Scheduler Undo covers bookings only, so no import mode can be undone from the UI.
   const {
     pending: pendingImport,
     readFile,
@@ -280,6 +292,98 @@ export function ImportExport() {
   } = usePendingImport(activeAccountId, setNotice);
   const { confirm: confirmServerImport, busy: importBusy, requiresReload: importRequiresReload } = useServerImport();
   const { busy: exportBusy, exportData } = useExportAction();
+  const [previewRevision, setPreviewRevision] = useState<number | null>(null);
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const [confirmingAction, setConfirmingAction] = useState(false);
+  const [readyProof, setReadyProof] = useState<string | null>(null);
+  const [returnedProof, setReturnedProof] = useState<{ id: string; baseRevision: number } | null>(null);
+  const proofAccountRef = useRef(activeAccountId);
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem(PENDING_PROOF_KEY);
+    if (new URLSearchParams(window.location.search).get("capacitylensActionConfirmed") !== "1") {
+      if (saved) sessionStorage.removeItem(PENDING_PROOF_KEY);
+      return;
+    }
+    if (!activeAccountId) return;
+    if (!saved) return;
+    const timer = window.setTimeout(() => {
+      sessionStorage.removeItem(PENDING_PROOF_KEY);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("capacitylensActionConfirmed");
+      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}`);
+      try {
+        const value: unknown = JSON.parse(saved);
+        if (
+          !value ||
+          typeof value !== "object" ||
+          !("accountId" in value) ||
+          value.accountId !== activeAccountId ||
+          !("baseRevision" in value) ||
+          !Number.isSafeInteger(value.baseRevision) ||
+          !("proofId" in value) ||
+          typeof value.proofId !== "string"
+        )
+          throw new Error("Import confirmation could not be resumed.");
+        setReturnedProof({ id: value.proofId, baseRevision: value.baseRevision as number });
+      } catch {
+        setNotice(m.data_import_failed({ status: 0 }), "error");
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [activeAccountId, setNotice]);
+
+  useEffect(() => {
+    if (proofAccountRef.current === activeAccountId) return;
+    proofAccountRef.current = activeAccountId;
+    setReturnedProof(null);
+    setReadyProof(null);
+  }, [activeAccountId]);
+
+  const continuePreview = async () => {
+    if (!pendingImport || !activeAccountId) return;
+    if (!serverMode) {
+      setPreviewRevision(0);
+      return;
+    }
+    const selection = selectionRef.current;
+    const isCurrent = () =>
+      selectionRef.current === selection && useStore.getState().activeAccountId === activeAccountId;
+    setPreviewBusy(true);
+    try {
+      const response = await apiFetch(`${API_BASE}/api/transfer/preview`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId: activeAccountId, document: pendingImport.document }),
+      });
+      if (!response.ok)
+        throw new Error((await readApiError(response)) ?? m.data_import_failed({ status: response.status }));
+      const result: unknown = await response.json();
+      if (
+        !result ||
+        typeof result !== "object" ||
+        !("baseRevision" in result) ||
+        !Number.isSafeInteger(result.baseRevision)
+      )
+        throw new Error(m.data_import_failed({ status: 0 }));
+      if (!isCurrent()) return;
+      const revision = result.baseRevision as number;
+      if (returnedProof && returnedProof.baseRevision !== revision) {
+        setReturnedProof(null);
+        throw new Error("The company changed. Preview the current data again and confirm a new import.");
+      }
+      setPreviewRevision(revision);
+      if (returnedProof) {
+        setReadyProof(returnedProof.id);
+        setReturnedProof(null);
+      }
+    } catch (error) {
+      if (isCurrent()) setNotice(resolveErrorMessage(error), "error");
+    } finally {
+      if (isCurrent()) setPreviewBusy(false);
+    }
+  };
 
   const confirmImport = () => {
     if (!pendingImport) return;
@@ -289,14 +393,17 @@ export function ImportExport() {
       return;
     }
     if (serverMode) {
-      const incoming = pendingImport.data;
-      setPendingImport(null);
-      void confirmServerImport(incoming);
+      if (readyProof && previewRevision !== null) {
+        const proofId = readyProof;
+        setReadyProof(null);
+        setPendingImport(null);
+        void confirmServerImport(pendingImport.document, previewRevision, proofId);
+      } else setConfirmingAction(true);
       return;
     }
-    const incoming = pendingImport.data;
+    if (!activeAccountId) return;
     setPendingImport(null);
-    confirmLocalImport(incoming, importData, setNotice);
+    confirmLocalImport(pendingImport.document, activeAccountId, setNotice);
   };
 
   return (
@@ -306,18 +413,74 @@ export function ImportExport() {
         disabled={importBusy}
         exportBusy={exportBusy}
         onExport={() => void exportData()}
-        onFile={(file) => void readFile(file)}
+        onFile={(file) => {
+          setPreviewRevision(null);
+          setPreviewBusy(false);
+          if (!returnedProof) setReadyProof(null);
+          void readFile(file);
+        }}
       />
+
+      {returnedProof && <p role="status">{m.data_import_reselect_after_google()}</p>}
 
       {/* The progress dialog stays open until the import and authoritative reload settle. Its no-op dismissal handler prevents Escape or backdrop interaction from exposing a stale slice. */}
       {importBusy && <ImportProgress requiresReload={importRequiresReload} />}
 
-      {pendingImport && canImport && (
+      {pendingImport && canImport && previewRevision === null && (
+        <Modal
+          title={m.data_import_confirm_title()}
+          onClose={() => {
+            selectionRef.current += 1;
+            setPendingImport(null);
+            setPreviewBusy(false);
+          }}
+          guardDirty={false}
+        >
+          {previewBusy ? (
+            <p role="status">{m.data_importing_body()}</p>
+          ) : (
+            <BetaImportPreview
+              document={pendingImport.document}
+              context={{ accountId: activeAccountId ?? "", memberResourceLinks: [] }}
+              onPrepared={() => void continuePreview()}
+            />
+          )}
+        </Modal>
+      )}
+      {pendingImport && canImport && previewRevision !== null && !confirmingAction && (
         <ImportConfirmation
           pending={pendingImport}
           serverMode={serverMode}
           onConfirm={confirmImport}
-          onCancel={() => setPendingImport(null)}
+          onCancel={() => {
+            selectionRef.current += 1;
+            setPendingImport(null);
+            setReadyProof(null);
+            setPreviewRevision(null);
+          }}
+        />
+      )}
+      {pendingImport && activeAccountId && previewRevision !== null && confirmingAction && (
+        <ActionProofDialog
+          action="import"
+          accountId={activeAccountId}
+          intent={{ baseRevision: previewRevision, document: pendingImport.document }}
+          onConfirmed={(proofId) => {
+            setConfirmingAction(false);
+            setPendingImport(null);
+            void confirmServerImport(pendingImport.document, previewRevision, proofId);
+          }}
+          onProviderStart={(proofId) =>
+            sessionStorage.setItem(
+              PENDING_PROOF_KEY,
+              JSON.stringify({
+                accountId: activeAccountId,
+                baseRevision: previewRevision,
+                proofId,
+              }),
+            )
+          }
+          onCancel={() => setConfirmingAction(false)}
         />
       )}
     </div>

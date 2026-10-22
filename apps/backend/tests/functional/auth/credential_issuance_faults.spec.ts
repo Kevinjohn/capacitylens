@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import router from '@adonisjs/core/services/router'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
@@ -69,7 +69,7 @@ function observableAbortSignal(onWait: () => void) {
 }
 
 test.group('Administrative recovery issuance fault boundaries', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
     await db.from('audit_entries').delete()
     await db.from('user_session_index').delete()
@@ -150,7 +150,7 @@ test.group('Administrative recovery issuance fault boundaries', (group) => {
           .send()
       },
       restore() {
-        env.set('CAPACITYLENS_MODE', priorMode ?? 'off')
+        env.set('CAPACITYLENS_MODE', priorMode ?? 'password-only')
         env.set('CAPACITYLENS_SETUP_TOKEN', priorSetup ?? '')
         env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', priorScreen)
       },

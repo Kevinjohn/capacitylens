@@ -20,9 +20,10 @@ platforms can follow [Deploy on a managed host](/self-hosting/managed-vps/).
 
 Before opening the service to users, configure the secrets and public URL in a private environment
 file, run `node ace.js app:upgrade` from the archive's `backend/` directory, then start the service.
-The first-run page uses `CAPACITYLENS_SETUP_TOKEN` to create the first identity and company. Remove
-that token after setup. Configure an external proxy to terminate TLS and forward requests to the
-loopback listener; see [TLS and networking](/self-hosting/tls-and-networking).
+The first-run page uses `CAPACITYLENS_SETUP_TOKEN` to create the first identity. Then stop the
+service, initialize its company and Owner with `company:initialize`, remove the token and restart,
+as described in [first-run setup](/self-hosting/install-without-docker#_5-complete-first-run-setup).
+Configure an external proxy to terminate TLS and forward requests to the loopback listener; see [TLS and networking](/self-hosting/tls-and-networking).
 
 The [Docker Compose guide](/self-hosting/install-with-docker) builds separate web and API images.
 It runs the checked upgrade command before the API starts and keeps data in persistent volumes.

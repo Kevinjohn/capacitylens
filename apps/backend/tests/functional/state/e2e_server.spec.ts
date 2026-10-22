@@ -57,7 +57,7 @@ async function stop(child: ReturnType<typeof spawn>, port: number) {
   await waitForPortRelease(port)
 }
 
-test('E2E database flavour permits reset while auth flavour refuses installation reset', async ({
+test('both E2E server flavours require sign-in and refuse installation reset', async ({
   assert,
 }) => {
   for (const flavour of ['db', 'auth'] as const) {
@@ -78,34 +78,11 @@ test('E2E database flavour permits reset while auth flavour refuses installation
     try {
       await waitForReadiness(child, `http://127.0.0.1:${port}/health/ready`, flavour, () => output)
       const resetUrl = `http://127.0.0.1:${port}/api/test/reset`
-      if (flavour === 'db') {
-        const unauthorized = await fetch(resetUrl, { method: 'POST' })
-        assert.equal(unauthorized.status, 200, 'off-mode fixture reset remains available')
-        assert.deepEqual(await unauthorized.json(), { ok: true })
-
-        const seeded = await fetch(resetUrl, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ seed: true }),
-        })
-        assert.equal(seeded.status, 200)
-        const accounts = await fetch(`http://127.0.0.1:${port}/api/accounts`)
-        assert.equal(
-          accounts.status,
-          409,
-          'the seeded demo remains intentionally ambiguous to production selection'
-        )
-        assert.deepEqual(await accounts.json(), {
-          error:
-            'This installation has more than one company. Contact the administrator to resolve it.',
-        })
-        const stateResponse = await fetch(`http://127.0.0.1:${port}/api/state`)
-        assert.equal(stateResponse.status, 200)
-        const state = (await stateResponse.json()) as { accounts: { id: string }[] }
-        assert.deepEqual(state.accounts.map((account) => account.id).sort(), ['a-loft', 'a-studio'])
-      } else {
+      {
         const anonymousReset = await fetch(resetUrl, { method: 'POST' })
-        assert.equal(anonymousReset.status, 401, 'auth-on reset rejects unauthenticated callers')
+        assert.equal(anonymousReset.status, 401, 'reset rejects unauthenticated callers')
+        const anonymousState = await fetch(`http://127.0.0.1:${port}/api/state`)
+        assert.equal(anonymousState.status, 401, 'persistent state requires sign-in')
 
         const signedIn = await fetch(`http://127.0.0.1:${port}/api/auth/sign-in`, {
           method: 'POST',
@@ -139,7 +116,7 @@ test('E2E database flavour permits reset while auth flavour refuses installation
         assert.equal(
           memberlessReset.status,
           403,
-          'the authenticated bootstrap has no membership and cannot reset the fixture'
+          'an authenticated administrator cannot reset the fixture over HTTP'
         )
       }
     } finally {

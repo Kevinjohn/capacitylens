@@ -39,7 +39,7 @@ uses it.
   everything it needs.
 - ✅ Missing or invalid required configuration refuses startup and names the setting to correct.
 - ✅ Once started, `/health/live` reports `"ok":true` and `/health/ready` checks the database and
-  accepted migrations. Backup success is checked independently in logs and completed snapshots.
+  its schema integrity. Backup success is checked independently in logs and completed snapshots.
 - ✅ When configured, online snapshots run at startup and every 24 hours. Retention keeps the
   configured number of completed managed snapshots, excluding upgrade snapshots and unrelated files.
   A snapshot taken during normal use restores the expected data on an isolated database path.

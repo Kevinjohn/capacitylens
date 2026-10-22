@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import app from '@adonisjs/core/services/app'
 import { defineConfig } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
@@ -54,7 +54,7 @@ async function signIn(
 }
 
 test.group('native auth and API rate limits', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
     await db.from('rate_limits').delete()
     const bootedTrust = httpConfig().trustProxy
@@ -69,7 +69,7 @@ test.group('native auth and API rate limits', (group) => {
     cleanup,
   }) => {
     captureEnvironment(cleanup, ['CAPACITYLENS_MODE', 'CAPACITYLENS_RATE_LIMIT'])
-    setEnvironment('CAPACITYLENS_MODE', 'off')
+    setEnvironment('CAPACITYLENS_MODE', 'password-only')
     setEnvironment('CAPACITYLENS_RATE_LIMIT', '2')
 
     assert.equal(await responseStatus(requestMetadata(client)), 200)
@@ -94,7 +94,7 @@ test.group('native auth and API rate limits', (group) => {
     cleanup,
   }) => {
     captureEnvironment(cleanup, ['CAPACITYLENS_MODE', 'CAPACITYLENS_RATE_LIMIT'])
-    setEnvironment('CAPACITYLENS_MODE', 'off')
+    setEnvironment('CAPACITYLENS_MODE', 'password-only')
     for (const configured of ['', '0', '-1', '1.5', 'invalid', ' 2 ']) {
       await db.from('rate_limits').delete()
       setEnvironment('CAPACITYLENS_RATE_LIMIT', configured)
@@ -109,7 +109,7 @@ test.group('native auth and API rate limits', (group) => {
     cleanup,
   }) => {
     captureEnvironment(cleanup, ['CAPACITYLENS_MODE', 'CAPACITYLENS_RATE_LIMIT'])
-    setEnvironment('CAPACITYLENS_MODE', 'off')
+    setEnvironment('CAPACITYLENS_MODE', 'password-only')
     setEnvironment('CAPACITYLENS_RATE_LIMIT', '2')
     trustProxyHeaders(false)
     assert.equal(await responseStatus(requestMetadata(client, '203.0.113.41')), 200)

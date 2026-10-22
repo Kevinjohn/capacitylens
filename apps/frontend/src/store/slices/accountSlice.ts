@@ -1,7 +1,6 @@
 import type { StateCreator } from "zustand";
 import { newId } from "@capacitylens/shared/lib/id";
 import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
-import { deleteAccountCascade } from "@capacitylens/shared/domain/mutations";
 import { m } from "@/i18n";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
@@ -10,7 +9,7 @@ import type { Account, ID } from "@capacitylens/shared/types/entities";
 import { buildClearedSession, resetSchedulerView, stamp } from "@/store/storeInternal";
 import type { StoreInternals } from "@/store/storeInternal";
 import { readCurrentWeekAnchor } from "./schedulerSlice";
-import type { Draft, Patch, StoreState } from "@/store/types";
+import type { Draft, StoreState } from "@/store/types";
 
 type AccountSlice = Pick<
   StoreState,
@@ -22,8 +21,6 @@ type AccountSlice = Pick<
   | "accountSummariesAmbiguous"
   | "accountSummariesRequestId"
   | "addAccount"
-  | "updateAccount"
-  | "deleteAccount"
   | "setActiveAccount"
   | "beginAccountSummariesRequest"
   | "setAccountSummaries"
@@ -32,13 +29,7 @@ type AccountSlice = Pick<
 type AccountSliceCreator = StateCreator<StoreState, [], [], AccountSlice>;
 type AccountSliceInternals = Pick<
   StoreInternals,
-  | "createGuardedAction"
-  | "createGuardedValueAction"
-  | "assertWorkingDays"
-  | "snapColor"
-  | "mutate"
-  | "updateById"
-  | "applySnappedColor"
+  "createGuardedAction" | "createGuardedValueAction" | "assertWorkingDays" | "snapColor" | "mutate"
 >;
 type AccountSliceSet = Parameters<AccountSliceCreator>[0];
 type AccountSliceGet = Parameters<AccountSliceCreator>[1];
@@ -83,53 +74,6 @@ function createAddAccountAction({ internals, set }: AccountActionContext): Store
     }));
     return entity;
   }, null);
-}
-
-function createUpdateAccountAction({ internals, get }: AccountActionContext): StoreState["updateAccount"] {
-  const { createGuardedAction, assertWorkingDays, mutate, updateById, applySnappedColor } = internals;
-  return createGuardedAction((id: ID, patch: Patch<Account>) => {
-    const state = get();
-    const existing = state.data.accounts.find((account) => account.id === id);
-    if (!existing) return;
-    if (state.activeAccountId !== id) throw new Error("Cannot update a company other than the active company.");
-    if (patch.workingDays != null) assertWorkingDays(patch.workingDays);
-    const safePatch =
-      patch.workingDays == null
-        ? patch
-        : {
-            ...patch,
-            workingDays: normalizeAccountWorkingDays(patch.workingDays, existing.weekStartsOn ?? 1),
-          };
-    mutate((data) => ({
-      ...data,
-      accounts: updateById(data.accounts, id, applySnappedColor({ patch: safePatch })),
-    }));
-  });
-}
-
-function createDeleteAccountAction({ internals, set, get }: AccountActionContext): StoreState["deleteAccount"] {
-  return internals.createGuardedAction((id: ID) => {
-    if (!get().data.accounts.some((account) => account.id === id)) return;
-    if (get().activeAccountId !== null && get().activeAccountId !== id) {
-      throw new Error("Cannot delete a company other than the active company.");
-    }
-    set((state) => {
-      const data = deleteAccountCascade(state.data, id);
-      return {
-        data,
-        past: [],
-        future: [],
-        activeAccountId: state.activeAccountId === id ? null : state.activeAccountId,
-        previousAccountId: state.activeAccountId === id ? id : state.previousAccountId,
-        accountSummaries: state.accountSummaries.filter((account) => account.id !== id),
-        accountSummariesComplete: true,
-        accountSummariesRequestId: state.accountSummariesRequestId + 1,
-        notice: null,
-        ...buildClearedSession(),
-        ui: resetSchedulerView(state.ui, readCurrentWeekAnchor(data, null)),
-      };
-    });
-  });
 }
 
 function resolveAccountSelection(rawId: ID | null, get: AccountSliceGet): { id: ID | null; unknown: boolean } {
@@ -208,8 +152,6 @@ export function createAccountSlice(internals: AccountSliceInternals): StateCreat
       accountSummariesAmbiguous: false,
       accountSummariesRequestId: 0,
       addAccount: createAddAccountAction(context),
-      updateAccount: createUpdateAccountAction(context),
-      deleteAccount: createDeleteAccountAction(context),
       setActiveAccount: createSetActiveAccountAction(context),
 
       // Plain transient state (not mutate): never on the undo/redo stack or in AppData/export.

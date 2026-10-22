@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
@@ -123,11 +123,11 @@ describe("AppShell account gate", () => {
   });
 });
 
-describe("AccountPicker create + open + delete", () => {
+describe("AccountPicker create + open", () => {
   registerCreateAndActivateTests();
   registerCreateFormValidationTests();
   registerOpenAndEnterTests();
-  registerDeleteConfirmationTests();
+  registerNoCompanyDeletionTests();
 });
 
 function registerCreateAndActivateTests() {
@@ -268,26 +268,14 @@ function registerOpenAndEnterTests() {
   });
 }
 
-function registerDeleteConfirmationTests() {
-  it("deletes a company only after typing its name to confirm", async () => {
-    const user = userEvent.setup();
+function registerNoCompanyDeletionTests() {
+  it("does not offer company deletion from the picker", () => {
     seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "Delete Wayne Enterprises" }));
-    const dialog = screen.getByRole("dialog");
-    expect(dialog).toHaveTextContent(/Delete company\?/i);
-
-    // Company erasure requires exact-name confirmation because it cannot be undone.
-    const deleteBtn = within(dialog).getByRole("button", { name: "Delete" });
-    expect(deleteBtn).toBeEnabled();
-    expect(deleteBtn).toHaveAttribute("aria-disabled", "true");
-    await user.type(within(dialog).getByLabelText(/Type/i), "Wayne Enterprises");
-    expect(deleteBtn).toBeEnabled();
-    expect(deleteBtn).not.toHaveAttribute("aria-disabled");
-    await user.click(deleteBtn);
-
-    expect(useStore.getState().data.accounts).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Wayne Enterprises" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete Wayne Enterprises" })).not.toBeInTheDocument();
+    expect(useStore.getState().data.accounts).toHaveLength(1);
   });
 }
 
@@ -302,6 +290,15 @@ describe("AccountPicker server mode", () => {
     expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument();
   });
 
+  it("shows no company creation controls for a signed-in server principal without a company", () => {
+    serverFlag.on = true;
+    useStore.getState().setAccountSummaries({ list: [], complete: true });
+    render(<AccountPicker />);
+    expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create company" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument();
+  });
+
   it("shows an actionable conflict without offering choices when the server reports ambiguity", () => {
     serverFlag.on = true;
     useStore.getState().setAccountSummaries({ list: [], complete: false, ambiguous: true });
@@ -312,121 +309,6 @@ describe("AccountPicker server mode", () => {
     act(() => useStore.getState().setNotice(null));
     expect(screen.getByRole("alert")).toHaveTextContent(/more than one company/i);
     expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument();
-  });
-});
-
-describe("AccountPicker first-company setup", () => {
-  beforeEach(() => {
-    serverFlag.on = true;
-    useStore.getState().setAccountSummaries({ list: [], complete: true });
-  });
-
-  it("creates the initial company through the supported server setup route", async () => {
-    const user = userEvent.setup();
-    const fetchMock = vi.fn(async (url: string) => ({
-      ok: true,
-      status: url === "/api/orgs" ? 201 : 200,
-      json: async () => ({ id: "org-first", name: "Wayne Aerospace" }),
-    }));
-    vi.stubGlobal("fetch", fetchMock);
-    render(<AccountPicker />);
-
-    await user.type(screen.getByLabelText("Company name"), "Wayne Aerospace");
-    await user.click(screen.getByRole("button", { name: "Create company" }));
-
-    await waitFor(() => expect(useStore.getState().activeAccountId).toBe("org-first"));
-    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/orgs");
-    expect(useStore.getState().accountSummaries.map(({ id }) => id)).toContain("org-first");
-    expect(useStore.getState().data.accounts).toHaveLength(0);
-  });
-
-  it("keeps the setup form and does not activate when the server refuses first-company creation", async () => {
-    const user = userEvent.setup();
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({ ok: false, status: 403, json: async () => ({ error: "Setup refused." }) })),
-    );
-    render(<AccountPicker />);
-
-    await user.type(screen.getByLabelText("Company name"), "Wayne Aerospace");
-    await user.click(screen.getByRole("button", { name: "Create company" }));
-
-    expect(await screen.findByText("Setup refused.")).toBeInTheDocument();
-    expect(useStore.getState().activeAccountId).toBeNull();
-    expect(useStore.getState().accountSummaries).toHaveLength(0);
-  });
-
-  it("reconciles a malformed success from the authoritative directory without rendering choices", async () => {
-    const user = userEvent.setup();
-    const fetchMock = vi.fn(async (url: string) =>
-      url === "/api/orgs"
-        ? { ok: true, status: 201, json: async () => ({ ok: true }) }
-        : { ok: true, status: 200, json: async () => [{ id: "org-first", name: "Wayne Aerospace", role: "owner" }] },
-    );
-    vi.stubGlobal("fetch", fetchMock);
-    render(<AccountPicker />);
-
-    await user.type(screen.getByLabelText("Company name"), "Wayne Aerospace");
-    await user.click(screen.getByRole("button", { name: "Create company" }));
-
-    await waitFor(() => expect(useStore.getState().accountSummaries[0]?.id).toBe("org-first"));
-    expect(useStore.getState().activeAccountId).toBeNull();
-    expect(screen.getByRole("status")).toHaveTextContent("Loading");
-    expect(screen.queryByRole("button", { name: "Wayne Aerospace" })).not.toBeInTheDocument();
-    expect(fetchMock.mock.calls.map(([url]) => url)).toContain("/api/accounts");
-  });
-
-  it("keeps setup available after an unknown response when an authoritative refresh confirms no company", async () => {
-    const user = userEvent.setup();
-    const fetchMock = vi.fn(async (url: string) =>
-      url === "/api/orgs"
-        ? { ok: false, status: 503, json: async () => ({}) }
-        : { ok: true, status: 200, json: async () => [] },
-    );
-    vi.stubGlobal("fetch", fetchMock);
-    render(<AccountPicker />);
-
-    await user.type(screen.getByLabelText("Company name"), "Wayne Aerospace");
-    await user.click(screen.getByRole("button", { name: "Create company" }));
-
-    await waitFor(() => expect(useStore.getState().notice?.tone).toBe("warning"));
-    expect(screen.getByLabelText("Company name")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create company" })).toBeEnabled();
-    expect(useStore.getState().accountSummaries).toEqual([]);
-  });
-
-  it("locks retries when a successful response cannot be reconciled", async () => {
-    const user = userEvent.setup();
-    const fetchMock = vi.fn(async (url: string) => {
-      if (url === "/api/orgs") return { ok: true, status: 201, json: async () => ({ ok: true }) };
-      throw new Error("directory refresh failed");
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    render(<AccountPicker />);
-
-    await user.type(screen.getByLabelText("Company name"), "Wayne Aerospace");
-    await user.click(screen.getByRole("button", { name: "Create company" }));
-
-    await waitFor(() => expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument());
-    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/orgs")).toHaveLength(1);
-    expect(useStore.getState().activeAccountId).toBeNull();
-  });
-
-  it("locks retries after a create transport failure when directory reconciliation also fails", async () => {
-    const user = userEvent.setup();
-    const fetchMock = vi.fn(async (url: string) => {
-      throw new Error(url === "/api/orgs" ? "create transport failed" : "directory refresh failed");
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    render(<AccountPicker />);
-
-    await user.type(screen.getByLabelText("Company name"), "Wayne Aerospace");
-    await user.click(screen.getByRole("button", { name: "Create company" }));
-
-    await waitFor(() => expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument());
-    expect(useStore.getState().notice?.message).toContain("create transport failed");
-    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/orgs")).toHaveLength(1);
-    expect(screen.queryByRole("button", { name: "Create company" })).not.toBeInTheDocument();
   });
 });
 

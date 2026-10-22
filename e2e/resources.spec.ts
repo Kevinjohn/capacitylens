@@ -303,8 +303,8 @@ test("groups Studio before Supplementary only while someone is Supplementary", a
 });
 
 // the per-row destructive action archives (hidden from list + schedule, fully retained),
-// not a hard cascade-delete. Archiving is undoable via the local store (it goes through mutate()).
-test("archiving a resource hides it from the list + schedule, and undo restores it", async ({ page }) => {
+// not a hard cascade-delete. Booking-only Undo leaves the archive in place.
+test("archiving a resource hides it from the list + schedule, and undo leaves it archived", async ({ page }) => {
   await openApp(page);
   await setZoom(page, 4);
   await goToSeedWeek(page);
@@ -324,7 +324,7 @@ test("archiving a resource hides it from the list + schedule, and undo restores 
   await expect(page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" })).toHaveCount(0);
 
   await page.keyboard.press("Meta+z");
-  await expect(page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" })).toBeVisible();
+  await expect(page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" })).toHaveCount(0);
 });
 
 test("uses fixed working hours without showing an hours field", async ({ page }) => {

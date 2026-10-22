@@ -1,6 +1,6 @@
 import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { act, render, screen, within, fireEvent } from "@testing-library/react";
+import { act, render, screen, within, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TimeOffList } from "./TimeOffList";
 import { TimeOffForm } from "./TimeOffForm";
@@ -37,13 +37,13 @@ const placeholderDraft = {
   color: "#222",
 };
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-06-03T12:00:00.000Z"));
-  resetStoreWithAccount();
+  await resetStoreWithAccount();
   useStore.getState().clearFilters();
   // Enable the company placeholder setting for fixtures that need its rows; visibility tests override it explicitly.
-  setPlaceholdersEnabled({ on: true });
+  await setPlaceholdersEnabled({ on: true });
 });
 
 afterEach(() => {
@@ -67,7 +67,7 @@ it("shows an error when saving without selecting a resource", async () => {
 
 it("shows an error when end date is before start date", async () => {
   const user = userEvent.setup();
-  useStore.getState().addResource(resourceDraft);
+  await useStore.getState().addResource(resourceDraft);
   const resource = useStore.getState().data.resources[0];
   if (!resource) throw new Error("Expected resource");
   if (!resource.name) throw new Error("Expected named resource");
@@ -90,7 +90,7 @@ it("shows an error when end date is before start date", async () => {
 
 it("lists the time-off entry after a valid save", async () => {
   const user = userEvent.setup();
-  useStore.getState().addResource(resourceDraft);
+  await useStore.getState().addResource(resourceDraft);
   const resource = useStore.getState().data.resources[0];
   if (!resource) throw new Error("Expected resource");
   if (!resource.name) throw new Error("Expected named resource");
@@ -116,13 +116,13 @@ it("lists the time-off entry after a valid save", async () => {
 
   expect(row).not.toHaveTextContent("2026-07-01");
 
-  expect(useStore.getState().data.timeOff).toHaveLength(1);
+  await waitFor(() => expect(useStore.getState().data.timeOff).toHaveLength(1));
   expect(requireValue(useStore.getState().data.timeOff[0], "time off").resourceId).toBe(resource.id);
 });
 
-it("keeps the row spare — start date and day count only, never the end date, type or note", () => {
-  const resource = requireCreated(useStore.getState().addResource(resourceDraft));
-  useStore.getState().addTimeOff({
+it("keeps the row spare — start date and day count only, never the end date, type or note", async () => {
+  const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
+  await useStore.getState().addTimeOff({
     resourceId: resource.id,
 
     startDate: "2026-08-01",
@@ -143,25 +143,25 @@ it("keeps the row spare — start date and day count only, never the end date, t
   expect(row).not.toHaveTextContent("Visiting family");
 });
 
-it("uses the active company's timezone and week-start setting for the visible boundary", () => {
+it("uses the active company's timezone and week-start setting for the visible boundary", async () => {
   vi.setSystemTime(new Date("2026-06-08T00:30:00.000Z"));
-  const resource = requireCreated(useStore.getState().addResource(resourceDraft));
-  useStore.getState().addTimeOff({
+  const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
+  await useStore.getState().addTimeOff({
     resourceId: resource.id,
     startDate: "2026-06-06",
     endDate: "2026-06-07",
     type: "holiday",
   });
 
-  useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 1 });
+  await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 1 });
   const { rerender } = render(<TimeOffList />);
   expect(screen.queryByTestId("timeoff-row")).not.toBeInTheDocument();
 
-  useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Pacific/Honolulu", weekStartsOn: 1 });
+  await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Pacific/Honolulu", weekStartsOn: 1 });
   rerender(<TimeOffList />);
   expect(screen.getByTestId("timeoff-row")).toBeInTheDocument();
 
-  useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 0 });
+  await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 0 });
   rerender(<TimeOffList />);
   expect(screen.getByTestId("timeoff-row")).toBeInTheDocument();
 });
@@ -170,9 +170,9 @@ it("removes expired time off when the company week rolls over while mounted", as
   vi.useRealTimers();
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-06-07T23:59:59.000Z"));
-  useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 1 });
-  const resource = requireCreated(useStore.getState().addResource({ ...resourceDraft, name: "Bruce Wayne" }));
-  useStore.getState().addTimeOff({
+  await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 1 });
+  const resource = await requireCreated(useStore.getState().addResource({ ...resourceDraft, name: "Bruce Wayne" }));
+  await useStore.getState().addTimeOff({
     resourceId: resource.id,
     startDate: "2026-06-07",
     endDate: "2026-06-07",
@@ -187,9 +187,9 @@ it("removes expired time off when the company week rolls over while mounted", as
   expect(screen.queryByTestId("timeoff-row")).not.toBeInTheDocument();
 });
 
-it("hides archived resources and their retained time off", () => {
-  const resource = requireCreated(useStore.getState().addResource(resourceDraft));
-  useStore.getState().addTimeOff({
+it("hides archived resources and their retained time off", async () => {
+  const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
+  await useStore.getState().addTimeOff({
     resourceId: resource.id,
     startDate: "2026-08-01",
     endDate: "2026-08-05",
@@ -204,9 +204,9 @@ it("hides archived resources and their retained time off", () => {
   expect(useStore.getState().data.timeOff).toHaveLength(1);
 });
 
-it("states the year in an action name when the time off crosses one", () => {
-  const resource = requireCreated(useStore.getState().addResource(resourceDraft));
-  useStore.getState().addTimeOff({
+it("states the year in an action name when the time off crosses one", async () => {
+  const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
+  await useStore.getState().addTimeOff({
     resourceId: resource.id,
     startDate: "2026-12-28",
     endDate: "2027-01-08",
@@ -221,15 +221,15 @@ it("states the year in an action name when the time off crosses one", () => {
   ).toBeInTheDocument();
 });
 
-it("gives same-person time-off actions distinct date-specific names", () => {
-  const resource = requireCreated(useStore.getState().addResource(resourceDraft));
-  useStore.getState().addTimeOff({
+it("gives same-person time-off actions distinct date-specific names", async () => {
+  const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
+  await useStore.getState().addTimeOff({
     resourceId: resource.id,
     startDate: "2026-08-01",
     endDate: "2026-08-05",
     type: "holiday",
   });
-  useStore.getState().addTimeOff({
+  await useStore.getState().addTimeOff({
     resourceId: resource.id,
     startDate: "2026-09-01",
     endDate: "2026-09-02",
@@ -253,8 +253,8 @@ it("gives same-person time-off actions distinct date-specific names", () => {
 
 it("confirms before deleting and removes the entry on confirm", async () => {
   const user = userEvent.setup();
-  const resource = requireCreated(useStore.getState().addResource(resourceDraft));
-  useStore.getState().addTimeOff({
+  const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
+  await useStore.getState().addTimeOff({
     resourceId: resource.id,
     startDate: "2026-08-01",
     endDate: "2026-08-05",
@@ -278,14 +278,14 @@ it("confirms before deleting and removes the entry on confirm", async () => {
     within(screen.getByRole("alertdialog", { name: "Delete time off?" })).getByRole("button", { name: "Delete" }),
   );
 
-  expect(useStore.getState().data.timeOff).toHaveLength(0);
+  await waitFor(() => expect(useStore.getState().data.timeOff).toHaveLength(0));
   expect(screen.queryByTestId("timeoff-row")).not.toBeInTheDocument();
 });
 
-it('shows a placeholder time-off entry (named "Placeholder") when placeholders are ON', () => {
-  setPlaceholdersEnabled({ on: true });
-  const ph = requireCreated(useStore.getState().addResource(placeholderDraft));
-  useStore
+it('shows a placeholder time-off entry (named "Placeholder") when placeholders are ON', async () => {
+  await setPlaceholdersEnabled({ on: true });
+  const ph = await requireCreated(useStore.getState().addResource(placeholderDraft));
+  await useStore
     .getState()
     .addTimeOff({ resourceId: ph.id, startDate: "2026-09-01", endDate: "2026-09-05", type: "holiday" });
   render(<TimeOffList />);
@@ -294,14 +294,14 @@ it('shows a placeholder time-off entry (named "Placeholder") when placeholders a
   expect(screen.queryByRole("heading", { name: "Designer" })).not.toBeInTheDocument();
 });
 
-it("HIDES a placeholder time-off entry when placeholders are OFF (data stays intact)", () => {
-  setPlaceholdersEnabled({ on: true });
-  const ph = requireCreated(useStore.getState().addResource(placeholderDraft));
-  useStore
+it("HIDES a placeholder time-off entry when placeholders are OFF (data stays intact)", async () => {
+  await setPlaceholdersEnabled({ on: true });
+  const ph = await requireCreated(useStore.getState().addResource(placeholderDraft));
+  await useStore
     .getState()
     .addTimeOff({ resourceId: ph.id, startDate: "2026-09-01", endDate: "2026-09-05", type: "holiday" });
 
-  setPlaceholdersEnabled({ on: false });
+  await setPlaceholdersEnabled({ on: false });
   render(<TimeOffList />);
   expect(screen.queryByTestId("timeoff-row")).not.toBeInTheDocument();
 
@@ -310,16 +310,18 @@ it("HIDES a placeholder time-off entry when placeholders are OFF (data stays int
   expect(useStore.getState().data.timeOff).toHaveLength(1);
 });
 
-it("still shows a non-placeholder entry when a placeholder entry is hidden (OFF)", () => {
-  setPlaceholdersEnabled({ on: true });
-  const alice = requireCreated(useStore.getState().addResource(resourceDraft));
-  const ph = requireCreated(useStore.getState().addResource(placeholderDraft));
-  useStore
+it("still shows a non-placeholder entry when a placeholder entry is hidden (OFF)", async () => {
+  await setPlaceholdersEnabled({ on: true });
+  const alice = await requireCreated(useStore.getState().addResource(resourceDraft));
+  const ph = await requireCreated(useStore.getState().addResource(placeholderDraft));
+  await useStore
     .getState()
     .addTimeOff({ resourceId: alice.id, startDate: "2026-09-01", endDate: "2026-09-05", type: "holiday" });
-  useStore.getState().addTimeOff({ resourceId: ph.id, startDate: "2026-09-10", endDate: "2026-09-12", type: "sick" });
+  await useStore
+    .getState()
+    .addTimeOff({ resourceId: ph.id, startDate: "2026-09-10", endDate: "2026-09-12", type: "sick" });
 
-  setPlaceholdersEnabled({ on: false });
+  await setPlaceholdersEnabled({ on: false });
   render(<TimeOffList />);
 
   expect(screen.getAllByTestId("timeoff-row")).toHaveLength(1);
@@ -327,9 +329,9 @@ it("still shows a non-placeholder entry when a placeholder entry is hidden (OFF)
   expect(screen.queryByText("Placeholder")).not.toBeInTheDocument();
 });
 
-it("keeps edit and delete controls hidden for viewers", () => {
-  const resource = requireCreated(useStore.getState().addResource(resourceDraft));
-  useStore.getState().addTimeOff({
+it("keeps edit and delete controls hidden for viewers", async () => {
+  const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
+  await useStore.getState().addTimeOff({
     resourceId: resource.id,
     startDate: "2026-08-01",
     endDate: "2026-08-05",
@@ -371,7 +373,7 @@ it("keeps invalid Enter submission in the form instead of creating a note newlin
 
 it("stores a populated single-line Note without changing the selected time-off fields", async () => {
   const user = userEvent.setup();
-  const resource = requireCreated(useStore.getState().addResource(resourceDraft));
+  const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
   render(
     <TimeOffForm
       defaults={{ resourceId: resource.id, startDate: "2026-09-01", endDate: "2026-09-02" }}
@@ -382,7 +384,7 @@ it("stores a populated single-line Note without changing the selected time-off f
   await user.type(screen.getByRole("textbox", { name: "Note" }), "  Planning note  ");
   await user.click(screen.getByRole("button", { name: "Save" }));
 
-  expect(useStore.getState().data.timeOff).toHaveLength(1);
+  await waitFor(() => expect(useStore.getState().data.timeOff).toHaveLength(1));
   expect(useStore.getState().data.timeOff[0]).toMatchObject({
     resourceId: resource.id,
     startDate: "2026-09-01",
@@ -394,8 +396,8 @@ it("stores a populated single-line Note without changing the selected time-off f
 
 it("rejects a stale edit instead of overwriting a concurrent change", async () => {
   const user = userEvent.setup();
-  const resource = requireCreated(useStore.getState().addResource(resourceDraft));
-  const entry = requireCreated(
+  const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
+  const entry = await requireCreated(
     useStore.getState().addTimeOff({
       resourceId: resource.id,
       startDate: "2026-09-01",
@@ -407,7 +409,7 @@ it("rejects a stale edit instead of overwriting a concurrent change", async () =
   const onClose = vi.fn();
   render(<TimeOffForm timeOff={entry} onClose={onClose} />);
 
-  useStore.getState().updateTimeOff(entry.id, { type: "sick" });
+  await useStore.getState().updateTimeOff(entry.id, { type: "sick" });
   await user.clear(screen.getByLabelText("Note"));
   await user.type(screen.getByLabelText("Note"), "Edited note");
   await user.click(screen.getByRole("button", { name: "Save" }));
@@ -427,9 +429,9 @@ it.each([null, "owner", "admin"] as const)("shows Note for role %s", (role) => {
   expect(screen.getByLabelText("Note")).toBeInTheDocument();
 });
 
-it.each(["editor", "viewer"] as const)("hides and omits Note for role %s", (role) => {
-  const resource = requireCreated(useStore.getState().addResource(resourceDraft));
-  const entry = requireCreated(
+it.each(["editor", "viewer"] as const)("hides and omits Note for role %s", async (role) => {
+  const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
+  const entry = await requireCreated(
     useStore.getState().addTimeOff({
       resourceId: resource.id,
       startDate: "2026-09-01",
@@ -438,7 +440,7 @@ it.each(["editor", "viewer"] as const)("hides and omits Note for role %s", (role
       note: "Protected note",
     }),
   );
-  const update = vi.spyOn(useStore.getState(), "updateTimeOff").mockImplementation(() => {});
+  const update = vi.spyOn(useStore.getState(), "updateTimeOff").mockImplementation(async () => {});
   render(
     <PermissionContext.Provider value={{ role }}>
       <TimeOffForm timeOff={entry} onClose={() => {}} />
@@ -457,11 +459,11 @@ it.each(["editor", "viewer"] as const)("hides and omits Note for role %s", (role
 
 describe("TimeOffForm resource picker (placeholder gating)", () => {
   it("EXCLUDES placeholders from the picker when the pref is OFF", async () => {
-    setPlaceholdersEnabled({ on: false });
+    await setPlaceholdersEnabled({ on: false });
 
-    useStore.getState().addResource(resourceDraft);
+    await useStore.getState().addResource(resourceDraft);
 
-    useStore.getState().addResource(placeholderDraft);
+    await useStore.getState().addResource(placeholderDraft);
     render(<TimeOffForm onClose={() => {}} />);
 
     const select = screen.getByLabelText("Resource");
@@ -471,16 +473,16 @@ describe("TimeOffForm resource picker (placeholder gating)", () => {
   });
 
   it("risk A: editing a time-off entry already ON a hidden placeholder still offers that placeholder", async () => {
-    setPlaceholdersEnabled({ on: true });
-    const ph = requireCreated(useStore.getState().addResource(placeholderDraft));
-    const entry = requireCreated(
+    await setPlaceholdersEnabled({ on: true });
+    const ph = await requireCreated(useStore.getState().addResource(placeholderDraft));
+    const entry = await requireCreated(
       useStore
         .getState()
         .addTimeOff({ resourceId: ph.id, startDate: "2026-09-01", endDate: "2026-09-05", type: "holiday" }),
     );
 
     // Keep an existing hidden placeholder selected when editing time off so saving cannot silently assign the entry to someone else.
-    setPlaceholdersEnabled({ on: false });
+    await setPlaceholdersEnabled({ on: false });
     render(<TimeOffForm timeOff={entry} onClose={() => {}} />);
 
     const select = screen.getByLabelText("Resource");

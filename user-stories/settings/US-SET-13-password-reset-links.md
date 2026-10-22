@@ -53,7 +53,7 @@ See [Account email](../../docs-src/self-hosting/configuration.md#account-email) 
 
 - **Reset password** appears in the row's gear menu only in server + auth-on **password** mode, only
   for an Owner/Admin, and never on an Owner's row for an Admin (only an Owner may reset an Owner).
-  Absent in `sso` mode and in auth-off/local.
+  Absent in `sso` mode and in the in-memory demo.
 - The minted link is **single-use** and **expires in 24 hours**; it is returned exactly once
   (`201 {token, expiresAt}`) and never stored, listed, logged, or shown again.
 - `/reset-password/:token` renders **without a session**; redeeming sets the new password via

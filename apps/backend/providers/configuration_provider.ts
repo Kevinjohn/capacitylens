@@ -1,19 +1,17 @@
 import type { ApplicationService } from '@adonisjs/core/types'
 import env from '#start/env'
 import db from '@adonisjs/lucid/services/db'
-import { assertReleasedMigrations } from '#services/released_migrations'
 import { assertSchemaIntegrity } from '#services/schema_integrity'
 import { authMode, googleEnabled, passwordEnabled } from '#services/auth/mode'
 import { hashPassword } from '#services/password_service'
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password'
 
 export function assertM1AuthenticationMode(mode: string | undefined) {
-  if (!['off', 'password-only', 'password-and-sso', 'sso-only'].includes(mode || 'off'))
+  if (!['password-only', 'password-and-sso', 'sso-only'].includes(mode || 'password-only'))
     throw new Error(`Unknown CAPACITYLENS_MODE ${mode}`)
 }
 
 function assertAuthenticationConfiguration(inProduction: boolean) {
-  if (authMode() === 'off') return
   const secret = env.get('CAPACITYLENS_SECRET')
   if (!secret || secret.length < 32)
     throw new Error(
@@ -92,8 +90,6 @@ export function assertHostedDeploymentProfile(options: HostedProfileOptions) {
 }
 
 interface ProductionPosture {
-  mode?: string
-  allowOpen?: boolean
   allowReset?: boolean
   createAdmin?: boolean
   bootstrapPassword?: string
@@ -102,10 +98,6 @@ interface ProductionPosture {
 }
 
 export function assertProductionPosture(options: ProductionPosture) {
-  if ((options.mode === undefined || options.mode === 'off') && options.allowOpen !== true)
-    throw new Error(
-      'CAPACITYLENS_MODE=off in production requires CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1'
-    )
   if (options.createAdmin || options.bootstrapPassword)
     throw new Error('Development bootstrap credentials are forbidden in production')
   if (
@@ -138,8 +130,6 @@ export default class ConfigurationProvider {
     assertAuthenticationConfiguration(this.app.inProduction)
     if (this.app.inProduction)
       assertProductionPosture({
-        mode: env.get('CAPACITYLENS_MODE'),
-        allowOpen: env.get('CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION'),
         allowReset: env.get('CAPACITYLENS_ALLOW_RESET'),
         createAdmin: env.get('CAPACITYLENS_CREATE_ADMIN_ADMIN'),
         bootstrapPassword: env.get('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD'),
@@ -157,14 +147,13 @@ export default class ConfigurationProvider {
         ? process.argv.slice(2).find((argument) => !argument.startsWith('-'))
         : undefined
     if (command === 'owner:reset-password' || command === 'app:reset') return
-    const migrations = await assertReleasedMigrations({ allowPending: environment !== 'web' })
     if (command === 'app:upgrade' || command === 'db:backup' || command?.startsWith('migration:'))
       return
     const rows = await db
       .from('sqlite_master')
       .where({ type: 'table', name: 'accounts' })
       .select('name')
-    if (migrations.pending === 0 || rows.length > 0) {
+    if (rows.length > 0) {
       await assertSchemaIntegrity()
       await this.bootstrapCredential()
     }

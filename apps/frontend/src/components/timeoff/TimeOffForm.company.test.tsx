@@ -17,11 +17,11 @@ const personDraft = {
   color: "#111",
 };
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-06-03T12:00:00.000Z"));
-  resetStoreWithAccount();
-  setPlaceholdersEnabled({ on: true });
+  await resetStoreWithAccount();
+  await setPlaceholdersEnabled({ on: true });
 });
 
 afterEach(() => {
@@ -30,8 +30,8 @@ afterEach(() => {
 });
 
 describe("TimeOffForm personal assignee", () => {
-  it("lists only resources and keeps all personal time-off types", () => {
-    useStore.getState().addResource(personDraft);
+  it("lists only resources and keeps all personal time-off types", async () => {
+    await useStore.getState().addResource(personDraft);
     render(<TimeOffForm onClose={() => {}} />);
 
     const resourcePicker = screen.getByLabelText("Resource");
@@ -50,8 +50,8 @@ describe("TimeOffForm personal assignee", () => {
     ]);
   });
 
-  it("still rejects an external resource seeded outside the picker", () => {
-    const external = requireCreated(
+  it("still rejects an external resource seeded outside the picker", async () => {
+    const external = await requireCreated(
       useStore.getState().addResource({
         ...personDraft,
         kind: "external",

@@ -1,4 +1,3 @@
-import { refreshActiveAccountSlice } from "@/data/persist";
 import { useStore } from "@/store/useStore";
 import { refreshAccountSummaries } from "./useAccountSummaries";
 
@@ -11,5 +10,5 @@ export async function reprojectAccess(accountId: string, includeAccountSummaries
     });
     if (summaries === null) return false;
   }
-  return (await refreshActiveAccountSlice(accountId)).kind === "reloaded";
+  return useStore.getState().activeAccountId === accountId && useStore.getState().refreshPlanning({ fresh: true });
 }

@@ -1,5 +1,30 @@
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
+const relationships = [
+  ['projects', 'client_id', 'clients'],
+  ['phases', 'project_id', 'projects'],
+  ['resources', 'discipline_id', 'disciplines'],
+  ['resources', 'project_id', 'projects'],
+  ['activities', 'project_id', 'projects'],
+  ['activities', 'phase_id', 'phases'],
+  ['allocations', 'resource_id', 'resources'],
+  ['allocations', 'activity_id', 'activities'],
+  ['allocations', 'project_id', 'projects'],
+  ['time_off', 'resource_id', 'resources'],
+] as const
+
+const scopedTables = [
+  'clients',
+  'disciplines',
+  'projects',
+  'phases',
+  'resources',
+  'activities',
+  'allocations',
+  'time_off',
+  'closures',
+] as const
+
 const metadata = (
   table: Parameters<BaseSchema['schema']['createTable']>[1] extends (value: infer T) => void
     ? T
@@ -183,6 +208,7 @@ export default class extends BaseSchema {
       table.string('email').notNullable().unique()
       table.boolean('email_verified').notNullable().defaultTo(false)
       table.string('display_name').nullable()
+      table.text('password_hash').nullable()
     })
     this.schema.createTable('provider_identities', (table) => {
       metadata(table)
@@ -210,20 +236,27 @@ export default class extends BaseSchema {
       table.string('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE')
       table.string('session_id').notNullable()
       table.primary(['user_id', 'session_id'])
+      table.bigint('authenticated_at').nullable()
+      table.bigint('last_activity_at').nullable()
+      table.unique('session_id')
     })
     this.schema.createTable('rate_limits', (table) => {
-      metadata(table)
-      table.string('key').notNullable().unique()
-      table.integer('hits').notNullable()
-      table.timestamp('reset_at').notNullable()
+      table.string('key', 255).notNullable().primary()
+      table.integer('points', 9).notNullable().defaultTo(0)
+      table.bigint('expire').unsigned()
     })
+    // Audit history outlives company deletion, so account_id carries no foreign key.
     this.schema.createTable('audit_entries', (table) => {
-      scoped(table)
+      table.string('id').primary()
+      table.string('account_id').notNullable()
       table.string('actor_id').nullable()
       table.string('action').notNullable()
       table.string('entity').notNullable()
       table.string('entity_id').nullable()
       table.json('details').nullable()
+      table.timestamp('created_at').notNullable()
+      table.timestamp('updated_at').notNullable()
+      table.index(['account_id'])
     })
     this.schema.createTable('memberships', (table) => {
       metadata(table)
@@ -284,6 +317,14 @@ export default class extends BaseSchema {
       table.string('actor_user_id').notNullable()
       table.string('role').notNullable()
       table.unique(['session_id'])
+      table
+        .string('target_user_id')
+        .nullable()
+        .references('id')
+        .inTable('users')
+        .onDelete('CASCADE')
+      table.string('token').nullable()
+      table.timestamp('started_at').nullable()
     })
     this.schema.createTable('command_results', (table) => {
       metadata(table)
@@ -291,43 +332,282 @@ export default class extends BaseSchema {
       table.string('command_id').notNullable().unique()
       table.string('payload_hash').notNullable()
       table.json('result').notNullable()
+      table.string('operation').nullable()
+      table.string('idempotency_key').nullable()
+      table.unique(['operation', 'idempotency_key'])
     })
+    // A group is one session's server-side before-image of a typed delete; restore consumes it once.
+    this.schema.createTable('deleted_groups', (table) => {
+      table.string('group_id').primary()
+      table
+        .string('account_id')
+        .notNullable()
+        .references('id')
+        .inTable('accounts')
+        .onDelete('CASCADE')
+      table.string('actor_id').notNullable()
+      table.string('session_id').notNullable()
+      table.string('mutation_id').notNullable()
+      table.timestamp('created_at').notNullable()
+      table.timestamp('consumed_at').nullable()
+      table.index(['account_id'])
+      table.index(['session_id'])
+    })
+    this.schema.createTable('deleted_rows', (table) => {
+      table.increments('id')
+      table
+        .string('group_id')
+        .notNullable()
+        .references('group_id')
+        .inTable('deleted_groups')
+        .onDelete('CASCADE')
+      table.string('entity').notNullable()
+      table.string('row_id').notNullable()
+      table.text('payload_json').notNullable()
+      table.unique(['group_id', 'entity', 'row_id'])
+    })
+    this.schema.createTable('action_proofs', (table) => {
+      table.string('id').primary()
+      table.string('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE')
+      table.string('session_id').notNullable()
+      table
+        .string('account_id')
+        .notNullable()
+        .references('id')
+        .inTable('accounts')
+        .onDelete('CASCADE')
+      table.string('action').notNullable()
+      table.string('intent_hash').notNullable()
+      table.timestamp('expires_at').notNullable()
+      table.timestamp('verified_at').nullable()
+      table.timestamp('consumed_at').nullable()
+      table.index(['user_id', 'session_id'])
+    })
+
     this.schema.createTable('company_settings', (table) => {
       scoped(table)
       table.string('key').notNullable()
       table.json('value').nullable()
       table.unique(['account_id', 'key'])
     })
-  }
 
-  async down() {
-    for (const table of [
-      'company_settings',
-      'command_results',
-      'masquerades',
-      'ownership_transfers',
-      'invitation_proposals',
-      'invitations',
-      'memberships',
-      'account_member_resources',
-      'audit_entries',
-      'rate_limits',
-      'user_session_index',
-      'sessions',
-      'email_proofs',
-      'provider_identities',
-      'users',
-      'closures',
-      'time_off',
-      'allocations',
-      'activities',
-      'resources',
-      'phases',
-      'projects',
-      'disciplines',
-      'clients',
-      'accounts',
-    ])
-      this.schema.dropTable(table)
+    this.schema.createTable('account_getting_started_dismissals', (table) => {
+      table.string('id').primary()
+      table
+        .string('account_id')
+        .notNullable()
+        .unique()
+        .references('id')
+        .inTable('accounts')
+        .onDelete('CASCADE')
+      table.timestamp('created_at').notNullable()
+      table.timestamp('updated_at').notNullable()
+    })
+    this.schema.createTable('account_joining_policies', (table) => {
+      table.string('id').primary()
+      table
+        .string('account_id')
+        .notNullable()
+        .unique()
+        .references('id')
+        .inTable('accounts')
+        .onDelete('CASCADE')
+      table
+        .string('policy')
+        .notNullable()
+        .checkIn(['invitation_only', 'open', 'approved_domains', 'approved_domains_or_invitation'])
+      table.json('approved_domains').notNullable().defaultTo('[]')
+      table.timestamp('created_at').notNullable()
+      table.timestamp('updated_at').notNullable()
+    })
+    this.schema.createTable('company_join_intents', (table) => {
+      table.string('id').primary()
+      table.string('nonce_hash').notNullable().unique()
+      table.string('browser_hash').notNullable()
+      table.string('purpose').notNullable().checkIn(['policy', 'invitation'])
+      table
+        .string('account_id')
+        .notNullable()
+        .references('id')
+        .inTable('accounts')
+        .onDelete('CASCADE')
+      table.index(['account_id'])
+      table.string('invitation_id').nullable()
+      table.string('email').notNullable()
+      table.string('principal_id').nullable()
+      table.string('provider_id').notNullable()
+      table
+        .string('state')
+        .notNullable()
+        .checkIn(['started', 'mail-sent', 'approved', 'completed', 'cancelled'])
+      table.string('token_hash').nullable().unique()
+      table.integer('delivery_generation').notNullable().defaultTo(0)
+      table.bigInteger('expires_at').notNullable()
+      table.integer('sent_count').notNullable().defaultTo(0)
+      table.bigInteger('last_sent_at').nullable()
+      table.string('source_ip_hash').notNullable()
+      table.string('provider_state_hash').nullable().unique()
+      table.timestamp('created_at').notNullable()
+      table.timestamp('updated_at').notNullable()
+      table.index(['email', 'last_sent_at'])
+      table.index(['browser_hash', 'last_sent_at'])
+      table.index(['source_ip_hash', 'last_sent_at'])
+      table.index(['expires_at', 'state'])
+      table.check(
+        "(purpose = 'policy' AND invitation_id IS NULL) OR (purpose = 'invitation' AND invitation_id IS NOT NULL)"
+      )
+    })
+    this.schema.createTable('account_access_restrictions', (table) => {
+      table.string('id').primary()
+      table
+        .string('account_id')
+        .notNullable()
+        .references('id')
+        .inTable('accounts')
+        .onDelete('CASCADE')
+      table.string('principal_id').notNullable()
+      table.string('verified_email').nullable()
+      table.string('role').notNullable().checkIn(['owner', 'admin', 'editor', 'viewer'])
+      table.timestamp('created_at').notNullable()
+      table.unique(['account_id', 'principal_id'])
+      table.index(['account_id', 'verified_email'])
+    })
+    this.schema.createTable('member_resource_link_exceptions', (table) => {
+      table.string('id').primary()
+      table
+        .string('account_id')
+        .notNullable()
+        .references('id')
+        .inTable('accounts')
+        .onDelete('CASCADE')
+      table.string('user_id').notNullable()
+      // A missing or deleted proposed resource remains a meaningful admission exception.
+      table.string('proposed_resource_id').nullable()
+      table
+        .string('reason')
+        .notNullable()
+        .checkIn(['resource_unavailable', 'resource_already_linked', 'member_already_linked'])
+      table.timestamp('created_at').notNullable()
+      table.timestamp('updated_at').notNullable()
+      table.unique(['account_id', 'user_id'])
+      table.index(['account_id'])
+    })
+
+    this.schema.createTable('adonis_sessions', (table) => {
+      table.string('id').primary()
+      table.text('data').notNullable()
+      table.string('user_id').nullable().references('id').inTable('users').onDelete('CASCADE')
+      table.timestamp('expires_at').notNullable()
+      table.index('user_id')
+      table.index('expires_at')
+    })
+    this.schema.createTable('password_reset_tokens', (table) => {
+      table.increments('id')
+      table
+        .string('tokenable_id')
+        .notNullable()
+        .unique()
+        .references('id')
+        .inTable('users')
+        .onDelete('CASCADE')
+      table.string('email', 254).notNullable()
+      table.string('hash', 64).notNullable().unique()
+      table.timestamp('expires_at', { useTz: true }).notNullable()
+      table.timestamp('created_at', { useTz: true }).notNullable()
+    })
+    this.schema.createTable('account_email_changes', (table) => {
+      table.increments('id')
+      table
+        .string('user_id')
+        .notNullable()
+        .unique()
+        .references('id')
+        .inTable('users')
+        .onDelete('CASCADE')
+      table.string('current_email', 254).notNullable()
+      table.string('new_email', 254).notNullable()
+      table.string('token_hash', 64).notNullable().unique()
+      table.timestamp('expires_at', { useTz: true }).notNullable()
+      table.timestamp('created_at', { useTz: true }).notNullable()
+    })
+    this.schema.createTable('account_transaction_lock', (table) => {
+      table.integer('id').primary()
+      table.integer('version').notNullable().defaultTo(0)
+    })
+    this.defer(async (db) => {
+      await db.table('account_transaction_lock').insert({ id: 1, version: 0 })
+    })
+    this.schema.createTable('email_verification_tokens', (table) => {
+      table.increments('id')
+      table
+        .string('tokenable_id')
+        .notNullable()
+        .unique()
+        .references('id')
+        .inTable('users')
+        .onDelete('CASCADE')
+      table.string('email', 254).notNullable()
+      table.string('current_email', 254).notNullable().defaultTo('')
+      table.string('purpose', 32).notNullable().defaultTo('activation')
+      table.string('hash', 64).notNullable().unique()
+      table.timestamp('expires_at', { useTz: true }).notNullable()
+      table.timestamp('created_at', { useTz: true }).notNullable()
+    })
+    // Credential changes clear these proofs even while product magic-link sign-in is disabled.
+    this.schema.createTable('login_link_tokens', (table) => {
+      table.increments('id')
+      table
+        .string('tokenable_id')
+        .notNullable()
+        .unique()
+        .references('id')
+        .inTable('users')
+        .onDelete('CASCADE')
+      table.string('email', 254).notNullable()
+      table.string('hash', 64).notNullable().unique()
+      table.string('client_challenge', 43).notNullable()
+      table.timestamp('expires_at', { useTz: true, precision: 3 }).notNullable()
+      table.timestamp('created_at', { useTz: true, precision: 3 }).notNullable()
+    })
+
+    this.schema.createTable('company_planning_revisions', (table) => {
+      table.string('account_id').primary().references('id').inTable('accounts').onDelete('CASCADE')
+      table.integer('revision').notNullable().defaultTo(0)
+      table.check('revision >= 0')
+    })
+    this.schema.createTable('planning_mutations', (table) => {
+      table
+        .string('account_id')
+        .notNullable()
+        .references('id')
+        .inTable('accounts')
+        .onDelete('CASCADE')
+      table.string('mutation_id').notNullable()
+      table.string('actor_id').notNullable()
+      table.integer('revision').notNullable()
+      table.primary(['account_id', 'mutation_id'])
+      table.check('revision >= 0')
+      table.string('restoration_group_id').nullable()
+      table.string('origin_session_id').nullable()
+      table.index(['account_id', 'actor_id', 'origin_session_id', 'restoration_group_id'])
+    })
+
+    for (const [table, column, target] of relationships) {
+      for (const operation of ['INSERT', 'UPDATE'] as const) {
+        this.schema.raw(
+          `CREATE TRIGGER ${table}_${column}_${operation.toLowerCase()} BEFORE ${operation} ON ${table} WHEN NEW.${column} IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ${target} WHERE id = NEW.${column} AND account_id = NEW.account_id) BEGIN SELECT RAISE(ABORT, 'cross-account reference'); END`
+        )
+      }
+    }
+    // SQLite runs same-timing triggers newest first. Create this guard after relationship checks so
+    // changing account_id always reports and enforces the immutable tenant boundary directly.
+    for (const table of scopedTables) {
+      this.schema.raw(
+        `CREATE TRIGGER ${table}_account_immutable BEFORE UPDATE OF account_id ON ${table} WHEN NEW.account_id <> OLD.account_id BEGIN SELECT RAISE(ABORT, 'account_id is immutable'); END`
+      )
+    }
+    this.schema.raw(
+      "CREATE TRIGGER capacitylens_member_resource_kind_cleanup AFTER UPDATE OF kind ON resources WHEN OLD.kind = 'person' AND NEW.kind <> 'person' BEGIN DELETE FROM account_member_resources WHERE account_id = OLD.account_id AND resource_id = OLD.id; END"
+    )
   }
 }

@@ -8,8 +8,8 @@ import { resolveColorName } from "@/lib/palette";
 import { resetStoreWithAccount } from "@/test/fixtures";
 import { PermissionContext } from "@/auth/permissionContext";
 
-beforeEach(() => {
-  resetStoreWithAccount();
+beforeEach(async () => {
+  await resetStoreWithAccount();
   useStore.getState().clearFilters();
 });
 
@@ -189,8 +189,8 @@ describe("ClientForm – Enter key submission", () => {
   });
 });
 
-it("hides owner-only privacy controls and locks the redacted name for a non-owner", () => {
-  const created = requireCreated(useStore.getState().addClient({ name: "Real client", color: "#ff0000" }));
+it("hides owner-only privacy controls and locks the redacted name for a non-owner", async () => {
+  const created = await requireCreated(useStore.getState().addClient({ name: "Real client", color: "#ff0000" }));
   const client = { ...created, name: '"Nightwing"', isPrivate: true };
   useStore.getState().replaceAll({ ...useStore.getState().data, clients: [client] });
   render(
@@ -204,15 +204,15 @@ it("hides owner-only privacy controls and locks the redacted name for a non-owne
   expect(screen.getByText("Only an account owner can change this private name.")).toBeInTheDocument();
 });
 
-it("pre-fills the name field with the existing client name", () => {
-  const client = requireCreated(useStore.getState().addClient({ name: "Old Name", color: "#ff0000" }));
+it("pre-fills the name field with the existing client name", async () => {
+  const client = await requireCreated(useStore.getState().addClient({ name: "Old Name", color: "#ff0000" }));
   render(<ClientForm client={client} onClose={vi.fn()} />);
 
   expect(screen.getByLabelText("Name")).toHaveValue("Old Name");
 });
 
-it("renders the dialog with the Edit client title", () => {
-  const client = requireCreated(useStore.getState().addClient({ name: "Old Name", color: "#ff0000" }));
+it("renders the dialog with the Edit client title", async () => {
+  const client = await requireCreated(useStore.getState().addClient({ name: "Old Name", color: "#ff0000" }));
   render(<ClientForm client={client} onClose={vi.fn()} />);
 
   expect(screen.getByRole("dialog", { name: "Edit client" })).toBeInTheDocument();
@@ -221,7 +221,7 @@ it("renders the dialog with the Edit client title", () => {
 it("updates the client name in the store and calls onClose", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  const client = requireCreated(useStore.getState().addClient({ name: "Old Name", color: "#ff0000" }));
+  const client = await requireCreated(useStore.getState().addClient({ name: "Old Name", color: "#ff0000" }));
   render(<ClientForm client={client} onClose={onClose} />);
 
   const nameInput = screen.getByLabelText("Name");
@@ -239,7 +239,7 @@ it("updates the client name in the store and calls onClose", async () => {
 it("shows an error and does not close when clearing the name in edit mode", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  const client = requireCreated(useStore.getState().addClient({ name: "Existing", color: "#aabbcc" }));
+  const client = await requireCreated(useStore.getState().addClient({ name: "Existing", color: "#aabbcc" }));
   render(<ClientForm client={client} onClose={onClose} />);
 
   await user.clear(screen.getByLabelText("Name"));
@@ -253,7 +253,7 @@ it("shows an error and does not close when clearing the name in edit mode", asyn
 
 it("does not create a new client when editing", async () => {
   const user = userEvent.setup();
-  const client = requireCreated(useStore.getState().addClient({ name: "Solo", color: "#123456" }));
+  const client = await requireCreated(useStore.getState().addClient({ name: "Solo", color: "#123456" }));
   render(<ClientForm client={client} onClose={vi.fn()} />);
 
   const nameInput = screen.getByLabelText("Name");
@@ -267,10 +267,10 @@ it("does not create a new client when editing", async () => {
 it("rejects a stale edit instead of overwriting a concurrently changed client", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#2d75da" }));
+  const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#2d75da" }));
   render(<ClientForm client={client} onClose={onClose} />);
 
-  useStore.getState().updateClient(client.id, { color: "#e02727" });
+  await useStore.getState().updateClient(client.id, { color: "#e02727" });
   await user.clear(screen.getByLabelText("Name"));
   await user.type(screen.getByLabelText("Name"), "Ferris renamed");
   await user.click(screen.getByRole("button", { name: "Save" }));
@@ -283,7 +283,7 @@ it("rejects a stale edit instead of overwriting a concurrently changed client", 
 it("keeps the form open when the client vanished during editing", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  const client = requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#2d75da" }));
+  const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#2d75da" }));
   render(<ClientForm client={client} onClose={onClose} />);
 
   const data = useStore.getState().data;

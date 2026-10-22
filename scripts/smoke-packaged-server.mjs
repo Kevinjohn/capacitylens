@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { once } from "node:events";
-import { cp, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -13,6 +14,8 @@ const STARTUP_TIMEOUT_MS = 30_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 const RESOURCE_NAME = "Bruce Wayne Packaged Schedule";
+// The unreleased native schema is installed by one complete baseline.
+const MIGRATION_COUNT = 1;
 
 function message(error) {
   return error instanceof Error ? error.message : String(error);
@@ -86,6 +89,31 @@ function inspectDatabase(path, expectedResourceName) {
       assert.equal(count, 1, `${path} did not preserve the scheduling write.`);
     }
     return journal;
+  } finally {
+    database.close();
+  }
+}
+
+function assertAllocationInDatabase(path, accountId, allocation) {
+  const database = new DatabaseSync(path, { readOnly: true });
+  try {
+    const row = database
+      .prepare(
+        "SELECT account_id, resource_id, activity_id, start_date, end_date, hours_per_day, status FROM allocations WHERE id = ?",
+      )
+      .get(allocation.id);
+    assert.deepEqual(
+      { ...row },
+      {
+        account_id: accountId,
+        resource_id: allocation.resourceId,
+        activity_id: allocation.activityId,
+        start_date: allocation.startDate,
+        end_date: allocation.endDate,
+        hours_per_day: allocation.hoursPerDay,
+        status: allocation.status,
+      },
+    );
   } finally {
     database.close();
   }
@@ -167,38 +195,87 @@ async function assertReady(baseUrl, child) {
   );
 }
 
-/** Create an authenticated company and write scheduling rows scoped to its server-issued id. */
-export async function writeSmokeSchedule(baseUrl, cookie, fixture) {
+/** Write one scheduled allocation through authenticated typed planning routes. */
+export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture) {
   const account = fixture.accounts.find((row) => row.id === "a-studio");
   assert.ok(account);
-  const created = await fetchOk(`${baseUrl}/api/orgs`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", cookie },
-    body: JSON.stringify({ name: account.name, color: account.color }),
-  });
-  const company = JSON.parse(created.body);
-  assert.ok(typeof company.id === "string" && company.id.length > 0, "Company creation returned no id");
-  const accountId = company.id;
   const resource = {
     ...fixture.resources.find((row) => row.kind === "person" && row.accountId === "a-studio"),
-    accountId,
+    id: randomUUID(),
     name: RESOURCE_NAME,
   };
   assert.ok(resource.id);
-  const sourceDiscipline = fixture.disciplines.find((row) => row.id === resource.disciplineId);
-  assert.ok(sourceDiscipline);
-  const discipline = { ...sourceDiscipline, accountId };
-  await fetchOk(`${baseUrl}/api/batch`, {
+  const createdResource = await fetchOk(`${baseUrl}/api/accounts/${accountId}/resources`, {
     method: "POST",
     headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", cookie },
     body: JSON.stringify({
-      ops: [
-        { method: "PUT", table: "disciplines", id: discipline.id, row: discipline },
-        { method: "PUT", table: "resources", id: resource.id, row: resource },
-      ],
+      mutationId: randomUUID(),
+      baseRevision: 1,
+      intent: {
+        operation: "resource.create",
+        id: resource.id,
+        fields: {
+          kind: "person",
+          name: resource.name,
+          role: resource.role,
+          avatarUrl: null,
+          disciplineId: null,
+          employmentType: resource.employmentType,
+          engagement: resource.engagement,
+          workingHoursPerDay: resource.workingHoursPerDay,
+          workingDays: resource.workingDays,
+          halfDays: resource.halfDays,
+          projectId: null,
+          color: resource.color,
+          isFavourite: false,
+          firstAvailableDate: null,
+          lastAvailableDate: null,
+        },
+      },
     }),
   });
-  return { accountId, resource };
+  assert.equal(JSON.parse(createdResource.body).revision, 2);
+
+  const activity = { id: randomUUID(), name: "Packaged Planning", kind: "internal", projectId: null, phaseId: null };
+  const createdActivity = await fetchOk(`${baseUrl}/api/accounts/${accountId}/activities`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", cookie },
+    body: JSON.stringify({
+      mutationId: randomUUID(),
+      baseRevision: 2,
+      intent: {
+        operation: "catalogue.create",
+        entity: {
+          entity: "activities",
+          id: activity.id,
+          fields: { name: activity.name, kind: activity.kind, projectId: null, phaseId: null },
+        },
+      },
+    }),
+  });
+  assert.equal(JSON.parse(createdActivity.body).revision, 3);
+
+  const allocation = {
+    id: randomUUID(),
+    resourceId: resource.id,
+    activityId: activity.id,
+    projectId: null,
+    startDate: "2026-11-02",
+    endDate: "2026-11-06",
+    hoursPerDay: 7.5,
+    status: "confirmed",
+  };
+  const createdAllocation = await fetchOk(`${baseUrl}/api/accounts/${accountId}/allocations`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "sec-fetch-site": "same-origin", cookie },
+    body: JSON.stringify({
+      mutationId: randomUUID(),
+      baseRevision: 3,
+      intent: { operation: "allocation.create", allocation },
+    }),
+  });
+  assert.equal(JSON.parse(createdAllocation.body).revision, 4);
+  return { accountId, resource, activity, allocation };
 }
 
 async function main() {
@@ -216,39 +293,19 @@ async function main() {
   let passed = false;
   try {
     await stat(join(backend, "ace.js"));
-    const migrations = JSON.parse(await readFile(join(backend, "database", "released.json"), "utf8")).migrations;
-    assert.ok(Array.isArray(migrations) && migrations.length > 1, "Packaged migration manifest is incomplete.");
-    const migrationCount = migrations.length;
     const initial = command(backend, environment, "app:upgrade");
     assert.equal(initial.status, 0, initial.output);
-    assert.equal(inspectDatabase(databasePath).length, migrationCount);
+    assert.doesNotMatch(initial.output, /Pre-upgrade backup written/);
+    assert.equal(inspectDatabase(databasePath).length, MIGRATION_COUNT);
 
-    const rollback = command(
-      backend,
-      environment,
-      "migration:rollback",
-      `--step=${migrationCount - 1}`,
-      "--force",
-      "--no-schema-generate",
-    );
-    assert.equal(rollback.status, 0, rollback.output);
-    assert.equal(inspectDatabase(databasePath).length, 1);
-    const upgrade = command(backend, environment, "app:upgrade");
+    const upgradeDir = join(workDir, "upgrade snapshots");
+    const upgrade = command(backend, { ...environment, CAPACITYLENS_BACKUP_DIR: upgradeDir }, "app:upgrade");
     assert.equal(upgrade.status, 0, upgrade.output);
-    assert.match(upgrade.output, /Pre-upgrade backup written/);
-    assert.equal(inspectDatabase(databasePath).length, migrationCount);
-    assert.equal(inspectDatabase(join(backupDir, `capacitylens-pre-migration-v1-to-v${migrationCount}.db`)).length, 1);
-
-    const unknown = new DatabaseSync(databasePath);
-    const lastName = unknown.prepare("SELECT name FROM adonis_schema ORDER BY id DESC LIMIT 1").get().name;
-    unknown.prepare("UPDATE adonis_schema SET name = ? WHERE name = ?").run("database/migrations/unknown", lastName);
-    unknown.close();
-    const refused = command(backend, environment, "app:upgrade");
-    assert.notEqual(refused.status, 0, refused.output);
-    assert.match(refused.output, /Migration journal is inconsistent/);
-    const restored = new DatabaseSync(databasePath);
-    restored.prepare("UPDATE adonis_schema SET name = ? WHERE name = ?").run(lastName, "database/migrations/unknown");
-    restored.close();
+    const upgradeSnapshot = upgrade.output.match(/Pre-upgrade backup written (.+\.db)/)?.[1];
+    assert.ok(upgradeSnapshot, `Upgrade did not name its snapshot: ${upgrade.output}`);
+    assert.match(upgradeSnapshot, /capacitylens-pre-migration-utc-/);
+    assert.equal(inspectDatabase(upgradeSnapshot).length, MIGRATION_COUNT);
+    assert.equal(inspectDatabase(databasePath).length, MIGRATION_COUNT);
 
     const beforeStartup = await snapshotFiles(backupDir);
     child = startServer(backend, environment, (chunk) => {
@@ -310,11 +367,57 @@ async function main() {
     const session = JSON.parse((await fetchOk(`${baseUrl}/api/auth/me`, { headers: { cookie } })).body);
     assert.equal(session.user.email, credentials.email);
 
+    assert.deepEqual(await stopServer(child), { code: 0, signal: null });
+    const initialize = command(
+      backend,
+      environment,
+      "company:initialize",
+      credentials.email,
+      "Wayne Enterprises",
+      "--confirm-server-stopped",
+    );
+    assert.equal(initialize.status, 0, initialize.output);
+    const { accountId } = JSON.parse(initialize.output.trim());
+    const secondInitialize = command(
+      backend,
+      environment,
+      "company:initialize",
+      credentials.email,
+      "Stark Industries",
+      "--confirm-server-stopped",
+    );
+    assert.notEqual(secondInitialize.status, 0, "Second company initialization must be refused");
+    child = startServer(backend, environment, (chunk) => {
+      log += chunk;
+    });
+    await assertReady(baseUrl, child);
+    const ownerSignin = await fetch(`${baseUrl}/api/auth/sign-in`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "sec-fetch-site": "same-origin" },
+      body: JSON.stringify(credentials),
+    });
+    assert.equal(ownerSignin.status, 200, "Initialized Owner must sign in normally");
+    cookie = ownerSignin.headers
+      .getSetCookie()
+      .map((value) => value.split(";", 1)[0])
+      .join("; ");
+    const companies = JSON.parse((await fetchOk(`${baseUrl}/api/accounts`, { headers: { cookie } })).body);
+    assert.equal(companies.length, 1);
+    assert.equal(companies[0].id, accountId);
+    assert.equal(companies[0].role, "owner");
+    const initializedState = JSON.parse(
+      (await fetchOk(`${baseUrl}/api/state?accountId=${encodeURIComponent(accountId)}`, { headers: { cookie } })).body,
+    );
+    assert.equal(initializedState.clients.length, 1);
+    assert.equal(initializedState.clients[0].builtin, true);
+    assert.equal(initializedState.accounts[0].name, "Wayne Enterprises");
     const { seed } = await import(
       pathToFileURL(join(backend, "node_modules", "@capacitylens", "shared", "dist", "data", "seed.js")).href
     );
-    const { accountId, resource } = await writeSmokeSchedule(baseUrl, cookie, seed());
-    assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, migrationCount);
+    const fixture = seed();
+    const { resource, allocation } = await writeSmokeSchedule(baseUrl, cookie, accountId, fixture);
+    assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, MIGRATION_COUNT);
+    assertAllocationInDatabase(databasePath, accountId, allocation);
 
     const beforeExplicit = await snapshotFiles(backupDir);
     const explicit = command(backend, environment, "db:backup");
@@ -324,7 +427,8 @@ async function main() {
     const afterExplicit = await snapshotFiles(backupDir);
     assert.ok(!beforeExplicit.includes(explicitPath.split("/").at(-1)));
     assert.ok(afterExplicit.includes(explicitPath.split("/").at(-1)));
-    assert.equal(inspectDatabase(explicitPath, RESOURCE_NAME).length, migrationCount);
+    assert.equal(inspectDatabase(explicitPath, RESOURCE_NAME).length, MIGRATION_COUNT);
+    assertAllocationInDatabase(explicitPath, accountId, allocation);
 
     assert.deepEqual(await stopServer(child), { code: 0, signal: null });
     child = startServer(backend, environment, (chunk) => {
@@ -335,20 +439,21 @@ async function main() {
       (await fetchOk(`${baseUrl}/api/state?accountId=${encodeURIComponent(accountId)}`, { headers: { cookie } })).body,
     );
     assert.equal(state.resources.find((row) => row.id === resource.id)?.name, RESOURCE_NAME);
+    assert.equal(state.allocations.find((row) => row.id === allocation.id)?.hoursPerDay, allocation.hoursPerDay);
     assert.deepEqual(await stopServer(child), { code: 0, signal: null });
     passed = true;
     console.log(
       JSON.stringify({
         node: process.version,
         nativeArtifact: "passed",
-        migrations: migrationCount,
+        migrations: MIGRATION_COUNT,
         passwordAuthentication: "verified",
+        firstCompanyInitialization: "verified",
         databaseSession: "survived restart",
         scheduleWrite: "persisted",
         explicitBackup: "verified",
         scheduledStartupBackup: "verified",
         upgradeSnapshot: "verified",
-        unknownJournal: "refused",
         shutdown: "clean",
       }),
     );

@@ -106,6 +106,18 @@ async function sendOperation(
       return requireReply(
         await apiClient.request("api.planning.timeOff.repeat", { params, body: { ...execution, intent }, signal }),
       );
+    case "timeOff.delete":
+      return requireReply(
+        await apiClient.request("api.planning.timeOff.delete", {
+          params: { ...params, id: intent.id },
+          body: { ...execution, intent },
+          signal,
+        }),
+      );
+    case "timeOff.deleteGroup":
+      return requireReply(
+        await apiClient.request("api.planning.timeOff.deleteGroup", { params, body: { ...execution, intent }, signal }),
+      );
     case "closure.create":
       return requireReply(
         await apiClient.request("api.planning.closure.create", { params, body: { ...execution, intent }, signal }),
@@ -113,6 +125,14 @@ async function sendOperation(
     case "closure.update":
       return requireReply(
         await apiClient.request("api.planning.closure.update", {
+          params: { ...params, id: intent.id },
+          body: { ...execution, intent },
+          signal,
+        }),
+      );
+    case "closure.delete":
+      return requireReply(
+        await apiClient.request("api.planning.closure.delete", {
           params: { ...params, id: intent.id },
           body: { ...execution, intent },
           signal,
@@ -180,17 +200,32 @@ async function sendOperation(
       }
       break;
     }
+    case "catalogue.delete": {
+      const body = { ...execution, intent };
+      const target = { ...params, id: intent.entity.id };
+      return intent.entity.entity === "phases"
+        ? requireReply(await apiClient.request("api.planning.phase.delete", { params: target, body, signal }))
+        : requireReply(await apiClient.request("api.planning.discipline.delete", { params: target, body, signal }));
+    }
     case "allocation.delete":
+      return requireReply(
+        await apiClient.request("api.planning.allocation.delete", {
+          params: { ...params, id: intent.id },
+          body: { ...execution, intent },
+          signal,
+        }),
+      );
     case "allocation.deleteGroup":
-    case "timeOff.delete":
-    case "timeOff.deleteGroup":
-    case "catalogue.delete":
-    case "closure.delete":
+      return requireReply(
+        await apiClient.request("api.planning.allocation.deleteGroup", {
+          params,
+          body: { ...execution, intent },
+          signal,
+        }),
+      );
     case "planning.restoreGroup":
-      throw new PlanningControllerError(
-        "Session-bound planning restoration is not available.",
-        "restoration_unavailable",
-        400,
+      return requireReply(
+        await apiClient.request("api.planning.restoreGroup", { params, body: { ...execution, intent }, signal }),
       );
   }
   throw new PlanningControllerError("This planning operation is not available.", "validation_error", 400);

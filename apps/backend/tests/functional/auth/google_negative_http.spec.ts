@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
 import { GoogleDriver } from '@adonisjs/ally/drivers/google'
@@ -96,7 +96,7 @@ async function callback(
 }
 
 test.group('Google denial and rollback boundaries', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.setup(() => {
     const previous = {
       mode: env.get('CAPACITYLENS_MODE'),
@@ -111,7 +111,7 @@ test.group('Google denial and rollback boundaries', (group) => {
     env.set('CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS', bruce.email)
     env.set('CAPACITYLENS_SETUP_TOKEN', 'google-negative-setup-token-2026')
     return () => {
-      env.set('CAPACITYLENS_MODE', previous.mode || 'off')
+      env.set('CAPACITYLENS_MODE', previous.mode || 'password-only')
       env.set('CAPACITYLENS_GOOGLE_CLIENT_ID', previous.id || '')
       env.set('CAPACITYLENS_GOOGLE_CLIENT_SECRET', previous.secret || '')
       env.set('CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS', previous.bootstrap || '')

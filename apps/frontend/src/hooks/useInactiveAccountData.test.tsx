@@ -4,6 +4,7 @@ import { PermissionContext } from "@/auth/permissionContext";
 import { notifyInactiveDataChanged } from "@/data/inactiveDataEvents";
 import { useStore } from "@/store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
+import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { makeAccount, makeClient } from "@/test/fixtures";
 import { useInactiveAccountData } from "./useInactiveAccountData";
 
@@ -13,7 +14,18 @@ function payload(accountId: string, name: string) {
   return {
     ...emptyAppData(),
     accounts: [makeAccount({ id: accountId })],
-    clients: [makeClient({ id: `client-${accountId}`, accountId, name, archivedAt: "2026-01-01T00:00:00.000Z" })],
+    clients: [
+      buildInternalClient(accountId, "2026-01-01T00:00:00.000Z"),
+      makeClient({
+        id: `client-${accountId}`,
+        accountId,
+        name,
+        color: "#2d75da",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        archivedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    ],
   };
 }
 
@@ -86,7 +98,7 @@ describe("useInactiveAccountData", () => {
     render(view("admin"));
     expect(await screen.findByText(/Old A/)).toBeInTheDocument();
     useStore.setState({ activeAccountId: "a2" });
-    expect(await screen.findByText(/^B,/)).toBeInTheDocument();
+    expect(await screen.findByText("Internal,B")).toBeInTheDocument();
     useStore.setState({ activeAccountId: "a1" });
     await waitFor(() => expect(screen.getByText("hidden")).toBeInTheDocument());
     expect(screen.queryByText("Old A")).not.toBeInTheDocument();

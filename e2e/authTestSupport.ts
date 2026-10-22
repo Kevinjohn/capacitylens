@@ -5,6 +5,8 @@ import { existsSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ports } from "../scripts/ports.mjs";
+import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
+import { FALLBACK_PRESET_COLOR } from "@capacitylens/shared/lib/color";
 
 // Keep password-server fixture setup in one place so bootstrap credentials and request shapes remain consistent.
 
@@ -24,36 +26,27 @@ export const AUTH_PASSWORD = "demo-password-123456";
 export const BOOTSTRAP_ADMIN = { email: "admin@admin.admin", password: "auth-e2e-password-2026" };
 
 const AUTH_E2E_DATABASE = fileURLToPath(new URL("../apps/backend/.auth-e2e.db", import.meta.url));
-// Keep the table order aligned with Object.values(tables).reverse() in state_repository.resetState.
-const COMPANY_DATA_RESET_ORDER = [
-  "closures",
-  "time_off",
-  "allocations",
-  "activities",
-  "resources",
-  "phases",
-  "projects",
-  "disciplines",
-  "clients",
-  "accounts",
-] as const;
+
+/** Rejects a fixture target outside the one disposable native auth E2E database. */
+export function assertAuthE2EFixturePath(databasePath: string): void {
+  if (resolve(databasePath) !== resolve(AUTH_E2E_DATABASE))
+    throw new Error("Auth E2E fixtures may only access apps/backend/.auth-e2e.db.");
+  if (!existsSync(databasePath))
+    throw new Error("The disposable auth E2E database is unavailable; start the auth E2E server first.");
+  if (realpathSync(databasePath) !== resolve(AUTH_E2E_DATABASE))
+    throw new Error("Auth E2E fixtures may only access apps/backend/.auth-e2e.db.");
+}
 
 /** Opens only the native auth E2E database after verifying its path and schema markers. */
 function openAuthE2EDatabase(): DatabaseSync {
-  if (!existsSync(AUTH_E2E_DATABASE))
-    throw new Error("The disposable auth E2E database is unavailable; start the auth E2E server first.");
-
+  assertAuthE2EFixturePath(AUTH_E2E_DATABASE);
   const db = new DatabaseSync(AUTH_E2E_DATABASE);
   try {
     const main = db
       .prepare("PRAGMA database_list")
       .all()
       .find((database) => database.name === "main") as { file: string } | undefined;
-    if (
-      !main ||
-      resolve(main.file) !== resolve(AUTH_E2E_DATABASE) ||
-      realpathSync(AUTH_E2E_DATABASE) !== resolve(AUTH_E2E_DATABASE)
-    )
+    if (!main || resolve(main.file) !== resolve(AUTH_E2E_DATABASE))
       throw new Error("Auth E2E fixtures may only access apps/backend/.auth-e2e.db.");
 
     const tableNames = new Set(
@@ -66,9 +59,12 @@ function openAuthE2EDatabase(): DatabaseSync {
         "users",
         "memberships",
         "adonis_sessions",
+        "user_session_index",
         "audit_entries",
         "account_member_resources",
-        ...COMPANY_DATA_RESET_ORDER,
+        "accounts",
+        "clients",
+        "company_planning_revisions",
       ].some((table) => !tableNames.has(table))
     )
       throw new Error("The database does not match the native auth E2E schema.");
@@ -78,31 +74,6 @@ function openAuthE2EDatabase(): DatabaseSync {
   } catch (error) {
     db.close();
     throw error;
-  }
-}
-
-/** Clears company data while preserving the auth E2E users and sessions. */
-export function resetAuthE2ECompanyData(): void {
-  const db = openAuthE2EDatabase();
-  try {
-    db.exec("PRAGMA foreign_keys = ON");
-    const foreignKeysEnabled = db.prepare("PRAGMA foreign_keys").get() as { foreign_keys: number };
-    if (foreignKeysEnabled.foreign_keys !== 1)
-      throw new Error("Auth E2E fixture cleanup requires SQLite foreign keys.");
-
-    db.exec("BEGIN IMMEDIATE");
-    try {
-      db.exec("DELETE FROM audit_entries");
-      for (const table of COMPANY_DATA_RESET_ORDER) db.exec(`DELETE FROM ${table}`);
-      // This table deliberately has no foreign keys, so remove its company-scoped links explicitly.
-      db.exec("DELETE FROM account_member_resources");
-      db.exec("COMMIT");
-    } catch (error) {
-      db.exec("ROLLBACK");
-      throw error;
-    }
-  } finally {
-    db.close();
   }
 }
 
@@ -142,6 +113,20 @@ export function seedFixtureMember(accountId: string, email: string, role: "admin
   }
 }
 
+/** Revokes a disposable E2E principal's real session authority without relying on browser cookie timing. */
+export function revokeFixtureSessions(email: string): void {
+  const db = openAuthE2EDatabase();
+  try {
+    const principal = db.prepare("SELECT id FROM users WHERE lower(email) = ?").get(email.toLowerCase()) as
+      { id: string } | undefined;
+    if (!principal) throw new Error(`Missing E2E fixture identity for ${email}`);
+    const removed = db.prepare("DELETE FROM user_session_index WHERE user_id = ?").run(principal.id);
+    if (removed.changes === 0) throw new Error(`Missing E2E fixture session for ${email}`);
+  } finally {
+    db.close();
+  }
+}
+
 /**
  * Sign up one user in an isolated request context and return its email and auto-signed-in session
  * cookie in one HTTP request. Use this when the test needs the cookie for API calls or browser
@@ -164,15 +149,134 @@ export async function signUpUser(email: string, name?: string): Promise<{ email:
   }
 }
 
-/** Resets disposable company data, then creates the first company through its ordinary route. */
+/** Creates only this signed-in principal's disposable company and canonical Internal client. */
 export async function bootstrapOrg(request: APIRequestContext, cookie: string, name: string): Promise<string> {
-  resetAuthE2ECompanyData();
-  const res = await request.post(`${AUTH_API}/api/orgs`, {
-    headers: { cookie },
-    data: { name },
+  const identity = await request.get(`${AUTH_API}/api/auth/me`, {
+    headers: { cookie, "sec-fetch-site": "same-origin" },
   });
-  expect(res.status()).toBe(201);
-  return (await res.json()).id as string;
+  expect(identity.status(), "fixture owner must have a real native session").toBe(200);
+  const userId = ((await identity.json()) as { user?: { id?: unknown } }).user?.id;
+  if (typeof userId !== "string" || userId.length === 0) throw new Error("Auth E2E session has no principal.");
+  const companyName = name.trim();
+  if (!companyName) throw new Error("Auth E2E fixture company requires a name.");
+
+  const db = openAuthE2EDatabase();
+  try {
+    const principal = db.prepare("SELECT id FROM users WHERE id = ?").get(userId) as { id: string } | undefined;
+    if (!principal) throw new Error("Auth E2E session principal is absent from the fixture database.");
+    db.exec("PRAGMA foreign_keys = ON");
+    const foreignKeysEnabled = db.prepare("PRAGMA foreign_keys").get() as { foreign_keys: number };
+    if (foreignKeysEnabled.foreign_keys !== 1)
+      throw new Error("Auth E2E fixture creation requires SQLite foreign keys.");
+    db.exec("CREATE TABLE IF NOT EXISTS auth_e2e_fixture_companies (account_id TEXT PRIMARY KEY)");
+    const accountId = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const internal = buildInternalClient(accountId, now);
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.prepare(
+        `INSERT INTO accounts (id, name, color, scheduling_mode, inline_activity_create_enabled, created_at, updated_at)
+         VALUES (?, ?, ?, 'days', 'false', ?, ?)`,
+      ).run(accountId, companyName, FALLBACK_PRESET_COLOR, now, now);
+      db.prepare(
+        `INSERT INTO clients (id, account_id, name, color, builtin, created_at, updated_at)
+         VALUES (?, ?, ?, ?, 'true', ?, ?)`,
+      ).run(internal.id, accountId, internal.name, internal.color, now, now);
+      db.prepare(
+        `INSERT INTO memberships (id, account_id, user_id, role, status, created_at, updated_at)
+         VALUES (?, ?, ?, 'owner', 'active', ?, ?)`,
+      ).run(crypto.randomUUID(), accountId, userId, now, now);
+      db.prepare("INSERT INTO company_planning_revisions (account_id, revision) VALUES (?, 1)").run(accountId);
+      db.prepare("INSERT INTO auth_e2e_fixture_companies (account_id) VALUES (?)").run(accountId);
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+    return accountId;
+  } finally {
+    db.close();
+  }
+}
+
+/** Remove only companies registered by this disposable auth fixture between serial browser tests. */
+export function clearAuthE2ECompanies(): void {
+  const db = openAuthE2EDatabase();
+  try {
+    db.exec("PRAGMA foreign_keys = ON");
+    db.exec("CREATE TABLE IF NOT EXISTS auth_e2e_fixture_companies (account_id TEXT PRIMARY KEY)");
+    const rows = db.prepare("SELECT account_id FROM auth_e2e_fixture_companies").all() as Array<{ account_id: string }>;
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      for (const { account_id: accountId } of rows) {
+        db.prepare("DELETE FROM audit_entries WHERE account_id = ?").run(accountId);
+        db.prepare("DELETE FROM account_member_resources WHERE account_id = ?").run(accountId);
+        db.prepare("DELETE FROM accounts WHERE id = ?").run(accountId);
+        db.prepare("DELETE FROM auth_e2e_fixture_companies WHERE account_id = ?").run(accountId);
+      }
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+  } finally {
+    db.close();
+  }
+}
+
+/** Seeds scenario data through an authenticated typed planning command at the current revision. */
+export async function sendPlanningFixtureCommand(
+  request: APIRequestContext,
+  cookie: string,
+  accountId: string,
+  path: string,
+  intent: Record<string, unknown>,
+  method: "post" | "patch" = "post",
+): Promise<unknown> {
+  const headers = { cookie, "sec-fetch-site": "same-origin" };
+  const snapshot = await request.get(`${AUTH_API}/api/accounts/${accountId}/planning`, { headers });
+  expect(snapshot.status(), `read planning revision for ${path}`).toBe(200);
+  const revision = ((await snapshot.json()) as { revision?: unknown }).revision;
+  if (typeof revision !== "number" || !Number.isSafeInteger(revision))
+    throw new Error("The fixture planning read did not return a revision.");
+  const url = `${AUTH_API}/api/accounts/${accountId}/${path}`;
+  const options = {
+    headers,
+    data: { mutationId: crypto.randomUUID(), baseRevision: revision, intent },
+  };
+  const response = method === "patch" ? await request.patch(url, options) : await request.post(url, options);
+  expect(response.status(), `seed planning command ${path}: ${await response.text()}`).toBe(200);
+  return response.json();
+}
+
+/** Creates a fully specified person through the retained typed resource route for browser scenarios. */
+export async function createFixturePerson(
+  request: APIRequestContext,
+  cookie: string,
+  accountId: string,
+  person: { id: string; name: string; role: string; color?: string; avatarUrl?: string | null },
+): Promise<void> {
+  await sendPlanningFixtureCommand(request, cookie, accountId, "resources", {
+    operation: "resource.create",
+    id: person.id,
+    fields: {
+      kind: "person",
+      name: person.name,
+      role: person.role,
+      avatarUrl: person.avatarUrl ?? null,
+      disciplineId: null,
+      employmentType: "permanent",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      projectId: null,
+      color: person.color ?? "#76a5e7",
+      isFavourite: null,
+      firstAvailableDate: null,
+      lastAvailableDate: null,
+    },
+  });
 }
 
 /**

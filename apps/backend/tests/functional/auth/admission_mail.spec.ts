@@ -1,6 +1,7 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
+import { createFixtureCompanyForOwner } from '../../helpers/authenticated_data_fixture.js'
 import mail from '@adonisjs/mail/services/main'
 import env from '#start/env'
 import { resetState } from '#services/state_repository'
@@ -22,7 +23,7 @@ const withSession = <
   })
 
 test.group('invitation delivery after commit', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
     await resetState(false)
     await db.from('user_session_index').delete()
@@ -40,64 +41,28 @@ test.group('invitation delivery after commit', (group) => {
     )
   })
 
-  test('unaddressed trusted-local invitation has a safe preview and never sends email', async ({
+  test('an anonymous invitation request cannot send mail or create a link', async ({
     client,
     assert,
-    cleanup,
   }) => {
-    const priorMode = env.get('CAPACITYLENS_MODE')
-    const priorMail = env.get('CAPACITYLENS_MAIL_HOST')
-    env.set('CAPACITYLENS_MODE', 'off')
-    env.set('CAPACITYLENS_MAIL_HOST', 'smtp.example')
     const mailer = mail as unknown as { send: () => Promise<unknown> }
     const originalSend = mailer.send
     let sends = 0
     mailer.send = async () => {
       sends++
     }
-    cleanup(() => {
+    try {
+      const created = await client
+        .post('/api/invites')
+        .header('sec-fetch-site', 'same-origin')
+        .json({ accountId: 'a-studio', role: 'viewer' })
+        .send()
+      created.assertStatus(401)
+      assert.equal(sends, 0)
+      assert.lengthOf(await db.from('invitations'), 0)
+    } finally {
       mailer.send = originalSend
-      env.set('CAPACITYLENS_MODE', priorMode ?? 'off')
-      env.set('CAPACITYLENS_MAIL_HOST', priorMail ?? '')
-    })
-    const now = new Date().toISOString()
-    await db.table('accounts').insert({
-      id: 'a-studio',
-      name: 'Wayne Enterprises',
-      color: '#6366f1',
-      created_at: now,
-      updated_at: now,
-    })
-    const created = await client
-      .post('/api/invites')
-      .header('sec-fetch-site', 'same-origin')
-      .json({ accountId: 'a-studio', role: 'viewer' })
-      .send()
-    created.assertStatus(201)
-    const body = created.body() as unknown as {
-      id: string
-      token: string
-      emailed: boolean
-      preauthEmail: null
     }
-    assert.isFalse(body.emailed)
-    assert.isNull(body.preauthEmail)
-    assert.equal(sends, 0)
-    const preview = await client.get(`/api/invites/${body.token}/preview`).send()
-    preview.assertStatus(200)
-    assert.isFalse((preview.body() as unknown as { emailBound: boolean }).emailBound)
-    assert.notInclude(JSON.stringify(preview.body()), 'smtp.example')
-    const listed = await client.get('/api/accounts/a-studio/invites').send()
-    listed.assertStatus(200)
-    const summaries = (listed.body() as unknown as { invites: Array<{ id: string }> }).invites
-    assert.isTrue(summaries.some((invite) => invite.id === body.id))
-    const revoked = await client
-      .delete(`/api/accounts/a-studio/invites/${body.id}`)
-      .header('sec-fetch-site', 'same-origin')
-      .send()
-    revoked.assertStatus(204)
-    const removed = await client.get(`/api/invites/${body.token}/preview`).send()
-    removed.assertStatus(404)
   })
 
   test('a failed send leaves a usable link and the recipient budget bounds later sends', async ({
@@ -150,13 +115,8 @@ test.group('invitation delivery after commit', (group) => {
       .send()
     owner.assertStatus(201)
     const cookie = owner.cookie('adonis-session')!.value
-    const company = await withSession(
-      client.post('/api/orgs').header('sec-fetch-site', 'same-origin'),
-      cookie
-    )
-      .json({ id: 'a-studio', name: 'Wayne Enterprises' })
-      .send()
-    company.assertStatus(201)
+    const ownerId = (owner.body() as { user: { id: string } }).user.id
+    await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio')
     const unaddressed = await withSession(
       client.post('/api/invites').header('sec-fetch-site', 'same-origin'),
       cookie

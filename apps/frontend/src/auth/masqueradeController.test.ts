@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MasqueradeState, MasqueradeStatus } from "@capacitylens/shared/domain/masquerade";
 import { makeAccount, makeAppData, resetStoreWithAccount } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
-import type { FlushPendingWritesResult } from "@/data/persist";
+import type { FlushPendingWritesResult } from "./masqueradeController";
 import { MasqueradeController } from "./masqueradeController";
 import type { MasqueradeControllerDependencies } from "./masqueradeController";
 
@@ -32,6 +32,7 @@ function harness(overrides: Partial<MasqueradeControllerDependencies> = {}) {
     suspend: vi.fn(() => resume),
     reproject: vi.fn(async () => true),
     switchAccount: vi.fn(async () => ({ kind: "reloaded" as const })),
+    readBootstrapAccount: vi.fn(async () => "Wayne Enterprises"),
     api: {
       status: vi.fn(async (): Promise<MasqueradeStatus> => ({ active: false })),
       start: vi.fn(async () => state),
@@ -42,13 +43,187 @@ function harness(overrides: Partial<MasqueradeControllerDependencies> = {}) {
   return { controller: new MasqueradeController(dependencies), dependencies, resume };
 }
 
-beforeEach(() => {
-  resetStoreWithAccount();
+beforeEach(async () => {
+  await resetStoreWithAccount();
   useStore.getState().setMasquerade({ kind: "inactive" });
   useStore.getState().setNotice(null);
 });
 
 describe("MasqueradeController", () => {
+  it("holds a newly adopted status behind a blocked old-actor read until a fresh retry finishes", async () => {
+    await resetStoreWithAccount("a-studio");
+    const oldRead = deferred<void>();
+    const freshRead = deferred<boolean>();
+    const otherRelease = useStore.getState().suspendPlanningCommands();
+    expect(otherRelease).toBeTypeOf("function");
+    useStore.setState((current) => ({ planning: { ...current.planning, status: "loading" } }));
+    const { controller, dependencies } = harness({
+      suspend: vi.fn(() => useStore.getState().suspendPlanningCommands()),
+      reproject: vi.fn(() => freshRead.promise),
+    });
+
+    await controller.adoptStatus({ active: true, ...state });
+    expect(useStore.getState().masquerade.kind).toBe("starting");
+    expect(dependencies.reproject).not.toHaveBeenCalled();
+    expect(useStore.getState().notice).toMatchObject({ tone: "error" });
+
+    oldRead.resolve();
+    await oldRead.promise;
+    otherRelease?.();
+    useStore.setState((current) => ({ planning: { ...current.planning, status: "ready" } }));
+    const retry = controller.retryProjection();
+    expect(dependencies.reproject).toHaveBeenCalledExactlyOnceWith("a-studio", false);
+    expect(useStore.getState().masquerade.kind).toBe("starting");
+    freshRead.resolve(true);
+    await expect(retry).resolves.toBe(true);
+    expect(useStore.getState().masquerade.kind).toBe("active");
+  });
+
+  it("lets a newer server status supersede a pending local start without publishing its late response", async () => {
+    await resetStoreWithAccount("a-studio");
+    const oldStart = deferred<MasqueradeState>();
+    const newer = { ...state, token: "token-2", targetUserId: "u-editor", targetName: "Dick Grayson" };
+    const { controller, dependencies } = harness({
+      api: {
+        status: vi.fn(async () => ({ active: true, ...newer })),
+        start: vi.fn(() => oldStart.promise),
+        end: vi.fn(async () => {}),
+      },
+    });
+
+    const starting = controller.start(state.accountId, state.targetUserId);
+    await vi.waitFor(() => expect(dependencies.api.start).toHaveBeenCalledOnce());
+    await controller.adoptStatus({ active: true, ...newer });
+    expect(useStore.getState().masquerade).toMatchObject({ kind: "active", state: newer });
+    oldStart.resolve(state);
+    await expect(starting).resolves.toBe(false);
+    expect(useStore.getState().masquerade).toMatchObject({ kind: "active", state: newer });
+  });
+
+  it("preserves a failed cold End attempt's retry ownership after server confirms it remains active", async () => {
+    useStore.getState().clearPlanning();
+    const { controller, dependencies } = harness({
+      suspend: vi.fn(() => useStore.getState().suspendPlanningCommands()),
+      readBootstrapAccount: vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce("Wayne Enterprises"),
+      reproject: vi.fn(() => useStore.getState().refreshPlanning({ fresh: true })),
+      api: {
+        status: vi.fn(async () => ({ active: true, ...state })),
+        start: vi.fn(async () => state),
+        end: vi.fn(async () => {
+          throw new Error("End refused");
+        }),
+      },
+    });
+    await controller.adoptStatus({ active: true, ...state });
+    expect(useStore.getState().masquerade.kind).toBe("starting");
+    await expect(controller.end()).resolves.toBe(false);
+    expect(dependencies.api.end).toHaveBeenCalledExactlyOnceWith(state.token, "explicit");
+    expect(useStore.getState().masquerade.kind).toBe("starting");
+    await expect(controller.retryProjection()).resolves.toBe(true);
+    expect(useStore.getState().masquerade.kind).toBe("active");
+  });
+
+  it("keeps retry ownership when a non-cold End cannot acquire another writer's lock", async () => {
+    await resetStoreWithAccount("a-studio");
+    const resume = vi.fn();
+    const { controller, dependencies } = harness({
+      suspend: vi.fn().mockReturnValueOnce(null).mockReturnValueOnce(resume),
+    });
+    useStore.getState().setMasquerade({
+      kind: "starting",
+      pending: { accountId: state.accountId, targetUserId: state.targetUserId },
+      state,
+      generation: 0,
+    });
+    await expect(controller.end()).resolves.toBe(false);
+    expect(dependencies.api.end).not.toHaveBeenCalled();
+    expect(useStore.getState().masquerade.kind).toBe("starting");
+    await expect(controller.retryProjection()).resolves.toBe(true);
+    expect(useStore.getState().masquerade.kind).toBe("active");
+  });
+
+  it("ends a cold server projection without requiring a loaded planning context", async () => {
+    useStore.getState().clearPlanning();
+    const { controller, dependencies } = harness({
+      suspend: vi.fn(() => useStore.getState().suspendPlanningCommands()),
+      readBootstrapAccount: vi.fn(async () => null),
+    });
+    await controller.adoptStatus({ active: true, ...state });
+    const navigate = vi.fn();
+    await expect(controller.end("explicit", navigate)).resolves.toBe(true);
+    expect(dependencies.api.end).toHaveBeenCalledExactlyOnceWith(state.token, "explicit");
+    expect(dependencies.suspend).not.toHaveBeenCalled();
+    expect(dependencies.switchAccount).toHaveBeenCalledExactlyOnceWith(null);
+    expect(useStore.getState().masquerade.kind).toBe("inactive");
+    expect(navigate).toHaveBeenCalledWith("/");
+  });
+
+  it("discards a cold failed projection when validated server status says the masquerade ended", async () => {
+    useStore.getState().clearPlanning();
+    const { controller } = harness({ readBootstrapAccount: vi.fn(async () => null) });
+    await controller.adoptStatus({ active: true, ...state });
+    expect(useStore.getState().masquerade.kind).toBe("starting");
+    await controller.adoptStatus({ active: false });
+    expect(useStore.getState().masquerade.kind).toBe("inactive");
+    expect(useStore.getState().activeAccountId).toBeNull();
+  });
+
+  it("does not dispatch a start while another replacement owns the planning lock", async () => {
+    const { controller, dependencies } = harness({ suspend: vi.fn(() => null) });
+    await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(false);
+    expect(dependencies.api.start).not.toHaveBeenCalled();
+    expect(useStore.getState().masquerade.kind).toBe("inactive");
+  });
+
+  it("loads a cold validated member view from canonical account data before selecting it", async () => {
+    useStore.getState().clearPlanning();
+    const read = deferred<string | null>();
+    const { controller, dependencies } = harness({
+      readBootstrapAccount: vi.fn(() => read.promise),
+      reproject: vi.fn(async () => {
+        useStore.setState({
+          data: makeAppData({ accounts: [makeAccount({ id: "a-studio", name: "Wayne Enterprises" })] }),
+        });
+        return true;
+      }),
+    });
+    const adoption = controller.adoptStatus({ active: true, ...state });
+    expect(useStore.getState().activeAccountId).toBeNull();
+    expect(useStore.getState().masquerade.kind).toBe("starting");
+    read.resolve("Wayne Enterprises");
+    await adoption;
+    expect(dependencies.readBootstrapAccount).toHaveBeenCalledExactlyOnceWith("a-studio");
+    expect(dependencies.reproject).toHaveBeenCalledExactlyOnceWith("a-studio", false);
+    expect(useStore.getState().activeAccountId).toBe("a-studio");
+    expect(useStore.getState().masquerade.kind).toBe("active");
+  });
+
+  it("keeps a failed cold read gated and lets retry load the canonical company", async () => {
+    useStore.getState().clearPlanning();
+    const { controller, dependencies } = harness({
+      readBootstrapAccount: vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce("Wayne Enterprises"),
+    });
+    await controller.adoptStatus({ active: true, ...state });
+    expect(useStore.getState().masquerade.kind).toBe("starting");
+    expect(useStore.getState().activeAccountId).toBeNull();
+    await expect(controller.retryProjection()).resolves.toBe(true);
+    expect(dependencies.readBootstrapAccount).toHaveBeenCalledTimes(2);
+    expect(useStore.getState().masquerade.kind).toBe("active");
+  });
+
+  it("invalidates a deferred cold read on auth loss without republishing private state", async () => {
+    useStore.getState().clearPlanning();
+    const read = deferred<string | null>();
+    const { controller } = harness({ readBootstrapAccount: vi.fn(() => read.promise) });
+    const adoption = controller.adoptStatus({ active: true, ...state });
+    controller.invalidate();
+    read.resolve("Wayne Enterprises");
+    await adoption;
+    expect(useStore.getState().activeAccountId).toBeNull();
+    expect(useStore.getState().accountSummaries).toEqual([]);
+    expect(useStore.getState().masquerade.kind).toBe("inactive");
+  });
+
   it("succeeds while inactive without navigating or touching masquerade dependencies", async () => {
     const { controller, dependencies, resume } = harness();
     const navigate = vi.fn();
@@ -83,6 +258,8 @@ describe("MasqueradeController", () => {
     useStore
       .getState()
       .replaceAll(makeAppData({ accounts: [makeAccount({ id: "a-studio", name: "Wayne Enterprises" })] }));
+    useStore.getState().setActiveAccount("a-studio");
+    await useStore.getState().refreshPlanning();
     const { controller } = harness();
 
     await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(true);
@@ -216,12 +393,13 @@ describe("MasqueradeController generation fencing", () => {
     const restoration = deferred<boolean>();
     const reproject = vi
       .fn()
+      .mockResolvedValueOnce(true)
       .mockImplementationOnce(() => restoration.promise)
       .mockResolvedValueOnce(true);
     const { controller, resume } = harness({ reproject });
     await controller.adoptStatus({ active: true, ...state });
     await controller.adoptStatus({ active: false });
-    await vi.waitFor(() => expect(reproject).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(reproject).toHaveBeenCalledTimes(2));
 
     await expect(controller.end()).resolves.toBe(true);
     expect(resume).toHaveBeenCalledOnce();

@@ -1,8 +1,16 @@
+import { act } from "@testing-library/react";
 import { requireCreated } from "@/test/requireCreated";
 import type { Allocation } from "@capacitylens/shared/types/entities";
 import { makeResourceDraft } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
 import type { BarLayout } from "@/components/scheduler/schedulerModel";
+
+/** Lets a committed gesture's typed planning write settle and publish. */
+export async function settlePlanning(): Promise<void> {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
 
 /** Creates a DOM rectangle with predictable vertical bounds for gesture tests. */
 export const rect = (top: number, bottom: number): DOMRect =>
@@ -19,14 +27,14 @@ export const rect = (top: number, bottom: number): DOMRect =>
   }) as DOMRect;
 
 /** Creates a stored allocation with optional field overrides for interaction tests. */
-export function seedAllocation(overrides: Partial<Allocation> = {}): Allocation {
+export async function seedAllocation(overrides: Partial<Allocation> = {}): Promise<Allocation> {
   const s = useStore.getState();
-  const c = requireCreated(s.addClient({ name: "Ferris", color: "#1" }));
-  const p = requireCreated(s.addProject({ name: "P", clientId: c.id, color: "#2" }));
-  const t = requireCreated(s.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
-  const r = requireCreated(s.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+  const c = await requireCreated(s.addClient({ name: "Ferris", color: "#1" }));
+  const p = await requireCreated(s.addProject({ name: "P", clientId: c.id, color: "#2" }));
+  const t = await requireCreated(s.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+  const r = await requireCreated(s.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
   return requireCreated(
-    s.addAllocation({
+    await s.addAllocation({
       resourceId: r.id,
       activityId: t.id,
       startDate: "2026-06-01",
@@ -39,24 +47,24 @@ export function seedAllocation(overrides: Partial<Allocation> = {}): Allocation 
 }
 
 /** Creates an allocation whose capacity signal is outside the visible test window. */
-export function seedVisibleAllocationWithHiddenCapacity(): Allocation {
+export async function seedVisibleAllocationWithHiddenCapacity(): Promise<Allocation> {
   const st = useStore.getState();
-  const hiddenClient = requireCreated(st.addClient({ name: "Archived client", color: "#1" }));
-  const hiddenProject = requireCreated(
+  const hiddenClient = await requireCreated(st.addClient({ name: "Archived client", color: "#1" }));
+  const hiddenProject = await requireCreated(
     st.addProject({ name: "Archived work", clientId: hiddenClient.id, color: "#2" }),
   );
-  const hiddenActivity = requireCreated(
+  const hiddenActivity = await requireCreated(
     st.addActivity({ name: "Hidden work", kind: "project", projectId: hiddenProject.id }),
   );
-  const visibleClient = requireCreated(st.addClient({ name: "Visible client", color: "#3" }));
-  const visibleProject = requireCreated(
+  const visibleClient = await requireCreated(st.addClient({ name: "Visible client", color: "#3" }));
+  const visibleProject = await requireCreated(
     st.addProject({ name: "Visible work", clientId: visibleClient.id, color: "#4" }),
   );
-  const visibleActivity = requireCreated(
+  const visibleActivity = await requireCreated(
     st.addActivity({ name: "Visible work", kind: "project", projectId: visibleProject.id }),
   );
-  const resource = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#5" })));
-  st.addAllocation({
+  const resource = await requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#5" })));
+  await st.addAllocation({
     resourceId: resource.id,
     activityId: hiddenActivity.id,
     startDate: "2026-06-03",
@@ -64,8 +72,8 @@ export function seedVisibleAllocationWithHiddenCapacity(): Allocation {
     hoursPerDay: 8,
     status: "confirmed",
   });
-  const visible = requireCreated(
-    st.addAllocation({
+  const visible = await requireCreated(
+    await st.addAllocation({
       resourceId: resource.id,
       activityId: visibleActivity.id,
       startDate: "2026-06-01",
@@ -74,7 +82,7 @@ export function seedVisibleAllocationWithHiddenCapacity(): Allocation {
       status: "confirmed",
     }),
   );
-  st.archiveEntity("clients", hiddenClient.id);
+  await st.archiveEntity("clients", hiddenClient.id);
   return visible;
 }
 

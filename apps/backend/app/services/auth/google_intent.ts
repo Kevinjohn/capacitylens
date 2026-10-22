@@ -3,13 +3,15 @@ import env from '#start/env'
 import { GoogleIdentityError } from './google_identity.js'
 
 export type GoogleIntent = {
-  kind: 'sign-in' | 'link' | 'join'
+  kind: 'sign-in' | 'link' | 'join' | 'action-proof'
   successPath: string
   errorPath: string
   createdAt: number
   actorId?: string
   sessionId?: string
   joinIntentId?: string
+  proofId?: string
+  expectedState?: string
 }
 
 const KEY = 'googleOAuthIntent'
@@ -43,13 +45,18 @@ export function readGoogleIntent(ctx: HttpContext): GoogleIntent {
     throw new GoogleIdentityError('Google sign-in expired.', 403, 'GOOGLE_INTENT_EXPIRED')
   const intent = value as Record<string, unknown>
   if (
-    !['sign-in', 'link', 'join'].includes(String(intent.kind)) ||
+    !['sign-in', 'link', 'join', 'action-proof'].includes(String(intent.kind)) ||
     typeof intent.successPath !== 'string' ||
     typeof intent.errorPath !== 'string' ||
     typeof intent.createdAt !== 'number' ||
     !Number.isSafeInteger(intent.createdAt) ||
     intent.createdAt > Date.now() ||
-    Date.now() - intent.createdAt >= TTL_MS
+    Date.now() - intent.createdAt >= TTL_MS ||
+    (intent.kind === 'action-proof' &&
+      (typeof intent.actorId !== 'string' ||
+        typeof intent.sessionId !== 'string' ||
+        typeof intent.proofId !== 'string' ||
+        typeof intent.expectedState !== 'string'))
   )
     throw new GoogleIdentityError('Google sign-in expired.', 403, 'GOOGLE_INTENT_EXPIRED')
   return intent as GoogleIntent

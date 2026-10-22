@@ -174,7 +174,7 @@ with no matching work. Their rows are dimmed: candidates to staff, not people al
 **Clear Filters** resets the search, every dropdown and **Show unallocated**, and turns
 **Tentative** back on.
 
-With edit access, undo and redo every change from the toolbar or with **Ctrl+Z** (**⌘Z** on macOS). The grid
+With edit access, undo and redo your booking changes from the toolbar or with **Ctrl+Z** (**⌘Z** on macOS). The grid
 updates live as you drag; there is nothing to refresh.
 
 ## Jump to a page with the command palette

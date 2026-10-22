@@ -1,8 +1,9 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
 import { resetState } from '#services/state_repository'
+import { createFixtureCompanyForOwner } from '../../helpers/authenticated_data_fixture.js'
 
 const password = 'batman-secret-2026'
 const setupToken = 'admission-existing-setup-0123456789'
@@ -20,7 +21,7 @@ const withSession = <
   })
 
 test.group('existing-principal invitation lifecycle', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
     await resetState(false)
     await db.from('user_session_index').delete()
@@ -60,13 +61,8 @@ test.group('existing-principal invitation lifecycle', (group) => {
       .send()
     owner.assertStatus(201)
     const ownerCookie = owner.cookie('adonis-session')!.value
-    const company = await withSession(
-      client.post('/api/orgs').header('sec-fetch-site', 'same-origin'),
-      ownerCookie
-    )
-      .json({ id: 'a-studio', name: 'Wayne Enterprises' })
-      .send()
-    company.assertStatus(201)
+    const ownerId = (owner.body() as { user: { id: string } }).user.id
+    await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio')
     const recruit = await client
       .post('/api/auth/sign-up')
       .header('sec-fetch-site', 'same-origin')
@@ -235,8 +231,6 @@ test.group('existing-principal invitation lifecycle', (group) => {
       .json({ accountId: 'a-studio', role: 'viewer', preauthEmail: 'bruce.wayne@wayne.example' })
       .send()
     own.assertStatus(201)
-    const ownerUser = await db.from('users').where('email', 'bruce.wayne@wayne.example').first()
-    const ownerId = ownerUser.id
     await db.table('password_reset_tokens').insert({
       tokenable_id: ownerId,
       email: 'bruce.wayne@wayne.example',
@@ -311,13 +305,8 @@ test.group('existing-principal invitation lifecycle', (group) => {
       .send()
     owner.assertStatus(201)
     const ownerCookie = owner.cookie('adonis-session')!.value
-    const company = await withSession(
-      client.post('/api/orgs').header('sec-fetch-site', 'same-origin'),
-      ownerCookie
-    )
-      .json({ id: 'a-studio', name: 'Wayne Enterprises' })
-      .send()
-    company.assertStatus(201)
+    const ownerId = (owner.body() as { user: { id: string } }).user.id
+    await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio')
     const commandId = crypto.randomUUID()
     const idempotencyKey = crypto.randomUUID()
     const create = () =>

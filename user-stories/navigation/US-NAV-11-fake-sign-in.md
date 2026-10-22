@@ -1,12 +1,12 @@
-# US-NAV-11 — Demo sign-in before picking a company (cosmetic, default deploy)
+# US-NAV-11 — Demo account picker before choosing a company (cosmetic)
 
 **Area:** Navigation & shell · **Persona:** Owner demoing the app to a stakeholder · **Linked E2E:** `e2e/fake-signin.spec.ts` → "precedes the company picker; signing in reveals it, then the app", "staying signed in persists across reload; Sign out returns to the demo sign-in", "has no serious or critical accessibility violations"
 
 > **Cosmetic — not real authentication.** This is a Google-style _"Choose an account"_ screen
 > shown purely to preview the intended "log in first, then pick a company" flow. No account,
 > password, session, or popup exists, and it gates **no** data. The real, server-authoritative
-> login wall is **US-NAV-10** (flag-gated); this demo screen is mounted only when that real auth
-> is **off** (`authMode === 'off'`), so the two never both appear.
+> login wall is **US-NAV-10**. This demo screen is mounted only in the explicit in-memory demo
+> build, so the two never both appear.
 
 ## Goal
 
@@ -15,14 +15,13 @@ understands the planned shape of the product (auth → choose a workspace → pl
 
 ## Why
 
-Real auth (Better Auth) is wired but off in the alpha. Before it's switched on, the owner wants
-to _show_ the intended journey without standing up auth. A cosmetic screen does that — and stays
-strictly separate from the real seam (it disappears the moment real auth is enabled).
+The sample account picker makes the demo easy to explore while keeping it distinct from persisted
+server access. It creates no account or session, and its scheduling data remains temporary.
 
-## How (end-to-end, default local mode)
+## How (end-to-end, in-memory demo)
 
-**Precondition:** Seeded app in the default deploy (no `VITE_CAPACITYLENS_API`, or a server with auth
-off). Start from a clean state (DevTools → Console → `localStorage.clear()` → reload).
+**Precondition:** Seeded app with `VITE_CAPACITYLENS_DEMO=1`. Start from a clean state (DevTools →
+Console → `localStorage.clear()` → reload).
 
 1. Open the app. The first screen is **Choose an account** — a Google-style card with the
    **Bruce Wayne** account (avatar, name, email) and a **Use another account** row.

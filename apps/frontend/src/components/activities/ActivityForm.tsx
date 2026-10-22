@@ -149,7 +149,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
   const { error, errorField, errorId, fail } = useFieldError();
   const projectOptions = useProjectOptions(activity);
 
-  const submit = () => {
+  const submit = async () => {
     const trimmed = parseName(name, fail);
     if (!trimmed) return;
     // A project-specific activity must have a project; internal/all-projects are project-less (projectId/phaseId
@@ -173,9 +173,9 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
           fail(null, m.form_activity_err_changed());
           return;
         }
-        update(activity.id, patch);
+        await update(activity.id, patch);
       } else {
-        if (add(patch).kind === "blocked") return;
+        if ((await add(patch)).kind === "blocked") return;
       }
       onClose();
     } catch (e) {
@@ -187,7 +187,9 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
     <Modal
       title={activity ? m.form_activity_edit_title() : m.form_activity_add_title()}
       onClose={onClose}
-      onSubmit={submit}
+      onSubmit={() => {
+        void submit();
+      }}
       footer={<FormActions onCancel={onClose} />}
     >
       <ActivityFields

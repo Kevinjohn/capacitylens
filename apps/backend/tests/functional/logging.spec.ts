@@ -1,10 +1,15 @@
 import { test } from '@japa/runner'
+import {
+  authenticatedDataClient,
+  createFixtureCompanyForOwner,
+  resetAuthenticatedClient,
+  resetAuthenticatedData,
+} from '../helpers/authenticated_data_fixture.js'
 import { LoggerFactory } from '@adonisjs/logger/factories'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import Account from '#models/account'
 import logger from '@adonisjs/core/services/logger'
-import { seed } from '@capacitylens/shared/data/seed'
 import env from '#start/env'
 import loggerConfig from '#config/logger'
 
@@ -40,7 +45,7 @@ async function captureLogs<T>(
 const originalLoggingSetting = env.get('CAPACITYLENS_LOG')
 
 test.group('general HTTP logging privacy', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.setup(() => env.set('CAPACITYLENS_LOG', '1'))
   group.teardown(() => {
     env.set('CAPACITYLENS_LOG', originalLoggingSetting ?? '')
@@ -131,6 +136,7 @@ test.group('general HTTP logging privacy', (group) => {
     client,
     assert,
   }) => {
+    client = await resetAuthenticatedClient(client, true)
     const secret = 'SENTINEL_DISABLED_LOG_PRIVATE_EXCEPTION'
     const originalQuery = Account.query
     env.set('CAPACITYLENS_LOG', '0')
@@ -157,15 +163,16 @@ test.group('general HTTP logging privacy', (group) => {
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: false }).send()
-    const accountId = 'a-logging-failure'
+    const session = await resetAuthenticatedData(client, false)
+    await createFixtureCompanyForOwner(session.userId, 'Wayne Enterprises', 'a-studio')
+    client = authenticatedDataClient(client, session.cookie)
     const secret = 'SENTINEL_COMPLETION_LOG_FAILURE'
     const { output, result } = await captureLogs(
       () =>
         client
-          .post('/api/accounts')
+          .post('/api/accounts/a-studio/example-data')
           .header('sec-fetch-site', 'same-origin')
-          .json({ ...seed().accounts[0]!, id: accountId })
+          .json({})
           .send(),
       (child) => {
         const originalLog = child.log
@@ -175,7 +182,10 @@ test.group('general HTTP logging privacy', (group) => {
         }) as typeof child.log
       }
     )
-    const committed = await db.from('accounts').where('id', accountId).first()
+    const committed = await db
+      .from('audit_entries')
+      .where({ account_id: 'a-studio', action: 'exampleData' })
+      .first()
 
     assert.isDefined(committed)
     assert.equal(result.status(), 201)
@@ -199,10 +209,10 @@ test.group('general HTTP logging privacy', (group) => {
         .send()
     )
 
-    assert.equal(result.status(), 404)
+    assert.equal(result.status(), 401)
     assert.include(output, 'GET')
     assert.include(output, '"path":"/*"')
-    assert.include(output, '404')
+    assert.include(output, '401')
     assert.notInclude(output, auth)
     assert.notInclude(output, cookie)
     assert.notInclude(output, query)
@@ -241,32 +251,32 @@ test.group('general HTTP logging privacy', (group) => {
   }) => {
     const secret = 'SENTINEL_MALFORMED_REQUEST_BODY'
     const { output, result } = await captureLogs(() =>
-      client.post('/api/batch').unsafeJson(`{"secret":"${secret}"`).send()
+      client.post('/api/transfer/apply').unsafeJson(`{"secret":"${secret}"`).send()
     )
 
     assert.equal(result.status(), 400)
     assert.include(output, 'POST')
-    assert.include(output, '"path":"/api/batch"')
+    assert.include(output, '"path":"/api/transfer/apply"')
     assert.include(output, '400')
     assert.notInclude(output, secret)
   })
 
-  test('serializes logged import parser errors without private messages or stacks', async ({
+  test('rejects transfer parser input without logging private messages or stacks', async ({
     client,
     assert,
   }) => {
+    client = await resetAuthenticatedClient(client, true)
     const secret = 'SENTINEL_IMPORT_PARSER_VALUE'
     const { output, result } = await captureLogs(() =>
       client
-        .post('/api/import')
+        .post('/api/transfer/apply')
         .header('sec-fetch-site', 'same-origin')
-        .json({ accountId: 'a-studio', data: { secret } })
+        .json({ accountId: 'a-studio', document: { secret }, baseRevision: 0 })
         .send()
     )
 
     assert.equal(result.status(), 400)
-    assert.include(output, 'Import data rejected')
-    assert.include(output, '"err":{"category":"unexpected"}')
+    assert.include(output, '/api/transfer/apply')
     assert.notInclude(output, secret)
     assert.notInclude(output, 'stack')
   })
@@ -275,6 +285,7 @@ test.group('general HTTP logging privacy', (group) => {
     client,
     assert,
   }) => {
+    client = await resetAuthenticatedClient(client, true)
     const originalQuery = Account.query
     Account.query = (() => {
       throw new Error(privateError)

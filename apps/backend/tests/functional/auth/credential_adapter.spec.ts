@@ -1,11 +1,11 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import { usersAdapter, PasswordIneligibleError } from '#services/account_kit/users_adapter'
 
 test.group('Account-kit product user adapter', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('uses the supplied transaction and the boolean verification authority', async ({
     assert,

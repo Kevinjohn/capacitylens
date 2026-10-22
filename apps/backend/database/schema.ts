@@ -139,6 +139,29 @@ export class AccountSchema extends BaseModel {
   declare workingDays: import('@capacitylens/shared/types/entities').Weekday[] | null
 }
 
+export class ActionProofSchema extends BaseModel {
+  static $columns = ['accountId', 'action', 'consumedAt', 'expiresAt', 'id', 'intentHash', 'sessionId', 'userId', 'verifiedAt'] as const
+  $columns = ActionProofSchema.$columns
+  @column()
+  declare accountId: string
+  @column()
+  declare action: string
+  @column()
+  declare consumedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  @column()
+  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare intentHash: string
+  @column()
+  declare sessionId: string
+  @column()
+  declare userId: string
+  @column()
+  declare verifiedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+}
+
 export class ActivitySchema extends BaseModel {
   static $columns = ['accountId', 'archivedAt', 'createdAt', 'deletedAt', 'id', 'kind', 'name', 'phaseId', 'projectId', 'updatedAt'] as const
   $columns = ActivitySchema.$columns
@@ -231,38 +254,6 @@ export class AuditEntrySchema extends BaseModel {
   declare entityId: string | null
   @column({ isPrimary: true })
   declare id: string
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-}
-
-export class CapacitylensSyncRowProvenanceSchema extends BaseModel {
-  static $columns = ['accountId', 'id', 'rowHash', 'rowId', 'sequence', 'sessionId', 'tableName'] as const
-  $columns = CapacitylensSyncRowProvenanceSchema.$columns
-  @column()
-  declare accountId: string
-  @column({ isPrimary: true })
-  declare id: number
-  @column()
-  declare rowHash: string
-  @column()
-  declare rowId: string
-  @column()
-  declare sequence: number
-  @column()
-  declare sessionId: string
-  @column()
-  declare tableName: string
-}
-
-export class CapacitylensSyncSessionSchema extends BaseModel {
-  static $columns = ['id', 'lastSequence', 'sessionId', 'updatedAt'] as const
-  $columns = CapacitylensSyncSessionSchema.$columns
-  @column({ isPrimary: true })
-  declare id: number
-  @column()
-  declare lastSequence: number
-  @column()
-  declare sessionId: string
   @column()
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }
@@ -403,6 +394,40 @@ export class CompanySettingSchema extends BaseModel {
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column()
   declare value: unknown | null
+}
+
+export class DeletedGroupSchema extends BaseModel {
+  static $columns = ['accountId', 'actorId', 'consumedAt', 'createdAt', 'groupId', 'mutationId', 'sessionId'] as const
+  $columns = DeletedGroupSchema.$columns
+  @column()
+  declare accountId: string
+  @column()
+  declare actorId: string
+  @column()
+  declare consumedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  @column()
+  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column({ isPrimary: true })
+  declare groupId: string
+  @column()
+  declare mutationId: string
+  @column()
+  declare sessionId: string
+}
+
+export class DeletedRowSchema extends BaseModel {
+  static $columns = ['entity', 'groupId', 'id', 'payloadJson', 'rowId'] as const
+  $columns = DeletedRowSchema.$columns
+  @column()
+  declare entity: string
+  @column()
+  declare groupId: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare payloadJson: string
+  @column()
+  declare rowId: string
 }
 
 export class DisciplineSchema extends BaseModel {
@@ -638,7 +663,7 @@ export class PhaseSchema extends BaseModel {
 }
 
 export class PlanningMutationSchema extends BaseModel {
-  static $columns = ['accountId', 'actorId', 'mutationId', 'revision'] as const
+  static $columns = ['accountId', 'actorId', 'mutationId', 'originSessionId', 'restorationGroupId', 'revision'] as const
   $columns = PlanningMutationSchema.$columns
   @column({ isPrimary: true })
   declare accountId: string
@@ -646,6 +671,10 @@ export class PlanningMutationSchema extends BaseModel {
   declare actorId: string
   @column()
   declare mutationId: string
+  @column()
+  declare originSessionId: string | null
+  @column()
+  declare restorationGroupId: string | null
   @column()
   declare revision: number
 }

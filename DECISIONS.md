@@ -70,6 +70,10 @@ This is the short, present-tense record of decisions that constrain future work.
 
 ## Data and tenancy
 
+- CapacityLens has two access experiences: `VITE_CAPACITYLENS_DEMO=1` is an editable, in-memory
+  demo whose scheduling data resets on reload; every persisted server requires an authenticated,
+  authorised company member. `CAPACITYLENS_MODE=off` is retired and must not enable anonymous
+  persisted access.
 - SQLite is the only product database. One process owns one database file through a pool of one
   connection. Missing API access is an error, never a silent browser-storage fallback.
 - Every scoped row carries its company id. The server authorises every tenant read and write from
@@ -88,7 +92,12 @@ This is the short, present-tense record of decisions that constrain future work.
 - Undo and redo are typed inverse operations held page-locally in the browser. Hard-deleted planning
   rows are kept in a server tombstone table bound to session, actor and company so that restore
   is one atomic operation under current authority and hidden fields never leave the server.
-  Tombstones are removed in the same transaction as purge, anonymisation, import and erasure.
+  Restoration groups are removed in the same transaction as anonymisation and import.
+  A change to a client or project privacy or code-name field, or to an activity kind, also clears that company's
+  pending tombstones in the change transaction. Those saved before-images can contain names or
+  relationships that should no longer be restorable under the new visibility rules. Unchanged
+  privacy fields and ordinary settings edits keep the groups. Changing this rule later requires
+  a way to prove old hidden before-images remain safe to restore.
   Undo and redo write audit rows. History survives a same-revision refetch and is cleared by an
   external revision change, a context change or a reload. There is no cross-device undo.
 - Ordinary writes reject invalid supplied input; nothing is repaired on the way in. Blind writers
@@ -97,9 +106,15 @@ This is the short, present-tense record of decisions that constrain future work.
 - The portable export is this product's own document and the only import source. Import is
   Owner-only, atomic and not undoable. A malformed or foreign document is rejected, never repaired.
   Identity, sessions, membership and admission records are never part of the export.
-- Lifecycle entities have two irreversible-safe verbs: archive/restore (Editor and up) and
-  anonymise (Owner/Admin, irreversible, removes a person's identifying data). There is no separate
-  soft-delete or purge.
+- Beta transfer uses the versioned full company document, preserves scoped IDs and member links,
+  and replaces supported company settings. A redacted document cannot be imported. The Owner
+  previews the destination revision before applying; changed imports advance it and audit once,
+  while unchanged imports do neither.
+- Resource and catalogue lifecycle uses archive/restore (Editor and up). Resource anonymisation
+  (Owner/Admin) irreversibly removes identifying details and dependent notes while retaining the
+  resource and its links. Whole-company anonymisation applies the same scrub to every resource and
+  requires action-specific proof; the company, Owner and memberships remain. There is no company
+  deletion, soft-delete or purge action.
 - Editor and up may change company-wide planning and display configuration (company name,
   scheduling mode, disciplines, colour mode, feature visibility, time zone, week start). Identity,
   membership, privacy, lifecycle, import and erasure keep their Owner/Admin gates.
@@ -119,9 +134,9 @@ This is the short, present-tense record of decisions that constrain future work.
 - An unmatched URL is navigation state: a branded not-found page with a schedule link. Valid
   reset and invitation bearer paths keep their exact matcher; malformed signed-out entries stay
   behind the sign-in wall.
-- Migrations are append-only from the beta baseline and run through Lucid. A build refuses a
-  database containing a migration it does not know. `app:upgrade` writes an online backup before
-  migrating; the backup is the rollback. There are no down migrations and no checksum ledger.
+- Migrations start from one baseline, are forward-only and run through Lucid. `app:upgrade` writes
+  an online backup before migrating; the backup is the rollback. There are no down migrations and
+  no checksum ledger.
 - A native online SQLite backup runs at startup and every 24 hours; count-based retention keeps the
   configured number of snapshots. Failures are logged or returned by the operator command.
 
@@ -145,14 +160,20 @@ This is the short, present-tense record of decisions that constrain future work.
   nothing is pushed to the browser.
 - A verified provider email that matches an unused invitation records invitation evidence at
   account creation. Identities are otherwise never merged by email.
-- Sessions follow the kit's idle expiry, configured once. Sensitive actions re-prove the password
-  (or the social equivalent) per action; there is no time-based freshness window. The sensitive
-  set is: ownership transfer, company deletion, import and anonymisation.
+- Sessions follow the kit's idle expiry, configured once. Ownership transfer, whole-company import
+  and whole-company anonymisation require proof for each action; a time-based fresh-session window cannot replace
+  it. Other sensitive actions retain their native fresh-session gates.
+- Ownership transfer, whole-company import and whole-company anonymisation use a single-use proof bound to the
+  real principal, native session, company and exact operation. The proof is spent in the same
+  transaction as the change. Password proof verifies the current credential; linked Google proof
+  verifies the stable Google identity through an interactive account-selection journey. That
+  Google journey does not guarantee a fresh password or MFA challenge.
 - Password hashing uses the framework's default hasher through the kit. There is no breach
   screening and no custom hashing queue.
-- The first Owner is created by the operator through the kit's command line (invite, accept,
-  approve). The first admitted Owner creates the single company, exactly once. No environment
-  variable grants bootstrap authority. Re-setup after erasure follows the same path.
+- First sign-in setup can create an identity, but does not provision a company. The native release
+  currently has no supported first-company initialisation command or screen; closing that gap is
+  required before an empty installation can be used. No environment variable grants company
+  bootstrap authority.
 - Each company has exactly one Owner. Ownership moves only by one atomic transfer to an existing
   member; the former Owner becomes Admin. Admins cannot administer an Owner. Credential recovery
   for a locked-out Owner is the kit's operator command, never an in-product action.
@@ -184,8 +205,9 @@ framework defaults; any other departure needs a decision recorded here first.
 2. Validation errors use the flat `{ error, code? }` contract with status 400, not Vine's 422
    `errors[]`. Empty strings are not converted to null; empty optionals are `null` on the wire,
    in storage and in the export.
-3. Product models fail closed without an explicit tenant scope. Bulk updates and deletes use a
-   scoped helper because model hooks do not cover them.
+3. Product models fail closed without an explicit tenant scope. Retained bulk services authorise
+   the company and scope their queries inside a transaction because model hooks do not cover bulk
+   updates and deletes.
 4. Columns are snake_case; transformers own the camelCase wire format. Calendar dates are date-only
    strings; instants may use Lucid date-time columns and serialise to ISO.
 5. Product environment variables use the `CAPACITYLENS_` prefix; framework variables keep the

@@ -15,6 +15,13 @@ const reproject = vi.hoisted(() => vi.fn(async () => true));
 
 vi.mock("@/account/teamAccessClient", () => ({ teamAccessClient: client }));
 vi.mock("@/auth/reprojectAccess", () => ({ reprojectAccess: reproject }));
+vi.mock("@/auth/ActionProofDialog", () => ({
+  ActionProofDialog: ({ onConfirmed }: { onConfirmed: (proofId: string) => void }) => (
+    <button type="button" onClick={() => onConfirmed("proof-1")}>
+      Confirm action
+    </button>
+  ),
+}));
 
 function member({
   userId,
@@ -95,7 +102,7 @@ async function selectNextOwner(): Promise<void> {
   fireEvent.click(await screen.findByRole("option", { name: ADMIN.name ?? "" }));
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
   client.listMembers.mockResolvedValue({
     kind: "ok",
@@ -108,7 +115,7 @@ beforeEach(() => {
     value: { fromUserId: OWNER.userId, toUserId: ADMIN.userId },
   });
   reproject.mockResolvedValue(true);
-  resetStoreWithAccount(DEFAULT_ACCOUNT_ID);
+  await resetStoreWithAccount(DEFAULT_ACCOUNT_ID);
 });
 
 describe("OwnershipTransferCard", () => {
@@ -124,11 +131,13 @@ describe("OwnershipTransferCard", () => {
     const transfer = screen.getByTestId("ownership-transfer-complete");
     expect(transfer).toHaveTextContent(m.ownership_transfer_submit());
     fireEvent.click(transfer);
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm action" }));
 
     await waitFor(() => {
       expect(client.transferOwnership).toHaveBeenCalledWith({
         workspaceId: DEFAULT_ACCOUNT_ID,
         targetPrincipalId: ADMIN.userId,
+        proofId: "proof-1",
       });
     });
     await waitFor(() => expect(reproject).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID));
@@ -165,14 +174,16 @@ describe("OwnershipTransferCard", () => {
     await selectNextOwner();
 
     fireEvent.click(await screen.findByTestId("ownership-transfer-complete"));
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm action" }));
     expect(await screen.findByText(m.ownership_transfer_uncertain())).toBeInTheDocument();
     await waitFor(() => expect(reproject).toHaveBeenCalledOnce());
 
     fireEvent.click(await screen.findByTestId("ownership-transfer-complete"));
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm action" }));
     await waitFor(() => expect(client.transferOwnership).toHaveBeenCalledTimes(2));
     expect(client.transferOwnership.mock.calls).toEqual([
-      [{ workspaceId: DEFAULT_ACCOUNT_ID, targetPrincipalId: ADMIN.userId }],
-      [{ workspaceId: DEFAULT_ACCOUNT_ID, targetPrincipalId: ADMIN.userId }],
+      [{ workspaceId: DEFAULT_ACCOUNT_ID, targetPrincipalId: ADMIN.userId, proofId: "proof-1" }],
+      [{ workspaceId: DEFAULT_ACCOUNT_ID, targetPrincipalId: ADMIN.userId, proofId: "proof-1" }],
     ]);
   });
 
@@ -182,6 +193,7 @@ describe("OwnershipTransferCard", () => {
     await openOwnershipDialog();
     await selectNextOwner();
     fireEvent.click(screen.getByTestId("ownership-transfer-complete"));
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm action" }));
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
     expect(useStore.getState().notice?.message).toBe(m.settings_members_access_refresh_failed());

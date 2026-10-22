@@ -1,1031 +1,604 @@
-import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { ImportExport } from "./ImportExport";
-import { useStore } from "@/store/useStore";
-import { PermissionContext } from "@/auth/permissionContext";
-import { emptyAppData } from "@capacitylens/shared/types/entities";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { buildBetaExport, parseBetaExport, serializeBetaExport } from "@capacitylens/shared/data/betaTransfer";
+import type { BetaExportDocument } from "@capacitylens/shared/data/betaTransfer";
 import { seed } from "@capacitylens/shared/data/seed";
-import { parseData, serializeData } from "@capacitylens/shared/data/transfer";
-import { makeAccount, makeResourceDraft, resetStoreWithAccount } from "@/test/fixtures";
+import { SCOPED_KEYS } from "@capacitylens/shared/types/entities";
+import { AuthContext } from "@/auth/authContext";
+import { PermissionContext } from "@/auth/permissionContext";
+import { useStore } from "@/store/useStore";
+import { resetStoreWithAccount } from "@/test/fixtures";
+import { ImportExport } from "./ImportExport";
+import { useServerImport } from "./import-export/useServerImport";
 
-function dispatchAnchorClick(this: HTMLAnchorElement): void {
-  this.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-}
-
-// Demo imports exercise undoable local replacement; server imports exercise the authoritative atomic endpoint. The fixture switches persistence mode explicitly.
 const serverFlag = { on: false };
-const reloadMock = vi.hoisted(() => ({ reloadPage: vi.fn() }));
+const refreshOverride = vi.hoisted(() => ({ result: { kind: "reloaded" } as { kind: string } }));
+const planningProbe = vi.hoisted(() => ({ releases: 0, suspends: 0 }));
+const originalPlanning = {
+  refreshPlanning: useStore.getState().refreshPlanning,
+  planningReadyForReplacement: useStore.getState().planningReadyForReplacement,
+  suspendPlanningCommands: useStore.getState().suspendPlanningCommands,
+};
 vi.mock("@/data/apiConfig", () => ({
   API_BASE: "",
   isServerConfigured: () => serverFlag.on,
   isDemoMode: () => !serverFlag.on,
 }));
-vi.mock("@/lib/reloadPage", () => reloadMock);
 
-// Partial persist mock: everything real except refreshActiveAccountSlice, which one test forces
-// to 'failed' (a committed import whose re-hydrate breaks), and suspendServerWrites, whose resume
-// is recorded so tests can pin the committed/dropParkedEdits bookkeeping (with no orchestrator
-// attached the real seam is an unobservable no-op anyway).
-const refreshOverride = vi.hoisted(() => ({
-  value: null as null | { kind: "reloaded" } | { kind: "skipped" } | { kind: "failed" } | { kind: "unattached" },
-}));
-const resumeSpy = vi.hoisted(() => ({ calls: [] as unknown[] }));
-// When set, the mocked re-hydrate raises this error notice mid-flight, simulating the sticky
-// parked-edit loss warning the real orchestrator surfaces via onError → setNotice.
-const refreshNotice = vi.hoisted(() => ({ error: null as string | null }));
-vi.mock("@/data/persist", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/data/persist")>();
-  return {
-    ...actual,
-    refreshActiveAccountSlice: async (id: string) => {
-      if (refreshNotice.error !== null) {
-        useStore.getState().setNotice(refreshNotice.error, "error");
-        return { kind: "reloaded" as const };
-      }
-      return refreshOverride.value ?? actual.refreshActiveAccountSlice(id);
-    },
-    suspendServerWrites: () => (opts?: unknown) => {
-      resumeSpy.calls.push(opts ?? {});
-    },
-  };
-});
+const accountId = "a-studio";
 
-beforeEach(() => {
+function document(): BetaExportDocument {
+  return buildBetaExport(seed(), { accountId, completeness: "full" });
+}
+
+function renderTools(server = false, reauthMethod: "password" | "provider" = "password") {
+  serverFlag.on = server;
+  if (server) {
+    useStore.setState({
+      refreshPlanning: async () => refreshOverride.result.kind === "reloaded",
+      planningReadyForReplacement: () => true,
+      suspendPlanningCommands: () => {
+        planningProbe.suspends += 1;
+        return () => {
+          planningProbe.releases += 1;
+        };
+      },
+    });
+  }
+  return render(
+    <AuthContext.Provider
+      value={{
+        authMode: server ? "password-only" : "off",
+        user: server ? { id: "bruce", email: "bruce@wayne.example" } : null,
+        canCreateAccount: false,
+        reauthMethod,
+        refreshAuth: async () => {},
+        signOut: async () => {},
+      }}
+    >
+      <PermissionContext.Provider value={{ role: server ? "owner" : null, status: "resolved" }}>
+        <ImportExport />
+      </PermissionContext.Provider>
+    </AuthContext.Provider>,
+  );
+}
+
+async function selectFile(file: BetaExportDocument) {
+  const input = screen.getByTestId("import-input");
+  Object.defineProperty(input, "files", {
+    value: [new File([serializeBetaExport(file)], "transfer.json", { type: "application/json" })],
+    configurable: true,
+  });
+  fireEvent.change(input);
+  await screen.findByRole("button", { name: "Continue" });
+}
+
+async function previewFile(file: BetaExportDocument) {
+  await selectFile(file);
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  await screen.findByRole("button", { name: "Replace data" });
+}
+
+async function submitServerImport(applyResponse: Response): Promise<void> {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (String(url).endsWith("/api/transfer/preview"))
+        return Response.json({ baseRevision: 7, imported: 5, changed: true });
+      if (String(url).endsWith("/api/auth/action-proof/password")) return Response.json({ proofId: "proof-7" });
+      if (String(url).endsWith("/api/transfer/apply")) return applyResponse;
+      throw new Error(`Unexpected request: ${url}`);
+    }),
+  );
+  renderTools(true);
+  await previewFile(document());
+  fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
+  fireEvent.change(screen.getByLabelText("Password"), { target: { value: "current-password" } });
+  fireEvent.click(screen.getByTestId("action-proof-confirm"));
+  await waitFor(() => expect(planningProbe.suspends).toBe(1));
+}
+
+beforeEach(async () => {
   serverFlag.on = false;
-  refreshOverride.value = null;
-  refreshNotice.error = null;
-  resumeSpy.calls.length = 0;
-  reloadMock.reloadPage.mockReset();
-  resetStoreWithAccount();
-  useStore.getState().clearFilters();
+  refreshOverride.result = { kind: "reloaded" };
+  planningProbe.suspends = 0;
+  planningProbe.releases = 0;
+  await resetStoreWithAccount(accountId);
+  useStore.getState().replaceAll(seed());
+  sessionStorage.clear();
+  window.history.replaceState(null, "", "/settings");
 });
 
 afterEach(() => {
+  useStore.setState(originalPlanning);
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
-describe("ImportExport – Export", () => {
-  it("downloads a JSON blob and revokes the object URL AFTER the click (deferred, not synchronous)", async () => {
-    const createObjectURL = vi.fn().mockReturnValue("blob:x");
-    const revokeObjectURL = vi.fn();
-    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(dispatchAnchorClick);
-
-    vi.stubGlobal("URL", {
-      ...URL,
-      createObjectURL,
-      revokeObjectURL,
-    });
-
-    render(<ImportExport />);
-
-    fireEvent.click(screen.getByTestId("export-data"));
-
-    expect(createObjectURL).toHaveBeenCalledOnce();
-    expect(anchorClick).toHaveBeenCalledOnce();
-    // Revocation must wait until after the browser starts the download.
-    expect(revokeObjectURL).not.toHaveBeenCalled();
-
-    await new Promise((r) => setTimeout(r, 0));
-    expect(revokeObjectURL).toHaveBeenCalledWith("blob:x");
-
-    vi.unstubAllGlobals();
-    anchorClick.mockRestore();
-  });
-});
-
-describe("ImportExport – Import", () => {
-  it("reads and previews a valid file larger than five MiB", async () => {
-    const data = seed();
-    const largeName = "x".repeat(5 * 1024 * 1024 + 1);
-    data.resources = data.resources.map((resource, index) =>
-      index === 0 ? { ...resource, name: largeName } : resource,
-    );
-    const file = new File([serializeData(data)], "large.json", { type: "application/json" });
-    render(<ImportExport />);
-    const input = screen.getByTestId("import-input");
-    Object.defineProperty(input, "files", {
-      value: [file],
-      configurable: true,
-    });
-
-    fireEvent.change(input);
-
-    expect(await screen.findByRole("button", { name: "Replace data" })).toBeInTheDocument();
-  });
-});
-
-describe("ImportExport – Import", () => {
-  it("keeps the latest file selection when an older file read finishes last", async () => {
-    render(<ImportExport />);
-
-    let resolveFirst!: (text: string) => void;
-    let resolveSecond!: (text: string) => void;
-    const firstRead = new Promise<string>((resolve) => {
-      resolveFirst = resolve;
-    });
-    const secondRead = new Promise<string>((resolve) => {
-      resolveSecond = resolve;
-    });
-    const first = {
-      name: "first.json",
-      size: 1,
-      text: () => firstRead,
-    } as File;
-    const second = {
-      name: "second.json",
-      size: 1,
-      text: () => secondRead,
-    } as File;
-    const input = screen.getByTestId("import-input");
-
-    Object.defineProperty(input, "files", {
-      value: [first],
-      configurable: true,
-    });
-    fireEvent.change(input);
-    Object.defineProperty(input, "files", {
-      value: [second],
-      configurable: true,
-    });
-    fireEvent.change(input);
-
-    await act(async () => resolveSecond(serializeData(seed())));
-    expect(screen.getByText("second.json")).toBeInTheDocument();
-
-    await act(async () => resolveFirst(serializeData(seed())));
-    expect(screen.getByText("second.json")).toBeInTheDocument();
-    expect(screen.queryByText("first.json")).toBeNull();
-  });
-});
-
-describe("ImportExport – Import", () => {
-  it("replaces the store data when a valid CapacityLens JSON file is loaded", async () => {
-    render(<ImportExport />);
-
-    const seedData = seed();
-    const json = serializeData(seedData);
-    const file = new File([json], "capacitylens-data.json", {
-      type: "application/json",
-    });
-
-    const input = screen.getByTestId("import-input");
-
-    Object.defineProperty(input, "files", {
-      value: [file],
-      writable: false,
-    });
-
-    fireEvent.change(input);
-
-    fireEvent.click(await screen.findByRole("button", { name: "Replace data" }));
-
-    expect(useStore.getState().data.resources.length).toBeGreaterThan(0);
-    expect(useStore.getState().data.resources).toHaveLength(seedData.resources.length);
-  });
-});
-
-describe("ImportExport – Import", () => {
-  it.each([false, true])("cancels a %s-mode file read when the active company changes", async (serverMode) => {
-    serverFlag.on = serverMode;
-    const original = useStore.getState().data;
-    useStore.getState().replaceAll({
-      ...original,
-      accounts: [...original.accounts, makeAccount({ id: "acct-other", name: "Other Co" })],
-    });
-    let resolveRead!: (value: string) => void;
-    const read = new Promise<string>((resolve) => {
-      resolveRead = resolve;
-    });
-    const file = { name: "data.json", size: 1, text: () => read } as File;
-
-    render(<ImportExport />);
-    const input = screen.getByTestId("import-input");
-    Object.defineProperty(input, "files", { value: [file], configurable: true });
-    fireEvent.change(input);
-    act(() => useStore.getState().setActiveAccount("acct-other"));
-    await act(async () => resolveRead(serializeData(seed())));
-
-    expect(screen.queryByRole("button", { name: "Replace data" })).not.toBeInTheDocument();
-  });
-});
-
-describe("ImportExport – Import", () => {
-  it.each([false, true])("dismisses a parsed %s-mode import when the active company changes", async (serverMode) => {
-    serverFlag.on = serverMode;
-    const original = useStore.getState().data;
-    useStore.getState().replaceAll({
-      ...original,
-      accounts: [...original.accounts, makeAccount({ id: "acct-other", name: "Other Co" })],
-    });
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
-    render(<ImportExport />);
-    const file = new File([serializeData(seed())], "data.json", { type: "application/json" });
-    const input = screen.getByTestId("import-input");
-    Object.defineProperty(input, "files", { value: [file], writable: false });
-    fireEvent.change(input);
-    await screen.findByRole("button", { name: "Replace data" });
-
-    act(() => useStore.getState().setActiveAccount("acct-other"));
-
-    expect(screen.queryByRole("button", { name: "Replace data" })).not.toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-});
-
-describe("ImportExport – Import", () => {
-  it("shows a confirmation summary and does NOT replace data until confirmed", async () => {
-    useStore.getState().replaceAll(seed());
-    const before = useStore.getState().data.clients.length;
-    render(<ImportExport />);
-
-    // A partial import still replaces the complete active-company slice, so confirmation must precede applying it.
-    const partial = JSON.stringify({
-      schemaVersion: 2,
-      data: {
-        resources: [
-          {
-            id: "r1",
-            accountId: "X",
-            createdAt: "t",
-            updatedAt: "t",
-            kind: "person",
-            role: "Dev",
-            employmentType: "permanent",
-            engagement: "studio" as const,
-            workingHoursPerDay: 8,
-            workingDays: [1],
-            halfDays: [],
-            color: "#123456",
-          },
-        ],
-      },
-    });
-    const file = new File([partial], "partial.json", {
-      type: "application/json",
-    });
-    const input = screen.getByTestId("import-input");
-    Object.defineProperty(input, "files", { value: [file], writable: false });
-
-    fireEvent.change(input);
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(screen.getByText(/replaces this company.s data/i)).toBeInTheDocument();
-    expect(useStore.getState().data.clients).toHaveLength(before);
-
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(useStore.getState().data.clients).toHaveLength(before);
-  });
-});
-
-describe("ImportExport – Import", () => {
-  it("import is undoable with ⌘Z (routes through the history stack)", async () => {
-    // Undo must restore the whole pre-import slice after a confirmed demo replacement.
-    useStore.getState().addResource(makeResourceDraft({ name: "Alice" }));
-    useStore.getState().addResource(makeResourceDraft({ name: "Bob" }));
-    const before = useStore.getState().data.resources.length;
-    render(<ImportExport />);
-
-    const incoming = serializeData({
-      ...emptyAppData(),
-      resources: [
-        {
-          ...NULLABLE_FIELDS.resources,
-          ...makeResourceDraft({ name: "Imported" }),
-          id: "imp-r",
-          accountId: "X",
-          createdAt: "t",
-          updatedAt: "t",
-          engagement: "studio",
-          halfDays: [],
-        },
-      ],
-    });
-    const file = new File([incoming], "data.json", {
-      type: "application/json",
-    });
-    const input = screen.getByTestId("import-input");
-    Object.defineProperty(input, "files", { value: [file], writable: false });
-
-    fireEvent.change(input);
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
-
-    expect(useStore.getState().data.resources).toHaveLength(1);
-
-    useStore.getState().undo();
-
-    expect(useStore.getState().data.resources).toHaveLength(before);
-  });
-});
-
-describe("ImportExport – Import", () => {
-  it("shows an error (NOT an undo prompt) when an import drops every record", async () => {
-    // A real prior edit, so there's an undo entry a wrongful "Press ⌘Z" prompt could target.
-    useStore.getState().addClient({ name: "Real Edit", color: "#111111" });
-    render(<ImportExport />);
-
-    // A CapacityLens-shaped file that parses (non-empty → dialog appears) but whose only record
-    // dangles, so the store drops it and imported === 0 (no mutate, no undo entry pushed).
-    const dangling = serializeData({
-      ...emptyAppData(),
-      allocations: [
-        {
-          ...NULLABLE_FIELDS.allocations,
-          id: "a1",
-          accountId: "X",
-          createdAt: "t",
-          updatedAt: "t",
-          resourceId: "ghost",
-          activityId: "ghost",
-          startDate: "2026-06-01",
-          endDate: "2026-06-02",
-          hoursPerDay: 8,
-          status: "confirmed",
-        },
-      ],
-    });
-    const file = new File([dangling], "dangling.json", {
-      type: "application/json",
-    });
-    const input = screen.getByTestId("import-input");
-    Object.defineProperty(input, "files", { value: [file], writable: false });
-
-    fireEvent.change(input);
-
-    fireEvent.click(await screen.findByRole("button", { name: "Replace data" }));
-
-    const notice = useStore.getState().notice;
-    expect(notice?.message).toMatch(/no records imported/i);
-
-    expect(notice?.message).not.toMatch(/undo/i);
-    expect(notice?.tone).toBe("error");
-
-    expect(useStore.getState().data.clients.map((c) => c.name)).toContain("Real Edit");
-  });
-});
-
-describe("ImportExport – Import", () => {
-  it("rejects a CapacityLens-shaped file with zero records (no dialog, no wipe)", async () => {
-    useStore.getState().replaceAll(seed());
-    render(<ImportExport />);
-
-    const file = new File([serializeData(emptyAppData())], "empty.json", {
-      type: "application/json",
-    });
-    const input = screen.getByTestId("import-input");
-    Object.defineProperty(input, "files", { value: [file], writable: false });
-
-    fireEvent.change(input);
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(screen.queryByRole("button", { name: "Replace data" })).toBeNull();
-    expect(useStore.getState().notice?.message).toMatch(/no CapacityLens records/i);
-    expect(useStore.getState().data.resources.length).toBeGreaterThan(0);
-  });
-
-  it("surfaces a notice (and keeps the data) when the file is not valid CapacityLens JSON", async () => {
-    useStore.getState().replaceAll(seed());
-    render(<ImportExport />);
-
-    const file = new File(["{ this is not json"], "bad.json", {
-      type: "application/json",
-    });
-    const input = screen.getByTestId("import-input");
-    Object.defineProperty(input, "files", { value: [file], writable: false });
-
-    fireEvent.change(input);
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(useStore.getState().notice?.message).toMatch(/valid JSON/i);
-
-    expect(useStore.getState().data.resources.length).toBeGreaterThan(0);
-  });
-});
-
-async function importAndConfirm(json: string) {
-  const file = new File([json], "incoming.json", { type: "application/json" });
-  const input = screen.getByTestId("import-input");
-  Object.defineProperty(input, "files", { value: [file], writable: false });
-  fireEvent.change(input);
-  await new Promise((r) => setTimeout(r, 0));
-  fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
-}
-
-const incoming = () =>
-  serializeData({
-    ...emptyAppData(),
-    resources: [
-      {
-        ...NULLABLE_FIELDS.resources,
-        ...makeResourceDraft({ name: "Imported" }),
-        id: "imp-r",
-        accountId: "X",
-        createdAt: "t",
-        updatedAt: "t",
-        engagement: "studio",
-        halfDays: [],
-      },
-    ],
-  });
-
-function setupServerMode(): void {
-  serverFlag.on = true;
-  refreshOverride.value = { kind: "reloaded" };
-}
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-
-  it("keeps active-slice export available to editors without calling the admin endpoint", async () => {
-    const fetchMock = vi.fn();
-    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(dispatchAnchorClick);
-    vi.stubGlobal("fetch", fetchMock);
-    vi.stubGlobal("URL", {
-      ...URL,
-      createObjectURL: vi.fn(() => "blob:editor"),
-      revokeObjectURL: vi.fn(),
-    });
-    render(
-      <PermissionContext.Provider value={{ role: "editor" }}>
-        <ImportExport />
-      </PermissionContext.Provider>,
-    );
-    fireEvent.click(screen.getByTestId("export-data"));
-    await waitFor(() => expect(click).toHaveBeenCalled());
-    expect(fetchMock).not.toHaveBeenCalled();
-    click.mockRestore();
-  });
-});
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it("rejects an incomplete complete-export response instead of downloading it", async () => {
-    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(dispatchAnchorClick);
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({}), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
+describe("beta import and export", () => {
+  it("dispatches one replacement when confirmation is pressed twice before a response", async () => {
+    let finish!: (response: Response) => void;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          finish = resolve;
         }),
-      ),
-    );
-    render(
-      <PermissionContext.Provider value={{ role: "admin" }}>
-        <ImportExport />
-      </PermissionContext.Provider>,
-    );
-    fireEvent.click(screen.getByTestId("export-data"));
-    await waitFor(() => expect(useStore.getState().notice?.tone).toBe("error"));
-    expect(click).not.toHaveBeenCalled();
-    click.mockRestore();
-  });
-});
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it("downloads the validated complete server slice for a purge-capable role", async () => {
-    const completeSlice = useStore.getState().data;
-    let downloaded: Blob | undefined;
-    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(dispatchAnchorClick);
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify(completeSlice), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
     );
     vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useServerImport());
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+
+    act(() => {
+      first = result.current.confirm(document(), 1, "proof-1");
+      second = result.current.confirm(document(), 1, "proof-1");
+    });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    finish(Response.json({ error: "Import refused." }, { status: 403 }));
+    await Promise.all([first, second]);
+  });
+
+  it("does not dispatch an ordinary import from an unsettled recovery-readable context", async () => {
+    useStore.setState((state) => ({ planning: { ...state.planning, status: "error", revision: null } }));
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useServerImport());
+
+    await result.current.confirm(document(), 1, "proof-1");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(useStore.getState().notice?.tone).toBe("error");
+    const releaseRecovery = useStore.getState().suspendPlanningCommands();
+    if (!releaseRecovery) throw new Error("The selected context was not available for authority recovery.");
+    releaseRecovery();
+  });
+
+  it.each([false, true])(
+    "does not recover an old import into a successor context (return to A: %s)",
+    async (returnToA) => {
+      let finish!: (response: Response) => void;
+      const fetchMock = vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            finish = resolve;
+          }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+      const first = renderHook(() => useServerImport());
+      const second = renderHook(() => useServerImport());
+      const oldOperation = first.result.current.confirm(document(), 1, "proof-old");
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+      await second.result.current.confirm(document(), 1, "proof-second");
+      expect(fetchMock).toHaveBeenCalledOnce();
+
+      useStore.getState().setActiveAccount("a-loft");
+      await useStore.getState().refreshPlanning();
+      if (returnToA) {
+        useStore.getState().setActiveAccount(accountId);
+        await useStore.getState().refreshPlanning();
+      }
+      const successorRelease = useStore.getState().suspendPlanningCommands();
+      if (!successorRelease) throw new Error("The successor planning context was not ready.");
+      const successorNotice = useStore.getState().notice;
+      const refresh = vi.fn(async () => true);
+      useStore.setState({ refreshPlanning: refresh });
+
+      finish(Response.json({ error: "Outcome unavailable" }, { status: 503 }));
+      await oldOperation;
+      expect(refresh).not.toHaveBeenCalled();
+      expect(useStore.getState().notice).toBe(successorNotice);
+      expect(useStore.getState().planningReadyForReplacement()).toBe(false);
+      successorRelease();
+    },
+  );
+
+  it("exports the selected company's full beta document", async () => {
+    let downloaded: Blob | undefined;
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     vi.stubGlobal("URL", {
       ...URL,
       createObjectURL: vi.fn((blob: Blob) => {
         downloaded = blob;
-        return "blob:complete-export";
+        return "blob:transfer";
       }),
       revokeObjectURL: vi.fn(),
     });
-    render(
-      <PermissionContext.Provider value={{ role: "owner" }}>
-        <ImportExport />
-      </PermissionContext.Provider>,
-    );
-
+    renderTools();
     fireEvent.click(screen.getByTestId("export-data"));
-    await waitFor(() => expect(click).toHaveBeenCalledOnce());
-
-    expect(fetchMock).toHaveBeenCalledOnce();
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("includeInactive=1");
-    expect(downloaded).toBeDefined();
-    if (downloaded === undefined) {
-      throw new Error("Expected the export blob to be captured");
-    }
-    expect(parseData(await downloaded.text())).toEqual(parseData(serializeData(completeSlice)));
-    click.mockRestore();
-  });
-});
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it("allows only one complete-slice export while its request is pending", async () => {
-    const completeSlice = useStore.getState().data;
-    let resolveFetch!: (response: Response) => void;
-    const fetchMock = vi.fn(
-      () =>
-        new Promise<Response>((resolve) => {
-          resolveFetch = resolve;
-        }),
-    );
-    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(dispatchAnchorClick);
-    vi.stubGlobal("fetch", fetchMock);
-    vi.stubGlobal("URL", {
-      ...URL,
-      createObjectURL: vi.fn(() => "blob:complete-export"),
-      revokeObjectURL: vi.fn(),
+    await waitFor(() => {
+      expect(useStore.getState().notice).toBeNull();
+      expect(downloaded).toBeDefined();
     });
-    render(
-      <PermissionContext.Provider value={{ role: "owner" }}>
-        <ImportExport />
-      </PermissionContext.Provider>,
-    );
-
-    const exportButton = screen.getByTestId("export-data");
-    fireEvent.click(exportButton);
-    fireEvent.click(exportButton);
-
-    expect(fetchMock).toHaveBeenCalledOnce();
-    expect(exportButton).toBeDisabled();
-
-    resolveFetch(
-      new Response(JSON.stringify(completeSlice), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
-    await waitFor(() => expect(click).toHaveBeenCalledOnce());
-    expect(exportButton).not.toBeDisabled();
-    click.mockRestore();
+    if (!downloaded) throw new Error("The export was not downloaded.");
+    const exported = parseBetaExport(await downloaded.text());
+    expect(exported.format).toBe("capacitylens-beta");
+    expect(exported.completeness).toBe("full");
+    expect(exported.data.accounts.map((row) => row.id)).toEqual([accountId]);
+    expect(exported.data.resources[0]?.id).toBeDefined();
   });
-});
 
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it("POSTs the parsed file to /api/import and reports the server counts WITHOUT an undo prompt", async () => {
-    const before = useStore.getState().data;
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ imported: 3, skipped: 1 }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    render(<ImportExport />);
-    await importAndConfirm(incoming());
-
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("/api/import");
-    expect(init.method).toBe("POST");
-    const body = JSON.parse(init.body as string) as {
-      accountId: string;
-      data: { resources: unknown[] };
-    };
-    expect(body.accountId).toBe(useStore.getState().activeAccountId);
-    expect(body.data.resources).toHaveLength(1);
-
-    // The local store is never mutated directly by a server import; the mocked re-hydrate reports
-    // that the authoritative slice was reloaded.
-    expect(useStore.getState().data).toBe(before);
-    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/imported 3 records/i));
-
-    expect(useStore.getState().notice?.message).not.toMatch(/undo|⌘Z/i);
-  });
-});
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it("surfaces the server's own error sentence on a non-OK response (e.g. the owner gate's 403)", async () => {
+  it("refuses a malformed inactive server slice instead of downloading a repaired backup", async () => {
+    const bad = buildBetaExport(seed(), { accountId, completeness: "full" }).data;
+    const client = bad.clients[0];
+    if (!client) throw new Error("The export fixture has no client.");
+    Object.assign(client, { archivedAt: "yesterday" });
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            error: "Only the account owner can import data.",
-          }),
-          { status: 403, headers: { "Content-Type": "application/json" } },
-        ),
-      ),
+      vi.fn(async () => Response.json(bad)),
     );
-
-    render(<ImportExport />);
-    await importAndConfirm(incoming());
-
-    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/only the account owner can import/i));
-    expect(useStore.getState().notice?.tone).toBe("error");
+    const download = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    renderTools(true);
+    fireEvent.click(screen.getByTestId("export-data"));
+    await waitFor(() => expect(useStore.getState().notice?.tone).toBe("error"));
+    expect(download).not.toHaveBeenCalled();
   });
-});
 
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it("surfaces a stale-import conflict and resumes writes without discarding parked edits", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            error:
-              "The company data changed while the import was being prepared. Retry the import from the latest data.",
-            code: "IMPORT_SNAPSHOT_STALE",
-          }),
-          { status: 409, headers: { "Content-Type": "application/json" } },
-        ),
-      ),
-    );
+  it("previews without writing, cancels, then replaces only the selected demo company with stable IDs", async () => {
+    const before = structuredClone(useStore.getState().data);
+    const incoming = document();
+    const incomingAccount = incoming.data.accounts[0];
+    if (!incomingAccount) throw new Error("The import fixture has no company.");
+    incomingAccount.name = "Wayne Enterprises restored";
+    renderTools();
+    await selectFile(incoming);
+    expect(useStore.getState().data).toEqual(before);
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(useStore.getState().data).toEqual(before);
 
-    render(<ImportExport />);
-    await importAndConfirm(incoming());
-
-    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/changed while the import.*retry/i));
-    expect(useStore.getState().notice?.tone).toBe("error");
-    expect(refreshOverride.value).toEqual({ kind: "reloaded" });
-    expect(resumeSpy.calls).toEqual([{ dropParkedEdits: false }]);
-  });
-});
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it("a 200 with an off-spec body still re-hydrates and reports success — the server DID commit", async () => {
-    // A shape error on a committed import must not be reported as "no records imported" (that
-    // would skip the reload and leave the UI on pre-import data the server no longer holds).
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("<html>proxy mangled</html>", { status: 200 })));
-
-    render(<ImportExport />);
-    await importAndConfirm(incoming());
-
-    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/import complete/i));
-    expect(useStore.getState().notice?.tone).not.toBe("error");
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("off-spec body"));
-    warn.mockRestore();
-  });
-});
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it('treats off-spec COUNTS (-1, 1.5, negatives) as a shape error — re-hydrate + plain success, never "-1 records"', async () => {
-    // The counts are untrusted: a number that isn't a nonnegative safe integer must take the
-    // off-spec committed-import path (breadcrumb + reload + numberless success), not the
-    // success-notice path (nonsense) or the zero-record error path (a lie, the server committed).
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ imported: -1, skipped: 1.5 }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      ),
-    );
-
-    render(<ImportExport />);
-    await importAndConfirm(incoming());
-
-    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/import complete/i));
-    expect(useStore.getState().notice?.tone).not.toBe("error");
-    expect(warn).toHaveBeenCalled();
-    warn.mockRestore();
-  });
-});
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it("a committed import whose re-hydrate FAILS reports the honest stale-view message, not success", async () => {
-    // A confirmed import and a failed follow-up refresh are different outcomes; the UI must not present stale pre-import data as a completed recovery.
-    refreshOverride.value = { kind: "failed" };
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ imported: 3, skipped: 0 }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      ),
-    );
-
-    render(<ImportExport />);
-    await importAndConfirm(incoming());
-
+    await previewFile(incoming);
+    fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
     await waitFor(() =>
-      expect(useStore.getState().notice?.message).toMatch(/applied on the server.*couldn't be refreshed/i),
-    );
-    expect(useStore.getState().notice?.tone).toBe("error");
-    expect(useStore.getState().notice?.message).not.toMatch(/imported 3 records/i);
-    expect(resumeSpy.calls).toEqual([]);
-    expect(screen.getByRole("alert")).toHaveTextContent(/reload this page/i);
-    expect(screen.getByTestId("import-data")).toBeDisabled();
-    expect(screen.getByTestId("export-data")).toBeDisabled();
-    expect(useStore.getState().dirtyForm).toBe(true);
-  });
-});
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it("does not report success when no persistence orchestrator can rehydrate the committed slice", async () => {
-    refreshOverride.value = { kind: "unattached" };
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ imported: 3, skipped: 0 }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
+      expect(useStore.getState().data.accounts.find((row) => row.id === accountId)?.name).toBe(
+        "Wayne Enterprises restored",
       ),
     );
-
-    render(<ImportExport />);
-    await importAndConfirm(incoming());
-
-    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/couldn't be refreshed/i));
-    expect(useStore.getState().notice?.tone).toBe("error");
-    expect(useStore.getState().notice?.message).not.toMatch(/imported 3 records/i);
-    expect(resumeSpy.calls).toEqual([]);
-    expect(screen.getByRole("alert")).toHaveTextContent(/reload this page/i);
-    expect(screen.getByTestId("import-data")).toBeDisabled();
-    expect(screen.getByTestId("export-data")).toBeDisabled();
-  });
-});
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it("keeps writes blocked when a committed import refresh is skipped", async () => {
-    refreshOverride.value = { kind: "skipped" };
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ imported: 3, skipped: 0 }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      ),
+    const after = useStore.getState().data;
+    expect(after.accounts.find((row) => row.id === "a-loft")).toEqual(
+      before.accounts.find((row) => row.id === "a-loft"),
     );
-
-    render(<ImportExport />);
-    await importAndConfirm(incoming());
-
-    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/reload this page/i));
-    expect(resumeSpy.calls).toEqual([]);
-    expect(screen.getByTestId("import-data")).toBeDisabled();
-  });
-});
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it("keeps writes blocked when an off-spec committed response cannot be rehydrated", async () => {
-    refreshOverride.value = { kind: "failed" };
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("<html>proxy mangled</html>", { status: 200 })));
-
-    render(<ImportExport />);
-    await importAndConfirm(incoming());
-
-    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/reload this page/i));
-    expect(resumeSpy.calls).toEqual([]);
-    expect(warn).toHaveBeenCalled();
-  });
-});
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it("locks the UI while the import is in flight: blocking dialog + dirtyForm + disabled affordances", async () => {
-    const pendingFetch: { resolve?: (response: Response) => void } = {};
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        () =>
-          new Promise<Response>((resolve) => {
-            pendingFetch.resolve = resolve;
-          }),
-      ),
+    for (const key of SCOPED_KEYS)
+      expect(after[key].filter((row) => row.accountId === "a-loft")).toEqual(
+        before[key].filter((row) => row.accountId === "a-loft"),
+      );
+    expect(after.resources.filter((row) => row.accountId === accountId).map((row) => row.id)).toEqual(
+      incoming.data.resources.map((row) => row.id),
     );
+    expect(useStore.getState().past).toEqual([]);
+  });
 
-    render(<ImportExport />);
-    await importAndConfirm(incoming());
+  it("invalidates typed Undo and old restoration handles in the same demo import publication", async () => {
+    await useStore.getState().refreshPlanning();
+    const allocation = useStore.getState().data.allocations.find((row) => row.accountId === accountId);
+    if (!allocation) throw new Error("The demo allocation fixture is missing.");
+    await useStore.getState().deleteAllocation(allocation.id);
+    const history = useStore.getState().planning.history.past;
+    const inverse = history.at(-1)?.inverse;
+    if (inverse?.operation !== "planning.restoreGroup") throw new Error("The delete has no restoration handle.");
 
-    // POST held open. The non-dismissable "Importing…" dialog is up, the dirty-form semantics
-    // arm the beforeunload/keyboard guards, and both affordances are disabled for the duration.
-    await waitFor(() => expect(screen.getByTestId("import-busy")).toBeInTheDocument());
-    expect(useStore.getState().dirtyForm).toBe(true);
-    expect(screen.getByTestId("import-data")).toBeDisabled();
-    expect(screen.getByTestId("export-data")).toBeDisabled();
-
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.getByTestId("import-busy")).toBeInTheDocument();
-
-    const resolveFetch = pendingFetch.resolve;
-    if (resolveFetch === undefined) {
-      throw new Error("Expected the import request to be pending");
+    const incoming = document();
+    incoming.data.allocations = incoming.data.allocations.filter((row) => row.id !== allocation.id);
+    const account = incoming.data.accounts[0];
+    if (!account) throw new Error("The imported company is missing.");
+    account.name = "Wayne Enterprises after import";
+    const publications: Array<{ imported: boolean; typedHistory: number }> = [];
+    const unsubscribe = useStore.subscribe((state) => {
+      publications.push({
+        imported: state.data.accounts.some((row) => row.id === accountId && row.name === account.name),
+        typedHistory: state.planning.history.past.length,
+      });
+    });
+    try {
+      renderTools();
+      await previewFile(incoming);
+      fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
+      await waitFor(() =>
+        expect(useStore.getState().data.accounts.find((row) => row.id === accountId)?.name).toBe(account.name),
+      );
+      expect(
+        publications
+          .filter((publication) => publication.imported)
+          .every((publication) => publication.typedHistory === 0),
+      ).toBe(true);
+      expect(await useStore.getState().undoPlanning()).toBe(false);
+      await expect(useStore.getState().sendPlanningCommand({ intent: inverse, inverse: null })).rejects.toThrow();
+      expect(useStore.getState().data.allocations.some((row) => row.id === allocation.id)).toBe(false);
+    } finally {
+      unsubscribe();
     }
-    resolveFetch(
-      new Response(JSON.stringify({ imported: 1, skipped: 0 }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
+  });
+
+  it("refuses a redacted document before showing replacement confirmation", async () => {
+    const before = structuredClone(useStore.getState().data);
+    const redacted = buildBetaExport(seed(), { accountId, completeness: "redacted" });
+    renderTools();
+    const input = screen.getByTestId("import-input");
+    Object.defineProperty(input, "files", {
+      value: [new File([serializeBetaExport(redacted)], "redacted.json", { type: "application/json" })],
+      configurable: true,
+    });
+    fireEvent.change(input);
+    await screen.findByRole("alert");
+    expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
+    expect(screen.getByRole("alert")).toHaveTextContent(/full|redacted/i);
+    expect(useStore.getState().data).toEqual(before);
+  });
+
+  it.each([
+    ["invalid JSON", '{ "format":', /valid JSON/i],
+    ["unrelated JSON", '{ "hello": "world" }', /beta-native CapacityLens export/i],
+    ["unsupported version", JSON.stringify({ ...document(), schemaVersion: 2 }), /unsupported/i],
+  ])("refuses %s without changing demo data", async (_case, contents, message) => {
+    const before = structuredClone(useStore.getState().data);
+    renderTools();
+    const input = screen.getByTestId("import-input");
+    Object.defineProperty(input, "files", {
+      value: [new File([contents], "invalid.json", { type: "application/json" })],
+      configurable: true,
+    });
+    fireEvent.change(input);
+    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(message));
+    expect(screen.queryByRole("button", { name: "Replace data" })).toBeNull();
+    expect(useStore.getState().data).toEqual(before);
+  });
+
+  it("refuses a full document with a name over the beta field limit", async () => {
+    const before = structuredClone(useStore.getState().data);
+    const oversized = document();
+    const oversizedAccount = oversized.data.accounts[0];
+    if (!oversizedAccount) throw new Error("The import fixture has no company.");
+    oversizedAccount.name = "W".repeat(1000);
+    renderTools();
+    const input = screen.getByTestId("import-input");
+    Object.defineProperty(input, "files", {
+      value: [new File([JSON.stringify(oversized)], "oversized.json", { type: "application/json" })],
+      configurable: true,
+    });
+    fireEvent.change(input);
+    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/too long|length|characters/i));
+    expect(useStore.getState().data).toEqual(before);
+  });
+
+  it("binds server preview, password proof and apply to one document and revision", async () => {
+    const incoming = document();
+    const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const path = String(url);
+        const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
+        requests.push({ url: path, body });
+        if (path.endsWith("/api/transfer/preview"))
+          return Response.json({ baseRevision: 7, imported: 5, changed: true });
+        if (path.endsWith("/api/auth/action-proof/password")) return Response.json({ proofId: "proof-7" });
+        if (path.endsWith("/api/transfer/apply")) return Response.json({ imported: 5, changed: true, revision: 8 });
+        throw new Error(`Unexpected request: ${path}`);
       }),
     );
-    await waitFor(() => expect(screen.queryByTestId("import-busy")).not.toBeInTheDocument());
-    expect(useStore.getState().dirtyForm).toBe(false);
-    expect(screen.getByTestId("import-data")).not.toBeDisabled();
-    expect(screen.getByTestId("export-data")).not.toBeDisabled();
-  });
-});
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it("a loss warning raised DURING the re-hydrate is not overwritten by the success notice", async () => {
-    // The app holds one notice and a new one dismisses the old, the sticky parked-edit loss
-    // warning must outrank "Imported N records" (the user can verify the import from the data;
-    // they cannot re-discover a silently overwritten loss warning).
-    refreshNotice.error = "Your latest changes could not be saved — please re-apply them.";
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ imported: 3, skipped: 0 }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      ),
+    renderTools(true);
+    await previewFile(incoming);
+    fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
+    expect(requests.map((request) => request.url)).toEqual(["/api/transfer/preview"]);
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "current-password" } });
+    fireEvent.click(screen.getByTestId("action-proof-confirm"));
+    await waitFor(() =>
+      expect(requests.map((request) => request.url)).toEqual([
+        "/api/transfer/preview",
+        "/api/auth/action-proof/password",
+        "/api/transfer/apply",
+      ]),
     );
-
-    render(<ImportExport />);
-    await importAndConfirm(incoming());
-
-    await waitFor(() => expect(useStore.getState().notice?.tone).toBe("error"));
-
-    await new Promise((r) => setTimeout(r, 10));
-    expect(useStore.getState().notice?.message).toMatch(/could not be saved/i);
-    expect(useStore.getState().notice?.message).not.toMatch(/imported 3 records/i);
-  });
-});
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it("a zero-record 200 UN-commits: the server refused the replace, so the parked-edit resume re-schedules (no drop)", async () => {
-    // A 200 response with imported:0 leaves the server slice unchanged, so resuming persistence must preserve parked edits.
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ imported: 0, skipped: 2 }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      ),
-    );
-
-    render(<ImportExport />);
-    await importAndConfirm(incoming());
-
-    await waitFor(() => expect(useStore.getState().notice?.tone).toBe("error"));
-    expect(resumeSpy.calls).toEqual([{ dropParkedEdits: false }]);
-  });
-});
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it("a committed import resumes with dropParkedEdits (a parked pre-import edit must never re-save)", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ imported: 3, skipped: 0 }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      ),
-    );
-
-    render(<ImportExport />);
-    await importAndConfirm(incoming());
-
-    await waitFor(() => expect(resumeSpy.calls).toEqual([{ dropParkedEdits: true }]));
-  });
-});
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it("a NON-OK response resumes with re-schedule (nothing was replaced)", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ error: "nope" }), {
-          status: 403,
-          headers: { "Content-Type": "application/json" },
-        }),
-      ),
-    );
-
-    render(<ImportExport />);
-    await importAndConfirm(incoming());
-
-    await waitFor(() => expect(resumeSpy.calls).toEqual([{ dropParkedEdits: false }]));
-  });
-});
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it.each([408, 500, 503, 504])(
-    "reconciles an HTTP %i import as an unknown atomic outcome before resuming writes",
-    async (status) => {
-      refreshOverride.value = { kind: "reloaded" };
-      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status })));
-
-      render(<ImportExport />);
-      await importAndConfirm(incoming());
-
-      await waitFor(() => expect(resumeSpy.calls).toEqual([{ dropParkedEdits: true }]));
-      expect(useStore.getState().notice?.message).toMatch(/latest server data was reloaded/i);
-    },
-  );
-});
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it("reconciles a failed transport as an unknown atomic outcome", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
-
-    render(<ImportExport />);
-    await importAndConfirm(incoming());
-
-    await waitFor(() => expect(useStore.getState().notice?.tone).toBe("warning"));
-    expect(useStore.getState().notice?.message).toMatch(/latest server data was reloaded/i);
-  });
-});
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it("reconciles an unknown timed-out import before resuming writes", async () => {
-    refreshOverride.value = { kind: "reloaded" };
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")));
-    render(<ImportExport />);
-    await importAndConfirm(incoming());
-    await waitFor(() => expect(resumeSpy.calls).toEqual([{ dropParkedEdits: true }]));
-    expect(useStore.getState().notice?.message).toMatch(/latest server data was reloaded/i);
-  });
-});
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it("leaves writes suspended when a timed-out import cannot be reconciled", async () => {
-    refreshOverride.value = { kind: "failed" };
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")));
-    render(<ImportExport />);
-    await importAndConfirm(incoming());
-    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/reload this page/i));
-    expect(resumeSpy.calls).toEqual([]);
-    expect(screen.getByRole("alert")).toHaveTextContent(/reload this page/i);
-    expect(screen.getByTestId("import-data")).toBeDisabled();
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.getByRole("alert")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Reload" }));
-    expect(reloadMock.reloadPage).toHaveBeenCalledOnce();
-  });
-});
-
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  beforeEach(setupServerMode);
-  it.each(["admin", "editor"] as const)("hides Import from a server-backed %s but keeps Export", (role) => {
-    render(
-      <PermissionContext.Provider value={{ role }}>
-        <ImportExport />
-      </PermissionContext.Provider>,
-    );
-    expect(screen.queryByTestId("import-data")).toBeNull();
-    expect(screen.getByTestId("export-data")).toBeInTheDocument();
-  });
-
-  it("keeps Import for an owner and a null role (OFF/demo regression guard)", () => {
-    const { unmount } = render(
-      <PermissionContext.Provider value={{ role: "owner" }}>
-        <ImportExport />
-      </PermissionContext.Provider>,
-    );
-    expect(screen.getByTestId("import-data")).toBeInTheDocument();
-    unmount();
-
-    render(<ImportExport />);
-    expect(screen.getByTestId("import-data")).toBeInTheDocument();
-  });
-
-  it("states the honest consequence in the confirm dialog: cannot be undone (no ⌘Z promise)", async () => {
-    vi.stubGlobal("fetch", vi.fn());
-    render(<ImportExport />);
-    const file = new File([incoming()], "incoming.json", {
-      type: "application/json",
+    expect(requests[1]?.body).toMatchObject({
+      action: "import",
+      accountId,
+      intent: { baseRevision: 7, document: incoming },
     });
-    const input = screen.getByTestId("import-input");
-    Object.defineProperty(input, "files", { value: [file], writable: false });
-    fireEvent.change(input);
-    await new Promise((r) => setTimeout(r, 0));
-    expect(screen.getByText(/cannot be undone/i)).toBeInTheDocument();
-    expect(screen.queryByText(/⌘Z/)).toBeNull();
+    expect(requests[2]?.body).toMatchObject({ accountId, baseRevision: 7, document: incoming, proofId: "proof-7" });
+  });
+
+  it.each([403, 409])("releases planning commands after a refused %i import", async (status) => {
+    await submitServerImport(Response.json({ error: "Import refused." }, { status }));
+    await waitFor(() => expect(planningProbe.releases).toBe(1));
+    expect(useStore.getState().notice).toMatchObject({ tone: "error", message: "Import refused." });
+  });
+
+  it("reloads the authoritative slice after an uncertain import response", async () => {
+    await submitServerImport(Response.json({ error: "Unknown outcome." }, { status: 503 }));
+    await waitFor(() => expect(planningProbe.releases).toBe(1));
+    expect(useStore.getState().notice?.tone).toBe("warning");
+  });
+
+  it("keeps commands suspended and requires reload when a committed import refresh fails", async () => {
+    refreshOverride.result = { kind: "failed" };
+    await submitServerImport(Response.json({ imported: 5, changed: true, revision: 8 }));
+    await screen.findByTestId("import-reload-required");
+    expect(planningProbe.releases).toBe(0);
+    expect(useStore.getState().notice?.tone).toBe("error");
+  });
+
+  it("ignores a cancelled file's late preview before confirming a newer selection", async () => {
+    const first = document();
+    const second = document();
+    const secondAccount = second.data.accounts[0];
+    if (!secondAccount) throw new Error("The second import fixture has no company.");
+    secondAccount.name = "Wayne Enterprises replacement";
+    const previews: Array<(response: Response) => void> = [];
+    const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) => {
+        const path = String(url);
+        const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
+        requests.push({ url: path, body });
+        if (path.endsWith("/api/transfer/preview")) return new Promise<Response>((resolve) => previews.push(resolve));
+        if (path.endsWith("/api/auth/action-proof/password"))
+          return Promise.resolve(Response.json({ proofId: "proof-b" }));
+        if (path.endsWith("/api/transfer/apply"))
+          return Promise.resolve(Response.json({ imported: 5, changed: true, revision: 23 }));
+        throw new Error(`Unexpected request: ${path}`);
+      }),
+    );
+    renderTools(true);
+    await selectFile(first);
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await waitFor(() => expect(previews).toHaveLength(1));
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await selectFile(second);
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await waitFor(() => expect(previews).toHaveLength(2));
+    previews[0]?.(Response.json({ baseRevision: 11, imported: 5, changed: true }));
+    expect(screen.queryByRole("button", { name: "Replace data" })).toBeNull();
+    previews[1]?.(Response.json({ baseRevision: 22, imported: 5, changed: true }));
+    await screen.findByRole("button", { name: "Replace data" });
+    fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "current-password" } });
+    fireEvent.click(screen.getByTestId("action-proof-confirm"));
+    await waitFor(() => expect(requests.some((request) => request.url.endsWith("/api/transfer/apply"))).toBe(true));
+    const proof = requests.find((request) => request.url.endsWith("/api/auth/action-proof/password"));
+    expect(proof?.body.intent).toEqual({ baseRevision: 22, document: second });
+    const apply = requests.find((request) => request.url.endsWith("/api/transfer/apply"));
+    expect(apply?.body).toMatchObject({ baseRevision: 22, document: second, proofId: "proof-b" });
+  });
+
+  it("offers linked Google confirmation and Cancel issues no proof or import", async () => {
+    const requests: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        requests.push(String(url));
+        return Response.json({ baseRevision: 7, imported: 5, changed: true });
+      }),
+    );
+    renderTools(true, "provider");
+    await previewFile(document());
+    fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
+    expect(screen.getByText(/Choose your linked Google account/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(requests).toEqual(["/api/transfer/preview"]);
+    expect(sessionStorage.getItem("capacitylens/import-action-proof")).toBeNull();
+  });
+
+  it("stores only opaque import confirmation metadata before Google navigation", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        String(url).endsWith("/api/transfer/preview")
+          ? Response.json({ baseRevision: 7, imported: 5, changed: true })
+          : Response.json({ proofId: "proof-google", url: "https://accounts.google.test/confirm" }),
+      ),
+    );
+    renderTools(true, "provider");
+    await previewFile(document());
+    fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    await waitFor(() => expect(sessionStorage.getItem("capacitylens/import-action-proof")).not.toBeNull());
+    const saved = JSON.parse(sessionStorage.getItem("capacitylens/import-action-proof") ?? "null") as Record<
+      string,
+      unknown
+    >;
+    expect(saved).toEqual({ accountId, baseRevision: 7, proofId: "proof-google" });
+    expect(JSON.stringify(sessionStorage)).not.toContain("resources");
+  });
+
+  it("resumes only its own returned provider proof and still needs an explicit apply click", async () => {
+    const incoming = document();
+    sessionStorage.setItem(
+      "capacitylens/import-action-proof",
+      JSON.stringify({ accountId, baseRevision: 7, proofId: "proof-google" }),
+    );
+    window.history.replaceState(null, "", "/settings?capacitylensActionConfirmed=1");
+    const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
+      void _init;
+      if (String(url).endsWith("/api/transfer/preview"))
+        return Response.json({ baseRevision: 7, imported: 5, changed: false });
+      return Response.json({ imported: 5, changed: false, revision: 7 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderTools(true, "provider");
+    await screen.findByText(/Choose the same import file again/);
+    expect(fetchMock).not.toHaveBeenCalled();
+    await previewFile(incoming);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const body = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)) as Record<string, unknown>;
+    expect(body.proofId).toBe("proof-google");
+    expect(body.document).toEqual(incoming);
+    expect(sessionStorage.getItem("capacitylens/import-action-proof")).toBeNull();
+  });
+
+  it("surfaces refusal when the file reselected after Google differs from the proved import", async () => {
+    const different = document();
+    const account = different.data.accounts[0];
+    if (!account) throw new Error("The replacement fixture has no company.");
+    account.name = "Different Wayne company";
+    const before = structuredClone(useStore.getState().data);
+    sessionStorage.setItem(
+      "capacitylens/import-action-proof",
+      JSON.stringify({ accountId, baseRevision: 7, proofId: "proof-original" }),
+    );
+    window.history.replaceState(null, "", "/settings?capacitylensActionConfirmed=1");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        String(url).endsWith("/api/transfer/preview")
+          ? Response.json({ baseRevision: 7, imported: 5, changed: true })
+          : Response.json({ error: "The confirmation does not match this import." }, { status: 403 }),
+      ),
+    );
+    renderTools(true, "provider");
+    await screen.findByText(/Choose the same import file again/);
+    await previewFile(different);
+    fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
+    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/does not match this import/i));
+    expect(useStore.getState().data).toEqual(before);
+    expect(planningProbe.releases).toBe(1);
+  });
+
+  it("waits for the selected company to hydrate before reading a returned provider proof", async () => {
+    const saved = JSON.stringify({ accountId, baseRevision: 7, proofId: "proof-hydrating" });
+    useStore.getState().setActiveAccount(null);
+    sessionStorage.setItem("capacitylens/import-action-proof", saved);
+    window.history.replaceState(null, "", "/settings?capacitylensActionConfirmed=1");
+    renderTools(true, "provider");
+    expect(sessionStorage.getItem("capacitylens/import-action-proof")).toBe(saved);
+    useStore.getState().setActiveAccount(accountId);
+    await screen.findByText(/Choose the same import file again/);
+    expect(sessionStorage.getItem("capacitylens/import-action-proof")).toBeNull();
+  });
+
+  it("discards a failed provider return marker without retaining the import file", async () => {
+    sessionStorage.setItem(
+      "capacitylens/import-action-proof",
+      JSON.stringify({ accountId, baseRevision: 7, proofId: "proof-cancelled" }),
+    );
+    renderTools(true, "provider");
+    await waitFor(() => expect(sessionStorage.getItem("capacitylens/import-action-proof")).toBeNull());
+    expect(screen.queryByText(/Choose the same import file again/)).toBeNull();
+  });
+
+  it("refuses a returned import proof for another selected company", async () => {
+    sessionStorage.setItem(
+      "capacitylens/import-action-proof",
+      JSON.stringify({ accountId: "a-loft", baseRevision: 7, proofId: "proof-other" }),
+    );
+    window.history.replaceState(null, "", "/settings?capacitylensActionConfirmed=1");
+    renderTools(true, "provider");
+    await waitFor(() => expect(sessionStorage.getItem("capacitylens/import-action-proof")).toBeNull());
+    expect(screen.queryByText(/Choose the same import file again/)).toBeNull();
+    expect(useStore.getState().notice?.tone).toBe("error");
+  });
+
+  it("hides server import from non-owners while keeping export", () => {
+    serverFlag.on = true;
+    render(
+      <PermissionContext.Provider value={{ role: "editor", status: "resolved" }}>
+        <ImportExport />
+      </PermissionContext.Provider>,
+    );
+    expect(screen.queryByTestId("import-input")).toBeNull();
+    expect(screen.getByTestId("export-data")).toBeInTheDocument();
   });
 });

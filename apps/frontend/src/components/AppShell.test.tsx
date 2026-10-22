@@ -1,11 +1,12 @@
 import { afterEach, describe, it, expect, beforeEach, vi } from "vitest";
+import type { Mock } from "vitest";
 import { screen, act, fireEvent, waitFor, within } from "@testing-library/react";
-import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
+import { PlanningControllerError } from "@/data/planning/planningCacheController";
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AppShell } from "./AppShell";
 import { useStore } from "@/store/useStore";
 import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from "@/test/fixtures";
 import { stubMatchMedia } from "@/test/stubMatchMedia";
-import { attachPersistence } from "@/data/persist";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import * as accountTransition from "@/auth/accountTransition";
@@ -105,6 +106,59 @@ it("offers projection recovery after the server has prepared a starting member v
 
   renderAppShell({});
 
+  const banner = screen.getByTestId("masquerade-banner");
+  expect(within(banner).getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  expect(within(banner).getByRole("button", { name: "End now" })).toBeInTheDocument();
+});
+
+it("hides old actor route data during a member-view projection while keeping recovery controls", () => {
+  useStore.getState().setMasquerade({
+    kind: "starting",
+    generation: 1,
+    pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: "u-viewer" },
+    state: {
+      accountId: DEFAULT_ACCOUNT_ID,
+      targetUserId: "u-viewer",
+      targetName: "Selina Kyle",
+      effectiveRole: "viewer",
+      startedAt: "2026-09-01T10:00:00.000Z",
+      token: "token-1",
+    },
+  });
+
+  render(
+    <MemoryRouter initialEntries={["/"]}>
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<div>old actor private row</div>} />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  expect(screen.getByTestId("masquerade-banner")).toHaveTextContent("Starting member view…");
+  expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "End now" })).toBeInTheDocument();
+  expect(screen.queryByText("old actor private row")).not.toBeInTheDocument();
+  expect(screen.getAllByRole("status").some((element) => element.textContent.includes("Loading"))).toBe(true);
+});
+
+it("offers Retry and End when an authenticated cold member view has no selected company", () => {
+  useStore.getState().clearPlanning();
+  useStore.getState().setMasquerade({
+    kind: "starting",
+    generation: 1,
+    pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: "u-viewer" },
+    state: {
+      accountId: DEFAULT_ACCOUNT_ID,
+      targetUserId: "u-viewer",
+      targetName: "Selina Kyle",
+      effectiveRole: "viewer",
+      startedAt: "2026-09-01T10:00:00.000Z",
+      token: "token-1",
+    },
+  });
+  renderAppShell();
   const banner = screen.getByTestId("masquerade-banner");
   expect(within(banner).getByRole("button", { name: "Retry" })).toBeInTheDocument();
   expect(within(banner).getByRole("button", { name: "End now" })).toBeInTheDocument();
@@ -377,15 +431,12 @@ it("does not reactivate a sole company after its loaded slice proves missing", a
   expect(useStore.getState().notice?.message).toBe("That company no longer exists.");
 });
 
-it("guards navigation while a persistence write is still unacknowledged", () => {
-  const detachPersistence = attachPersistence({
-    store: useStore,
-    adapter: { loadAll: async () => emptyAppData(), saveAll: async () => {} },
-    debounceMs: 300,
-  });
+it("guards navigation while a typed planning write is unacknowledged", () => {
   const { unmount } = renderAppShell({});
   act(() => {
-    useStore.getState().addClient({ name: "Unsaved client", color: "#111111" });
+    useStore.setState((state) => ({
+      planning: { ...state.planning, pending: {} as NonNullable<typeof state.planning.pending> },
+    }));
   });
 
   const event = new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent;
@@ -394,7 +445,6 @@ it("guards navigation while a persistence write is still unacknowledged", () => 
   expect(useStore.getState().dirtyForm).toBe(false);
   expect(event.defaultPrevented).toBe(true);
   unmount();
-  detachPersistence();
 });
 
 function registerSkipLinkLayerTest(): void {
@@ -1161,43 +1211,98 @@ describe("AppShell hydration gate", () => {
   });
 });
 
-describe("AppShell undo/redo keyboard", () => {
-  it("⌘Z undoes a data change, but is IGNORED while a form is dirty", () => {
+describe("AppShell planning problems", () => {
+  it.each([
+    ["refused", new PlanningControllerError("Refused.", "account_membership_lost", 403), m.app_planning_refused()],
+    ["error", new Error("Network down"), m.app_planning_unavailable()],
+  ] as const)("shows a visible alert for a %s planning state", (status, error, text) => {
     useStore.getState().setHydrated(true);
     renderAppShell({});
 
-    act(() => {
-      useStore.getState().addClient({ name: "Undoable", color: "#111111" });
-    });
-    expect(useStore.getState().data.clients).toHaveLength(1);
+    act(() => useStore.setState((state) => ({ planning: { ...state.planning, status, error } })));
 
-    // A dirty form owns ⌘Z, undoing would revert the data behind the unsaved form (the
-    // focus check alone misses non-text controls like a <select>), so it must be ignored.
-    act(() => {
-      useStore.getState().setDirtyForm(true);
-    });
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
-    });
+    expect(screen.getByRole("alert")).toHaveTextContent(text);
+  });
+});
 
-    expect(useStore.getState().data.clients).toHaveLength(1);
+describe("AppShell undo/redo keyboard", () => {
+  // The shortcuts drive the planning controller's typed history, never the legacy snapshot stack.
+  function withPlanningHistorySpies(run: (spies: { undo: Mock; redo: Mock }) => void) {
+    const { undoPlanning, redoPlanning, undo, redo } = useStore.getState();
+    const spies = { undo: vi.fn(async () => true), redo: vi.fn(async () => true) };
+    const legacy = vi.fn();
+    useStore.setState({ undoPlanning: spies.undo, redoPlanning: spies.redo, undo: legacy, redo: legacy });
+    try {
+      run(spies);
+      expect(legacy).not.toHaveBeenCalled();
+    } finally {
+      useStore.setState({ undoPlanning, redoPlanning, undo, redo });
+    }
+  }
 
-    act(() => {
-      useStore.getState().setDirtyForm(false);
-    });
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
-    });
+  it("⌘Z undoes through planning history, but is IGNORED while a form is dirty", () => {
+    useStore.getState().setHydrated(true);
+    renderAppShell({});
 
-    expect(useStore.getState().data.clients).toHaveLength(0);
+    withPlanningHistorySpies((spies) => {
+      // A dirty form owns ⌘Z, undoing would revert the data behind the unsaved form (the
+      // focus check alone misses non-text controls like a <select>), so it must be ignored.
+      act(() => {
+        useStore.getState().setDirtyForm(true);
+      });
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
+      });
+      expect(spies.undo).not.toHaveBeenCalled();
+
+      act(() => {
+        useStore.getState().setDirtyForm(false);
+      });
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
+      });
+      expect(spies.undo).toHaveBeenCalledOnce();
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true, shiftKey: true }));
+      });
+      expect(spies.redo).toHaveBeenCalledOnce();
+    });
+  });
+
+  it("surfaces a rejected shortcut as an error notice unless planning state already shows it", async () => {
+    useStore.getState().setHydrated(true);
+    renderAppShell({});
+    const { undoPlanning } = useStore.getState();
+    try {
+      // Swap the action inside act so the shortcut listener re-binds before the key press.
+      act(() => useStore.setState({ undoPlanning: () => Promise.reject(new Error("History is corrupt")) }));
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
+      });
+      await waitFor(() => expect(useStore.getState().notice).toEqual({ message: "History is corrupt", tone: "error" }));
+
+      act(() => useStore.getState().setNotice(null));
+      // A stale revision is shown by refetching server state, so it must not also raise a toast.
+      act(() =>
+        useStore.setState({
+          undoPlanning: () =>
+            Promise.reject(new PlanningControllerError("The schedule changed.", "stale_revision", 409)),
+        }),
+      );
+      await act(async () => {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true }));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(useStore.getState().notice).toBeNull();
+    } finally {
+      useStore.setState({ undoPlanning });
+    }
   });
 
   it("ignores undo and redo while a clean modal has focus on a non-text control", () => {
     useStore.getState().setHydrated(true);
     renderAppShell({});
-    act(() => {
-      useStore.getState().addClient({ name: "Undoable", color: "#111111" });
-    });
 
     const modal = document.createElement("div");
     modal.setAttribute("role", "dialog");
@@ -1208,24 +1313,23 @@ describe("AppShell undo/redo keyboard", () => {
     document.body.append(modal);
 
     try {
-      act(() => {
-        button.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true, bubbles: true }));
+      withPlanningHistorySpies((spies) => {
+        act(() => {
+          button.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true, bubbles: true }));
+        });
+        act(() => {
+          button.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key: "z",
+              metaKey: true,
+              shiftKey: true,
+              bubbles: true,
+            }),
+          );
+        });
+        expect(spies.undo).not.toHaveBeenCalled();
+        expect(spies.redo).not.toHaveBeenCalled();
       });
-      expect(useStore.getState().data.clients).toHaveLength(1);
-
-      act(() => useStore.getState().undo());
-      expect(useStore.getState().data.clients).toHaveLength(0);
-      act(() => {
-        button.dispatchEvent(
-          new KeyboardEvent("keydown", {
-            key: "z",
-            metaKey: true,
-            shiftKey: true,
-            bubbles: true,
-          }),
-        );
-      });
-      expect(useStore.getState().data.clients).toHaveLength(0);
     } finally {
       modal.remove();
     }

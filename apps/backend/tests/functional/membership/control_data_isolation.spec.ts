@@ -1,16 +1,17 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
+import { resetAuthenticatedClient } from '../../helpers/authenticated_data_fixture.js'
 
 test.group('membership control-data isolation', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
-  test('keeps representative admission and membership controls out of export and generic CRUD', async ({
+  test('keeps representative admission and membership controls out of export and retired CRUD', async ({
     client,
     assert,
   }) => {
-    await client.post('/api/test/reset').json({ seed: true }).send()
+    client = await resetAuthenticatedClient(client, true)
     const stamp = '2026-10-15T00:00:00.000Z'
     await db.from('invitation_proposals').where('id', 'proposal-control-isolation').delete()
     await db.from('invitations').where('id', 'invite-control-isolation').delete()
@@ -116,25 +117,21 @@ test.group('membership control-data isolation', (group) => {
     ])
       assert.notInclude(serialized, secret)
 
-    const controlTables = [
-      'loginLinkTokens',
-      'memberships',
-      'accountMemberResources',
-      'invitations',
-      'invitationProposals',
-      'companyJoinIntents',
-      'accountJoiningPolicies',
-    ] as const
-    for (const table of controlTables) {
-      const attempted = await client
-        .post('/api/batch')
-        .header('sec-fetch-site', 'same-origin')
-        .json({
-          ops: [{ method: 'PUT', table, id: `attempt-${table}`, row: { id: `attempt-${table}` } }],
-        } as never)
-        .send()
-      assert.equal(attempted.status(), 400, `${table} is not writable through generic batch CRUD`)
-    }
+    const attempted = await client
+      .post('/api/batch')
+      .header('sec-fetch-site', 'same-origin')
+      .json({
+        ops: [
+          {
+            method: 'PUT',
+            table: 'memberships',
+            id: 'attempt-control',
+            row: { id: 'attempt-control' },
+          },
+        ],
+      })
+      .send()
+    assert.equal(attempted.status(), 404)
 
     assert.isNotNull(
       await db.from('account_member_resources').where('id', 'link-control-isolation').first()

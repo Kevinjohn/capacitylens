@@ -137,7 +137,8 @@ from Schedule and the assignee picker but keeps their past bookings.
 
 Owners and Admins see archived resources at the bottom of Resources, grouped as **Archived
 Studio**, **Archived Supplementary**, **Archived External** and **Archived placeholders**. Select
-**Restore** to bring someone back, or **Delete** to remove the record from those lists. **Delete**
-anonymises any personal data and can't be undone.
+**Restore** to bring someone back. An Owner or Admin can select **Anonymise** on an archived
+resource to replace its name and role with anonymous labels, remove its avatar and clear notes from
+its bookings and time off. The resource and its planning links remain; anonymisation can't be undone.
 
 Next: [Schedule and change work](/using/schedule-work) — book the person.

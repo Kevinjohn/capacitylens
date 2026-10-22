@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import { randomUUID } from 'node:crypto'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { readState, readStateWithClient, resetState } from '#services/state_repository'
 import {
@@ -8,12 +8,12 @@ import {
   PlanningOperationError,
 } from '#services/planning_operations/execute'
 import type { PlanningIntent } from '#validators/planning_operations'
-import type { BatchCapabilities } from '#services/batch/data_policy'
+import type { BatchCapabilities } from '#services/planning_operations/data_policy'
 
 const owner: BatchCapabilities = {
   role: 'owner',
   canWrite: true,
-  canPurge: true,
+  canAnonymise: true,
   canSeePrivateNames: true,
   canSeeTimeOffNote: true,
 }
@@ -21,7 +21,11 @@ const owner: BatchCapabilities = {
 async function execute(intent: PlanningIntent) {
   await db.transaction(async (trx) => {
     const data = await readStateWithClient(trx, 'a-studio', true)
-    await executePlanningIntent(trx, 'a-studio', intent, owner, data)
+    await executePlanningIntent(trx, 'a-studio', intent, owner, data, {
+      actorId: 'u-bruce',
+      sessionId: 'session-bruce',
+      mutationId: randomUUID(),
+    })
   })
 }
 
@@ -54,7 +58,7 @@ const makeAllocation = (
 })
 
 test.group('typed allocation group and lifecycle operations', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('creates one allocation series and allows only later group entries to start on a nonworking day', async ({
     assert,
@@ -188,8 +192,8 @@ test.group('typed allocation group and lifecycle operations', (group) => {
       operation: 'catalogue.archive',
       entity: { entity: 'clients', id: internal.id },
     })
-    assert.equal(protectedArchive.status, 400)
-    assert.equal(protectedArchive.code, 'validation_error')
+    assert.equal(protectedArchive.status, 409)
+    assert.equal(protectedArchive.code, 'conflict')
 
     await execute({ operation: 'catalogue.archive', entity: { entity: 'clients', id: client.id } })
     const archivedState = await readState('a-studio', true)

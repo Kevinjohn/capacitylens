@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import { randomUUID } from 'node:crypto'
 import { readState, readStateWithClient, resetState } from '#services/state_repository'
@@ -9,12 +9,12 @@ import {
   PlanningOperationError,
 } from '#services/planning_operations/execute'
 import type { PlanningIntent } from '#validators/planning_operations'
-import type { BatchCapabilities } from '#services/batch/data_policy'
+import type { BatchCapabilities } from '#services/planning_operations/data_policy'
 
 const owner: BatchCapabilities = {
   role: 'owner',
   canWrite: true,
-  canPurge: true,
+  canAnonymise: true,
   canSeePrivateNames: true,
   canSeeTimeOffNote: true,
 }
@@ -26,11 +26,15 @@ async function executePlanningIntent(
   capabilities: BatchCapabilities
 ) {
   const data = await readStateWithClient(trx, accountId, true)
-  return applyPlanningIntent(trx, accountId, intent, capabilities, data)
+  return applyPlanningIntent(trx, accountId, intent, capabilities, data, {
+    actorId: 'u-bruce',
+    sessionId: 'session-bruce',
+    mutationId: randomUUID(),
+  })
 }
 
 test.group('typed planning writers', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
 
   test('creates and patches a closure while preserving its other fields', async ({ assert }) => {
     await resetState('single')

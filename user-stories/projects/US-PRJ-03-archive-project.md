@@ -1,19 +1,17 @@
-# US-PRJ-03 — Archive a project (hide from the schedule) and undo
+# US-PRJ-03 — Archive a project (hide from the schedule) and restore
 
-**Area:** Projects · **Persona:** Studio manager · **Linked E2E:** `e2e/projects.spec.ts` → "archiving a project hides it from the list, restorable with undo"
+**Area:** Projects · **Persona:** Studio manager · **Linked E2E:** `e2e/projects.spec.ts` → "archiving a project hides it from the list, and undo leaves it archived"
 
 ## Goal
 
-Remove a project from the active views **reversibly** — archive it (with a clear warning and one-step
-undo) so the project and its phases/activities/allocations are retained and it can be restored.
+Remove a project from the active views **reversibly** — archive it (with a clear warning) so the project and its phases/activities/allocations are retained and it can be restored.
 
 ## Why
 
 When a project pauses or is cancelled, the manager wants it off the schedule in one step — but without
 destroying its scheduled work. Archiving hides the project from the active views while keeping its
-data. Owners and Admins can soft-delete it from Archived projects. Permanent removal cascades project-specific work and unbinds placeholders, while shared
-All-projects bookings remain and become unattributed. Archiving is reversible, so the action is
-undoable. Settings no longer exposes the Deleted items section.
+data. There is no deletion step: an archived project stays until it is restored. Archiving is
+reversible through **Restore**.
 
 ## How (end-to-end)
 
@@ -23,10 +21,10 @@ Review_) and allocations.
 
 1. On the **Project Watchtower** row, click the **Archive Project Watchtower** (trash) icon. The
    "Archive project?" confirmation dialog opens.
-2. Read the dialog: it explains the project will be hidden from the schedule and can be restored or
-   deleted from **Archived projects** below the list.
+2. Read the dialog: it explains the project will be hidden from the schedule and can be restored
+   from **Archived projects** below the list.
 3. Click **Archive** to confirm. The dialog closes and **Project Watchtower** leaves the Projects list.
-4. Press **⌘Z** (Undo, LOCAL mode) to reverse the archive — Project Watchtower returns to the list.
+4. Press **⌘Z**. Project Watchtower stays archived: Undo and Redo currently cover booking changes only.
 
 ## Acceptance criteria
 
@@ -38,9 +36,6 @@ Review_) and allocations.
   view hides descendants through their archived ancestry without changing their own status.
 - ✅ Restoring the project brings attributed All-projects allocations back with their attribution
   intact, including after an ordinary allocation drag or edit.
-- ✅ Permanently deleting the project removes its project-specific activities and allocations, but
-  clears the project attribution from an All-projects allocation instead of deleting that booking.
-- ✅ Archived projects surface under **Archived projects**, where they can be restored or
-  (after soft-delete + the 30-day grace) permanently deleted.
-- ✅ (LOCAL mode) Pressing **⌘Z** restores the project to the active list; in server mode, **Restore**
-  from Archived projects brings it back.
+- ✅ Archived projects surface under **Archived projects**, where they can be restored. No
+  permanent deletion exists.
+- ✅ Pressing **⌘Z** leaves the project archived; **Restore** from Archived projects brings it back.

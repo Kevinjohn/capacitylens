@@ -181,9 +181,9 @@ function registerTimeOffDrawModeOpTest() {
 }
 
 // the per-row destructive action archives (hidden from the active list, fully retained, not
-// a hard delete). Archiving is undoable via the local store.
+// a hard delete). Booking-only Undo leaves the archive in place.
 function registerArchivingExternalPartyUndoableTests() {
-  test("archiving an external party is undoable", async ({ page }) => {
+  test("archiving an external party is not undone by booking Undo", async ({ page }) => {
     await openApp(page);
     await enableExternal(page);
     await page.getByRole("link", { name: "Resources" }).click();
@@ -200,7 +200,7 @@ function registerArchivingExternalPartyUndoableTests() {
     await expect(page.getByTestId("external-row").filter({ hasText: "Kord Industries" })).toHaveCount(0);
 
     await page.keyboard.press("Meta+z");
-    await expect(page.getByTestId("external-row").filter({ hasText: "Kord Industries" })).toBeVisible();
+    await expect(page.getByTestId("external-row").filter({ hasText: "Kord Industries" })).toHaveCount(0);
   });
 }
 

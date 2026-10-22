@@ -59,18 +59,20 @@ function parseTimeOffDraft(options: SaveTimeOffOptions) {
   return { basePatch: { resourceId, startDate, endDate, type }, cleanNote };
 }
 
-function persistNewTimeOff(options: {
+async function persistNewTimeOff(options: {
   baseDraft: Draft<TimeOff>;
   repeatedDrafts: Draft<TimeOff>[];
   add: SaveTimeOffOptions["add"];
   addMany: SaveTimeOffOptions["addMany"];
   acceptedSubmission: SaveTimeOffOptions["acceptedSubmission"];
   repeat: TimeOffRepeatChoice;
-}): boolean {
+}): Promise<boolean> {
   if (options.acceptedSubmission.current) return false;
   options.acceptedSubmission.current = true;
   try {
-    const result = options.repeat === "none" ? options.add(options.baseDraft) : options.addMany(options.repeatedDrafts);
+    const result = await (options.repeat === "none"
+      ? options.add(options.baseDraft)
+      : options.addMany(options.repeatedDrafts));
     if (result.kind === "blocked") {
       options.acceptedSubmission.current = false;
       return false;
@@ -129,7 +131,7 @@ function resolveRepeatFailure(startDate: ISODate, error: unknown, fail: Fail): n
 }
 
 /** Validates a time-off form and persists its single entry or repeated batch. */
-export function saveTimeOff(options: SaveTimeOffOptions): void {
+export async function saveTimeOff(options: SaveTimeOffOptions): Promise<void> {
   const draft = parseTimeOffDraft(options);
   if (!draft) return;
   const { basePatch, cleanNote } = draft;
@@ -140,12 +142,12 @@ export function saveTimeOff(options: SaveTimeOffOptions): void {
         options.fail(null, m.form_timeoff_err_changed());
         return;
       }
-      options.update(options.timeOff.id, patch);
+      await options.update(options.timeOff.id, patch);
     } else {
       const baseDraft = { ...basePatch, ...(cleanNote ? { note: cleanNote } : {}) };
       const repeatedDrafts = buildTimeOffDraftsForSave(baseDraft, options);
       if (!repeatedDrafts) return;
-      if (!persistNewTimeOff({ ...options, baseDraft, repeatedDrafts })) return;
+      if (!(await persistNewTimeOff({ ...options, baseDraft, repeatedDrafts }))) return;
     }
     options.onClose();
   } catch (error) {

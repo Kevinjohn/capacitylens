@@ -1,6 +1,7 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
+import { createFixtureCompanyForOwner } from '../../helpers/authenticated_data_fixture.js'
 import env from '#start/env'
 import { resetState } from '#services/state_repository'
 import { policyAllowsAdmission } from '#services/admission/joining_policy'
@@ -21,7 +22,7 @@ const withSession = <
   })
 
 test.group('joining policy and current proof', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(async () => {
     await resetState(false)
     await db.from('user_session_index').delete()
@@ -134,13 +135,8 @@ test.group('joining policy and current proof', (group) => {
       .send()
     owner.assertStatus(201)
     const ownerCookie = owner.cookie('adonis-session')!.value
-    const company = await withSession(
-      client.post('/api/orgs').header('sec-fetch-site', 'same-origin'),
-      ownerCookie
-    )
-      .json({ id: 'a-studio', name: 'Wayne Enterprises' })
-      .send()
-    company.assertStatus(201)
+    const ownerId = (owner.body() as { user: { id: string } }).user.id
+    await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio')
     const recruit = await client
       .post('/api/auth/sign-up')
       .header('sec-fetch-site', 'same-origin')

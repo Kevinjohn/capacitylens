@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { emptyAppData } from "@capacitylens/shared/types/entities";
+import { buildBetaExport } from "@capacitylens/shared/data/betaTransfer";
+import { seed } from "@capacitylens/shared/data/seed";
 import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } from "./fetchInactiveSlice";
 
 // The shared reader of the purge-gated `?includeInactive=1` admin endpoint. The component suites
@@ -14,20 +15,20 @@ afterEach(() => {
 const ok = (body: unknown): Response => ({ ok: true, status: 200, json: async () => body }) as unknown as Response;
 
 describe("fetchInactiveSlice", () => {
-  it("requests the includeInactive read for the account, with credentials, and migrates the body", async () => {
-    const body = { ...emptyAppData(), accounts: [{ id: "a 1", name: "Ferris" }] };
+  it("requests a complete strict inactive slice for the account with credentials", async () => {
+    const body = buildBetaExport(seed(), { accountId: "a-studio", completeness: "full" }).data;
     const fetchMock = vi.fn(async () => ok(body));
     vi.stubGlobal("fetch", fetchMock);
 
     const controller = new AbortController();
-    const data = await fetchInactiveSlice("a 1", controller.signal);
+    const data = await fetchInactiveSlice("a-studio", controller.signal);
 
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toContain(`/api/state?accountId=${encodeURIComponent("a 1")}&includeInactive=1`);
+    expect(url).toContain("/api/state?accountId=a-studio&includeInactive=1");
     expect(init.credentials).toBe("include");
     expect(init.signal).toBeInstanceOf(AbortSignal);
 
-    expect(data.accounts.map((a) => a.id)).toEqual(["a 1"]);
+    expect(data).toEqual(body);
   });
 
   it("throws InactiveSliceHttpError carrying the status and the server `{ error }` sentence", async () => {
@@ -58,9 +59,7 @@ describe("fetchInactiveSlice", () => {
     expect((err as InactiveSliceHttpError).serverMessage).toBeUndefined();
   });
 
-  // The load-bearing gate: a 200 body missing any known table must be refused before migrate()
-  // (which would coerce absent tables to [] and synthesize the Internal client, a nearly-empty
-  // AppData that reads as "nothing archived" / a complete backup). Partial = accounts row only.
+  // A partial 200 must not be repaired into an apparently complete backup.
   it("throws InactiveSliceShapeError on a structurally incomplete 200 body", async () => {
     for (const body of [null, [], { definitely: "not CapacityLens" }, { accounts: [{ id: "a1" }] }]) {
       vi.stubGlobal(
@@ -68,6 +67,25 @@ describe("fetchInactiveSlice", () => {
         vi.fn(async () => ok(body)),
       );
       await expect(fetchInactiveSlice("a1")).rejects.toBeInstanceOf(InactiveSliceShapeError);
+    }
+  });
+
+  it("refuses a complete-looking response with invalid lifecycle state or a broken link", async () => {
+    const valid = buildBetaExport(seed(), { accountId: "a-studio", completeness: "full" }).data;
+    const lifecycle = structuredClone(valid);
+    const client = lifecycle.clients[0];
+    if (!client) throw new Error("The inactive fixture has no client.");
+    Object.assign(client, { archivedAt: "yesterday" });
+    const broken = structuredClone(valid);
+    const project = broken.projects[0];
+    if (!project) throw new Error("The inactive fixture has no project.");
+    Object.assign(project, { clientId: "missing-client" });
+    for (const body of [lifecycle, broken]) {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => ok(body)),
+      );
+      await expect(fetchInactiveSlice("a-studio")).rejects.toBeInstanceOf(InactiveSliceShapeError);
     }
   });
 });

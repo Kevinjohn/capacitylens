@@ -3,13 +3,13 @@ import { setActiveDateStyle } from "@/lib/dateDisplay";
 import { resolveDateStyle } from "./selectors";
 import { createAccountSlice } from "./slices/accountSlice";
 import { createAllocationSlice } from "./slices/allocationSlice";
-import { createCatalogSlice } from "./slices/catalogSlice";
 import { createHistorySlice } from "./slices/historySlice";
 import { createLifecycleSlice } from "./slices/lifecycleSlice";
-import { createResourceSlice } from "./slices/resourceSlice";
 import { createRuntimeSlice } from "./slices/runtimeSlice";
 import { createSchedulerSlice } from "./slices/schedulerSlice";
 import { createStoreInternals } from "./storeInternal";
+import { createStorePlanningTransport } from "@/data/planning/volatilePlanningTransport";
+import { createTypedPlanningActions } from "./typedPlanningActions";
 import { buildEmptyFilters } from "./types";
 import type { StoreState } from "./types";
 
@@ -41,18 +41,12 @@ export const useStore = create<StoreState>()((set, get, store) => {
     ...createHistorySlice(internals)(set, get, store),
     ...createRuntimeSlice(set, get, store),
     ...createSchedulerSlice(buildEmptyFilters)(set, get, store),
-    ...createCatalogSlice(internals)(set, get, store),
-    ...createResourceSlice(internals)(set, get, store),
-    ...createAllocationSlice({
-      createGuardedAction: internals.createGuardedAction,
-      createGuardedValueAction: internals.createGuardedValueAction,
-      createAllocations: internals.createAllocations,
-      updateOwned: internals.updateOwned,
-      assertAllocation: internals.assertAllocation,
-      resolveOwnedRow: internals.resolveOwnedRow,
-      mutate: internals.mutate,
-    })(set, get, store),
+    ...createAllocationSlice(
+      internals,
+      createStorePlanningTransport(() => get().data),
+    )(set, get, store),
     ...createLifecycleSlice(internals)(set, get, store),
+    ...createTypedPlanningActions(get, internals.blockedByViewer),
   };
 });
 
@@ -61,4 +55,9 @@ export const useStore = create<StoreState>()((set, get, store) => {
 setActiveDateStyle(resolveDateStyle(useStore.getState().data, useStore.getState().activeAccountId));
 useStore.subscribe((state) => {
   setActiveDateStyle(resolveDateStyle(state.data, state.activeAccountId));
+});
+
+// Entering a company opens its planning context and loads its canonical planning snapshot.
+useStore.subscribe((state, previous) => {
+  if (state.activeAccountId !== previous.activeAccountId) void state.refreshPlanning();
 });

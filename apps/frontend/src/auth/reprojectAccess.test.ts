@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { invalidateMemberships, refreshAccountSummaries, refreshActiveAccountSlice } = vi.hoisted(() => ({
+const { invalidateMemberships, refreshAccountSummaries, refreshPlanning, state } = vi.hoisted(() => ({
   invalidateMemberships: vi.fn(),
   refreshAccountSummaries: vi.fn(),
-  refreshActiveAccountSlice: vi.fn(),
+  refreshPlanning: vi.fn(),
+  state: { activeAccountId: "a-studio" },
 }));
 
 vi.mock("@/store/useStore", () => ({
-  useStore: { getState: () => ({ invalidateMemberships }) },
+  useStore: { getState: () => ({ invalidateMemberships, refreshPlanning, ...state }) },
 }));
 vi.mock("./useAccountSummaries", () => ({ refreshAccountSummaries }));
-vi.mock("@/data/persist", () => ({ refreshActiveAccountSlice }));
 
 import { reprojectAccess } from "./reprojectAccess";
 
@@ -18,7 +18,7 @@ describe("reprojectAccess", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     refreshAccountSummaries.mockResolvedValue([]);
-    refreshActiveAccountSlice.mockResolvedValue({ kind: "reloaded" });
+    refreshPlanning.mockResolvedValue(true);
   });
 
   it("invalidates actor-dependent membership data before reloading the active account", async () => {
@@ -27,18 +27,18 @@ describe("reprojectAccess", () => {
     expect(refreshAccountSummaries).toHaveBeenCalledWith({
       preserveActiveAccountIfMissing: true,
     });
-    expect(refreshActiveAccountSlice).toHaveBeenCalledWith("a-studio");
+    expect(refreshPlanning).toHaveBeenCalledExactlyOnceWith({ fresh: true });
   });
 
   it("stops when authoritative account summaries cannot be loaded", async () => {
     refreshAccountSummaries.mockResolvedValue(null);
 
     await expect(reprojectAccess("a-studio")).resolves.toBe(false);
-    expect(refreshActiveAccountSlice).not.toHaveBeenCalled();
+    expect(refreshPlanning).not.toHaveBeenCalled();
   });
 
   it("reports an account-slice reload failure", async () => {
-    refreshActiveAccountSlice.mockResolvedValue({ kind: "unattached" });
+    refreshPlanning.mockResolvedValue(false);
 
     await expect(reprojectAccess("a-studio")).resolves.toBe(false);
   });

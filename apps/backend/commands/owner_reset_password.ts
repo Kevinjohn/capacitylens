@@ -23,8 +23,8 @@ export default class OwnerResetPassword extends BaseCommand {
           message
         )
           ? message
-          : /^(Database |Migration |Released migration)/.test(message)
-            ? 'Database schema or released migration history is not current'
+          : /^Database /.test(message)
+            ? 'Database schema is not current'
             : 'Owner recovery failed; no recovery link was delivered'
       this.logger.error(safe)
       this.exitCode = 1

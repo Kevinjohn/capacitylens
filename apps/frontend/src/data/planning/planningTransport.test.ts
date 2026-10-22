@@ -69,7 +69,10 @@ const resource = {
   firstAvailableDate: null,
   lastAvailableDate: null,
 };
-const cases: Array<{ intent: PlanningIntent; method: string; path: string }> = [
+type Restoration = { consumedGroupId: string | null; replacementGroupId: string | null };
+const noRestoration: Restoration = { consumedGroupId: null, replacementGroupId: null };
+const groupId = "5d0c3f8e-8a54-4b7e-9f0a-3c2e1b6d7a90";
+const cases: Array<{ intent: PlanningIntent; method: string; path: string; restoration?: Restoration }> = [
   { intent: { operation: "allocation.create", allocation }, method: "POST", path: "allocations" },
   {
     intent: { operation: "allocation.createGroup", allocations: [allocation] },
@@ -91,6 +94,24 @@ const cases: Array<{ intent: PlanningIntent; method: string; path: string }> = [
     method: "POST",
     path: "allocations/source-1/repeat",
   },
+  {
+    intent: { operation: "allocation.delete", id },
+    method: "POST",
+    path: `allocations/${id}/delete`,
+    restoration: { consumedGroupId: null, replacementGroupId: groupId },
+  },
+  {
+    intent: { operation: "allocation.deleteGroup", ids: [id] },
+    method: "POST",
+    path: "allocations/delete-group",
+    restoration: { consumedGroupId: null, replacementGroupId: groupId },
+  },
+  {
+    intent: { operation: "planning.restoreGroup", restorationGroupId: groupId },
+    method: "POST",
+    path: "planning/restore-group",
+    restoration: { consumedGroupId: groupId, replacementGroupId: null },
+  },
   { intent: { operation: "resource.create", id, fields: resource }, method: "POST", path: "resources" },
   {
     intent: { operation: "resource.update", id, changes: { role: "Designer" } },
@@ -100,6 +121,18 @@ const cases: Array<{ intent: PlanningIntent; method: string; path: string }> = [
   { intent: { operation: "timeOff.create", timeOff }, method: "POST", path: "time-off" },
   { intent: { operation: "timeOff.update", id, changes: { type: "sick" } }, method: "PATCH", path: `time-off/${id}` },
   { intent: { operation: "timeOff.repeat", entries: [timeOff] }, method: "POST", path: "time-off/repeat" },
+  {
+    intent: { operation: "timeOff.delete", id },
+    method: "POST",
+    path: `time-off/${id}/delete`,
+    restoration: { consumedGroupId: null, replacementGroupId: groupId },
+  },
+  {
+    intent: { operation: "timeOff.deleteGroup", ids: [id] },
+    method: "POST",
+    path: "time-off/delete-group",
+    restoration: { consumedGroupId: null, replacementGroupId: groupId },
+  },
   {
     intent: {
       operation: "closure.create",
@@ -113,6 +146,12 @@ const cases: Array<{ intent: PlanningIntent; method: string; path: string }> = [
     intent: { operation: "closure.update", id, changes: { name: "Wayne holiday" } },
     method: "PATCH",
     path: `closures/${id}`,
+  },
+  {
+    intent: { operation: "closure.delete", id },
+    method: "POST",
+    path: `closures/${id}/delete`,
+    restoration: { consumedGroupId: null, replacementGroupId: groupId },
   },
   {
     intent: { operation: "settings.update", changes: { timezone: "Europe/London" } },
@@ -133,6 +172,14 @@ for (const entity of ["clients", "projects", "activities", "phases", "discipline
     path: `${entity}/${id}`,
   });
 }
+for (const entity of ["phases", "disciplines"] as const) {
+  cases.push({
+    intent: { operation: "catalogue.delete", entity: { entity, id } },
+    method: "POST",
+    path: `${entity}/${id}/delete`,
+    restoration: { consumedGroupId: null, replacementGroupId: groupId },
+  });
+}
 
 for (const action of ["archive", "unarchive"] as const) {
   cases.push({ intent: { operation: `resource.${action}`, id }, method: "POST", path: `resources/${id}/${action}` });
@@ -146,22 +193,25 @@ for (const action of ["archive", "unarchive"] as const) {
 }
 
 describe("generated planning transport", () => {
-  it.each(cases)("sends $intent.operation to its implemented $method $path route", async ({ intent, method, path }) => {
-    const receipt = {
-      status: "committed",
-      mutationId,
-      revision: 6,
-      restoration: { consumedGroupId: null, replacementGroupId: null },
-      projection: { mode: "patch", history: "retain", changed: { upserts: [], removed: [] } },
-    };
-    const { transport, requests } = harness(receipt);
-    expect(await transport.execute(context, execution(intent), signal)).toEqual(receipt);
-    expect(requests).toHaveLength(1);
-    expect(requests[0]?.url).toBe(`http://planning.test/api/accounts/wayne/${path}`);
-    expect(requests[0]?.method).toBe(method);
-    expect(requests[0]?.credentials).toBe("include");
-    expect(await requests[0]?.json()).toEqual(execution(intent));
-  });
+  it.each(cases)(
+    "sends $intent.operation to its implemented $method $path route",
+    async ({ intent, method, path, restoration = noRestoration }) => {
+      const receipt = {
+        status: "committed",
+        mutationId,
+        revision: 6,
+        restoration,
+        projection: { mode: "patch", history: "retain", changed: { upserts: [], removed: [] } },
+      };
+      const { transport, requests } = harness(receipt);
+      expect(await transport.execute(context, execution(intent), signal)).toEqual(receipt);
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.url).toBe(`http://planning.test/api/accounts/wayne/${path}`);
+      expect(requests[0]?.method).toBe(method);
+      expect(requests[0]?.credentials).toBe("include");
+      expect(await requests[0]?.json()).toEqual(execution(intent));
+    },
+  );
 
   it("normalizes a read with the complete canonical authority fingerprint", async () => {
     const authority = {
@@ -244,16 +294,5 @@ describe("generated planning transport", () => {
       transport.execute(context, execution({ operation: "allocation.create", allocation }), signal),
     ).rejects.toMatchObject({ status: 408, message: "Request timed out" });
     expect(fetcher).toHaveBeenCalledOnce();
-  });
-
-  it("never maps a blocked restore or delete to the batch endpoint", async () => {
-    const { transport, fetcher } = harness({});
-    await expect(
-      transport.execute(context, execution({ operation: "allocation.delete", id }), signal),
-    ).rejects.toMatchObject({ code: "restoration_unavailable", status: 400 });
-    await expect(
-      transport.execute(context, execution({ operation: "planning.restoreGroup", restorationGroupId: id }), signal),
-    ).rejects.toMatchObject({ code: "restoration_unavailable", status: 400 });
-    expect(fetcher).not.toHaveBeenCalled();
   });
 });

@@ -23,8 +23,8 @@ vi.mock("@/lib/capacity", async (importOriginal) => ({
   buildCapacityAdvisoryFromLoad: capacityAdvisoryMock,
 }));
 
-beforeEach(() => {
-  resetAllocationModalStore();
+beforeEach(async () => {
+  await resetAllocationModalStore();
   capacityAdvisoryMock.mockClear();
   capacityAdvisoryMock.mockImplementation(() => ({ overDays: 0, timeOffDays: 0 }));
 });
@@ -51,10 +51,10 @@ function expectAllocationSpanRow(controls: HTMLElement[]) {
 
 describe("AllocationModal compact layout", () => {
   it("aligns Hours-mode create fields, the full-width scheduling row, inline creation and repeat hints", async () => {
-    const resource = requireCreated(
+    const resource = await requireCreated(
       useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] }),
     );
-    useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
+    await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -89,12 +89,12 @@ describe("AllocationModal compact layout", () => {
     expectInAllocationControlColumn(screen.getByText(/Creates \d+ linked allocations/));
   });
 
-  it("adds Assignee to the shared rows in edit mode without adding Repeat", () => {
-    const resource = requireCreated(
+  it("adds Assignee to the shared rows in edit mode without adding Repeat", async () => {
+    const resource = await requireCreated(
       useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] }),
     );
     const allocation = requireCreated(
-      useStore.getState().addAllocation({
+      await useStore.getState().addAllocation({
         resourceId: resource.id,
         activityId: "t1",
         startDate: "2026-06-01",
@@ -117,9 +117,9 @@ describe("AllocationModal compact layout", () => {
   it.each([
     ["days", ["Start Date", "Days of work", "Days over"]],
     ["blocks", ["Start Date", "Days over"]],
-  ] as const)("uses a full-width scheduling row for %s mode", (mode, labels) => {
-    useStore.getState().updateAccount(ACC, { schedulingMode: mode });
-    const resource = requireCreated(
+  ] as const)("uses a full-width scheduling row for %s mode", async (mode, labels) => {
+    await useStore.getState().updateAccount(ACC, { schedulingMode: mode });
+    const resource = await requireCreated(
       useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] }),
     );
     render(
@@ -134,8 +134,8 @@ describe("AllocationModal compact layout", () => {
     expect(screen.getByText(/^Ends /).closest("[data-allocation-span-row]")).toBeInTheDocument();
   });
 
-  it("keeps External dates aligned and the placeholder hint under the control area", () => {
-    const external = requireCreated(
+  it("keeps External dates aligned and the placeholder hint under the control area", async () => {
+    const external = await requireCreated(
       useStore.getState().addResource({
         kind: "external",
         name: "Kord Industries",
@@ -159,7 +159,7 @@ describe("AllocationModal compact layout", () => {
     expect(screen.queryByRole("checkbox", { name: "Ignore working days" })).not.toBeInTheDocument();
     externalView.unmount();
 
-    const placeholder = requireCreated(
+    const placeholder = await requireCreated(
       useStore.getState().addResource({
         kind: "placeholder",
         role: "Designer",

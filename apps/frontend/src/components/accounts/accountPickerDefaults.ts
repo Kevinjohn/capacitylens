@@ -16,12 +16,3 @@ export const DEFAULT_WEEK_STARTS_ON = 1 as const;
 export const DEFAULT_TIMEZONE = DEFAULT_TIME_ZONE;
 /** Default language for a newly created account. */
 export const DEFAULT_LANGUAGE = "en";
-
-/** Validates the company-creation response. An unusable 2xx payload still represents a confirmed create, so the caller must reconcile the directory instead of inviting a duplicate create. */
-export function parseCreatedAccount(body: unknown): { id: string; name: string } | null {
-  if (typeof body !== "object" || body === null) return null;
-  const bodyRecord = body as { id?: unknown; name?: unknown };
-  if (typeof bodyRecord.id !== "string" || bodyRecord.id.trim().length === 0) return null;
-  if (typeof bodyRecord.name !== "string" || bodyRecord.name.trim().length === 0) return null;
-  return { id: bodyRecord.id, name: bodyRecord.name };
-}

@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
+import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
 import mail from '@adonisjs/mail/services/main'
 import env from '#start/env'
@@ -9,7 +9,7 @@ import { verifyPassword } from '#services/password_service'
 import { seedLoginLinkProofs } from './login_link_fixtures.js'
 
 test.group('Account-kit recovery with product credentials', (group) => {
-  group.setup(() => testUtils.db().migrate())
+  group.setup(() => freshDatabase())
   group.each.setup(() => {
     const priorMode = env.get('CAPACITYLENS_MODE')
     const priorHost = env.get('CAPACITYLENS_MAIL_HOST')
@@ -18,7 +18,7 @@ test.group('Account-kit recovery with product credentials', (group) => {
     env.set('CAPACITYLENS_MAIL_HOST', 'mail.example.test')
     env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', false)
     return () => {
-      env.set('CAPACITYLENS_MODE', priorMode ?? 'off')
+      env.set('CAPACITYLENS_MODE', priorMode ?? 'password-only')
       env.set('CAPACITYLENS_MAIL_HOST', priorHost ?? '')
       env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', priorScreen)
     }

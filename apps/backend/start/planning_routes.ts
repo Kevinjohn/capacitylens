@@ -20,6 +20,18 @@ router
   ])
   .as('api.planning.allocation.createGroup')
 router
+  .post('/api/accounts/:accountId/allocations/:id/delete', [PlanningController, 'allocationDelete'])
+  .as('api.planning.allocation.delete')
+router
+  .post('/api/accounts/:accountId/allocations/delete-group', [
+    PlanningController,
+    'allocationDeleteGroup',
+  ])
+  .as('api.planning.allocation.deleteGroup')
+router
+  .post('/api/accounts/:accountId/planning/restore-group', [PlanningController, 'restoreGroup'])
+  .as('api.planning.restoreGroup')
+router
   .post('/api/accounts/:accountId/resources', [PlanningController, 'resourceCreate'])
   .as('api.planning.resource.create')
 router
@@ -32,11 +44,23 @@ router
   .patch('/api/accounts/:accountId/time-off/:id', [PlanningController, 'timeOffUpdate'])
   .as('api.planning.timeOff.update')
 router
+  .post('/api/accounts/:accountId/time-off/:id/delete', [PlanningController, 'timeOffDelete'])
+  .as('api.planning.timeOff.delete')
+router
+  .post('/api/accounts/:accountId/time-off/delete-group', [
+    PlanningController,
+    'timeOffDeleteGroup',
+  ])
+  .as('api.planning.timeOff.deleteGroup')
+router
   .post('/api/accounts/:accountId/closures', [PlanningController, 'closureCreate'])
   .as('api.planning.closure.create')
 router
   .patch('/api/accounts/:accountId/closures/:id', [PlanningController, 'closureUpdate'])
   .as('api.planning.closure.update')
+router
+  .post('/api/accounts/:accountId/closures/:id/delete', [PlanningController, 'closureDelete'])
+  .as('api.planning.closure.delete')
 router
   .post('/api/accounts/:accountId/clients', [PlanningController, 'clientCreate'])
   .as('api.planning.client.create')
@@ -83,11 +107,17 @@ router
   .patch('/api/accounts/:accountId/phases/:id', [PlanningController, 'phaseUpdate'])
   .as('api.planning.phase.update')
 router
+  .post('/api/accounts/:accountId/phases/:id/delete', [PlanningController, 'phaseDelete'])
+  .as('api.planning.phase.delete')
+router
   .post('/api/accounts/:accountId/disciplines', [PlanningController, 'disciplineCreate'])
   .as('api.planning.discipline.create')
 router
   .patch('/api/accounts/:accountId/disciplines/:id', [PlanningController, 'disciplineUpdate'])
   .as('api.planning.discipline.update')
+router
+  .post('/api/accounts/:accountId/disciplines/:id/delete', [PlanningController, 'disciplineDelete'])
+  .as('api.planning.discipline.delete')
 router
   .post('/api/accounts/:accountId/resources/:id/archive', [PlanningController, 'resourceArchive'])
   .as('api.planning.resource.archive')

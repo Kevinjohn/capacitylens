@@ -7,10 +7,10 @@ import { useStore } from "./useStore";
 
 const state = () => useStore.getState();
 
-beforeEach(() => resetStoreWithAccount());
+beforeEach(async () => resetStoreWithAccount());
 
-function timeOffSetup() {
-  const resource = requireCreated(state().addResource(makeResourceDraft()));
+async function timeOffSetup() {
+  const resource = await requireCreated(state().addResource(makeResourceDraft()));
   const draft = (overrides: Partial<Draft<TimeOff>> = {}): Draft<TimeOff> => ({
     resourceId: resource.id,
     startDate: "2026-06-01",
@@ -23,14 +23,18 @@ function timeOffSetup() {
 }
 
 describe("atomic time-off creation: happy path", () => {
-  it("creates a batch with unique ids, account stamps, copied notes, and one publication", () => {
-    const { draft } = timeOffSetup();
-    let publications = 0;
+  it("creates a complete batch with unique ids, account stamps, and copied notes", async () => {
+    const { draft } = await timeOffSetup();
+    const publishedBatchSizes: number[] = [];
+    let data = state().data;
     const unsubscribe = useStore.subscribe(() => {
-      publications += 1;
+      if (state().data !== data) {
+        publishedBatchSizes.push(state().data.timeOff.length);
+        data = state().data;
+      }
     });
 
-    const created = requireCreated(
+    const created = await requireCreated(
       state().addTimeOffs([
         draft({ note: "First note" }),
         draft({ startDate: "2026-06-08", endDate: "2026-06-10", note: "Second note" }),
@@ -38,29 +42,34 @@ describe("atomic time-off creation: happy path", () => {
     );
     unsubscribe();
 
-    expect(publications).toBe(1);
+    expect(publishedBatchSizes.length).toBeGreaterThan(0);
+    expect(publishedBatchSizes.every((size) => size === 2)).toBe(true);
     expect(created).toHaveLength(2);
     expect(new Set(created.map((timeOff) => timeOff.id)).size).toBe(2);
     expect(created.every((timeOff) => timeOff.accountId === DEFAULT_ACCOUNT_ID)).toBe(true);
     expect(created.map((timeOff) => timeOff.note)).toEqual(["First note", "Second note"]);
     expect(created.every((timeOff) => !Object.hasOwn(timeOff, "seriesId"))).toBe(true);
     expect(state().data.timeOff).toEqual(created);
-    expect(state().past).toHaveLength(1);
+    expect(state().planning.history.past).toHaveLength(2);
   });
 });
 
 describe("atomic time-off creation: atomic validation", () => {
-  it("rejects an empty batch and an invalid middle row atomically", () => {
-    const { draft } = timeOffSetup();
+  it("rejects an empty batch and an invalid middle row atomically", async () => {
+    const { draft } = await timeOffSetup();
 
-    expect(() => requireCreated(state().addTimeOffs([]))).toThrow(/at least one time off/i);
+    await expect(requireCreated(state().addTimeOffs([]))).rejects.toThrow(/at least one time-off entry/i);
     expect(state().data.timeOff).toHaveLength(0);
 
-    let publications = 0;
+    let dataPublications = 0;
+    let data = state().data;
     const unsubscribe = useStore.subscribe(() => {
-      publications += 1;
+      if (state().data !== data) {
+        dataPublications += 1;
+        data = state().data;
+      }
     });
-    expect(() =>
+    await expect(
       requireCreated(
         state().addTimeOffs([
           draft(),
@@ -68,18 +77,18 @@ describe("atomic time-off creation: atomic validation", () => {
           draft({ startDate: "2026-08-01", endDate: "2026-08-02" }),
         ]),
       ),
-    ).toThrow(/end date cannot be before/i);
+    ).rejects.toThrow(/end date cannot be before/i);
     unsubscribe();
 
-    expect(publications).toBe(0);
+    expect(dataPublications).toBe(0);
     expect(state().data.timeOff).toHaveLength(0);
-    expect(state().past).toHaveLength(0);
+    expect(state().planning.history.past).toHaveLength(1);
   });
 });
 
 describe("atomic time-off creation: resource validation", () => {
-  it("rejects dangling, cross-account, and external resources before publication", () => {
-    const { draft, resource } = timeOffSetup();
+  it("rejects dangling, cross-account, and external resources before publication", async () => {
+    const { draft, resource } = await timeOffSetup();
     const foreignResource: Resource = makeResource({ id: "foreign-resource", accountId: "foreign-account" });
     useStore.setState({
       data: { ...state().data, resources: [...state().data.resources, foreignResource] },
@@ -87,15 +96,17 @@ describe("atomic time-off creation: resource validation", () => {
       future: [],
     });
 
-    expect(() => requireCreated(state().addTimeOffs([draft(), draft({ resourceId: "missing-resource" })]))).toThrow(
-      /existing resource in this company/i,
-    );
-    expect(() => requireCreated(state().addTimeOffs([draft(), draft({ resourceId: foreignResource.id })]))).toThrow(
-      /existing resource in this company/i,
-    );
+    await expect(
+      requireCreated(state().addTimeOffs([draft(), draft({ resourceId: "missing-resource" })])),
+    ).rejects.toThrow(/existing resource in this company/i);
+    await expect(
+      requireCreated(state().addTimeOffs([draft(), draft({ resourceId: foreignResource.id })])),
+    ).rejects.toThrow(/existing resource in this company/i);
 
-    const external = requireCreated(state().addResource({ ...makeResourceDraft(), kind: "external", name: "Partner" }));
-    expect(() => requireCreated(state().addTimeOffs([draft(), draft({ resourceId: external.id })]))).toThrow(
+    const external = await requireCreated(
+      state().addResource({ ...makeResourceDraft(), kind: "external", name: "Partner" }),
+    );
+    await expect(requireCreated(state().addTimeOffs([draft(), draft({ resourceId: external.id })]))).rejects.toThrow(
       /external.*3rd-party/i,
     );
 
@@ -105,34 +116,43 @@ describe("atomic time-off creation: resource validation", () => {
 });
 
 describe("atomic time-off creation: history", () => {
-  it("uses one undo/redo step for the complete batch and keeps addTimeOff working", () => {
-    const { draft } = timeOffSetup();
-    const created = requireCreated(
+  it("uses one undo/redo step for the complete batch and keeps addTimeOff working", async () => {
+    const { draft } = await timeOffSetup();
+    const historyBeforeBatch = state().planning.history.past.length;
+    const created = await requireCreated(
       state().addTimeOffs([draft(), draft({ startDate: "2026-06-08", endDate: "2026-06-10" })]),
     );
-    expect(state().past).toHaveLength(1);
+    expect(state().planning.history.past).toHaveLength(historyBeforeBatch + 1);
 
-    state().undo();
+    await state().undoPlanning();
     expect(state().data.timeOff).toHaveLength(0);
-    state().redo();
-    expect(state().data.timeOff).toEqual(created);
+    await state().redoPlanning();
+    const redone = state().data.timeOff;
+    expect(redone.map((timeOff) => ({ ...timeOff, updatedAt: null }))).toEqual(
+      created.map((timeOff) => ({ ...timeOff, updatedAt: null })),
+    );
+    expect(
+      redone.every((timeOff, index) => Date.parse(timeOff.updatedAt) > Date.parse(created[index]?.updatedAt ?? "")),
+    ).toBe(true);
 
-    const single = requireCreated(state().addTimeOff(draft({ startDate: "2026-06-15", endDate: "2026-06-15" })));
+    const single = await requireCreated(state().addTimeOff(draft({ startDate: "2026-06-15", endDate: "2026-06-15" })));
     expect(state().data.timeOff.at(-1)).toEqual(single);
-    expect(state().past).toHaveLength(2);
+    expect(state().planning.history.past).toHaveLength(historyBeforeBatch + 2);
   });
 });
 
 describe("atomic time-off creation: viewer guard", () => {
-  it("applies the Viewer guard to the whole batch without data or history mutation", () => {
-    const { draft } = timeOffSetup();
+  it("applies the Viewer guard to the whole batch without data or history mutation", async () => {
+    const { draft } = await timeOffSetup();
+    const pastBefore = state().planning.history.past;
+    const futureBefore = state().planning.history.future;
     state().setActiveRole("viewer");
-    const returned = state().addTimeOffs([draft(), draft({ startDate: "2026-06-08", endDate: "2026-06-10" })]);
+    const returned = await state().addTimeOffs([draft(), draft({ startDate: "2026-06-08", endDate: "2026-06-10" })]);
 
     expect(returned).toEqual({ kind: "blocked" });
     expect(state().data.timeOff).toHaveLength(0);
-    expect(state().past).toHaveLength(0);
-    expect(state().future).toHaveLength(0);
+    expect(state().planning.history.past).toBe(pastBefore);
+    expect(state().planning.history.future).toBe(futureBefore);
     expect(state().notice).toMatchObject({ tone: "error" });
   });
 });

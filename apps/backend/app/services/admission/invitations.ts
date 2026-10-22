@@ -12,7 +12,6 @@ import {
 import { hasCurrentEmailProof, policyAllowsAdmission, readJoiningPolicy } from './joining_policy.js'
 import { assertEligibleProposal, settleInvitationProposal } from '#services/member_resources/links'
 import { writeAudit } from '#services/audit'
-import { authMode } from '#services/auth/mode'
 import { affectedRows } from './affected_rows.js'
 import { advancePlanningRevision } from '#services/planning_revision'
 
@@ -79,8 +78,7 @@ export async function createInvitation(
   actorId: string
 ) {
   const policy = await readJoiningPolicy(trx, input.accountId)
-  if (!input.email && authMode() !== 'off')
-    invalidAdmission('Invitations require an email address.')
+  if (!input.email) invalidAdmission('Invitations require an email address.')
   if (
     input.email &&
     policy.policy === 'approved_domains' &&

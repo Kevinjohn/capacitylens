@@ -14,7 +14,7 @@ import { m } from "@/i18n";
 import { useExclusiveAction } from "@/hooks/useExclusiveAction";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import { useStore } from "@/store/useStore";
-import { nameForQuotedContext } from "@capacitylens/shared/domain/privateNames";
+import { useCan } from "@/auth/permissionContext";
 
 type LifecycleRow = Resource | Client | Project | Activity;
 type ArchivedEntity = LifecycleEntity;
@@ -30,11 +30,6 @@ function rowName(row: LifecycleRow): string {
   if ("name" in row && row.name) return row.name;
   if ("role" in row) return row.role;
   return "";
-}
-
-function confirmationName(row: LifecycleRow): string {
-  if ("isPrivate" in row && row.isPrivate) return nameForQuotedContext(rowName(row));
-  return rowName(row);
 }
 
 type Ancestor = { name: string; href?: string; message: string };
@@ -119,13 +114,15 @@ function ArchivedRow({
   model: { row, ancestor },
   busy,
   onRestore,
-  onDelete,
+  onAnonymise,
+  mayAnonymise,
 }: {
   entity: ArchivedEntity;
   model: ArchivedRowModel;
   busy: boolean;
   onRestore: () => void;
-  onDelete: () => void;
+  onAnonymise: () => void;
+  mayAnonymise: boolean;
 }) {
   const direct = lifecycleStatus(row) === "archived";
   const name = rowName(row);
@@ -159,15 +156,17 @@ function ArchivedRow({
                 <Link to={ancestor.href}>{m.list_archived_restore_parent()}</Link>
               </Button>
             )}
-            <Button
-              size="sm"
-              variant="danger-soft"
-              disabled={busy}
-              aria-label={m.settings_archived_delete_aria({ name })}
-              onClick={onDelete}
-            >
-              {m.settings_archived_delete()}
-            </Button>
+            {entity === "resources" && mayAnonymise && (
+              <Button
+                size="sm"
+                variant="danger-soft"
+                disabled={busy}
+                aria-label={m.settings_archived_anonymise_aria({ name })}
+                onClick={onAnonymise}
+              >
+                {m.settings_archived_anonymise()}
+              </Button>
+            )}
           </>
         )}
       </ItemActions>
@@ -180,13 +179,15 @@ function ArchivedRows({
   rows,
   busy,
   onRestore,
-  onDelete,
+  onAnonymise,
+  mayAnonymise,
 }: {
   entity: ArchivedEntity;
   rows: ArchivedRowModel[];
   busy: boolean;
   onRestore: (model: ArchivedRowModel) => void;
-  onDelete: (model: ArchivedRowModel) => void;
+  onAnonymise: (model: ArchivedRowModel) => void;
+  mayAnonymise: boolean;
 }) {
   return (
     <ItemGroup className="rounded-md border bg-card">
@@ -198,7 +199,8 @@ function ArchivedRows({
             model={model}
             busy={busy}
             onRestore={() => onRestore(model)}
-            onDelete={() => onDelete(model)}
+            onAnonymise={() => onAnonymise(model)}
+            mayAnonymise={mayAnonymise}
           />
         </Fragment>
       ))}
@@ -212,24 +214,42 @@ function ArchivedContent({
   groups,
   busy,
   onRestore,
-  onDelete,
+  onAnonymise,
+  mayAnonymise,
 }: {
   entity: ArchivedEntity;
   rows: ArchivedRowModel[];
   groups: ReturnType<typeof buildResourceArchivedGroups>;
   busy: boolean;
   onRestore: (model: ArchivedRowModel) => void;
-  onDelete: (model: ArchivedRowModel) => void;
+  onAnonymise: (model: ArchivedRowModel) => void;
+  mayAnonymise: boolean;
 }) {
   if (entity !== "resources") {
-    return <ArchivedRows entity={entity} rows={rows} busy={busy} onRestore={onRestore} onDelete={onDelete} />;
+    return (
+      <ArchivedRows
+        entity={entity}
+        rows={rows}
+        busy={busy}
+        onRestore={onRestore}
+        onAnonymise={onAnonymise}
+        mayAnonymise={mayAnonymise}
+      />
+    );
   }
   return groups.map((group) => (
     <section key={group.key} className="space-y-3" data-testid={`archived-resources-${group.key}-group`}>
       <h2 className="text-lg font-semibold">
         {group.heading()} ({group.rows.length})
       </h2>
-      <ArchivedRows entity={entity} rows={group.rows} busy={busy} onRestore={onRestore} onDelete={onDelete} />
+      <ArchivedRows
+        entity={entity}
+        rows={group.rows}
+        busy={busy}
+        onRestore={onRestore}
+        onAnonymise={onAnonymise}
+        mayAnonymise={mayAnonymise}
+      />
     </section>
   ));
 }
@@ -238,7 +258,8 @@ function ArchivedContent({
 export function ArchivedEntitySection({ entity }: { entity: ArchivedEntity }) {
   const { data, mayViewInactive } = useInactiveAccountData();
   const actions = useLifecycleActions();
-  const [deleting, setDeleting] = useState<{ accountId: string | null; row: LifecycleRow } | null>(null);
+  const [anonymising, setAnonymising] = useState<{ accountId: string | null; row: LifecycleRow } | null>(null);
+  const mayAnonymise = useCan("anonymise");
   const setNotice = useStore((state) => state.setNotice);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const { busy, run, locked } = useExclusiveAction();
@@ -250,8 +271,9 @@ export function ArchivedEntitySection({ entity }: { entity: ArchivedEntity }) {
       () => actions.unarchive(entity, model.row.id),
       (error) => setNotice(resolveErrorMessage(error), "error"),
     );
-  const onDelete = (model: ArchivedRowModel) => {
-    if (!locked()) setDeleting({ accountId: activeAccountId, row: model.row });
+  const onAnonymise = (model: ArchivedRowModel) => {
+    if (entity === "resources" && mayAnonymise && !locked())
+      setAnonymising({ accountId: activeAccountId, row: model.row });
   };
 
   if (!mayViewInactive || !data || rows.length === 0) return null;
@@ -271,21 +293,22 @@ export function ArchivedEntitySection({ entity }: { entity: ArchivedEntity }) {
         groups={groups}
         busy={busy}
         onRestore={onRestore}
-        onDelete={onDelete}
+        onAnonymise={onAnonymise}
+        mayAnonymise={mayAnonymise}
       />
-      {deleting && deleting.accountId === activeAccountId && (
+      {anonymising && anonymising.accountId === activeAccountId && (
         <ConfirmDialog
-          title={m.settings_archived_delete_title()}
-          message={m.settings_archived_delete_message({ name: confirmationName(deleting.row) })}
-          confirmLabel={m.settings_archived_delete()}
+          title={m.settings_archived_anonymise_title()}
+          message={m.settings_archived_anonymise_message({ name: rowName(anonymising.row) })}
+          confirmLabel={m.settings_archived_anonymise()}
           onConfirm={() => {
             run(
-              () => actions.softDelete(entity, deleting.row.id),
+              () => actions.anonymise(anonymising.row.id),
               (error) => setNotice(resolveErrorMessage(error), "error"),
             );
-            setDeleting(null);
+            setAnonymising(null);
           }}
-          onCancel={() => setDeleting(null)}
+          onCancel={() => setAnonymising(null)}
         />
       )}
     </section>

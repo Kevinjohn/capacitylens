@@ -25,7 +25,7 @@ export interface ExclusiveAction {
  * Section-wide "one action at a time" exclusion.
  *
  * The controls that share one instance of this hook exclude each other, which is the point: a
- * restore, a delete and a purge all mutate the same list and each ends in an authoritative reload,
+ * restore and anonymise mutate the same list and each ends in an authoritative reload,
  * so a second one launched mid-flight would race the first one's refetch and could act on rows that
  * no longer exist. Give a surface one instance per group of controls that must not overlap.
  *

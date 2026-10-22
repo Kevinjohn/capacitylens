@@ -1,7 +1,7 @@
 import { m } from "@/i18n";
 import { teamAccessClient } from "@/account/teamAccessClient";
 import { refreshAccountSummaries } from "@/auth/useAccountSummaries";
-import { refreshActiveAccountSlice } from "@/data/persist";
+import { useStore } from "@/store/useStore";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import type { MemberActionDependencies } from "./MemberActionDependencies";
 import type { useTeamDirectory } from "./useTeamDirectory";
@@ -63,9 +63,9 @@ function createRefreshCallerAccess({
       closeActiveAccount();
       return { kind: "left" };
     }
-    const outcome = await refreshActiveAccountSlice(accountId);
+    const accepted = await useStore.getState().refreshPlanning();
     if (!isActiveAccount(accountId)) return { kind: "left" };
-    if (outcome.kind === "reloaded") return { kind: "active" };
+    if (accepted) return { kind: "active" };
     closeActiveAccount();
     setNotice(m.settings_members_access_refresh_failed(), "error");
     return { kind: "failed" };

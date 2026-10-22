@@ -2,7 +2,7 @@ import { m } from "@/i18n";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { carriesHourlyLoad } from "@capacitylens/shared/types/entities";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useCanEdit } from "@/auth/permissionContext";
 import { useFieldError, useFieldErrorFocus } from "@/hooks/useFieldError";
 import { formatWeekdayScheduleDate } from "@/lib/dateDisplay";
@@ -29,6 +29,7 @@ function useAllocationStoreActions() {
   return {
     addAllocation: useStore((state) => state.addAllocation),
     addAllocations: useStore((state) => state.addAllocations),
+    duplicateAllocation: useStore((state) => state.duplicateAllocation),
     updateAllocation: useStore((state) => state.updateAllocation),
     deleteAllocation: useStore((state) => state.deleteAllocation),
     deleteAllocationSeriesFrom: useStore((state) => state.deleteAllocationSeriesFrom),
@@ -52,6 +53,7 @@ function useAllocationModalContext(props: AllocationModalProps) {
   const { onClose } = props;
   const canEdit = useCanEdit();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const writing = useRef(false);
   const data = useActiveScopedData();
   const actions = useAllocationStoreActions();
   const { mode, accountWorkingDays } = useSchedulingContext();
@@ -96,6 +98,7 @@ function useAllocationModalContext(props: AllocationModalProps) {
     canEdit,
     confirmDelete,
     setConfirmDelete,
+    writing,
     data,
     ...actions,
     mode,
@@ -170,8 +173,10 @@ function buildModalState(
     canEdit: context.canEdit,
     onClose: context.onClose,
     setConfirmDelete: context.setConfirmDelete,
+    writing: context.writing,
     addAllocation: context.addAllocation,
     addAllocations: context.addAllocations,
+    duplicateAllocation: context.duplicateAllocation,
     updateAllocation: context.updateAllocation,
     deleteAllocation: context.deleteAllocation,
     deleteAllocationSeriesFrom: context.deleteAllocationSeriesFrom,

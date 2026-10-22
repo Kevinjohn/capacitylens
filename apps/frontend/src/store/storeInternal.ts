@@ -1,30 +1,12 @@
 import type { StoreApi } from "zustand";
-import { newId } from "@capacitylens/shared/lib/id";
-import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
-import {
-  assertAllocationWithinResourceAvailability,
-  assertDateRange,
-  assertResourceExists,
-  remapAndValidateImport,
-} from "@capacitylens/shared/domain/mutations";
-import { clampHoursPerDay } from "@capacitylens/shared/types/entities";
-import { NULLABLE_FIELDS } from "@capacitylens/shared/types/nullableFields";
-import type { Allocation, AppData, Entity, ID, ScopedEntityKey, TimeOff } from "@capacitylens/shared/types/entities";
+import { remapAndValidateImport } from "@capacitylens/shared/domain/mutations";
+import type { AppData, Entity, ID } from "@capacitylens/shared/types/entities";
 import { clearEntityLenses } from "./types";
-import type { Draft, ImportSummary, Patch, ScopedRow, StoreState } from "./types";
-import { stamp, touch, touchAfter } from "./revisions";
+import type { ImportSummary, Patch, StoreState } from "./types";
+import { touch } from "./revisions";
 import { HISTORY_LIMIT } from "./history";
 import { resetSchedulerView } from "./storeConstants";
 import { createGuards } from "./storeGuards";
-import type { CreateResult } from "./types";
-
-interface UpdateOwnedInput<K extends ScopedEntityKey> {
-  key: K;
-  id: ID;
-  patch: Patch<ScopedRow<K>>;
-  prepare?: ((merged: ScopedRow<K>, existing: ScopedRow<K>) => Patch<ScopedRow<K>>) | undefined;
-  cascade?: ((data: AppData, merged: ScopedRow<K>, existing: ScopedRow<K>) => AppData) | undefined;
-}
 
 export * from "./revisions";
 export * from "./history";
@@ -41,12 +23,7 @@ function createMutationActions(set: StoreApi<StoreState>["setState"]) {
       future: [],
     }));
 
-  // Erasure/purge actions must not leave a recoverable pre-erasure snapshot in memory. They also
-  // cannot honestly be undoable, so clear both history directions as part of the same state write.
-  const mutateIrreversible = (producer: (data: AppData) => AppData) =>
-    set((state) => ({ data: producer(state.data), past: [], future: [] }));
-
-  return { mutate, mutateIrreversible };
+  return { mutate };
 }
 
 const applyPatch = <T extends Entity>(row: T, patch: Patch<T>): T => {
@@ -56,9 +33,6 @@ const applyPatch = <T extends Entity>(row: T, patch: Patch<T>): T => {
   }
   return next;
 };
-
-const updateById = <T extends Entity>(list: T[], id: ID, patch: Patch<T>): T[] =>
-  list.map((row) => (row.id === id ? { ...applyPatch(row, patch), updatedAt: touchAfter(row.updatedAt) } : row));
 
 function createGuardedActions(blockedByViewer: ReturnType<typeof createGuards>["blockedByViewer"]) {
   const createGuardedAction =
@@ -71,107 +45,7 @@ function createGuardedActions(blockedByViewer: ReturnType<typeof createGuards>["
     <A extends unknown[], R>(action: (...parameters: A) => R, blockedValue: R) =>
     (...parameters: A): R =>
       blockedByViewer() ? blockedValue : action(...parameters);
-  const createGuardedAddAction =
-    <A extends unknown[], E>(build: (...parameters: A) => E, persist: (built: E, ...args: A) => E) =>
-    (...parameters: A): CreateResult<E> => {
-      const built = build(...parameters);
-      return blockedByViewer() ? { kind: "blocked" } : { kind: "created", value: persist(built, ...parameters) };
-    };
-  return { createGuardedAction, createGuardedValueAction, createGuardedAddAction };
-}
-
-interface OwnedUpdateDependencies {
-  get: StoreApi<StoreState>["getState"];
-  resolveOwnedRow: ReturnType<typeof createGuards>["resolveOwnedRow"];
-  mutate: (producer: (data: AppData) => AppData) => void;
-}
-
-function createOwnedUpdater({ get, resolveOwnedRow, mutate }: OwnedUpdateDependencies) {
-  return <K extends ScopedEntityKey>({ key, id, patch, prepare, cascade }: UpdateOwnedInput<K>): boolean => {
-    const existing = resolveOwnedRow(get().data, key, id);
-    if (!existing) return false;
-    const effective = prepare ? prepare(applyPatch(existing, patch), existing) : patch;
-    mutate((data) => {
-      const rows = updateById(data[key] as Entity[], id, effective as Partial<Entity>);
-      const next = { ...data, [key]: rows };
-      return cascade ? cascade(next, applyPatch(existing, effective), existing) : next;
-    });
-    return true;
-  };
-}
-
-interface AllocationCreationDependencies {
-  get: StoreApi<StoreState>["getState"];
-  requireAccount: ReturnType<typeof createGuards>["requireAccount"];
-  blockedByViewer: ReturnType<typeof createGuards>["blockedByViewer"];
-  assertAllocation: ReturnType<typeof createGuards>["assertAllocation"];
-  mutate: (producer: (data: AppData) => AppData) => void;
-}
-
-interface TimeOffCreationDependencies {
-  get: StoreApi<StoreState>["getState"];
-  requireAccount: ReturnType<typeof createGuards>["requireAccount"];
-  blockedByViewer: ReturnType<typeof createGuards>["blockedByViewer"];
-  assertResourceExists: typeof assertResourceExists;
-  mutate: (producer: (data: AppData) => AppData) => void;
-}
-
-function createAllocationCreator(dependencies: AllocationCreationDependencies) {
-  return (inputs: readonly Draft<Allocation>[]): CreateResult<Allocation[]> => {
-    if (inputs.length === 0) throw new Error("At least one allocation is required.");
-    const accountId = dependencies.requireAccount();
-    const allocations = inputs.map((input) => ({
-      ...NULLABLE_FIELDS.allocations,
-      ...input,
-      hoursPerDay: clampHoursPerDay(input.hoursPerDay),
-      id: newId(),
-      accountId,
-      ...stamp(),
-    }));
-    if (dependencies.blockedByViewer()) return { kind: "blocked" };
-    const data = dependencies.get().data;
-    const account = data.accounts.find((candidate) => candidate.id === accountId);
-    const accountWorkingDays = normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn ?? 1);
-    for (const allocation of allocations) {
-      dependencies.assertAllocation(
-        data,
-        accountId,
-        allocation.resourceId,
-        allocation.activityId,
-        allocation.hoursPerDay,
-        allocation.projectId,
-      );
-      assertDateRange(allocation.startDate, allocation.endDate);
-      const resource = data.resources.find(
-        (candidate) => candidate.accountId === accountId && candidate.id === allocation.resourceId,
-      );
-      if (resource) assertAllocationWithinResourceAvailability({ allocation, resource, accountWorkingDays });
-    }
-    dependencies.mutate((current) => ({ ...current, allocations: [...current.allocations, ...allocations] }));
-    return { kind: "created", value: allocations };
-  };
-}
-
-function createTimeOffCreator(dependencies: TimeOffCreationDependencies) {
-  return (inputs: readonly Draft<TimeOff>[]): CreateResult<TimeOff[]> => {
-    if (inputs.length === 0) throw new Error("At least one time off entry is required.");
-    const accountId = dependencies.requireAccount();
-    const timeOffs = inputs.map((input) => ({
-      ...NULLABLE_FIELDS.timeOff,
-      ...input,
-      id: newId(),
-      accountId,
-      ...stamp(),
-    }));
-    if (dependencies.blockedByViewer()) return { kind: "blocked" };
-    const data = dependencies.get().data;
-    for (const timeOff of timeOffs) {
-      dependencies.assertResourceExists(data, accountId, timeOff.resourceId);
-      assertDateRange(timeOff.startDate, timeOff.endDate);
-    }
-    dependencies.mutate((current) => ({ ...current, timeOff: [...current.timeOff, ...timeOffs] }));
-    return { kind: "created", value: timeOffs };
-  };
+  return { createGuardedAction, createGuardedValueAction };
 }
 
 function createImportAction(
@@ -197,7 +71,7 @@ function createImportAction(
 
 /** Create the shared internal actions used by store slices. */
 export function createStoreInternals(set: StoreApi<StoreState>["setState"], get: StoreApi<StoreState>["getState"]) {
-  const { mutate, mutateIrreversible } = createMutationActions(set);
+  const { mutate } = createMutationActions(set);
 
   const {
     requireAccount,
@@ -206,16 +80,10 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
     assertAllocation,
     assertNotBuiltinClient,
     assertWorkingDays,
-    assertHalfDays,
     snapColor,
-    applySnappedColor,
   } = createGuards(get);
 
-  const { createGuardedAction, createGuardedValueAction, createGuardedAddAction } =
-    createGuardedActions(blockedByViewer);
-  const updateOwned = createOwnedUpdater({ get, resolveOwnedRow, mutate });
-  const createAllocations = createAllocationCreator({ get, requireAccount, blockedByViewer, assertAllocation, mutate });
-  const createTimeOffs = createTimeOffCreator({ get, requireAccount, blockedByViewer, assertResourceExists, mutate });
+  const { createGuardedAction, createGuardedValueAction } = createGuardedActions(blockedByViewer);
   const importSlice = createImportAction(set, get, createGuardedValueAction);
 
   // clampHoursPerDay (allocations, [0,24]) and clampWorkingHoursPerDay (resources, (0,24])
@@ -224,24 +92,16 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
 
   return {
     mutate,
-    mutateIrreversible,
     applyPatch,
-    updateById,
     requireAccount,
     blockedByViewer,
     resolveOwnedRow,
     assertAllocation,
     assertNotBuiltinClient,
     assertWorkingDays,
-    assertHalfDays,
     snapColor,
-    applySnappedColor,
     createGuardedAction,
     createGuardedValueAction,
-    createGuardedAddAction,
-    updateOwned,
-    createAllocations,
-    createTimeOffs,
     importSlice,
   };
 }

@@ -1,5 +1,5 @@
-import { expect, test } from "./fixtures";
-import type { APIRequestContext, Page } from "./fixtures";
+import { expect, test } from "./dbFixtures";
+import type { APIRequestContext, Page } from "./dbFixtures";
 import { openApp } from "./browserTestSupport";
 import { API, resetServer } from "./serverTestState";
 
@@ -26,7 +26,7 @@ async function saveAvailability(page: Page, first: string, last: string): Promis
   await expect(dialog).toHaveCount(0);
 }
 
-test("clearing, saving, reloading and undoing availability keeps explicit null values", async ({ page, request }) => {
+test("clearing, saving and reloading availability keeps explicit null values", async ({ page, request }) => {
   await resetServer({ request, withSeed: true });
   await openApp(page, "Wayne Enterprises", "/resources");
   await saveAvailability(page, "2026-06-01", "2026-06-30");
@@ -53,8 +53,24 @@ test("clearing, saving, reloading and undoing availability keeps explicit null v
     })
     .toEqual(["2026-06-05", "2026-06-25"]);
 
+  // Resource availability is a typed planning write and can be undone without losing nulls.
   await page.getByRole("link", { name: "Schedule", exact: true }).click();
   await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect
+    .poll(async () => {
+      const row = await persistedAvailability(request);
+      return [row.firstAvailableDate, row.lastAvailableDate];
+    })
+    .toEqual([null, null]);
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await expect
+    .poll(async () => {
+      const row = await persistedAvailability(request);
+      return [row.firstAvailableDate, row.lastAvailableDate];
+    })
+    .toEqual(["2026-06-05", "2026-06-25"]);
+  await page.getByRole("link", { name: "Resources", exact: true }).click();
+  await saveAvailability(page, "", "");
   await expect
     .poll(async () => {
       const row = await persistedAvailability(request);

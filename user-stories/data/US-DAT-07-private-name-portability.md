@@ -2,8 +2,8 @@
 
 **Area:** Data management / privacy · **Persona:** Account owner and account administrator ·
 **Coverage:** `apps/backend/tests/functional/auth/native_authorization.spec.ts` → owner-only import + redacted re-import tests;
-`apps/frontend/src/components/ImportExport.test.tsx`; `packages/shared/src/lib/sanitizeImport.test.ts`; migration criterion
-`DAT-PRIV-01` → `packages/shared/src/data/migrate.test.ts`
+`apps/backend/tests/functional/transfer_apply.spec.ts` → redaction refusal; `apps/frontend/src/components/ImportExport.test.tsx`;
+`packages/shared/src/data/betaTransfer.test.ts` → privacy field validation
 
 **Documentation:** [Settings — Import and export](../../docs-src/using/settings.md#import-and-export)
 
@@ -16,50 +16,47 @@ allowing a redacted export to overwrite the full-fidelity database.
 
 Exports inherit the caller's visibility. An admin's valid export intentionally contains code names
 instead of protected identities, so treating it as a complete replacement would turn projections
-into stored real names. Imports also need deterministic repair for legacy or hand-edited files so a
-malformed private record fails closed rather than exposing its real name.
+into stored real names. Imports accept only this product's own full export and refuse a malformed
+private record rather than repairing it, so a real name is never exposed or invented.
 
 ## How (end-to-end)
 
-**Precondition:** In an auth-enabled server account, create the private client/project from
+**Precondition:** In a persisted server account, create the private client/project from
 US-PRI-01. Have both the owner and an admin available.
 
 1. Export as the owner and inspect the JSON; then export as the admin and compare the two slices.
-2. As the admin, confirm **Import JSON** is absent and direct `POST /api/import` returns `403`.
+2. As the admin, confirm **Import JSON** is absent and direct `POST /api/transfer/preview` and
+   `POST /api/transfer/apply` return `403`.
 3. Confirm the rejected request leaves the database—including both real names and code names—exactly
    unchanged.
 4. As the owner, import a valid full-fidelity export and confirm the atomic replacement succeeds.
-5. In trusted local/auth-off mode, import a file containing quoted code names, public rows with stale
-   privacy fields, a malformed private row with no usable code name, and a private built-in Internal
-   client.
-6. Load a schema-v6 export with no privacy fields and confirm migration to v7 leaves all existing
-   clients/projects public.
+5. In the in-memory demo, preview a file containing a private row with no usable code name, then
+   one marking the built-in Internal client private; confirm each is refused with a field error and
+   nothing changes.
+6. Preview a redacted (admin) export as the owner and confirm it cannot be applied.
 
 ## Acceptance criteria
 
-- ✅ **DAT-PRIV-01 — Backwards-compatible schema.** Schema v7 adds optional `isPrivate`/`codeName` only to clients and projects. Migrating a v6 (or
-  older) row with neither field leaves it public; absence is the backwards-compatible default.
+- ✅ **DAT-PRIV-01 — One supported format.** Only a `capacitylens-beta` version `1` document is accepted. Optional `isPrivate`/`codeName`
+  exist only on clients and projects; a row with neither field is public.
 - ✅ **DAT-PRIV-02 — Role-safe export.** An owner export contains the real names and raw, unquoted code names needed for a lossless
   restore. Admin/editor/viewer exports contain only their server-projected quoted names and omit raw
   code names; auth tables, memberships, sessions and invitations remain excluded for every role.
-- ✅ **DAT-PRIV-03 — Owner-only server import.** On an auth-enabled server, whole-slice import is owner-only in both UI and API: **Import JSON** is
+- ✅ **DAT-PRIV-03 — Owner-only server import.** On a persisted server, whole-slice import is owner-only in both UI and API: **Import JSON** is
   hidden for admin/editor/viewer, their direct request is `403`, and no table changes. Export remains
   available at its existing role tiers.
-- ✅ **DAT-PRIV-04 — Mode semantics.** An owner server import remains atomic and not undoable. Trusted local/demo and auth-off server
-  remain owner-equivalent; local import retains its existing undo behavior.
-- ✅ **DAT-PRIV-05 — Fail-closed repair.** Import sanitisation accepts privacy only when `isPrivate === true`; otherwise it removes both
-  optional fields. Valid code names are cleaned and de-quoted. A private row whose code name becomes
-  empty is repaired to neutral code name `Confidential`, never to the real name.
-- ✅ **DAT-PRIV-06 — Internal repair.** Import sanitisation always strips privacy from the built-in **Internal** client, even if a
-  hand-edited file attempts to set it.
+- ✅ **DAT-PRIV-04 — Mode semantics.** An owner server import remains atomic and not undoable. The in-memory demo
+  remains owner-equivalent. Scheduler Undo/Redo covers bookings only, so it does not reverse an import in
+  any mode.
+- ✅ **DAT-PRIV-05 — Fail-closed validation.** A private row in a full document needs `isPrivate === true` and a non-empty code name;
+  a private row without one is refused with a field error. Nothing is repaired, and a real name is
+  never substituted for a missing code name.
+- ✅ **DAT-PRIV-06 — Internal stays public.** A document that marks the built-in **Internal** client private is refused.
 - ✅ **DAT-PRIV-07 — Redacted-restore interlock.** A non-owner's redacted export can never be accepted as a server slice replacement, preventing
   quoted projections or fallback values from destroying the owner-confidential database identities.
 - ✅ **Beta projection.** Beta exports preserve the server's confidential projection. A `redacted`
   document cannot be prepared as a full replacement, and preparation never reconstructs
   confidential names from projected values.
 
-These beta rules apply to shared preparation only. The current Settings controls still use the
-legacy importer/exporter; backend writer replacement and privileged-auth proof are outside this
-slice. See the [accepted replacement map for issue
-#1482](https://github.com/Kevinjohn/capacitylens/issues/1482#issuecomment-6276475651) and
-[implementation issue #1520](https://github.com/Kevinjohn/capacitylens/issues/1520).
+The Settings controls use this beta transfer end to end: preview, action-bound confirmation and
+atomic replacement are described in US-DAT-02.

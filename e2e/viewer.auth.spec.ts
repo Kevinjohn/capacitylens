@@ -4,6 +4,8 @@ import {
   AUTH_API as API,
   AUTH_PASSWORD as PASSWORD,
   bootstrapOrg,
+  createFixturePerson,
+  sendPlanningFixtureCommand,
   seedFixtureMember,
   signUpUser as signUp,
 } from "./authTestSupport";
@@ -34,25 +36,16 @@ async function signInAndOpen(page: import("@playwright/test").Page, email: strin
 }
 
 async function assertViewerWriteRejected(request: APIRequestContext, accountId: string, cookie: string) {
-  const newClientId = `new-client-${STAMP}`;
-  const directWrite = await request.post(`${API}/api/batch`, {
-    headers: { cookie, "content-type": "application/json" },
+  const newClientId = crypto.randomUUID();
+  const directWrite = await request.post(`${API}/api/accounts/${accountId}/clients`, {
+    headers: { cookie, "sec-fetch-site": "same-origin" },
     data: {
-      ops: [
-        {
-          method: "PUT",
-          table: "clients",
-          id: newClientId,
-          row: {
-            id: newClientId,
-            accountId,
-            name: "Should be rejected",
-            color: "#76a5e7",
-            createdAt: "2026-01-01T00:00:00.000Z",
-            updatedAt: "2026-01-01T00:00:00.000Z",
-          },
-        },
-      ],
+      mutationId: crypto.randomUUID(),
+      baseRevision: 2,
+      intent: {
+        operation: "catalogue.create",
+        entity: { entity: "clients", id: newClientId, fields: { name: "Should be rejected", color: "#76a5e7" } },
+      },
     },
   });
   expect(directWrite.status()).toBe(403);
@@ -63,58 +56,18 @@ async function seedViewerScenario(request: APIRequestContext) {
   const viewer = await signUp(VIEWER);
   const editor = await signUp(EDITOR);
   const accountId = await bootstrapOrg(request, owner.cookie, `Viewer Studio ${STAMP}`);
-  const seededAt = new Date().toISOString();
-  const clientId = `viewer-client-${STAMP}`;
-  const clientWrite = await request.post(`${API}/api/batch`, {
-    headers: { cookie: owner.cookie, "content-type": "application/json" },
-    data: {
-      ops: [
-        {
-          method: "PUT",
-          table: "clients",
-          id: clientId,
-          row: {
-            id: clientId,
-            accountId,
-            name: "Viewer-visible client",
-            color: "#76a5e7",
-            createdAt: seededAt,
-            updatedAt: seededAt,
-          },
-        },
-      ],
-    },
+  const clientId = crypto.randomUUID();
+  await sendPlanningFixtureCommand(request, owner.cookie, accountId, "clients", {
+    operation: "catalogue.create",
+    entity: { entity: "clients", id: clientId, fields: { name: "Viewer-visible client", color: "#76a5e7" } },
   });
-  expect(clientWrite.status()).toBe(200);
-  const resourceId = `viewer-resource-${STAMP}`;
-  const resourceWrite = await request.post(`${API}/api/batch`, {
-    headers: { cookie: owner.cookie, "content-type": "application/json" },
-    data: {
-      ops: [
-        {
-          method: "PUT",
-          table: "resources",
-          id: resourceId,
-          row: {
-            id: resourceId,
-            accountId,
-            kind: "person",
-            name: "Viewer-visible person",
-            avatarUrl: VIEWER_AVATAR_URL,
-            role: "Designer",
-            employmentType: "permanent",
-            engagement: "studio" as const,
-            workingHoursPerDay: 8,
-            workingDays: [1, 2, 3, 4, 5],
-            color: "#76a5e7",
-            createdAt: seededAt,
-            updatedAt: seededAt,
-          },
-        },
-      ],
-    },
+  const resourceId = crypto.randomUUID();
+  await createFixturePerson(request, owner.cookie, accountId, {
+    id: resourceId,
+    name: "Viewer-visible person",
+    role: "Designer",
+    avatarUrl: VIEWER_AVATAR_URL,
   });
-  expect(resourceWrite.status()).toBe(200);
   for (const [who, role] of [
     [viewer, "viewer"],
     [editor, "editor"],

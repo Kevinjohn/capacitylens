@@ -8,6 +8,7 @@ import { FormActions, Modal, RequiredLegend, SegmentedField, SelectField, TextFi
 import type { Option } from "@/components/common/ui";
 import { FieldError, FieldGroup } from "@/components/ui/field";
 import { buildResourceEngagementOptions } from "@/lib/metadata";
+import { resolveErrorMessage } from "@/lib/errorMessage";
 import { useResourceFormState } from "./useResourceFormState";
 import type { ResourceFormState } from "./useResourceFormState";
 import { useResourceSubmit } from "./useResourceSubmit";
@@ -224,7 +225,9 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
     <Modal
       title={resolveFormTitle({ resource: resource, isPlaceholder: isPlaceholder })}
       onClose={onClose}
-      onSubmit={submit}
+      onSubmit={() => {
+        submit().catch((error: unknown) => fail(null, resolveErrorMessage(error)));
+      }}
       footer={<FormActions onCancel={onClose} disabled={submitting} />}
     >
       <ResourceFormBody
