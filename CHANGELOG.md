@@ -9,6 +9,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Credentialed CORS responses now use only explicitly configured origins; same-origin proxy requests remain supported without extra cross-origin permission.
 - Invalid account-access, checklist and masquerade responses now show the existing error feedback instead of accepting malformed fields (#1449).
 
 ### Changed

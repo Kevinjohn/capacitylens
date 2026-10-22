@@ -110,6 +110,7 @@ function createCorsCredentialAndRequestGateTests() {
     });
     expect(res.statusCode).toBe(204);
     expect(res.headers["access-control-allow-origin"]).toBe("http://localhost:5173");
+    expect(res.headers["access-control-allow-credentials"]).toBe("true");
     expect(res.headers["access-control-allow-methods"]).toContain("POST");
   });
 
@@ -170,7 +171,8 @@ function createCorsSameOriginTests() {
       },
     });
     expect(response.statusCode).toBe(200);
-    expect(response.headers["access-control-allow-origin"]).toBe("https://capacity.example.com");
+    expect(response.headers["access-control-allow-origin"]).toBeUndefined();
+    expect(response.headers["access-control-allow-credentials"]).toBeUndefined();
   });
 
   it("falls back to exact trusted-proxy scheme and Host comparison without Fetch Metadata", async () => {
@@ -189,7 +191,28 @@ function createCorsSameOriginTests() {
       },
     });
     expect(response.statusCode).toBe(200);
+    expect(response.headers["access-control-allow-origin"]).toBeUndefined();
+    expect(response.headers["access-control-allow-credentials"]).toBeUndefined();
   });
+}
+
+function createCorsUnlistedMetadataTests() {
+  it.each(["https://evil.example", "null"])(
+    "does not grant credentialed CORS to unlisted %s despite same-origin metadata",
+    async (origin) => {
+      const app = createApp(openDb(":memory:"), { corsOrigin: "https://app.example.com" });
+      for (const method of ["GET", "OPTIONS"] as const) {
+        const response = await call(app, {
+          method,
+          url: "/api/health",
+          headers: { origin, "sec-fetch-site": "same-origin" },
+        });
+        expect(response.statusCode).toBe(method === "OPTIONS" ? 204 : 200);
+        expect(response.headers["access-control-allow-origin"]).toBeUndefined();
+        expect(response.headers["access-control-allow-credentials"]).toBeUndefined();
+      }
+    },
+  );
 }
 
 function createCorsCrossSiteAndTlsTests() {
@@ -251,6 +274,8 @@ function createCorsTlsTerminationTests() {
       },
     });
     expect(res.statusCode).toBe(200);
+    expect(res.headers["access-control-allow-origin"]).toBeUndefined();
+    expect(res.headers["access-control-allow-credentials"]).toBeUndefined();
   });
 
   it("still 403s when the https Origin host does NOT match the request Host", async () => {
@@ -330,6 +355,7 @@ describe("CORS allow-list", () => {
   createCorsReflectionTests();
   createCorsCredentialAndRequestGateTests();
   createCorsSameOriginTests();
+  createCorsUnlistedMetadataTests();
   createCorsCrossSiteAndTlsTests();
   createCorsTlsTerminationTests();
   createCorsMalformedHostAndHeaderTests();

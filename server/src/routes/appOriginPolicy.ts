@@ -2,9 +2,12 @@ import type { FastifyRequest } from "fastify";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { REPLY_ERRORS } from "./replyErrors";
 
-/** Returns the allowed origin to echo, or null when the request origin is not allowed. */
+/** Returns the matching configured origin, or null when the request origin is not allowed. */
 export function resolveCorsOrigin(reqOrigin: string | undefined, allow: ReadonlySet<string>): string | null {
-  return reqOrigin && allow.has(reqOrigin) ? reqOrigin : null;
+  for (const allowedOrigin of allow) {
+    if (allowedOrigin === reqOrigin) return allowedOrigin;
+  }
+  return null;
 }
 
 interface IsSameRequestOriginInput {
@@ -96,8 +99,9 @@ export function installOriginPolicy(input: {
       });
       return reply.code(403).send({ error: REPLY_ERRORS.crossSiteRequest });
     }
-    if (origin) {
-      reply.header("Access-Control-Allow-Origin", origin);
+    // Same-origin admission needs no CORS permission; only configuration grants cross-origin access.
+    if (listedOrigin !== null) {
+      reply.header("Access-Control-Allow-Origin", listedOrigin);
       reply.header("Vary", "Origin");
       reply.header("Access-Control-Allow-Credentials", "true");
     }
