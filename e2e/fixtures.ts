@@ -1,6 +1,6 @@
 import { expect, test as base } from "@playwright/test";
 import type { APIRequestContext, BrowserContext, BrowserContextOptions, Locator, Page } from "@playwright/test";
-import { clearAuthE2ECompanies } from "./authTestSupport";
+import { clearAuthE2ECompanies, waitForAuthE2EBaseline } from "./authTestSupport";
 
 export { expect, type APIRequestContext, type Locator, type Page };
 
@@ -17,7 +17,10 @@ export const test = base.extend<CapacityLensFixtures>({
     // Playwright requires a destructuring pattern for an automatic fixture with no inputs.
     // eslint-disable-next-line no-empty-pattern
     async ({}, use, testInfo) => {
-      if (testInfo.project.name === "auth-backed") clearAuthE2ECompanies();
+      if (testInfo.project.name === "auth-backed") {
+        await waitForAuthE2EBaseline();
+        clearAuthE2ECompanies();
+      }
       try {
         await use();
       } finally {
