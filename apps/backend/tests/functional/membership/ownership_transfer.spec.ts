@@ -6,6 +6,7 @@ import env from '#start/env'
 import { seed } from '@capacitylens/shared/data/seed'
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 import { encodeRow, resetState } from '#services/state_repository'
+import { createFixtureCompanyForOwner } from '../../helpers/authenticated_data_fixture.js'
 
 const setupToken = 'ownership-setup-token-0123456789abcdef'
 const password = 'batman-secret-2026'
@@ -24,17 +25,14 @@ async function fixture(client: ApiClient) {
     .send()
   owner.assertStatus(201)
   const ownerCookie = owner.cookie('adonis-session')!.value
-  const org = await signed(client.post('/api/orgs'), ownerCookie)
-    .json({ id: 'a-studio', name: 'Wayne Enterprises' })
-    .send()
-  org.assertStatus(201)
+  const ownerId = await principalId('bruce.wayne@wayne.example')
+  await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio')
   const admin = await client
     .post('/api/auth/sign-up')
     .json({ email: 'clark.kent@wayne.example', password, name: 'Clark Kent' })
     .send()
   admin.assertStatus(201)
   const adminCookie = admin.cookie('adonis-session')!.value
-  const ownerId = await principalId('bruce.wayne@wayne.example')
   const adminId = await principalId('clark.kent@wayne.example')
   const now = new Date().toISOString()
   await db.table('memberships').insert({
