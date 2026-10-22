@@ -111,6 +111,24 @@ test.group('beta transfer apply', (group) => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
+    const stamp = new Date().toISOString()
+    await db.table('invitations').insert({
+      id: 'invite-proposed-person',
+      account_id: accountId,
+      token_hash: 'invite-proposed-person-hash',
+      email: 'dick.grayson@wayne.example',
+      role: 'editor',
+      expires_at: stamp,
+      created_at: stamp,
+      updated_at: stamp,
+    })
+    await db.table('invitation_proposals').insert({
+      id: 'proposal-dick-person',
+      invitation_id: 'invite-proposed-person',
+      resource_id: linkedPerson.id,
+      created_at: stamp,
+      updated_at: stamp,
+    })
     const preview = await asDataOwner(client.post('/api/transfer/preview'), cookie)
       .json({ accountId, document: full })
       .send()
@@ -129,6 +147,11 @@ test.group('beta transfer apply', (group) => {
       .where('account_id', accountId)
       .first()
     assert.equal(memberResource?.resource_id, linkedPerson.id)
+    const proposal = await db
+      .from('invitation_proposals')
+      .where('id', 'proposal-dick-person')
+      .first()
+    assert.equal(proposal?.resource_id, linkedPerson.id)
     assert.lengthOf(
       await db.from('audit_entries').where({ account_id: accountId, action: 'import' }),
       1
