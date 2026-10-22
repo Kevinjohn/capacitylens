@@ -6,6 +6,7 @@ import {
   bootstrapOrg,
   createFixturePerson,
   seedFixtureMember,
+  sendPlanningFixtureCommand,
   signUpUser,
 } from "./authTestSupport";
 import { selectShadOption, waitForAppLanding } from "./browserTestSupport";
@@ -86,6 +87,14 @@ test("authenticated discipline and time-off deletion restore the same rows", asy
   const email = `diana-prince-writers-${suffix}@capacitylens.dev`;
   const owner = await signUpUser(email);
   const accountId = await bootstrapOrg(request, owner.cookie, `Wayne Planning Studio ${suffix}`);
+  await sendPlanningFixtureCommand(
+    request,
+    owner.cookie,
+    accountId,
+    "settings",
+    { operation: "settings.update", changes: { disciplinesEnabled: true } },
+    "patch",
+  );
   const resourceId = crypto.randomUUID();
   await createFixturePerson(request, owner.cookie, accountId, {
     id: resourceId,
