@@ -11,17 +11,24 @@ new features and **patch** versions carry fixes.
 
 - Require `--disposable` for non-production `app:reset`; production resets are refused before archiving. The nginx example no longer duplicates application HSTS or configures obsolete CSP reporting. `db:seed` now adds missing fixture rows without replacing existing product data or audit history. Diagnostics now show the last applied migration and newest completed snapshot modification time.
 
+- Native installations can initialize their first company and Owner for an existing identity with
+  the stopped-server `company:initialize` command. Setup refuses existing company access and
+  leaves credentials and identity admission unchanged.
 - Persisted access now requires an authenticated principal and one provisioned company. The
   temporary demo keeps its editable, volatile multi-company picker. Retired generic company and
   batch writes, browser sync queues and their recovery controls; scheduling changes use typed
-  planning commands and server revisions. First-company provisioning remains unavailable in the
-  native release.
+  planning commands and server revisions.
 - Frozen company calendar fields now reject a second typed settings change with 409.
 - Resource and catalogue records now use typed archive and restore actions. Owners and Admins can
-  anonymise a resource; only an Owner can anonymise every company resource. The company,
-  memberships and planning links remain while names, roles, avatars and dependent notes are scrubbed.
+  anonymise a person; only an Owner can anonymise all people in the company. Clients, projects,
+  activities, the company, memberships and planning links remain while personal details and
+  dependent notes are scrubbed.
 - Removed company deletion, lifecycle soft-delete and purge actions, including the 30-day purge
   countdown and generic lifecycle routes.
+
+### Fixed
+
+- Refuse allocation restoration when current references or resource availability are incompatible, keeping the deletion available for retry.
 
 ### Added
 

@@ -1,6 +1,6 @@
 ---
 title: Access your company
-description: Sign in with a provisioned company and understand the current first-company limitation.
+description: Create your sign-in and ask the installer to initialize company access.
 prev: false
 next: false
 ---
@@ -31,10 +31,16 @@ identity.
 
 ## Company access
 
-The current native release has no supported first-company provisioning screen or command. First
-sign-in setup creates an identity, not a company or Owner membership. An empty installation cannot
-yet be put into service; ask your installer about this limitation. Once a company and your
-membership exist, signing in opens its Schedule directly. The temporary [demo](/getting-started/try-the-demo)
-lets you explore fictional companies without storing their records.
+First sign-in creates your identity. The installer then stops the service and runs
+`company:initialize` for your existing email and company name. This creates the first company
+and makes your identity its Owner. It does not create or change your password, provider identity
+or admission settings. After the installer restarts the service, sign in normally to open Schedule.
+
+The company starts with Monday as the first day of the week, Monday–Friday as working days and
+day-based scheduling. It contains the built-in Internal client and no sample scheduling records.
+The setup command works only before any company or membership exists. Ask the installer to
+resolve access if the command refuses; it cannot add a second company or replace an Owner.
+The temporary [demo](/getting-started/try-the-demo) lets you explore fictional companies without
+storing their records.
 
 Next: [Appoint an Admin](/owner/appoint-an-admin) — hand the day-to-day running to someone else.
