@@ -210,15 +210,6 @@ export default class extends BaseSchema {
       table.string('display_name').nullable()
       table.text('password_hash').nullable()
     })
-    this.schema.createTable('provider_identities', (table) => {
-      metadata(table)
-      table.string('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE')
-      table.string('provider').notNullable()
-      table.string('issuer').notNullable()
-      table.string('subject').notNullable()
-      table.string('email').nullable()
-      table.unique(['provider', 'issuer', 'subject'])
-    })
     this.schema.createTable('email_proofs', (table) => {
       metadata(table)
       table.string('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE')

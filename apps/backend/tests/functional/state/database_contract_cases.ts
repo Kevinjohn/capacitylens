@@ -57,7 +57,6 @@ export const baselineTables = [
   'time_off',
   'closures',
   'users',
-  'provider_identities',
   'email_proofs',
   'sessions',
   'user_session_index',

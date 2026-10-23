@@ -20,7 +20,7 @@ import { APP_NAME } from "@capacitylens/shared/brand";
 import { buildOpenAuthResult } from "./authStatus";
 import type { AuthStatusResult } from "./authStatus";
 import { fetchAuthStatus } from "./fetchAuthStatus";
-import { AuthenticatedExternalSignInFailure, AuthLoading, ReauthMount } from "./authScreens";
+import { AuthLoading, ReauthMount } from "./authScreens";
 import { useAuthContextValue } from "./useAuthContextValue";
 
 // Auth boundary. In the demo build (VITE_CAPACITYLENS_DEMO=1) this is a
@@ -169,7 +169,6 @@ function LoginBoundary({
         authMode={status.authMode}
         needsSetup={status.needsSetup}
         passwordResetEmail={status.passwordResetEmail}
-        providers={status.providers}
         degraded={status.degraded}
         hadUnsavedChanges={status.hadUnsavedChanges}
         onSignedIn={() => {
@@ -209,16 +208,7 @@ function AuthenticatedBoundary({
   return (
     <AuthContext.Provider value={authContextValue}>
       {children}
-      {authEnabled && <AuthenticatedExternalSignInFailure />}
-      {status.authMode !== "off" && (
-        <ReauthMount
-          authMode={status.authMode}
-          user={status.user}
-          providers={status.providers}
-          reauthMethod={status.reauthMethod}
-          reauthProviderId={status.reauthProviderId}
-        />
-      )}
+      {authEnabled && <ReauthMount user={status.user} />}
     </AuthContext.Provider>
   );
 }

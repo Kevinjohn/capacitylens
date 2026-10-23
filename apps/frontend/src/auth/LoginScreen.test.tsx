@@ -6,14 +6,12 @@ import userEvent from "@testing-library/user-event";
 // a typed { data, error } result so each form sets its inline error
 // and the per-control describedby wires up.
 const signInEmail = vi.fn();
-const signInSocial = vi.fn();
 const signUpEmail = vi.fn();
 const requestPasswordReset = vi.fn();
 vi.mock("./authClient", () => ({
   authClient: {
     signIn: {
       email: (...args: unknown[]) => signInEmail(...args),
-      social: (...args: unknown[]) => signInSocial(...args),
     },
     signUp: { email: (...args: unknown[]) => signUpEmail(...args) },
     requestPasswordReset: (...args: unknown[]) => requestPasswordReset(...args),
@@ -27,7 +25,6 @@ import { normalizeSetupToken } from "./useOwnerSetup";
 beforeEach(() => {
   window.history.replaceState({}, "", "/");
   signInEmail.mockReset();
-  signInSocial.mockReset();
   signUpEmail.mockReset();
   requestPasswordReset.mockReset();
 });
@@ -40,85 +37,9 @@ function setsDescriptiveTitleOutsideAppShell() {
   expect(document.title).toBe("Sign in · CapacityLens");
 }
 
-async function showsStableRetryGuidanceAndRemovesProviderQueryValues() {
-  window.history.replaceState({}, "", "/?externalSignInError=1&error=access_denied&error_description=provider-secret");
-  render(
-    <LoginScreen
-      authMode="sso-only"
-      providers={[{ id: "google", label: "Google", kind: "social", experimental: false }]}
-      onSignedIn={vi.fn()}
-    />,
-  );
-
-  expect(screen.getByRole("alert")).toHaveTextContent(
-    "Single sign-on was not completed. Try again or contact your administrator.",
-  );
-  expect(screen.getByRole("alert")).not.toHaveTextContent("provider-secret");
-  await waitFor(() => expect(window.location.search).toBe(""));
-}
-
-async function mapsApplicationOwnedCallbackCodeToActionableCopy(code: string, expected: string) {
-  window.history.replaceState({}, "", `/?externalSignInError=1&error=${code}`);
-  render(
-    <LoginScreen
-      authMode="sso-only"
-      providers={[{ id: "google", label: "Google", kind: "social", experimental: false }]}
-      onSignedIn={vi.fn()}
-    />,
-  );
-
-  expect(screen.getByRole("alert")).toHaveTextContent(expected);
-  await waitFor(() => expect(window.location.search).toBe(""));
-}
-
-async function keepsProviderRedirectPendingAfterDispatchingNamedSocialProvider() {
-  signInSocial.mockResolvedValue({ data: { url: "https://accounts.example.test/start" }, error: null });
-  window.history.replaceState({}, "", "/invite/token?source=mail");
-  render(
-    <LoginScreen
-      authMode="sso-only"
-      providers={[{ id: "google", label: "Google", kind: "social", experimental: true }]}
-      onSignedIn={vi.fn()}
-    />,
-  );
-
-  fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
-
-  await waitFor(() =>
-    expect(signInSocial).toHaveBeenCalledWith({
-      provider: "google",
-      callbackURL: "http://localhost:3000/invite/token?source=mail",
-      errorCallbackURL: "http://localhost:3000/invite/token?source=mail&externalSignInError=1",
-    }),
-  );
-  expect(screen.getByRole("status")).toHaveTextContent("Redirecting to Google…");
-  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeDisabled();
-}
-
-describe("LoginScreen — external callback failures", () => {
+describe("LoginScreen — password sign-in", () => {
   it("sets a descriptive title while rendering outside the app shell", setsDescriptiveTitleOutsideAppShell);
 
-  it(
-    "shows stable retry guidance and removes provider-controlled query values",
-    showsStableRetryGuidanceAndRemovesProviderQueryValues,
-  );
-
-  it.each([
-    ["OIDC_IDENTITY_VERIFICATION_FAILED", m.login_sso_failed()],
-    ["account_link_conflict", m.login_sso_account_link_conflict()],
-  ])(
-    "maps the application-owned callback code %s to actionable copy",
-    mapsApplicationOwnedCallbackCodeToActionableCopy,
-  );
-
-  it(
-    "keeps the provider redirect pending after dispatching a named social provider",
-    keepsProviderRedirectPendingAfterDispatchingNamedSocialProvider,
-  );
-});
-
-describe("LoginScreen — password sign-in", () => {
   it("opens the app after a successful password sign-in without a local challenge", async () => {
     signInEmail.mockResolvedValue({ data: {}, error: null });
     const onSignedIn = vi.fn();
@@ -241,33 +162,8 @@ function registerOwnerSetupDisplayTests() {
     expect(screen.queryByRole("button", { name: "Sign in" })).not.toBeInTheDocument();
   });
 
-  it("keeps configured external bootstrap providers reachable during owner setup", () => {
-    render(
-      <LoginScreen
-        authMode="password-and-sso"
-        needsSetup
-        providers={[{ id: "google", label: "Google", kind: "social", experimental: false }]}
-        onSignedIn={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Company login is a separate route. If your installer configured it, choose its button below to create the first Owner without a local password.",
-      ),
-    ).toBeInTheDocument();
-  });
-
   it("renders the ordinary sign-in form when needsSetup is absent (fail-closed default)", () => {
-    render(
-      <LoginScreen
-        authMode="password-and-sso"
-        providers={[{ id: "google", label: "Google", kind: "social", experimental: false }]}
-        onSignedIn={vi.fn()}
-      />,
-    );
+    render(<LoginScreen authMode="password-and-sso" onSignedIn={vi.fn()} />);
     expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(screen.queryByLabelText("name")).not.toBeInTheDocument();
     expect(
@@ -523,71 +419,6 @@ describe("LoginScreen — first-run owner setup (needsSetup)", () => {
   registerOwnerSetupErrorTests();
   registerOwnerSetupValidationTests();
   registerOwnerSetupAccessibilityAndRaceTests();
-});
-
-describe("LoginScreen — provider failures", () => {
-  const provider = { id: "google", label: "Google", kind: "social", experimental: true } as const;
-  type ProviderResponse = { data: { url: string }; error: null };
-
-  it("surfaces a provider API refusal and re-enables controls", async () => {
-    const error = { message: "Provider refused the request." };
-    signInSocial.mockResolvedValue({ data: null, error });
-    render(<LoginScreen authMode="sso-only" providers={[provider]} onSignedIn={vi.fn()} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent("Provider refused the request.");
-    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeEnabled();
-  });
-
-  it.each(["password-and-sso", "sso-only"] as const)(
-    "announces a successful provider redirect instead of showing a failure in %s mode",
-    async (authMode) => {
-      let resolveProvider!: (value: ProviderResponse) => void;
-      const providerResponse = new Promise<ProviderResponse>((resolve) => (resolveProvider = resolve));
-      signInSocial.mockReturnValue(providerResponse);
-      render(<LoginScreen authMode={authMode} providers={[provider]} onSignedIn={vi.fn()} />);
-      const button = screen.getByRole("button", { name: "Sign in with Google" });
-      fireEvent.click(button);
-
-      expect(await screen.findByRole("status")).toHaveTextContent("Redirecting to Google…");
-      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-      expect(button).toBeDisabled();
-      resolveProvider({ data: { url: "https://accounts.example.test/start" }, error: null });
-      await providerResponse;
-      await waitFor(() => {
-        expect(screen.getByRole("status")).toHaveTextContent("Redirecting to Google…");
-        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-        expect(button).toBeDisabled();
-      });
-    },
-  );
-
-  it("clears a prior provider error before announcing the redirect", async () => {
-    signInSocial.mockResolvedValueOnce({ data: null, error: { message: "Provider refused the request." } });
-    signInSocial.mockResolvedValueOnce({ data: { url: "https://accounts.example.test/start" }, error: null });
-    render(<LoginScreen authMode="sso-only" providers={[provider]} onSignedIn={vi.fn()} />);
-
-    const button = screen.getByRole("button", { name: "Sign in with Google" });
-    fireEvent.click(button);
-    expect(await screen.findByRole("alert")).toHaveTextContent("Provider refused the request.");
-    expect(button).toBeEnabled();
-
-    fireEvent.click(button);
-    expect(await screen.findByRole("status")).toHaveTextContent("Redirecting to Google…");
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  });
-
-  it("surfaces a network error and clears busy when provider sign-in throws", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    signInSocial.mockRejectedValue(new TypeError("offline"));
-    render(<LoginScreen authMode="sso-only" providers={[provider]} onSignedIn={vi.fn()} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_network_error());
-    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeEnabled();
-  });
 });
 
 describe("LoginScreen — degraded 401 body notice", () => {

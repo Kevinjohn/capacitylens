@@ -2,14 +2,8 @@ import type { ApplicationService } from '@adonisjs/core/types'
 import env from '#start/env'
 import db from '@adonisjs/lucid/services/db'
 import { assertSchemaIntegrity } from '#services/schema_integrity'
-import { authMode, googleEnabled, passwordEnabled } from '#services/auth/mode'
 import { hashPassword } from '#services/password_service'
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password'
-
-export function assertM1AuthenticationMode(mode: string | undefined) {
-  if (!['password-only', 'password-and-sso', 'sso-only'].includes(mode || 'password-only'))
-    throw new Error(`Unknown CAPACITYLENS_MODE ${mode}`)
-}
 
 function assertAuthenticationConfiguration(inProduction: boolean) {
   const secret = env.get('CAPACITYLENS_SECRET')
@@ -42,51 +36,6 @@ function assertAuthenticationConfiguration(inProduction: boolean) {
   const setupToken = env.get('CAPACITYLENS_SETUP_TOKEN')
   if (setupToken && setupToken.length < 32)
     throw new Error('CAPACITYLENS_SETUP_TOKEN must contain at least 32 characters')
-  assertGoogleProviderConfiguration({
-    mode: authMode(),
-    clientId: env.get('CAPACITYLENS_GOOGLE_CLIENT_ID'),
-    clientSecret: env.get('CAPACITYLENS_GOOGLE_CLIENT_SECRET'),
-  })
-  if (authMode() === 'sso-only' && !googleEnabled())
-    throw new Error('SSO-only mode requires a configured Google provider')
-  if (env.get('CAPACITYLENS_CREATE_ADMIN_ADMIN') && !passwordEnabled())
-    throw new Error('CAPACITYLENS_CREATE_ADMIN_ADMIN requires password authentication')
-}
-
-/** Refuses a half-configured provider before the application accepts traffic. */
-export function assertGoogleProviderConfiguration(options: {
-  mode: string
-  clientId?: string
-  clientSecret?: string
-}) {
-  if (
-    (options.mode === 'password-and-sso' || options.mode === 'sso-only') &&
-    Boolean(options.clientId) !== Boolean(options.clientSecret)
-  )
-    throw new Error('Google provider requires both client ID and secret')
-}
-
-interface HostedProfileOptions {
-  profile?: string
-  mode?: string
-  allowOpenSignup?: boolean
-  setupToken?: string
-  createAdmin?: boolean
-  googleClientId?: string
-  googleClientSecret?: string
-  microsoftClientId?: string
-  microsoftClientSecret?: string
-  microsoftTenantId?: string
-}
-
-export function assertHostedDeploymentProfile(options: HostedProfileOptions) {
-  if (options.profile !== 'hosted-sso-only') return
-  if (options.mode !== 'sso-only') throw new Error('hosted-sso-only requires sso-only mode')
-  if (options.allowOpenSignup) throw new Error('hosted-sso-only forbids open signup')
-  if (options.setupToken || options.createAdmin)
-    throw new Error('hosted-sso-only forbids password-account configuration')
-  const google = options.googleClientId && options.googleClientSecret
-  if (!google) throw new Error('hosted-sso-only requires a complete Google provider')
 }
 
 interface ProductionPosture {
@@ -114,19 +63,6 @@ export function assertProductionPosture(options: ProductionPosture) {
 export default class ConfigurationProvider {
   constructor(protected app: ApplicationService) {}
   async boot() {
-    assertM1AuthenticationMode(env.get('CAPACITYLENS_MODE'))
-    assertHostedDeploymentProfile({
-      profile: env.get('CAPACITYLENS_DEPLOYMENT_PROFILE'),
-      mode: env.get('CAPACITYLENS_MODE'),
-      allowOpenSignup: env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP'),
-      setupToken: env.get('CAPACITYLENS_SETUP_TOKEN'),
-      createAdmin: env.get('CAPACITYLENS_CREATE_ADMIN_ADMIN'),
-      googleClientId: env.get('CAPACITYLENS_GOOGLE_CLIENT_ID'),
-      googleClientSecret: env.get('CAPACITYLENS_GOOGLE_CLIENT_SECRET'),
-      microsoftClientId: env.get('CAPACITYLENS_MICROSOFT_CLIENT_ID'),
-      microsoftClientSecret: env.get('CAPACITYLENS_MICROSOFT_CLIENT_SECRET'),
-      microsoftTenantId: env.get('CAPACITYLENS_MICROSOFT_TENANT_ID'),
-    })
     assertAuthenticationConfiguration(this.app.inProduction)
     if (this.app.inProduction)
       assertProductionPosture({

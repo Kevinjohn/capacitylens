@@ -470,16 +470,6 @@ export function ImportExport() {
             setPendingImport(null);
             void confirmServerImport(pendingImport.document, previewRevision, proofId);
           }}
-          onProviderStart={(proofId) =>
-            sessionStorage.setItem(
-              PENDING_PROOF_KEY,
-              JSON.stringify({
-                accountId: activeAccountId,
-                baseRevision: previewRevision,
-                proofId,
-              }),
-            )
-          }
           onCancel={() => setConfirmingAction(false)}
         />
       )}

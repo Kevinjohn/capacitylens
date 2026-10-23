@@ -17,24 +17,11 @@ function withSession<
 test.group('Credential HTTP contract', (group) => {
   group.setup(() => freshDatabase())
 
-  test('public request is gated by mode and mail configuration', async ({
-    client,
-    assert,
-    cleanup,
-  }) => {
-    const priorMode = env.get('CAPACITYLENS_MODE')
+  test('public request is gated by mail configuration', async ({ client, assert, cleanup }) => {
     const priorHost = env.get('CAPACITYLENS_MAIL_HOST')
     cleanup(() => {
-      env.set('CAPACITYLENS_MODE', priorMode ?? 'password-only')
       env.set('CAPACITYLENS_MAIL_HOST', priorHost ?? '')
     })
-    env.set('CAPACITYLENS_MODE', 'sso-only')
-    env.set('CAPACITYLENS_MAIL_HOST', 'mail.example.test')
-    const disabled = await client
-      .post('/api/auth/request-reset')
-      .json({ email: 'bruce@example.test' })
-    assert.equal(disabled.status(), 404)
-    env.set('CAPACITYLENS_MODE', 'password-only')
     env.set('CAPACITYLENS_MAIL_HOST', '')
     const unavailable = await client
       .post('/api/auth/request-reset')

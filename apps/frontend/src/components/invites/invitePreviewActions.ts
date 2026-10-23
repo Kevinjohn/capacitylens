@@ -11,7 +11,6 @@ interface Dependencies {
   token: string | undefined;
   previewed: RefObject<string | null>;
   currentUser: RefObject<AuthUser | null>;
-  returnedWithExternalError: boolean;
   setPreview: Dispatch<SetStateAction<InvitePreview | null>>;
   setState: Dispatch<SetStateAction<InviteAcceptState>>;
 }
@@ -21,14 +20,7 @@ function isPreviewCancelled(requestState: { cancelled: boolean }): boolean {
 }
 
 /** Builds the invitation preview request for the current token. */
-export function createInvitePreviewAction({
-  token,
-  previewed,
-  currentUser,
-  returnedWithExternalError,
-  setPreview,
-  setState,
-}: Dependencies) {
+export function createInvitePreviewAction({ token, previewed, currentUser, setPreview, setState }: Dependencies) {
   return () => {
     if (!isServerConfigured() || !token) return;
     const requestState = { cancelled: false };
@@ -57,7 +49,6 @@ export function createInvitePreviewAction({
             ? { kind: "ready" }
             : {
                 kind: "auth",
-                ...(returnedWithExternalError ? { message: m.login_sso_failed() } : {}),
               },
         );
       } catch (err) {

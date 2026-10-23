@@ -4,18 +4,16 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ReauthDialog } from "./ReauthDialog";
 import { isReauthPending, requestReauth, completeReauth, subscribeReauth } from "./reauthCoordinator";
 import type { ReauthAction, ReauthResult } from "./reauthCoordinator";
-import type { AuthProviderInfo, AuthUser } from "./authContext";
+import type { AuthUser } from "./authContext";
 import { m } from "@/i18n";
 
 // The dialog stays open on failed authentication and resolves the shared waiting request only after authentication succeeds or is cancelled.
 
 const signInEmail = vi.fn();
-const signInSocial = vi.fn();
 vi.mock("./authClient", () => ({
   authClient: {
     signIn: {
       email: (...args: unknown[]) => signInEmail(...args),
-      social: (...args: unknown[]) => signInSocial(...args),
     },
   },
 }));
@@ -23,39 +21,15 @@ vi.mock("./authClient", () => ({
 // The real bridge (ReauthMount in AuthProvider) is this exact shape: show the dialog only while a
 // step-up is pending. Rendering it here lets us assert the dialog opens on requestReauth() and
 // unmounts (closes) when the coordinator resolves.
-function Harness({
-  user,
-  providers = [],
-  authMode = "password-only",
-  reauthMethod,
-  reauthProviderId,
-  action,
-}: {
-  user: AuthUser | null;
-  providers?: AuthProviderInfo[];
-  authMode?: "password-only" | "sso-only" | "password-and-sso";
-  reauthMethod?: "password" | "provider";
-  reauthProviderId?: string | null;
-  action?: ReauthAction | null;
-}) {
+function Harness({ user, action }: { user: AuthUser | null; action?: ReauthAction | null }) {
   const pending = useSyncExternalStore(subscribeReauth, isReauthPending);
   if (!pending) return <div>no-dialog</div>;
-  return (
-    <ReauthDialog
-      authMode={authMode}
-      user={user}
-      providers={providers}
-      {...(reauthMethod ? { reauthMethod } : {})}
-      {...(reauthProviderId !== undefined ? { reauthProviderId } : {})}
-      {...(action !== undefined ? { action } : {})}
-    />
-  );
+  return <ReauthDialog user={user} {...(action !== undefined ? { action } : {})} />;
 }
 
 afterEach(() => {
   if (isReauthPending()) completeReauth({ reauthenticated: false });
   signInEmail.mockReset();
-  signInSocial.mockReset();
   window.history.replaceState({}, "", "/");
 });
 
@@ -187,199 +161,6 @@ describe("ReauthDialog password failures", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.login_network_error());
     expect(screen.getByRole("button", { name: "Confirm" })).toBeEnabled();
-  });
-});
-
-describe("ReauthDialog provider step-up", () => {
-  it("preserves the product route and supplies a marked provider failure return", async () => {
-    signInSocial.mockResolvedValue({ data: { url: "https://accounts.example.test/start" }, error: null });
-    window.history.replaceState({}, "", "/team?tab=access");
-    render(
-      <Harness
-        authMode="sso-only"
-        user={user}
-        providers={[{ id: "google", label: "Google", kind: "social", experimental: false }]}
-      />,
-    );
-    void requestReauth();
-    await screen.findByRole("heading", { name: "Confirm it's you" });
-    expect(screen.getByText(m.reauth_body_sso())).toHaveTextContent(/repeat the original action/);
-
-    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
-
-    await waitFor(() =>
-      expect(signInSocial).toHaveBeenCalledWith({
-        provider: "google",
-        callbackURL: "http://localhost:3000/team?tab=access",
-        errorCallbackURL: "http://localhost:3000/team?tab=access&externalSignInError=1",
-      }),
-    );
-    expect(isReauthPending()).toBe(true);
-  });
-
-  it("uses the session's Google provider for a federated-only principal in mixed mode", async () => {
-    signInSocial.mockResolvedValue({ data: { url: "https://accounts.example.test/start" }, error: null });
-    render(
-      <Harness
-        authMode="password-only"
-        reauthMethod="provider"
-        reauthProviderId="google"
-        user={user}
-        providers={[{ id: "google", label: "Google", kind: "social", experimental: false }]}
-      />,
-    );
-    void requestReauth();
-    await screen.findByRole("heading", { name: "Confirm it's you" });
-
-    expect(screen.queryByTestId("reauth-password")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
-
-    await waitFor(() => expect(signInSocial).toHaveBeenCalledWith(expect.objectContaining({ provider: "google" })));
-    expect(signInEmail).not.toHaveBeenCalled();
-  });
-});
-
-describe("ReauthDialog social-provider step-up", () => {
-  it("uses the exact Google action copy and mark for social re-authentication", async () => {
-    signInSocial.mockResolvedValue({ data: { url: "https://accounts.example.test/start" }, error: null });
-    window.history.replaceState({}, "", "/team?tab=access");
-    render(
-      <Harness
-        authMode="sso-only"
-        user={user}
-        providers={[{ id: "google", label: "Google", kind: "social", experimental: true }]}
-      />,
-    );
-    void requestReauth();
-    await screen.findByRole("heading", { name: "Confirm it's you" });
-
-    const button = screen.getByRole("button", { name: "Sign in with Google" });
-    expect(button.querySelector("img")).toHaveAttribute("aria-hidden", "true");
-    fireEvent.click(button);
-
-    await waitFor(() =>
-      expect(signInSocial).toHaveBeenCalledWith({
-        provider: "google",
-        callbackURL: "http://localhost:3000/team?tab=access",
-        errorCallbackURL: "http://localhost:3000/team?tab=access&externalSignInError=1",
-      }),
-    );
-  });
-
-  it("uses Google presentation while preserving named Google re-authentication", async () => {
-    signInSocial.mockResolvedValue({ data: { url: "https://accounts.example.test/start" }, error: null });
-    render(
-      <Harness
-        authMode="sso-only"
-        user={user}
-        providers={[{ id: "google", label: "Google", kind: "social", brand: "google", experimental: false }]}
-      />,
-    );
-    void requestReauth();
-    await screen.findByRole("heading", { name: "Confirm it's you" });
-
-    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
-
-    await waitFor(() => expect(signInSocial).toHaveBeenCalledWith(expect.objectContaining({ provider: "google" })));
-  });
-});
-
-describe("ReauthDialog provider failures", () => {
-  it("surfaces a provider API refusal and keeps the dialog retryable", async () => {
-    const error = { message: "Provider refused the request." };
-    signInSocial.mockResolvedValue({ data: null, error });
-    render(
-      <Harness
-        authMode="sso-only"
-        user={user}
-        providers={[{ id: "google", label: "Google", kind: "social", experimental: false }]}
-      />,
-    );
-    void requestReauth();
-    await screen.findByRole("heading", { name: "Confirm it's you" });
-
-    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent("Provider refused the request.");
-    expect(screen.getByRole("heading", { name: "Confirm it's you" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
-  });
-
-  it("announces a successful re-auth redirect instead of reporting a failure", async () => {
-    signInSocial.mockResolvedValue({ data: { url: "https://accounts.example.test/start" }, error: null });
-    render(
-      <Harness
-        authMode="sso-only"
-        user={user}
-        providers={[{ id: "google", label: "Google", kind: "social", experimental: false }]}
-      />,
-    );
-    void requestReauth();
-    await screen.findByRole("heading", { name: "Confirm it's you" });
-
-    const button = screen.getByRole("button", { name: "Sign in with Google" });
-    fireEvent.click(button);
-
-    expect(await screen.findByRole("status")).toHaveTextContent("Redirecting to Google…");
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(button).toBeDisabled();
-  });
-
-  it("surfaces a network error and clears busy when SSO re-auth throws", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    signInSocial.mockRejectedValue(new TypeError("offline"));
-    render(
-      <Harness
-        authMode="sso-only"
-        user={user}
-        providers={[{ id: "google", label: "Google", kind: "social", experimental: false }]}
-      />,
-    );
-    void requestReauth();
-    await screen.findByRole("heading", { name: "Confirm it's you" });
-
-    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_network_error());
-    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeEnabled();
-  });
-
-  it("shows only Cancel when provider re-auth has no matching provider", async () => {
-    render(<Harness authMode="password-only" reauthMethod="provider" user={user} providers={[]} />);
-    void requestReauth();
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_sso_unavailable());
-    expect(screen.getAllByRole("button")).toHaveLength(1);
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
-  });
-});
-
-describe("ReauthDialog dismissal guards", () => {
-  it("guards SSO modal dismissal while busy and cancels once idle", async () => {
-    signInSocial.mockImplementation(() => new Promise(() => {}));
-    render(
-      <Harness
-        authMode="sso-only"
-        user={user}
-        providers={[{ id: "google", label: "Google", kind: "social", experimental: false }]}
-      />,
-    );
-    void requestReauth();
-    await screen.findByRole("heading", { name: "Confirm it's you" });
-    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
-    await waitFor(() => expect(signInSocial).toHaveBeenCalledOnce());
-
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(isReauthPending()).toBe(true);
-    expect(screen.getByRole("heading", { name: "Confirm it's you" })).toBeInTheDocument();
-
-    completeReauth({ reauthenticated: false });
-    await screen.findByText("no-dialog");
-    const second = requestReauth();
-    await screen.findByRole("heading", { name: "Confirm it's you" });
-    fireEvent.keyDown(document, { key: "Escape" });
-    await expect(second).resolves.toEqual({ kind: "cancelled" });
   });
 });
 

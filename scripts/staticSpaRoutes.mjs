@@ -15,5 +15,4 @@ export const STATIC_SPA_ROUTES = [
   "diagnostics",
   "account",
   "help",
-  "verify-microsoft",
 ];

@@ -1,13 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import type { Role } from '@capacitylens/shared/account/types'
-import {
-  isAccountRole,
-  isMembershipStatus,
-  allowsPasswordSignIn,
-} from '@capacitylens/shared/account/types'
+import { isAccountRole, isMembershipStatus } from '@capacitylens/shared/account/types'
 import { canAdministerIdentityAcrossWorkspaces } from '@capacitylens/shared/account/policy'
-import { authMode } from '#services/auth/mode'
 import {
   assertCompanyAction,
   assertMayAdministerTarget,
@@ -183,7 +178,7 @@ export default class MembersController {
           email: row.email ?? null,
           signInConfirmed: tracking.enabled ? tracking.confirmations.has(userId) : null,
           isSelf: actor.actorId === userId,
-          mayResetPassword: allowsPasswordSignIn(authMode()) && mayAdminister,
+          mayResetPassword: mayAdminister,
           mayRevokeSessions: mayAdminister,
           ...resourceFields,
         })
@@ -327,8 +322,6 @@ export default class MembersController {
   }
 
   async resetPassword(ctx: HttpContext) {
-    if (!allowsPasswordSignIn(authMode()))
-      return ctx.response.badRequest({ error: 'Password reset is unavailable.' })
     try {
       const command = readAccountCommand(ctx)
       const result = await requestAdministrativeReset({

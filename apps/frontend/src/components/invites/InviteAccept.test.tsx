@@ -10,15 +10,10 @@ import { useStore } from "@/store/useStore";
 import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "@/test/fixtures";
 import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
-import { EXTERNAL_NAVIGATION_TIMEOUT_MS } from "./externalSignIn";
 import { formatInviteExpiry } from "./inviteExpiry";
 
 const authClientMock = vi.hoisted(() => ({
   signInEmail: vi.fn(async (): Promise<{ error: { message?: string } | null }> => ({ error: null })),
-  signInSocial: vi.fn(async (input?: { fetchOptions?: { signal?: AbortSignal } }) => {
-    void input;
-    return { error: null };
-  }),
 }));
 const handoffMock = vi.hoisted(() => ({
   replaceWithJoinedAccount: vi.fn(),
@@ -33,7 +28,6 @@ vi.mock("@/auth/authClient", () => ({
   authClient: {
     signIn: {
       email: authClientMock.signInEmail,
-      social: authClientMock.signInSocial,
     },
   },
 }));
@@ -82,16 +76,6 @@ const signedInAuth: AuthContextValue = {
   refreshAuth: async () => {},
   signOut: async () => {},
 };
-
-type ProviderSignInCall = { fetchOptions?: { signal?: AbortSignal } };
-
-function readProviderSignInCall(input: unknown): ProviderSignInCall | undefined {
-  if (!input || typeof input !== "object") return undefined;
-  const fetchOptions = "fetchOptions" in input ? input.fetchOptions : undefined;
-  if (!fetchOptions || typeof fetchOptions !== "object") return {};
-  const signal = "signal" in fetchOptions ? fetchOptions.signal : undefined;
-  return signal instanceof AbortSignal ? { fetchOptions: { signal } } : {};
-}
 
 type RenderInviteOptions = { auth?: AuthContextValue | undefined; strict?: boolean; path?: string };
 function renderInvite({ auth, strict = false, path = "/invite/secret-token" }: RenderInviteOptions) {
@@ -394,28 +378,6 @@ registerInviteAcceptTest(() =>
 );
 
 registerInviteAcceptTest(() =>
-  it("strips an external sign-in error marker and surfaces stable SSO failure copy", async () => {
-    window.history.replaceState({}, "", "/invite/secret-token?externalSignInError=1&error=provider-secret");
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
-
-    renderInvite({
-      auth: {
-        ...signedInAuth,
-        authMode: "sso-only",
-        user: null,
-        providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
-      },
-      strict: false,
-      path: "/invite/secret-token?externalSignInError=1&error=provider-secret",
-    });
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_sso_failed());
-    expect(screen.getByRole("alert")).not.toHaveTextContent("provider-secret");
-    await vi.waitFor(() => expect(window.location.search).toBe(""));
-  }),
-);
-
-registerInviteAcceptTest(() =>
   it.each([
     [404, () => m.invite_err_not_found()],
     [409, () => m.invite_err_used()],
@@ -497,103 +459,6 @@ registerInviteAcceptTest(() =>
     const emailError = screen.getByText(m.identity_err_email());
     expect(email).toHaveAttribute("aria-invalid", "true");
     expect(email).toHaveAttribute("aria-describedby", emailError.id);
-  }),
-);
-
-registerInviteAcceptTest(() =>
-  it("starts Google from the invite URL so the callback returns to the bearer route", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
-    authClientMock.signInSocial.mockImplementationOnce(() => new Promise(() => {}));
-    const user = userEvent.setup();
-    renderInvite({
-      auth: {
-        ...signedInAuth,
-        authMode: "sso-only",
-        user: null,
-        providers: [{ id: "google", label: "Google", kind: "social", brand: "google", experimental: false }],
-      },
-    });
-
-    await screen.findByTestId("invite-preview");
-    await user.click(
-      screen.getByRole("button", {
-        name: "Sign in with Google",
-      }),
-    );
-    window.dispatchEvent(new Event("pagehide"));
-    const socialCall = readProviderSignInCall(authClientMock.signInSocial.mock.calls[0]?.[0] as unknown);
-    if (!socialCall) throw new Error("Expected Google sign-in call");
-    expect(authClientMock.signInSocial).toHaveBeenCalledOnce();
-    expect(authClientMock.signInSocial.mock.calls[0]?.[0]).toMatchObject({
-      provider: "google",
-      callbackURL: window.location.href,
-      errorCallbackURL: "http://localhost:3000/?externalSignInError=1",
-    });
-    expect(socialCall.fetchOptions?.signal).toBeInstanceOf(AbortSignal);
-    expect(authClientMock.signInEmail).not.toHaveBeenCalled();
-  }),
-);
-
-registerInviteAcceptTest(() =>
-  it("preserves the invite route for social failures and recovers when success does not navigate", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
-    authClientMock.signInSocial.mockImplementationOnce(() => new Promise(() => {}));
-    renderInvite({
-      auth: {
-        ...signedInAuth,
-        user: null,
-        providers: [{ id: "google", label: "Google", kind: "social", experimental: true }],
-      },
-    });
-
-    await screen.findByTestId("invite-preview");
-    vi.useFakeTimers();
-    const button = screen.getByRole("button", { name: "Sign in with Google" });
-    fireEvent.click(button);
-    await act(async () => {
-      await Promise.resolve();
-      await vi.advanceTimersByTimeAsync(EXTERNAL_NAVIGATION_TIMEOUT_MS);
-    });
-    const socialCall = readProviderSignInCall(authClientMock.signInSocial.mock.calls[0]?.[0] as unknown);
-    if (!socialCall) throw new Error("Expected social sign-in call");
-    expect(authClientMock.signInSocial).toHaveBeenCalledOnce();
-    expect(authClientMock.signInSocial.mock.calls[0]?.[0]).toMatchObject({
-      provider: "google",
-      callbackURL: window.location.href,
-      errorCallbackURL: "http://localhost:3000/?externalSignInError=1",
-    });
-    const socialSignal = socialCall.fetchOptions?.signal;
-    expect(socialSignal).toBeInstanceOf(AbortSignal);
-    expect(socialSignal?.aborted).toBe(true);
-    expect(screen.getByRole("alert")).toHaveTextContent(m.login_failed());
-    expect(button).toBeEnabled();
-  }),
-);
-
-registerInviteAcceptTest(() =>
-  it("recovers provider controls when a redirect returns from the back-forward cache", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
-    authClientMock.signInSocial.mockImplementationOnce(() => new Promise(() => {}));
-    const user = userEvent.setup();
-    renderInvite({
-      auth: {
-        ...signedInAuth,
-        user: null,
-        providers: [{ id: "google", label: "Google", kind: "social", experimental: true }],
-      },
-    });
-
-    const button = await screen.findByRole("button", {
-      name: "Sign in with Google",
-    });
-    await user.click(button);
-    window.dispatchEvent(new Event("pagehide"));
-    const pageShow = new Event("pageshow");
-    Object.defineProperty(pageShow, "persisted", { value: true });
-    window.dispatchEvent(pageShow);
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_failed());
-    expect(button).toBeEnabled();
   }),
 );
 
@@ -1004,30 +869,6 @@ registerInviteAcceptTest(() =>
 
     await vi.waitFor(() => expect(handoffMock.replaceWithAccountPicker).toHaveBeenCalledOnce());
     expect(handoffMock.replaceWithJoinedAccount).not.toHaveBeenCalled();
-  }),
-);
-
-registerInviteAcceptTest(() =>
-  it("surfaces a provider request rejection and re-enables the provider button", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    authClientMock.signInSocial.mockRejectedValueOnce(new TypeError("offline"));
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
-    renderInvite({
-      auth: {
-        ...signedInAuth,
-        authMode: "sso-only",
-        user: null,
-        providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
-      },
-    });
-
-    const button = await screen.findByRole("button", {
-      name: "Sign in with Google",
-    });
-    fireEvent.click(button);
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_network_error());
-    expect(button).toBeEnabled();
   }),
 );
 

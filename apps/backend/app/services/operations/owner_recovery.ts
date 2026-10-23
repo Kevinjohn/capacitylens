@@ -37,10 +37,6 @@ export async function recoverOwner(input: { email: string; confirmServerStopped:
   operatorDatabasePath(input.confirmServerStopped)
   const email = normalizeAccountEmail(input.email)
   if (!isAccountEmail(email)) throw new Error('The target is not a valid account address')
-  if (
-    !['password-only', 'password-and-sso'].includes(env.get('CAPACITYLENS_MODE') || 'password-only')
-  )
-    throw new Error('CAPACITYLENS_MODE must be password-only or password-and-sso')
   const origin = env.get('CAPACITYLENS_PUBLIC_URL')
   if (!origin) throw new Error('CAPACITYLENS_PUBLIC_URL is required')
   return withOperatorDatabase(async () => {

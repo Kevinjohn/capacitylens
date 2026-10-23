@@ -7,12 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldError } from "@/components/ui/field";
 import { useCompanyJoin } from "./useCompanyJoin";
-import { ExternalProviderButton } from "@/components/common/ExternalProviderButton";
 
 type Flow = ReturnType<typeof useCompanyJoin>;
 
 function Entry({ flow, invitationToken }: { flow: Flow; invitationToken: string | null }) {
-  if (!flow.passwordAvailable && flow.eligibleProviders.length === 0) return <p>{m.joining_failed()}</p>;
+  if (!flow.passwordAvailable) return <p>{m.joining_failed()}</p>;
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-muted-foreground">{m.joining_email_intro()}</p>
@@ -23,72 +22,29 @@ function Entry({ flow, invitationToken }: { flow: Flow; invitationToken: string 
         value={flow.email}
         onChange={flow.setEmail}
       />
-      {flow.eligibleProviders.length > 0 && (
-        <div className="flex flex-col gap-2">
-          {flow.eligibleProviders.map((provider) => (
-            <ExternalProviderButton
-              key={provider.id}
-              provider={provider}
-              type="button"
-              label={m.joining_continue_provider({ provider: provider.label })}
-              googleLabel={m.login_sign_in_with_google()}
-              disabled={flow.busy}
-              onClick={() => void flow.startProvider(provider)}
+      {invitationToken ? (
+        <a className="text-sm text-brand underline" href={`/invite/${encodeURIComponent(invitationToken)}`}>
+          {m.joining_use_invitation()}
+        </a>
+      ) : (
+        <form className="flex flex-col gap-3" onSubmit={(event) => void flow.signInAndJoin(event)}>
+          {flow.user ? (
+            <p className="text-sm text-muted-foreground">{flow.user.email}</p>
+          ) : (
+            <TextField
+              label={m.login_password()}
+              type="password"
+              maxLength={null}
+              autoComplete="current-password"
+              value={flow.existingPassword}
+              onChange={flow.setExistingPassword}
             />
-          ))}
-        </div>
+          )}
+          <Button type="submit" disabled={flow.busy}>
+            {m.joining_join_company()}
+          </Button>
+        </form>
       )}
-      {flow.passwordAvailable &&
-        (invitationToken ? (
-          <a className="text-sm text-brand underline" href={`/invite/${encodeURIComponent(invitationToken)}`}>
-            {m.joining_use_invitation()}
-          </a>
-        ) : (
-          <form className="flex flex-col gap-3" onSubmit={(event) => void flow.signInAndJoin(event)}>
-            {flow.eligibleProviders.length > 0 && (
-              <p className="text-center text-xs text-muted-foreground">{m.joining_password_choice()}</p>
-            )}
-            {flow.user ? (
-              <p className="text-sm text-muted-foreground">{flow.user.email}</p>
-            ) : (
-              <TextField
-                label={m.login_password()}
-                type="password"
-                maxLength={null}
-                autoComplete="current-password"
-                value={flow.existingPassword}
-                onChange={flow.setExistingPassword}
-              />
-            )}
-            <Button type="submit" disabled={flow.busy}>
-              {m.joining_join_company()}
-            </Button>
-          </form>
-        ))}
-    </div>
-  );
-}
-
-function Pending({ flow }: { flow: Flow }) {
-  return (
-    <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">{m.joining_waiting()}</p>
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" disabled={flow.busy} onClick={() => void flow.restart()}>
-          {m.joining_restart()}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function Approved({ flow }: { flow: Flow }) {
-  return (
-    <div className="flex flex-col gap-3">
-      <p className="text-sm text-muted-foreground">{m.joining_provider_approved()}</p>
-      <Button type="button" disabled={flow.busy} onClick={() => void flow.completeProvider()}>
-        {m.joining_join_company()}
-      </Button>
     </div>
   );
 }
@@ -97,10 +53,6 @@ function JoinContent({ flow, invitationToken }: { flow: Flow; invitationToken: s
   switch (flow.stage) {
     case "entry":
       return <Entry flow={flow} invitationToken={invitationToken} />;
-    case "pending":
-      return <Pending flow={flow} />;
-    case "approved":
-      return <Approved flow={flow} />;
     case "local":
       return <p>{m.invite_local_mode({ app: APP_NAME })}</p>;
     case "error":

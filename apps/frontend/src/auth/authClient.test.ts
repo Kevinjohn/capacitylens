@@ -118,46 +118,4 @@ describe("product auth client", () => {
       {},
     ]);
   });
-
-  it("preserves provider callback inputs and forwards the abort signal", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(Response.json({ url: "https://accounts.example.test/start" }));
-    vi.stubGlobal("fetch", fetchMock);
-    const controller = new AbortController();
-
-    await authClient.signIn.social({
-      provider: "google",
-      callbackURL: "https://app.example.test/team",
-      errorCallbackURL: "https://app.example.test/team?externalSignInError=1",
-      fetchOptions: { signal: controller.signal },
-    });
-
-    const call = fetchMock.mock.calls[0];
-    if (!call) throw new Error("Expected one provider-start request");
-    const [url, init] = call;
-    expect(url).toBe("https://api.example.test/api/auth/provider-start");
-    expect(init?.signal).toBeInstanceOf(AbortSignal);
-    expect(init?.body).toBe(
-      JSON.stringify({
-        provider: "google",
-        callbackURL: "https://app.example.test/team",
-        errorCallbackURL: "https://app.example.test/team?externalSignInError=1",
-      }),
-    );
-  });
-
-  it.each(["javascript:alert(1)", "https://user:pass@example.test/start", "not a URL"])(
-    "rejects an unsafe provider continuation URL: %s",
-    async (url) => {
-      vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(Response.json({ url })));
-      await expect(
-        authClient.signIn.social({
-          provider: "google",
-          callbackURL: "https://app.example.test/team",
-          errorCallbackURL: "https://app.example.test/team?externalSignInError=1",
-        }),
-      ).resolves.toMatchObject({ data: null, error: { status: 502 } });
-    },
-  );
 });

@@ -69,27 +69,6 @@ describe("browser account client", () => {
     vi.unstubAllGlobals();
   });
 
-  it("selects the same named provider for status and fresh linking", async () => {
-    await accountClient.readIdentityProvider("google");
-    expect(mocks.apiFetch).toHaveBeenCalledWith("https://app.example/api/identity/provider?providerId=google", {
-      credentials: "include",
-    });
-    await accountClient.linkIdentityProvider(
-      "https://app.example/account?capacitylensIdentityProvider=google",
-      "google",
-      "https://app.example/account?capacitylensIdentityProvider=google&externalSignInError=1",
-    );
-    const [url, init, options] = mocks.apiFetchReauth.mock.calls[0] ?? [];
-    expect(url).toBe("https://app.example/api/identity/link-provider");
-    expect(options).toMatchObject({ action: "connect-provider", replayAfterFreshnessRefusal: true });
-    expect(new Headers(init?.headers).has("Idempotency-Key")).toBe(false);
-    expect(JSON.parse(String(init?.body))).toEqual({
-      providerId: "google",
-      callbackURL: "https://app.example/account?capacitylensIdentityProvider=google",
-      errorCallbackURL: "https://app.example/account?capacitylensIdentityProvider=google&externalSignInError=1",
-    });
-  });
-
   registerCommandCreationTests();
   registerReadRouteTests();
   registerAuditWarningTests();

@@ -1,7 +1,6 @@
 import router from '@adonisjs/core/services/router'
 
 const AuthController = () => import('#controllers/auth_controller')
-const GoogleController = () => import('#controllers/google_controller')
 const CredentialController = () => import('#controllers/credential_controller')
 const ActionProofsController = () => import('#controllers/action_proofs_controller')
 
@@ -13,12 +12,6 @@ export function registerAuthRoutes() {
   router
     .post('/api/auth/action-proof/password', [ActionProofsController, 'password'])
     .as('api.auth.action-proof.password')
-  router
-    .post('/api/auth/action-proof/google-start', [ActionProofsController, 'googleStart'])
-    .as('api.auth.action-proof.google-start')
-  router
-    .post('/api/auth/provider-start', [GoogleController, 'providerStart'])
-    .as('api.auth.provider-start')
   router
     .post('/api/auth/request-reset', [CredentialController, 'requestReset'])
     .as('api.auth.request-reset')

@@ -228,9 +228,6 @@ export function CompanyAnonymiseSection({ serverMode }: { serverMode: boolean })
             setProving(false);
             void submit(proofId);
           }}
-          onProviderStart={(proofId) =>
-            sessionStorage.setItem(PENDING_PROOF_KEY, JSON.stringify({ accountId, proofId }))
-          }
           onCancel={() => setProving(false)}
         />
       )}

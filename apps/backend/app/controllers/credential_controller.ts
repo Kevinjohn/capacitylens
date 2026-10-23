@@ -10,7 +10,6 @@ import {
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password'
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
 import env from '#start/env'
-import { passwordEnabled } from '#services/auth/mode'
 import { PasswordProcessingUnavailableError } from '#services/password_service'
 import {
   PasswordPolicyError,
@@ -79,7 +78,7 @@ function renderError(ctx: HttpContext, error: unknown) {
 
 export default class CredentialController {
   async requestReset(ctx: HttpContext) {
-    if (!passwordEnabled() || !env.get('CAPACITYLENS_MAIL_HOST'))
+    if (!env.get('CAPACITYLENS_MAIL_HOST'))
       return ctx.response.notFound({ error: 'Password recovery is unavailable.' })
     const body: unknown = ctx.request.body()
     if (!fields(body, ['email']) || typeof body.email !== 'string')
@@ -102,8 +101,6 @@ export default class CredentialController {
   }
 
   async resetPassword(ctx: HttpContext) {
-    if (!passwordEnabled())
-      return ctx.response.notFound({ error: 'Password recovery is unavailable.' })
     const body: unknown = ctx.request.body()
     if (
       !fields(body, ['token', 'newPassword']) ||
@@ -120,8 +117,6 @@ export default class CredentialController {
   }
 
   async changePassword(ctx: HttpContext) {
-    if (!passwordEnabled())
-      return ctx.response.notFound({ error: 'Password change is unavailable.' })
     const body: unknown = ctx.request.body()
     if (
       !fields(body, ['currentPassword', 'newPassword', 'revokeOtherSessions']) ||

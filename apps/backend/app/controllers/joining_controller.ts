@@ -5,7 +5,6 @@ import limiter from '@adonisjs/limiter/services/main'
 import { withTransaction } from '#services/with_transaction'
 import { activeCompanyRole } from '#services/auth/authorization'
 import { resolveCurrentActor } from '#services/auth/session_authority'
-import { passwordEnabled, googleEnabled } from '#services/auth/mode'
 import {
   claimAccountCommand,
   completeAccountCommand,
@@ -95,10 +94,9 @@ export default class JoiningController {
         return {
           accountId: ctx.params.accountId,
           companyName: account.name,
-          passwordAvailable: passwordEnabled(),
-          providerAvailable: googleEnabled(),
-          emailVerificationAvailable:
-            passwordEnabled() && Boolean(env.get('CAPACITYLENS_MAIL_HOST')),
+          passwordAvailable: true,
+          providerAvailable: false,
+          emailVerificationAvailable: Boolean(env.get('CAPACITYLENS_MAIL_HOST')),
         }
       })
       return ctx.response.ok(result)
@@ -113,7 +111,6 @@ export default class JoiningController {
 
   async completeExisting(ctx: HttpContext) {
     try {
-      if (!passwordEnabled()) missingAdmission('Password joining is unavailable.')
       const body: unknown = ctx.request.body()
       if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length)
         invalidAdmission()
@@ -193,7 +190,7 @@ export default class JoiningController {
   }
 
   async requestProof(ctx: HttpContext) {
-    if (!passwordEnabled() || !env.get('CAPACITYLENS_MAIL_HOST'))
+    if (!env.get('CAPACITYLENS_MAIL_HOST'))
       return ctx.response.notFound({ error: 'Email verification is unavailable.' })
     try {
       const body: unknown = ctx.request.body()
@@ -248,8 +245,6 @@ export default class JoiningController {
   }
 
   async verifyEmail(ctx: HttpContext) {
-    if (!passwordEnabled())
-      return ctx.response.notFound({ error: 'Email verification is unavailable.' })
     try {
       const body: unknown = ctx.request.body()
       if (

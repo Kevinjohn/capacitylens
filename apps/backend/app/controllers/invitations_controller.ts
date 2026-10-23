@@ -13,7 +13,6 @@ import {
   readCompletedAccountCommand,
 } from '#services/account_commands'
 import { withTransaction } from '#services/with_transaction'
-import { passwordEnabled } from '#services/auth/mode'
 import {
   assertPasswordAllowed,
   PasswordPolicyError,
@@ -262,8 +261,6 @@ export default class InvitationsController {
   }
 
   async signUp(ctx: HttpContext) {
-    if (!passwordEnabled())
-      return ctx.response.notFound({ error: 'Password admission is unavailable.' })
     try {
       const body: unknown = ctx.request.body()
       if (!fields(body, ['name', 'email', 'password'])) invalidAdmission()

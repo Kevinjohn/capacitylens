@@ -1,6 +1,5 @@
 import { API_BASE } from "@/data/apiConfig";
 import { apiFetch } from "@/data/requestTimeout";
-import { apiRouteUrl } from "@/api/queryClient";
 
 export interface AuthApiError {
   message: string;
@@ -30,19 +29,8 @@ interface OwnerCredentials extends PasswordCredentials {
   fetchOptions?: { headers?: HeadersInit };
 }
 
-interface ProviderStartInput {
-  provider: "google";
-  callbackURL: string;
-  errorCallbackURL: string;
-  fetchOptions?: { signal?: AbortSignal };
-}
-
 interface AuthUserResponseBody {
   user: AuthUserResponse;
-}
-
-interface ProviderStartResponse {
-  url: string;
 }
 
 interface PasswordChangeInput {
@@ -77,43 +65,13 @@ async function post<T>(
   });
   const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) return { data: null, error: readErrorMessage(payload, response.status) };
-  if (path === "provider-start") {
-    const url = readProviderStartUrl(payload);
-    if (!url)
-      return {
-        data: null,
-        error: { message: "Authentication request returned an invalid provider URL.", status: 502 },
-      };
-    return { data: { url } as T, error: null };
-  }
   return { data: payload as T, error: null };
-}
-
-function readProviderStartUrl(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object" || !("url" in payload) || typeof payload.url !== "string") return null;
-  try {
-    const url = new URL(payload.url);
-    if ((url.protocol !== "https:" && url.protocol !== "http:") || url.username || url.password) return null;
-    return url.href;
-  } catch {
-    return null;
-  }
 }
 
 /** Typed browser client for the product's session and password-authentication endpoints. */
 export const authClient = {
   signIn: {
     email: (input: PasswordCredentials) => post<AuthUserResponseBody>("sign-in", input),
-    social: (input: ProviderStartInput) =>
-      post<ProviderStartResponse>(
-        apiRouteUrl("api.auth.provider-start", {}).replace(`${API_BASE}/api/auth/`, ""),
-        {
-          provider: input.provider,
-          callbackURL: input.callbackURL,
-          errorCallbackURL: input.errorCallbackURL,
-        },
-        input.fetchOptions?.signal ? { signal: input.fetchOptions.signal } : {},
-      ),
   },
   signUp: {
     email: (input: OwnerCredentials) =>

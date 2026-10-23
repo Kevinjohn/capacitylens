@@ -16,7 +16,6 @@ import { registerMembershipRoutes } from '#start/membership_routes'
 import { registerAdmissionRoutes } from '#start/admission_routes'
 import { registerMasqueradeRoutes } from '#start/masquerade_routes'
 import { registerOwnershipRoutes } from '#start/ownership_routes'
-import { registerGoogleRoutes } from '#start/google_routes'
 
 const AnonymiseController = () => import('#controllers/anonymise_controller')
 const TransferController = () => import('#controllers/transfer_controller')
@@ -54,7 +53,6 @@ registerMembershipRoutes()
 registerAdmissionRoutes()
 registerMasqueradeRoutes()
 registerOwnershipRoutes()
-registerGoogleRoutes()
 
 router.get('/api/health', () => ({ ok: true })).as('api.health')
 router.get('/health/live', () => ({ ok: true }))
