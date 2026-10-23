@@ -114,7 +114,7 @@ export default class AuthController {
     try {
       if (!(await consumeFailedSignInBudget(ctx)))
         return ctx.response.tooManyRequests({ error: 'Rate limit exceeded.' })
-      // Unknown and provider-only addresses pay the same derivation, so timing reveals no account.
+      // Unknown addresses and identities without a password pay the same derivation, so timing reveals no account.
       const verified = await withRequestPasswordWork(ctx, () =>
         verifyPassword(hash || UNMATCHABLE_PASSWORD_HASH, body.password as string)
       )
