@@ -109,6 +109,42 @@ function registerSigningRevealsAppSigningOutTest() {
   });
 }
 
+function registerDirectAccountRouteSurvivesSignOutAndSignInTest() {
+  test("direct /account/ loads for an authenticated user and keeps its route through sign-out and sign-in", async ({
+    page,
+    request,
+  }) => {
+    const suffix = Date.now();
+    const { email, cookie } = await signUpUser(`account-route-${suffix}@capacitylens.dev`);
+    await bootstrapOrg(request, cookie, `Account Route ${suffix}`);
+    await page.goto("/account/");
+    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+
+    await page.getByLabel("Email").fill(email);
+    await page.getByLabel("Password").fill(PASSWORD);
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
+    expect(new URL(page.url()).pathname).toBe("/account/");
+
+    const planningResponse = page.waitForResponse(
+      (response) =>
+        /^\/api\/accounts\/[^/]+\/planning$/.test(new URL(response.url()).pathname) && response.status() === 200,
+    );
+    await page.reload();
+    await planningResponse;
+    await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
+    await page.getByTestId("account-identity-row").getByRole("button", { name: "Sign out" }).click();
+    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+    expect(new URL(page.url()).pathname).toBe("/account/");
+
+    await page.getByLabel("Email").fill(email);
+    await page.getByLabel("Password").fill(PASSWORD);
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
+    expect(new URL(page.url()).pathname).toBe("/account/");
+  });
+}
+
 function registerCreateOwnerAdminAdminBootstrapTest() {
   test("the membership-free administrator signs in through the real form", async ({ page, request }, testInfo) => {
     // The disposable server creates this administrator after first-company setup, without membership, to exercise access recovery.
@@ -158,6 +194,7 @@ function registerLoginWithoutMembershipTests() {
 test.describe("login screen (CAPACITYLENS_MODE=password)", () => {
   registerUnauthenticatedVisitShowsLoginScreenTest();
   registerSigningRevealsAppSigningOutTest();
+  registerDirectAccountRouteSurvivesSignOutAndSignInTest();
   registerCreateOwnerAdminAdminBootstrapTest();
   registerLoginWithoutMembershipTests();
 });

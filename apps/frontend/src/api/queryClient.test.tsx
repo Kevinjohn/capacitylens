@@ -1,6 +1,28 @@
 import { QueryClient } from "@tanstack/react-query";
-import { describe, expect, it } from "vitest";
-import { clearQueryCacheForScopeChange, scopeQueryKey } from "./queryClient";
+import { describe, expect, it, vi } from "vitest";
+import { apiRouteUrl, clearQueryCacheForScopeChange, client, scopeQueryKey } from "./queryClient";
+
+describe("same-origin API requests", () => {
+  it("keeps API requests rooted when the browser is on a nested account route", async () => {
+    let requestedUrl: string | undefined;
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      requestedUrl = input instanceof Request ? input.url : input.toString();
+      return Response.json({ user: { id: "bruce" } });
+    });
+    vi.stubGlobal("fetch", fetch);
+    window.history.replaceState(null, "", "/account/");
+
+    try {
+      await client.request("api.auth.me", {});
+      if (requestedUrl === undefined) throw new Error("API request did not reach fetch.");
+      expect(new URL(requestedUrl).pathname).toBe("/api/auth/me");
+      expect(apiRouteUrl("api.auth.me", {})).toBe("/api/auth/me");
+    } finally {
+      vi.unstubAllGlobals();
+      window.history.replaceState(null, "", "/");
+    }
+  });
+});
 
 describe("account query cache scope", () => {
   it("partitions route keys by principal, company, and masquerade generation", () => {

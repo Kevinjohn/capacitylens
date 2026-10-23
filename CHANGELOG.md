@@ -9,6 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Load company and planning data correctly when opening or refreshing nested app URLs.
+- Explain when a password update succeeded but follow-up cleanup failed, clear obsolete form values, and give recovery guidance when the response is uncertain.
+
 - Align remaining security-header and first-company guides with native setup and the supported Google provider.
 
 ### Changed

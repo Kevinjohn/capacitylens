@@ -16,8 +16,7 @@ Open **Account** at the bottom of the left menu. It shows the identity you signe
 name, email and the actions available to you. Hover over or focus a shortened email to read it in
 full. On a narrow screen, scroll the row sideways.
 
-Your role isn't shown here, because one identity can belong to several companies with a different
-role in each. Check **Team & access → Your access** for your role in the current company.
+Check **Team & access → Your access** for your role in the company.
 
 ## Change a local password
 
@@ -28,9 +27,14 @@ role in each. Check **Team & access → Your access** for your role in the curre
    **Confirm new password**.
 3. Select **Change password** and wait for **Password changed. Other sessions were revoked.**
 
-Every other browser and device must then sign in again, including sessions in other companies.
-If you see an error instead, such as a wrong current password or a rejected new one, the change
-didn't happen: correct it or try again later. **Cancel** clears the form.
+Every other browser and device must then sign in again. A wrong current password or a rejected
+new password leaves the password unchanged: correct the form and try again. **Cancel** clears it.
+
+If the message says **Password changed, but some follow-up cleanup failed**, your new password is
+already active. The form clears; use the new password if asked to sign in again.
+
+If the connection fails and the result cannot be confirmed, try signing in with the new password
+before submitting another change.
 
 If you use company login, your provider owns your password and this button may be absent. Don't
 create a second identity to get one.
@@ -69,7 +73,7 @@ Forgotten a local password? Use the recovery option on the sign-in page, if your
 offers one. If it doesn't, or the email doesn't arrive, ask an Owner or Admin. For company login,
 use your provider's recovery process.
 
-A password reset or session revocation by an Owner or Admin applies across every company you can
-enter.
+A password reset or session revocation by an Owner or Admin ends your existing sessions on every
+browser and device.
 
 Next: [Team & access](/using/team-access) — check your role.

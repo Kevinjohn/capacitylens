@@ -16,9 +16,12 @@ export interface ApiQueryScope {
 /** The shared cache used by the application and its API query hooks. */
 export const queryClient = new QueryClient();
 
+/** Absolute base URL for Tuyau so slash-free routes stay rooted at the site origin. */
+const API_CLIENT_BASE = API_BASE || (typeof window === "undefined" ? "http://localhost" : window.location.origin);
+
 /** The typed product API transport. Keep session, timeout, and masquerade handling at the existing fetch boundary. */
 export const client = createTuyau({
-  baseUrl: API_BASE,
+  baseUrl: API_CLIENT_BASE,
   registry,
   credentials: "include",
   retry: 0,
