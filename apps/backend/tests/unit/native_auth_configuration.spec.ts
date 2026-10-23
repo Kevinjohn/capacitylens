@@ -1,13 +1,7 @@
 import { test } from '@japa/runner'
-import {
-  assertM1AuthenticationMode,
-  assertHostedDeploymentProfile,
-  assertProductionPosture,
-  assertGoogleProviderConfiguration,
-} from '#providers/configuration_provider'
+import { assertProductionPosture } from '#providers/configuration_provider'
 import ConfigurationProvider from '#providers/configuration_provider'
 import env from '#start/env'
-import { authMode, passwordEnabled } from '#services/auth/mode'
 import { assertPasswordAllowed } from '#services/password_screening'
 import { createHash } from 'node:crypto'
 
@@ -16,7 +10,6 @@ type MutableKey =
   | 'CAPACITYLENS_MODE'
   | 'CAPACITYLENS_SECRET'
   | 'CAPACITYLENS_PUBLIC_URL'
-  | 'CAPACITYLENS_DEPLOYMENT_PROFILE'
   | 'CAPACITYLENS_ALLOW_OPEN_SIGNUP'
   | 'CAPACITYLENS_SETUP_TOKEN'
   | 'CAPACITYLENS_ALLOW_RESET'
@@ -55,86 +48,6 @@ function enablePasswordConfiguration(publicUrl = 'https://capacity.example.test'
   setEnvironment('CAPACITYLENS_ALLOW_RESET', false)
 }
 
-test('auth mode validation accepts all product modes and rejects unknown values', ({ assert }) => {
-  for (const mode of [undefined, 'password-only', 'password-and-sso', 'sso-only'])
-    assert.doesNotThrow(() => assertM1AuthenticationMode(mode))
-  assert.throws(() => assertM1AuthenticationMode('password'), /Unknown CAPACITYLENS_MODE/)
-  assert.throws(() => assertM1AuthenticationMode('off'), /Unknown CAPACITYLENS_MODE/)
-  assert.throws(() => assertM1AuthenticationMode('unexpected'), /Unknown CAPACITYLENS_MODE/)
-})
-
-test('provider modes refuse either half of Google credentials', ({ assert }) => {
-  for (const mode of ['password-and-sso', 'sso-only']) {
-    for (const credentials of [{ clientId: 'google-id' }, { clientSecret: 'google-secret' }])
-      assert.throws(
-        () => assertGoogleProviderConfiguration({ mode, ...credentials }),
-        /both client ID and secret/
-      )
-    assert.doesNotThrow(() => assertGoogleProviderConfiguration({ mode }))
-    assert.doesNotThrow(() =>
-      assertGoogleProviderConfiguration({
-        mode,
-        clientId: 'google-id',
-        clientSecret: 'google-secret',
-      })
-    )
-  }
-  assert.doesNotThrow(() =>
-    assertGoogleProviderConfiguration({ mode: 'password-only', clientId: 'google-id' })
-  )
-})
-
-test('hosted SSO profile requires complete Google configuration', ({ assert }) => {
-  const base = { profile: 'hosted-sso-only', mode: 'sso-only' }
-  const google = { googleClientId: 'google-id', googleClientSecret: 'private-google-secret' }
-  const microsoft = {
-    microsoftClientId: 'microsoft-id',
-    microsoftClientSecret: 'private-microsoft-secret',
-    microsoftTenantId: '01234567-89ab-cdef-0123-456789abcdef',
-  }
-
-  assert.doesNotThrow(() => assertHostedDeploymentProfile({ ...base, ...google }))
-  assert.throws(
-    () => assertHostedDeploymentProfile({ ...base, ...microsoft }),
-    /complete Google provider/
-  )
-  assert.doesNotThrow(() => assertHostedDeploymentProfile({ ...base, ...google, ...microsoft }))
-  assert.throws(
-    () => assertHostedDeploymentProfile({ ...base, googleClientId: 'only-half-configured' }),
-    /complete Google provider/
-  )
-  assert.throws(
-    () => assertHostedDeploymentProfile({ ...base, mode: 'password-only', ...google }),
-    /requires sso-only mode/
-  )
-  assert.throws(
-    () => assertHostedDeploymentProfile({ ...base, allowOpenSignup: true, ...google }),
-    /forbids open signup/
-  )
-  const setupError = thrownBy(() =>
-    assertHostedDeploymentProfile({ ...base, setupToken: 'secret-setup-token', ...google })
-  )
-  assert.match(setupError.message, /password-account configuration/)
-  assert.notInclude(setupError.message, 'secret-setup-token')
-})
-
-test('runtime password availability follows off, password, mixed, and SSO-only modes', ({
-  assert,
-  cleanup,
-}) => {
-  captureEnvironment(cleanup, ['CAPACITYLENS_MODE'])
-  for (const [mode, enabled] of [
-    ['off', false],
-    ['password-only', true],
-    ['password-and-sso', true],
-    ['sso-only', false],
-  ] as const) {
-    setEnvironment('CAPACITYLENS_MODE', mode)
-    assert.equal(authMode(), mode)
-    assert.equal(passwordEnabled(), enabled)
-  }
-})
-
 test('password mode requires a 32-character secret and a bare public HTTP(S) origin', async ({
   assert,
   cleanup,
@@ -144,12 +57,10 @@ test('password mode requires a 32-character secret and a bare public HTTP(S) ori
     'CAPACITYLENS_SECRET',
     'CAPACITYLENS_PUBLIC_URL',
     'CAPACITYLENS_ALLOW_RESET',
-    'CAPACITYLENS_DEPLOYMENT_PROFILE',
     'CAPACITYLENS_ALLOW_OPEN_SIGNUP',
     'CAPACITYLENS_SETUP_TOKEN',
   ])
   enablePasswordConfiguration()
-  setEnvironment('CAPACITYLENS_DEPLOYMENT_PROFILE', '')
   setEnvironment('CAPACITYLENS_ALLOW_OPEN_SIGNUP', false)
   setEnvironment('CAPACITYLENS_SETUP_TOKEN', '')
   const provider = new ConfigurationProvider({ inProduction: false } as never)
@@ -203,7 +114,6 @@ test('production boot refuses reset while non-production boot keeps the test fla
     'CAPACITYLENS_MODE',
     'CAPACITYLENS_SECRET',
     'CAPACITYLENS_PUBLIC_URL',
-    'CAPACITYLENS_DEPLOYMENT_PROFILE',
     'CAPACITYLENS_ALLOW_OPEN_SIGNUP',
     'CAPACITYLENS_SETUP_TOKEN',
     'CAPACITYLENS_ALLOW_RESET',
@@ -213,7 +123,6 @@ test('production boot refuses reset while non-production boot keeps the test fla
     'CAPACITYLENS_AUDIT',
   ])
   enablePasswordConfiguration()
-  setEnvironment('CAPACITYLENS_DEPLOYMENT_PROFILE', '')
   setEnvironment('CAPACITYLENS_ALLOW_OPEN_SIGNUP', false)
   setEnvironment('CAPACITYLENS_SETUP_TOKEN', '')
   setEnvironment('CAPACITYLENS_ALLOW_RESET', true)

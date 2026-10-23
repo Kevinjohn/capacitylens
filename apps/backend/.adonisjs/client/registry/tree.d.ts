@@ -93,9 +93,7 @@ export interface ApiDefinition {
       signOut: typeof routes['api.auth.sign-out']
       actionProof: {
         password: typeof routes['api.auth.action-proof.password']
-        googleStart: typeof routes['api.auth.action-proof.google-start']
       }
-      providerStart: typeof routes['api.auth.provider-start']
       requestReset: typeof routes['api.auth.request-reset']
       resetPassword: typeof routes['api.auth.reset-password']
       changePassword: typeof routes['api.auth.change-password']
@@ -140,14 +138,6 @@ export interface ApiDefinition {
     }
     ownership: {
       transfer: typeof routes['api.ownership.transfer']
-    }
-    google: {
-      callback: typeof routes['api.google.callback']
-      link: typeof routes['api.google.link']
-      identity: typeof routes['api.google.identity']
-      joinStart: typeof routes['api.google.join-start']
-      joinCancel: typeof routes['api.google.join-cancel']
-      joinComplete: typeof routes['api.google.join-complete']
     }
     health: typeof routes['api.health']
   }

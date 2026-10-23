@@ -7,18 +7,12 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { authClient } from "./authClient";
 import { m } from "@/i18n";
 import { MAX_PASSWORD_INPUT_CODE_UNITS } from "@capacitylens/shared/domain/password";
-import type { AuthProviderInfo, AuthUser } from "./authContext";
+import type { AuthUser } from "./authContext";
 import { completeReauth } from "./reauthCoordinator";
 import type { ReauthAction } from "./reauthCoordinator";
-import { dispatchExternalProviderSignIn } from "./externalProviderSignIn";
-import { ExternalProviderButton } from "@/components/common/ExternalProviderButton";
 
 interface ReauthDialogProps {
-  authMode: "password-only" | "sso-only" | "password-and-sso";
   user: AuthUser | null;
-  providers: AuthProviderInfo[];
-  reauthMethod?: "password" | "provider";
-  reauthProviderId?: string | null;
   action?: ReauthAction | null;
 }
 
@@ -29,8 +23,6 @@ interface ReauthState {
   setError: Dispatch<SetStateAction<string | null>>;
   busy: boolean;
   setBusy: Dispatch<SetStateAction<boolean>>;
-  pendingProvider: AuthProviderInfo | null;
-  setPendingProvider: Dispatch<SetStateAction<AuthProviderInfo | null>>;
   errorId: string;
 }
 
@@ -38,7 +30,6 @@ function useReauthState(): ReauthState {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [pendingProvider, setPendingProvider] = useState<AuthProviderInfo | null>(null);
   return {
     password,
     setPassword,
@@ -46,8 +37,6 @@ function useReauthState(): ReauthState {
     setError,
     busy,
     setBusy,
-    pendingProvider,
-    setPendingProvider,
     errorId: useId(),
   };
 }
@@ -80,52 +69,10 @@ async function confirmPassword(email: string, state: ReauthState) {
   }
 }
 
-async function reauthWithProvider(provider: AuthProviderInfo, state: ReauthState) {
-  if (state.busy) return;
-  state.setBusy(true);
-  state.setError(null);
-  state.setPendingProvider(provider);
-  try {
-    const result = await dispatchExternalProviderSignIn(provider);
-    // A settled call without an error means the provider accepted the hand-off and the browser is
-    // navigating away: the dialog stays busy and announces the redirect rather than reporting a
-    // failure it cannot know about. Only a returned error is a real failure, and only that path
-    // becomes retryable. Same contract as LoginScreen's provider sign-in.
-    if (result.error) {
-      state.setPendingProvider(null);
-      state.setError(result.error.message);
-      state.setBusy(false);
-    } else if (result.data?.url) {
-      window.location.assign(result.data.url);
-    } else {
-      state.setPendingProvider(null);
-      state.setError(m.reauth_failed());
-      state.setBusy(false);
-    }
-  } catch (error) {
-    // A thrown provider request failed before confirmed handoff; log it and restore retryable dialog state.
-    console.error("ReauthDialog: SSO re-auth request failed", error);
-    state.setPendingProvider(null);
-    state.setError(m.login_network_error());
-    state.setBusy(false);
-  }
-}
-
 /** Prompts for fresh authentication before a protected account action continues. */
-export function ReauthDialog({
-  authMode,
-  user,
-  providers,
-  reauthMethod = authMode === "sso-only" ? "provider" : "password",
-  reauthProviderId = null,
-  action = null,
-}: ReauthDialogProps) {
+export function ReauthDialog({ user, action = null }: ReauthDialogProps) {
   const state = useReauthState();
   const cancel = () => completeReauth({ reauthenticated: false });
-  if (reauthMethod === "provider") {
-    const selected = reauthProviderId ? providers.filter((provider) => provider.id === reauthProviderId) : providers;
-    return <ProviderDialog providers={selected} state={state} cancel={cancel} action={action} />;
-  }
   return (
     <PasswordDialog
       state={state}
@@ -133,53 +80,6 @@ export function ReauthDialog({
       confirm={() => void confirmPassword(user?.email ?? "", state)}
       action={action}
     />
-  );
-}
-
-function ProviderDialog({
-  providers,
-  state,
-  cancel,
-  action,
-}: {
-  providers: AuthProviderInfo[];
-  state: ReauthState;
-  cancel: () => void;
-  action: ReauthAction | null | undefined;
-}) {
-  return (
-    <Modal
-      title={action ? `${m.reauth_title()} — ${reauthActionLabel(action)}` : m.reauth_title()}
-      onClose={() => {
-        if (!state.busy) cancel();
-      }}
-      guardDirty={false}
-      footer={<CancelButton busy={state.busy} cancel={cancel} />}
-    >
-      <p className="text-sm text-muted-foreground">{m.reauth_body_sso()}</p>
-      <FieldError>{state.error ?? (providers.length === 0 ? m.login_sso_unavailable() : null)}</FieldError>
-      {state.pendingProvider && (
-        <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
-          {m.login_external_redirecting({ provider: state.pendingProvider.label })}
-        </p>
-      )}
-      {providers.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          {providers.map((provider) => (
-            <ExternalProviderButton
-              size="sm"
-              key={`${provider.kind}:${provider.id}`}
-              variant="outline"
-              provider={provider}
-              label={m.login_continue_with({ provider: provider.label })}
-              googleLabel={m.login_sign_in_with_google()}
-              onClick={() => void reauthWithProvider(provider, state)}
-              disabled={state.busy}
-            />
-          ))}
-        </div>
-      ) : null}
-    </Modal>
   );
 }
 

@@ -1,15 +1,12 @@
 import { useId, useState } from "react";
 import type { FormEvent } from "react";
-import type { AuthProviderInfo } from "@/auth/authContext";
 import { MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
 import { m } from "@/i18n";
 import { TextField } from "@/components/common/ui";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
-import { ExternalProviderButton } from "@/components/common/ExternalProviderButton";
 
 interface InvitePasswordContentProps {
-  providers: readonly AuthProviderInfo[];
   busy: boolean;
   errorId: string;
   errorMessage: string | undefined;
@@ -21,7 +18,6 @@ interface InvitePasswordContentProps {
   onEmailChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
   onSignIn: (event: FormEvent) => void;
-  onProviderSignIn: (provider: AuthProviderInfo) => void;
   onCreateAccount: () => void;
   onPathChange: () => void;
 }
@@ -35,12 +31,6 @@ export function InvitePasswordContent(props: InvitePasswordContentProps) {
   const createAccountPanelId = useId();
   return (
     <div className="flex flex-col gap-4">
-      {props.providers.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <InviteProviderButtons providers={props.providers} busy={props.busy} onSelect={props.onProviderSignIn} />
-          <p className="text-center text-xs text-muted-foreground">{m.invite_use_email_password()}</p>
-        </div>
-      )}
       <p className="text-sm text-muted-foreground">{m.invite_onboard_intro()}</p>
       <div
         role="tablist"
@@ -203,34 +193,5 @@ function EmailPasswordFields({
         describedById={errorId}
       />
     </>
-  );
-}
-
-/** Renders configured external sign-in choices shared by password and SSO invite journeys. */
-export function InviteProviderButtons({
-  providers,
-  busy,
-  onSelect,
-}: {
-  providers: readonly AuthProviderInfo[];
-  busy: boolean;
-  onSelect: (provider: AuthProviderInfo) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      {providers.map((provider) => (
-        <ExternalProviderButton
-          size="sm"
-          key={provider.id}
-          type="button"
-          className="w-full"
-          provider={provider}
-          label={m.invite_continue_provider({ provider: provider.label })}
-          googleLabel={m.login_sign_in_with_google()}
-          disabled={busy}
-          onClick={() => onSelect(provider)}
-        />
-      ))}
-    </div>
   );
 }

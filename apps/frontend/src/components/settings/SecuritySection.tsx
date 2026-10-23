@@ -1,42 +1,12 @@
 import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
 import { useAuth } from "@/auth/authContext";
-import type { AuthProviderInfo } from "@/auth/authContext";
 import { m } from "@/i18n";
 import { FormActions, Modal, RequiredLegend, TextField } from "@/components/common/ui";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
-import { Separator } from "@/components/ui/separator";
-import { SettingsSection } from "./SettingsSection";
 import { useSecurityController } from "./useSecurityController";
-import { useProviderConnection } from "./useProviderConnection";
 
 type Controller = ReturnType<typeof useSecurityController>;
-
-function ProviderConnection({ provider, controller }: { provider: AuthProviderInfo; controller: Controller }) {
-  const connection = useProviderConnection({ provider: provider, busy: controller.busy, setBusy: controller.setBusy });
-  return (
-    <div className="flex flex-col gap-2" data-testid="sso-connection">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-medium text-ink">{m.settings_sso_connect_heading()}</h3>
-        {connection.connected && (
-          <Badge variant="secondary">{m.settings_sso_connected({ provider: provider.label })}</Badge>
-        )}
-      </div>
-      <p className="text-sm text-muted-foreground">
-        {m.settings_sso_connect_description({ provider: provider.label })}
-      </p>
-      {connection.connected === false && (
-        <Button size="sm" type="button" disabled={controller.busy} onClick={() => void connection.connect()}>
-          {m.settings_sso_connect_button({ provider: provider.label })}
-        </Button>
-      )}
-      <FieldError>{connection.error}</FieldError>
-      <Separator />
-    </div>
-  );
-}
 
 function PasswordForm({ controller }: { controller: Controller }) {
   const { fieldError, password } = controller;
@@ -125,7 +95,7 @@ function PasswordDialog({
   );
 }
 
-/** Presents the signed-in identity's password, session and provider controls. */
+/** Presents the signed-in identity's password change dialog. */
 export function SecuritySection({
   passwordOpen = false,
   onPasswordOpenChange = () => {},
@@ -134,29 +104,13 @@ export function SecuritySection({
   onPasswordOpenChange?: (open: boolean) => void;
 }) {
   const auth = useAuth();
-  const providers = (auth.providers ?? []).filter((provider) => !provider.experimental);
   const controller = useSecurityController();
-  const showPassword = allowsPasswordSignIn(auth.authMode) && auth.reauthMethod !== "provider";
+  const showPassword = allowsPasswordSignIn(auth.authMode);
   const changePasswordOpen = (open: boolean) => {
     if (!open) controller.password.reset();
     onPasswordOpenChange(open);
   };
-  const showSection = providers.length > 0;
-  return (
-    <>
-      {showSection && (
-        <SettingsSection
-          title={m.settings_security_title()}
-          help={m.settings_security_description()}
-          testId="security-section"
-          contentClassName="gap-5"
-        >
-          {providers.map((provider) => (
-            <ProviderConnection key={provider.id} provider={provider} controller={controller} />
-          ))}
-        </SettingsSection>
-      )}
-      {showPassword && <PasswordDialog open={passwordOpen} onOpenChange={changePasswordOpen} controller={controller} />}
-    </>
-  );
+  return showPassword ? (
+    <PasswordDialog open={passwordOpen} onOpenChange={changePasswordOpen} controller={controller} />
+  ) : null;
 }

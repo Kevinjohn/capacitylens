@@ -6,7 +6,6 @@ import env from '#start/env'
 import User from '#models/user'
 import { createPasswordSession } from '#services/auth/session_login'
 import { withTransaction } from '#services/with_transaction'
-import { authMode, availableProviders, passwordEnabled } from '#services/auth/mode'
 import {
   destroyNativeSessions,
   resolveCurrentActor,
@@ -72,20 +71,19 @@ async function withRequestPasswordWork<T>(ctx: HttpContext, work: () => Promise<
 
 export default class AuthController {
   async me(ctx: HttpContext) {
-    const mode = authMode()
     try {
       const actor = await resolveCurrentActor(ctx)
       return {
-        authMode: mode,
+        authMode: 'password-only',
         user: userProjection(actor.user),
-        providers: availableProviders(),
+        providers: [],
         canCreateAccount: false,
         companySetupRequired: await withTransaction(async (trx) => {
           await trx.from('account_transaction_lock').where('id', 1).increment('version', 1)
           return requiresFirstCompanySetup(actor.userId, trx)
         }),
-        reauthMethod: passwordEnabled() && actor.user.passwordHash ? 'password' : 'provider',
-        reauthProviderId: passwordEnabled() && actor.user.passwordHash ? null : 'google',
+        reauthMethod: 'password',
+        reauthProviderId: null,
       }
     } catch (error) {
       if (
@@ -95,18 +93,16 @@ export default class AuthController {
         throw error
       const hasUsers = Boolean(await db.from('users').select('id').first())
       return ctx.response.unauthorized({
-        authMode: mode,
-        providers: availableProviders(),
+        authMode: 'password-only',
+        providers: [],
         error: 'Sign-in required.',
-        passwordResetEmail: passwordEnabled() && Boolean(env.get('CAPACITYLENS_MAIL_HOST')),
-        ...(!hasUsers && passwordEnabled() ? { needsSetup: true } : {}),
+        passwordResetEmail: Boolean(env.get('CAPACITYLENS_MAIL_HOST')),
+        ...(!hasUsers ? { needsSetup: true } : {}),
       })
     }
   }
 
   async signIn(ctx: HttpContext) {
-    if (!passwordEnabled())
-      return ctx.response.notFound({ error: 'Password sign-in is unavailable.' })
     const body: unknown = ctx.request.body()
     if (!bodyFields(body, ['email', 'password']))
       return ctx.response.badRequest({ error: 'Invalid sign-in request.' })
@@ -137,8 +133,6 @@ export default class AuthController {
   }
 
   async signUp(ctx: HttpContext) {
-    if (!passwordEnabled())
-      return ctx.response.notFound({ error: 'Password sign-up is unavailable.' })
     const body: unknown = ctx.request.body()
     if (!bodyFields(body, ['email', 'password', 'name']))
       return ctx.response.badRequest({ error: 'Invalid sign-up request.' })

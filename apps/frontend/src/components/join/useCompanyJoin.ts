@@ -2,40 +2,34 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { MAX_PASSWORD_INPUT_CODE_UNITS } from "@capacitylens/shared/domain/password";
-import { parseApprovedDomain } from "@capacitylens/shared/account/approvedDomains";
 import { companyJoinClient } from "@/account/companyJoinClient";
 import { authClient } from "@/auth/authClient";
 import { useAuth } from "@/auth/authContext";
-import type { AuthProviderInfo } from "@/auth/authContext";
 import { isServerConfigured } from "@/data/apiConfig";
 import { readApiError } from "@/lib/readApiError";
 import { replaceWithJoinedAccount } from "@/lib/joinedAccountHandoff";
 import { m } from "@/i18n";
-import { runExternalSignIn } from "@/components/invites/externalSignIn";
-import { readMetadata, readStatus, resolveJoinStatus } from "./joinStatus";
+import { readMetadata } from "./joinStatus";
 import type { Metadata } from "./joinStatus";
 
-type Stage = "loading" | "entry" | "pending" | "approved" | "joined" | "error" | "local";
+type Stage = "loading" | "entry" | "joined" | "error" | "local";
 async function responseError(response: Response): Promise<string> {
   return (await readApiError(response)) ?? m.joining_failed();
 }
 
-async function readJoinResponses([metadataResponse, statusResponse]: [Response, Response]) {
-  if (!metadataResponse.ok || !statusResponse.ok) throw new Error();
+async function readMetadataResponse(metadataResponse: Response) {
+  if (!metadataResponse.ok) throw new Error();
   const metadata = readMetadata(await metadataResponse.json());
-  const status = readStatus(await statusResponse.json());
-  if (!metadata || !status) throw new Error();
-  return { metadata, status };
+  if (!metadata) throw new Error();
+  return metadata;
 }
 
 /** Coordinates the account joining journey across sign-in methods and completion. */
 export function useCompanyJoin(accountId: string | undefined, invitationToken: string | null) {
-  const { user, refreshAuth, providers = [], authMode } = useAuth();
+  const { user, refreshAuth } = useAuth();
   const [stage, setStage] = useState<Stage>(isServerConfigured() ? "loading" : "local");
   const [metadata, setMetadata] = useState<Metadata | null>(null);
   const [email, setEmail] = useState("");
-  const [emailHint, setEmailHint] = useState("");
-  const [providerId, setProviderId] = useState<string | null>(null);
   const [existingPassword, setExistingPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -56,30 +50,12 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     const isRequestActive = () => request.active;
     void (async () => {
       try {
-        const [metadataResponse, statusResponse] = await Promise.all([
-          companyJoinClient.metadata(accountId),
-          companyJoinClient.status(),
-        ]);
+        const metadataResponse = await companyJoinClient.metadata(accountId);
         if (!isRequestActive()) return;
-        const decoded = await readJoinResponses([metadataResponse, statusResponse]);
+        const decoded = await readMetadataResponse(metadataResponse);
         if (!isRequestActive()) return;
-        setMetadata(decoded.metadata);
-        if (new URLSearchParams(window.location.search).has("externalSignInError"))
-          setError(m.joining_provider_failed());
-        const status = resolveJoinStatus({
-          accountId,
-          ...(invitationToken ? { purpose: "invitation" } : {}),
-          status: decoded.status,
-        });
-        if (!status.matched) {
-          setStage("entry");
-          return;
-        }
-        setEmailHint(status.emailHint);
-        if (status.email) setEmail(status.email);
-        setProviderId(status.providerId);
-        setStage(status.stage);
-        if (status.deliveryUnavailable) setError(m.joining_mail_failed());
+        setMetadata(decoded);
+        setStage("entry");
       } catch {
         // Only the active join lookup may publish failure after an account or request change.
         if (request.active) {
@@ -93,43 +69,6 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     };
   }, [accountId, invitationToken]);
 
-  const startProvider = async (provider: AuthProviderInfo) => {
-    const selectedProviderId = provider.id;
-    if (!accountId || busy) return;
-    if (!isAccountEmail(email) || parseApprovedDomain(email.slice(email.lastIndexOf("@") + 1)) === null) {
-      setError(m.identity_err_email());
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    await runExternalSignIn({
-      start: async (signal) => {
-        const response = await companyJoinClient.startProvider(
-          { accountId, email, invitationToken, providerId: selectedProviderId },
-          signal,
-        );
-        if (!response.ok) return { error: { message: await responseError(response) } };
-        const body: unknown = await response.json();
-        if (!body || typeof body !== "object" || !("url" in body) || typeof body.url !== "string")
-          return { error: { message: m.joining_failed() } };
-        setProviderId(selectedProviderId);
-        return { data: { url: body.url } };
-      },
-      onFailure: (message) => {
-        setError(message ?? m.login_failed());
-        setBusy(false);
-      },
-      onRequestError: () => {
-        setError(m.login_network_error());
-        setBusy(false);
-      },
-      onCachedReturn: () => {
-        setError(m.login_failed());
-        setBusy(false);
-      },
-    });
-  };
-
   const runAction = async (fallback: string, action: () => Promise<void>) => {
     setBusy(true);
     setError(null);
@@ -141,14 +80,6 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     } finally {
       setBusy(false);
     }
-  };
-
-  const restart = async () => {
-    await runAction(m.joining_failed(), async () => {
-      const response = await companyJoinClient.cancel();
-      if (!response.ok) throw new Error(await responseError(response));
-      setStage("entry");
-    });
   };
 
   const finish = async (response: Response) => {
@@ -216,37 +147,21 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     });
   };
 
-  const completeProvider = async () => {
-    if (busy) return;
-    await runAction(m.joining_failed(), async () => {
-      await finish(await companyJoinClient.completeProvider(invitationToken));
-    });
-  };
-
-  const eligibleProviders = metadata?.providerAvailable
-    ? providers.filter((provider) => authMode !== "sso-only" || !provider.experimental)
-    : [];
   return {
     stage,
     emailProofRequired,
     verificationSent,
     requestEmailVerification,
     metadata,
-    passwordAvailable: metadata?.passwordAvailable === true && authMode !== "sso-only",
-    emailVerificationAvailable: metadata?.emailVerificationAvailable === true && authMode !== "sso-only",
+    passwordAvailable: metadata?.passwordAvailable === true,
+    emailVerificationAvailable: metadata?.emailVerificationAvailable === true,
     email,
-    emailHint,
-    providerId,
-    eligibleProviders,
     existingPassword,
     error,
     busy,
     user,
     setEmail,
     setExistingPassword,
-    startProvider,
-    restart,
     signInAndJoin,
-    completeProvider,
   };
 }

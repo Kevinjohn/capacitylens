@@ -197,12 +197,6 @@ export function OwnershipTransferCard() {
             setProofTarget(null);
             void controller.transfer(target, id);
           }}
-          onProviderStart={(id) =>
-            sessionStorage.setItem(
-              PENDING_KEY,
-              JSON.stringify({ accountId: activeAccountId, target: proofTarget, proofId: id }),
-            )
-          }
           onCancel={() => setProofTarget(null)}
         />
       )}

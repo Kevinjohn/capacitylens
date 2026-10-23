@@ -6,7 +6,6 @@ import { can } from '@capacitylens/shared/domain/access'
 import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization'
 import { resolveCurrentActor } from '#services/auth/session_authority'
 import { writeAudit } from '#services/audit'
-import { authMode } from '#services/auth/mode'
 
 export class MasqueradeError extends Error {
   constructor(
@@ -153,7 +152,7 @@ export async function currentMasquerade(ctx: HttpContext, trx: TransactionClient
       name: actor.user.displayName ?? null,
       email: actor.user.email,
     },
-    authMode: authMode(),
+    authMode: 'password-only',
   }
 }
 

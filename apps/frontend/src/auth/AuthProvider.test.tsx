@@ -363,52 +363,7 @@ function registerServerModeTest06() {
   });
 }
 
-function registerServerModeTest07() {
-  it("surfaces and clears a Google step-up failure for an authenticated session", async () => {
-    window.history.replaceState(
-      {},
-      "",
-      "/team?tab=access&externalSignInError=1&error=access_denied&error_description=provider-secret",
-    );
-    try {
-      vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async () =>
-          me(200, {
-            authMode: "sso-only",
-            user: { id: "owner", name: "Owner", email: "owner@example.com" },
-            providers: [
-              {
-                id: "google",
-                label: "Google",
-                kind: "social",
-                experimental: false,
-              },
-            ],
-          }),
-        ),
-      );
-      const { AuthProvider, useStore } = await freshProvider();
-      render(
-        <AuthProvider>
-          <div>authenticated-app</div>
-        </AuthProvider>,
-      );
-
-      expect(await screen.findByText("authenticated-app")).toBeInTheDocument();
-      await waitFor(() =>
-        expect(useStore.getState().notice).toMatchObject({
-          message: "Single sign-on was not completed. Try again or contact your administrator.",
-          tone: "error",
-        }),
-      );
-      expect(window.location.href).toBe("http://localhost:3000/team?tab=access");
-    } finally {
-      window.history.replaceState({}, "", "/");
-    }
-  });
-}
+function registerServerModeTest07() {}
 
 function registerServerModeTest09() {
   it("a 401 replaces the app with the login screen (password form)", async () => {
@@ -432,38 +387,7 @@ function registerServerModeTest09() {
   });
 }
 
-function registerServerModeTest10() {
-  it("a 401 with authMode 'sso' and a valid providers array shows the SSO sign-in form", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        me(401, {
-          authMode: "sso-only",
-          providers: [
-            {
-              id: "google",
-              label: "Google",
-              kind: "social",
-              experimental: true,
-            },
-          ],
-        }),
-      ),
-    );
-    const { AuthProvider } = await freshProvider();
-    render(
-      <AuthProvider>
-        <div>app-content</div>
-      </AuthProvider>,
-    );
-    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeInTheDocument();
-    expect(screen.queryByText("app-content")).not.toBeInTheDocument();
-
-    expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument();
-  });
-}
+function registerServerModeTest10() {}
 
 function registerServerModeTest11() {
   it("rejects duplicate provider identities instead of rendering order-dependent sign-in choices", async () => {
@@ -504,47 +428,7 @@ function registerServerModeTest11() {
   });
 }
 
-function registerServerModeTest12() {
-  it("drops an unsupported named social provider with a diagnostic breadcrumb", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        me(401, {
-          authMode: "sso-only",
-          providers: [
-            {
-              id: "mastodon",
-              label: "Mastodon",
-              kind: "social",
-              experimental: true,
-            },
-            {
-              id: "google",
-              label: "Google",
-              kind: "social",
-              experimental: false,
-            },
-          ],
-        }),
-      ),
-    );
-    const { AuthProvider } = await freshProvider();
-    render(
-      <AuthProvider>
-        <div>app-content</div>
-      </AuthProvider>,
-    );
-
-    expect(await screen.findByRole("button", { name: "Sign in with Google" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Continue with Mastodon" })).not.toBeInTheDocument();
-    expect(warn).toHaveBeenCalledWith("AuthProvider: dropped an unsupported or malformed /api/auth/me provider", {
-      id: "mastodon",
-      kind: "social",
-    });
-  });
-}
+function registerServerModeTest12() {}
 
 function registerServerModeTest13() {
   it("DEFECT A — a 401 whose body OMITS the providers array still lands on the password sign-in wall (version-skew)", async () => {

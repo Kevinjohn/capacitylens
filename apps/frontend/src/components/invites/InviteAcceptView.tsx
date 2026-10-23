@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import type { Role } from "@capacitylens/shared/domain/access";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
-import type { AccountMode, AuthProviderInfo, AuthUser } from "@/auth/authContext";
+import type { AccountMode, AuthUser } from "@/auth/authContext";
 import { resolveRoleLabel, resolveRoleSummary } from "@/lib/accessCopy";
 import { m } from "@/i18n";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldError } from "@/components/ui/field";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
-import { InvitePasswordContent, InviteProviderButtons } from "./InvitePasswordContent";
+import { InvitePasswordContent } from "./InvitePasswordContent";
 import { formatInviteExpiry } from "./inviteExpiry";
 
 /** Distinguishes invitation preview, authentication, completion, and failure states. */
@@ -45,7 +45,6 @@ interface InviteAcceptViewProps {
   preview: InvitePreview | null;
   user: AuthUser | null;
   authMode: AccountMode;
-  providers: readonly AuthProviderInfo[];
   busy: boolean;
   errorId: string;
   name: string;
@@ -59,7 +58,6 @@ interface InviteAcceptViewProps {
   onAccept: () => void;
   onSignOut: () => void;
   onSignIn: (event: FormEvent) => void;
-  onProviderSignIn: (provider: AuthProviderInfo) => void;
   onCreateAccount: () => void;
   onClearAuthError: () => void;
   onRetryPreview: () => void;
@@ -150,7 +148,7 @@ function InviteStateContent(props: InviteAcceptViewProps) {
     case "joined":
       return props.state.activating ? null : <JoinedContent continueRef={props.continueRef} />;
     case "auth":
-      return props.authMode === "sso-only" ? <SsoContent {...props} /> : <PasswordContent {...props} />;
+      return <PasswordContent {...props} />;
     case "error":
       return <ErrorContent {...props} />;
     case "local":
@@ -194,27 +192,11 @@ function JoinedContent({ continueRef }: Pick<InviteAcceptViewProps, "continueRef
   );
 }
 
-function SsoContent({ state, providers, busy, errorId, onProviderSignIn }: InviteAcceptViewProps) {
-  if (state.kind !== "auth") return null;
-  return (
-    <div className="flex flex-col gap-3">
-      <p className="text-sm text-muted-foreground">{m.invite_sso_prompt()}</p>
-      <FieldError id={errorId}>{state.message}</FieldError>
-      {providers.length === 0 ? (
-        <FieldError>{m.invite_sso_unavailable()}</FieldError>
-      ) : (
-        <InviteProviderButtons providers={providers} busy={busy} onSelect={onProviderSignIn} />
-      )}
-    </div>
-  );
-}
-
 function PasswordContent(props: InviteAcceptViewProps) {
   const { state } = props;
   if (state.kind !== "auth") return null;
   return (
     <InvitePasswordContent
-      providers={props.providers}
       busy={props.busy}
       errorId={props.errorId}
       errorMessage={state.message}
@@ -226,7 +208,6 @@ function PasswordContent(props: InviteAcceptViewProps) {
       onEmailChange={props.onEmailChange}
       onPasswordChange={props.onPasswordChange}
       onSignIn={props.onSignIn}
-      onProviderSignIn={props.onProviderSignIn}
       onCreateAccount={props.onCreateAccount}
       onPathChange={props.onClearAuthError}
     />

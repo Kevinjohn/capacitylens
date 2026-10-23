@@ -706,27 +706,6 @@ export class ProjectSchema extends BaseModel {
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }
 
-export class ProviderIdentitySchema extends BaseModel {
-  static $columns = ['createdAt', 'email', 'id', 'issuer', 'provider', 'subject', 'updatedAt', 'userId'] as const
-  $columns = ProviderIdentitySchema.$columns
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column()
-  declare email: string | null
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare issuer: string
-  @column()
-  declare provider: string
-  @column()
-  declare subject: string
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column()
-  declare userId: string
-}
-
 export class RateLimitSchema extends BaseModel {
   static $columns = ['expire', 'key', 'points'] as const
   $columns = RateLimitSchema.$columns

@@ -150,13 +150,13 @@ describe("router not-found recovery", () => {
 });
 
 describe("static SPA route manifest", () => {
-  it("includes fixed AppShell routes and the public Microsoft verification entry", () => {
+  it("includes every fixed AppShell route", () => {
     const appShellRoute = router.routes.find((route) => route.children);
     const fixedChildRoutes = (appShellRoute?.children ?? [])
       .filter((route) => !route.index && route.path && !route.path.includes(":"))
       .map((route) => route.path as string)
       .sort();
 
-    expect([...fixedChildRoutes, "verify-microsoft"].sort()).toEqual([...STATIC_SPA_ROUTES].sort());
+    expect(fixedChildRoutes).toEqual([...STATIC_SPA_ROUTES].sort());
   });
 });

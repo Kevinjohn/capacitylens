@@ -31,7 +31,7 @@ function document(): BetaExportDocument {
   return buildBetaExport(seed(), { accountId, completeness: "full" });
 }
 
-function renderTools(server = false, reauthMethod: "password" | "provider" = "password") {
+function renderTools(server = false) {
   serverFlag.on = server;
   if (server) {
     useStore.setState({
@@ -51,7 +51,7 @@ function renderTools(server = false, reauthMethod: "password" | "provider" = "pa
         authMode: server ? "password-only" : "off",
         user: server ? { id: "bruce", email: "bruce@wayne.example" } : null,
         canCreateAccount: false,
-        reauthMethod,
+        reauthMethod: "password",
         refreshAuth: async () => {},
         signOut: async () => {},
       }}
@@ -461,47 +461,6 @@ describe("beta import and export", () => {
     expect(apply?.body).toMatchObject({ baseRevision: 22, document: second, proofId: "proof-b" });
   });
 
-  it("offers linked Google confirmation and Cancel issues no proof or import", async () => {
-    const requests: string[] = [];
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string) => {
-        requests.push(String(url));
-        return Response.json({ baseRevision: 7, imported: 5, changed: true });
-      }),
-    );
-    renderTools(true, "provider");
-    await previewFile(document());
-    fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
-    expect(screen.getByText(/Choose your linked Google account/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(requests).toEqual(["/api/transfer/preview"]);
-    expect(sessionStorage.getItem("capacitylens/import-action-proof")).toBeNull();
-  });
-
-  it("stores only opaque import confirmation metadata before Google navigation", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string) =>
-        String(url).endsWith("/api/transfer/preview")
-          ? Response.json({ baseRevision: 7, imported: 5, changed: true })
-          : Response.json({ proofId: "proof-google", url: "https://accounts.google.test/confirm" }),
-      ),
-    );
-    renderTools(true, "provider");
-    await previewFile(document());
-    fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
-    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
-    await waitFor(() => expect(sessionStorage.getItem("capacitylens/import-action-proof")).not.toBeNull());
-    const saved = JSON.parse(sessionStorage.getItem("capacitylens/import-action-proof") ?? "null") as Record<
-      string,
-      unknown
-    >;
-    expect(saved).toEqual({ accountId, baseRevision: 7, proofId: "proof-google" });
-    expect(JSON.stringify(sessionStorage)).not.toContain("resources");
-  });
-
   it("resumes only its own returned provider proof and still needs an explicit apply click", async () => {
     const incoming = document();
     sessionStorage.setItem(
@@ -516,7 +475,7 @@ describe("beta import and export", () => {
       return Response.json({ imported: 5, changed: false, revision: 7 });
     });
     vi.stubGlobal("fetch", fetchMock);
-    renderTools(true, "provider");
+    renderTools(true);
     await screen.findByText(/Choose the same import file again/);
     expect(fetchMock).not.toHaveBeenCalled();
     await previewFile(incoming);
@@ -548,7 +507,7 @@ describe("beta import and export", () => {
           : Response.json({ error: "The confirmation does not match this import." }, { status: 403 }),
       ),
     );
-    renderTools(true, "provider");
+    renderTools(true);
     await screen.findByText(/Choose the same import file again/);
     await previewFile(different);
     fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
@@ -562,7 +521,7 @@ describe("beta import and export", () => {
     useStore.getState().setActiveAccount(null);
     sessionStorage.setItem("capacitylens/import-action-proof", saved);
     window.history.replaceState(null, "", "/settings?capacitylensActionConfirmed=1");
-    renderTools(true, "provider");
+    renderTools(true);
     expect(sessionStorage.getItem("capacitylens/import-action-proof")).toBe(saved);
     useStore.getState().setActiveAccount(accountId);
     await screen.findByText(/Choose the same import file again/);
@@ -574,7 +533,7 @@ describe("beta import and export", () => {
       "capacitylens/import-action-proof",
       JSON.stringify({ accountId, baseRevision: 7, proofId: "proof-cancelled" }),
     );
-    renderTools(true, "provider");
+    renderTools(true);
     await waitFor(() => expect(sessionStorage.getItem("capacitylens/import-action-proof")).toBeNull());
     expect(screen.queryByText(/Choose the same import file again/)).toBeNull();
   });
@@ -585,7 +544,7 @@ describe("beta import and export", () => {
       JSON.stringify({ accountId: "a-loft", baseRevision: 7, proofId: "proof-other" }),
     );
     window.history.replaceState(null, "", "/settings?capacitylensActionConfirmed=1");
-    renderTools(true, "provider");
+    renderTools(true);
     await waitFor(() => expect(sessionStorage.getItem("capacitylens/import-action-proof")).toBeNull());
     expect(screen.queryByText(/Choose the same import file again/)).toBeNull();
     expect(useStore.getState().notice?.tone).toBe("error");

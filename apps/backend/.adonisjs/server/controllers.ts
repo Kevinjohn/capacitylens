@@ -13,7 +13,6 @@ export const controllers = {
   Exports: () => import('#controllers/exports_controller'),
   FirstCompanySetup: () => import('#controllers/first_company_setup_controller'),
   GettingStarted: () => import('#controllers/getting_started_controller'),
-  Google: () => import('#controllers/google_controller'),
   Invitations: () => import('#controllers/invitations_controller'),
   Joining: () => import('#controllers/joining_controller'),
   Masquerade: () => import('#controllers/masquerade_controller'),

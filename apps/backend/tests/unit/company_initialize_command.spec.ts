@@ -257,7 +257,7 @@ test('native signup then stopped-server initialization opens one Owner company a
   }
 }).timeout(90000)
 
-test('company initialization accepts an existing stable Google identity only when Google sign-in is enabled', ({
+test('company initialization refuses an identity without a password credential', ({
   assert,
   test: t,
 }) => {
@@ -268,37 +268,12 @@ test('company initialization accepts an existing stable Google identity only whe
     const database = f.inspect()
     seedPrincipal(database)
     database.prepare('UPDATE users SET password_hash = NULL').run()
-    const now = new Date().toISOString()
-    database
-      .prepare(
-        'INSERT INTO provider_identities (id,user_id,provider,issuer,subject,email,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)'
-      )
-      .run(
-        'google-bruce',
-        'bruce',
-        'google',
-        'https://accounts.google.com',
-        'stable-bruce',
-        'bruce@wayne.example',
-        now,
-        now
-      )
     database.close()
     const disabled = f.command(args)
     assert.notEqual(disabled.status, 0)
     assert.match(disabled.output, /no enabled sign-in method/)
-    const enabled = f.command(args, {
-      CAPACITYLENS_MODE: 'password-and-sso',
-      CAPACITYLENS_GOOGLE_CLIENT_ID: 'fictional-client',
-      CAPACITYLENS_GOOGLE_CLIENT_SECRET: 'fictional-secret',
-    })
-    assert.equal(enabled.status, 0, enabled.output)
     const inspect = f.inspect()
-    assert.equal(
-      inspect.prepare('SELECT subject FROM provider_identities').get()!.subject,
-      'stable-bruce'
-    )
-    assert.isNull(inspect.prepare('SELECT password_hash FROM users').get()!.password_hash)
+    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM accounts').get()!.n, 0)
     inspect.close()
   } finally {
     f.cleanup()

@@ -4,7 +4,6 @@ import { SessionCollection } from '@adonisjs/session'
 import type { HttpContext } from '@adonisjs/core/http'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import type User from '#models/user'
-import { authMode } from './mode.js'
 
 const ABSOLUTE_MS = 12 * 60 * 60 * 1000
 const IDLE_MS = 30 * 60 * 1000
@@ -110,38 +109,6 @@ export async function registerProvenSession(
   })
 }
 
-/** Registers a Google session only while its stable provider binding remains current. */
-export async function registerProviderSession(
-  input: {
-    userId: string
-    sessionId: string
-    provider: string
-    issuer: string
-    subject: string
-    authenticatedAt: number
-  },
-  trx: TransactionClientContract
-) {
-  const identity = await trx
-    .from('provider_identities as identity')
-    .innerJoin('users as user', 'user.id', 'identity.user_id')
-    .where({
-      'identity.provider': input.provider,
-      'identity.issuer': input.issuer,
-      'identity.subject': input.subject,
-      'identity.user_id': input.userId,
-    })
-    .select('user.id')
-    .first()
-  if (!identity) throw new SessionAuthorityError('Provider identity changed during sign-in.')
-  await trx.table('user_session_index').insert({
-    user_id: input.userId,
-    session_id: input.sessionId,
-    authenticated_at: input.authenticatedAt,
-    last_activity_at: input.authenticatedAt,
-  })
-}
-
 /** Deletes index authority within the caller's transaction and returns exact native IDs to clean later. */
 export async function invalidateUserSessions(
   input: { userId: string; preserveSessionId?: string },
@@ -183,8 +150,6 @@ export async function resolveCurrentActor(
   let times = parseIndex(await lookup(), now)
   const nativeAuthenticatedAt: unknown = ctx.session.get('authenticatedAt')
   const nativeLastActivityAt: unknown = ctx.session.get('lastActivityAt')
-  if (authMode() === 'sso-only' && ctx.session.get('authenticationProvider') !== 'google')
-    throw new SessionAuthorityError('Google sign-in is required.')
   if (
     !validTime(nativeAuthenticatedAt, now) ||
     !validTime(nativeLastActivityAt, now) ||

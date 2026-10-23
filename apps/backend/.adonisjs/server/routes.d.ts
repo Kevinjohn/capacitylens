@@ -59,8 +59,6 @@ export type ScannedRoutes = {
     'api.auth.sign-in': { paramsTuple?: []; params?: {} }
     'api.auth.sign-out': { paramsTuple?: []; params?: {} }
     'api.auth.action-proof.password': { paramsTuple?: []; params?: {} }
-    'api.auth.action-proof.google-start': { paramsTuple?: []; params?: {} }
-    'api.auth.provider-start': { paramsTuple?: []; params?: {} }
     'api.auth.request-reset': { paramsTuple?: []; params?: {} }
     'api.auth.reset-password': { paramsTuple?: []; params?: {} }
     'api.auth.change-password': { paramsTuple?: []; params?: {} }
@@ -93,12 +91,6 @@ export type ScannedRoutes = {
     'api.masquerade.status': { paramsTuple?: []; params?: {} }
     'api.masquerade.end': { paramsTuple?: []; params?: {} }
     'api.ownership.transfer': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.google.callback': { paramsTuple?: []; params?: {} }
-    'api.google.link': { paramsTuple?: []; params?: {} }
-    'api.google.identity': { paramsTuple?: []; params?: {} }
-    'api.google.join-start': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.google.join-cancel': { paramsTuple?: []; params?: {} }
-    'api.google.join-complete': { paramsTuple?: []; params?: {} }
     'api.health': { paramsTuple?: []; params?: {} }
     'api.accounts.index': { paramsTuple?: []; params?: {} }
   }
@@ -116,8 +108,6 @@ export type ScannedRoutes = {
     'api.joining.status': { paramsTuple?: []; params?: {} }
     'api.member-resources.avatars': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.masquerade.status': { paramsTuple?: []; params?: {} }
-    'api.google.callback': { paramsTuple?: []; params?: {} }
-    'api.google.identity': { paramsTuple?: []; params?: {} }
     'api.health': { paramsTuple?: []; params?: {} }
     'api.accounts.index': { paramsTuple?: []; params?: {} }
   }
@@ -135,8 +125,6 @@ export type ScannedRoutes = {
     'api.joining.status': { paramsTuple?: []; params?: {} }
     'api.member-resources.avatars': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.masquerade.status': { paramsTuple?: []; params?: {} }
-    'api.google.callback': { paramsTuple?: []; params?: {} }
-    'api.google.identity': { paramsTuple?: []; params?: {} }
     'api.health': { paramsTuple?: []; params?: {} }
     'api.accounts.index': { paramsTuple?: []; params?: {} }
   }
@@ -180,8 +168,6 @@ export type ScannedRoutes = {
     'api.auth.sign-in': { paramsTuple?: []; params?: {} }
     'api.auth.sign-out': { paramsTuple?: []; params?: {} }
     'api.auth.action-proof.password': { paramsTuple?: []; params?: {} }
-    'api.auth.action-proof.google-start': { paramsTuple?: []; params?: {} }
-    'api.auth.provider-start': { paramsTuple?: []; params?: {} }
     'api.auth.request-reset': { paramsTuple?: []; params?: {} }
     'api.auth.reset-password': { paramsTuple?: []; params?: {} }
     'api.auth.change-password': { paramsTuple?: []; params?: {} }
@@ -196,10 +182,6 @@ export type ScannedRoutes = {
     'api.joining.verify-email': { paramsTuple?: []; params?: {} }
     'api.masquerade.start': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.ownership.transfer': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.google.link': { paramsTuple?: []; params?: {} }
-    'api.google.join-start': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.google.join-cancel': { paramsTuple?: []; params?: {} }
-    'api.google.join-complete': { paramsTuple?: []; params?: {} }
   }
   PATCH: {
     'api.planning.allocation.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }

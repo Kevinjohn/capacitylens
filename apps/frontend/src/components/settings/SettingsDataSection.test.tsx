@@ -21,21 +21,10 @@ import { SettingsDataSection } from "./SettingsDataSection";
 vi.mock("@/data/requestTimeout", () => ({ apiFetch: vi.fn(), API_BULK_TIMEOUT_MS: 30000 }));
 vi.mock("@/lib/reloadPage", () => ({ reloadPage: vi.fn() }));
 vi.mock("@/auth/ActionProofDialog", () => ({
-  ActionProofDialog: ({
-    onConfirmed,
-    onProviderStart,
-  }: {
-    onConfirmed: (id: string) => void;
-    onProviderStart: (id: string) => void;
-  }) => (
-    <>
-      <button type="button" onClick={() => onConfirmed("proof-one")}>
-        Confirm identity
-      </button>
-      <button type="button" onClick={() => onProviderStart("provider-proof")}>
-        Continue with Google
-      </button>
-    </>
+  ActionProofDialog: ({ onConfirmed }: { onConfirmed: (id: string) => void }) => (
+    <button type="button" onClick={() => onConfirmed("proof-one")}>
+      Confirm identity
+    </button>
   ),
 }));
 
@@ -331,19 +320,6 @@ describe("Company-wide people anonymisation", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Reload" })).toBeInTheDocument());
     expect(planningProbe.suspends).toBe(1);
     expect(planningProbe.releases).toBe(0);
-  });
-
-  it("stores only the opaque provider proof before leaving, without submitting", async () => {
-    renderSection({ role: "owner" });
-    const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "Anonymise all people" }));
-    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Anonymise all people" }));
-    await user.click(screen.getByRole("button", { name: "Continue with Google" }));
-    expect(JSON.parse(sessionStorage.getItem("capacitylens/company-anonymise-action-proof") ?? "null")).toEqual({
-      accountId: DEFAULT_ACCOUNT_ID,
-      proofId: "provider-proof",
-    });
-    expect(apiFetch).not.toHaveBeenCalled();
   });
 
   it("resumes a same-company provider proof only after another explicit click", async () => {

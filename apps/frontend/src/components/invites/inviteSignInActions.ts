@@ -2,14 +2,11 @@ import type { Dispatch, SetStateAction } from "react";
 import type { InviteAcceptState } from "./InviteAcceptView";
 import { m } from "@/i18n";
 import { MAX_PASSWORD_INPUT_CODE_UNITS } from "@capacitylens/shared/domain/password";
-import type { AuthProviderInfo } from "@/auth/authContext";
 import { authClient } from "@/auth/authClient";
 import { reloadPage } from "@/lib/reloadPage";
 import { refreshAccountSummaries } from "@/auth/useAccountSummaries";
 import { useStore } from "@/store/useStore";
 import { replaceWithAccountPicker, replaceWithJoinedAccount } from "@/lib/joinedAccountHandoff";
-import { buildExternalSignInErrorUrl } from "@/auth/externalSignInError";
-import { runExternalSignIn } from "./externalSignIn";
 import type { FormEvent } from "react";
 
 interface Dependencies {
@@ -25,15 +22,6 @@ function resolveJoinedAccount(list: Awaited<ReturnType<typeof refreshAccountSumm
   if (accountId) return list.find((account) => account.id === accountId);
   if (list.length === 1) return list[0];
   return undefined;
-}
-
-function startProviderSignIn(provider: AuthProviderInfo, signal: AbortSignal) {
-  const options = {
-    callbackURL: window.location.href,
-    errorCallbackURL: buildExternalSignInErrorUrl(window.location.href),
-    fetchOptions: { signal },
-  };
-  return authClient.signIn.social({ ...options, provider: provider.id });
 }
 
 /** Builds sign-in actions that resume the pending invitation. */
@@ -80,28 +68,5 @@ export function createInviteSignInActions({ email, password, refreshAuth, setSta
     }
   };
 
-  const signInWithProvider = async (provider: AuthProviderInfo): Promise<void> => {
-    setBusy(true);
-    setState({ kind: "auth" });
-    await runExternalSignIn({
-      // Keep redirect ownership in runExternalSignIn so provider start shares the same
-      // abort-before-retry and navigation lifecycle as the password invitation flow.
-      start: (signal) => startProviderSignIn(provider, signal),
-      onFailure: (message) => {
-        setState({ kind: "auth", message: message ?? m.login_failed() });
-        setBusy(false);
-      },
-      onRequestError: (error) => {
-        console.error("InviteAccept: SSO sign-in request failed", error);
-        setState({ kind: "auth", message: m.login_network_error() });
-        setBusy(false);
-      },
-      onCachedReturn: () => {
-        setState({ kind: "auth", message: m.login_failed() });
-        setBusy(false);
-      },
-    });
-  };
-
-  return { signIn, signInWithProvider, enterJoinedCompany };
+  return { signIn, enterJoinedCompany };
 }

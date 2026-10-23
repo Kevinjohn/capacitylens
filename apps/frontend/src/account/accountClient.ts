@@ -1,4 +1,3 @@
-import { readIdentityProvider, linkIdentityProvider } from "./identityProviderClient";
 import { joiningPolicyClient } from "./joiningPolicyClient";
 import { apiFetchReauth } from "@/auth/apiFetchReauth";
 import { API_BASE } from "@/data/apiConfig";
@@ -59,9 +58,6 @@ export const accountClient = {
   diagnostics(signal?: AbortSignal): Promise<Response> {
     return apiFetch(`${API_BASE}/api/diagnostics`, { credentials: "include", ...(signal ? { signal } : {}) });
   },
-
-  readIdentityProvider,
-  linkIdentityProvider,
 
   correctMemberEmail(workspaceId: string, principalId: string, email: string): Promise<Response> {
     return apiFetchReauth(

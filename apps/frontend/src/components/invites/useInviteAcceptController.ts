@@ -6,8 +6,6 @@ import type { BrowserAccountCommand } from "@/account/accountClient";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { m } from "@/i18n";
 import { useAuth } from "@/auth/authContext";
-import type { AuthProviderInfo } from "@/auth/authContext";
-import { clearExternalSignInError, hasExternalSignInError } from "@/auth/externalSignInError";
 import type { InviteAcceptState, InvitePreview } from "./InviteAcceptView";
 import { createInvitePreviewAction } from "./invitePreviewActions";
 import { createInviteAcceptanceActions } from "./inviteAcceptanceActions";
@@ -57,14 +55,6 @@ function useInviteRefs(user: ReturnType<typeof useAuth>["user"], state: InviteAc
     acceptCommand: useRef<BrowserAccountCommand | null>(null),
     ...focusRefs,
   };
-}
-
-type UseExternalErrorCleanupOptions = { returnedWithExternalError: boolean };
-function useExternalErrorCleanup({ returnedWithExternalError }: UseExternalErrorCleanupOptions) {
-  useEffect(() => {
-    if (!returnedWithExternalError) return;
-    window.history.replaceState(window.history.state, "", clearExternalSignInError(window.location.href));
-  }, [returnedWithExternalError]);
 }
 
 function useDocumentTitle() {
@@ -119,11 +109,10 @@ function useSignupCommand({
 }
 
 function useInvitePreview(options: Parameters<typeof createInvitePreviewAction>[0], previewAttempt: number) {
-  const { token, previewed, currentUser, returnedWithExternalError, setPreview, setState } = options;
+  const { token, previewed, currentUser, setPreview, setState } = options;
   useEffect(
-    () =>
-      createInvitePreviewAction({ token, previewed, currentUser, returnedWithExternalError, setPreview, setState })(),
-    [currentUser, previewAttempt, previewed, returnedWithExternalError, setPreview, setState, token],
+    () => createInvitePreviewAction({ token, previewed, currentUser, setPreview, setState })(),
+    [currentUser, previewAttempt, previewed, setPreview, setState, token],
   );
 }
 
@@ -160,14 +149,14 @@ interface InviteActionOptions {
 }
 
 function createInviteControllerActions(options: InviteActionOptions) {
-  const { signIn, signInWithProvider, enterJoinedCompany } = createInviteSignInActions(options);
+  const { signIn, enterJoinedCompany } = createInviteSignInActions(options);
   const acceptInvite = async (): Promise<void> => {
     await createInviteAcceptanceActions(options).acceptInvite();
   };
   const createAccount = async () => {
     await createInviteSignupActions({ ...options, enterJoinedCompany }).createAccount();
   };
-  return { acceptInvite, signIn, signInWithProvider, createAccount };
+  return { acceptInvite, signIn, createAccount };
 }
 
 function useInviteFlow(
@@ -175,14 +164,12 @@ function useInviteFlow(
   user: ReturnType<typeof useAuth>["user"],
   refreshAuth: ReturnType<typeof useAuth>["refreshAuth"],
 ) {
-  const [returnedWithExternalError] = useState(() => hasExternalSignInError(window.location.href));
   const inviteState = useInviteState(token);
   const errorId = useId();
   // Records a successfully parsed preview, not an in-flight attempt. React StrictMode cancels and
   // restarts effects in development; marking the first attempt as complete before it resolves would
   // suppress the replacement request and strand the page on “Checking invite…”.
   const refs = useInviteRefs(user, inviteState.state);
-  useExternalErrorCleanup({ returnedWithExternalError: returnedWithExternalError });
   const signupCommand = useSignupCommand({ token, ...inviteState });
 
   useDocumentTitle();
@@ -192,14 +179,13 @@ function useInviteFlow(
       token,
       previewed: refs.previewed,
       currentUser: refs.currentUser,
-      returnedWithExternalError,
       setPreview: inviteState.setPreview,
       setState: inviteState.setState,
     },
     inviteState.previewAttempt,
   );
 
-  const { acceptInvite, signIn, signInWithProvider, createAccount } = createInviteControllerActions({
+  const { acceptInvite, signIn, createAccount } = createInviteControllerActions({
     token,
     previewed: refs.previewed,
     accepting: refs.accepting,
@@ -231,7 +217,6 @@ function useInviteFlow(
     setPassword: inviteState.setPassword,
     acceptInvite,
     signIn,
-    signInWithProvider,
     createAccount,
     setState: inviteState.setState,
     setPreviewAttempt: inviteState.setPreviewAttempt,
@@ -240,15 +225,13 @@ function useInviteFlow(
 
 /** Coordinates invitation preview, sign-in, and acceptance for a token. */
 export function useInviteAcceptController(token: string | undefined) {
-  const { authMode, user, providers: configuredProviders, refreshAuth, signOut } = useAuth();
-  const providers = configuredProviders ?? [];
+  const { authMode, user, refreshAuth, signOut } = useAuth();
   const flow = useInviteFlow(token, user, refreshAuth);
   return {
     state: flow.state,
     preview: flow.preview,
     user,
     authMode,
-    providers,
     busy: flow.busy,
     errorId: flow.errorId,
     name: flow.name,
@@ -262,7 +245,6 @@ export function useInviteAcceptController(token: string | undefined) {
     onAccept: () => void flow.acceptInvite(),
     onSignOut: () => void signOut(),
     onSignIn: (event: FormEvent) => void flow.signIn(event),
-    onProviderSignIn: (provider: AuthProviderInfo) => void flow.signInWithProvider(provider),
     onCreateAccount: () => void flow.createAccount(),
     onClearAuthError: () => flow.setState({ kind: "auth" }),
     onRetryPreview: () => {
