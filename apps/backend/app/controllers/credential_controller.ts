@@ -70,6 +70,7 @@ function renderError(ctx: HttpContext, error: unknown) {
   if (error instanceof PostCommitError)
     return ctx.response.serviceUnavailable({
       error: 'Credential update completed, but a follow-up failed.',
+      code: 'CREDENTIAL_UPDATE_COMMITTED',
     })
   if (error instanceof CredentialUnavailableError)
     return ctx.response.serviceUnavailable({ error: error.message, code: error.code })

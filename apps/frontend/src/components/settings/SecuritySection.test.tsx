@@ -79,6 +79,55 @@ it("changes a password through the dialog and revokes other sessions", async () 
   expect(await screen.findByRole("status")).toHaveTextContent(m.settings_security_password_changed());
 });
 
+it("clears obsolete inputs and reports a committed password change when follow-up cleanup fails", async () => {
+  changePassword.mockResolvedValue({
+    data: null,
+    error: {
+      code: "CREDENTIAL_UPDATE_COMMITTED",
+      message: "Credential update completed, but a follow-up failed.",
+      status: 503,
+    },
+  });
+  renderSecurity({ passwordOpen: true });
+  fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
+    target: { value: "current-password" },
+  });
+  fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
+    target: { value: "a-strong-new-password" },
+  });
+  fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
+    target: { value: "a-strong-new-password" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: m.settings_security_change_password() }));
+
+  expect(await screen.findByRole("status")).toHaveTextContent(m.settings_security_password_changed_warning());
+  expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue("");
+  expect(screen.getByLabelText(m.settings_security_new_password())).toHaveValue("");
+  expect(screen.getByLabelText(m.settings_security_confirm_password())).toHaveValue("");
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+it("keeps an unconfirmed transport outcome explicit and does not call it a password change", async () => {
+  changePassword.mockRejectedValue(new TypeError("fetch failed"));
+  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  renderSecurity({ passwordOpen: true });
+  fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
+    target: { value: "current-password" },
+  });
+  fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
+    target: { value: "a-strong-new-password" },
+  });
+  fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
+    target: { value: "a-strong-new-password" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: m.settings_security_change_password() }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_security_err_password_outcome_unknown());
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  expect(screen.getByLabelText(m.settings_security_new_password())).toHaveValue("a-strong-new-password");
+  error.mockRestore();
+});
+
 it.each(["p".repeat(257), "𠀀".repeat(129)])(
   "rejects an oversized current password without altering or sending it",
   async (value) => {

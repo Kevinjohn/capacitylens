@@ -214,6 +214,7 @@ its identity row, the avatar has its own unlabeled visible column, followed by N
 Actions. The row scrolls horizontally on narrow screens. Long email
 addresses truncate like Team & access rows and reveal in full on pointer hover or keyboard focus.
 In password-capable modes it offers password change in a dialog for local-password identities; in SSO mode it shows the provider identity without password controls.
+A confirmed password change clears the dialog fields even if follow-up cleanup fails, and tells the user their new password is active. An uncertain transport result tells them to try signing in with the new password before submitting another change.
 The page hides active-session details. The in-memory demo never invents credential controls.
 Every persisted server session is authenticated. Company Settings contains
 company and device configuration only. The avatar is the signed-in user's own picture when the identity provider supplied one, initials
