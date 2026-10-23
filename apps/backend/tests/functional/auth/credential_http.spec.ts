@@ -366,6 +366,7 @@ test.group('Credential HTTP contract', (group) => {
       (change.body() as { error?: string }).error,
       'Credential update completed, but a follow-up failed.'
     )
+    assert.equal((change.body() as { code?: string }).code, 'CREDENTIAL_UPDATE_COMMITTED')
     assert.lengthOf(await db.from('user_session_index'), 1)
     const revoked = await withSession(client.get('/api/auth/me'), secondCookie).send()
     revoked.assertStatus(401)

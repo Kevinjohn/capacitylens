@@ -43,6 +43,8 @@ self-registration closes automatically and only the Sign in form below is reacha
 - Unauthenticated: the Sign in screen replaces the whole app — no company picker, no nav,
   no data; direct API reads (e.g. `GET /api/state`) return 401.
 - The form submits with Enter; a failed sign-in shows an inline alert and no navigation.
+- Opening or refreshing a nested app URL, including `/account/`, loads the authenticated company and planning data without returning to the site root.
+- A confirmed password update clears the old form values even when follow-up cleanup fails; an uncertain response gives recovery guidance without claiming the password stayed unchanged.
 - A correct password signs in without a CapacityLens authenticator or recovery-code challenge.
   Google may require MFA under the agency's provider policy; enabling company sign-in alone does not
   enable it.
@@ -77,6 +79,6 @@ self-registration closes automatically and only the Sign in form below is reacha
   invalidates the session (subsequent loads show Sign in again).
 - The Sign in screen passes an axe accessibility audit (no serious/critical violations).
 
-**Guide:** [Passwords and company sign-in](../../docs-src/company-login/index.md#passwords-and-company-sign-in),
+**Guide:** [Account](../../docs-src/using/account.md), [Passwords and company sign-in](../../docs-src/company-login/index.md#passwords-and-company-sign-in),
 [Set up Google sign-in](../../docs-src/company-login/set-up-company-login.md) and
 [Require company sign-in](../../docs-src/company-login/move-to-single-sign-on.md).
