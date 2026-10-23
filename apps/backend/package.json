@@ -81,7 +81,7 @@
     "@capacitylens/shared": "workspace:*",
     "@tuyau/core": "1.2.2",
     "@vinejs/vine": "4.4.0",
-    "adonisjs-account-kit": "file:../../vendor/adonisjs-account-kit/0f2ce0e67cfa3d23e11ffaa68e3b43d4f58c137a.tgz",
+    "adonisjs-account-kit": "file:../../vendor/adonisjs-account-kit/adonisjs-account-kit-0.1.1.tgz",
     "better-sqlite3": "13.0.3",
     "luxon": "^3.7.2",
     "reflect-metadata": "^0.2.2"
