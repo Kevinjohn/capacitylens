@@ -1,11 +1,16 @@
 import { randomUUID } from 'node:crypto'
-import type { ApiClient } from '@japa/api-client'
+import type { ApiClient, ApiRequest } from '@japa/api-client'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
 import { seed } from '@capacitylens/shared/data/seed'
 import { type AppData } from '@capacitylens/shared/types/entities'
 import { resetState } from '#services/state_repository'
-import { clearIdentities, createIdentity } from '../../helpers/identities.js'
+import {
+  clearIdentities,
+  createIdentity,
+  signIn as signInIdentity,
+} from '../../helpers/identities.js'
+import { asDataOwner } from '../../helpers/authenticated_data_fixture.js'
 
 export const accountId = 'a-studio'
 export const planningUrl = `/api/accounts/${accountId}/planning`
@@ -14,16 +19,8 @@ const password = 'batman-secret-2026'
 export const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
   request.header('sec-fetch-site', 'same-origin')
 
-export function session<
-  T extends {
-    header(name: string, value: string): T
-    setup(callback: () => void): T
-    withCookie(name: string, value: string): T
-  },
->(request: T, cookie: string): T {
-  return trusted(request).setup(() => {
-    request.withCookie('adonis-session', cookie)
-  })
+export function session<T extends ApiRequest>(request: T, cookie: string): T {
+  return asDataOwner(request, cookie)
 }
 
 export function configureAuth(cleanup: (callback: () => void) => void) {
@@ -55,11 +52,8 @@ export async function signIn(
 
 /** A real password sign-in opens another native session for an existing user. */
 export async function signInAgain(client: ApiClient, email: string) {
-  const signin = await trusted(client.post('/api/auth/sign-in')).json({ email, password }).send()
-  signin.assertStatus(200)
-  const cookie = signin.cookie('adonis-session')?.value
-  if (!cookie) throw new Error('Sign-in did not return a native session')
-  return cookie
+  const signInResult = await signInIdentity(client, email, password)
+  return signInResult.cookie
 }
 
 export async function resetPlanningFixture(): Promise<AppData> {
