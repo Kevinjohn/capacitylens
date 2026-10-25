@@ -1,3 +1,4 @@
+import logger from '@adonisjs/core/services/logger'
 import { test } from '@japa/runner'
 import { freshDatabase } from '../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
@@ -52,11 +53,21 @@ test.group('Backup diagnostics', (group) => {
   }) => {
     const root = mkdtempSync(join(tmpdir(), 'capacitylens-diagnostics-'))
     const original = env.get('CAPACITYLENS_BACKUP_DIR')
+    const warnings: unknown[][] = []
+    const originalWarn = logger.warn
+    logger.warn = ((...args: unknown[]) => {
+      warnings.push(args)
+    }) as typeof logger.warn
     try {
-      env.set('CAPACITYLENS_BACKUP_DIR', join(root, 'missing'))
+      env.set('CAPACITYLENS_BACKUP_DIR', join(root, 'PRIVATE_BACKUP_TOKEN'))
       const latest = await db.from('adonis_schema').select('name').orderBy('id', 'desc').first()
       const response = await owner.get('/api/diagnostics')
       assert.equal(response.status(), 200)
+      assert.deepEqual(warnings, [['Diagnostics could not inspect completed snapshots']])
+      const output = JSON.stringify(warnings)
+      assert.notInclude(output, root)
+      assert.notInclude(output, 'ENOENT')
+      assert.notInclude(output, 'PRIVATE_BACKUP_TOKEN')
       assert.deepEqual(response.body().server, {
         connectivity: 'ok',
         database: { status: 'ok' },
@@ -64,8 +75,40 @@ test.group('Backup diagnostics', (group) => {
         backup: { newestSnapshotAt: null },
       })
     } finally {
+      logger.warn = originalWarn
       env.set('CAPACITYLENS_BACKUP_DIR', original ?? '')
       rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  test('database inspection warnings omit private failures and preserve unavailable diagnostics', async ({
+    assert,
+  }) => {
+    const warnings: unknown[][] = []
+    const originalWarn = logger.warn
+    const originalFrom = db.from
+    logger.warn = ((...args: unknown[]) => {
+      warnings.push(args)
+    }) as typeof logger.warn
+    db.from = ((...args: Parameters<typeof db.from>) => {
+      if (args[0] === 'adonis_schema') throw new Error('PRIVATE_DATABASE_PATH_TOKEN')
+      return originalFrom.apply(db, args)
+    }) as typeof db.from
+    try {
+      const response = await owner.get('/api/diagnostics')
+      assert.equal(response.status(), 503)
+      assert.deepEqual(response.body().server, {
+        connectivity: 'ok',
+        database: { status: 'unavailable' },
+        schema: { migration: null },
+        backup: { newestSnapshotAt: null },
+      })
+      assert.deepEqual(warnings, [['Diagnostics could not read database state']])
+      assert.notInclude(JSON.stringify(warnings), 'PRIVATE_DATABASE_PATH_TOKEN')
+      assert.notInclude(JSON.stringify(response.body()), 'PRIVATE_DATABASE_PATH_TOKEN')
+    } finally {
+      logger.warn = originalWarn
+      db.from = originalFrom
     }
   })
 

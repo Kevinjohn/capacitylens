@@ -19,7 +19,7 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    * In debug mode, the exception handler will display verbose errors
    * with pretty printed stack traces.
    */
-  protected debug = !app.inProduction
+  protected debug = app.inDev
 
   /**
    * The method is used for handling errors and returning
@@ -116,6 +116,8 @@ export default class HttpExceptionHandler extends ExceptionHandler {
           code: 'VALIDATION_ERROR',
         })
     }
+    if (this.debug && error instanceof Error)
+      return ctx.response.internalServerError({ error: error.message, stack: error.stack })
     return ctx.response.internalServerError({ error: 'Internal server error.' })
   }
 

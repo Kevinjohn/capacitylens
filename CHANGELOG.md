@@ -9,6 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Show unexpected error details only in development, and keep backup diagnostic warnings free of private paths and failure details.
+
 - Load company and planning data correctly when opening or refreshing nested app URLs.
 - Explain when a password update succeeded but follow-up cleanup failed, clear obsolete form values, and give recovery guidance when the response is uncertain.
 
