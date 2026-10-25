@@ -1,8 +1,10 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import accountKit from 'adonisjs-account-kit/services/main'
-import { InvalidTokenError, PostCommitError } from 'adonisjs-account-kit/errors'
+import { InvalidTokenError } from 'adonisjs-account-kit/errors'
+import { passwordLengthFailure } from '@capacitylens/shared/domain/password'
 import env from '#start/env'
 import { currentAccount } from '#services/auth/current_actor'
+import { isCommittedFailure } from '#services/account_kit/committed'
 
 function tokenBody(value: unknown, extra: string[] = []): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
@@ -32,7 +34,7 @@ export default class VerificationController {
         result: await accountKit.emailVerification.send({ userId: account.id }),
       })
     } catch (error) {
-      if (!(error instanceof PostCommitError)) throw error
+      if (!isCommittedFailure(error)) throw error
       ctx.logger.warn({ code: 'VERIFICATION_DELIVERY_FAILED' }, 'Verification delivery failed')
       return ctx.response.serviceUnavailable({
         error: 'The confirmation email could not be sent. Try again later.',
@@ -58,7 +60,7 @@ export default class VerificationController {
   async complete(ctx: HttpContext) {
     proofHeaders(ctx)
     const body = tokenBody(ctx.request.body(), ['password'])
-    if (!body || typeof body.password !== 'string')
+    if (!body || typeof body.password !== 'string' || passwordLengthFailure(body.password))
       return ctx.response.badRequest({ error: 'Invalid confirmation request.' })
     try {
       await accountKit.emailVerification.complete({

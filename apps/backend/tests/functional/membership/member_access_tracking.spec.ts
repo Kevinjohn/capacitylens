@@ -465,17 +465,19 @@ test.group('company member access and tracking', (group) => {
     assert.equal(remembered.status, 'disabled')
     const enabledRemoved = await enable()
     enabledRemoved.assertStatus(200)
-    assert.isNull(await membership())
+    // Enabling a removed person restores them with the role they held when removed.
+    assert.include(await membership(), { role: 'editor', status: 'active' })
     assert.isNull(await restriction())
     const enabledDirectory = await signed(
       client.get('/api/accounts/a-studio/members'),
       ownerCookie
     ).send()
     enabledDirectory.assertStatus(200)
-    assert.isUndefined(
+    assert.include(
       enabledDirectory
         .body()
-        .members.find((member: { userId: string }) => member.userId === editorId)
+        .members.find((member: { userId: string }) => member.userId === editorId),
+      { membershipPresent: true, accessDisabled: false }
     )
   })
 

@@ -93,16 +93,26 @@ export default class ConfigurationProvider {
   }
 
   /**
-   * Expired sign-ins fail at once; pruning removes them hourly, and with them the session-bound
-   * proofs and restoration rows that cascade from each one.
+   * Expired sign-ins fail at once; pruning removes them at start and hourly, and with them the
+   * session-bound proofs and restoration rows that cascade from each one. Queued mail is sent after
+   * the request answers, so a transport failure is only visible here; the log carries the error
+   * name, never the message, which can hold an address or link.
    */
   async ready() {
+    const emitter = await this.app.container.make('emitter')
+    emitter.on('queued:mail:error', ({ error, mailerName }) => {
+      console.error('Queued mail delivery failed', {
+        mailer: mailerName,
+        error: error instanceof Error ? error.name : 'unknown',
+      })
+    })
     if (this.app.getEnvironment() !== 'web' || this.app.inTest) return
-    this.pruneTimer = setInterval(() => {
+    const prune = () =>
       accountKit.maintenance.prune().catch((error: unknown) => {
         console.error('Account sign-in pruning failed', error instanceof Error ? error.name : error)
       })
-    }, PRUNE_INTERVAL_MS)
+    void prune()
+    this.pruneTimer = setInterval(() => void prune(), PRUNE_INTERVAL_MS)
     this.pruneTimer.unref()
   }
 

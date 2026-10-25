@@ -10,6 +10,10 @@ export type AccessGate = "verify-email" | "admission" | "membership";
 export interface AdmissionSummary {
   approvalStatus: "pending" | "approved" | "rejected" | "revoked";
   requested: boolean;
+  /** Admission needs invitation evidence this identity does not have; approval alone cannot admit it. */
+  invitationMissing: boolean;
+  /** The confirmed address is outside the allowed domains. */
+  domainRefused: boolean;
 }
 
 /** Possible outcomes while resolving the current auth mode and user access. */

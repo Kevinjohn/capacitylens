@@ -3,6 +3,7 @@ import type { InvitationRole, MembershipStatus } from "@capacitylens/shared/acco
 import { isAccountRole, isMembershipStatus } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { accountClient } from "./accountClient";
+import type { AdmissionStatus } from "./accountClient";
 import { hasDuplicateIdentity } from "@/lib/hasDuplicateIdentity";
 import { isNullableString, isTimestamp, readCommandResult, readResult } from "./accessResult";
 import type { TeamAccessResult } from "./accessResult";
@@ -158,15 +159,28 @@ function parseDelivery(value: unknown): { emailed: boolean } | null {
   return isRecord(value) && typeof value.emailed === "boolean" ? { emailed: value.emailed } : null;
 }
 
-function parseAdmissionRequests(value: unknown): AdmissionRequest[] | null {
-  if (!isRecord(value) || !Array.isArray(value.items)) return null;
-  return value.items.flatMap((item: unknown) => {
-    if (!isRecord(item) || (typeof item.userId !== "string" && typeof item.userId !== "number")) return [];
-    if (typeof item.email !== "string" || !isNullableString(item.requestedAt)) return [];
-    const invitation = isRecord(item.invitation) ? item.invitation : null;
-    const role = invitation && typeof invitation.role === "string" ? invitation.role : null;
-    return [{ userId: String(item.userId), email: item.email, requestedAt: item.requestedAt, invitedRole: role }];
-  });
+type AdmissionPage = { requests: AdmissionRequest[]; nextCursor: string | null };
+
+function parseAdmissionPage(status: AdmissionStatus) {
+  return (value: unknown): AdmissionPage | null => {
+    if (!isRecord(value) || !Array.isArray(value.items) || !isNullableString(value.nextCursor ?? null)) return null;
+    const requests = value.items.flatMap((item: unknown) => {
+      if (!isRecord(item) || (typeof item.userId !== "string" && typeof item.userId !== "number")) return [];
+      if (typeof item.email !== "string" || !isNullableString(item.requestedAt)) return [];
+      const invitation = isRecord(item.invitation) ? item.invitation : null;
+      const role = invitation && typeof invitation.role === "string" ? invitation.role : null;
+      return [
+        {
+          userId: String(item.userId),
+          email: item.email,
+          requestedAt: item.requestedAt,
+          invitedRole: role,
+          approval: status,
+        },
+      ];
+    });
+    return { requests, nextCursor: typeof value.nextCursor === "string" ? value.nextCursor : null };
+  };
 }
 
 type SetMemberSignInTrackingOptions = { workspaceId: string; enabled: boolean };
@@ -252,8 +266,22 @@ export const teamAccessClient = {
     return readResult(await accountClient.resendInvitation(workspaceId, invitationId), parseDelivery);
   },
 
+  /** Every pending, declined and revoked record, read page by page; pending people come first. */
   async listAdmissionRequests(signal?: AbortSignal): Promise<TeamAccessResult<AdmissionRequest[]>> {
-    return readResult(await accountClient.listAdmissionRequests("pending", signal), parseAdmissionRequests);
+    const requests: AdmissionRequest[] = [];
+    for (const status of ["pending", "rejected", "revoked"] as const) {
+      let cursor: string | null = null;
+      do {
+        const page: TeamAccessResult<AdmissionPage> = await readResult(
+          await accountClient.listAdmissionRequests(status, cursor, signal),
+          parseAdmissionPage(status),
+        );
+        if (page.kind !== "ok") return page;
+        requests.push(...page.value.requests);
+        cursor = page.value.nextCursor;
+      } while (cursor);
+    }
+    return { kind: "ok", status: 200, value: requests };
   },
 
   async decideAdmission(userId: string, decision: "approve" | "reject"): Promise<TeamAccessResult<true>> {

@@ -290,3 +290,27 @@ describe("rejectionMessage", () => {
     expect(resolveRejectionMessage<true>({ kind: "ok", status: 204, value: true }, "fallback")).toBe("fallback");
   });
 });
+
+describe("teamAccessClient admission requests", () => {
+  it("reads every page of pending, declined and revoked records", async () => {
+    const row = (userId: string) => ({ userId, email: `${userId}@wayne.test`, requestedAt: null });
+    const list = vi.spyOn(accountClient, "listAdmissionRequests").mockImplementation(async (status, cursor) => {
+      if (status === "pending")
+        return cursor
+          ? json({ items: [row("dick")], nextCursor: null })
+          : json({ items: [row("jason")], nextCursor: "next" });
+      if (status === "rejected") return json({ items: [row("selina")], nextCursor: null });
+      return json({ items: [], nextCursor: null });
+    });
+
+    await expect(teamAccessClient.listAdmissionRequests()).resolves.toMatchObject({
+      kind: "ok",
+      value: [
+        { userId: "jason", approval: "pending" },
+        { userId: "dick", approval: "pending" },
+        { userId: "selina", approval: "rejected" },
+      ],
+    });
+    expect(list).toHaveBeenCalledWith("pending", "next", undefined);
+  });
+});

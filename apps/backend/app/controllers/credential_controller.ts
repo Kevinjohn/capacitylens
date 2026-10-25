@@ -3,13 +3,13 @@ import accountKit from 'adonisjs-account-kit/services/main'
 import {
   IdentityNotConfirmedError,
   InvalidTokenError,
-  PostCommitError,
   ThrottledError,
 } from 'adonisjs-account-kit/errors'
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password'
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
 import env from '#start/env'
 import { currentAccount, sessionGuard } from '#services/auth/current_actor'
+import { isCommittedFailure } from '#services/account_kit/committed'
 
 function fields(value: unknown, allowed: string[]): value is Record<string, unknown> {
   return (
@@ -93,7 +93,7 @@ export default class CredentialController {
           error: 'This link is invalid or expired.',
           code: 'INVALID_TOKEN',
         })
-      if (error instanceof PostCommitError) return ctx.response.serviceUnavailable(committed)
+      if (isCommittedFailure(error)) return ctx.response.serviceUnavailable(committed)
       throw error
     }
   }
@@ -121,7 +121,7 @@ export default class CredentialController {
           error: 'Current password is incorrect.',
           code: 'CURRENT_PASSWORD_INCORRECT',
         })
-      if (!(error instanceof PostCommitError)) throw error
+      if (!isCommittedFailure(error)) throw error
       outcome = 'committed'
     }
     await sessionGuard(ctx).terminate()

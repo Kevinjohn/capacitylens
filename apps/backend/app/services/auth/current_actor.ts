@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import app from '@adonisjs/core/services/app'
+import { errors as authErrors } from '@adonisjs/auth'
 import accountKit from 'adonisjs-account-kit/services/main'
 import { AccountAdmission, AdmissionRequiredError } from 'adonisjs-account-kit/admission'
 import { InvalidSessionError, UnverifiedEmailError } from 'adonisjs-account-kit/errors'
@@ -48,8 +49,10 @@ export async function accountInput(ctx: HttpContext): Promise<CurrentAccountInpu
   let user: User
   try {
     user = (await ctx.auth.use('web').authenticate()) as User
-  } catch {
-    throw new InvalidSessionError()
+  } catch (error) {
+    // Only a missing or rejected session is a sign-out; a database fault must surface as one.
+    if (error instanceof authErrors.E_UNAUTHORIZED_ACCESS) throw new InvalidSessionError()
+    throw error
   }
   const revision: unknown = ctx.session.get(revisionKey)
   const handle: unknown = ctx.session.get(handleKey)

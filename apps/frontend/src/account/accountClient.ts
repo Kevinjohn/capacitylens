@@ -9,6 +9,9 @@ import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from
 import { clearMemberResourceLink, resourceAvatarsUrl, setMemberResourceLink } from "./memberResourceClient";
 import { apiRouteUrl } from "@/api/queryClient";
 
+/** The admission records an Owner or Admin can act on; approved people are managed as members. */
+export type AdmissionStatus = "pending" | "rejected" | "revoked";
+
 interface ChangeMemberRoleInput {
   workspaceId: string;
   principalId: string;
@@ -198,8 +201,9 @@ export const accountClient = {
     });
   },
 
-  listAdmissionRequests(status: "pending", signal?: AbortSignal): Promise<Response> {
-    return apiFetch(`${apiRouteUrl("api.admission.index", {})}?status=${status}`, {
+  listAdmissionRequests(status: AdmissionStatus, cursor: string | null, signal?: AbortSignal): Promise<Response> {
+    const query = new URLSearchParams({ status, ...(cursor ? { cursor } : {}) });
+    return apiFetch(`${apiRouteUrl("api.admission.index", {})}?${query.toString()}`, {
       credentials: "include",
       ...(signal ? { signal } : {}),
     });

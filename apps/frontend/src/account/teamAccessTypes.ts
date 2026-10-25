@@ -45,4 +45,6 @@ export interface AdmissionRequest {
   requestedAt: string | null;
   /** The role an invitation offered, which completion grants when it is assignable. */
   invitedRole: string | null;
+  /** `pending` waits for a first decision; a declined or revoked person can still be approved. */
+  approval: "pending" | "rejected" | "revoked";
 }

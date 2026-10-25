@@ -2,7 +2,6 @@ import type { HttpContext } from '@adonisjs/core/http'
 import accountKit from 'adonisjs-account-kit/services/main'
 import {
   InvalidTokenError,
-  PostCommitError,
   RegistrationEmailAlreadyRegisteredError,
 } from 'adonisjs-account-kit/errors'
 import type { Invitation } from 'adonisjs-account-kit/types'
@@ -17,6 +16,7 @@ import { installationCompanyId, isInvitableRole } from '#services/account_kit/po
 import { invalidAdmission, missingAdmission } from '#services/admission/errors'
 import { signInWithPassword } from '#controllers/auth_controller'
 import db from '@adonisjs/lucid/services/db'
+import { isCommittedFailure } from '#services/account_kit/committed'
 
 function fields(value: unknown, allowed: string[]): value is Record<string, unknown> {
   return (
@@ -83,7 +83,7 @@ export default class InvitationsController {
       const invitation = await accountKit.invitations.send({ actorId, email, role: body.role })
       return ctx.response.created({ ...projection(invitation), emailed: true })
     } catch (error) {
-      if (!(error instanceof PostCommitError)) throw error
+      if (!isCommittedFailure(error)) throw error
       ctx.logger.warn({ code: 'INVITATION_DELIVERY_FAILED' }, 'Invitation delivery failed')
       return ctx.response.accepted({ committed: true, emailed: false })
     }
@@ -91,8 +91,15 @@ export default class InvitationsController {
 
   async index(ctx: HttpContext) {
     const actorId = await this.manager(ctx, ctx.params.accountId)
-    const page = await accountKit.invitations.list({ actorId, limit: 100 })
-    return ctx.response.ok({ invites: page.items.map(projection) })
+    // The Kit pages at 100; a small company's open invitations are read in full.
+    const invites = []
+    let cursor: string | undefined
+    do {
+      const page = await accountKit.invitations.list({ actorId, limit: 100, cursor })
+      invites.push(...page.items.map(projection))
+      cursor = page.nextCursor ?? undefined
+    } while (cursor)
+    return ctx.response.ok({ invites })
   }
 
   async resend(ctx: HttpContext) {
@@ -105,7 +112,7 @@ export default class InvitationsController {
       const invitation = await accountKit.invitations.resend({ actorId, invitationId: id })
       return ctx.response.ok({ ...projection(invitation), emailed: true })
     } catch (error) {
-      if (!(error instanceof PostCommitError)) throw error
+      if (!isCommittedFailure(error)) throw error
       return ctx.response.accepted({ committed: true, emailed: false })
     }
   }

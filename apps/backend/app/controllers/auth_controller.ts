@@ -4,7 +4,6 @@ import accountKit from 'adonisjs-account-kit/services/main'
 import {
   InvalidCredentialsError,
   InvalidSessionError,
-  PostCommitError,
   RegistrationEmailAlreadyRegisteredError,
 } from 'adonisjs-account-kit/errors'
 import type { CurrentAccountInput } from 'adonisjs-account-kit/types'
@@ -23,6 +22,7 @@ import { recordMemberSignIn } from '#services/membership/sign_in_tracking'
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password'
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
 import { MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings'
+import { isCommittedFailure } from '#services/account_kit/committed'
 
 function bodyFields(value: unknown, fields: string[]): value is Record<string, unknown> {
   return (
@@ -155,7 +155,7 @@ export default class AuthController {
           code: 'EMAIL_REGISTERED',
         })
       // The account exists; only the confirmation email may be missing, and it can be resent.
-      if (!(error instanceof PostCommitError)) throw error
+      if (!isCommittedFailure(error)) throw error
       ctx.logger.warn({ code: 'REGISTRATION_FOLLOW_UP_FAILED' }, 'Registration follow-up failed')
     }
     try {

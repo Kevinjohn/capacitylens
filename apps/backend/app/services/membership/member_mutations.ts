@@ -155,6 +155,24 @@ export async function removeMember(
     .where({ account_id: input.accountId, user_id: input.userId })
     .delete()
   await resetMemberSignIn(input.accountId, input.userId, trx)
+  // The person stays admitted and keeps their invitation evidence, so without a restriction they
+  // could recreate the membership themselves. Enable access is the administrator's way back.
+  const restricted = await trx
+    .from('account_access_restrictions')
+    .where({ account_id: input.accountId, principal_id: input.userId })
+    .first()
+  if (!restricted) {
+    const principal = await trx.from('users').where('id', input.userId).select('email').first()
+    const email = principal ? String(principal.email).trim().toLowerCase() : null
+    await trx.table('account_access_restrictions').insert({
+      id: newId(),
+      account_id: input.accountId,
+      principal_id: input.userId,
+      verified_email: email && (await hasConfirmedEmail(trx, input.userId, email)) ? email : null,
+      role: member.role,
+      created_at: new Date().toISOString(),
+    })
+  }
   await trx
     .from('memberships')
     .where({ account_id: input.accountId, user_id: input.userId })
@@ -193,6 +211,23 @@ export async function enableMemberAccess(
     .from('account_access_restrictions')
     .where({ account_id: input.accountId, principal_id: input.userId })
     .delete()
+  // A removed person returns with the role they held when removed, not their original invitation's.
+  const membership = await trx
+    .from('memberships')
+    .where({ account_id: input.accountId, user_id: input.userId })
+    .first()
+  if (!membership) {
+    const now = new Date().toISOString()
+    await trx.table('memberships').insert({
+      id: newId(),
+      account_id: input.accountId,
+      user_id: input.userId,
+      role: restriction.role,
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+    })
+  }
   await resetMemberSignIn(input.accountId, input.userId, trx)
   await advancePlanningRevision(trx, input.accountId)
   await writeAudit(trx, {

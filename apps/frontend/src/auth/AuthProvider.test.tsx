@@ -18,11 +18,23 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+/** A signed-in body defaults to an admitted member so each test states only the gate it exercises. */
+const admittedGates = {
+  emailVerified: true,
+  membershipRequired: false,
+  admission: { admitted: true, requirements: {} },
+};
+
 const me = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
+  new Response(
+    JSON.stringify(
+      status === 200 && body && typeof body === "object" && !Array.isArray(body) ? { ...admittedGates, ...body } : body,
+    ),
+    {
+      status,
+      headers: { "content-type": "application/json" },
+    },
+  );
 
 async function freshProvider() {
   vi.resetModules();
@@ -757,9 +769,12 @@ function registerServerModeTest27() {
 
 function registerServerModeTest28() {
   it.each([
-    [{ emailVerified: false, admission: { admitted: false } }, "access-verify-email"],
-    [{ emailVerified: true, admission: { admitted: false } }, "access-admission"],
-    [{ emailVerified: true, admission: { admitted: true }, membershipRequired: true }, "access-membership"],
+    [{ emailVerified: false, admission: { admitted: false, requirements: {} } }, "access-verify-email"],
+    [{ emailVerified: true, admission: { admitted: false, requirements: {} } }, "access-admission"],
+    [
+      { emailVerified: true, admission: { admitted: true, requirements: {} }, membershipRequired: true },
+      "access-membership",
+    ],
   ])("holds a signed-in identity on its limited screen until every gate passes (%o)", async (gates, screenId) => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     const onTenantAccessReady = vi.fn();
@@ -1023,7 +1038,7 @@ function registerAccountPolicyTest05() {
       </AuthProvider>,
     );
     expect(await screen.findByRole("heading", { name: "Unable to verify your session" })).toBeInTheDocument();
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("unexpected authMode"));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("unexpected body"));
   });
 }
 
@@ -1046,7 +1061,7 @@ function registerAccountPolicyTest09() {
       expect(screen.queryByText("app-content")).not.toBeInTheDocument();
       view.unmount();
     }
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("unexpected authMode"));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("unexpected body"));
   });
 }
 

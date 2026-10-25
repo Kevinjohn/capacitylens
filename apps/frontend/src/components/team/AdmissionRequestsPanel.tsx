@@ -19,7 +19,10 @@ async function fetchListing(signal?: AbortSignal): Promise<Listing> {
   }
 }
 
-/** Lists people waiting for admission and lets an Owner or Admin approve or decline each one. */
+/**
+ * Lists people waiting for admission and lets an Owner or Admin approve or decline each one. Declined
+ * and revoked people stay listed so a mistaken decision can be reversed.
+ */
 export function AdmissionRequestsPanel() {
   const [listing, setListing] = useState<Listing>({ kind: "loading" });
   const [busy, setBusy] = useState(false);
@@ -53,7 +56,7 @@ export function AdmissionRequestsPanel() {
   };
 
   return (
-    <Card data-testid="admission-requests" aria-busy={busy}>
+    <Card data-testid="admission-requests" aria-busy={busy || listing.kind === "loading"}>
       <CardHeader>
         <CardTitle>
           <h2>{m.settings_admission_heading()}</h2>
@@ -61,10 +64,27 @@ export function AdmissionRequestsPanel() {
         <CardDescription>{m.settings_admission_intro()}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
-        {listing.kind === "failed" && (
-          <p role="alert" className="text-sm text-danger">
-            {m.settings_admission_load_failed()}
+        {listing.kind === "loading" && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {m.settings_admission_loading()}
           </p>
+        )}
+        {listing.kind === "failed" && (
+          <div className="flex flex-wrap items-center gap-2">
+            <p role="alert" className="text-sm text-danger">
+              {m.settings_admission_load_failed()}
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setListing({ kind: "loading" });
+                void load();
+              }}
+            >
+              {m.settings_admission_retry()}
+            </Button>
+          </div>
         )}
         {listing.kind === "ready" && listing.requests.length === 0 && (
           <p className="text-sm text-muted-foreground">{m.settings_admission_empty()}</p>
@@ -84,6 +104,13 @@ export function AdmissionRequestsPanel() {
                       {m.settings_admission_role({ role: resolveRoleLabel(request.invitedRole) })}
                     </span>
                   )}
+                  {request.approval !== "pending" && (
+                    <span className="text-xs text-muted-foreground" data-testid="admission-decided">
+                      {request.approval === "rejected"
+                        ? m.settings_admission_declined()
+                        : m.settings_admission_revoked()}
+                    </span>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -95,16 +122,18 @@ export function AdmissionRequestsPanel() {
                   >
                     {m.settings_admission_approve()}
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    data-testid="admission-reject"
-                    aria-label={m.settings_admission_reject_aria({ email: request.email })}
-                    disabled={busy}
-                    onClick={() => void decide(request, "reject")}
-                  >
-                    {m.settings_admission_reject()}
-                  </Button>
+                  {request.approval === "pending" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      data-testid="admission-reject"
+                      aria-label={m.settings_admission_reject_aria({ email: request.email })}
+                      disabled={busy}
+                      onClick={() => void decide(request, "reject")}
+                    >
+                      {m.settings_admission_reject()}
+                    </Button>
+                  )}
                 </div>
               </li>
             ))}

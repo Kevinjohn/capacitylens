@@ -1242,6 +1242,8 @@
   "limited_admission_waiting": "Your request has been sent. An Owner or Admin will approve your access.",
   "limited_admission_request": "Ask for access",
   "limited_admission_refused": "Your access to this company was declined or withdrawn. Ask an Owner or Admin if you think this is a mistake.",
+  "limited_admission_invitation": "This company admits invited people only, and there is no invitation for this address. Ask your administrator to record one.",
+  "limited_admission_domain": "This company does not accept addresses on your email domain. Sign out and use your work address.",
   "limited_membership_heading": "Join the company",
   "limited_membership_body": "Your access is approved. Join the company to start using it.",
   "limited_membership_join": "Join company",
@@ -1267,7 +1269,7 @@
   "settings_invite_resent": "A new invitation link was emailed to {email}.",
   "settings_invite_resend_failed": "Could not resend the invitation.",
   "settings_admission_heading": "Waiting for approval",
-  "settings_admission_intro": "People who signed in and asked for access. Approving lets them join with the role their invitation offered, or Viewer.",
+  "settings_admission_intro": "People who signed in and asked for access. Approving lets them join with the role their invitation offered, or Viewer. Declined people stay here so you can approve them later.",
   "settings_admission_empty": "Nobody is waiting for approval.",
   "settings_admission_approve": "Approve",
   "settings_admission_reject": "Decline",
@@ -1275,6 +1277,10 @@
   "settings_admission_reject_aria": "Decline access for {email}",
   "settings_admission_failed": "Could not record the decision. Try again.",
   "settings_admission_load_failed": "Could not load the people waiting for approval.",
+  "settings_admission_loading": "Loading people waiting for approval…",
+  "settings_admission_retry": "Try again",
+  "settings_admission_declined": "Declined",
+  "settings_admission_revoked": "Approval revoked",
   "settings_admission_role": "Invited as {role}",
   "invite_err_name_required": "Enter your name."
 }

@@ -2,6 +2,7 @@ import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
 import db from '@adonisjs/lucid/services/db'
 import limiter from '@adonisjs/limiter/services/main'
+import mailService from '@adonisjs/mail/services/main'
 import env from '#start/env'
 import { resetState } from '#services/state_repository'
 import { freshDatabase } from '../../helpers/fresh_database.js'
@@ -151,6 +152,38 @@ test.group('company invitations', (group) => {
     await expectStatus(invite(client, adminCookie, invitee, 'admin'), 201)
     await expectStatus(invite(client, ownerCookie, 'diana.prince@wayne.example'), 409)
     assert.lengthOf(await db.from('account_invitations'), 1)
+  })
+
+  test('a failed invitation email reports the committed invitation without repeating it', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    captureMail(cleanup)
+    await company()
+    const { cookie } = await signIn(client, owner)
+    const sendLater = mailService.sendLater
+    mailService.sendLater = async () => {
+      throw new Error('The mail transport refused the message.')
+    }
+    cleanup(() => {
+      mailService.sendLater = sendLater
+    })
+    const sent = await invite(client, cookie, invitee)
+    sent.assertStatus(202)
+    assert.deepEqual(sent.body(), { committed: true, emailed: false })
+    assert.lengthOf(await db.from('account_invitations'), 1)
+    const listed = await asDataOwner(
+      client.get(`/api/accounts/${accountId}/invites`),
+      cookie
+    ).send()
+    const { id } = (listed.body() as { invites: { id: number }[] }).invites[0]
+    const resent = await asDataOwner(
+      client.post(`/api/accounts/${accountId}/invites/${id}/resend`),
+      cookie
+    ).send()
+    resent.assertStatus(202)
+    assert.deepEqual(resent.body(), { committed: true, emailed: false })
   })
 
   test('a resent invitation replaces its link and a revoked one stops working', async ({

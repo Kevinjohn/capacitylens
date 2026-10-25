@@ -135,6 +135,9 @@ function AdmissionStep({
   onRefresh: () => Promise<void>;
 }) {
   const step = useStep();
+  // Approval cannot admit someone who lacks invitation evidence or an allowed address.
+  if (admission?.domainRefused) return <p className="text-sm">{m.limited_admission_domain()}</p>;
+  if (admission?.invitationMissing) return <p className="text-sm">{m.limited_admission_invitation()}</p>;
   const refused = admission?.approvalStatus === "rejected" || admission?.approvalStatus === "revoked";
   if (refused) return <p className="text-sm">{m.limited_admission_refused()}</p>;
   return (

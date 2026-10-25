@@ -200,6 +200,40 @@ test.group('address confirmation', (group) => {
     await limiter.clear()
   })
 
+  test('a removed member cannot rejoin on their own; Enable access restores the role held at removal', async ({
+    client: api,
+    assert,
+  }) => {
+    const ownerSession = await company(api)
+    const userId = await invitedIdentity('admin')
+    const admission = await app.container.make(AccountAdmission)
+    await admission.operator.approve({ email: person })
+    const { cookie } = await signIn(api, person, password)
+    const joined = await as(cookie).post(api, '/api/admission/complete')
+    joined.assertStatus(200)
+    assert.equal(joined.body().role, 'admin')
+    const asOwner = (method: 'patch' | 'delete' | 'post', path: string) =>
+      asDataOwner(
+        api[method](`/api/accounts/${accountId}/members/${userId}${path}`),
+        ownerSession.cookie
+      )
+    const demoted = await asOwner('patch', '').json({ role: 'viewer' }).send()
+    demoted.assertStatus(200)
+    const removed = await asOwner('delete', '').send()
+    removed.assertStatus(204)
+
+    await expectStatus(as(cookie).post(api, '/api/admission/complete'), 403)
+    await expectStatus(planning(api, cookie), 403)
+    assert.lengthOf(await db.from('memberships').where('user_id', userId), 0)
+
+    const enabled = await asOwner('post', '/enable-access').send()
+    enabled.assertStatus(200)
+    const membership = await db.from('memberships').where('user_id', userId).first()
+    assert.equal(membership?.role, 'viewer')
+    assert.equal(membership?.status, 'active')
+    await expectStatus(planning(api, cookie), 200)
+  })
+
   test('an unconfirmed identity confirms its address with the emailed link and chooses its password', async ({
     client: api,
     assert,
@@ -220,6 +254,12 @@ test.group('address confirmation', (group) => {
     assert.isTrue(await inspect())
     assert.isTrue(await inspect(), 'inspection does not spend the link')
     const chosen = 'confirmed-password-2026'
+    // Eight emoji are sixteen UTF-16 units but eight characters, under the fifteen-character minimum.
+    for (const refused of ['😀'.repeat(8), 'a'.repeat(129)])
+      await expectStatus(
+        as(cookie).post(api, '/api/auth/verification/complete', { token, password: refused }),
+        400
+      )
     const confirmed = await as(cookie).post(api, '/api/auth/verification/complete', {
       token,
       password: chosen,

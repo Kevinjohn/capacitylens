@@ -55,30 +55,37 @@ function parseLoginResult(body: unknown): AuthStatusResult {
 
 const APPROVAL_STATUSES = new Set(["pending", "approved", "rejected", "revoked"]);
 
-/** Reads the approval part of the Account Kit decision; null when the field is malformed. */
+/** Reads the Account Kit decision the limited screen explains; null when the field is malformed. */
 function parseAdmission(value: unknown): { admitted: boolean; summary: AdmissionSummary } | null {
-  if (!isRecord(value) || typeof value.admitted !== "boolean") return null;
-  const requirements = isRecord(value.requirements) ? value.requirements : {};
+  if (!isRecord(value) || typeof value.admitted !== "boolean" || !isRecord(value.requirements)) return null;
+  const { requirements } = value;
   const approval = isRecord(requirements.approval) ? requirements.approval : {};
   const status =
     typeof approval.status === "string" && APPROVAL_STATUSES.has(approval.status) ? approval.status : "pending";
+  const invitation = isRecord(requirements.invitation) ? requirements.invitation : null;
+  const domain = isRecord(requirements.domain) ? requirements.domain : null;
   return {
     admitted: value.admitted,
-    summary: { approvalStatus: status as AdmissionSummary["approvalStatus"], requested: approval.requested === true },
+    summary: {
+      approvalStatus: status as AdmissionSummary["approvalStatus"],
+      requested: approval.requested === true,
+      invitationMissing: invitation?.met === false,
+      domainRefused: domain?.met === false && domain.reason === "not_allowed",
+    },
   };
 }
 
 /** The first limited screen that applies, in the order the server enforces them. */
-function resolveAccessGate(fields: AuthResponseFields, admitted: boolean | null): AccessGate | undefined {
+function resolveAccessGate(fields: AuthResponseFields, admitted: boolean): AccessGate | undefined {
   if (fields.emailVerified === false) return "verify-email";
-  if (admitted === false) return "admission";
+  if (!admitted) return "admission";
   if (fields.membershipRequired === true) return "membership";
   return undefined;
 }
 
 /** Reject identity responses whose mode cannot be trusted. */
 export function invalidResponse(): AuthStatusResult {
-  console.warn("AuthProvider: /api/auth/me returned an unexpected authMode; nothing trustworthy learned");
+  console.warn("AuthProvider: /api/auth/me returned an unexpected body; nothing trustworthy learned");
   return { kind: "error", message: m.auth_service_invalid_response() };
 }
 
@@ -92,7 +99,10 @@ function parsePassResult(body: unknown): AuthStatusResult {
     return { kind: "error", message: m.auth_service_invalid_response() };
   }
   const admission = parseAdmission(fields.admission);
-  const accessGate = resolveAccessGate(fields, admission?.admitted ?? null);
+  // A missing gate field must not open the shell; the server still refuses data either way.
+  if (!admission || typeof fields.emailVerified !== "boolean" || typeof fields.membershipRequired !== "boolean")
+    return invalidResponse();
+  const accessGate = resolveAccessGate(fields, admission.admitted);
   const next: Extract<AuthStatusResult, { kind: "pass" }> = {
     kind: "pass",
     identitySource: "live",
@@ -101,7 +111,7 @@ function parsePassResult(body: unknown): AuthStatusResult {
     canCreateAccount: false,
     companySetupRequired: fields.companySetupRequired === true,
     ...(accessGate ? { accessGate } : {}),
-    ...(admission ? { admission: admission.summary } : {}),
+    admission: admission.summary,
   };
   return next;
 }
