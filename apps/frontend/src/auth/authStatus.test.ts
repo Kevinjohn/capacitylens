@@ -1,32 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { parseAuthProviders } from "./authStatus";
 import { masqueradeApi } from "./masqueradeApi";
-
-describe("parseAuthProviders", () => {
-  it.each([undefined, "generic", "google", "microsoft"])(
-    "rejects retired generic providers regardless of brand %s",
-    (brand) => {
-      expect(parseAuthProviders([{ id: "sso", label: "Google", kind: "oidc", experimental: false, brand }])).toEqual(
-        [],
-      );
-    },
-  );
-
-  it("drops deferred and retired providers even if the server advertises them", () => {
-    expect(
-      parseAuthProviders([
-        { id: "microsoft", label: "Microsoft", kind: "social", brand: "google", experimental: true },
-        { id: "github", label: "GitHub", kind: "social", experimental: true },
-      ]),
-    ).toEqual([]);
-  });
-
-  it("preserves Google social presentation from an older server without brand metadata", () => {
-    expect(parseAuthProviders([{ id: "google", label: "Google", kind: "social", experimental: true }])).toEqual([
-      { id: "google", label: "Google", kind: "social", experimental: true, brand: "google" },
-    ]);
-  });
-});
 
 it.each([true, false, undefined, "true"])("parses the signed-out reset-email flag %s", async (passwordResetEmail) => {
   const { accountClient } = await import("@/account/accountClient");
@@ -58,7 +31,6 @@ describe("fetchAuthStatus when masquerade status is unreachable", () => {
         JSON.stringify({
           authMode: "password-only",
           canCreateAccount: false,
-          providers: [],
           user: { id: "real-user", email: "real@example.test", name: "Real User" },
         }),
         { status: 200 },

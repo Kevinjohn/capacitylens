@@ -146,7 +146,7 @@ function registerServerModeTest02() {
           user: { id: "u1", email: "a@b.test" },
         }),
       )
-      .mockResolvedValue(me(401, { authMode: "password-only", providers: [] }));
+      .mockResolvedValue(me(401, { authMode: "password-only" }));
     vi.stubGlobal("fetch", fetchSpy);
     const { AuthProvider, useStore } = await freshProvider();
     const { queryClient } = await import("@/api/queryClient");
@@ -181,7 +181,7 @@ function registerServerModeTest03() {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => me(401, { authMode: "password-only", providers: [] })),
+      vi.fn(async () => me(401, { authMode: "password-only" })),
     );
     const onTenantAccessReady = vi.fn();
     const { AuthProvider } = await freshProvider();
@@ -367,7 +367,7 @@ function registerServerModeTest09() {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => me(401, { authMode: "password-only", providers: [] })),
+      vi.fn(async () => me(401, { authMode: "password-only" })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -386,51 +386,11 @@ function registerServerModeTest09() {
 
 function registerServerModeTest10() {}
 
-function registerServerModeTest11() {
-  it("rejects duplicate provider identities instead of rendering order-dependent sign-in choices", async () => {
-    vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        me(401, {
-          authMode: "sso-only",
-          providers: [
-            {
-              id: "google",
-              label: "Google",
-              kind: "social",
-              experimental: false,
-            },
-            {
-              id: "google",
-              label: "Other label",
-              kind: "social",
-              experimental: false,
-            },
-          ],
-        }),
-      ),
-    );
-    const { AuthProvider } = await freshProvider();
-    render(
-      <AuthProvider>
-        <div>app-content</div>
-      </AuthProvider>,
-    );
-
-    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /sign in with|continue with/i })).not.toBeInTheDocument();
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("duplicate provider identities"));
-  });
-}
-
 function registerServerModeTest12() {}
 
 function registerServerModeTest13() {
-  it("DEFECT A — a 401 whose body OMITS the providers array still lands on the password sign-in wall (version-skew)", async () => {
-    // An older/version-skewed server that predates the providers array must not strand the signed-out
-    // user on a terminal 'invalid configuration' screen. A 401 always offers a way in.
+  it("DEFECT A — a password-only 401 lands on the sign-in wall without a degraded notice", async () => {
+    // A 401 always offers a way in, never a terminal 'invalid configuration' screen.
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
       "fetch",
@@ -446,8 +406,7 @@ function registerServerModeTest13() {
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
     expect(screen.queryByText("The authentication service returned an invalid configuration.")).not.toBeInTheDocument();
-    // Merely omitting `providers` is old-server compatibility, not a malformed body, the explicit
-    // authMode is still a trustworthy signal, so no degraded notice.
+    // The explicit authMode is a trustworthy signal, so no degraded notice.
     expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument();
   });
 }
@@ -470,8 +429,7 @@ function registerServerModeTest14() {
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
-    // The body couldn't be trusted at all. This fallback is a guess, not a confirmed password-mode
-    // signal, so the login wall must hint that an SSO-only instance could be hiding behind it.
+    // The body couldn't be trusted at all, so the login wall says its configuration is a guess.
     expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument();
   });
 }
@@ -483,7 +441,7 @@ function registerServerModeTest15() {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => me(401, { authMode: "bogus", providers: [] })),
+      vi.fn(async () => me(401, { authMode: "bogus" })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -543,7 +501,7 @@ function registerServerModeTest18() {
       vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
       vi.stubGlobal(
         "fetch",
-        vi.fn(async () => me(401, { authMode: "password-only", providers: [] })),
+        vi.fn(async () => me(401, { authMode: "password-only" })),
       );
       const { AuthProvider } = await freshProvider();
       render(
@@ -560,25 +518,13 @@ function registerServerModeTest18() {
 }
 
 function registerServerModeTest19() {
-  it("SSO invite routes render before sign-in so the provider callback preserves the token", async () => {
+  it("invite routes render before sign-in so the acceptance form keeps the token", async () => {
     window.history.pushState({}, "", "/invite/invite-token");
     try {
       vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
       vi.stubGlobal(
         "fetch",
-        vi.fn(async () =>
-          me(401, {
-            authMode: "sso-only",
-            providers: [
-              {
-                id: "google",
-                label: "Google",
-                kind: "social",
-                experimental: false,
-              },
-            ],
-          }),
-        ),
+        vi.fn(async () => me(401, { authMode: "password-only" })),
       );
       const { AuthProvider } = await freshProvider();
       render(
@@ -599,7 +545,7 @@ function registerServerModeTest20() {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => me(401, { authMode: "password-only", needsSetup: true, providers: [] })),
+      vi.fn(async () => me(401, { authMode: "password-only", needsSetup: true })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -620,7 +566,7 @@ function registerServerModeTest21() {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => me(401, { authMode: "password-only", needsSetup: "yes", providers: [] })),
+      vi.fn(async () => me(401, { authMode: "password-only", needsSetup: "yes" })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -794,7 +740,7 @@ function registerServerModeTest27() {
           user: { id: "u1", email: "a@b.test" },
         }),
       )
-      .mockResolvedValue(me(401, { authMode: "password-only", providers: [] }));
+      .mockResolvedValue(me(401, { authMode: "password-only" }));
     vi.stubGlobal("fetch", fetchSpy);
     const { AuthProvider, useStore } = await freshProvider();
     render(
@@ -846,7 +792,7 @@ function registerServerModeTest29() {
           user: { id: "u1", email: "a@b.test" },
         }),
       )
-      .mockResolvedValue(me(401, { authMode: "password-only", providers: [] }));
+      .mockResolvedValue(me(401, { authMode: "password-only" }));
     vi.stubGlobal("fetch", fetchSpy);
     const { AuthProvider, useStore, resetStoreWithAccount } = await freshProvider();
     render(
@@ -916,7 +862,7 @@ function registerServerModeTest31() {
         }),
       )
       .mockImplementationOnce(() => slow.promise)
-      .mockResolvedValue(me(401, { authMode: "password-only", providers: [] }));
+      .mockResolvedValue(me(401, { authMode: "password-only" }));
     vi.stubGlobal("fetch", fetchSpy);
     const { AuthProvider, useStore, useAuth } = await freshProvider();
     render(
@@ -954,7 +900,6 @@ describe("AuthProvider — server mode", () => {
   registerServerModeTest07();
   registerServerModeTest09();
   registerServerModeTest10();
-  registerServerModeTest11();
   registerServerModeTest12();
   registerServerModeTest13();
   registerServerModeTest14();

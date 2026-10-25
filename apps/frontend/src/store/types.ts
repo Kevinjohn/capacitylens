@@ -173,10 +173,6 @@ export interface StoreState extends StoreEntityActions {
    * `readStoredWeekSnapOverride`). The navigation snap (zoom / Prev-Next / date-picker) is
    * independent of this flag. */
   weekSnapEnabled: boolean;
-  /** Cosmetic sign-in state for explicit demo builds with authentication off. Device-only
-   * and persisted separately from account data; false means cosmetically signed out.
-   */
-  fakeSignedIn: boolean;
   /** Current company role or a fail-closed Viewer projection while role resolution is
    * pending or unavailable. Null applies when identity roles are not applicable.
    * Transient; the store guard supplements independent server authorization.
@@ -246,8 +242,6 @@ export interface StoreState extends StoreEntityActions {
   setSidebarOpen: (open: boolean) => void;
   /** Toggle the minimise-weekends preference: persist and update state. */
   setMinimiseWeekends: (value: boolean) => void;
-  /** Set the cosmetic fake-sign-in state: persist and update state. */
-  setFakeSignedIn: (value: boolean) => void;
   /** Publishes the current role or fail-closed Viewer projection and its resolution status.
    * Transient and excluded from persistence and undo history.
    */
@@ -258,10 +252,6 @@ export interface StoreState extends StoreEntityActions {
   setMasquerade: (state: MasqueradeRuntimeState) => void;
   /** Empty both undo and redo stacks. */
   clearUndoHistory: () => void;
-  /** Signs out of cosmetic demo chrome, clearing company selection, the back target and
-   * the device sign-in flag. Real authentication remains owned by the auth boundary.
-   */
-  signOutDemo: () => void;
   /** Restore the previous data snapshot, if any. */
   undo: () => void;
   /** Re-apply the most recently undone snapshot, if any. */

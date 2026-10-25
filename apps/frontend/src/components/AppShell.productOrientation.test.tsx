@@ -25,7 +25,6 @@ afterEach(() => {
 
 beforeEach(() => {
   serverFlag.on = false;
-  useStore.getState().setFakeSignedIn(true);
   useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount()] }));
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   useStore.getState().setHydrated(true);

@@ -210,15 +210,3 @@ export const [readStoredMinimiseWeekends, writeStoredMinimiseWeekends] = createB
 export const WEEK_SNAP_OVERRIDE_KEY = "snapToWeekStart";
 /** Reads the optional browser-test override for snapping to week starts. */
 export const [readStoredWeekSnapOverride] = createBooleanPreference({ key: WEEK_SNAP_OVERRIDE_KEY, fallback: true });
-
-// "Fake sign-in": a cosmetic demo gate shown before the account picker so a viewer sees a
-// "log in first, then pick a company" flow. Device-global like the prefs above (own key,
-// on/off string, not account data) and defaults off so the demo sign-in shows on first run.
-// This is not real auth. The real, server-authoritative seam is `src/auth/`. The flag is
-// flipped on by the demo sign-in screen and cleared by "Sign out". See
-// `src/components/FakeSignIn.tsx` and DECISIONS.md.
-/** Reads and writes the development-only fake sign-in preference. */
-export const [readStoredFakeSignedIn, writeStoredFakeSignedIn] = createBooleanPreference({
-  key: "fakeSignedIn",
-  fallback: false,
-});

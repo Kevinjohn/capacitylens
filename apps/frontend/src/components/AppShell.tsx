@@ -98,12 +98,10 @@ type GatedAppProps = {
   connectionError: ReturnType<typeof useStore.getState>["connectionError"];
   loadError: ReturnType<typeof useStore.getState>["loadError"];
   demoAuthActive: boolean;
-  fakeSignedIn: boolean;
   hasActiveAccount: boolean;
   allowWithoutActiveAccount: boolean;
   activeAccountId: ReturnType<typeof useStore.getState>["activeAccountId"];
   activeAccountLoadFailed: ReturnType<typeof useStore.getState>["activeAccountLoadFailed"];
-  onFakeSignIn: () => void;
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   activeAccount:
@@ -124,12 +122,10 @@ function GatedApp({
   connectionError,
   loadError,
   demoAuthActive,
-  fakeSignedIn,
   hasActiveAccount,
   allowWithoutActiveAccount,
   activeAccountId,
   activeAccountLoadFailed,
-  onFakeSignIn,
   sidebarOpen,
   setSidebarOpen,
   activeAccount,
@@ -154,13 +150,11 @@ function GatedApp({
       connectionError={connectionError}
       loadError={loadError}
       demoAuthActive={demoAuthActive}
-      fakeSignedIn={fakeSignedIn}
       hasActiveAccount={hasActiveAccount}
       allowWithoutActiveAccount={allowWithoutActiveAccount}
       activeAccountId={activeAccountId}
       activeAccountLoadFailed={activeAccountLoadFailed}
       activeAccountName={activeAccount?.name ?? m.account_load_fallback_name()}
-      onFakeSignIn={onFakeSignIn}
       onRetryActiveAccountLoad={() =>
         activeAccountId ? useStore.getState().refreshPlanning() : Promise.resolve(false)
       }
@@ -348,8 +342,6 @@ export function AppShell() {
     accounts.find((account) => account.id === activeAccountId) ??
     accountSummaries.find((a) => a.id === activeAccountId);
   const demoAuthActive = useDemoAuthActive();
-  const fakeSignedIn = useStore((state) => state.fakeSignedIn);
-  const setFakeSignedIn = useStore((state) => state.setFakeSignedIn);
   const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
   const navLinks = disciplinesEnabled ? LINKS : LINKS.filter(({ to }) => to !== "/disciplines");
   const accountRoute = matchPath({ path: ACCOUNT_LINK.to, end: true }, useLocation().pathname) !== null;
@@ -366,12 +358,10 @@ export function AppShell() {
         connectionError={connectionError}
         loadError={loadError}
         demoAuthActive={demoAuthActive}
-        fakeSignedIn={fakeSignedIn}
         hasActiveAccount={activeAccount !== undefined}
         allowWithoutActiveAccount={accountRoute || (masquerade.kind !== "inactive" && masquerade.state !== undefined)}
         activeAccountId={activeAccountId}
         activeAccountLoadFailed={activeAccountLoadFailed}
-        onFakeSignIn={() => setFakeSignedIn(true)}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
         activeAccount={activeAccount}

@@ -167,7 +167,6 @@ function LoginBoundary({
   return (
     <Suspense fallback={<AuthLoading message={m.auth_loading_sign_in()} />}>
       <LoginScreen
-        authMode={status.authMode}
         needsSetup={status.needsSetup}
         passwordResetEmail={status.passwordResetEmail}
         degraded={status.degraded}

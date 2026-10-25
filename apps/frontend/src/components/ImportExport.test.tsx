@@ -51,7 +51,6 @@ function renderTools(server = false) {
         authMode: server ? "password-only" : "off",
         user: server ? { id: "bruce", email: "bruce@wayne.example" } : null,
         canCreateAccount: false,
-        reauthMethod: "password",
         refreshAuth: async () => {},
         signOut: async () => {},
       }}

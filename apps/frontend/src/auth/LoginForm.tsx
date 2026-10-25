@@ -1,4 +1,3 @@
-import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { m } from "@/i18n";
 import { MAX_PASSWORD_INPUT_CODE_UNITS } from "@capacitylens/shared/domain/password";
 import type { Dispatch, FormEvent, SetStateAction } from "react";
@@ -14,7 +13,6 @@ type LoginIds = {
 };
 
 type LoginFormProps = {
-  authMode: "password-only" | "sso-only" | "password-and-sso";
   passwordAutoFocus: boolean;
   busy: boolean;
   error: string | null;
@@ -28,20 +26,17 @@ type LoginFormProps = {
   };
 };
 
-/** Shows the password sign-in form when the current auth mode allows passwords. */
+/** The password sign-in form. */
 export function LoginForm(props: LoginFormProps) {
-  if (allowsPasswordSignIn(props.authMode)) {
-    return (
-      <PasswordForm
-        autoFocus={props.passwordAutoFocus}
-        busy={props.busy}
-        error={props.error}
-        ids={props.ids}
-        passwordSignIn={props.passwordSignIn}
-      />
-    );
-  }
-  return null;
+  return (
+    <PasswordForm
+      autoFocus={props.passwordAutoFocus}
+      busy={props.busy}
+      error={props.error}
+      ids={props.ids}
+      passwordSignIn={props.passwordSignIn}
+    />
+  );
 }
 
 type PasswordFormProps = Pick<LoginFormProps, "busy" | "error" | "ids" | "passwordSignIn"> & {

@@ -12,7 +12,6 @@ async function freshBuildInfo() {
 }
 
 const client = {
-  signInMode: "sso-only",
   browser: {
     userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15",
     viewport: "1280×800",
@@ -212,12 +211,11 @@ describe("diagnostics projection privacy", () => {
 });
 
 describe("diagnostics client facts", () => {
-  it("adds the sign-in mode and browser details", async () => {
+  it("adds the browser details", async () => {
     const { readDiagnostics, formatDiagnostics } = await freshBuildInfo();
     const text = formatDiagnostics(readDiagnostics(null, undefined, client));
 
     for (const line of [
-      "Sign-in mode: sso-only",
       `User agent: ${client.browser.userAgent}`,
       "Viewport: 1280×800",
       "Time zone: Europe/London",

@@ -1,9 +1,8 @@
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
-import { allowsProviderSignIn } from "@capacitylens/shared/account/types";
 import { useStore } from "@/store/useStore";
 import { readApiError } from "@/lib/readApiError";
 import { m } from "@/i18n";
-import { isAuthMode, parseAuthProviders } from "./authStatus";
+import { isAuthMode } from "./authStatus";
 import type { AccessGate, AdmissionSummary, AuthStatusResult } from "./authStatus";
 import { parseAuthUser } from "./validateAuthUser";
 
@@ -16,9 +15,6 @@ interface AuthResponseFields {
   companySetupRequired: unknown;
   needsSetup: unknown;
   passwordResetEmail: unknown;
-  providers: unknown;
-  reauthMethod: unknown;
-  reauthProviderId: unknown;
   user: unknown;
 }
 
@@ -37,9 +33,6 @@ function parseAuthResponseFields(value: unknown): AuthResponseFields | null {
     companySetupRequired: readField(value, "companySetupRequired"),
     needsSetup: readField(value, "needsSetup"),
     passwordResetEmail: readField(value, "passwordResetEmail"),
-    providers: readField(value, "providers"),
-    reauthMethod: readField(value, "reauthMethod"),
-    reauthProviderId: readField(value, "reauthProviderId"),
     user: readField(value, "user"),
   };
 }
@@ -55,7 +48,6 @@ function parseLoginResult(body: unknown): AuthStatusResult {
     authMode,
     degraded,
     hadUnsavedChanges: useStore.getState().planning.pending !== null,
-    providers: allowsProviderSignIn(authMode) ? parseAuthProviders(fields?.providers) : [],
     needsSetup: fields?.needsSetup === true,
     passwordResetEmail: fields?.passwordResetEmail === true,
   };
@@ -110,9 +102,6 @@ function parsePassResult(body: unknown): AuthStatusResult {
     companySetupRequired: fields.companySetupRequired === true,
     ...(accessGate ? { accessGate } : {}),
     ...(admission ? { admission: admission.summary } : {}),
-    providers: authMode === "password-only" ? [] : parseAuthProviders(fields.providers),
-    reauthMethod: fields.reauthMethod === "provider" || authMode === "sso-only" ? "provider" : "password",
-    reauthProviderId: typeof fields.reauthProviderId === "string" ? fields.reauthProviderId : null,
   };
   return next;
 }

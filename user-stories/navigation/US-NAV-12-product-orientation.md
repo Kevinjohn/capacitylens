@@ -1,6 +1,6 @@
 # US-NAV-12 — See a concise explanation of how CapacityLens works
 
-**Area:** Navigation & shell · **Persona:** Anyone entering a company or the personal Account page · **Linked coverage:** `apps/frontend/src/components/ProductOrientation.test.tsx`, `apps/frontend/src/components/AppShell.productOrientation.test.tsx`, `apps/frontend/src/lib/productOrientation.test.ts`, `e2e/fake-signin.spec.ts`
+**Area:** Navigation & shell · **Persona:** Anyone entering a company or the personal Account page · **Linked coverage:** `apps/frontend/src/components/ProductOrientation.test.tsx`, `apps/frontend/src/components/AppShell.productOrientation.test.tsx`, `apps/frontend/src/lib/productOrientation.test.ts`, `e2e/product-orientation.spec.ts`
 
 **Documentation:** [What is CapacityLens?](../../docs-src/getting-started/what-is-capacitylens.md), [Editor journey](../../docs-src/using/editor.md), [Viewer journey](../../docs-src/using/viewer.md)
 

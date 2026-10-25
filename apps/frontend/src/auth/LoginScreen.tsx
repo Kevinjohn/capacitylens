@@ -1,5 +1,4 @@
 import { ForgotPassword } from "./ForgotPassword";
-import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { useEffect, useId, useState } from "react";
@@ -10,7 +9,6 @@ import { LoginForm } from "./LoginForm";
 import { usePasswordSignIn } from "./usePasswordSignIn";
 
 type LoginScreenProps = {
-  authMode: "password-only" | "sso-only" | "password-and-sso";
   needsSetup?: boolean;
   passwordResetEmail?: boolean;
   degraded?: boolean;
@@ -22,9 +20,8 @@ function useLoginIds() {
   return { email: useId(), password: useId(), error: useId() };
 }
 
-/** Renders the public sign-in screen for the current auth mode. */
+/** Renders the public password sign-in screen. */
 export function LoginScreen({
-  authMode,
   needsSetup = false,
   passwordResetEmail = false,
   degraded = false,
@@ -46,7 +43,6 @@ export function LoginScreen({
 
   return (
     <LoginView
-      authMode={authMode}
       needsSetup={needsSetup}
       passwordResetEmail={passwordResetEmail}
       degraded={degraded}
@@ -61,7 +57,6 @@ export function LoginScreen({
 }
 
 type LoginViewProps = {
-  authMode: "password-only" | "sso-only" | "password-and-sso";
   needsSetup: boolean;
   passwordResetEmail: boolean;
   degraded: boolean;
@@ -86,14 +81,13 @@ function LoginView(props: LoginViewProps) {
               needsSetup={props.needsSetup}
             />
             <LoginForm
-              authMode={props.authMode}
               passwordAutoFocus
               busy={props.busy}
               error={props.error}
               ids={props.ids}
               passwordSignIn={props.passwordSignIn}
             />
-            {props.passwordResetEmail && allowsPasswordSignIn(props.authMode) && <ForgotPassword />}
+            {props.passwordResetEmail && <ForgotPassword />}
           </CardContent>
         </Card>
       </main>

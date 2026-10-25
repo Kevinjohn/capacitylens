@@ -26,12 +26,9 @@ function registerValidDeepLinkPathSurvivesTest() {
       expect(directResponse?.status()).toBe(200);
       expect(directResponse?.headers()["content-type"]).toContain("text/html");
 
-      const signIn = page.getByTestId("fake-sign-in");
       const company = page.getByRole("button", { name: "Wayne Enterprises", exact: true });
       const destinationHeading = page.getByRole("heading", { name: heading, exact: true });
       if (path === "/account") {
-        await signIn.waitFor();
-        await signIn.click();
         await waitForAppLanding(page, destinationHeading);
         await expect(destinationHeading).toBeVisible();
         const reloadResponse = await page.reload();
@@ -40,8 +37,6 @@ function registerValidDeepLinkPathSurvivesTest() {
         await expect(destinationHeading).toBeVisible();
         return;
       }
-      await signIn.or(company).first().waitFor();
-      if (await signIn.isVisible()) await signIn.click();
       await company.click();
 
       await waitForAppLanding(page, destinationHeading);

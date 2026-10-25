@@ -17,13 +17,9 @@ vi.mock("@/components/settings/SecuritySection", () => ({
 import { AccountView } from "./AccountView";
 
 const signOut = vi.fn();
-function auth(
-  authMode: AuthContextValue["authMode"],
-  reauthMethod: AuthContextValue["reauthMethod"] = "password",
-): AuthContextValue {
+function auth(authMode: AuthContextValue["authMode"]): AuthContextValue {
   return {
     authMode,
-    reauthMethod,
     user: authMode === "off" ? null : { id: "u1", name: "Diana Prince", email: "diana@example.test" },
     canCreateAccount: true,
     refreshAuth: async () => {},
@@ -31,9 +27,9 @@ function auth(
   };
 }
 
-function renderAccount(mode: AuthContextValue["authMode"], method?: AuthContextValue["reauthMethod"]) {
+function renderAccount(mode: AuthContextValue["authMode"]) {
   return render(
-    <AuthContext.Provider value={auth(mode, method)}>
+    <AuthContext.Provider value={auth(mode)}>
       <AccountView />
     </AuthContext.Provider>,
   );
@@ -91,14 +87,6 @@ describe("AccountView", () => {
     expect(screen.getByLabelText("diana@example.test")).toHaveClass("truncate");
   });
 
-  it.each([
-    ["sso-only", "provider"],
-    ["password-and-sso", "provider"],
-  ] as const)("does not offer local password change for %s/%s", (mode, method) => {
-    renderAccount(mode, method);
-    expect(screen.queryByRole("button", { name: "Change password" })).not.toBeInTheDocument();
-  });
-
   it("does not invent credential controls when authentication is off", () => {
     renderAccount("off");
     expect(screen.queryByText("Sign-in is off")).not.toBeInTheDocument();
@@ -106,13 +94,13 @@ describe("AccountView", () => {
     expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
   });
 
-  it("shows the cosmetic demo identity without password controls", () => {
+  it("shows the demo identity without password or sign-out controls", () => {
     demoMode.active = true;
     try {
       renderAccount("off");
       expect(screen.getByText("Bruce Wayne")).toBeInTheDocument();
       expect(screen.queryByText("Demo access")).not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Change password" })).not.toBeInTheDocument();
     } finally {
       demoMode.active = false;

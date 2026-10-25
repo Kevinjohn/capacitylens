@@ -41,8 +41,7 @@ No setup link, `.env` file or database is needed.
 
 ## Open the sample company
 
-Select the sample sign-in on the **Choose an account** screen; there is no password. Then pick a
-company on **Choose a company**. The schedule opens with people, clients, projects and bookings
+Pick a company on **Choose a company**; there is no sign-in. The schedule opens with people, clients, projects and bookings
 already in place.
 
 ![The Schedule view with people grouped by discipline, allocation bars, utilisation percentages and a holiday block](../screenshots/flows/schedule.jpg)

@@ -55,6 +55,8 @@ test.describe("Beta company transfer in the demo", () => {
     await page.keyboard.press("Meta+z");
     await expect(page.getByText("Terry McGinnis")).toBeVisible();
     await page.reload();
+    await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();
+    await page.getByRole("link", { name: "Schedule", exact: true }).click();
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
     await expect(page.getByText("Terry McGinnis")).toHaveCount(0);
   });

@@ -27,7 +27,6 @@ The page shows exactly the text that is copied:
 - the app version, build revision, deployment mode and export schema;
 - server connectivity, database schema, persistence and backup status, as observed when the page
   opened (**Snapshot observed**);
-- the company's sign-in mode;
 - this browser session's save counters: failed saves, retries, reconciliations, superseded
   reloads, rebased and discarded edits, and whether saving is suspended;
 - the browser's user agent, window size, time zone and language.

@@ -1,5 +1,5 @@
 import { isAccountRole } from "./types.js";
-import type { IdentityAdminAction, Role } from "./types.js";
+import type { Role } from "./types.js";
 
 /** Company administration actions the role policy authorizes. */
 export type AccountAdminAction =
@@ -35,13 +35,6 @@ const MIN_ADMIN_TIER = {
   "act-on-ownership-transfer": "admin",
   "erase-workspace": "owner",
 } as const satisfies Record<AccountAdminAction, Role>;
-
-const IDENTITY_ADMIN_ACTIONS: ReadonlySet<IdentityAdminAction> = new Set([
-  "issue-password-reset",
-  "revoke-sessions",
-  "correct-email",
-  "remove-federated-link",
-]);
 
 /** Whether `role` ranks at or above `minimum` in the owner > admin > editor > viewer order. Pure. */
 export function isAtLeast(role: Role, minimum: Role): boolean {
@@ -142,44 +135,3 @@ export function canAdministerIdentityAcrossWorkspaces(
   }
   return true;
 }
-
-interface IdentityAdminActionInput {
-  action: IdentityAdminAction;
-  actorRolesByWorkspace: ReadonlyMap<string, Role>;
-  targetRolesByWorkspace: ReadonlyMap<string, Role>;
-  isSelf: boolean;
-}
-
-function evaluateIdentityAdminAction({
-  action,
-  actorRolesByWorkspace,
-  targetRolesByWorkspace,
-  isSelf,
-}: IdentityAdminActionInput): boolean {
-  // All supported operations alter identity-global security state and therefore intentionally use
-  // the same all-workspaces standing rule. Keep the action check so an unknown future operation is
-  // denied until its policy is explicitly classified.
-  if (!IDENTITY_ADMIN_ACTIONS.has(action)) return false;
-  return canAdministerIdentityAcrossWorkspaces(actorRolesByWorkspace, targetRolesByWorkspace, isSelf);
-}
-
-/**
- * Keeps identity administration decisions consistent with actor, target, and self-service
- * restrictions.
- */
-const canPerformIdentityAdminAction = function canPerformIdentityAdminAction(
-  ...[action, actorRolesByWorkspace, targetRolesByWorkspace, isSelf]: [
-    action: IdentityAdminAction,
-    actorRolesByWorkspace: ReadonlyMap<string, Role>,
-    targetRolesByWorkspace: ReadonlyMap<string, Role>,
-    isSelf: boolean,
-  ]
-): boolean {
-  return evaluateIdentityAdminAction({ action, actorRolesByWorkspace, targetRolesByWorkspace, isSelf });
-};
-
-// Function `length` is configurable by ECMAScript; retain the published four-argument runtime
-// contract while the rest-tuple implementation keeps the compatibility wrapper lint-clean.
-Object.defineProperty(canPerformIdentityAdminAction, "length", { value: 4 });
-
-export { canPerformIdentityAdminAction };

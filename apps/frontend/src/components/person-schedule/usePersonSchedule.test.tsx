@@ -30,7 +30,6 @@ function wrapper({
         value={{
           authMode,
           user: authMode === "off" ? null : { id: "viewer" },
-          providers: [],
           canCreateAccount: true,
           refreshAuth: async () => {},
           signOut: async () => {},

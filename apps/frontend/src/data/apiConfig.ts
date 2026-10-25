@@ -36,9 +36,8 @@ export const API_BASE = isDemoMode()
   ? ""
   : parseApiBase(readOptionalEnvironmentString(import.meta.env.VITE_CAPACITYLENS_API, "VITE_CAPACITYLENS_API"));
 
-/** Demo mode: an editable, in-memory seed that resets on refresh.
- * Note: this is the persistence demo, distinct from the cosmetic auth persona
- * (the cosmetic fake sign-in: `useDemoAuthActive`/`FakeSignIn`/`fakeAuth.ts`, keyed off authMode 'off'). */
+/** Demo mode: an editable, in-memory seed that resets on refresh. The demo identity shown in the
+ * shell (`fakeAuth.ts`) keys off authMode 'off', not this flag. */
 export function isDemoMode(): boolean {
   return import.meta.env.VITE_CAPACITYLENS_DEMO === "1";
 }

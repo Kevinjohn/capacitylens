@@ -79,7 +79,6 @@ export default class AuthController {
           return {
             authMode: 'password-only',
             user: userProjection(actor),
-            providers: [],
             canCreateAccount: false,
             emailVerified: actor.emailVerified,
             admission,
@@ -89,8 +88,6 @@ export default class AuthController {
               admitted &&
               Boolean(await trx.from('accounts').select('id').first()) &&
               !(await trx.from('memberships').where('user_id', actor.userId).first()),
-            reauthMethod: 'password',
-            reauthProviderId: null,
           }
         },
         { limited: true }
@@ -100,7 +97,6 @@ export default class AuthController {
       const hasUsers = Boolean(await db.from('users').select('id').first())
       return ctx.response.unauthorized({
         authMode: 'password-only',
-        providers: [],
         error: 'Sign-in required.',
         passwordResetEmail: Boolean(env.get('CAPACITYLENS_MAIL_HOST')),
         ...(!hasUsers ? { needsSetup: true } : {}),

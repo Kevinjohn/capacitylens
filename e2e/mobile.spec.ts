@@ -14,16 +14,13 @@ test.describe("portrait phone", () => {
 
   test("shows the rotate hint; dismissing it sticks for the session", async ({ page }) => {
     await page.goto("/");
-    // The hint rides over the demo sign-in (a phone user's first contact) just as it does
-    // the picker.
+    // The hint rides over the company picker, a phone user's first contact.
     const dialog = page.getByRole("dialog", { name: "Best in landscape" });
     await expect(dialog).toBeVisible();
     await dialog.getByRole("button", { name: "Got it" }).click();
     await expect(dialog).toBeHidden();
 
-    // Click through the demo sign-in so a reload lands on the picker (the sign-in flag
-    // persists; the session-scoped hint dismissal must still hold).
-    await page.getByTestId("fake-sign-in").click();
+    // The session-scoped hint dismissal must survive a reload.
     await page.reload();
     await expect(page.getByRole("button", { name: "Wayne Enterprises", exact: true })).toBeVisible();
     await expect(page.getByRole("dialog", { name: "Best in landscape" })).toBeHidden();
@@ -35,10 +32,12 @@ test.describe("portrait phone", () => {
     // feature directly on the page.
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
-    // Settle first: hydration swaps the loading shell for the demo sign-in, which remounts
-    // the hint. The modal makes that underlying screen inaccessible, so wait for its test ID
-    // to be attached rather than querying a hidden accessible role.
-    await expect(page.getByTestId("fake-sign-in")).toBeAttached();
+    // Settle first: hydration swaps the loading shell for the company picker, which remounts
+    // the hint. The modal makes that underlying screen inaccessible, so wait for the picker's
+    // button to be attached rather than querying a hidden accessible role.
+    await expect(
+      page.getByRole("button", { name: "Wayne Enterprises", exact: true, includeHidden: true }),
+    ).toBeAttached();
     const dialog = page.getByRole("dialog", { name: "Best in landscape" });
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveCSS("opacity", "1");

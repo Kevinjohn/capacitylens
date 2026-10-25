@@ -43,7 +43,7 @@ function parseBootstrapPrincipal(value: unknown): { id: string; name?: string | 
 }
 
 function isAccountMode(value: unknown): value is AccountMode {
-  return value === "password-only" || value === "sso-only" || value === "password-and-sso";
+  return value === "password-only";
 }
 
 export type MasqueradeBootstrapStatus = MasqueradeStatus & {

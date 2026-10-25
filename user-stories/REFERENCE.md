@@ -45,12 +45,7 @@ the inactive member directory. Owner and self protections apply to both actions.
    port-in-use error, another dev server is squatting 5173 — find it with
    `lsof -nP -iTCP:5173 -sTCP:LISTEN` and kill it (strict port is deliberate).
 2. **First run** seeds a demo dataset (see _Seed data_ below).
-3. CapacityLens opens on a **demo sign-in** — a cosmetic, Google-style _"Choose an account"_ screen
-   (the **Bruce Wayne** account; heading `Choose an account`). It is **not** real auth and
-   has **no** popup: click the single preview account to continue. It is shown only
-   only in the in-memory demo build and is skipped once the sample account is chosen (the choice persists
-   device-globally; "Sign out" on the picker or Account page returns to it).
-4. Production opens the sole company returned by the server and keeps the requested route. The
+3. Production opens the sole company returned by the server and keeps the requested route. The
    active company id remains session-only and is never persisted. If an installation contains
    multiple stored companies, the server returns an actionable conflict and the UI offers no
    selection controls. The temporary in-memory demo retains its fictional two-company picker and
@@ -80,13 +75,13 @@ the inactive member directory. Owner and self protections apply to both actions.
    The in-memory demo retains its picker, temporary company creation and switching.
    The server has no company deletion action. Whole-company anonymisation keeps the company,
    its Owner and memberships.
-5. The application opens with a non-blocking **How CapacityLens works** region
+4. The application opens with a non-blocking **How CapacityLens works** region
    (`data-testid="product-orientation"`) above the page. It explains the week-by-week people and
    work model and says CapacityLens does not manage tasks, tickets or deadlines. **Got it**
    dismisses it for this person and company on this device. It has no sidebar action for reopening.
    The versioned preference is implemented by
    `src/lib/productOrientation.ts`; it is never in `AppData` or an export.
-6. Every application page shows a **Getting started** progress bar (`data-testid="getting-started-progress"`)
+5. Every application page shows a **Getting started** progress bar (`data-testid="getting-started-progress"`)
    from 0 to 5. Its card (`data-testid="getting-started"`) opens by default on Schedule and can be
    shown or hidden from the bar on any page. The five independent milestones are **Add someone to
    the schedule**, **Add a client**, **Add a project to the client**, **Add an Activity**, and
@@ -112,8 +107,8 @@ the inactive member directory. Owner and self protections apply to both actions.
    with **Yes** and **No** choices. No leaves guidance available. A failed save leaves it available
    and surfaces an error. Editors can view and toggle the card but cannot dismiss permanently;
    Viewers see neither bar nor card. The old device-local dismissal never hides this guidance.
-7. To start from the seeded state again, reload the page. The demo is intentionally temporary.
-8. **If the page sticks on "Loading… / JavaScript isn't running"**, the browser is blocking
+6. To start from the seeded state again, reload the page. The demo is intentionally temporary.
+7. **If the page sticks on "Loading… / JavaScript isn't running"**, the browser is blocking
    scripts for the site (per-site JavaScript setting or a content-blocker extension — these
    also run in private windows when allowed). Enable JavaScript for the site and reload;
    no story can run without it.
@@ -852,7 +847,7 @@ timestamp captured by the client when the server response arrives or its failure
 server values are a point-in-time snapshot, not a live monitor, and copying does not request them
 again. The fixed allowlist is: app version, a validated build revision when present, deployment
 mode and export schema; separately labelled server connectivity, database status, last applied
-migration and newest completed snapshot modification time; the sign-in mode (`off`, `password-only`, `sso-only` or `password-and-sso`); this
+migration and newest completed snapshot modification time; this
 browser session's save counters (saves failed, retries armed, reconciliations resolved, reloads
 superseded, edits rebased, edits discarded, saving suspended); and the browser's user agent,
 viewport, time zone and language. A browser value outside its expected shape reads **Unknown**.
@@ -1168,16 +1163,10 @@ to **viewer**, the whole app goes **read-only**:
   `src/auth/permissionContext.ts`, off the pure `can`); story `user-stories/settings/US-SET-11-viewer-readonly.md`;
   spec `e2e/viewer.auth.spec.ts`.
 
-**Demo sign-in (cosmetic; not real auth).** In the `VITE_CAPACITYLENS_DEMO=1` build, a Google-style
-_"Choose an account"_ screen (heading `Choose an account`; the **Bruce Wayne** account row,
-`data-testid="fake-sign-in"`) is shown **before** the company
-picker, to preview a "log in first, then pick a company" flow. There is no password and no
-popup — the preview account advances. The signed-in state is a **device-global** flag
-(`capacitylens/fakeSignedIn`, default off; never in `AppData`/export), so it persists across reloads
-and is cleared by **Sign out** (on the picker or Account page). It is mounted only in the demo
-build, so it never collides with the real login wall above. Scheduling data remains in memory and
-resets when the page reloads. The persona lives in
-`src/lib/fakeAuth.ts` (avatar: `src/assets/avatar-demo.svg`).
+**Demo identity (not real auth).** The `VITE_CAPACITYLENS_DEMO=1` build opens straight on the
+company picker; there is no sign-in step and no Sign out. The sidebar and Account page show the
+fictional **Bruce Wayne** identity from `src/lib/fakeAuth.ts` (avatar: `src/assets/avatar-demo.svg`).
+Scheduling data remains in memory and resets when the page reloads.
 
 **Product orientation.** The application shell can show a normal-flow region headed **How
 CapacityLens works** (`data-testid="product-orientation"`) for every role and for the no-company
@@ -1187,7 +1176,7 @@ failure leaves it dismissed for the current mount. There is no sidebar action fo
 eligible entry can show it again when its preference is absent. Sources: `src/components/ProductOrientation.tsx`,
 `src/components/useProductOrientation.ts`, `src/lib/productOrientation.ts`; coverage:
 `src/components/AppShell.productOrientation.test.tsx`, `src/components/ProductOrientation.test.tsx`,
-`src/lib/productOrientation.test.ts`, and `e2e/fake-signin.spec.ts`.
+`src/lib/productOrientation.test.ts`, and `e2e/product-orientation.spec.ts`.
 
 ## Command palette
 
@@ -1255,7 +1244,6 @@ header tier), `capacity-overview-totals-cell`, `capacity-totals-committed`, `cap
 `company-closures-empty`, `company-closure-row`, `discipline-row`, `external-row`, `export-data`, `import-data`,
 `import-input`, `import-busy` (the server-mode "Importing data…" blocking dialog's status text —
 shown for the few seconds of POST + re-hydrate; not dismissable, locks all editing/switching),
-`fake-sign-in` (the demo sign-in's account row — demo build only),
 `account-load-recovery` (failed selected-company hydration; replaces the application shell until
 Retry succeeds; the demo also offers a return to its picker),
 `product-orientation` (the non-blocking **How CapacityLens works** region),

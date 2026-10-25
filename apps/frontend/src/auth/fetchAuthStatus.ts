@@ -38,9 +38,6 @@ async function readActiveMasqueradeAuthStatus(
       authMode: masquerade.authMode,
       user,
       canCreateAccount: false,
-      providers: [],
-      reauthMethod: "password",
-      reauthProviderId: null,
     };
     return next;
   } catch (error) {

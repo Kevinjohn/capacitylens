@@ -49,8 +49,8 @@ pnpm install
 pnpm run dev:demo
 ```
 
-Then open the **Local** address it prints (usually <http://127.0.0.1:5173>), select the sample
-sign-in on **Choose an account**, then pick a company on **Choose a company**.
+Then open the **Local** address it prints (usually <http://127.0.0.1:5173>), then pick a company
+on **Choose a company**.
 
 ## What you get
 

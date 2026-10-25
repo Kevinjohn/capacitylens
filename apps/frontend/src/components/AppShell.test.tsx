@@ -33,8 +33,7 @@ afterEach(() => {
 beforeEach(() => {
   i18nMocks.syncLocaleFromAccount.mockReset();
   runtimeFlags.serverMode = false;
-  // Sign through the cosmetic demo gate and seed an active account so these tests exercise the shell.
-  useStore.getState().setFakeSignedIn(true);
+  // Seed an active account so these tests exercise the shell.
   localStorage.setItem("capacitylens/productOrientation/v1/demo/acct-test", "dismissed");
   useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount()] }));
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
@@ -659,8 +658,6 @@ function registerSidebarSignOutTest(): void {
     const account = screen.getByRole("link", { name: "Account" });
     expect(account.querySelector("[data-slot='avatar']")).not.toBeNull();
     expect(screen.queryByTestId("nav-sign-out")).not.toBeInTheDocument();
-
-    expect(useStore.getState().fakeSignedIn).toBe(true);
   });
 }
 
@@ -1354,29 +1351,13 @@ describe("AppShell transient notice", () => {
   registerNoticeReplacementRaceTest();
 });
 
-describe("AppShell fake sign-in gate (cosmetic demo)", () => {
-  it("shows the demo sign-in (not the picker/shell) when not signed in", () => {
-    useStore.getState().setFakeSignedIn(false);
-    useStore.getState().setHydrated(true);
-    renderAppShell({});
-
-    expect(screen.getByRole("heading", { name: "Choose an account" })).toBeInTheDocument();
-
-    expect(screen.queryByText("Choose a company")).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Schedule" })).not.toBeInTheDocument();
-  });
-
-  it("clicking the demo account signs in and reveals the next screen (the picker)", () => {
-    useStore.getState().setFakeSignedIn(false);
+describe("AppShell demo entry", () => {
+  it("opens the demo on the company picker without a sign-in step", () => {
     useStore.getState().setActiveAccount(null);
     useStore.getState().setHydrated(true);
     renderAppShell({});
 
-    act(() => {
-      screen.getByTestId("fake-sign-in").click();
-    });
-
-    expect(useStore.getState().fakeSignedIn).toBe(true);
     expect(screen.getByText("Choose a company")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Choose an account" })).not.toBeInTheDocument();
   });
 });

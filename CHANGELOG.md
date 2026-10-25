@@ -26,6 +26,7 @@ new features and **patch** versions carry fixes.
   check are removed. Databases from before this change are refused at upgrade; start a fresh
   database.
 - Remove Google sign-in, the sign-in mode switch and the dormant Microsoft verification screen from the AdonisJS fork; password sign-in is the only method until Account Kit social sign-in is adopted.
+- The demo opens straight on the company picker; the cosmetic **Choose an account** step and its Sign out are gone. Diagnostics no longer report a sign-in mode.
 - Require `--disposable` for non-production `app:reset`; production resets are refused before archiving. The nginx example no longer duplicates application HSTS or configures obsolete CSP reporting. `db:seed` now adds missing fixture rows without replacing existing product data or audit history. Diagnostics now show the last applied migration and newest completed snapshot modification time.
 
 - Native first-run setup now lets the sole signed-in identity enter a company name in the browser

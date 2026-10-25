@@ -7,8 +7,6 @@ import {
   writeStoredMinimiseWeekends,
   readStoredWeekSnapOverride,
   WEEK_SNAP_OVERRIDE_KEY,
-  readStoredFakeSignedIn,
-  writeStoredFakeSignedIn,
   readStoredUtilizationPrefs,
   writeStoredUtilizationPrefs,
   DEFAULT_UTILIZATION_PREFS,
@@ -104,33 +102,6 @@ describe("week-snap test override", () => {
     } finally {
       spy.mockRestore();
     }
-  });
-});
-
-describe("fake sign-in (cosmetic demo) preference", () => {
-  beforeEach(() => {
-    localStorage.removeItem("capacitylens/fakeSignedIn");
-  });
-
-  it("defaults to FALSE (signed out → show the demo sign-in) when never chosen", () => {
-    expect(readStoredFakeSignedIn()).toBe(false);
-  });
-
-  it("round-trips an explicit on/off choice", () => {
-    writeStoredFakeSignedIn(true);
-    expect(readStoredFakeSignedIn()).toBe(true);
-    writeStoredFakeSignedIn(false);
-    expect(readStoredFakeSignedIn()).toBe(false);
-  });
-
-  it("treats an unrecognised stored value as the default (signed out)", () => {
-    localStorage.setItem("capacitylens/fakeSignedIn", "perhaps");
-    expect(readStoredFakeSignedIn()).toBe(false);
-  });
-
-  it("persists under the documented storage key", () => {
-    writeStoredFakeSignedIn(true);
-    expect(localStorage.getItem("capacitylens/fakeSignedIn")).toBe("on");
   });
 });
 
