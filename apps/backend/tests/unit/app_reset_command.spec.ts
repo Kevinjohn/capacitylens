@@ -129,9 +129,13 @@ test('a replacement upgrade failure preserves the verified recovery files and na
     seedOwner(source)
     source.close()
     const scratch = join(f.root, 'backend')
+    // Never read the running suite's database: closing any descriptor on it drops this process's
+    // SQLite locks, which later lock-timing tests depend on.
+    const runningTmp = join(process.cwd(), 'tmp')
     cpSync(process.cwd(), scratch, {
       recursive: true,
-      filter: (path) => !path.endsWith('/node_modules') && !path.endsWith('/build'),
+      filter: (path) =>
+        !path.endsWith('/node_modules') && !path.endsWith('/build') && path !== runningTmp,
     })
     symlinkSync(join(process.cwd(), 'node_modules'), join(scratch, 'node_modules'), 'dir')
     const originalAce = readFileSync(join(scratch, 'ace.js'))
