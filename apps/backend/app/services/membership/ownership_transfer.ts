@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import type { OwnershipTransferReceipt } from '@capacitylens/shared/account/types'
 import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization'
 import { activeMasquerade } from '#services/auth/masquerade'
-import { resolveCurrentActor } from '#services/auth/session_authority'
+import { withActor } from '#services/auth/current_actor'
 import { consumeActionProof } from '#services/auth/action_proof'
 import {
   claimAccountCommand,
@@ -11,7 +11,6 @@ import {
 } from '#services/account_commands'
 import { affectedRows } from '#services/admission/affected_rows'
 import { writeAudit } from '#services/audit'
-import { withTransaction } from '#services/with_transaction'
 import { advancePlanningRevision } from '#services/planning_revision'
 
 export class OwnershipTransferError extends Error {
@@ -32,8 +31,7 @@ export async function transferOwnership(
   proofId: string,
   command: AccountCommandIdentity
 ): Promise<OwnershipTransferReceipt> {
-  return withTransaction(async (trx) => {
-    const actor = await resolveCurrentActor(ctx, trx)
+  return withActor(ctx, async (actor, trx) => {
     if (await activeMasquerade(actor.sessionId, trx))
       throw new IdentityAuthorityError('Masquerade is read-only.')
     const account = await trx.from('accounts').where('id', accountId).select('id').first()

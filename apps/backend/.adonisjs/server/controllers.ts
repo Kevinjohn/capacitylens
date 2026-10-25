@@ -5,6 +5,7 @@
 
 export const controllers = {
   ActionProofs: () => import('#controllers/action_proofs_controller'),
+  Admission: () => import('#controllers/admission_controller'),
   Anonymise: () => import('#controllers/anonymise_controller'),
   Auth: () => import('#controllers/auth_controller'),
   Companies: () => import('#controllers/companies_controller'),
@@ -14,11 +15,11 @@ export const controllers = {
   FirstCompanySetup: () => import('#controllers/first_company_setup_controller'),
   GettingStarted: () => import('#controllers/getting_started_controller'),
   Invitations: () => import('#controllers/invitations_controller'),
-  Joining: () => import('#controllers/joining_controller'),
   Masquerade: () => import('#controllers/masquerade_controller'),
   MemberResources: () => import('#controllers/member_resources_controller'),
   Members: () => import('#controllers/members_controller'),
   Ownership: () => import('#controllers/ownership_controller'),
   Planning: () => import('#controllers/planning_controller'),
   Transfer: () => import('#controllers/transfer_controller'),
+  Verification: () => import('#controllers/verification_controller'),
 }

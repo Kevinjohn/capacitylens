@@ -1,7 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { AccountCommandError, readAccountCommand } from '#services/account_commands'
 import { IdentityAuthorityError } from '#services/auth/authorization'
-import { resolveCurrentActor, SessionAuthorityError } from '#services/auth/session_authority'
 import { ActionProofError } from '#services/auth/action_proof'
 import { OwnershipTransferError, transferOwnership } from '#services/membership/ownership_transfer'
 
@@ -27,7 +26,6 @@ export default class OwnershipController {
         code: 'VALIDATION_FAILED',
       })
     try {
-      await resolveCurrentActor(ctx)
       const command = readAccountCommand(ctx)
       const receipt = await transferOwnership(
         ctx,
@@ -41,7 +39,6 @@ export default class OwnershipController {
       if (
         error instanceof AccountCommandError ||
         error instanceof OwnershipTransferError ||
-        error instanceof SessionAuthorityError ||
         error instanceof ActionProofError
       )
         return ctx.response.status(error.status).send({ error: error.message, code: error.code })

@@ -1,15 +1,18 @@
 import router from '@adonisjs/core/services/router'
 
 const InvitationsController = () => import('#controllers/invitations_controller')
-const JoiningController = () => import('#controllers/joining_controller')
+const AdmissionController = () => import('#controllers/admission_controller')
 const MemberResourcesController = () => import('#controllers/member_resources_controller')
 
-/** Registers company admission, invitation, and member resource routes. */
+/** Registers invitation, admission and member resource routes. */
 export function registerAdmissionRoutes() {
   router.post('/api/invites', [InvitationsController, 'create']).as('api.invites.create')
   router
     .get('/api/accounts/:accountId/invites', [InvitationsController, 'index'])
     .as('api.invites.index')
+  router
+    .post('/api/accounts/:accountId/invites/:id/resend', [InvitationsController, 'resend'])
+    .as('api.invites.resend')
   router
     .delete('/api/accounts/:accountId/invites/:id', [InvitationsController, 'revoke'])
     .as('api.invites.revoke')
@@ -17,34 +20,26 @@ export function registerAdmissionRoutes() {
     .get('/api/invites/:token/preview', [InvitationsController, 'preview'])
     .as('api.invites.preview')
   router
-    .post('/api/invites/:token/accept', [InvitationsController, 'accept'])
-    .as('api.invites.accept')
-  router
     .post('/api/invites/:token/signup', [InvitationsController, 'signUp'])
     .as('api.invites.sign-up')
 
+  router.get('/api/admission', [AdmissionController, 'show']).as('api.admission.show')
   router
-    .get('/api/accounts/:accountId/joining-policy', [JoiningController, 'policy'])
-    .as('api.joining.policy')
+    .post('/api/admission/request', [AdmissionController, 'request'])
+    .as('api.admission.request')
   router
-    .put('/api/accounts/:accountId/joining-policy', [JoiningController, 'updatePolicy'])
-    .as('api.joining.update-policy')
+    .post('/api/admission/complete', [AdmissionController, 'complete'])
+    .as('api.admission.complete')
+  router.get('/api/admission/requests', [AdmissionController, 'index']).as('api.admission.index')
   router
-    .get('/api/accounts/:accountId/join/metadata', [JoiningController, 'metadata'])
-    .as('api.joining.metadata')
-  router.get('/api/company-join/status', [JoiningController, 'status']).as('api.joining.status')
+    .post('/api/admission/:userId/approve', [AdmissionController, 'approve'])
+    .as('api.admission.approve')
   router
-    .post('/api/accounts/:accountId/join/complete-existing', [
-      JoiningController,
-      'completeExisting',
-    ])
-    .as('api.joining.complete-existing')
+    .post('/api/admission/:userId/reject', [AdmissionController, 'reject'])
+    .as('api.admission.reject')
   router
-    .post('/api/accounts/:accountId/join/verify-email', [JoiningController, 'requestProof'])
-    .as('api.joining.request-proof')
-  router
-    .post('/api/company-join/verify-email', [JoiningController, 'verifyEmail'])
-    .as('api.joining.verify-email')
+    .post('/api/admission/:userId/revoke', [AdmissionController, 'revoke'])
+    .as('api.admission.revoke')
 
   router
     .put('/api/accounts/:accountId/members/:principalId/resource-link', [
@@ -58,12 +53,6 @@ export function registerAdmissionRoutes() {
       'clearLink',
     ])
     .as('api.member-resources.clear')
-  router
-    .delete('/api/accounts/:accountId/members/:principalId/resource-link-exception', [
-      MemberResourcesController,
-      'clearException',
-    ])
-    .as('api.member-resources.clear-exception')
   router
     .get('/api/accounts/:accountId/resource-avatars', [MemberResourcesController, 'avatars'])
     .as('api.member-resources.avatars')

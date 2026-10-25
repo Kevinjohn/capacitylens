@@ -1,13 +1,12 @@
 import app from '@adonisjs/core/services/app'
 import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http'
 import { errors as vineErrors } from '@vinejs/vine'
-import { SessionAuthorityError } from '#services/auth/session_authority'
+import { accountErrorResponse } from 'adonisjs-account-kit'
+import { AdmissionRequiredError } from 'adonisjs-account-kit/admission'
 import { IdentityAuthorityError } from '#services/auth/authorization'
-import { PasswordProcessingUnavailableError } from '#services/password_service'
-import {
-  PasswordPolicyError,
-  PasswordScreeningUnavailableError,
-} from '#services/password_screening'
+import { ActionProofError } from '#services/auth/action_proof'
+import { AdmissionError } from '#services/admission/errors'
+import { FirstCompanyPendingError } from '#models/user'
 import {
   classifyLogError,
   reportPrivateFailure,
@@ -27,14 +26,29 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    * response to the client
    */
   async handle(error: unknown, ctx: HttpContext) {
-    if (
-      error instanceof PasswordProcessingUnavailableError ||
-      error instanceof PasswordScreeningUnavailableError
-    )
-      return ctx.response.serviceUnavailable({ error: error.message, code: error.code })
-    if (error instanceof PasswordPolicyError)
-      return ctx.response.badRequest({ error: error.message, code: error.code })
-    if (error instanceof SessionAuthorityError)
+    // The limited screens explain the decision, so it travels with the refusal.
+    if (error instanceof AdmissionRequiredError)
+      return ctx.response.forbidden({
+        error: 'Your access to this company is waiting on admission.',
+        code: 'ADMISSION_REQUIRED',
+        decision: error.decision,
+      })
+    const kitResponse = accountErrorResponse(error)
+    if (kitResponse) {
+      for (const [name, value] of Object.entries(kitResponse.headers))
+        ctx.response.header(name, value)
+      const { code, message, committed } = kitResponse.body
+      return ctx.response
+        .status(kitResponse.status)
+        .send({ error: message, code, ...(committed ? { committed } : {}) })
+    }
+    if (error instanceof AdmissionError)
+      return ctx.response.status(error.status).send({
+        error: error.message,
+        code: error.code,
+        ...(error.decision === undefined ? {} : { decision: error.decision }),
+      })
+    if (error instanceof ActionProofError || error instanceof FirstCompanyPendingError)
       return ctx.response.status(error.status).send({ error: error.message, code: error.code })
     if (error instanceof IdentityAuthorityError)
       return ctx.response.forbidden({ error: error.message, code: error.code })
@@ -112,11 +126,15 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    */
   async report(error: unknown, ctx: HttpContext) {
     if (
-      error instanceof SessionAuthorityError ||
       error instanceof IdentityAuthorityError ||
-      error instanceof PasswordPolicyError
+      error instanceof AdmissionError ||
+      error instanceof ActionProofError ||
+      error instanceof FirstCompanyPendingError
     )
       return
+    // Account Kit refusals are expected outcomes; its server faults are still reported.
+    const kitResponse = accountErrorResponse(error)
+    if (kitResponse && kitResponse.status < 500) return
     if (
       error instanceof vineErrors.E_VALIDATION_ERROR ||
       (error instanceof SyntaxError &&
@@ -140,15 +158,8 @@ export default class HttpExceptionHandler extends ExceptionHandler {
         ['E_REQUEST_ENTITY_TOO_LARGE', 'E_ENCODING_UNSUPPORTED'].includes(String(error.code)))
     )
       return
-    const dependencyFailure =
-      error instanceof PasswordProcessingUnavailableError ||
-      error instanceof PasswordScreeningUnavailableError
-    const errorType =
-      error instanceof PasswordProcessingUnavailableError
-        ? 'password_processing_unavailable'
-        : error instanceof PasswordScreeningUnavailableError
-          ? 'password_screening_unavailable'
-          : classifyLogError(error)
+    const dependencyFailure = Boolean(kitResponse)
+    const errorType = kitResponse ? 'account_kit_failure' : classifyLogError(error)
     if (!dependencyFailure && errorType !== 'unexpected') return
 
     reportPrivateFailure(
@@ -158,7 +169,7 @@ export default class HttpExceptionHandler extends ExceptionHandler {
         errorType,
         method: safeRequestMethod(ctx.request.method()),
         path: safeRoutePattern(ctx.route?.pattern),
-        status: dependencyFailure ? 503 : 500,
+        status: kitResponse?.status ?? 500,
       },
       'HTTP request failed'
     )

@@ -679,6 +679,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['requestReset']>>>
     }
   }
+  'api.auth.inspect-reset': {
+    methods: ["POST"]
+    pattern: '/api/auth/inspect-reset'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['inspectReset']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['inspectReset']>>>
+    }
+  }
   'api.auth.reset-password': {
     methods: ["POST"]
     pattern: '/api/auth/reset-password'
@@ -701,6 +713,42 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['changePassword']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['changePassword']>>>
+    }
+  }
+  'api.auth.verification.send': {
+    methods: ["POST"]
+    pattern: '/api/auth/verification/send'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['send']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['send']>>>
+    }
+  }
+  'api.auth.verification.inspect': {
+    methods: ["POST"]
+    pattern: '/api/auth/verification/inspect'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['inspect']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['inspect']>>>
+    }
+  }
+  'api.auth.verification.complete': {
+    methods: ["POST"]
+    pattern: '/api/auth/verification/complete'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['complete']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['complete']>>>
     }
   }
   'api.members.index': {
@@ -775,30 +823,6 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/members_controller').default['remove']>>>
     }
   }
-  'api.members.reset-password': {
-    methods: ["POST"]
-    pattern: '/api/accounts/:accountId/members/:userId/reset-password'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue, ParamValue]
-      params: { accountId: ParamValue; userId: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/members_controller').default['resetPassword']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/members_controller').default['resetPassword']>>>
-    }
-  }
-  'api.members.revoke-sessions': {
-    methods: ["POST"]
-    pattern: '/api/accounts/:accountId/members/:userId/revoke-sessions'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue, ParamValue]
-      params: { accountId: ParamValue; userId: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/members_controller').default['revokeSessions']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/members_controller').default['revokeSessions']>>>
-    }
-  }
   'api.invites.create': {
     methods: ["POST"]
     pattern: '/api/invites'
@@ -821,6 +845,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['index']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['index']>>>
+    }
+  }
+  'api.invites.resend': {
+    methods: ["POST"]
+    pattern: '/api/accounts/:accountId/invites/:id/resend'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { accountId: ParamValue; id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['resend']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['resend']>>>
     }
   }
   'api.invites.revoke': {
@@ -847,18 +883,6 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['preview']>>>
     }
   }
-  'api.invites.accept': {
-    methods: ["POST"]
-    pattern: '/api/invites/:token/accept'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue]
-      params: { token: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['accept']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['accept']>>>
-    }
-  }
   'api.invites.sign-up': {
     methods: ["POST"]
     pattern: '/api/invites/:token/signup'
@@ -871,88 +895,88 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['signUp']>>>
     }
   }
-  'api.joining.policy': {
+  'api.admission.show': {
     methods: ["GET","HEAD"]
-    pattern: '/api/accounts/:accountId/joining-policy'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue]
-      params: { accountId: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/joining_controller').default['policy']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/joining_controller').default['policy']>>>
-    }
-  }
-  'api.joining.update-policy': {
-    methods: ["PUT"]
-    pattern: '/api/accounts/:accountId/joining-policy'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue]
-      params: { accountId: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/joining_controller').default['updatePolicy']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/joining_controller').default['updatePolicy']>>>
-    }
-  }
-  'api.joining.metadata': {
-    methods: ["GET","HEAD"]
-    pattern: '/api/accounts/:accountId/join/metadata'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue]
-      params: { accountId: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/joining_controller').default['metadata']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/joining_controller').default['metadata']>>>
-    }
-  }
-  'api.joining.status': {
-    methods: ["GET","HEAD"]
-    pattern: '/api/company-join/status'
+    pattern: '/api/admission'
     types: {
       body: {}
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/joining_controller').default['status']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/joining_controller').default['status']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['show']>>>
     }
   }
-  'api.joining.complete-existing': {
+  'api.admission.request': {
     methods: ["POST"]
-    pattern: '/api/accounts/:accountId/join/complete-existing'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue]
-      params: { accountId: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/joining_controller').default['completeExisting']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/joining_controller').default['completeExisting']>>>
-    }
-  }
-  'api.joining.request-proof': {
-    methods: ["POST"]
-    pattern: '/api/accounts/:accountId/join/verify-email'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue]
-      params: { accountId: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/joining_controller').default['requestProof']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/joining_controller').default['requestProof']>>>
-    }
-  }
-  'api.joining.verify-email': {
-    methods: ["POST"]
-    pattern: '/api/company-join/verify-email'
+    pattern: '/api/admission/request'
     types: {
       body: {}
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/joining_controller').default['verifyEmail']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/joining_controller').default['verifyEmail']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['request']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['request']>>>
+    }
+  }
+  'api.admission.complete': {
+    methods: ["POST"]
+    pattern: '/api/admission/complete'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['complete']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['complete']>>>
+    }
+  }
+  'api.admission.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/admission/requests'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['index']>>>
+    }
+  }
+  'api.admission.approve': {
+    methods: ["POST"]
+    pattern: '/api/admission/:userId/approve'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { userId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['approve']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['approve']>>>
+    }
+  }
+  'api.admission.reject': {
+    methods: ["POST"]
+    pattern: '/api/admission/:userId/reject'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { userId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['reject']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['reject']>>>
+    }
+  }
+  'api.admission.revoke': {
+    methods: ["POST"]
+    pattern: '/api/admission/:userId/revoke'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { userId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['revoke']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['revoke']>>>
     }
   }
   'api.member-resources.set': {
@@ -977,18 +1001,6 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['clearLink']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['clearLink']>>>
-    }
-  }
-  'api.member-resources.clear-exception': {
-    methods: ["DELETE"]
-    pattern: '/api/accounts/:accountId/members/:principalId/resource-link-exception'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue, ParamValue]
-      params: { accountId: ParamValue; principalId: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['clearException']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['clearException']>>>
     }
   }
   'api.member-resources.avatars': {

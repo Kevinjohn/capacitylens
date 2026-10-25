@@ -29,6 +29,8 @@ export default defineConfig({
     () => import('@adonisjs/lucid/commands'),
     () => import('@adonisjs/session/commands'),
     () => import('@adonisjs/bouncer/commands'),
+    () => import('adonisjs-account-kit/commands'),
+    () => import('adonisjs-account-kit/admission/commands'),
   ],
 
   /*
@@ -57,6 +59,8 @@ export default defineConfig({
     () => import('@adonisjs/bouncer/bouncer_provider'),
     () => import('@adonisjs/mail/mail_provider'),
     () => import('@adonisjs/limiter/limiter_provider'),
+    () => import('adonisjs-account-kit/account_kit_provider'),
+    () => import('adonisjs-account-kit/admission/provider'),
     () => import('#providers/api_provider'),
     () => import('#providers/configuration_provider'),
     () => import('#providers/backup_provider'),

@@ -1,5 +1,6 @@
 import env from '#start/env'
 import { defineConfig, stores } from '@adonisjs/session'
+import { SESSION_IDLE_EXPIRY } from '#services/auth/session_expiry'
 
 const secure =
   new URL(env.get('CAPACITYLENS_PUBLIC_URL') || env.get('APP_URL')).protocol === 'https:'
@@ -23,9 +24,9 @@ const sessionConfig = defineConfig({
 
   /**
    * Define how long to keep the session data alive without
-   * any activity.
+   * any activity. Matches the Account Kit sign-in registry.
    */
-  age: '30m',
+  age: SESSION_IDLE_EXPIRY,
 
   /**
    * Configuration for session cookie and the

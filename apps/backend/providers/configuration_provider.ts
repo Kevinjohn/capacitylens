@@ -2,8 +2,12 @@ import type { ApplicationService } from '@adonisjs/core/types'
 import env from '#start/env'
 import db from '@adonisjs/lucid/services/db'
 import { assertSchemaIntegrity } from '#services/schema_integrity'
-import { hashPassword } from '#services/password_service'
+import hash from '@adonisjs/core/services/hash'
+import accountKit from 'adonisjs-account-kit/services/main'
+import { AccountAdmission } from 'adonisjs-account-kit/admission'
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password'
+
+const PRUNE_INTERVAL_MS = 60 * 60_000
 
 function assertAuthenticationConfiguration(inProduction: boolean) {
   const secret = env.get('CAPACITYLENS_SECRET')
@@ -33,9 +37,6 @@ function assertAuthenticationConfiguration(inProduction: boolean) {
     !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
   )
     throw new Error('CAPACITYLENS_PUBLIC_URL must use HTTPS outside loopback in production')
-  const setupToken = env.get('CAPACITYLENS_SETUP_TOKEN')
-  if (setupToken && setupToken.length < 32)
-    throw new Error('CAPACITYLENS_SETUP_TOKEN must contain at least 32 characters')
 }
 
 interface ProductionPosture {
@@ -61,6 +62,8 @@ export function assertProductionPosture(options: ProductionPosture) {
   if (options.allowReset) throw new Error('CAPACITYLENS_ALLOW_RESET is forbidden in production')
 }
 export default class ConfigurationProvider {
+  private pruneTimer?: NodeJS.Timeout
+
   constructor(protected app: ApplicationService) {}
   async boot() {
     assertAuthenticationConfiguration(this.app.inProduction)
@@ -89,6 +92,28 @@ export default class ConfigurationProvider {
     }
   }
 
+  /**
+   * Expired sign-ins fail at once; pruning removes them hourly, and with them the session-bound
+   * proofs and restoration rows that cascade from each one.
+   */
+  async ready() {
+    if (this.app.getEnvironment() !== 'web' || this.app.inTest) return
+    this.pruneTimer = setInterval(() => {
+      accountKit.maintenance.prune().catch((error: unknown) => {
+        console.error('Account sign-in pruning failed', error instanceof Error ? error.name : error)
+      })
+    }, PRUNE_INTERVAL_MS)
+    this.pruneTimer.unref()
+  }
+
+  async shutdown() {
+    if (this.pruneTimer) clearInterval(this.pruneTimer)
+  }
+
+  /**
+   * Development only: one confirmed, admitted `admin@admin.admin` identity on an empty database,
+   * so a local server can be used without mail. Production refuses the setting at boot.
+   */
   private async bootstrapCredential() {
     if (!env.get('CAPACITYLENS_CREATE_ADMIN_ADMIN')) return
     const password = env.get('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD')
@@ -97,24 +122,24 @@ export default class ConfigurationProvider {
         'CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD must satisfy the password length policy'
       )
     if (await db.from('users').select('id').first()) return
-    const hash = await hashPassword(password)
+    const email = 'admin@admin.admin'
+    const passwordHash = await hash.make(password)
     const now = new Date().toISOString()
-    const trx = await db.transaction()
-    try {
-      if (!(await trx.from('users').select('id').first()))
-        await trx.table('users').insert({
-          id: crypto.randomUUID(),
-          email: 'admin@admin.admin',
-          email_verified: 0,
-          display_name: 'admin',
-          password_hash: hash,
-          created_at: now,
-          updated_at: now,
-        })
-      await trx.commit()
-    } catch (error) {
-      await trx.rollback()
-      throw error
-    }
+    await db.transaction(async (trx) => {
+      if (await trx.from('users').select('id').first()) return
+      await trx.table('users').insert({
+        id: crypto.randomUUID(),
+        email,
+        display_name: 'admin',
+        password: passwordHash,
+        email_verified_at: now,
+        unverified_email: null,
+        created_at: now,
+        updated_at: now,
+      })
+    })
+    const admission = await this.app.container.make(AccountAdmission)
+    await admission.operator.grantInvitation({ email, role: 'admin' })
+    await admission.operator.approve({ email })
   }
 }

@@ -17,7 +17,7 @@ import { existingRow, PlanningOperationError } from './writer.js'
 /** The identities that bind a restoration group to one actor's native session and mutation. */
 export interface RestorationIdentity {
   actorId: string
-  sessionId: string
+  sessionId: number
   mutationId: string
 }
 
@@ -246,13 +246,18 @@ export async function unconsumedGroupId(
   return group ? String(group.group_id) : undefined
 }
 
-/** Counts deleted records across every pending company group; surviving-child links are not items. */
+/**
+ * Counts deleted records across every pending company group whose sign-in is still live;
+ * surviving-child links are not items. An expired sign-in's groups wait only for pruning.
+ */
 export async function countRestorableItems(trx: TransactionClientContract, accountId: string) {
   const result = await trx
     .from('deleted_rows')
     .join('deleted_groups', 'deleted_groups.group_id', 'deleted_rows.group_id')
+    .join('account_sessions', 'account_sessions.id', 'deleted_groups.session_id')
     .where('deleted_groups.account_id', accountId)
     .whereNull('deleted_groups.consumed_at')
+    .where('account_sessions.expires_at', '>', new Date().toISOString())
     .whereRaw("json_extract(deleted_rows.payload_json, '$.kind') = ?", ['row'])
     .count('* as total')
     .first()

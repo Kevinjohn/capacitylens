@@ -76,15 +76,23 @@ export default {
         type: { tsType: "import('@capacitylens/shared/types/entities').TimeOffType" },
       },
     },
+    // Account Kit's Lucid adapter reads and writes these as Luxon values.
+    users: {
+      columns: {
+        email_verified_at: {
+          tsType: "import('luxon').DateTime | null",
+          decorators: [{ name: '@column.dateTime' }],
+        },
+        credentials_changed_at: {
+          tsType: "import('luxon').DateTime | null",
+          decorators: [{ name: '@column.dateTime' }],
+        },
+      },
+    },
     memberships: {
       columns: {
         role: { tsType: "import('@capacitylens/shared/account/types').Role" },
         status: { tsType: "import('@capacitylens/shared/account/types').MembershipStatus" },
-      },
-    },
-    invitations: {
-      columns: {
-        role: { tsType: "import('@capacitylens/shared/account/types').InvitationRole" },
       },
     },
     ownership_transfers: {
@@ -114,31 +122,9 @@ export default {
         value: { tsType: 'unknown' },
       },
     },
-    account_joining_policies: {
-      columns: {
-        policy: {
-          tsType:
-            "'invitation_only' | 'open' | 'approved_domains' | 'approved_domains_or_invitation'",
-        },
-        approved_domains: { tsType: 'string[]' },
-      },
-    },
-    company_join_intents: {
-      columns: {
-        purpose: { tsType: "'policy' | 'invitation'" },
-        state: { tsType: "'started' | 'mail-sent' | 'approved' | 'completed' | 'cancelled'" },
-      },
-    },
     account_access_restrictions: {
       columns: {
         role: { tsType: "import('@capacitylens/shared/account/types').Role" },
-      },
-    },
-    member_resource_link_exceptions: {
-      columns: {
-        reason: {
-          tsType: "'resource_unavailable' | 'resource_already_linked' | 'member_already_linked'",
-        },
       },
     },
   },

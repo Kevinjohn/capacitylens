@@ -25,16 +25,4 @@ export function registerMembershipRoutes() {
   router
     .delete('/api/accounts/:accountId/members/:userId', [MembersController, 'remove'])
     .as('api.members.remove')
-  router
-    .post('/api/accounts/:accountId/members/:userId/reset-password', [
-      MembersController,
-      'resetPassword',
-    ])
-    .as('api.members.reset-password')
-  router
-    .post('/api/accounts/:accountId/members/:userId/revoke-sessions', [
-      MembersController,
-      'revokeSessions',
-    ])
-    .as('api.members.revoke-sessions')
 }

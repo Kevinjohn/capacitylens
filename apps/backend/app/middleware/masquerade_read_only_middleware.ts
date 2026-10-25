@@ -1,7 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 import { activeMasquerade } from '#services/auth/masquerade'
-import { resolveCurrentActor, SessionAuthorityError } from '#services/auth/session_authority'
+import { signedInSession } from '#services/auth/current_actor'
 
 function blockedRead(path: string) {
   // The company planning snapshot is a projected data read, like the retained state route.
@@ -26,18 +26,12 @@ export default class MasqueradeReadOnlyMiddleware {
     const method = ctx.request.method()
     const unsafe = method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS'
     if (!path?.startsWith('/api/') && !unsafe) return next()
-    const record = await activeMasquerade(ctx.session.sessionId)
-    if (!record) return next()
+    const signIn = await signedInSession(ctx)
+    const record = signIn ? await activeMasquerade(signIn.sessionId) : null
+    if (!signIn || !record) return next()
     if (ctx.request.method() === 'GET' && path === '/api/masquerade') return next()
-    try {
-      const actor = await resolveCurrentActor(ctx)
-      if (record.actorId !== actor.userId)
-        throw new SessionAuthorityError('Masquerade session changed.')
-    } catch (error) {
-      if (error instanceof SessionAuthorityError || (error as { status?: number }).status === 401)
-        return ctx.response.unauthorized({ error: 'Sign-in required.' })
-      throw error
-    }
+    if (record.actorId !== signIn.userId)
+      return ctx.response.unauthorized({ error: 'Sign-in required.' })
     if (
       (method === 'DELETE' && path === '/api/masquerade') ||
       (method === 'POST' && path === '/api/auth/sign-out')

@@ -10,7 +10,7 @@ import type { Role } from '@capacitylens/shared/account/types'
 import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities'
 import { readStateWithClient } from '#services/state_repository'
 import { transformState } from '#transformers/state_transformer'
-import { withTransaction } from '#services/with_transaction'
+import { actorIn, withActor } from '#services/auth/current_actor'
 import { getPlanningRevision, advancePlanningRevision } from '#services/planning_revision'
 import {
   executePlanningIntent,
@@ -49,12 +49,8 @@ export interface PlanningSnapshot {
   data: AppData
 }
 
-async function currentAuthority(
-  ctx: HttpContext,
-  trx: TransactionClientContract,
-  accountId: string
-) {
-  const principal = await effectiveReadPrincipal(ctx, trx)
+async function currentAuthority(trx: TransactionClientContract, accountId: string) {
+  const principal = await effectiveReadPrincipal(trx)
   const role = await activeCompanyRole(principal.effectiveId, accountId, trx)
   if (!role || (principal.accountId !== null && principal.accountId !== accountId))
     throw new PlanningOperationError(
@@ -72,7 +68,7 @@ async function currentAuthority(
       'account_membership_lost',
       'Company membership is unavailable.'
     )
-  const masquerading = (await activeMasquerade(ctx.session.sessionId, trx)) !== null
+  const masquerading = (await activeMasquerade(actorIn(trx).sessionId, trx)) !== null
   const authority: PlanningAuthority = {
     actorId: principal.actorId,
     effectiveActorId: principal.effectiveId,
@@ -90,8 +86,8 @@ async function currentAuthority(
 
 /** Resolves current product authority, revision and rows from the same database snapshot. */
 export function readPlanning(ctx: HttpContext, accountId: string): Promise<PlanningSnapshot> {
-  return withTransaction(async (trx) => {
-    const { authority } = await currentAuthority(ctx, trx, accountId)
+  return withActor(ctx, async (_actor, trx) => {
+    const { authority } = await currentAuthority(trx, accountId)
     const revision = await getPlanningRevision(trx, accountId)
     const data = await readStateWithClient(trx, accountId, true)
     return { accountId, revision, authority, data: transformState(data, accountId, authority.role) }
@@ -164,8 +160,8 @@ export function mutatePlanning(
   accountId: string,
   input: PlanningMutationInput
 ): Promise<PlanningMutationSuccess> {
-  return withTransaction(async (trx) => {
-    const { authority, capabilities, bouncer } = await currentAuthority(ctx, trx, accountId)
+  return withActor(ctx, async (actor, trx) => {
+    const { authority, capabilities, bouncer } = await currentAuthority(trx, accountId)
     if (!(await bouncer.with(DataPolicy).allows('write', { accountId, capabilities })))
       throw new PlanningOperationError(403, 'authorization_denied', 'This action is not allowed.')
     const previous = await trx
@@ -191,7 +187,7 @@ export function mutatePlanning(
       input.intent,
       capabilities,
       structuredClone(before),
-      { actorId: authority.actorId, sessionId: ctx.session.sessionId, mutationId: input.mutationId }
+      { actorId: authority.actorId, sessionId: actor.sessionId, mutationId: input.mutationId }
     )
     const after = await readStateWithClient(trx, accountId, true)
     if (semanticState(before) === semanticState(after))
@@ -220,7 +216,7 @@ export function mutatePlanning(
       actor_id: authority.actorId,
       revision,
       restoration_group_id: restoration.replacementGroupId,
-      origin_session_id: restoration.replacementGroupId ? ctx.session.sessionId : null,
+      origin_session_id: restoration.replacementGroupId ? actor.sessionId : null,
     })
     const changed = projectionChanges(
       transformState(before, accountId, authority.role),
@@ -257,8 +253,8 @@ export function lookupPlanningMutation(
   accountId: string,
   mutationId: string
 ): Promise<PlanningMutationLookup> {
-  return withTransaction(async (trx) => {
-    const { authority } = await currentAuthority(ctx, trx, accountId)
+  return withActor(ctx, async (actor, trx) => {
+    const { authority } = await currentAuthority(trx, accountId)
     const marker = await trx
       .from('planning_mutations')
       .where({ account_id: accountId, actor_id: authority.actorId, mutation_id: mutationId })
@@ -267,7 +263,7 @@ export function lookupPlanningMutation(
     if (!marker) return { status: 'unknown', mutationId }
     const restorationGroupId = await unconsumedGroupId(trx, accountId, {
       actorId: authority.actorId,
-      sessionId: ctx.session.sessionId,
+      sessionId: actor.sessionId,
       mutationId,
     })
     return {

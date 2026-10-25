@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import vine from '@vinejs/vine'
-import { withTransaction } from '#services/with_transaction'
+import { withActor } from '#services/auth/current_actor'
 import { assertCompanyAction } from '#services/auth/authorization'
 
 const dismissal = vine.compile(vine.object({ dismissed: vine.literal(true) }))
@@ -8,8 +8,8 @@ const dismissal = vine.compile(vine.object({ dismissed: vine.literal(true) }))
 export default class GettingStartedController {
   async show(ctx: HttpContext) {
     const { params, response } = ctx
-    return withTransaction(async (trx) => {
-      await assertCompanyAction(ctx, params.accountId, 'read', trx)
+    return withActor(ctx, async (_actor, trx) => {
+      await assertCompanyAction(params.accountId, 'read', trx)
       if (!(await trx.from('accounts').where('id', params.accountId).first()))
         return response.notFound({ error: 'Company not found.' })
       const row = await trx
@@ -28,8 +28,8 @@ export default class GettingStartedController {
       return response.badRequest({ error: 'dismissed must be true.' })
     }
     const now = new Date().toISOString()
-    const exists = await withTransaction(async (trx) => {
-      await assertCompanyAction(ctx, params.accountId, 'write', trx)
+    const exists = await withActor(ctx, async (_actor, trx) => {
+      await assertCompanyAction(params.accountId, 'write', trx)
       if (!(await trx.from('accounts').where('id', params.accountId).first())) return false
       await trx
         .table('account_getting_started_dismissals')

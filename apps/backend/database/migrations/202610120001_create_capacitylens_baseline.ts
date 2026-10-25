@@ -203,33 +203,31 @@ export default class extends BaseSchema {
       table.date('end_date').notNullable()
     })
 
+    // Account Kit's Lucid adapter maps these columns; password is the Adonis hasher's output.
     this.schema.createTable('users', (table) => {
       metadata(table)
-      table.string('email').notNullable().unique()
-      table.boolean('email_verified').notNullable().defaultTo(false)
+      table.string('email', 254).notNullable().unique()
       table.string('display_name').nullable()
-      table.text('password_hash').nullable()
+      table.string('password').nullable()
+      table.timestamp('email_verified_at', { useTz: true, precision: 3 }).nullable()
+      table.string('unverified_email', 254).nullable()
+      // Milliseconds: two credential changes within one second must give different revisions.
+      table.timestamp('credentials_changed_at', { useTz: true, precision: 3 }).nullable()
     })
-    this.schema.createTable('email_proofs', (table) => {
-      metadata(table)
-      table.string('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE')
-      table.string('email').notNullable()
-      table.timestamp('verified_at').notNullable()
-      table.unique(['user_id', 'email'])
-    })
-    this.schema.createTable('sessions', (table) => {
-      metadata(table)
-      table.string('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE')
-      table.text('payload').nullable()
-      table.timestamp('expires_at').notNullable()
-    })
-    this.schema.createTable('user_session_index', (table) => {
-      table.string('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE')
-      table.string('session_id').notNullable()
-      table.primary(['user_id', 'session_id'])
-      table.bigint('authenticated_at').nullable()
-      table.bigint('last_activity_at').nullable()
-      table.unique('session_id')
+    this.schema.createTable('account_sessions', (table) => {
+      table.increments('id')
+      table
+        .string('user_id')
+        .notNullable()
+        .index()
+        .references('id')
+        .inTable('users')
+        .onDelete('CASCADE')
+      table.string('handle_hash', 64).notNullable().unique()
+      table.string('label', 255).nullable()
+      table.timestamp('created_at', { useTz: true, precision: 3 }).notNullable()
+      table.timestamp('last_seen_at', { useTz: true, precision: 3 }).notNullable()
+      table.timestamp('expires_at', { useTz: true, precision: 3 }).notNullable()
     })
     this.schema.createTable('rate_limits', (table) => {
       table.string('key', 255).notNullable().primary()
@@ -271,30 +269,6 @@ export default class extends BaseSchema {
       table.unique(['account_id', 'user_id'])
       table.unique(['account_id', 'resource_id'])
     })
-    this.schema.createTable('invitations', (table) => {
-      scoped(table)
-      table.string('token_hash').notNullable().unique()
-      table.string('email').nullable()
-      table.string('role').notNullable()
-      table.timestamp('expires_at').notNullable()
-      table.timestamp('accepted_at').nullable()
-    })
-    this.schema.createTable('invitation_proposals', (table) => {
-      metadata(table)
-      table
-        .string('invitation_id')
-        .notNullable()
-        .references('id')
-        .inTable('invitations')
-        .onDelete('CASCADE')
-      table
-        .string('resource_id')
-        .nullable()
-        .references('id')
-        .inTable('resources')
-        .onDelete('SET NULL')
-      table.unique(['invitation_id'])
-    })
     this.schema.createTable('ownership_transfers', (table) => {
       scoped(table)
       table.string('from_user_id').notNullable()
@@ -304,7 +278,14 @@ export default class extends BaseSchema {
     })
     this.schema.createTable('masquerades', (table) => {
       scoped(table)
-      table.string('session_id').notNullable()
+      // Ending the Account Kit sign-in ends the view it opened.
+      table
+        .integer('session_id')
+        .unsigned()
+        .notNullable()
+        .references('id')
+        .inTable('account_sessions')
+        .onDelete('CASCADE')
       table.string('actor_user_id').notNullable()
       table.string('role').notNullable()
       table.unique(['session_id'])
@@ -327,7 +308,8 @@ export default class extends BaseSchema {
       table.string('idempotency_key').nullable()
       table.unique(['operation', 'idempotency_key'])
     })
-    // A group is one session's server-side before-image of a typed delete; restore consumes it once.
+    // A group is one sign-in's server-side before-image of a typed delete; restore consumes it once.
+    // Ending that sign-in deletes the group, so before-images never outlive the session.
     this.schema.createTable('deleted_groups', (table) => {
       table.string('group_id').primary()
       table
@@ -337,7 +319,13 @@ export default class extends BaseSchema {
         .inTable('accounts')
         .onDelete('CASCADE')
       table.string('actor_id').notNullable()
-      table.string('session_id').notNullable()
+      table
+        .integer('session_id')
+        .unsigned()
+        .notNullable()
+        .references('id')
+        .inTable('account_sessions')
+        .onDelete('CASCADE')
       table.string('mutation_id').notNullable()
       table.timestamp('created_at').notNullable()
       table.timestamp('consumed_at').nullable()
@@ -360,7 +348,13 @@ export default class extends BaseSchema {
     this.schema.createTable('action_proofs', (table) => {
       table.string('id').primary()
       table.string('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE')
-      table.string('session_id').notNullable()
+      table
+        .integer('session_id')
+        .unsigned()
+        .notNullable()
+        .references('id')
+        .inTable('account_sessions')
+        .onDelete('CASCADE')
       table
         .string('account_id')
         .notNullable()
@@ -394,60 +388,6 @@ export default class extends BaseSchema {
       table.timestamp('created_at').notNullable()
       table.timestamp('updated_at').notNullable()
     })
-    this.schema.createTable('account_joining_policies', (table) => {
-      table.string('id').primary()
-      table
-        .string('account_id')
-        .notNullable()
-        .unique()
-        .references('id')
-        .inTable('accounts')
-        .onDelete('CASCADE')
-      table
-        .string('policy')
-        .notNullable()
-        .checkIn(['invitation_only', 'open', 'approved_domains', 'approved_domains_or_invitation'])
-      table.json('approved_domains').notNullable().defaultTo('[]')
-      table.timestamp('created_at').notNullable()
-      table.timestamp('updated_at').notNullable()
-    })
-    this.schema.createTable('company_join_intents', (table) => {
-      table.string('id').primary()
-      table.string('nonce_hash').notNullable().unique()
-      table.string('browser_hash').notNullable()
-      table.string('purpose').notNullable().checkIn(['policy', 'invitation'])
-      table
-        .string('account_id')
-        .notNullable()
-        .references('id')
-        .inTable('accounts')
-        .onDelete('CASCADE')
-      table.index(['account_id'])
-      table.string('invitation_id').nullable()
-      table.string('email').notNullable()
-      table.string('principal_id').nullable()
-      table.string('provider_id').notNullable()
-      table
-        .string('state')
-        .notNullable()
-        .checkIn(['started', 'mail-sent', 'approved', 'completed', 'cancelled'])
-      table.string('token_hash').nullable().unique()
-      table.integer('delivery_generation').notNullable().defaultTo(0)
-      table.bigInteger('expires_at').notNullable()
-      table.integer('sent_count').notNullable().defaultTo(0)
-      table.bigInteger('last_sent_at').nullable()
-      table.string('source_ip_hash').notNullable()
-      table.string('provider_state_hash').nullable().unique()
-      table.timestamp('created_at').notNullable()
-      table.timestamp('updated_at').notNullable()
-      table.index(['email', 'last_sent_at'])
-      table.index(['browser_hash', 'last_sent_at'])
-      table.index(['source_ip_hash', 'last_sent_at'])
-      table.index(['expires_at', 'state'])
-      table.check(
-        "(purpose = 'policy' AND invitation_id IS NULL) OR (purpose = 'invitation' AND invitation_id IS NOT NULL)"
-      )
-    })
     this.schema.createTable('account_access_restrictions', (table) => {
       table.string('id').primary()
       table
@@ -463,27 +403,6 @@ export default class extends BaseSchema {
       table.unique(['account_id', 'principal_id'])
       table.index(['account_id', 'verified_email'])
     })
-    this.schema.createTable('member_resource_link_exceptions', (table) => {
-      table.string('id').primary()
-      table
-        .string('account_id')
-        .notNullable()
-        .references('id')
-        .inTable('accounts')
-        .onDelete('CASCADE')
-      table.string('user_id').notNullable()
-      // A missing or deleted proposed resource remains a meaningful admission exception.
-      table.string('proposed_resource_id').nullable()
-      table
-        .string('reason')
-        .notNullable()
-        .checkIn(['resource_unavailable', 'resource_already_linked', 'member_already_linked'])
-      table.timestamp('created_at').notNullable()
-      table.timestamp('updated_at').notNullable()
-      table.unique(['account_id', 'user_id'])
-      table.index(['account_id'])
-    })
-
     this.schema.createTable('adonis_sessions', (table) => {
       table.string('id').primary()
       table.text('data').notNullable()
@@ -503,21 +422,6 @@ export default class extends BaseSchema {
         .onDelete('CASCADE')
       table.string('email', 254).notNullable()
       table.string('hash', 64).notNullable().unique()
-      table.timestamp('expires_at', { useTz: true }).notNullable()
-      table.timestamp('created_at', { useTz: true }).notNullable()
-    })
-    this.schema.createTable('account_email_changes', (table) => {
-      table.increments('id')
-      table
-        .string('user_id')
-        .notNullable()
-        .unique()
-        .references('id')
-        .inTable('users')
-        .onDelete('CASCADE')
-      table.string('current_email', 254).notNullable()
-      table.string('new_email', 254).notNullable()
-      table.string('token_hash', 64).notNullable().unique()
       table.timestamp('expires_at', { useTz: true }).notNullable()
       table.timestamp('created_at', { useTz: true }).notNullable()
     })
@@ -544,7 +448,8 @@ export default class extends BaseSchema {
       table.timestamp('expires_at', { useTz: true }).notNullable()
       table.timestamp('created_at', { useTz: true }).notNullable()
     })
-    // Credential changes clear these proofs even while product magic-link sign-in is disabled.
+    // Account Kit 0.1.2 requires this and the social tables below while those capabilities are
+    // disabled: credential cleanup and pruning visit them. They stay empty.
     this.schema.createTable('login_link_tokens', (table) => {
       table.increments('id')
       table
@@ -559,6 +464,114 @@ export default class extends BaseSchema {
       table.string('client_challenge', 43).notNullable()
       table.timestamp('expires_at', { useTz: true, precision: 3 }).notNullable()
       table.timestamp('created_at', { useTz: true, precision: 3 }).notNullable()
+    })
+
+    this.schema.createTable('social_identities', (table) => {
+      table.increments('id')
+      table.string('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE')
+      table.string('provider', 64).notNullable()
+      table.string('provider_user_id', 255).notNullable()
+      table.string('email', 254).nullable()
+      table.boolean('email_verified').notNullable().defaultTo(false)
+      table.string('name', 255).nullable()
+      table.string('nickname', 255).nullable()
+      table.string('avatar_url', 2048).nullable()
+      table.json('meta').nullable()
+      table.timestamp('created_at', { useTz: true, precision: 3 }).notNullable()
+      table.timestamp('updated_at', { useTz: true, precision: 3 }).notNullable()
+      table.timestamp('confirmed_at', { useTz: true, precision: 3 }).nullable()
+      table.unique(['provider', 'provider_user_id'])
+      table.index(['user_id'])
+    })
+    this.schema.createTable('social_transactions', (table) => {
+      table.increments('id')
+      table.string('hash', 64).notNullable().unique()
+      table.string('provider', 64).notNullable()
+      table.string('intent', 16).notNullable()
+      table.string('purpose', 32).nullable()
+      table.string('client_challenge', 43).notNullable()
+      table.string('verification_hash', 64).nullable()
+      table.string('proof_hash', 64).nullable()
+      table.string('credential_revision', 40).nullable()
+      table.string('user_id').nullable().references('id').inTable('users').onDelete('CASCADE')
+      table.string('provider_user_id', 255).nullable()
+      table.string('email', 254).nullable()
+      table.boolean('email_verified').nullable()
+      table.string('name', 255).nullable()
+      table.string('nickname', 255).nullable()
+      table.string('avatar_url', 2048).nullable()
+      table.timestamp('expires_at', { useTz: true, precision: 3 }).notNullable()
+      table.timestamp('created_at', { useTz: true, precision: 3 }).notNullable()
+    })
+    this.schema.createTable('social_sensitive_proofs', (table) => {
+      table.increments('id')
+      table.string('hash', 64).notNullable().unique()
+      table.string('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE')
+      table.string('purpose', 32).notNullable()
+      table.string('credential_revision', 40).nullable()
+      table.timestamp('expires_at', { useTz: true, precision: 3 }).notNullable()
+      table.timestamp('created_at', { useTz: true, precision: 3 }).notNullable()
+      table.index(['user_id', 'purpose'])
+    })
+    this.schema.createTable('social_handoff_codes', (table) => {
+      table.increments('id')
+      table.string('hash', 64).notNullable().unique()
+      table.string('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE')
+      table
+        .integer('social_identity_id')
+        .unsigned()
+        .notNullable()
+        .references('id')
+        .inTable('social_identities')
+        .onDelete('CASCADE')
+      table.string('credential_revision', 40).nullable()
+      table.string('client_challenge', 43).notNullable()
+      table.timestamp('expires_at', { useTz: true, precision: 3 }).notNullable()
+      table.timestamp('created_at', { useTz: true, precision: 3 }).notNullable()
+    })
+    this.schema.createTable('account_invitations', (table) => {
+      table.increments('id')
+      table.string('email', 254).notNullable().unique()
+      table.string('role', 64).notNullable()
+      table.string('inviter_id').nullable().references('id').inTable('users').onDelete('SET NULL')
+      table.string('token_hash', 64).notNullable().unique()
+      table.timestamp('expires_at', { useTz: true, precision: 3 }).notNullable()
+      table.timestamp('created_at', { useTz: true, precision: 3 }).notNullable()
+      table.timestamp('updated_at', { useTz: true, precision: 3 }).notNullable()
+      table.index(
+        ['created_at', 'id', 'expires_at'],
+        'account_invitations_created_at_id_expires_at_index'
+      )
+    })
+    this.schema.createTable('account_admissions', (table) => {
+      table.increments('id')
+      // Null only on a bootstrap approval waiting for its account.
+      table
+        .string('user_id')
+        .nullable()
+        .unique()
+        .references('id')
+        .inTable('users')
+        .onDelete('CASCADE')
+      table.string('bootstrap_email', 254).nullable().unique()
+      table.timestamp('requested_at', { useTz: true, precision: 3 }).nullable()
+      // The consumed account_invitations id. No foreign key: acceptance deletes that row.
+      table.integer('invitation_id').nullable()
+      table.string('invited_email', 254).nullable()
+      table.string('invited_role', 64).nullable()
+      table.string('invitation_source', 16).nullable()
+      table.timestamp('invitation_recorded_at', { useTz: true, precision: 3 }).nullable()
+      table.string('approval_status', 16).nullable()
+      table
+        .string('approval_actor_id')
+        .nullable()
+        .references('id')
+        .inTable('users')
+        .onDelete('SET NULL')
+      table.timestamp('approval_decided_at', { useTz: true, precision: 3 }).nullable()
+      table.timestamp('created_at', { useTz: true, precision: 3 }).notNullable()
+      table.timestamp('updated_at', { useTz: true, precision: 3 }).notNullable()
+      table.index(['created_at', 'id'], 'account_admissions_created_at_id_index')
     })
 
     this.schema.createTable('company_planning_revisions', (table) => {
@@ -579,7 +592,8 @@ export default class extends BaseSchema {
       table.primary(['account_id', 'mutation_id'])
       table.check('revision >= 0')
       table.string('restoration_group_id').nullable()
-      table.string('origin_session_id').nullable()
+      // The sign-in that may restore; no foreign key, so the marker outlives that sign-in.
+      table.integer('origin_session_id').nullable()
       table.index(['account_id', 'actor_id', 'origin_session_id', 'restoration_group_id'])
     })
 

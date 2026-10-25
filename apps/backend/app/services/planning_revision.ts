@@ -61,37 +61,3 @@ export function advancePlanningRevision(
   revisions.set(accountId, pending)
   return pending
 }
-
-/** Advances companies whose active member becomes restricted by a newly effective mailbox proof. */
-export async function advanceRevisionsForNewEmailProof(
-  trx: TransactionClientContract,
-  userId: string,
-  email: string
-): Promise<void> {
-  const existingProof = await trx
-    .from('email_proofs')
-    .where({ user_id: userId, email })
-    .select('user_id')
-    .first()
-  if (existingProof) return
-
-  const memberships = await trx
-    .from('memberships as membership')
-    .innerJoin(
-      'account_access_restrictions as restriction',
-      'restriction.account_id',
-      'membership.account_id'
-    )
-    .where({ 'membership.user_id': userId, 'membership.status': 'active' })
-    .where('restriction.verified_email', email)
-    .whereNotExists((query) =>
-      query
-        .from('account_access_restrictions as principal_restriction')
-        .whereColumn('principal_restriction.account_id', 'membership.account_id')
-        .where('principal_restriction.principal_id', userId)
-    )
-    .distinct('membership.account_id')
-    .select('membership.account_id')
-  for (const membership of memberships)
-    await advancePlanningRevision(trx, String(membership.account_id))
-}

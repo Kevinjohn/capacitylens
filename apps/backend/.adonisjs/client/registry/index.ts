@@ -342,6 +342,12 @@ const routes = {
     tokens: [{"old":"/api/auth/request-reset","type":0,"val":"api","end":""},{"old":"/api/auth/request-reset","type":0,"val":"auth","end":""},{"old":"/api/auth/request-reset","type":0,"val":"request-reset","end":""}],
     types: placeholder as Registry['api.auth.request-reset']['types'],
   },
+  'api.auth.inspect-reset': {
+    methods: ["POST"],
+    pattern: '/api/auth/inspect-reset',
+    tokens: [{"old":"/api/auth/inspect-reset","type":0,"val":"api","end":""},{"old":"/api/auth/inspect-reset","type":0,"val":"auth","end":""},{"old":"/api/auth/inspect-reset","type":0,"val":"inspect-reset","end":""}],
+    types: placeholder as Registry['api.auth.inspect-reset']['types'],
+  },
   'api.auth.reset-password': {
     methods: ["POST"],
     pattern: '/api/auth/reset-password',
@@ -353,6 +359,24 @@ const routes = {
     pattern: '/api/auth/change-password',
     tokens: [{"old":"/api/auth/change-password","type":0,"val":"api","end":""},{"old":"/api/auth/change-password","type":0,"val":"auth","end":""},{"old":"/api/auth/change-password","type":0,"val":"change-password","end":""}],
     types: placeholder as Registry['api.auth.change-password']['types'],
+  },
+  'api.auth.verification.send': {
+    methods: ["POST"],
+    pattern: '/api/auth/verification/send',
+    tokens: [{"old":"/api/auth/verification/send","type":0,"val":"api","end":""},{"old":"/api/auth/verification/send","type":0,"val":"auth","end":""},{"old":"/api/auth/verification/send","type":0,"val":"verification","end":""},{"old":"/api/auth/verification/send","type":0,"val":"send","end":""}],
+    types: placeholder as Registry['api.auth.verification.send']['types'],
+  },
+  'api.auth.verification.inspect': {
+    methods: ["POST"],
+    pattern: '/api/auth/verification/inspect',
+    tokens: [{"old":"/api/auth/verification/inspect","type":0,"val":"api","end":""},{"old":"/api/auth/verification/inspect","type":0,"val":"auth","end":""},{"old":"/api/auth/verification/inspect","type":0,"val":"verification","end":""},{"old":"/api/auth/verification/inspect","type":0,"val":"inspect","end":""}],
+    types: placeholder as Registry['api.auth.verification.inspect']['types'],
+  },
+  'api.auth.verification.complete': {
+    methods: ["POST"],
+    pattern: '/api/auth/verification/complete',
+    tokens: [{"old":"/api/auth/verification/complete","type":0,"val":"api","end":""},{"old":"/api/auth/verification/complete","type":0,"val":"auth","end":""},{"old":"/api/auth/verification/complete","type":0,"val":"verification","end":""},{"old":"/api/auth/verification/complete","type":0,"val":"complete","end":""}],
+    types: placeholder as Registry['api.auth.verification.complete']['types'],
   },
   'api.members.index': {
     methods: ["GET","HEAD"],
@@ -390,18 +414,6 @@ const routes = {
     tokens: [{"old":"/api/accounts/:accountId/members/:userId","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/members/:userId","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/members/:userId","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/members/:userId","type":0,"val":"members","end":""},{"old":"/api/accounts/:accountId/members/:userId","type":1,"val":"userId","end":""}],
     types: placeholder as Registry['api.members.remove']['types'],
   },
-  'api.members.reset-password': {
-    methods: ["POST"],
-    pattern: '/api/accounts/:accountId/members/:userId/reset-password',
-    tokens: [{"old":"/api/accounts/:accountId/members/:userId/reset-password","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/members/:userId/reset-password","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/members/:userId/reset-password","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/members/:userId/reset-password","type":0,"val":"members","end":""},{"old":"/api/accounts/:accountId/members/:userId/reset-password","type":1,"val":"userId","end":""},{"old":"/api/accounts/:accountId/members/:userId/reset-password","type":0,"val":"reset-password","end":""}],
-    types: placeholder as Registry['api.members.reset-password']['types'],
-  },
-  'api.members.revoke-sessions': {
-    methods: ["POST"],
-    pattern: '/api/accounts/:accountId/members/:userId/revoke-sessions',
-    tokens: [{"old":"/api/accounts/:accountId/members/:userId/revoke-sessions","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/members/:userId/revoke-sessions","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/members/:userId/revoke-sessions","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/members/:userId/revoke-sessions","type":0,"val":"members","end":""},{"old":"/api/accounts/:accountId/members/:userId/revoke-sessions","type":1,"val":"userId","end":""},{"old":"/api/accounts/:accountId/members/:userId/revoke-sessions","type":0,"val":"revoke-sessions","end":""}],
-    types: placeholder as Registry['api.members.revoke-sessions']['types'],
-  },
   'api.invites.create': {
     methods: ["POST"],
     pattern: '/api/invites',
@@ -413,6 +425,12 @@ const routes = {
     pattern: '/api/accounts/:accountId/invites',
     tokens: [{"old":"/api/accounts/:accountId/invites","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/invites","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/invites","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/invites","type":0,"val":"invites","end":""}],
     types: placeholder as Registry['api.invites.index']['types'],
+  },
+  'api.invites.resend': {
+    methods: ["POST"],
+    pattern: '/api/accounts/:accountId/invites/:id/resend',
+    tokens: [{"old":"/api/accounts/:accountId/invites/:id/resend","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/invites/:id/resend","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/invites/:id/resend","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/invites/:id/resend","type":0,"val":"invites","end":""},{"old":"/api/accounts/:accountId/invites/:id/resend","type":1,"val":"id","end":""},{"old":"/api/accounts/:accountId/invites/:id/resend","type":0,"val":"resend","end":""}],
+    types: placeholder as Registry['api.invites.resend']['types'],
   },
   'api.invites.revoke': {
     methods: ["DELETE"],
@@ -426,59 +444,53 @@ const routes = {
     tokens: [{"old":"/api/invites/:token/preview","type":0,"val":"api","end":""},{"old":"/api/invites/:token/preview","type":0,"val":"invites","end":""},{"old":"/api/invites/:token/preview","type":1,"val":"token","end":""},{"old":"/api/invites/:token/preview","type":0,"val":"preview","end":""}],
     types: placeholder as Registry['api.invites.preview']['types'],
   },
-  'api.invites.accept': {
-    methods: ["POST"],
-    pattern: '/api/invites/:token/accept',
-    tokens: [{"old":"/api/invites/:token/accept","type":0,"val":"api","end":""},{"old":"/api/invites/:token/accept","type":0,"val":"invites","end":""},{"old":"/api/invites/:token/accept","type":1,"val":"token","end":""},{"old":"/api/invites/:token/accept","type":0,"val":"accept","end":""}],
-    types: placeholder as Registry['api.invites.accept']['types'],
-  },
   'api.invites.sign-up': {
     methods: ["POST"],
     pattern: '/api/invites/:token/signup',
     tokens: [{"old":"/api/invites/:token/signup","type":0,"val":"api","end":""},{"old":"/api/invites/:token/signup","type":0,"val":"invites","end":""},{"old":"/api/invites/:token/signup","type":1,"val":"token","end":""},{"old":"/api/invites/:token/signup","type":0,"val":"signup","end":""}],
     types: placeholder as Registry['api.invites.sign-up']['types'],
   },
-  'api.joining.policy': {
+  'api.admission.show': {
     methods: ["GET","HEAD"],
-    pattern: '/api/accounts/:accountId/joining-policy',
-    tokens: [{"old":"/api/accounts/:accountId/joining-policy","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/joining-policy","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/joining-policy","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/joining-policy","type":0,"val":"joining-policy","end":""}],
-    types: placeholder as Registry['api.joining.policy']['types'],
+    pattern: '/api/admission',
+    tokens: [{"old":"/api/admission","type":0,"val":"api","end":""},{"old":"/api/admission","type":0,"val":"admission","end":""}],
+    types: placeholder as Registry['api.admission.show']['types'],
   },
-  'api.joining.update-policy': {
-    methods: ["PUT"],
-    pattern: '/api/accounts/:accountId/joining-policy',
-    tokens: [{"old":"/api/accounts/:accountId/joining-policy","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/joining-policy","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/joining-policy","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/joining-policy","type":0,"val":"joining-policy","end":""}],
-    types: placeholder as Registry['api.joining.update-policy']['types'],
+  'api.admission.request': {
+    methods: ["POST"],
+    pattern: '/api/admission/request',
+    tokens: [{"old":"/api/admission/request","type":0,"val":"api","end":""},{"old":"/api/admission/request","type":0,"val":"admission","end":""},{"old":"/api/admission/request","type":0,"val":"request","end":""}],
+    types: placeholder as Registry['api.admission.request']['types'],
   },
-  'api.joining.metadata': {
+  'api.admission.complete': {
+    methods: ["POST"],
+    pattern: '/api/admission/complete',
+    tokens: [{"old":"/api/admission/complete","type":0,"val":"api","end":""},{"old":"/api/admission/complete","type":0,"val":"admission","end":""},{"old":"/api/admission/complete","type":0,"val":"complete","end":""}],
+    types: placeholder as Registry['api.admission.complete']['types'],
+  },
+  'api.admission.index': {
     methods: ["GET","HEAD"],
-    pattern: '/api/accounts/:accountId/join/metadata',
-    tokens: [{"old":"/api/accounts/:accountId/join/metadata","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/join/metadata","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/join/metadata","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/join/metadata","type":0,"val":"join","end":""},{"old":"/api/accounts/:accountId/join/metadata","type":0,"val":"metadata","end":""}],
-    types: placeholder as Registry['api.joining.metadata']['types'],
+    pattern: '/api/admission/requests',
+    tokens: [{"old":"/api/admission/requests","type":0,"val":"api","end":""},{"old":"/api/admission/requests","type":0,"val":"admission","end":""},{"old":"/api/admission/requests","type":0,"val":"requests","end":""}],
+    types: placeholder as Registry['api.admission.index']['types'],
   },
-  'api.joining.status': {
-    methods: ["GET","HEAD"],
-    pattern: '/api/company-join/status',
-    tokens: [{"old":"/api/company-join/status","type":0,"val":"api","end":""},{"old":"/api/company-join/status","type":0,"val":"company-join","end":""},{"old":"/api/company-join/status","type":0,"val":"status","end":""}],
-    types: placeholder as Registry['api.joining.status']['types'],
-  },
-  'api.joining.complete-existing': {
+  'api.admission.approve': {
     methods: ["POST"],
-    pattern: '/api/accounts/:accountId/join/complete-existing',
-    tokens: [{"old":"/api/accounts/:accountId/join/complete-existing","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/join/complete-existing","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/join/complete-existing","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/join/complete-existing","type":0,"val":"join","end":""},{"old":"/api/accounts/:accountId/join/complete-existing","type":0,"val":"complete-existing","end":""}],
-    types: placeholder as Registry['api.joining.complete-existing']['types'],
+    pattern: '/api/admission/:userId/approve',
+    tokens: [{"old":"/api/admission/:userId/approve","type":0,"val":"api","end":""},{"old":"/api/admission/:userId/approve","type":0,"val":"admission","end":""},{"old":"/api/admission/:userId/approve","type":1,"val":"userId","end":""},{"old":"/api/admission/:userId/approve","type":0,"val":"approve","end":""}],
+    types: placeholder as Registry['api.admission.approve']['types'],
   },
-  'api.joining.request-proof': {
+  'api.admission.reject': {
     methods: ["POST"],
-    pattern: '/api/accounts/:accountId/join/verify-email',
-    tokens: [{"old":"/api/accounts/:accountId/join/verify-email","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/join/verify-email","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/join/verify-email","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/join/verify-email","type":0,"val":"join","end":""},{"old":"/api/accounts/:accountId/join/verify-email","type":0,"val":"verify-email","end":""}],
-    types: placeholder as Registry['api.joining.request-proof']['types'],
+    pattern: '/api/admission/:userId/reject',
+    tokens: [{"old":"/api/admission/:userId/reject","type":0,"val":"api","end":""},{"old":"/api/admission/:userId/reject","type":0,"val":"admission","end":""},{"old":"/api/admission/:userId/reject","type":1,"val":"userId","end":""},{"old":"/api/admission/:userId/reject","type":0,"val":"reject","end":""}],
+    types: placeholder as Registry['api.admission.reject']['types'],
   },
-  'api.joining.verify-email': {
+  'api.admission.revoke': {
     methods: ["POST"],
-    pattern: '/api/company-join/verify-email',
-    tokens: [{"old":"/api/company-join/verify-email","type":0,"val":"api","end":""},{"old":"/api/company-join/verify-email","type":0,"val":"company-join","end":""},{"old":"/api/company-join/verify-email","type":0,"val":"verify-email","end":""}],
-    types: placeholder as Registry['api.joining.verify-email']['types'],
+    pattern: '/api/admission/:userId/revoke',
+    tokens: [{"old":"/api/admission/:userId/revoke","type":0,"val":"api","end":""},{"old":"/api/admission/:userId/revoke","type":0,"val":"admission","end":""},{"old":"/api/admission/:userId/revoke","type":1,"val":"userId","end":""},{"old":"/api/admission/:userId/revoke","type":0,"val":"revoke","end":""}],
+    types: placeholder as Registry['api.admission.revoke']['types'],
   },
   'api.member-resources.set': {
     methods: ["PUT"],
@@ -491,12 +503,6 @@ const routes = {
     pattern: '/api/accounts/:accountId/members/:principalId/resource-link',
     tokens: [{"old":"/api/accounts/:accountId/members/:principalId/resource-link","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/members/:principalId/resource-link","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/members/:principalId/resource-link","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/members/:principalId/resource-link","type":0,"val":"members","end":""},{"old":"/api/accounts/:accountId/members/:principalId/resource-link","type":1,"val":"principalId","end":""},{"old":"/api/accounts/:accountId/members/:principalId/resource-link","type":0,"val":"resource-link","end":""}],
     types: placeholder as Registry['api.member-resources.clear']['types'],
-  },
-  'api.member-resources.clear-exception': {
-    methods: ["DELETE"],
-    pattern: '/api/accounts/:accountId/members/:principalId/resource-link-exception',
-    tokens: [{"old":"/api/accounts/:accountId/members/:principalId/resource-link-exception","type":0,"val":"api","end":""},{"old":"/api/accounts/:accountId/members/:principalId/resource-link-exception","type":0,"val":"accounts","end":""},{"old":"/api/accounts/:accountId/members/:principalId/resource-link-exception","type":1,"val":"accountId","end":""},{"old":"/api/accounts/:accountId/members/:principalId/resource-link-exception","type":0,"val":"members","end":""},{"old":"/api/accounts/:accountId/members/:principalId/resource-link-exception","type":1,"val":"principalId","end":""},{"old":"/api/accounts/:accountId/members/:principalId/resource-link-exception","type":0,"val":"resource-link-exception","end":""}],
-    types: placeholder as Registry['api.member-resources.clear-exception']['types'],
   },
   'api.member-resources.avatars': {
     methods: ["GET","HEAD"],
