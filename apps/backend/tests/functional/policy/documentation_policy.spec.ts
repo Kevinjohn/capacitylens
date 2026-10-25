@@ -194,7 +194,11 @@ test.group('M5 documentation and policy contracts', () => {
     assert.include(dockerGuide, '`capacitylens-db`')
     assert.include(dockerGuide, '`capacitylens-backups`')
     assert.include(dockerGuide, '/health/ready')
-    assert.include(dockerGuide, 'Keep open production access disabled')
+    assert.include(
+      dockerGuide,
+      'docker compose exec api node ace.js account-kit:admission:bootstrap'
+    )
+    assert.notInclude(dockerGuide, 'CAPACITYLENS_SETUP_TOKEN')
   })
 
   test('ignores runtime databases', ({ assert }) => {

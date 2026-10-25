@@ -39,11 +39,11 @@ test("Compose upgrades before API startup and preserves the private persistent d
   assert.deepEqual(compose.services.upgrade.environment, compose.services.api.environment);
   assert.deepEqual(compose.services.api.volumes, ["capacitylens-db:/data", "capacitylens-backups:/backups"]);
   assert.equal(compose.services.api.environment.SESSION_DRIVER, "database");
-  assert.equal(compose.services.api.environment.CAPACITYLENS_MODE, "${CAPACITYLENS_MODE:-password-only}");
-  assert.equal(
-    compose.services.api.environment.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION,
-    "${CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION:-0}",
-  );
+  // Production refuses a plain-HTTP origin, so Compose requires the operator's address instead of a default.
+  assert.match(compose.services.api.environment.CAPACITYLENS_PUBLIC_URL, /^\$\{CAPACITYLENS_PUBLIC_URL:\?/);
+  // Sign-in modes and open production access no longer exist, so Compose must not offer them.
+  assert.equal(compose.services.api.environment.CAPACITYLENS_MODE, undefined);
+  assert.equal(compose.services.api.environment.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION, undefined);
   assert.deepEqual(Object.keys(compose.volumes).sort(), ["capacitylens-backups", "capacitylens-db"]);
   const workflow = YAML.parse(await readFile(new URL("../.github/workflows/docker.yml", import.meta.url), "utf8"));
   assert.deepEqual(workflow.on.push.branches, ["main"]);

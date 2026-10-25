@@ -16,6 +16,7 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Docker Compose now requires an HTTPS `CAPACITYLENS_PUBLIC_URL`, and the first setup link comes from `docker compose exec api node ace.js account-kit:admission:bootstrap`. The sign-in mode, setup token, breached-password, Google and backup-interval settings are removed from Compose and `.env.example`.
 - Accounts now run on Account Kit with password sign-in only. Invitations are emailed and last
   seven days, with **Resend** in Team & access; accepting one confirms the address, and an Owner or
   Admin then approves the person under **Waiting for approval**. The first Owner opens a one-time
