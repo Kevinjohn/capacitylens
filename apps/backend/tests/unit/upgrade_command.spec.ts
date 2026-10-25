@@ -31,7 +31,6 @@ function command(root: string, databasePath: string, args: string[], backupDir?:
       CAPACITYLENS_ALLOW_RESET: 'false',
       CAPACITYLENS_CREATE_ADMIN_ADMIN: 'false',
       CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: '',
-      CAPACITYLENS_MODE: 'password-only',
       CAPACITYLENS_SECRET: 'capacitylens-test-secret-0123456789abcdef',
       CAPACITYLENS_PUBLIC_URL: 'http://127.0.0.1',
     },

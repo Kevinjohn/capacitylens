@@ -5,14 +5,9 @@ import app from '@adonisjs/core/services/app'
 import { defineConfig } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
-import { hashPassword } from '#services/password_service'
 
 type Cleanup = (callback: () => void) => void
-type MutableKey =
-  | 'CAPACITYLENS_MODE'
-  | 'CAPACITYLENS_RATE_LIMIT'
-  | 'CAPACITYLENS_SECRET'
-  | 'CAPACITYLENS_PUBLIC_URL'
+type MutableKey = 'CAPACITYLENS_RATE_LIMIT' | 'CAPACITYLENS_SECRET' | 'CAPACITYLENS_PUBLIC_URL'
 
 function captureEnvironment(cleanup: Cleanup, keys: MutableKey[]) {
   const previous = new Map(keys.map((key) => [key, env.get(key)]))
@@ -68,8 +63,7 @@ test.group('native auth and API rate limits', (group) => {
     assert,
     cleanup,
   }) => {
-    captureEnvironment(cleanup, ['CAPACITYLENS_MODE', 'CAPACITYLENS_RATE_LIMIT'])
-    setEnvironment('CAPACITYLENS_MODE', 'password-only')
+    captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT'])
     setEnvironment('CAPACITYLENS_RATE_LIMIT', '2')
 
     assert.equal(await responseStatus(requestMetadata(client)), 200)
@@ -93,8 +87,7 @@ test.group('native auth and API rate limits', (group) => {
     assert,
     cleanup,
   }) => {
-    captureEnvironment(cleanup, ['CAPACITYLENS_MODE', 'CAPACITYLENS_RATE_LIMIT'])
-    setEnvironment('CAPACITYLENS_MODE', 'password-only')
+    captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT'])
     for (const configured of ['', '0', '-1', '1.5', 'invalid', ' 2 ']) {
       await db.from('rate_limits').delete()
       setEnvironment('CAPACITYLENS_RATE_LIMIT', configured)
@@ -108,8 +101,7 @@ test.group('native auth and API rate limits', (group) => {
     assert,
     cleanup,
   }) => {
-    captureEnvironment(cleanup, ['CAPACITYLENS_MODE', 'CAPACITYLENS_RATE_LIMIT'])
-    setEnvironment('CAPACITYLENS_MODE', 'password-only')
+    captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT'])
     setEnvironment('CAPACITYLENS_RATE_LIMIT', '2')
     trustProxyHeaders(false)
     assert.equal(await responseStatus(requestMetadata(client, '203.0.113.41')), 200)
@@ -130,12 +122,10 @@ test.group('native auth and API rate limits', (group) => {
     cleanup,
   }) => {
     captureEnvironment(cleanup, [
-      'CAPACITYLENS_MODE',
       'CAPACITYLENS_RATE_LIMIT',
       'CAPACITYLENS_SECRET',
       'CAPACITYLENS_PUBLIC_URL',
     ])
-    setEnvironment('CAPACITYLENS_MODE', 'password-only')
     setEnvironment('CAPACITYLENS_RATE_LIMIT', '0')
     trustProxyHeaders(true)
     setEnvironment('CAPACITYLENS_SECRET', 'n'.repeat(32))
@@ -143,7 +133,8 @@ test.group('native auth and API rate limits', (group) => {
 
     const email = `private-${crypto.randomUUID()}@example.test`
     const forwardedIp = `198.51.100.${Math.floor(Math.random() * 200) + 1}`
-    for (let attempt = 0; attempt < 3; attempt++) {
+    // The Account Kit allows five failed sign-ins per client and address each minute.
+    for (let attempt = 0; attempt < 5; attempt++) {
       const response = await signIn(client, forwardedIp, email)
       assert.equal(response.status(), 401)
       assert.notInclude(JSON.stringify(response.body()), email)
@@ -163,20 +154,4 @@ test.group('native auth and API rate limits', (group) => {
       assert.notInclude(String(entry.key), 'never-store-this-password-012345')
     }
   })
-
-  test('an unknown address waits for the same password work as a real account', async ({
-    client,
-    assert,
-    cleanup,
-  }) => {
-    captureEnvironment(cleanup, ['CAPACITYLENS_MODE', 'CAPACITYLENS_RATE_LIMIT'])
-    setEnvironment('CAPACITYLENS_MODE', 'password-only')
-    setEnvironment('CAPACITYLENS_RATE_LIMIT', '0')
-
-    // Two active and sixteen queued derivations fill the queue, so any sign-in that derives is refused.
-    const saturating = Array.from({ length: 18 }, (_, index) => hashPassword(`saturate-${index}`))
-    const unknown = await signIn(client, undefined, `nobody-${crypto.randomUUID()}@example.test`)
-    await Promise.all(saturating)
-    assert.equal(unknown.status(), 503)
-  }).timeout(20_000)
 })

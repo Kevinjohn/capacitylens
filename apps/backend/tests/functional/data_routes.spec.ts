@@ -27,10 +27,7 @@ test.group('M2b data routes', (group) => {
   group.each.setup(async () => {
     await db.from('account_member_resources').delete()
     await db.from('audit_entries').delete()
-    await db.from('member_resource_link_exceptions').delete()
     await db.from('account_access_restrictions').delete()
-    await db.from('company_join_intents').delete()
-    await db.from('account_joining_policies').delete()
     await db.from('account_getting_started_dismissals').delete()
   })
 
@@ -102,7 +99,7 @@ test.group('M2b data routes', (group) => {
     await db.table('users').insert({
       id: 'u-export',
       email: 'secret.person@wayne.com',
-      email_verified: 1,
+      email_verified_at: stamp,
       created_at: stamp,
       updated_at: stamp,
     })
@@ -115,39 +112,20 @@ test.group('M2b data routes', (group) => {
       created_at: stamp,
       updated_at: stamp,
     })
-    await db.table('invitations').insert({
-      id: 'invite-export',
-      account_id: 'a-studio',
-      token_hash: 'secret-invite-token-hash',
+    await db.table('account_invitations').insert({
       email: 'secret.invited@wayne.com',
       role: 'viewer',
+      token_hash: 'secret-invite-token-hash',
       expires_at: stamp,
       created_at: stamp,
       updated_at: stamp,
     })
-    await db.table('sessions').insert({
-      id: 'session-export',
+    await db.table('account_sessions').insert({
       user_id: 'u-export',
-      payload: 'secret-session-payload',
+      handle_hash: 'secret-session-handle-hash',
+      created_at: stamp,
+      last_seen_at: stamp,
       expires_at: stamp,
-      created_at: stamp,
-      updated_at: stamp,
-    })
-    await db.table('invitation_proposals').insert({
-      id: 'proposal-export-secret',
-      invitation_id: 'invite-export',
-      resource_id: null,
-      created_at: stamp,
-      updated_at: stamp,
-    })
-    await db.table('member_resource_link_exceptions').insert({
-      id: 'exception-export',
-      account_id: 'a-studio',
-      user_id: 'u-export',
-      proposed_resource_id: 'secret-proposed-resource',
-      reason: 'resource_unavailable',
-      created_at: stamp,
-      updated_at: stamp,
     })
     await db.table('account_access_restrictions').insert({
       id: 'restriction-export',
@@ -165,10 +143,8 @@ test.group('M2b data routes', (group) => {
       'secret.person@wayne.com',
       'secret-invite-token-hash',
       'secret.invited@wayne.com',
-      'secret-session-payload',
+      'secret-session-handle-hash',
       'u-export',
-      'proposal-export-secret',
-      'secret-proposed-resource',
       'restricted.secret@wayne.com',
     ])
       assert.notInclude(serialized, secret)

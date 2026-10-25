@@ -3,6 +3,7 @@ import { canAdministerIdentityAcrossWorkspaces } from '@capacitylens/shared/acco
 import type { Role } from '@capacitylens/shared/account/types'
 import { can, type Action } from '@capacitylens/shared/domain/access'
 import { actorIn } from '#services/auth/current_actor'
+import { forbiddenAdmission } from '#services/admission/errors'
 
 /** A transaction, or the default connection where a Kit callback supplies none. */
 type Reader = Pick<TransactionClientContract, 'from'>
@@ -38,6 +39,13 @@ export async function restrictedCompanyIds(userId: string, trx: Reader) {
     })
     .select('account_id')
   return new Set(rows.map((row) => String(row.account_id)))
+}
+
+/** Refuses a new membership in a company that restricted this principal or its confirmed address. */
+export async function assertCompanyAccessOpen(userId: string, accountId: string, trx: Reader) {
+  const restricted = await restrictedCompanyIds(userId, trx)
+  if (restricted.has(accountId))
+    forbiddenAdmission('Company access requires administrator restoration.')
 }
 
 async function memberRoles(userId: string, trx: Reader, activeOnly: boolean) {

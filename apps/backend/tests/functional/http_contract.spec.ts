@@ -65,7 +65,6 @@ async function withServer(
     APP_KEY: 'capacitylens-test-key-0123456789abcdef',
     APP_URL: `http://127.0.0.1:${port}`,
     SESSION_DRIVER: 'database',
-    CAPACITYLENS_MODE: 'password-only',
     CAPACITYLENS_SECRET: 'capacitylens-http-contract-secret-2026',
     CAPACITYLENS_PUBLIC_URL: `http://127.0.0.1:${port}`,
     CAPACITYLENS_DB: join(root, 'contract.db'),
@@ -145,11 +144,6 @@ const plainOriginReset = (server: Booted, forwardedProto?: string) =>
       ...(forwardedProto ? { 'x-forwarded-proto': forwardedProto } : {}),
     })
     .then(({ status }) => status)
-
-const sessionCookie = (reply: Reply) =>
-  ([] as string[])
-    .concat(reply.headers['set-cookie'] ?? [])
-    .find((cookie) => /^(__Host-)?adonis-session=/.test(cookie))
 
 test.group('HTTP proxy, transport and cookie contract', (group) => {
   group.each.timeout(90_000)
@@ -263,24 +257,20 @@ test.group('HTTP proxy, transport and cookie contract', (group) => {
     })
   })
 
-  test('an http public URL in production issues a session cookie without Secure', async ({
-    assert,
-  }) => {
-    await withServer(
-      {
-        NODE_ENV: 'production',
-        CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: 'true',
-        CAPACITYLENS_PUBLIC_URL: 'http://127.0.0.1',
-      },
-      {},
-      async (server) => {
-        const reply = await server.send('GET', '/api/health')
-        assert.equal(reply.status, 200)
-        const cookie = sessionCookie(reply)
-        assert.isDefined(cookie, `session cookie in ${String(reply.headers['set-cookie'])}`)
-        assert.match(cookie!, /^adonis-session=/, 'a __Host- cookie requires Secure')
-        assert.notMatch(cookie!, /;\s*secure(;|$)/i)
-      }
+  test('production refuses an http public URL before serving', async ({ assert }) => {
+    // Account links carry bearer tokens, so the Account Kit requires an HTTPS origin in production.
+    await assert.rejects(
+      () =>
+        withServer(
+          {
+            NODE_ENV: 'production',
+            CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: 'true',
+            CAPACITYLENS_PUBLIC_URL: 'http://127.0.0.1',
+          },
+          {},
+          async () => {}
+        ),
+      /public production origins require HTTPS/
     )
   })
 

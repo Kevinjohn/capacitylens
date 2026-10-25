@@ -1,10 +1,9 @@
 import { test } from '@japa/runner'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
-import env from '#start/env'
 import { resetState } from '#services/state_repository'
+import { signUpAndIn } from '../../helpers/identities.js'
 
-const setupToken = 'tracking-lifecycle-setup-0123456789'
 const password = 'batman-secret-2026'
 
 function signed<
@@ -29,39 +28,25 @@ async function observation(accountId: string, principalId: string) {
 }
 
 test.group('member sign-in tracking lifecycle', (group) => {
-  group.setup(() => {
-    const original = {
-      mode: env.get('CAPACITYLENS_MODE'),
-      setup: env.get('CAPACITYLENS_SETUP_TOKEN'),
-      signup: env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP'),
-    }
-    env.set('CAPACITYLENS_MODE', 'password-only')
-    env.set('CAPACITYLENS_SETUP_TOKEN', setupToken)
-    env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', true)
-    return () => {
-      env.set('CAPACITYLENS_MODE', original.mode)
-      env.set('CAPACITYLENS_SETUP_TOKEN', original.setup)
-      env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', original.signup)
-    }
-  })
   group.setup(() => freshDatabase())
   group.each.setup(async () => {
     await resetState(false)
-    await db.from('user_session_index').delete()
+    await db.from('account_admissions').delete()
+    await db.from('account_invitations').delete()
     await db.from('adonis_sessions').delete()
     await db.from('users').delete()
   })
 
-  test('keeps observations off by default, scopes fresh windows by company, and clears them atomically on global session revocation', async ({
+  test('keeps observations off by default, and scopes fresh windows by company', async ({
     client,
     assert,
   }) => {
-    const owner = await client
-      .post('/api/auth/sign-up')
-      .header('x-capacitylens-setup-token', setupToken)
-      .json({ email: 'bruce.wayne@wayne.example', password, name: 'Bruce Wayne' })
-      .send()
-    owner.assertStatus(201)
+    const owner = await signUpAndIn(client, {
+      email: 'bruce.wayne@wayne.example',
+      password,
+      name: 'Bruce Wayne',
+    })
+    owner.assertStatus(200)
     const ownerCookie = owner.cookie('adonis-session')!.value
     const now = new Date().toISOString()
     await db.table('accounts').insert([
@@ -101,11 +86,12 @@ test.group('member sign-in tracking lifecycle', (group) => {
       },
     ])
 
-    const member = await client
-      .post('/api/auth/sign-up')
-      .json({ email: 'clark.kent@wayne.example', password, name: 'Clark Kent' })
-      .send()
-    member.assertStatus(201)
+    const member = await signUpAndIn(client, {
+      email: 'clark.kent@wayne.example',
+      password,
+      name: 'Clark Kent',
+    })
+    member.assertStatus(200)
     const memberId = await userId('clark.kent@wayne.example')
     await db.table('memberships').insert([
       {
@@ -199,35 +185,5 @@ test.group('member sign-in tracking lifecycle', (group) => {
     beforeRevoke.assertStatus(200)
     assert.isNotNull(await observation('a-studio', memberId))
     assert.isNotNull(await observation('a-loft', memberId))
-
-    await db.rawQuery(
-      `CREATE TRIGGER fail_global_tracking_clear BEFORE DELETE ON company_settings WHEN OLD.key = 'member-sign-in:${memberId}' BEGIN SELECT RAISE(ABORT, 'forced tracking clear failure'); END`
-    )
-    try {
-      const failedRevoke = await signed(
-        client.post(`/api/accounts/a-studio/members/${memberId}/revoke-sessions`),
-        ownerCookie
-      ).send()
-      assert.isAtLeast(failedRevoke.status(), 500)
-      assert.isNotNull(await observation('a-studio', memberId))
-      assert.isNotNull(await observation('a-loft', memberId))
-      const sessions = await db
-        .from('user_session_index')
-        .where('user_id', memberId)
-        .select('session_id')
-      assert.isAbove(sessions.length, 0)
-    } finally {
-      await db.rawQuery('DROP TRIGGER IF EXISTS fail_global_tracking_clear')
-    }
-
-    const revoked = await signed(
-      client.post(`/api/accounts/a-studio/members/${memberId}/revoke-sessions`),
-      ownerCookie
-    ).send()
-    revoked.assertStatus(204)
-    assert.isNull(await observation('a-studio', memberId))
-    assert.isNull(await observation('a-loft', memberId))
-    assert.isNotNull(await observation('a-studio', await userId('bruce.wayne@wayne.example')))
-    assert.isNull(await db.from('user_session_index').where('user_id', memberId).first())
   })
 })

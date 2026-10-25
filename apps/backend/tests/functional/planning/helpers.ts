@@ -5,11 +5,11 @@ import env from '#start/env'
 import { seed } from '@capacitylens/shared/data/seed'
 import { type AppData } from '@capacitylens/shared/types/entities'
 import { resetState } from '#services/state_repository'
+import { clearIdentities, createIdentity } from '../../helpers/identities.js'
 
 export const accountId = 'a-studio'
 export const planningUrl = `/api/accounts/${accountId}/planning`
 const password = 'batman-secret-2026'
-const setupToken = 'planning-auth-setup-token-0123456789abcdef'
 
 export const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
   request.header('sec-fetch-site', 'same-origin')
@@ -27,38 +27,19 @@ export function session<
 }
 
 export function configureAuth(cleanup: (callback: () => void) => void) {
-  const keys = [
-    'CAPACITYLENS_MODE',
-    'CAPACITYLENS_SETUP_TOKEN',
-    'CAPACITYLENS_ALLOW_OPEN_SIGNUP',
-    'CAPACITYLENS_PASSWORD_BREACH_CHECK',
-    'CAPACITYLENS_RATE_LIMIT',
-  ] as const
-  const prior = keys.map((key) => env.get(key))
-  env.set('CAPACITYLENS_MODE', 'password-only')
-  env.set('CAPACITYLENS_SETUP_TOKEN', setupToken)
-  env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', true)
-  env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', false)
+  const prior = env.get('CAPACITYLENS_RATE_LIMIT')
   env.set('CAPACITYLENS_RATE_LIMIT', '0')
-  cleanup(() => {
-    keys.forEach((key, index) => env.set(key, prior[index] as never))
-  })
+  cleanup(() => env.set('CAPACITYLENS_RATE_LIMIT', prior as never))
 }
 
-/** Real sign-up establishes the native session; only product membership is fixture data. */
+/** A real password sign-in establishes the Account Kit session; membership is fixture data. */
 export async function signIn(
   client: ApiClient,
   role: 'owner' | 'admin' | 'editor' | 'viewer' = 'owner'
 ) {
   const email = `bruce-${randomUUID()}@wayne.example`
-  const signup = await trusted(client.post('/api/auth/sign-up'))
-    .header('x-capacitylens-setup-token', setupToken)
-    .json({ email, password, name: 'Bruce Wayne' })
-    .send()
-  signup.assertStatus(201)
-  const cookie = signup.cookie('adonis-session')?.value
-  if (!cookie) throw new Error('Sign-up did not return a native session')
-  const userId = String((signup.body() as { user: { id: string } }).user.id)
+  const userId = await createIdentity(email, { name: 'Bruce Wayne', password })
+  const cookie = await signInAgain(client, email)
   const now = new Date().toISOString()
   await db.table('memberships').insert({
     id: randomUUID(),
@@ -82,10 +63,7 @@ export async function signInAgain(client: ApiClient, email: string) {
 }
 
 export async function resetPlanningFixture(): Promise<AppData> {
-  await db.from('user_session_index').delete()
-  await db.from('adonis_sessions').delete()
-  await db.from('memberships').delete()
-  await db.from('users').delete()
+  await clearIdentities()
   await db.from('rate_limits').delete()
   await resetState(false)
   await resetState(true)

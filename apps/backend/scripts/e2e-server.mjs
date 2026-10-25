@@ -1,7 +1,9 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { rmSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { setTimeout as delay } from 'node:timers/promises'
 import { ports } from '../../../scripts/ports.mjs'
+import { admitIdentity } from './e2e-identity.mjs'
 
 const flavour = process.argv[2]
 if (flavour !== 'db' && flavour !== 'auth') {
@@ -22,7 +24,6 @@ const env = {
   APP_URL: `http://127.0.0.1:${port}`,
   SESSION_DRIVER: 'database',
   CAPACITYLENS_DB: database,
-  CAPACITYLENS_MODE: 'password-only',
   CAPACITYLENS_ALLOW_RESET: '1',
   ...(flavour === 'db' ? { CAPACITYLENS_RATE_LIMIT: '1000' } : {}),
   PORT: String(port),
@@ -30,13 +31,10 @@ const env = {
 
 if (flavour === 'auth' || flavour === 'db') {
   Object.assign(env, {
-    CAPACITYLENS_MODE: 'password-only',
     // The auth-backed server completes real first-company setup before it creates the
     // membership-free administrator used by recovery/login scenarios.
     CAPACITYLENS_CREATE_ADMIN_ADMIN: flavour === 'auth' ? 'false' : '1',
     CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: flavour === 'auth' ? '' : 'auth-e2e-password-2026',
-    CAPACITYLENS_BOOTSTRAP_TOKEN: 'auth-e2e-bootstrap-token-0123456789abcdef',
-    CAPACITYLENS_PASSWORD_BREACH_CHECK: 'false',
     CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
     CAPACITYLENS_SECRET: 'capacitylens-auth-e2e-secret-0123456789abcdef',
     CAPACITYLENS_PUBLIC_URL: `http://localhost:${port}`,
@@ -44,25 +42,37 @@ if (flavour === 'auth' || flavour === 'db') {
   })
 }
 
-if (flavour === 'auth') {
-  env.CAPACITYLENS_SETUP_TOKEN = 'auth-e2e-first-company-setup-token-2026'
-}
-
 for (const suffix of ['', '-wal', '-shm']) {
   rmSync(new URL(`../${database}${suffix}`, import.meta.url), { force: true })
 }
 
-function runAce(args) {
+function runAce(args, stdout = 'inherit') {
   const result = spawnSync(process.execPath, ['ace.js', ...args], {
     cwd: serverDirectory,
     env,
-    stdio: 'inherit',
+    stdio: ['ignore', stdout, 'inherit'],
+    encoding: 'utf8',
   })
   if (result.status !== 0) process.exit(result.status ?? 1)
+  return result.stdout
 }
 
 runAce(['migration:run', '--force'])
 if (flavour === 'db') runAce(['db:seed', '--files=database/seeders/main_seeder.ts'])
+
+/** The operator's printed first-install invitation for the baseline Owner. */
+function bootstrapToken() {
+  const output = runAce(
+    ['account-kit:admission:bootstrap', 'baseline-owner@capacitylens.dev', '--role=viewer'],
+    'pipe'
+  )
+  const url = /"url":"([^"]+)"/.exec(output)?.[1]
+  if (!url) throw new Error('Auth E2E bootstrap did not print an invitation link.')
+  const link = new URL(url)
+  return link.searchParams.get('token') ?? link.pathname.split('/').filter(Boolean).at(-1)
+}
+
+const baselineToken = flavour === 'auth' ? bootstrapToken() : undefined
 
 const child = spawn(process.execPath, ['ace.js', 'serve'], {
   cwd: serverDirectory,
@@ -97,19 +107,11 @@ child.on('exit', (code, signal) => {
 
 async function establishAuthFixtureBaseline(signal) {
   const origin = env.CAPACITYLENS_PUBLIC_URL
-  const setup = await fetch(`${origin}/api/auth/sign-up`, {
+  const setup = await fetch(`${origin}/api/invites/${baselineToken}/signup`, {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'sec-fetch-site': 'same-origin',
-      'x-capacitylens-setup-token': env.CAPACITYLENS_SETUP_TOKEN,
-    },
+    headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
     signal,
-    body: JSON.stringify({
-      email: 'baseline-owner@capacitylens.dev',
-      name: 'Clark Kent',
-      password: 'auth-e2e-password-2026',
-    }),
+    body: JSON.stringify({ name: 'Clark Kent', password: 'auth-e2e-password-2026' }),
   })
   if (setup.status !== 201)
     throw new Error(`Auth E2E baseline owner setup failed (${setup.status}).`)
@@ -142,6 +144,7 @@ async function establishAuthFixtureBaseline(signal) {
     throw new Error(
       `Auth E2E membership-free administrator setup failed (${administrator.status}).`
     )
+  admitIdentity(fileURLToPath(new URL(`../${database}`, import.meta.url)), 'admin@admin.admin')
 }
 
 async function waitForAuthFixtureBaseline(signal) {

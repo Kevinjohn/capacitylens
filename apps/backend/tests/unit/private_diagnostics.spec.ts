@@ -1,10 +1,6 @@
-import { SessionAuthorityError } from '#services/auth/session_authority'
+import { InvalidSessionError, UnverifiedEmailError } from 'adonisjs-account-kit/errors'
 import { IdentityAuthorityError } from '#services/auth/authorization'
-import { PasswordProcessingUnavailableError } from '#services/password_service'
-import {
-  PasswordPolicyError,
-  PasswordScreeningUnavailableError,
-} from '#services/password_screening'
+import { ActionProofError } from '#services/auth/action_proof'
 import { test } from '@japa/runner'
 import type { HttpContext } from '@adonisjs/core/http'
 import HttpExceptionHandler from '#exceptions/handler'
@@ -49,55 +45,20 @@ function diagnosticContext() {
   return { context, records, status: () => status }
 }
 
-test('expected authentication, authorization and password policy refusals do not report server errors', async ({
+test('expected authentication and authorization refusals do not report server errors', async ({
   assert,
 }) => {
   const handler = new HttpExceptionHandler()
   for (const [error, status] of [
-    [new SessionAuthorityError('PRIVATE_SESSION'), 401],
-    [new SessionAuthorityError('PRIVATE_FRESHNESS', 'SESSION_NOT_FRESH', 403), 403],
+    [new InvalidSessionError(), 401],
+    [new UnverifiedEmailError(), 403],
     [new IdentityAuthorityError('PRIVATE_AUTHORITY'), 403],
-    [new PasswordPolicyError('PRIVATE_PASSWORD', 'PASSWORD_COMPROMISED'), 400],
+    [new ActionProofError(), 403],
   ] as const) {
     const captured = diagnosticContext()
     await handler.handle(error, captured.context)
     await handler.report(error, captured.context)
     assert.equal(captured.status(), status)
     assert.deepEqual(captured.records, [])
-  }
-})
-
-test('password dependency failures report their actual 503 status with bounded private diagnostics', async ({
-  assert,
-}) => {
-  const handler = new HttpExceptionHandler()
-  for (const [error, category] of [
-    [
-      new PasswordProcessingUnavailableError(new Error('PRIVATE_PROCESSING_CAUSE')),
-      'password_processing_unavailable',
-    ],
-    [
-      new PasswordScreeningUnavailableError(new Error('PRIVATE_SCREENING_CAUSE')),
-      'password_screening_unavailable',
-    ],
-  ] as const) {
-    const captured = diagnosticContext()
-    await handler.handle(error, captured.context)
-    await handler.report(error, captured.context)
-    assert.equal(captured.status(), 503)
-    assert.deepEqual(captured.records, [
-      [
-        {
-          event: 'http.request.error',
-          errorType: category,
-          method: 'POST',
-          path: '/api/auth/sign-in',
-          status: 503,
-        },
-        'HTTP request failed',
-      ],
-    ])
-    assert.notInclude(JSON.stringify(captured.records), 'PRIVATE_')
-    assert.notInclude(JSON.stringify(captured.records), '500')
   }
 })

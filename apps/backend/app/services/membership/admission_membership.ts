@@ -3,12 +3,13 @@ import { installationCompanyId, isInvitableRole } from '#services/account_kit/po
 import { AdmissionError } from '#services/admission/errors'
 import { writeAudit } from '#services/audit'
 import { advancePlanningRevision } from '#services/planning_revision'
+import { assertCompanyAccessOpen } from '#services/auth/authorization'
 
 /**
  * Gives an admitted identity its company membership once. Invited people already received theirs
  * on acceptance; this covers operator-granted evidence and approved registrations. The role comes
  * from recorded invitation evidence when it is assignable, otherwise Viewer. An existing
- * membership is returned unchanged, and a disabled one is never reactivated here.
+ * membership is returned unchanged; a disabled or restricted one is never reactivated here.
  */
 export async function completeMembership(userId: string, trx: TransactionClientContract) {
   const accountId = await installationCompanyId(trx)
@@ -27,6 +28,7 @@ export async function completeMembership(userId: string, trx: TransactionClientC
       409,
       'MEMBERSHIP_DISABLED'
     )
+  await assertCompanyAccessOpen(userId, accountId, trx)
   // The Account Kit's admission record keeps the invited role as evidence.
   const evidence = await trx
     .from('account_admissions')

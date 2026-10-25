@@ -23,7 +23,7 @@ async function execute(intent: PlanningIntent) {
     const data = await readStateWithClient(trx, 'a-studio', true)
     await executePlanningIntent(trx, 'a-studio', intent, owner, data, {
       actorId: 'u-bruce',
-      sessionId: 'session-bruce',
+      sessionId: 1,
       mutationId: randomUUID(),
     })
   })

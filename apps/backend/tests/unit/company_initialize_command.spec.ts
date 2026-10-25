@@ -7,18 +7,24 @@ const args = [
   'Wayne Enterprises',
   '--confirm-server-stopped',
 ]
-function seedPrincipal(database: ReturnType<ReturnType<typeof operatorFixture>['inspect']>) {
+type Inspection = ReturnType<ReturnType<typeof operatorFixture>['inspect']>
+
+/** A confirmed identity with a password and the invitation and approval admission requires. */
+function seedPrincipal(database: Inspection, options: { admitted?: boolean } = {}) {
   const now = new Date().toISOString()
   database
     .prepare(
-      'INSERT INTO users (id,email,email_verified,display_name,password_hash,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'
+      'INSERT INTO users (id,email,email_verified_at,display_name,password,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'
     )
-    .run('bruce', 'bruce@wayne.example', 1, 'Bruce Wayne', 'existing-credential', now, now)
+    .run('bruce', 'bruce@wayne.example', now, 'Bruce Wayne', 'existing-credential', now, now)
+  if (options.admitted === false) return
   database
     .prepare(
-      'INSERT INTO password_reset_tokens (tokenable_id,email,hash,expires_at,created_at) VALUES (?,?,?,?,?)'
+      `INSERT INTO account_admissions (user_id,invited_email,invited_role,invitation_source,
+        invitation_recorded_at,approval_status,approval_decided_at,created_at,updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?)`
     )
-    .run('bruce', 'bruce@wayne.example', 'a'.repeat(64), '2999-01-01T00:00:00.000Z', now)
+    .run('bruce', 'bruce@wayne.example', 'viewer', 'operator', now, 'approved', now, now, now)
 }
 
 test('company initialization creates canonical defaults and refuses a second setup without changes', ({
@@ -51,17 +57,13 @@ test('company initialization creates canonical defaults and refuses a second set
       inspect.prepare('SELECT revision FROM company_planning_revisions').get()!.revision,
       1
     )
-    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 0)
     const before = inspect.prepare('SELECT * FROM accounts').all()
     inspect.close()
     assert.notEqual(f.command(args).status, 0)
     const after = f.inspect()
     assert.deepEqual(after.prepare('SELECT * FROM accounts').all(), before)
     assert.equal(after.prepare('SELECT COUNT(*) AS n FROM memberships').get()!.n, 1)
-    assert.equal(
-      after.prepare('SELECT password_hash FROM users').get()!.password_hash,
-      'existing-credential'
-    )
+    assert.equal(after.prepare('SELECT password FROM users').get()!.password, 'existing-credential')
     after.close()
   } finally {
     f.cleanup()
@@ -118,14 +120,13 @@ test('company initialization rolls back every row if its audit cannot be recorde
       'audit_entries',
     ])
       assert.equal(inspect.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n, 0)
-    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 1)
     inspect.close()
   } finally {
     f.cleanup()
   }
 })
 
-test('company initialization rejects invalid, ambiguous and unavailable sign-in identities', ({
+test('company initialization rejects invalid input and unconfirmed or unadmitted identities', ({
   assert,
   test: t,
 }) => {
@@ -147,54 +148,56 @@ test('company initialization rejects invalid, ambiguous and unavailable sign-in 
       0
     )
     const inspect = f.inspect()
-    inspect.prepare('UPDATE users SET password_hash = NULL').run()
+    inspect.prepare('UPDATE users SET password = NULL').run()
     inspect.close()
     const noFactor = f.command(args)
     assert.notEqual(noFactor.status, 0)
     assert.match(noFactor.output, /no enabled sign-in method/)
-    const ambiguous = f.inspect()
-    const now = new Date().toISOString()
-    ambiguous
-      .prepare(
-        'INSERT INTO users (id,email,email_verified,display_name,password_hash,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'
-      )
-      .run('duplicate', 'BRUCE@WAYNE.EXAMPLE', 1, 'Bruce Wayne', 'credential', now, now)
-    ambiguous.close()
-    const duplicate = f.command(args)
-    assert.notEqual(duplicate.status, 0)
-    assert.match(duplicate.output, /unambiguous existing identity/)
+    const unconfirmed = f.inspect()
+    unconfirmed.prepare("UPDATE users SET password = 'credential', unverified_email = email").run()
+    unconfirmed.close()
+    const pending = f.command(args)
+    assert.notEqual(pending.status, 0)
+    assert.match(pending.output, /has not confirmed its email/)
+    const unadmitted = f.inspect()
+    unadmitted.prepare('UPDATE users SET unverified_email = NULL').run()
+    unadmitted.prepare('DELETE FROM account_admissions').run()
+    unadmitted.close()
+    const refused = f.command(args)
+    assert.notEqual(refused.status, 0)
+    assert.match(refused.output, /is not admitted/)
     const after = f.inspect()
     assert.equal(after.prepare('SELECT COUNT(*) AS n FROM accounts').get()!.n, 0)
-    assert.equal(after.prepare('SELECT COUNT(*) AS n FROM users').get()!.n, 2)
     after.close()
   } finally {
     f.cleanup()
   }
 })
 
-test('native signup then stopped-server initialization opens one Owner company after ordinary sign-in', async ({
+test('the bootstrap invitation then stopped-server initialization opens one Owner company', async ({
   assert,
   test: t,
 }) => {
   t.timeout(90000)
   const f = operatorFixture()
-  Object.assign(f.environment, {
-    CAPACITYLENS_SETUP_TOKEN: 'operator-native-setup-token-0123456789abcdef',
-  })
   const credentials = { email: 'bruce@wayne.example', password: 'native-first-owner-2026' }
   try {
     assert.equal(f.command(['app:upgrade']).status, 0)
+    const bootstrap = f.command([
+      'account-kit:admission:bootstrap',
+      credentials.email,
+      '--role=viewer',
+    ])
+    assert.equal(bootstrap.status, 0, bootstrap.output)
+    const { url } = JSON.parse(bootstrap.output.trim().split('\n')[0]!) as { url: string }
+    const token = new URL(url).pathname.split('/').at(-1)!
     await withOperatorServer(f, async (origin) => {
-      const signup = await fetch(`${origin}/api/auth/sign-up`, {
+      const accepted = await fetch(`${origin}/api/invites/${token}/signup`, {
         method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'sec-fetch-site': 'same-origin',
-          'x-capacitylens-setup-token': 'operator-native-setup-token-0123456789abcdef',
-        },
-        body: JSON.stringify({ ...credentials, name: 'Bruce Wayne' }),
+        headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
+        body: JSON.stringify({ password: credentials.password, name: 'Bruce Wayne' }),
       })
-      assert.equal(signup.status, 201, await signup.text())
+      assert.equal(accepted.status, 201, await accepted.text())
     })
     const initialized = f.command(args)
     assert.equal(initialized.status, 0, initialized.output)
@@ -256,29 +259,6 @@ test('native signup then stopped-server initialization opens one Owner company a
     f.cleanup()
   }
 }).timeout(90000)
-
-test('company initialization refuses an identity without a password credential', ({
-  assert,
-  test: t,
-}) => {
-  t.timeout(90000)
-  const f = operatorFixture()
-  try {
-    assert.equal(f.command(['app:upgrade']).status, 0)
-    const database = f.inspect()
-    seedPrincipal(database)
-    database.prepare('UPDATE users SET password_hash = NULL').run()
-    database.close()
-    const disabled = f.command(args)
-    assert.notEqual(disabled.status, 0)
-    assert.match(disabled.output, /no enabled sign-in method/)
-    const inspect = f.inspect()
-    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM accounts').get()!.n, 0)
-    inspect.close()
-  } finally {
-    f.cleanup()
-  }
-})
 
 for (const drift of [
   'DROP TABLE deleted_rows',

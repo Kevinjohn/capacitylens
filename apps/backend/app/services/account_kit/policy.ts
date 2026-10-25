@@ -12,7 +12,7 @@ import type { AdmissionAuthorizeCallbacks } from 'adonisjs-account-kit/admission
 import { can } from '@capacitylens/shared/domain/access'
 import { canAdministerIdentity } from '@capacitylens/shared/account/policy'
 import { isAccountRole, type Role } from '@capacitylens/shared/account/types'
-import { activeCompanyRole } from '#services/auth/authorization'
+import { activeCompanyRole, assertCompanyAccessOpen } from '#services/auth/authorization'
 import { advancePlanningRevision } from '#services/planning_revision'
 import { writeAudit } from '#services/audit'
 
@@ -87,6 +87,7 @@ export async function onInvitationAccepted(user: AccountUser, invitation: Invita
   if (!accountId) return
   if (!isInvitableRole(invitation.role) || !isAccountRole(invitation.role))
     throw new Error('Invitation role is unavailable.')
+  await assertCompanyAccessOpen(String(user.id), accountId, trx)
   const now = new Date().toISOString()
   await trx.table('memberships').insert({
     id: crypto.randomUUID(),

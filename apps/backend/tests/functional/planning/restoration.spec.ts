@@ -1,3 +1,4 @@
+import { fixtureSession } from '../../helpers/identities.js'
 import { randomUUID } from 'node:crypto'
 import type { ApiClient } from '@japa/api-client'
 import { test } from '@japa/runner'
@@ -397,10 +398,11 @@ test.group('session-bound allocation restoration', (suite) => {
     const othersBefore = await otherAccounts()
     assert.isAbove(Number(othersBefore[0].n), 0)
     const data = await readState(accountId, true)
+    const sessionId = await fixtureSession('u-bruce')
     const groupId = await withTransaction((trx) =>
       deleteAllocations(trx, data, accountId, listed, {
         actorId: 'u-bruce',
-        sessionId: 's-batcave',
+        sessionId,
         mutationId: randomUUID(),
       })
     )
@@ -475,7 +477,7 @@ test.group('session-bound allocation restoration', (suite) => {
     assert.isDefined(await stored(second!))
   })
 
-  test('session invalidation removes its groups; a later session is refused the old handle', async ({
+  test('signing out removes its groups; a later session is refused the old handle', async ({
     client,
     assert,
     cleanup,
@@ -487,11 +489,8 @@ test.group('session-bound allocation restoration', (suite) => {
     deleted.assertStatus(200)
     const groupId = deleted.body().restoration.replacementGroupId
     assert.exists(await group(groupId))
-    const revoked = await session(
-      client.post(`/api/accounts/${accountId}/members/${owner.userId}/revoke-sessions`),
-      owner.cookie
-    ).send()
-    revoked.assertStatus(204)
+    const signedOut = await session(client.post('/api/auth/sign-out'), owner.cookie).send()
+    signedOut.assertStatus(200)
     assert.notExists(await group(groupId))
     assert.lengthOf(await db.from('deleted_rows').where('group_id', groupId), 0)
     const invalidated = await restore(client, owner.cookie, groupId, 2)
@@ -862,7 +861,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       group_id: foreignGroup,
       account_id: 'a-loft',
       actor_id: 'other-actor',
-      session_id: 'other-session',
+      session_id: await fixtureSession('other-actor'),
       mutation_id: randomUUID(),
       created_at: new Date().toISOString(),
       consumed_at: null,
@@ -1029,7 +1028,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
         group_id: id,
         account_id: accountId,
         actor_id: 'another-actor',
-        session_id: 'another-session',
+        session_id: await fixtureSession('another-actor'),
         mutation_id: randomUUID(),
         created_at: new Date().toISOString(),
         consumed_at: consumedInstant,

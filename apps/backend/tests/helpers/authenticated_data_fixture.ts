@@ -7,37 +7,16 @@ import { resetState } from '#services/state_repository'
 import { encodeRow } from '#services/state_repository'
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color'
+import { createIdentity, signIn } from './identities.js'
 
 const ownerEmail = 'bruce.wayne@wayne.example'
-const ownerPassword = 'fixture-password-2026'
-const setupToken = 'capacitylens-japa-setup-token-0123456789abcdef'
 
 /** Resets Japa's disposable database and signs in an owner with actual company memberships. */
 export async function resetAuthenticatedData(client: ApiClient, seed: boolean | 'single' = true) {
   await resetState(seed)
-  const existing = await db.from('users').where('email', ownerEmail).select('id').first()
-  const response = existing
-    ? await client
-        .post('/api/auth/sign-in')
-        .json({ email: ownerEmail, password: ownerPassword })
-        .send()
-    : await client
-        .post('/api/auth/sign-up')
-        .header('x-capacitylens-setup-token', setupToken)
-        .json({ email: ownerEmail, password: ownerPassword, name: 'Bruce Wayne' })
-        .send()
-  response.assertStatus(existing ? 200 : 201)
-  const cookie = response.cookie('adonis-session')?.value
-  if (!cookie) throw new Error('The authenticated data fixture did not create a session.')
-  const setCookies = response.header('set-cookie')
-  const cookieHeader = (Array.isArray(setCookies) ? setCookies : [setCookies])
-    .find(
-      (value): value is string => typeof value === 'string' && value.startsWith('adonis-session=')
-    )
-    ?.split(';', 1)[0]
-  if (!cookieHeader)
-    throw new Error('The authenticated data fixture did not return a session header.')
-  const userId = String((response.body() as { user: { id: string } }).user.id)
+  if (!(await db.from('users').where('email', ownerEmail).select('id').first()))
+    await createIdentity(ownerEmail, { name: 'Bruce Wayne' })
+  const { cookie, cookieHeader, userId } = await signIn(client, ownerEmail)
   const accounts = await db.from('accounts').select('id')
   const now = new Date().toISOString()
   for (const account of accounts)

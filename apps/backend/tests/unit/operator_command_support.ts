@@ -12,10 +12,8 @@ export function operatorFixture() {
     NODE_ENV: 'test',
     CAPACITYLENS_DB: databasePath,
     CAPACITYLENS_BACKUP_DIR: '',
-    CAPACITYLENS_MODE: 'password-only',
     CAPACITYLENS_SECRET: 'operator-command-secret-2026-1234567890',
     CAPACITYLENS_PUBLIC_URL: 'http://localhost:8787',
-    CAPACITYLENS_PASSWORD_BREACH_CHECK: 'false',
     CAPACITYLENS_CREATE_ADMIN_ADMIN: 'false',
     CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: '',
     APP_KEY: 'zKXHe-Ahdb7aPK1ylAJlRgTefktEaACi',
@@ -57,9 +55,9 @@ export function seedOwner(database: DatabaseSync) {
     .run('a-studio', 'Wayne Enterprises', '#6366f1', now, now)
   database
     .prepare(
-      'INSERT INTO users (id,email,email_verified,display_name,password_hash,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'
+      'INSERT INTO users (id,email,email_verified_at,display_name,password,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'
     )
-    .run('bruce', 'bruce@wayne.example', 1, 'Bruce Wayne', 'old-credential', now, now)
+    .run('bruce', 'bruce@wayne.example', now, 'Bruce Wayne', 'old-credential', now, now)
   database
     .prepare(
       'INSERT INTO memberships (id,account_id,user_id,role,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'

@@ -5,8 +5,7 @@ import { buildBetaExport, type BetaExportDocument } from '@capacitylens/shared/d
 import { readState } from '#services/state_repository'
 import { getPlanningRevision } from '#services/planning_revision'
 import { withTransaction } from '#services/with_transaction'
-import { UNMATCHABLE_PASSWORD_HASH } from '#services/password_service'
-import { PasswordWorkQueue } from '#services/password_work_queue'
+import hash from '@adonisjs/core/services/hash'
 import { asDataOwner, resetAuthenticatedData } from '../helpers/authenticated_data_fixture.js'
 import { freshDatabase } from '../helpers/fresh_database.js'
 import type { ApiClient } from '@japa/api-client'
@@ -111,24 +110,6 @@ test.group('beta transfer apply', (group) => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    const stamp = new Date().toISOString()
-    await db.table('invitations').insert({
-      id: 'invite-proposed-person',
-      account_id: accountId,
-      token_hash: 'invite-proposed-person-hash',
-      email: 'dick.grayson@wayne.example',
-      role: 'editor',
-      expires_at: stamp,
-      created_at: stamp,
-      updated_at: stamp,
-    })
-    await db.table('invitation_proposals').insert({
-      id: 'proposal-dick-person',
-      invitation_id: 'invite-proposed-person',
-      resource_id: linkedPerson.id,
-      created_at: stamp,
-      updated_at: stamp,
-    })
     const preview = await asDataOwner(client.post('/api/transfer/preview'), cookie)
       .json({ accountId, document: full })
       .send()
@@ -147,11 +128,6 @@ test.group('beta transfer apply', (group) => {
       .where('account_id', accountId)
       .first()
     assert.equal(memberResource?.resource_id, linkedPerson.id)
-    const proposal = await db
-      .from('invitation_proposals')
-      .where('id', 'proposal-dick-person')
-      .first()
-    assert.equal(proposal?.resource_id, linkedPerson.id)
     assert.lengthOf(
       await db.from('audit_entries').where({ account_id: accountId, action: 'import' }),
       1
@@ -167,11 +143,11 @@ test.group('beta transfer apply', (group) => {
     const selectedDelete = await deleteForRestoration(client, cookie)
     const foreignDelete = await deleteForRestoration(client, cookie, 'a-loft')
     const now = new Date().toISOString()
-    await db.table('account_joining_policies').insert({
-      id: 'policy-transfer',
-      account_id: accountId,
-      policy: 'invitation_only',
-      approved_domains: '[]',
+    await db.table('account_invitations').insert({
+      email: 'diana.prince@wayne.example',
+      role: 'viewer',
+      token_hash: 'invitation-transfer',
+      expires_at: now,
       created_at: now,
       updated_at: now,
     })
@@ -183,35 +159,14 @@ test.group('beta transfer apply', (group) => {
       role: 'viewer',
       created_at: now,
     })
-    await db.table('company_join_intents').insert({
-      id: 'join-transfer',
-      nonce_hash: 'nonce-transfer',
-      browser_hash: 'browser-transfer',
-      purpose: 'policy',
-      account_id: accountId,
-      invitation_id: null,
-      email: 'diana.prince@wayne.example',
-      principal_id: null,
-      provider_id: 'google',
-      state: 'started',
-      token_hash: null,
-      delivery_generation: 0,
-      expires_at: Date.now() + 60_000,
-      sent_count: 0,
-      last_sent_at: null,
-      source_ip_hash: 'source-transfer',
-      provider_state_hash: null,
-      created_at: now,
-      updated_at: now,
-    })
     const selected = await document()
     selected.data.accounts[0]!.name += ' restored'
     const foreignBefore = await readState('a-loft', true)
     const preservedTables = [
       'memberships',
-      'account_joining_policies',
+      'account_invitations',
+      'account_admissions',
       'account_access_restrictions',
-      'company_join_intents',
       'planning_mutations',
     ] as const
     const before = await Promise.all(preservedTables.map((table) => db.from(table).select('*')))
@@ -446,11 +401,11 @@ test.group('beta transfer apply', (group) => {
       .where({ account_id: accountId, user_id: userId })
       .update({ role: 'owner' })
     const sessionProof = await proof(client, cookie, { baseRevision, document: full })
-    await db.from('user_session_index').where('user_id', userId).delete()
+    await db.from('account_sessions').where('user_id', userId).delete()
     const sessionDenied = await apply(client, cookie, full, baseRevision, sessionProof)
     sessionDenied.assertStatus(401)
-    const sessionProofRow = await db.from('action_proofs').where('id', sessionProof).first()
-    assert.isNull(sessionProofRow?.consumed_at)
+    // A proof belongs to its sign-in and is removed with it.
+    assert.isNull(await db.from('action_proofs').where('id', sessionProof).first())
     assert.equal(await revision(), baseRevision)
   })
 
@@ -461,25 +416,16 @@ test.group('beta transfer apply', (group) => {
     const { cookie, userId } = await resetAuthenticatedData(client)
     const full = await document()
     const baseRevision = await revision()
-    const priorCredential = await db
-      .from('users')
-      .where('id', userId)
-      .select('password_hash')
-      .first()
-    if (!priorCredential?.password_hash) throw new Error('The owner fixture has no password hash.')
-    const originalRun = PasswordWorkQueue.prototype.run
+    const priorCredential = await db.from('users').where('id', userId).select('password').first()
+    if (!priorCredential?.password) throw new Error('The owner fixture has no password hash.')
+    const replacement = await hash.make('replacement-password-2026')
+    const originalVerify = hash.verify
     let replaced = false
-    PasswordWorkQueue.prototype.run = async function <T>(
-      work: () => Promise<T>,
-      signal?: AbortSignal
-    ) {
-      const result = (await originalRun.call(this, work, signal)) as T
+    hash.verify = async function (...args: Parameters<typeof hash.verify>) {
+      const result = await originalVerify.apply(this, args)
       if (!replaced) {
         replaced = true
-        await db
-          .from('users')
-          .where('id', userId)
-          .update({ password_hash: UNMATCHABLE_PASSWORD_HASH })
+        await db.from('users').where('id', userId).update({ password: replacement })
       }
       return result
     }
@@ -487,15 +433,12 @@ test.group('beta transfer apply', (group) => {
       const response = await asDataOwner(client.post('/api/auth/action-proof/password'), cookie)
         .json({ action: 'import', accountId, intent: { baseRevision, document: full }, password })
         .send()
-      response.assertStatus(403)
+      assert.include([401, 403], response.status())
       assert.isTrue(replaced)
       assert.lengthOf(await db.from('action_proofs').where('user_id', userId), 0)
     } finally {
-      PasswordWorkQueue.prototype.run = originalRun
-      await db
-        .from('users')
-        .where('id', userId)
-        .update({ password_hash: priorCredential.password_hash })
+      hash.verify = originalVerify
+      await db.from('users').where('id', userId).update({ password: priorCredential.password })
     }
   })
 

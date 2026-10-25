@@ -8,7 +8,7 @@ function tableCount(database: DatabaseSync, table: string) {
   return database.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n
 }
 
-test('app reset archives all account, joining and credential state and initializes a separate empty database', ({
+test('app reset archives all account and credential state and initializes a separate empty database', ({
   assert,
   test: t,
 }) => {
@@ -21,9 +21,9 @@ test('app reset archives all account, joining and credential state and initializ
     const now = new Date().toISOString()
     source
       .prepare(
-        'INSERT INTO account_joining_policies (id,account_id,policy,approved_domains,created_at,updated_at) VALUES (?,?,?,?,?,?)'
+        'INSERT INTO account_sessions (user_id,handle_hash,created_at,last_seen_at,expires_at) VALUES (?,?,?,?,?)'
       )
-      .run('policy', 'a-studio', 'invitation_only', '[]', now, now)
+      .run('bruce', 'a'.repeat(64), now, now, '2999-01-01T00:00:00.000Z')
     source.close()
     const destination = join(f.root, 'fresh.db')
     const reset = f.command(['app:reset', destination, '--confirm-server-stopped', '--disposable'])
@@ -38,7 +38,7 @@ test('app reset archives all account, joining and credential state and initializ
     for (const path of [result.archivePath, result.snapshotPath]) {
       const archived = new DatabaseSync(path, { readOnly: true })
       assert.equal(tableCount(archived, 'users'), 1)
-      assert.equal(tableCount(archived, 'account_joining_policies'), 1)
+      assert.equal(tableCount(archived, 'account_sessions'), 1)
       archived.close()
     }
     const fresh = new DatabaseSync(destination)
@@ -46,12 +46,12 @@ test('app reset archives all account, joining and credential state and initializ
       'users',
       'accounts',
       'memberships',
-      'account_joining_policies',
-      'company_join_intents',
+      'account_invitations',
+      'account_admissions',
       'password_reset_tokens',
       'email_verification_tokens',
       'login_link_tokens',
-      'user_session_index',
+      'account_sessions',
       'company_planning_revisions',
       'planning_mutations',
       'action_proofs',
@@ -211,7 +211,12 @@ test('app reset refuses production even with disposable confirmation, preserving
     const destination = join(f.root, 'fresh.db')
     const result = f.command(
       ['app:reset', destination, '--confirm-server-stopped', '--disposable'],
-      { NODE_ENV: 'production', CAPACITYLENS_ALLOW_RESET: 'false' }
+      {
+        NODE_ENV: 'production',
+        CAPACITYLENS_ALLOW_RESET: 'false',
+        APP_URL: 'https://capacity.example.test',
+        CAPACITYLENS_PUBLIC_URL: 'https://capacity.example.test',
+      }
     )
     assert.notEqual(result.status, 0)
     assert.include(result.output, 'app:reset is unavailable in production')
