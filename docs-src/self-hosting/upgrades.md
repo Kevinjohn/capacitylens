@@ -33,6 +33,17 @@ After a successful upgrade, start the service and check `/health/ready`. Keep th
 new release has passed sign-in, reads, writes and backup checks. Pre-upgrade snapshots are kept
 separately from daily/manual retention; copy them off-host and keep the needed recovery points.
 
+## Databases from before password-only sign-in
+
+A database created before the move to password-only sign-in cannot be upgraded: `app:upgrade` and
+startup refuse it with a `Database schema drift` message. Start a fresh database instead:
+
+1. Stop the service and keep the old database file where it is.
+2. Point `CAPACITYLENS_DB` at a new, unused path.
+3. Run `node ace.js app:upgrade` to initialize it, then start the service.
+4. Print a setup link with `node ace.js account-kit:admission:bootstrap <owner-email> --role=viewer`
+   and send it to the Owner, who recreates the company and invites everyone again.
+
 ## Roll back
 
 Migrations are forward-only; there are no down migrations. To roll back an application release,

@@ -158,9 +158,10 @@ test.group('M5 documentation and policy contracts', () => {
       assert.include(example, `${key}=`)
       assert.include(configuration, `\`${key}\``)
     }
-    assert.include(configuration, 'Google')
-    assert.include(configuration, 'Microsoft sign-in is deferred')
-    assert.include(configuration, 'GitHub sign-in is retired')
+    assert.include(configuration, 'account-kit:admission:bootstrap')
+    assert.include(configuration, '`CAPACITYLENS_MAIL_HOST`')
+    for (const removed of ['CAPACITYLENS_SETUP_TOKEN', 'CAPACITYLENS_MODE', 'CAPACITYLENS_GOOGLE'])
+      assert.notInclude(configuration, removed)
   })
 
   test('documents daily backups and retention bounds without an interval setting', ({ assert }) => {
@@ -173,19 +174,16 @@ test.group('M5 documentation and policy contracts', () => {
     assert.match(configuration, /`CAPACITYLENS_BACKUP_INTERVAL_MIN` setting is no longer used/)
   })
 
-  test('limits sole-owner password recovery to an existing local password', ({ assert }) => {
+  test('documents sole-owner password recovery as a stopped-server command', ({ assert }) => {
     for (const path of [
       'docs-src/self-hosting/backups-and-restore.md',
       'docs-src/self-hosting/incidents.md',
       'docs-src/self-hosting/faq.md',
     ]) {
       const document = read(path).replace(/\s+/g, ' ')
-      assert.include(document, '`password-only`')
-      assert.include(document, '`password-and-sso`')
-      assert.include(document, 'already has a local password')
-      assert.include(document, 'A Google-only')
-      assert.include(document, 'cannot use')
-      assert.include(document, 'to create local password credentials')
+      assert.include(document, 'owner:reset-password')
+      assert.include(document, '--confirm-server-stopped')
+      assert.notInclude(document, 'CAPACITYLENS_MODE')
     }
   })
 

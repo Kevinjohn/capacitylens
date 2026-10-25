@@ -1,9 +1,5 @@
 [
   {
-    "path": "docs-src/screenshots/flows/invitation_created.png",
-    "sha256": "532edc4290daf0c513b1dae8e17571af2fa837d8a9ee146ca4ca0b1a88a25b95"
-  },
-  {
     "path": "docs-src/screenshots/flows/using_account_1.png",
     "sha256": "e85371aa54d405aa80cca97859c10469891efaa71774857f17d62e6d2c480d27"
   },
@@ -81,11 +77,7 @@
   },
   {
     "path": "docs-src/screenshots/flows/owner_members_current.jpg",
-    "sha256": "72033373232e8cf848f37c85cbfbf861de50a6fa6569abf202dd53daaa987c37"
-  },
-  {
-    "path": "docs-src/screenshots/flows/owner_joining_policy_current.jpg",
-    "sha256": "5122963235ec83c0a3e1a28bbbbe74300a5784f7b5f50c00a9d6bd03b179ebb7"
+    "sha256": "a84db1fc5ff5928ba357f2eb61a0db37a03330fad3ca8cf59ebb54c8fbd7d080"
   },
   {
     "path": "docs-src/screenshots/flows/owner_transfer_nomination.jpg",
@@ -94,10 +86,6 @@
   {
     "path": "docs-src/screenshots/flows/owner_transfer_waiting.jpg",
     "sha256": "5e76b60f806ef6519240278a1031acfa688c47927cbe7a087614f8e064e59ec7"
-  },
-  {
-    "path": "docs-src/screenshots/flows/admin_joining_policy_readonly.jpg",
-    "sha256": "666dd4fcaeaab62f973db3a1e815ab58ce7f3d708df9ed4ca7b0500b81800846"
   },
   {
     "path": "docs-src/screenshots/flows/admin_transfer_response.jpg",
@@ -109,43 +97,35 @@
   },
   {
     "path": "docs-src/screenshots/flows/admin_link_resource_choice.jpg",
-    "sha256": "5f7e66095ececcc55607792a562022e2b26a77767da8783bd634144caebbad9b"
+    "sha256": "a56d1307839dc82a8526c04f1094b609983c4a0b39b65133dcbca81ae11feb97"
   },
   {
     "path": "docs-src/screenshots/flows/admin_resource_link_remove.jpg",
-    "sha256": "562ace81fa62e712cdf539104af1418d768d58f27185c1cd38bfd2aa19ed3338"
+    "sha256": "d70a89184e54845d76398638daba939853d0eec3746e696e366b84b15ec39fe7"
   },
   {
     "path": "docs-src/screenshots/flows/admin_member_actions.jpg",
-    "sha256": "3f660510ff2f00df4fde5c782850b859c85bb06f25aaa0baa88adb53d722af64"
+    "sha256": "f2db3d4231ded0608da0b4f2c52081e9c78813f9ed57c023d821a0dbe3d38765"
   },
   {
     "path": "docs-src/screenshots/flows/admin_change_member_role.jpg",
-    "sha256": "dc45fb7adfe47629bfba29dbd666d42b067b3b61302c8e59ac38b401b54b2d5f"
+    "sha256": "540de730fade7f3332a0931b9c3accebca1d5d34a534a73cf0dcc57ac33094b7"
   },
   {
     "path": "docs-src/screenshots/flows/admin_invite_editor_form.jpg",
-    "sha256": "75e8706b63cd8dd4241854ef3f99ddaf8aa2bb83d0928e58c454e268d2d21cea"
+    "sha256": "270ec072078fae3b777aed1aa47c354d5080fb847a08bdc9bd1cffae8f6665da"
   },
   {
     "path": "docs-src/screenshots/flows/invite_admin_role_form.jpg",
-    "sha256": "9a296e52a9659fd4f47dd7630331d3ade8427175ecc7403d64b0426e6e67dae0"
+    "sha256": "f73299dadaa8973e114571af8913cabe3502b8561522c0b728cac317d20cdde3"
   },
   {
     "path": "docs-src/screenshots/flows/join_invitation_preview.jpg",
-    "sha256": "96b5693e4fbd009a63553534eea5d4782eddaa240c65333ea8ac158760b0a437"
-  },
-  {
-    "path": "docs-src/screenshots/flows/join_invitation_create_account.jpg",
-    "sha256": "f6ca4d6bcb1dcc28e97fc01e7ac807759049fc2c692983d3ae2c22bea70aaf39"
-  },
-  {
-    "path": "docs-src/screenshots/flows/join_company_link_entry.jpg",
-    "sha256": "0f5d74698c8373be43354d9402f6d2487fe63b1e45fb5aa2b1c7066cecb98590"
+    "sha256": "28e731e97b9bfce49832f374fdad7ea05f2a81ec309a4b8b812198fcf5b51ce7"
   },
   {
     "path": "docs-src/screenshots/flows/owner_first_signin_setup.jpg",
-    "sha256": "cc053ece050939c46cc648492c2272512bd3f98b20a67ea799ee84690f3f5cd8"
+    "sha256": "4e84ac7bcb7c927c933d1f2bd3031d93e1b57cf12c7487b95f94d88d19beef3b"
   },
   {
     "path": "docs-src/screenshots/flows/owner_first_company_setup.jpg",
@@ -153,7 +133,7 @@
   },
   {
     "path": "docs-src/screenshots/steps/owner_setup_sign_in_form.png",
-    "sha256": "a566712ad6409e53efdf25603577431e5ea84e4debcbe2f02c07d8bb237cd870"
+    "sha256": "a3b5787e0735fff00b907ef202b86cb25ec5540d43ee2ce70fc2b61dc67a1b54"
   },
   {
     "path": "docs-src/screenshots/steps/owner_create_company_form.png",
@@ -161,7 +141,7 @@
   },
   {
     "path": "docs-src/screenshots/steps/owner_invite_admin_dialog.png",
-    "sha256": "2416a6ef4cec71efe40163955657ef95d71e03d7e1d7b91310b0ba18a5fb8f1c"
+    "sha256": "3de176b8dc25f2588efbf6697e84853c61f29622a025422a0121a5d4372d9233"
   },
   {
     "path": "docs-src/screenshots/steps/owner_members_admin_row.png",
@@ -173,7 +153,7 @@
   },
   {
     "path": "docs-src/screenshots/steps/admin_invite_editor_dialog.png",
-    "sha256": "e8281c1bd688af15b0dc5e1c44f6a4d260597eeedc347e3082e4be2c427a927e"
+    "sha256": "13902eec97f842b3ac9c0ef5bcd52ac23ab68c48779a66f1be16f985feb58ab3"
   },
   {
     "path": "docs-src/screenshots/steps/using_invitation_preview.png",

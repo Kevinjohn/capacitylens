@@ -10,8 +10,6 @@ matching HTTPS `APP_URL` / `CAPACITYLENS_PUBLIC_URL` origins and SMTP delivery b
 Invitations, address confirmation and password resets are emailed. After the first start, print the
 first-install link with `node ace.js account-kit:admission:bootstrap <owner-email> --role=viewer` from
 `backend`; the person who opens it chooses a password, becomes the Owner and creates the company.
-Google sign-in is optional; configure both provider credentials and the named-provider bootstrap
-addresses before enabling it. Microsoft sign-in remains deferred.
 
 On a fresh Linux systemd host, create the service user and persistent data directories before
 starting the application. Keep the database and backups outside the release so they survive
@@ -62,10 +60,8 @@ on the same operating system and architecture as the target host.
 
 For sole-Owner recovery, stop the service and run the same environment-aware operator command with
 `owner:reset-password owner@example.com --confirm-server-stopped`. Its JSON output contains a
-single-use, 24-hour reset link: deliver it privately. It never sets a password directly.
+single-use reset link that expires after one hour: deliver it privately. It never sets a password directly.
 
-For the separately authorised cutover reset, stop the service and run
-`app:reset /var/lib/capacitylens/new-capacitylens.db --confirm-server-stopped`. The command preserves
-a verified snapshot and archived original, then initializes an empty database at the new path.
-Update `CAPACITYLENS_DB`, bootstrap the new owner and re-invite testers before restarting. If it
-fails, preserve the named recovery files and inspect the partial destination; never retry over them.
+A database created before password-only sign-in is refused at upgrade. Stop the service, keep the
+old file, point `CAPACITYLENS_DB` at a new path, run `app:upgrade`, start the service, bootstrap the
+new owner and re-invite testers.

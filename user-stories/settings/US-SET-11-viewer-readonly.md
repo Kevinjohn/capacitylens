@@ -23,8 +23,7 @@ read-only. The in-memory demo has no member roles, remains editable and is label
 
 ## How (end-to-end)
 
-**Precondition:** The app runs in its default server mode against a server with
-`CAPACITYLENS_MODE=password-only`. Same-origin `/api` needs no frontend API setting; set
+**Precondition:** The app runs in its default server mode against a persisted server. Same-origin `/api` needs no frontend API setting; set
 `VITE_CAPACITYLENS_API` only when the API uses a different origin. Owner A has created a company and
 invited **Viewer V** and **Editor E** (both accepted).
 

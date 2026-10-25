@@ -59,9 +59,10 @@ sudo -u capacitylens node ace.js generate:key --show
 
 Set matching public HTTPS origins in `APP_URL` and `CAPACITYLENS_PUBLIC_URL`. Set `CAPACITYLENS_DB`
 to `/var/lib/capacitylens/capacitylens.db`, `CAPACITYLENS_BACKUP_DIR` to its backups directory,
-and generate independent random values of at least 32 characters for `CAPACITYLENS_SECRET` and
-`CAPACITYLENS_SETUP_TOKEN`. Keep open access disabled. See [Configuration](/self-hosting/configuration)
-for authentication, mail, proxy and optional settings.
+and generate a random value of at least 32 characters for `CAPACITYLENS_SECRET`. Fill in the
+`CAPACITYLENS_MAIL_*` settings: invitations and password resets are emailed. Keep open access
+disabled. See [Configuration](/self-hosting/configuration) for sign-in, mail, proxy and optional
+settings.
 
 ## 4. Upgrade the database and start the service
 
@@ -91,17 +92,24 @@ certificate details. Do not expose the loopback application port publicly.
 
 ## 5. Open
 
-Check `https://capacity.example.com/health/ready`, then open the site. Create the first sign-in with
-`CAPACITYLENS_SETUP_TOKEN`, or use the configured Google identity approved for first sign-in. On
-**Set up your company**, enter **Company name** and select **Create company**. Schedule opens with
-that identity as Owner. There is no server stop, company command or restart during this browser step.
-Send the address and setup token separately if someone else will become Owner.
+Check `https://capacity.example.com/health/ready`, then print the one-time setup link for the
+Owner's email address:
+
+```bash
+sudo systemd-run --pipe --wait --collect --quiet --uid=capacitylens \
+  -p WorkingDirectory=/opt/capacitylens/current/backend \
+  -p EnvironmentFile=/etc/capacitylens.env \
+  -p Environment=NODE_ENV=production \
+  /usr/bin/env node ace.js account-kit:admission:bootstrap owner@example.com --role=viewer
+```
+
+Open the printed link, enter a name and password and select **Accept invitation**. On **Set up your
+company**, enter **Company name** and select **Create company**. Schedule opens with that identity as
+Owner. Send the link privately if someone else will become Owner.
 
 The company starts with Monday, Monday–Friday working days, day-based scheduling and the Internal
 client, without a sample schedule. The server blocks additional open signup until the first company
 exists, even when open signup is enabled in configuration.
-Remove the first-run token from the private environment at the next routine configuration change;
-the server refuses its reuse once an identity exists.
 
 Browser setup requires exactly one existing sign-in identity and no company or membership. If
 multiple identities were created before the company, browser setup refuses rather than choosing

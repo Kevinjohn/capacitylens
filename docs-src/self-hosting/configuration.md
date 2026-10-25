@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: Configure the AdonisJS application, SQLite database, company sign-in, mail, backups and trusted proxy.
+description: Configure the AdonisJS application, SQLite database, sign-in, mail, backups and trusted proxy.
 ---
 
 # Configuration
@@ -15,40 +15,43 @@ Restart the single backend process after changing its environment.
 | --- | --- |
 | `NODE_ENV` | Set to `production` for a deployed service. |
 | `HOST`, `PORT` | Listener address and port. The supplied release example binds loopback on port 8787. |
-| `APP_URL` | Canonical public application URL, including `https://` when TLS ends at a proxy. |
+| `APP_URL` | Canonical public application URL. Production requires `https://`. |
 | `APP_KEY` | Adonis encryption key. Generate it from `backend/` with `node ace.js generate:key --show`; keep it stable and secret. |
 | `SESSION_DRIVER` | Use `database` for a deployed application. |
 | `CAPACITYLENS_DB` | SQLite database path. Put it in persistent storage outside the release. |
 | `CAPACITYLENS_SECRET` | Independent application secret used by product account operations. |
-| `CAPACITYLENS_PUBLIC_URL` | Public origin used for sign-in callbacks and addressed links. Match `APP_URL`. |
-| `CAPACITYLENS_SETUP_TOKEN` | One-time secret for first-run identity setup. It cannot be reused after an identity exists; remove it at the next routine configuration change. |
+| `CAPACITYLENS_PUBLIC_URL` | Public origin used in emailed links. Match `APP_URL`; production refuses an `http://` origin. |
 
 Run `node ace.js app:upgrade` with the service stopped before the first start and after each
 release. The application uses one SQLite connection and one writer process per database file.
 
-## Company sign-in
+## Sign-in
 
-`CAPACITYLENS_MODE` accepts `password-only`, `password-and-sso`, or `sso-only` for a normal
-installation. Every persisted installation requires sign-in; `off` is retired and is rejected.
-Configure both `CAPACITYLENS_GOOGLE_CLIENT_ID` and
-`CAPACITYLENS_GOOGLE_CLIENT_SECRET` to offer Google. The callback URL is
-`<CAPACITYLENS_PUBLIC_URL>/api/auth/callback/google`. Set
-`CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS` for the first Google identity; later new identities need
-an addressed invitation. Password mode may include Google. `sso-only` removes password sign-in.
-Microsoft sign-in is deferred and GitHub sign-in is retired. Live Google acceptance must be checked
-with the operator's actual registration; deterministic tests do not prove it.
+Everyone signs in with an email address and password. Every persisted installation requires
+sign-in. The first identity comes from a one-time setup link printed on the server:
 
-Keep `CAPACITYLENS_ALLOW_OPEN_SIGNUP` unset unless you intentionally allow open registration.
-Until the first company exists, the server blocks additional open signup even when this setting is
-enabled. The initial identity still signs in and completes company setup. After setup, this setting
-controls open registration. All persisted data access still requires a signed-in company member.
+```bash
+node ace.js account-kit:admission:bootstrap owner@example.com --role=viewer
+```
+
+Run it from `backend/` with the service environment. The person who opens the link chooses a
+password, creates the company and becomes its Owner. Everyone after that joins through an emailed
+invitation and an Owner or Admin approval.
+
+Set `CAPACITYLENS_ALLOWED_EMAIL_DOMAINS` to a comma-separated list, for example
+`example.com,example.org`, to also require one of those address domains. Unset, any invited address
+may join.
+
+Keep `CAPACITYLENS_ALLOW_OPEN_SIGNUP` unset unless you intentionally allow open registration. An
+openly registered identity still needs an Owner or Admin approval before it sees company data.
 
 ## Email
 
 Set all of `CAPACITYLENS_MAIL_HOST`, `CAPACITYLENS_MAIL_PORT`, `CAPACITYLENS_MAIL_USER`,
 `CAPACITYLENS_MAIL_PASSWORD` and `CAPACITYLENS_MAIL_FROM` to enable SMTP. Port 465 uses implicit
-TLS; other ports use STARTTLS with certificate verification. Without a host, mail delivery is not
-configured; invitation and recovery flows that require delivery cannot complete.
+TLS; other ports use STARTTLS with certificate verification. Mail is required for normal use:
+invitations, address confirmation and password resets are emailed. Without a host, sending an
+invitation is refused.
 
 ## Backups
 

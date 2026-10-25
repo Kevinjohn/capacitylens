@@ -21,7 +21,7 @@ company settings needs the Editor role or above.
 Open **Team & access** near the bottom of the menu to see your company and role. If you need a
 different role or cannot access the company, ask an Owner or Admin.
 
-Signing in alone doesn't admit you to a company: you need the invitation or joining link.
+Signing in alone doesn't admit you to a company: you need an invitation and an Owner's or Admin's approval.
 [Join your team](/using/join-your-team) covers both.
 
 **Help**, above **Account**, has a short Viewer tour.

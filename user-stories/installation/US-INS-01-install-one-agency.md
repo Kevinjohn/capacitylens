@@ -24,14 +24,14 @@ uses it.
 2. Create a dedicated service user and persistent database and backup directories outside the
    release folder.
 3. Copy the example environment file to a private location. Run `node ace.js generate:key --show`
-   from `backend/` for `APP_KEY`; set the public HTTPS origins, database path and independent
-   random `CAPACITYLENS_SECRET` and `CAPACITYLENS_SETUP_TOKEN` values as the installation guide
-   describes. Keep open access disabled.
+   from `backend/` for `APP_KEY`; set the public HTTPS origins, database path, a random
+   `CAPACITYLENS_SECRET` and the email delivery settings as the installation guide describes. Keep
+   open access disabled.
 4. Load that environment and run `node ace.js app:upgrade` as the service user from `backend/`.
    This creates a fresh database or checks and upgrades an existing one. Start the service with
    the same environment and an HTTPS reverse proxy, then check `/health/ready`.
-5. Open the address, enter the setup token and create the first identity and company. Remove the
-   setup token from the environment and restart the service after setup.
+5. Print the one-time setup link with `node ace.js account-kit:admission:bootstrap <owner-email>
+--role=viewer` under the same environment. Open it, choose a password and create the company.
 
 ## Acceptance criteria
 
@@ -45,8 +45,8 @@ uses it.
   A snapshot taken during normal use restores the expected data on an isolated database path.
 - ✅ The address serves the web app and the API from one origin, so a single proxy line in front of
   it is enough.
-- ✅ Sign-in defaults to email and password under production settings without being configured.
-- ✅ Only a person who holds the setup token can create the first Owner, and once any user exists,
+- ✅ Sign-in is by email and password; production refuses an `http://` public address.
+- ✅ Only a person who holds the setup link can create the first Owner, and once a company exists,
   that route closes.
 - ✅ A managed-host reader completes the steps from the platform's own screens.
 - ✅ A lost sole-Owner password is recovered with the tool in the archive, with no source checkout.

@@ -22,7 +22,7 @@ integrity. Investigate a failing response before handover; verify backups separa
 
 ## Confirm persistence and backups
 
-Sign in with the setup token, create the first Owner and company, and make a harmless test change.
+Open the setup link, create the first Owner and company, and make a harmless test change.
 Restart the service, sign in again, and confirm the change remains. Check that a completed snapshot
 exists under `CAPACITYLENS_BACKUP_DIR` and copy a protected snapshot off-host. Follow
 [Backups and restore](/self-hosting/backups-and-restore) to validate recovery on an isolated path.
@@ -30,8 +30,7 @@ exists under `CAPACITYLENS_BACKUP_DIR` and copy a protected snapshot off-host. F
 ## Hand over access
 
 Give the Owner the public address, browser setup instructions and the hosting operator's contact.
-Send any setup token separately. It cannot be reused after the first identity exists; remove it at
-the next routine configuration change. Agree who manages upgrades, backups, readiness monitoring
-and sign-in configuration. These hosting duties need a technical operator; they do not become the
+Send the setup link privately; it works once. Confirm that an invitation email arrives. Agree who
+manages upgrades, backups, readiness monitoring and mail delivery. These hosting duties need a technical operator; they do not become the
 company Owner's responsibility simply because that person owns the company.
 Do not send secrets through deployment logs or public support channels.

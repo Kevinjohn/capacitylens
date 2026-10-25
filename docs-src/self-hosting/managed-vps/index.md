@@ -51,13 +51,12 @@ boundary. Do not expose the application port directly. See [TLS and networking](
 ## First start and handover
 
 With the service stopped, run `node ace.js app:upgrade` from `current/backend` under the same
-environment. Start the service, check `/health/ready`, then complete the first-run page with the
-private `CAPACITYLENS_SETUP_TOKEN`. Enter the company name in the browser to become Owner and open
+environment. Start the service, check `/health/ready`, then print the one-time setup link with
+`node ace.js account-kit:admission:bootstrap <owner-email> --role=viewer` under the same
+environment. Open the link, choose a password, and enter the company name to become Owner and open
 Schedule. No company command or restart is needed. The server blocks additional open signup until
-the first company exists, even when enabled in configuration. Remove the token at the next routine
-configuration change.
-Set up Google only if you intend to offer company sign-in; Microsoft remains deferred and GitHub
-sign-in is retired. Deterministic checks do not establish live Google acceptance.
+the first company exists, even when enabled in configuration. Configure mail delivery before
+handover: invitations and password resets are emailed.
 
 Before handover, prove the service restarts cleanly, confirm a scheduled snapshot exists, and give
 whoever will maintain hosting the [backup](/self-hosting/backups-and-restore), [upgrade](/self-hosting/upgrades),

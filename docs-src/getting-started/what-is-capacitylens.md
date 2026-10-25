@@ -59,8 +59,8 @@ it to see their own week.
   path and the settings are stable.
 - **Leaving.** Your data is one SQLite database file on your server, and **Export JSON** in
   Settings downloads the company's scheduling records. The AGPL lets anyone continue the code.
-- **Outside services.** None is needed to run it. Email, sign-in through Google, Microsoft or
-  GitHub, and the breached-password check (on by default) are the only ones it can use.
+- **Outside services.** Email delivery is the only one. Invitations, address confirmation and
+  password resets are sent by email.
 - **Support.** Community help on a best-effort basis, with no guaranteed response time.
   [Get help](/open-source#get-help) explains where to ask.
 

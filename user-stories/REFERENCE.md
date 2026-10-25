@@ -23,15 +23,10 @@ does not provide a separate team-link workflow.
 
 **Disable Access** is a company restriction separate from archiving or removing membership. It
 denies current requests and later invitations. It also follows a recreated identity at the same
-address when both identities have durable mailbox proof from a verified Google sign-in or a
-completed mailbox ceremony; a legacy email-verified flag or addressed invitation is not proof.
+address once that address is confirmed.
 **Enable Access** clears the restriction; a removed or archived person still needs the
 ordinary invitation or restore path. Removed restrictions remain visible to administrators in
 the inactive member directory. Owner and self protections apply to both actions.
-
-Invitation administration may carry an optional `proposedResourceId` for an active person in the
-selected account. The value is an admin-only, non-reserving proposal: invite previews, signup and
-accept responses never include it.
 
 > CapacityLens is a multi-tenant resource scheduler. It is **server-backed by default** (an empty
 > env means the same-origin SQLite API). The app is **multi-tenant by Account**: you pick a company
@@ -191,8 +186,7 @@ are refused rather than repaired or remapped. Identity, memberships, sessions an
 preferences are excluded. The selected company's data and supported settings are replaced;
 other companies remain unchanged.
 
-A signed-in Owner confirms the exact import with a password or linked Google identity after
-preview. A recent sign-in alone is insufficient. The proof binds the Owner, native session,
+A signed-in Owner confirms the exact import with their password after preview. A recent sign-in alone is insufficient. The proof binds the Owner, native session,
 company, document and planning revision, is spent once in the same transaction as the import,
 and cannot authorize another operation. A stale revision or failed write leaves the data unchanged.
 A changed import keeps stable IDs and member links, clears deletion restoration groups and writes
@@ -213,7 +207,7 @@ rail.)
 its identity row, the avatar has its own unlabeled visible column, followed by Name, Email and
 Actions. The row scrolls horizontally on narrow screens. Long email
 addresses truncate like Team & access rows and reveal in full on pointer hover or keyboard focus.
-In password-capable modes it offers password change in a dialog for local-password identities; in SSO mode it shows the provider identity without password controls.
+It offers password change in a dialog.
 A confirmed password change clears the dialog fields even if follow-up cleanup fails, and tells the user their new password is active. An uncertain transport result tells them to try signing in with the new password before submitting another change.
 The page hides active-session details. The in-memory demo never invents credential controls.
 Every persisted server session is authenticated. Company Settings contains
@@ -638,7 +632,7 @@ neighbouring columns supply the calendar context, so their one cross-year week m
 Weekday forms (`Mon 8th Jun` / `Mon Jun 8th`) always keep the ordinal.
 
 Server instants use the viewer's browser locale and local time zone instead. This includes session
-creation and expiry, password-reset expiry, and invitation expiry in the Team & access member panel
+creation and expiry, and invitation expiry in the Team & access member panel
 and on the invitee's Accept invite page. The exception also covers instants displayed as a compact date without a time: the
 browser time zone selects the local day, while the browser locale selects its date order. Existing
 date-and-time and date-only shapes stay intact, and local conversion never slices an ISO timestamp.
@@ -871,136 +865,83 @@ contains no customer names, emails, identifiers, filesystem paths, hostnames, se
 errors or arbitrary response fields. The button reports a generic success or clipboard failure
 message.
 
-When SMTP is configured in a password-capable mode, `forgot-password` reveals the inline
-`forgot-password-email` field and `forgot-password-submit` button. A successful request shows
+When the server can send email, `forgot-password` reveals the inline `forgot-password-email` field
+and `forgot-password-submit` button (**Email reset link**). A successful request shows
 `forgot-password-confirmation`: **If an account uses that address, we've emailed a reset link.**
 
 **Login screen (persisted server).** When the app runs against a persisted server (same-origin `/api`
 by default, or `VITE_CAPACITYLENS_API` for a different origin), it checks `GET /api/auth/me` at
-boot, showing **Checking your session…** as an
-accessible status while the request is pending; a 401 replaces everything — company
-picker included — with a **Sign in** screen (heading `Sign in`; fields `Email` + `Password`
-and a `Sign in` button in password-capable modes; configured company-provider buttons in sso-only mode; failures
-show an inline alert. Starting an external sign-in clears an earlier provider error, announces
-**Redirecting to _provider_…** as a neutral status, and keeps the provider controls disabled while
-the browser hands off to the provider). If a mid-session 401 arrives while server writes are still unsaved, the
-sign-in wall also warns **Some changes could not be saved before your session expired. They will
-not be restored after you sign in again.** On a fresh server-mode boot, company persistence starts
-only after `/api/auth/me` has admitted the session: a signed-out visitor makes no tenant-data request and cannot receive a misleading save-failure banner.
+boot, showing **Checking your session…** as an accessible status while the request is pending; a
+401 replaces everything with a **Sign in** screen (heading `Sign in`; fields `Email` + `Password`
+and a `Sign in` button; failures show an inline alert). Before any company exists the screen also
+shows `login-setup-needed`: **No company has been set up yet. Open the setup link from the person
+who installed CapacityLens.** If a mid-session 401 arrives while server writes are still unsaved,
+the sign-in wall also warns **Some changes could not be saved before your session expired. They
+will not be restored after you sign in again.** On a fresh server-mode boot, company persistence
+starts only after `/api/auth/me` has admitted the session: a signed-out visitor makes no
+tenant-data request and cannot receive a misleading save-failure banner.
 Because session cookies are shared across tabs, a server-mode tab also rechecks the session when it
-returns to the foreground. A sign-out or revocation completed in another tab therefore replaces its
-stale authenticated shell with the sign-in wall before the user resumes work.
+returns to the foreground. A sign-out completed in another tab therefore replaces its stale
+authenticated shell with the sign-in wall before the user resumes work.
 The sign-in and session-verification failure walls set page-specific document titles;
 the failure detail is announced as an alert when it replaces the checking state.
-While signed in, the sidebar's **Account** destination shows who is signed in and the available
-personal security controls. **Account** contains the single **Sign out** action for real and demo
-sessions. The in-memory demo has no real login screen or credential controls and makes no auth
-request. Every persisted server requires sign-in; the server's reported `authMode` is the single
-source of truth — there is no client-side auth flag.
+While signed in, the sidebar's **Account** destination shows who is signed in and the password
+controls. **Account** contains the single **Sign out** action for real and demo sessions. The
+in-memory demo has no real login screen or credential controls and makes no auth request. Sign-in
+is by email and password only; there is no provider action.
 
-The product auth client uses `POST /api/auth/sign-in`, `POST /api/auth/sign-up` and
-`POST /api/auth/sign-out`. Password recovery uses `POST /api/auth/request-reset` and
+**Limited screens.** A signed-in identity that may not reach company data yet sees one limited
+screen (`access-<gate>`), titled for its next step, with **Sign out**:
+
+- `access-verify-email` — **Confirm your email address**, with `access-send-verification` to email
+  a confirmation link. The `/verify-email/:token` page (`verify-password`, `verify-submit`) confirms
+  the address and sets the password chosen there, then ends every sign-in.
+- `access-admission` — **Waiting for access**, with **Ask for access**
+  (`access-request-admission`) until requested, then **Your request has been sent. An Owner or Admin
+  will approve your access.**, and **Check again**.
+- `access-membership` — **Join the company**, with **Join company** (`access-join-company`) for an
+  approved identity that has no membership yet.
+
+The product auth client uses `POST /api/auth/sign-in` and `POST /api/auth/sign-out`. Password
+recovery uses `POST /api/auth/request-reset`, `POST /api/auth/inspect-reset` and
 `POST /api/auth/reset-password`; a signed-in password change uses
-`POST /api/auth/change-password`. Provider redirects start through
-`POST /api/auth/provider-start`. These requests retain the existing form outcomes,
-setup-token header and flat error responses.
-
-**Google sign-in action (login, invitation acceptance and reauthentication).** Provider
-reauthentication explains before redirect that returning does not complete the original action;
-the person must submit it again. The configured Google provider uses the exact branded action
-**Sign in with Google** and recognisable Google mark on the sign-in wall, invite acceptance sign-in
-form and reauthentication dialog. The action stays visibly busy/disabled during hand-off. Provider
-presentation is server-owned and is never inferred from a user-editable provider label.
-When Google and password sign-in are both available, the Google action appears above the password
-form with the localized **or use your password** separator. Google-only sign-in has no password
-form or separator; password-only sign-in has no provider area.
-First-owner Google setup requires the allowlisted address while no user exists; its callback creates
-a sign-in identity but no company. SSO-only omits password controls.
-
-See [Passwords and company sign-in](../docs-src/company-login/index.md#passwords-and-company-sign-in)
-for the sign-in layout and [Set up Google sign-in](../docs-src/company-login/set-up-company-login.md)
-for provider setup.
+`POST /api/auth/change-password`, which ends every sign-in. Address confirmation uses
+`POST /api/auth/verification/send`, `…/inspect` and `…/complete`. Admission uses
+`GET /api/admission`, `POST /api/admission/request` and `POST /api/admission/complete`.
 
 Identity display-name and label limits count Unicode code points, so an astral CJK character is one
 character even though browser `maxlength` uses two UTF-16 code units. Email admission applies the
 254 limit to UTF-8 bytes. Passwords independently use the documented 15–128 Unicode-code-point
 policy.
 
-**Account security.** On Account, local-password users open **Change password** from the identity
-row and supply their current password in the dialog. The **Security** section
-(`data-testid="security-section"`) appears when a configured company-provider connection is
-available. Session tokens are never displayed after their one-time use.
-CapacityLens has no local authenticator or recovery-code controls. A company that requires MFA
-sets and manages it with Google; enabling company sign-in alone does not enable MFA.
+**Account security.** On Account, users open **Change password** from the identity row and supply
+their current password in the dialog. Session tokens are never displayed. CapacityLens has no
+authenticator, recovery-code or provider controls.
 
-On a mixed deployment, Account's Security section shows **Company sign-in**
-(`data-testid="sso-connection"`) when Google can be connected. **Connect Google** requires a fresh
-session, a verified local email and proof that the Google address matches it. A conflicting identity
-is rejected without merging accounts. A successful callback shows **Connected to Google**. The same
-Google subject is used for subsequent sign-in, even if its profile email later changes.
+**First Owner.** The installer prints a one-time setup link with
+`node ace.js account-kit:admission:bootstrap <email> --role=viewer`. Opening it shows **Accept
+invite** with the role **Company setup**; the person enters a name and password and selects
+**Accept invitation**. They are then signed in and see **Set up your company** (`company-setup`,
+`company-setup-name`, `company-setup-submit`); creating the company makes them its Owner. The
+auth-backed E2E server boots with the membership-free administrator `admin@admin.admin` /
+`auth-e2e-password-2026` (see `BOOTSTRAP_ADMIN` in `e2e/authTestSupport.ts`); the setup-link
+journey is `e2e/first-company.auth.spec.ts`.
 
-If the session is stale, **Connect Google** opens **Confirm it's you**. Cancelling does not start a
-provider connection; success continues the request once, and another freshness refusal directs the
-person to sign out and back in. An unverified local email directs the person to ask the server
-operator for sign-in email correction through the guarded repair route, then sign in again.
-
-**First-run Owner setup (password-capable mode, zero users).** When the server reports `needsSetup: true`
-on the 401 (password-only or password-and-sso with an **empty** user table — sign-up is open for exactly one
-bootstrap account and closes the moment it exists), the login wall shows **Setup the account Owner**
-instead of sign-in. Fields are **name** (`data-testid="owner-setup-name"`), **email**
-(`data-testid="owner-setup-email"`), **Create a password** (`data-testid="owner-setup-password"`)
-with its length validation, and **Owner setup token** (`data-testid="owner-setup-token"`) with
-installer guidance, plus a **Create my sign-in** button
-(`data-testid="owner-setup-submit"`); failures show the same inline alert. Success signs the
-owner in. A sign-in alone does not provision the installation company; without a company the app
-shows the empty access state. Ordinary edge whitespace around a pasted setup token is ignored; a token containing
-characters that cannot be represented in an HTTP header stays in the form and shows an actionable
-inline error without sending a request. The setup-token value remains secret and is never displayed
-by the app. On a populated server the
-flag is absent and the ordinary `Sign in` form renders — the auth-backed E2E server is never
-zero-users (it boots with the `--create-owner-admin-admin` bootstrap credential `admin@admin.admin`
-/ `auth-e2e-password-2026` — PINNED for the e2e server via `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD`, since
-production now mints a one-time generated password; see `BOOTSTRAP_ADMIN` in `e2e/authTestSupport.ts`),
-so the setup form
-itself is covered by unit tests, not a spec. Spec `e2e/login.auth.spec.ts`.
-On a mixed deployment, the configured Google action remains available alongside the setup form.
-The first Google identity must use an address in `CAPACITYLENS_PROVIDER_BOOTSTRAP_EMAILS` while no
-user exists. The callback creates the sign-in identity but no company or membership; the Owner then
-sets up the company. Later new Google identities require an unused invitation addressed to their
-verified Google email. Provider-required setup does not ask for a password.
-
-**Invite accept route (`/invite/:token`; server mode).** A single-use, expiring invite link
-carries a pre-set Admin, Editor or Viewer role for one company; Owner is never invitational.
-Opening `/invite/<token>` shows the **Accept invite** screen (heading `Accept invite`) and safely
-previews the company name, proposed role, role summary and expiry before acceptance using public
-`GET /api/invites/:token/preview`. Possession of the bearer link is required to read that limited
-metadata, including whether it is email-bound and a hint showing only the part before `@`,
-followed by `@…`. The domain, full address, company data, membership list and unrelated identity
-facts are never revealed. An addressed invite explains that only the intended email can use it.
-Merely opening or previewing the URL never changes membership. Permission and existing-role
-consequences wrap in full. Expiry uses the viewer's local date and time without seconds; the year
-appears when it differs from the current year. An addressed invite can be accepted with an existing password sign-in, or used to create a
-password account where invitation signup is allowed. The invitation stays bound to its exact
-address and company. An existing Google identity, or a new identity admitted through this addressed
-invitation, returns to `/invite/:token` after sign-in; the person must explicitly accept the
-invitation under the current policy. A new or restored member receives the invitation role; an
-already-active member keeps the current role. The server rechecks the
-address, current policy, invitation, access restrictions and session at acceptance. Completion
-refreshes the authenticated company list and activates the joined company without persisting
-`activeAccountId` or treating the URL as membership proof.
-An accept is refused (403) while **Disable Access** applies, including after removal or identity
-recreation at the same address when both identities have durable mailbox proof; an addressed
-invitation or legacy verified-email flag alone does not establish that link. The invitation remains
-unused. An archived member without the restriction can rejoin through a valid invitation at the
-invitation's role. A
-**used** link shows _"This invite has already been used."_; an
-**expired** link shows _"This invite has expired."_ (expiry is evaluated as an instant, including
-explicit UTC offsets, and malformed stored values fail closed); an **unknown** token shows _"Invite not
-found."_ Invites are server-only: in the explicit in-memory demo build
-(`VITE_CAPACITYLENS_DEMO=1`) the page shows a
-short _"Invite links work only when CapacityLens is connected to a server."_ note and makes no
-request. The link page is `src/components/invites/InviteAccept.tsx`; the create UI is the Members
-section below. Spec `e2e/invite.auth.spec.ts`.
+**Invite accept route (`/invite/:token`; server mode).** An emailed, single-use invitation carries
+an Admin, Editor or Viewer role for the company; Owner is never invitational. Opening
+`/invite/<token>` shows the **Accept invite** screen and previews the company name
+(`invite-company`), role (`invite-role`) and addressed email using public
+`GET /api/invites/:token/preview`. Merely opening or previewing the URL never changes membership.
+The person enters **Name** (`invite-name`) and **Password** (`invite-password`) and selects
+**Accept invitation** (`invite-submit`), which calls `POST /api/invites/:token/signup`. Acceptance
+creates the identity, confirms the address and creates the membership in one transaction; company
+data then waits for an Owner or Admin approval. An address that already has an account is told so.
+An accept is refused (403) while **Disable Access** applies to that address. An invalid, used or
+expired link shows `invite-error`: **This invitation is invalid or has expired. Ask the person who
+invited you for a new link.** In the in-memory demo build (`VITE_CAPACITYLENS_DEMO=1`) the page
+shows **Invite links work only when CapacityLens is connected to a server.** and makes no request.
+The link page is `src/components/invites/InviteAccept.tsx`; the create UI is the Members section
+below. Spec `e2e/invite.auth.spec.ts`.
 
 **Team & access (`/team`; every role).** The dedicated **Team & access** destination is visible to
 Owner, Admin, Editor and Viewer. Owners and Admins can use the member directory's **Link to
@@ -1029,15 +970,12 @@ management section
 but no company directory, invitations or management controls; the server's 403 remains the backstop.
 Owner/Admin can read the member directory and outstanding invites — and carry out
 ordinary member administration (inviting, revoking an invitation, changing a role or access state,
-removing a member and viewing as a member) — without a fresh
-authentication prompt. The high-impact actions still require fresh authentication: transferring
-ownership, resetting another member's password, revoking another member's sessions, deleting a
-company, importing or purging data, and linking or repairing an SSO identity. Their **Confirm it's
-you** dialog names the requested action. Cancelling leaves the directory visible and does not apply
-the requested change.
+removing a member, deciding admission and viewing as a member) — without a password prompt.
+Transferring ownership, importing data and anonymising all people require the caller's password
+for that exact action. Cancelling leaves the directory visible and does not apply the requested
+change.
 
-Team & access manages members and invitations. Company sign-in connections are managed from
-Account → Security.
+Team & access manages members, invitations and admission.
 
 Team administration dialogs use the same bordered header, body and footer as other product modals.
 Form dialogs place explanatory labels in the left column and their controls in the wider right
@@ -1087,99 +1025,49 @@ presented before the member directory, matching the action-first pattern of the 
   (`data-testid="member-role-select"`) offering only Admin, Editor and Viewer, the chosen role's
   plain-language consequences (`data-testid="member-role-summary"`), and **Save role**
   (`data-testid="member-role-save"`) — and a gear
-  (`data-testid="member-menu"`) opening the centered **Member actions** dialog naming the selected member: **Reset password**
-  (`data-testid="member-reset-password"`), **Revoke sessions**
-  (`data-testid="member-revoke-sessions"`), **Disable Access** (`data-testid="member-disable"`),
+  (`data-testid="member-menu"`) opening the centered **Member actions** dialog naming the selected member: **Disable Access** (`data-testid="member-disable"`),
   **Archive user** (`data-testid="member-archive"`) and **Remove**
   (`data-testid="member-remove"`), with **Enable Access** (`data-testid="member-enable"`)
   replacing Disable Access while restricted, and **Restore membership**
   (`data-testid="member-restore"`) offered for archived rows. The pencil is offered on active,
   unrestricted rows only. The gear, including **Remove**, stays available on inactive rows so
   a membership can be ended without first handing its access back. Every control has a member-scoped
-  accessible name — **Edit _member_**, **More actions for _member_**, **Remove _member_**, **Reset
-  password for _member_**, **Revoke sessions for _member_**, **Disable Access for _member_** — so non-linear
+  accessible name — **Edit _member_**, **More actions for _member_**, **Remove _member_**,
+  **Disable Access for _member_** — so non-linear
   assistive-technology navigation cannot detach an action from its target. Each menu action opens a
   confirmation naming the affected member before sending its destructive or security-sensitive
   request. While any member action is in flight, the management section is marked busy, politely
   announces **Updating team access…**, and every row's pencil and gear are disabled, so a second
   mutation cannot be raised. Removing yourself explicitly warns that you will return to the company
-  picker and need a new invitation; revoking your own sessions warns that the current browser will
-  reload into sign-in. Disable and archive are offered only where the target is neither the Owner nor
+  picker and need a new invitation. Disable and archive are offered only where the target is neither the Owner nor
   yourself; a disabled or archived membership keeps its role and history but authorizes nothing, and
   the member stays listed under **No longer active** so the change is visible and reversible. No row
-  carries an ownership-transfer control for anyone. In **password-capable modes only**, the menu's **Reset password** mints a
-  **single-use, 24-hour** reset link
-  shown **once** (`data-testid="reset-link"`, `<origin>/reset-password/<token>`) with a **Copy**
-  button named **Copy reset link for _member_** and a note naming the member and the expiry date — nothing is emailed; the admin hands the
-  link over directly. An **Admin never sees Reset password on an Owner's row** (a reset link is an
-  account-takeover capability; only an Owner may reset an Owner — the server 403s regardless). The
-  action is absent in `sso` mode (the IdP owns credentials). **Revoke sessions** uses the same
-  cross-account authority rule as password reset.
+  carries an ownership-transfer control for anyone. There is no administrative password reset or
+  session revocation.
 - **Invite form** — a primary **Invite someone** button (`data-testid="invite-open"`) opens a centered
   Dialog above the members table, separate from the list since #175 so inviting someone is not mixed into the people who already joined. An
   Admin/Editor/Viewer **role** picker (`data-testid="invite-role"`) with the
   selected role's plain-language consequences visible below it, plus an **Email** field
   (`data-testid="invite-preauth"`) and a **Create invite** button
-  (`data-testid="invite-submit"`). On success the full link (`<origin>/invite/<token>`) is shown
-  **once** (`data-testid="invite-link"`) with a **Copy** button named **Copy invitation link** — the token is write-once and never
-  shown again; closing the dialog clears it, so reopening shows an empty form. The panel says
-  CapacityLens emails addressed invitations when SMTP is configured and sending is available; if
-  email is unavailable or sending fails, the creator copies and sends the link. The field has no
-  explanatory helper copy and is required in every
-  server-auth mode. Creation confirmation stays beside the link, with instructions to
-  revoke and recreate it if lost, rather than overlaying the panel in a toast.
-  If any membership, invite or reset-token mutation loses its response after dispatch,
-  the section reloads memberships, invites and authentication before enabling a retry. A lost invite
-  or reset-token response is reported as an unknown one-time token; the operator must deliberately
-  revoke or replace it rather than accidentally minting duplicates. Reconciliation never declares
-  a command abandoned while its original server executor is still active: it waits for that
-  execution to record its actual completed, compensated or repair-required outcome first. An
-  unreadable or unrecognised conflict response also keeps the original browser command identity;
-  only a successfully decoded terminal rejection permits a later retry to mint a new identity.
-  **Email** is required by both the UI and server because a bearer-only invitation
-  cannot establish mailbox ownership for company joining.
-- **Joining policy (Team & access; Owner/Admin)** — **Who can join** (`data-testid="joining-policy-section"`)
-  shows the company's current **Invitation only**, **Open registration**, **Approved domains**, or
-  **Approved domains or invitation** policy and every approved domain. Policy-only joins always
-  receive Viewer. Under the combined policy, matching staff domains or an addressed invitation
-  can admit a person; the invitation can grant its specified role. Only the Owner can edit the
-  policy (`data-testid="joining-policy-select"`) and the one-domain-per-line **Approved domains**
-  field (`data-testid="joining-policy-domains"`) and select **Save joining policy**
-  (`data-testid="joining-policy-save"`). The Admin sees the same settings with guidance to speak
-  to the Owner, without edit controls. Invalid domains and a domain policy with no domains are
-  explained beside the field before a save is sent.
-  The section loads the current company’s policy before showing controls; a failed read shows
-  **Could not load the joining policy.** and a **Try again** action. Switching companies discards
-  the previous company’s draft and loads its new settings.
-  Owner and Admin can select the company-specific **Joining link**
-  (`data-testid="joining-policy-link"`) and choose **Copy joining link**
-  (`data-testid="joining-policy-copy-link"`) to share `/join/:accountId`.
-  `/join/:accountId` is a public company-bound entry outside the app's account picker. It shows
-  the company's name and offers Google and, when enabled, password sign-in. An existing Google
-  identity or password identity signs in, then chooses **Join company**. The server rechecks the
-  live policy and current email proof at completion. A new Google identity still needs an unused
-  addressed invitation; an open or domain joining policy does not create one. A password identity
-  without trusted email proof can use an addressed invitation or choose **Email me a verification link**
-  (`data-testid="joining-verify-email"`); successful delivery shows an inbox status
-  (`data-testid="joining-verify-email-status"`). Open/domain policy joining does not
-  create a new password account. On completion the normal authenticated company list verifies
-  the destination before activation.
-- **Outstanding invites** — its own bordered section (`data-testid="outstanding-invites"`) using the
-  same five-column bordered table as Members, with a row per invite (`data-testid="invite-row"`).
-  **Name** is an em dash, **Role** is the invited role, **Email** is the pre-authorised address or
-  **Invite link**, **Link to Resource** is the proposed resource or **None** with a compact pending
-  indication, and **Actions** contains a **Revoke** button (`data-testid="invite-revoke"`) when the
-  invite remains revocable. Email cells retain the complete value in the DOM and a native `title`
-  while CSS truncates the display. Invitations are ordered by role priority, then email, creation
-  order, and invitation ID as deterministic fallbacks when no name exists. The list never carries
-  the secret token. When an invite expires while this page remains open, its row updates to **Expired**
-  and the unusable Revoke action disappears without requiring navigation or reload.
-  Used rows are operational history: each company retains at most the newest 200 and never retains
-  one for more than 365 days. Live unused invitations keep their existing expiry and explicit
-  revocation lifecycle and are not removed by the used-history limit.
+  (`data-testid="invite-submit"`). The panel says CapacityLens emails each invitation, so the
+  server needs email delivery, and that an Owner or Admin approves access after acceptance. A sent
+  invitation shows **Invitation emailed to _address_**; when the email fails the invitation is saved
+  and the notice says to use **Resend**. Without email delivery the server refuses with
+  `MAIL_UNAVAILABLE` and the dialog says invitations need email delivery. The link is never shown in
+  the app. If any membership or invite mutation loses its response after dispatch, the section
+  reloads memberships, invites and authentication before enabling a retry. **Email** is required.
+- **Waiting for approval** (`data-testid="admission-requests"`; Owner/Admin) lists each person who
+  asked for access (`data-testid="admission-request"`) with their email and invited role, and
+  **Approve** (`data-testid="admission-approve"`) and **Decline** (`data-testid="admission-reject"`).
+  A decided request leaves the list.
+- **Outstanding invites** — its own bordered section (`data-testid="outstanding-invites"`) with a
+  row per unaccepted invite (`data-testid="invite-row"`): **Email** with its expiry date (or
+  **Expired**), **Role**, and **Actions** holding **Resend** (`data-testid="invite-resend"`), which
+  emails a new link and stops the old one, and **Revoke** (`data-testid="invite-revoke"`). Email
+  cells keep the complete value in a native `title` while CSS truncates the display. The list never
+  carries the secret token. An invitation lasts seven days.
 
-The Owner row carries no pencil for anyone, and no gear for anyone but the Owner themselves (whose
-own row still offers the self-service Reset password and Revoke sessions): each company has exactly
+The Owner row carries no pencil or gear for anyone: each company has exactly
 one Owner, ownership is changed only by explicit transfer, and the Owner can be neither demoted,
 removed nor disabled.
 Ownership transfer has no control in the member table: the Owner-only **Company ownership** card
@@ -1198,19 +1086,19 @@ idempotent; disabling erases every observation),
 `PATCH /api/accounts/:accountId/members/:userId {role}` (400 bad role or attempted Owner assignment,
 404 non-member, 403 by the role rules),
 `PATCH /api/accounts/:accountId/members/:userId/status {status}` (`active` | `disabled` | `archived`;
-200 `{userId, status}`, idempotent — re-applying the status a member already holds succeeds without
-burning their outstanding reset link; 400 unknown status, 404 non-member, 403 against the Owner,
+200 `{userId, status}`, idempotent — re-applying the status a member already holds succeeds and
+changes nothing; 400 unknown status, 404 non-member, 403 against the Owner,
 against yourself, or by the role
 rules — a non-active membership authorizes nothing, so the member's own reads 403 until restored
 while the administrative directory keeps listing them),
 `DELETE /api/accounts/:accountId/members/:userId` (204; 403 for the Owner),
 `GET /api/accounts/:accountId/invites` (gated manageInvites; NO token; OFF → `{invites:[]}`),
-`DELETE /api/accounts/:accountId/invites/:id` (204, idempotent, cross-tenant-safe),
-`POST /api/invites` rejects `owner` for
-every caller — ownership is transferred, never invited — and
-`POST /api/accounts/:accountId/members/:userId/reset-password` (gated manageMembers; password-capable mode
-only — sso/OFF → 400; admin resetting an owner → 403; 404 non-member; 201 `{token, expiresAt}`,
-write-once) mints the reset link. The management UI is
+`POST /api/accounts/:accountId/invites/:id/resend` (200; emails a new link and stops the old one),
+`DELETE /api/accounts/:accountId/invites/:id` (204, cross-tenant-safe), and
+`POST /api/invites {accountId, email, role}` (201 `{…, emailed: true}`, 202 when the email failed,
+503 `MAIL_UNAVAILABLE` without email delivery; 400 for `owner` from every caller — ownership is
+transferred, never invited). Admission uses `GET /api/admission/requests` and
+`POST /api/admission/:userId/approve|reject|revoke` (Owner/Admin). The management UI is
 `src/components/team/MembersSection.tsx`, composed by `src/components/team/TeamAccessView.tsx`;
 story `user-stories/settings/US-SET-10-member-management.md`;
 spec `e2e/members.auth.spec.ts`.
@@ -1231,11 +1119,8 @@ including after the caller is demoted; a changed command payload or scope confli
 requires a current Owner. Story `user-stories/settings/US-SET-18-ownership-transfer.md`;
 spec `e2e/ownership-transfer.auth.spec.ts`.
 
-`POST /api/accounts/:accountId/members/:userId/revoke-sessions` uses the same cross-account
-takeover-authority rule as password reset and revokes every active session for that identity.
-
 **Password reset route (`/reset-password/:token`; server mode, password auth).** The page an
-admin-minted reset link opens: heading **Reset password**, a **New password** field
+emailed reset link opens: heading **Reset password**, a **New password** field
 (`data-testid="reset-new-password"`), a **Confirm new password** field
 (`data-testid="reset-confirm-password"`) and a **Set new password** button
 (`data-testid="reset-submit"`). It renders **without a session** — unlike `/invite/:token` there is
@@ -1243,14 +1128,11 @@ no login wall in front of it (the visitor is exactly the person who cannot sign 
 pre-checks (mismatch, under 15 characters) show a field error without a request; the server is the
 authority on redeem (`POST /api/auth/reset-password`). Success shows _"Password updated. Sign in
 with your new password."_ (`data-testid="reset-success"`) with a **Go to sign in** link (a full page
-load onto the login wall); the member's previous sessions are revoked. An invalid / already-used /
-expired token shows _"This reset link is invalid, already used, or expired. Ask your admin for a
-new one."_ — the token is single-use. The native endpoint returns **400** with
-`code: "INVALID_TOKEN"` for invalid, consumed and expired proofs. If the server does not mount password reset, the page says
-that reset is unavailable on this instance and directs the visitor to their administrator instead
-of suggesting another attempt. In local/demo mode the page shows a short "server mode only"
-note and makes no request. The page is `src/auth/ResetPassword.tsx`; spec
-`e2e/reset-password.auth.spec.ts`.
+load onto the login wall); every previous session ends. An invalid / already-used / expired token
+shows _"This reset link is invalid, already used, or expired. Request a new one from the sign-in
+page."_ — the token is single-use and expires after one hour. The endpoint returns **400** with
+`code: "INVALID_TOKEN"` for invalid, consumed and expired proofs. In local/demo mode the page shows
+a short "server mode only" note and makes no request. The page is `src/auth/ResetPassword.tsx`.
 
 **Viewer read-only mode (server + auth-on).** On an auth-on, server-backed deploy a member's account
 **role** (`owner` | `admin` | `editor` | `viewer`) drives the UI. `GET /api/accounts` now returns
@@ -1530,7 +1412,7 @@ The Owner also sees **Anonymise all people** in Settings. It applies the same pe
 the selected company, including placeholders, external people and their dependent booking and
 time-off notes. Clients, projects and
 activities stay unchanged, as do the company, memberships and planning links. In a server
-deployment the Owner confirms the exact action with password or linked Google proof; in the
+deployment the Owner confirms the exact action with their password; in the
 editable demo it happens in temporary page memory without login or proof.
 
 ### Generic scoped write privacy
@@ -1677,7 +1559,7 @@ return **404**.
   It can request a raw-copy download before a confirmed reset; reset attempts clear local
   CapacityLens preference keys, surface failures, and only reload once
   the unreadable local data is gone.
-- Failed SSO hand-off, reauthentication and invitation acceptance remain visible
+- Failed reauthentication and invitation acceptance remain visible
   and actionable. A successful invitation keeps the newly selected company active while its account
   list refreshes.
 - Company management data is fetched only for members who may manage it. Removing a client or

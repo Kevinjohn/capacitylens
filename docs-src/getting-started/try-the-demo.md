@@ -37,7 +37,7 @@ You need [Node.js](https://nodejs.org) 24 (24.19.0 or newer within 24.x; check w
 3. Open the **Local** address the command prints, usually
    [http://127.0.0.1:5173](http://127.0.0.1:5173).
 
-No setup token, `.env` file or database is needed.
+No setup link, `.env` file or database is needed.
 
 ## Open the sample company
 

@@ -19,23 +19,15 @@ data-processing agreements, and a professional privacy and security review befor
 
 The SQLite database can contain company names, member names and email addresses, resource names,
 projects, activities, bookings, time off and free-text notes. The authentication tables hold
-identities, linked sign-in providers, sessions, invitations and password-reset state.
-
-**Microsoft mailbox proof.** While an attempt is open, CapacityLens stores the intended email, the
-Microsoft tenant and account identifiers, the attempt's status and expiry, a hash of the email
-token and a hash of the source IP address for rate limiting. Return addresses for the attempt are
-encrypted in the database. The link expires after 15 minutes; a successful proof is kept as the
-person's Microsoft sign-in identity, so later sign-ins need no further proof.
+identities, sessions, invitations, admission requests and decisions, and emailed-link state.
 
 **Sign-in confirmation.** An Owner can record whether each member has successfully signed in. It
 is off by default. When on, CapacityLens stores one yes-or-no value per membership, not the time
 or any site activity. Turning it off removes every live confirmation. Changing a membership's
-access state, revoking a person's sessions or issuing a new password-reset link clears theirs
-until they sign in again. Older backups may still hold earlier values.
+access state clears theirs until they sign in again. Older backups may still hold earlier values.
 
-**Invitations.** Used invitations are kept as history: at most the newest 200 per company, for no
-longer than 365 days. An unused invitation follows its own expiry and can be revoked at any time.
-Invitation links are stored only as digests and never shown again after creation.
+**Invitations.** An unused invitation expires after seven days and can be revoked at any time.
+Invitation links are stored only as digests and never shown in the app.
 
 **Audit log.** It records who changed which record and which fields, not the values. A short-lived
 queue holds the same metadata in SQLite until it is durably written to disk, also without values.
@@ -69,27 +61,11 @@ authentication library's telemetry is turned off. Scheduling requests normally g
 application server on the same origin. External avatar URLs make the browser fetch images from
 that image host.
 
-**Email.** When SMTP is configured, CapacityLens sends addressed invitations and self-service
+**Email.** CapacityLens sends invitations, address confirmations, email-change confirmations and
 password-reset links through the operator's SMTP service. Messages contain the recipient's address
-and a bearer link. Reset links are single-use and expire after 24 hours. Unknown addresses and
-accounts using only company sign-in get no reset email, and Admin-issued reset copy-links send no
-email. If Microsoft sign-in is configured and Microsoft does not return a verified matching email,
-the same service sends the mailbox proof to the intended CapacityLens address, with a link that
-expires after 15 minutes. The operator is responsible for the SMTP provider's processing and
-retention.
-
-**Breached-password check.** When a password is created, changed or reset, the server checks it
-against the Have I Been Pwned list by default. It sends only the first five characters of a
-SHA-1 hash of the password, never the password or the full hash, and never during ordinary
-sign-in. If the check is unavailable, the password change is refused rather than skipped. An
-isolated non-production deployment can turn it off; a production deployment that does so gets a
-startup warning. Include this outbound check in your network and privacy assessment.
-
-**Company login.** With [company login](/company-login/) on, your browser goes to Google or
-Microsoft to sign in, and the server exchanges the result for a session. That provider processes
-your identity data, so review its privacy terms. The Microsoft integration fetches the person's
-photo from Microsoft Graph on the server, even though it cannot be used as an avatar
-([Permissions, consent and profile pictures](/company-login/set-up-company-login#permissions-consent-and-profile-pictures)).
+and a single-use bearer link. Invitation links expire after seven days; the others after one hour.
+Unknown addresses get no reset email. The operator is responsible for the SMTP provider's
+processing and retention.
 
 ## Keeping and deleting data
 

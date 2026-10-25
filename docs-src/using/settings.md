@@ -168,11 +168,9 @@ fields and missing links are refused rather than repaired.
 
 Choose a file and select **Continue** to preview it without changing anything. Review the company
 and record count, then select **Replace data**. In a signed-in installation, confirm this exact
-import with your password or linked Google identity. A recent sign-in alone is not enough. A
-password confirmation is bound to this file and company; Google confirmation checks the linked
-Google identity on return. Cancel leaves the company unchanged. If the company changed since the
-preview, preview again before retrying. After returning from Google, choose the same file again;
-the browser does not keep its contents during the confirmation journey.
+import with your password. A recent sign-in alone is not enough. The confirmation is bound to this
+file and company. Cancel leaves the company unchanged. If the company changed since the preview,
+preview again before retrying.
 
 ### Beta transfer contract {#beta-transfer-contract}
 
@@ -188,7 +186,7 @@ An Owner can select **Anonymise all people** to remove personal details and depe
 time-off notes across the company, including placeholders and external people. Clients, projects
 and activities stay unchanged. The company,
 its members and planning links remain. This cannot be undone. A signed-in Owner confirms the exact
-action with their password or linked Google identity. In the editable demo, the same change stays
+action with their password. In the editable demo, the same change stays
 in temporary page memory and does not require sign-in. Refreshing resets the demo.
 
 ### Company details {#calendar}

@@ -72,8 +72,8 @@ This is the short, present-tense record of decisions that constrain future work.
 
 - CapacityLens has two access experiences: `VITE_CAPACITYLENS_DEMO=1` is an editable, in-memory
   demo whose scheduling data resets on reload; every persisted server requires an authenticated,
-  authorised company member. `CAPACITYLENS_MODE=off` is retired and must not enable anonymous
-  persisted access.
+  authorised company member. There is no sign-in mode setting; nothing enables anonymous persisted
+  access.
 - SQLite is the only product database. One process owns one database file through a pool of one
   connection. Missing API access is an error, never a silent browser-storage fallback.
 - Every scoped row carries its company id. The server authorises every tenant read and write from
@@ -154,49 +154,50 @@ This is the short, present-tense record of decisions that constrain future work.
 
 ## Accounts, admission and security
 
-- Account Kit owns accounts: registration, email verification, password set/change/reset, sessions,
-  social sign-in through Ally, and admission. CapacityLens owns company membership, roles, the
-  member↔resource link, Bouncer policies and every screen and word that renders a kit outcome.
-- Admission is three independent, cumulative checks owned by the kit: allowed email domain,
-  invitation evidence and administrator approval. Each is enabled in `config/admission.ts`
-  (restart to change). A person who passes authentication but not admission reaches only the
-  limited surface, which shows the kit's decision and the reason. Rejection is terminal until an
-  Owner or Admin approves. Approval, rejection and revocation are enforced on the next request;
-  nothing is pushed to the browser.
-- A verified provider email that matches an unused invitation records invitation evidence at
-  account creation. Identities are otherwise never merged by email.
-- Sessions follow the kit's idle expiry, configured once. Ownership transfer, whole-company import
-  and company-wide people anonymisation require proof for each action; a time-based fresh-session window cannot replace
-  it. Other sensitive actions retain their native fresh-session gates.
-- Ownership transfer, whole-company import and company-wide people anonymisation use a single-use proof bound to the
-  real principal, native session, company and exact operation. The proof is spent in the same
-  transaction as the change. Password proof verifies the current credential; linked Google proof
-  verifies the stable Google identity through an interactive account-selection journey. That
-  Google journey does not guarantee a fresh password or MFA challenge. Retain this bounded proof
+- Account Kit owns accounts: password sign-in, registration, address confirmation, password
+  change and reset, invitations, sessions and admission. CapacityLens owns company membership,
+  roles, the member↔resource link, Bouncer policies and every screen and word that renders a kit
+  outcome. Password sign-in is the only sign-in method; there are no identity providers.
+- Admission is cumulative and owned by the kit: an optional allowed email domain
+  (`CAPACITYLENS_ALLOWED_EMAIL_DOMAINS`), invitation evidence and Owner or Admin approval, all from
+  static configuration (restart to change). Accepting an emailed invitation records the evidence and
+  confirms the address; approval is still required. A person who is signed in but not admitted
+  reaches only the limited screens, which show the step that applies. Approval, rejection and
+  revocation are enforced on the next request; nothing is pushed to the browser. An admitted person
+  then joins the company explicitly, with the invited role or Viewer, never Owner.
+- Invitations are emailed only; the acceptance link is never shown in the product. One configured
+  lifetime (seven days) applies to every invitation. Accepting creates a new identity and refuses an
+  already-registered address; identities are never merged by email. When an existing limited
+  account needs invitation evidence, the operator uses the kit's `grant-invitation` command. An
+  invitation never proposes or creates a Resource; link the member to a Resource after they join.
+- Invitations, address confirmation and password resets need configured mail delivery. Without
+  it they are refused with an explanation rather than falling back to a copyable link.
+- Sessions use the kit's database-backed registry with a 14-day idle expiry. Changing or resetting
+  a password ends every session, including the current one. Administrator password resets and
+  session revocation for other members are deferred; the operator's kit commands cover recovery.
+- Ownership transfer, whole-company import and company-wide people anonymisation require proof for
+  each action, and no time-based fresh-session window replaces it. Each proof is
+  single-use, bound to the real principal, Kit session, company and exact operation, verifies the
+  current password and is spent in the same transaction as the change. Retain this bounded proof
   system for the first release. Prefer replacing it with a supported shared Account Kit primitive
-  once equivalent action/session/principal/company binding and transactional consumption exist;
-  shared plumbing is the preferred long-term owner of that capability.
+  once equivalent action/session/principal/company binding and transactional consumption exist.
 - Password hashing uses the framework's default hasher through the kit. There is no breach
   screening and no custom hashing queue.
-- First sign-in setup creates an identity without company access. On an empty installation, the
-  sole existing native principal can enter a company name in the browser and become its Owner.
-  The current session, absence of companies/memberships and sole-principal identity are checked
-  under the transaction lock. Defaults, Internal client, membership, revision and audit commit
-  together. Credentials and existing admission remain unchanged. Multiple pre-company identities
-  refuse browser setup rather than assigning ownership to an arbitrary signed-in person. The server
-  refuses additional open signup until the first company exists, even when open signup is enabled
-  in configuration. Identity creation rechecks this under the transaction lock. The controlled first
-  identity can still sign in and complete setup; afterwards the configured signup policy applies. The stopped-server operator initializer remains a
-  recovery option for that limitation, never a normal installation step. No environment variable
-  grants company ownership.
+- Production requires an HTTPS public URL; plain HTTP is accepted only for loopback development.
+- The first identity comes from the operator's bootstrap invitation, printed by
+  `account-kit:admission:bootstrap`. Accepting it sets that person's password; on an empty
+  installation the sole admitted identity then enters a company name in the browser and becomes its
+  Owner. The current session, absence of companies/memberships and sole-principal identity are
+  checked under the transaction lock, and defaults, Internal client, membership, revision and audit
+  commit together. The server refuses open signup until the first company exists, even when open
+  signup is enabled in configuration. The stopped-server operator initializer remains a recovery
+  option and also requires an admitted identity. No environment variable grants company ownership.
 - Each company has exactly one Owner. Ownership moves only by one atomic transfer to an existing
   member; the former Owner becomes Admin. Admins cannot administer an Owner. Credential recovery
   for a locked-out Owner is the kit's operator command, never an in-product action.
 - Members and schedulable Resources are separate records linked explicitly. Adding a Resource never
   grants access; inviting a member never creates a person. Team & access is visible to every role;
   only Owner/Admin see invitation and access-management controls.
-- Google is the supported company identity provider through Ally. Microsoft and GitHub are not
-  supported. Google owns any MFA policy; a federated session does not prove an MFA challenge.
 - View-as-member is a read-only projection for Owner/Admin, audited on start and end. Every write
   under a projection is refused server-side.
 - Cross-site writes are refused by the Origin / Sec-Fetch-Site check, with one exemption for a
@@ -207,7 +208,8 @@ This is the short, present-tense record of decisions that constrain future work.
 - Validation and domain errors use the flat `{ error, code? }` contract. Vine runs behind one
   response adapter; the SPA keys its presentation on `code`.
 - Rate limits on authentication and the API use `@adonisjs/limiter`.
-- CapacityLens ships no analytics. Mail delivers addressed invitations and resets only.
+- CapacityLens ships no analytics. Mail delivers addressed invitations, address confirmations and
+  password resets only.
 - Errors on data paths are surfaced, not swallowed.
 
 ## AdonisJS framework departures

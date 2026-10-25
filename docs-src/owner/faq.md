@@ -21,8 +21,8 @@ Yes. Once their row in **Team & access** shows **Admin**, send them
 
 ## Why is the Admin invitation still pending?
 
-They have not accepted it yet. Check the email was sent, or send the link yourself with **Copy**.
-If the link is lost, revoke it under **Outstanding invites** and create a new one.
+They have not accepted it yet. Ask whether the email arrived; if not, select **Resend** under
+**Outstanding invites**. Once they accept, approve them under **Waiting for approval**.
 
 ## Does an Admin invitation transfer ownership?
 
@@ -48,12 +48,6 @@ them to accept.
 
 No. Week start and time zone are fixed when the company is created, and English is the only
 language.
-
-## Who can change the joining policy?
-
-Only you. Admins can see it and copy the joining link. People who join through the policy get
-Viewer; send an addressed invitation for any other role.
-[Decide who can join](/owner/responsibilities#decide-who-can-join)
 
 ## Why can't I find Delete company?
 

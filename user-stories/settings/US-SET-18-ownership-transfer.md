@@ -27,7 +27,7 @@ Kyle is an active, unrestricted Admin in the same company.
 2. Bruce selects Selina in **Next Owner** (`data-testid="ownership-transfer-nominee"`). The list
    contains active, unrestricted Admins of this company.
 3. Bruce selects **Transfer ownership**. The confirmation says Selina will become Owner and Bruce
-   will become Admin. Bruce confirms this exact action with his password or linked Google identity;
+   will become Admin. Bruce confirms this exact action with his password;
    a recent sign-in does not replace this step. On confirmation, both roles change immediately in one transaction. The final
    submit retains `data-testid="ownership-transfer-complete"`.
 4. The company member list and Bruce's available company access refresh to reflect the new roles.
