@@ -11,6 +11,7 @@ import type { CurrentAccountInput } from 'adonisjs-account-kit/types'
 import env from '#start/env'
 import { FirstCompanyPendingError } from '#models/user'
 import { requiresFirstCompanySetup } from '#services/first_company_setup'
+import { installationCompanyId } from '#services/account_kit/policy'
 import {
   accountInput,
   admissionDecision,
@@ -66,8 +67,8 @@ export async function signInWithPassword(ctx: HttpContext, email: string, passwo
 
 export default class AuthController {
   /**
-   * The signed-in identity and what it may reach: a confirmed address, admission and company
-   * setup decide between the limited screens and the schedule.
+   * The signed-in identity and what it may reach: a confirmed address, admission, company setup
+   * and membership decide between the limited screens and the schedule.
    */
   async me(ctx: HttpContext) {
     try {
@@ -75,6 +76,8 @@ export default class AuthController {
         ctx,
         async (actor, trx) => {
           const admission = await admissionDecision(actor.userId, trx)
+          const admitted = actor.emailVerified && admission.admitted
+          const companyId = admitted ? await installationCompanyId(trx) : null
           return {
             authMode: 'password-only',
             user: userProjection(actor),
@@ -82,10 +85,11 @@ export default class AuthController {
             canCreateAccount: false,
             emailVerified: actor.emailVerified,
             admission,
-            companySetupRequired:
-              actor.emailVerified &&
-              admission.admitted &&
-              (await requiresFirstCompanySetup(actor.userId, trx)),
+            companySetupRequired: admitted && (await requiresFirstCompanySetup(actor.userId, trx)),
+            // Admitted but not yet a member: the person completes their membership explicitly.
+            membershipRequired:
+              companyId !== null &&
+              !(await trx.from('memberships').where('user_id', actor.userId).first()),
             reauthMethod: 'password',
             reauthProviderId: null,
           }

@@ -83,6 +83,11 @@ test.group('admission and membership completion', (group) => {
       const row = await db.from('company_planning_revisions').where('account_id', accountId).first()
       return Number(row?.revision)
     }
+    const membershipRequired = async () => {
+      const me = await as(cookie).get(api, '/api/auth/me')
+      return me.body().membershipRequired
+    }
+    assert.isTrue(await membershipRequired())
     const before = await revision()
     const completed = await as(cookie).post(api, '/api/admission/complete')
     completed.assertStatus(200)
@@ -90,6 +95,7 @@ test.group('admission and membership completion', (group) => {
     assert.equal(await revision(), before + 1)
     const again = await as(cookie).post(api, '/api/admission/complete')
     assert.deepEqual(again.body(), { accountId, role: 'editor', created: false })
+    assert.isFalse(await membershipRequired())
     await expectStatus(planning(api, cookie), 200)
   })
 
