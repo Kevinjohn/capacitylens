@@ -71,10 +71,8 @@ export const admissionAuthorize: AdmissionAuthorizeCallbacks = {
     const subjectRole = await companyRole(String(subject.id), trx)
     return !subjectRole || canAdministerIdentity(actorRole, subjectRole)
   },
-  list: async (actor, context) => {
-    const role = await companyRole(String(actor.id), context?.trx ?? db)
-    return Boolean(role && can(role, 'manageInvites'))
-  },
+  // The Kit checks the decider's own admission; listing, which discloses addresses, needs the same.
+  list: async (actor, context) => mayManageInvitations(String(actor.id), context?.trx),
 }
 
 /**

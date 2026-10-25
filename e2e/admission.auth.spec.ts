@@ -12,7 +12,7 @@ const PERSON = `admission-person-${STAMP}@capacitylens.dev`;
 // an Owner's invitation would email.
 test("an invited person accepts, waits for approval, and enters with the invited role", async ({
   page,
-  browser,
+  newObservedContext,
   request,
 }) => {
   test.setTimeout(60_000);
@@ -30,7 +30,7 @@ test("an invited person accepts, waits for approval, and enters with the invited
   await admission.getByTestId("access-request-admission").click();
   await expect(admission).toContainText("An Owner or Admin will approve your access");
 
-  const ownerContext = await browser.newContext({ reducedMotion: "reduce" });
+  const ownerContext = await newObservedContext({ reducedMotion: "reduce" });
   try {
     const ownerPage = await ownerContext.newPage();
     await ownerPage.goto("/");

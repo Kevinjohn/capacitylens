@@ -149,6 +149,29 @@ test.group('admission and membership completion', (group) => {
     assert.equal(membership?.status, 'disabled')
   })
 
+  test('an Admin whose admission was revoked can no longer list or decide admission', async ({
+    client: api,
+  }) => {
+    const ownerSession = await company(api)
+    const userId = await invitedIdentity('viewer')
+    const adminId = await createIdentity('diana.prince@wayne.example', { password })
+    const now = new Date().toISOString()
+    await db.table('memberships').insert({
+      id: 'member-diana',
+      account_id: accountId,
+      user_id: adminId,
+      role: 'admin',
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+    })
+    const { cookie } = await signIn(api, 'diana.prince@wayne.example', password)
+    await expectStatus(as(cookie).get(api, '/api/admission/requests'), 200)
+    await expectStatus(as(ownerSession.cookie).post(api, `/api/admission/${adminId}/revoke`), 200)
+    await expectStatus(as(cookie).get(api, '/api/admission/requests'), 403)
+    await expectStatus(as(cookie).post(api, `/api/admission/${userId}/approve`), 403)
+  })
+
   test('Editors and Viewers cannot list or decide admission', async ({ client: api }) => {
     await company(api)
     const userId = await invitedIdentity('viewer')

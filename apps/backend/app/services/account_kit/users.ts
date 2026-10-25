@@ -1,7 +1,7 @@
 import { createLucidAdapter } from 'adonisjs-account-kit'
 import { MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings'
 
-/** The only registration field: a display name, validated the same way as every later rename. */
+/** The only registration field: a display name, which the sign-up routes have already validated. */
 export function registrationDisplayName(data: unknown) {
   const name =
     data && typeof data === 'object' && typeof (data as { name?: unknown }).name === 'string'
