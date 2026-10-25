@@ -58,7 +58,6 @@ describe("MembersSection — admin affordances", () => {
   registerAdminInviteTests(members);
   registerAdminMemberControlTests(members);
   registerAdminConfirmationTests(members);
-  registerAdminSelfActionTests();
   registerAdminRoleChangeTests(members);
   registerAdminProjectionTests(members);
 });
@@ -173,8 +172,6 @@ function registerAdminConfirmationTests(members: RawMember[]): void {
     );
   });
 }
-
-function registerAdminSelfActionTests(): void {}
 
 function registerAdminRoleChangeTests(members: RawMember[]): void {
   it("explains and confirms a role change before sending it", async () => {

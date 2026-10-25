@@ -281,7 +281,7 @@
   "settings_enable_member_title": "Enable Access?",
   "settings_enable_member_message": "The restriction on {member} will be removed. If their membership is active, they can use their existing role again.",
   "settings_enable_removed_member_message": "{member} will rejoin this company straight away with the role they held when removed.",
-  "settings_members_access_enabled": "Access enabled. A removed member has rejoined; an archived member still needs restoring.",
+  "settings_members_access_enabled": "Access enabled.",
   "settings_member_archive": "Archive user",
   "settings_member_archive_aria": "Archive {member}",
   "settings_member_restore": "Restore membership",

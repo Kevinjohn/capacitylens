@@ -1097,7 +1097,7 @@ changes nothing; 400 unknown status, 404 non-member, 403 against the Owner,
 against yourself, or by the role
 rules — a non-active membership authorizes nothing, so the member's own reads 403 until restored
 while the administrative directory keeps listing them),
-`DELETE /api/accounts/:accountId/members/:userId` (204; 403 for the Owner),
+`DELETE /api/accounts/:accountId/members/:userId` (204; 403 for the Owner or yourself),
 `GET /api/accounts/:accountId/invites` (gated manageInvites; NO token; OFF → `{invites:[]}`),
 `POST /api/accounts/:accountId/invites/:id/resend` (200; emails a new link and stops the old one),
 `DELETE /api/accounts/:accountId/invites/:id` (204, cross-tenant-safe), and

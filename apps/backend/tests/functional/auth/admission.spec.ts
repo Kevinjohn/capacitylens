@@ -230,6 +230,12 @@ test.group('address confirmation', (group) => {
     disabled.assertStatus(200)
     const demoted = await asOwner('patch', '').json({ role: 'viewer' }).send()
     demoted.assertStatus(200)
+    const restriction = () =>
+      db.from('account_access_restrictions').where({ account_id: accountId, principal_id: userId })
+    const afterDemotion = await restriction().first()
+    assert.equal(afterDemotion?.role, 'viewer')
+    // Removal records the role held at that moment even over a stale stored one.
+    await restriction().update({ role: 'editor' })
     const removed = await asOwner('delete', '').send()
     removed.assertStatus(204)
 
