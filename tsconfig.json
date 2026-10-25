@@ -1,7 +1,4 @@
 {
-  "compilerOptions": {
-    "paths": { "@/*": ["./apps/frontend/src/*"] }
-  },
   "files": [],
   "references": [
     { "path": "./packages/shared/tsconfig.json" },

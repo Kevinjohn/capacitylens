@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
-const packageManifest = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 const mcpManifest = JSON.parse(await readFile(new URL("../.mcp.json", import.meta.url), "utf8"));
-const registryPin = packageManifest.scripts["ui:registry"].match(/shadcn@([^\s]+)/)?.[1];
+const registryCommand = await readFile(new URL("./ui-registry.mjs", import.meta.url), "utf8");
+const registryPin = registryCommand.match(/shadcn@([^\s"']+)/)?.[1];
 const mcpPin = mcpManifest.mcpServers.shadcn.args.find((argument) => argument.startsWith("shadcn@"))?.slice(7);
 if (!registryPin || registryPin !== mcpPin) {
   console.error(`shadcn tooling versions differ: registry=${registryPin ?? "missing"}, MCP=${mcpPin ?? "missing"}`);
