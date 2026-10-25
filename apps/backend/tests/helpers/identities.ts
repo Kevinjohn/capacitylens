@@ -141,3 +141,12 @@ export function captureMail(cleanup: (callback: () => void) => void) {
     },
   }
 }
+
+/** Awaits a request and asserts its status. */
+export async function expectStatus(
+  request: Promise<{ assertStatus(status: number): void }>,
+  status: number
+) {
+  const response = await request
+  response.assertStatus(status)
+}

@@ -51,7 +51,10 @@ export default class VerificationController {
     })
   }
 
-  /** The password proves the link reached the account holder, not only the mailbox. */
+  /**
+   * Spends the link, confirms the address and sets the chosen password. Holding the link already
+   * proves the mailbox, which could reset the password anyway.
+   */
   async complete(ctx: HttpContext) {
     proofHeaders(ctx)
     const body = tokenBody(ctx.request.body(), ['password'])

@@ -8,7 +8,7 @@ import { resetState } from '#services/state_repository'
 import { seed } from '@capacitylens/shared/data/seed'
 import { buildBetaExport } from '@capacitylens/shared/data/betaTransfer'
 import { readState } from '#services/state_repository'
-import { signUpAndIn } from '../../helpers/identities.js'
+import { signUpAndIn, expectStatus } from '../../helpers/identities.js'
 
 const accountId = 'a-studio'
 const otherAccountId = 'a-loft'
@@ -136,15 +136,6 @@ async function preparePrivateProjection() {
     resourceId: resource.id,
     timeOffId: timeOff.id,
   }
-}
-
-/** Awaits a request and asserts its status. */
-async function expectStatus(
-  request: Promise<{ assertStatus(status: number): void }>,
-  status: number
-) {
-  const response = await request
-  response.assertStatus(status)
 }
 
 test.group('native authorization and role projections', (group) => {

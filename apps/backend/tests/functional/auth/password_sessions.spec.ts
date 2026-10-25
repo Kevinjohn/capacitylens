@@ -2,15 +2,14 @@ import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
 import db from '@adonisjs/lucid/services/db'
 import limiter from '@adonisjs/limiter/services/main'
-import { spawn } from 'node:child_process'
-import { once } from 'node:events'
 import { resetState } from '#services/state_repository'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
 } from '../../helpers/authenticated_data_fixture.js'
-import { clearIdentities, createIdentity, signIn } from '../../helpers/identities.js'
+import { clearIdentities, createIdentity, signIn, expectStatus } from '../../helpers/identities.js'
+import { commitUnderWriteLock } from '../../helpers/write_lock.js'
 
 const email = 'bruce.wayne@wayne.example'
 const password = 'batman-secret-2026'
@@ -30,45 +29,6 @@ async function owner(options: { verified?: boolean; admitted?: boolean } = {}) {
   const userId = await createIdentity(email, { name: 'Bruce Wayne', password, ...options })
   await createFixtureCompanyForOwner(userId, 'Wayne Enterprises', accountId)
   return userId
-}
-
-/**
- * From another process, as a concurrent writer would, holds SQLite's write lock for 300 ms and then
- * revokes `userId`'s sign-ins in the same commit. The holder releases on its own clock because the
- * app's synchronous driver blocks this process while it waits.
- */
-async function revokeUnderWriteLock(userId: string) {
-  const holder = spawn(
-    process.execPath,
-    [
-      '--input-type=module',
-      '-e',
-      `import { DatabaseSync } from 'node:sqlite'
-const [file, userId] = process.argv.slice(1)
-const db = new DatabaseSync(file)
-db.exec('BEGIN IMMEDIATE')
-console.log('locked')
-setTimeout(() => {
-  db.prepare('DELETE FROM account_sessions WHERE user_id = ?').run(userId)
-  db.exec('COMMIT')
-  db.close()
-}, 300)`,
-      process.env.CAPACITYLENS_DB!,
-      userId,
-    ],
-    { stdio: ['ignore', 'pipe', 'inherit'] }
-  )
-  await once(holder.stdout!, 'data')
-  return once(holder, 'exit')
-}
-
-/** Awaits a request and asserts its status. */
-async function expectStatus(
-  request: Promise<{ assertStatus(status: number): void }>,
-  status: number
-) {
-  const response = await request
-  response.assertStatus(status)
 }
 
 test.group('password sign-in and sessions', (group) => {
@@ -188,7 +148,9 @@ test.group('password sign-in and sessions', (group) => {
   }) => {
     const userId = await owner()
     const { cookie } = await signIn(client, email, password)
-    const released = await revokeUnderWriteLock(userId)
+    const released = await commitUnderWriteLock([
+      ['DELETE FROM account_sessions WHERE user_id = ?', userId],
+    ])
     const refused = await dismiss(client, cookie)
     await released
     refused.assertStatus(401)
@@ -212,5 +174,27 @@ test.group('password sign-in and sessions', (group) => {
     }
     assert.equal(Number(revoked), 1)
     await expectStatus(dismiss(client, cookie), 401)
+  })
+
+  test('a company-deletion proof needs the Owner, the password and an empty intent', async ({
+    client,
+    assert,
+  }) => {
+    const userId = await owner()
+    const { cookie } = await signIn(client, email, password)
+    const prove = (body: object) =>
+      asDataOwner(client.post('/api/auth/action-proof/password'), cookie)
+        .json({ action: 'delete-company', accountId, intent: {}, password, ...body })
+        .send()
+    await expectStatus(prove({ intent: { cascade: true } }), 400)
+    const wrong = await prove({ password: 'not-the-password-2026' })
+    wrong.assertStatus(403)
+    assert.equal((wrong.body() as { code?: string }).code, 'ACTION_PROOF_DENIED')
+    const proved = await prove({})
+    proved.assertStatus(200)
+    const proof = await db.from('action_proofs').where('id', proved.body().proofId).first()
+    assert.deepInclude(proof, { user_id: userId, account_id: accountId, action: 'delete-company' })
+    await db.from('memberships').where('user_id', userId).update({ role: 'admin' })
+    await expectStatus(prove({}), 403)
   })
 })

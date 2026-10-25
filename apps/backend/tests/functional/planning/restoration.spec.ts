@@ -1006,7 +1006,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     assert.isNull(await group(groupId))
   })
 
-  test('cleanup counts all pending deleted rows, excludes links and consumed groups, and rejects stale consent', async ({
+  test('cleanup counts pending deleted rows of live sign-ins, excludes links and consumed groups, and rejects stale consent', async ({
     client,
     assert,
     cleanup,
@@ -1078,8 +1078,13 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     assert.deepEqual(await readState(accountId, true), before)
     assert.equal(await currentRevision(client, cookie), 2)
     assert.isNull(await db.from('planning_mutations').where('mutation_id', mutationId).first())
-    // Session cleanup can remove groups without changing the planning revision.
-    await db.from('deleted_groups').where('group_id', other).delete()
+    // An expired sign-in's groups stop counting before pruning removes them, and neither changes
+    // the planning revision.
+    const otherGroup = await db.from('deleted_groups').where('group_id', other).first()
+    await db
+      .from('account_sessions')
+      .where('id', otherGroup.session_id)
+      .update({ expires_at: '2000-01-01T00:00:00.000Z' })
     const stale = await request(3)
     stale.assertStatus(409)
     assert.equal(stale.body().code, 'restoration_confirmation_stale')
