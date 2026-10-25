@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process'
 import { openNativeDatabase } from '#services/backup/native'
 import { ensurePrivateBackupDirectory, writeOneShotSnapshot } from '#services/backup/snapshot'
 import { preMigrationBackupDirectory } from '../../commands/app_upgrade.js'
+import { scratchBackendFilter } from './operator_command_support.js'
 
 const appRoot = process.cwd()
 
@@ -69,10 +70,7 @@ function tables(databasePath: string) {
 /** Copy the backend so a test can add pending migrations after the baseline. */
 function scratchApp(root: string, migrations: Record<string, string>) {
   const scratch = join(root, 'backend')
-  cpSync(appRoot, scratch, {
-    recursive: true,
-    filter: (path) => !path.endsWith('/node_modules') && !path.endsWith('/build'),
-  })
+  cpSync(appRoot, scratch, { recursive: true, filter: scratchBackendFilter })
   symlinkSync(join(appRoot, 'node_modules'), join(scratch, 'node_modules'), 'dir')
   for (const [name, source] of Object.entries(migrations))
     writeFileSync(join(scratch, `database/migrations/${name}.ts`), source)

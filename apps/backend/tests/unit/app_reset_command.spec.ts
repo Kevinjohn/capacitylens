@@ -2,7 +2,7 @@ import { test } from '@japa/runner'
 import { cpSync, existsSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { operatorFixture, seedOwner } from './operator_command_support.js'
+import { operatorFixture, scratchBackendFilter, seedOwner } from './operator_command_support.js'
 
 function tableCount(database: DatabaseSync, table: string) {
   return database.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n
@@ -129,14 +129,7 @@ test('a replacement upgrade failure preserves the verified recovery files and na
     seedOwner(source)
     source.close()
     const scratch = join(f.root, 'backend')
-    // Never read the running suite's database: closing any descriptor on it drops this process's
-    // SQLite locks, which later lock-timing tests depend on.
-    const runningTmp = join(process.cwd(), 'tmp')
-    cpSync(process.cwd(), scratch, {
-      recursive: true,
-      filter: (path) =>
-        !path.endsWith('/node_modules') && !path.endsWith('/build') && path !== runningTmp,
-    })
+    cpSync(process.cwd(), scratch, { recursive: true, filter: scratchBackendFilter })
     symlinkSync(join(process.cwd(), 'node_modules'), join(scratch, 'node_modules'), 'dir')
     const originalAce = readFileSync(join(scratch, 'ace.js'))
     writeFileSync(join(scratch, 'ace.original.js'), originalAce)

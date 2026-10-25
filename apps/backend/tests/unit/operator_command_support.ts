@@ -108,3 +108,16 @@ export async function withOperatorServer(
     }
   }
 }
+
+/**
+ * Filters a recursive copy of the backend for a scratch app. It never reads the running suite's
+ * database in `tmp/`: closing any descriptor on it drops this process's SQLite locks, which the
+ * lock-timing tests depend on.
+ */
+export function scratchBackendFilter(path: string) {
+  return (
+    !path.endsWith('/node_modules') &&
+    !path.endsWith('/build') &&
+    path !== join(process.cwd(), 'tmp')
+  )
+}
