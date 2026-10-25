@@ -6,9 +6,10 @@ SQLite addon for the host architecture on which it was packaged. Use Node 24.19.
 
 The backend supports password authentication and native database sessions. The environment example
 keeps open access disabled. Set `APP_KEY`, a random `CAPACITYLENS_SECRET` of at least 32 characters,
-a separate random `CAPACITYLENS_SETUP_TOKEN` of at least 32 characters, and matching HTTPS
-`APP_URL` / `CAPACITYLENS_PUBLIC_URL` origins before starting. Complete the first-run browser setup
-with the setup token to create the initial identity and company. Remove the setup token afterwards.
+matching HTTPS `APP_URL` / `CAPACITYLENS_PUBLIC_URL` origins and SMTP delivery before starting.
+Invitations, address confirmation and password resets are emailed. After the first start, print the
+first-install link with `node ace.js account-kit:admission:bootstrap <owner-email> --role=viewer` from
+`backend`; the person who opens it chooses a password, becomes the Owner and creates the company.
 Google sign-in is optional; configure both provider credentials and the named-provider bootstrap
 addresses before enabling it. Microsoft sign-in remains deferred.
 
