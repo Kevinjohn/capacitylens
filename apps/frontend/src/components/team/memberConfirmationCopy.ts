@@ -33,9 +33,7 @@ export function buildMemberConfirmationCopy({ kind, member }: MemberConfirmation
       return {
         title: m.settings_remove_member_title(),
         confirmLabel: m.settings_member_remove(),
-        message: member.isSelf
-          ? m.settings_remove_self_message()
-          : m.settings_remove_member_message({ member: resolveMemberLabel(member) }),
+        message: m.settings_remove_member_message({ member: resolveMemberLabel(member) }),
       };
     case "disable":
       return {

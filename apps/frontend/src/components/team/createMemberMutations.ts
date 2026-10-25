@@ -94,9 +94,7 @@ function createRemoveMemberMutation(dependencies: MemberMutationDependencies) {
         if (!dependencies.isActiveAccount(accountId)) return;
         if (result.kind !== "ok") {
           if (result.kind === "unknown") {
-            await dependencies.reconcileUnknownMutation(m.settings_members_unknown_member_removal(), {
-              callerAccessMayHaveChanged: member.isSelf,
-            });
+            await dependencies.reconcileUnknownMutation(m.settings_members_unknown_member_removal());
             return;
           }
           dependencies.fail(
@@ -106,9 +104,6 @@ function createRemoveMemberMutation(dependencies: MemberMutationDependencies) {
           return;
         }
         dependencies.setNotice(m.settings_members_removed());
-        if (member.isSelf) {
-          await dependencies.refreshCallerAccess({ knownRemoved: true });
-        }
         dependencies.refreshDirectory();
       } catch (cause) {
         // An uncertain member removal may change caller access; reconcile before another administrative attempt.
@@ -117,7 +112,6 @@ function createRemoveMemberMutation(dependencies: MemberMutationDependencies) {
             message: m.settings_members_unknown_member_removal(),
             error: resolveErrorMessage(cause),
           }),
-          { callerAccessMayHaveChanged: member.isSelf },
         );
       }
     });

@@ -24,8 +24,8 @@ does not provide a separate team-link workflow.
 **Disable Access** is a company restriction separate from archiving or removing membership. It
 denies current requests and later invitations. It also follows a recreated identity at the same
 address once that address is confirmed.
-**Enable Access** clears the restriction; a removed or archived person still needs the
-ordinary invitation or restore path. Removed restrictions remain visible to administrators in
+**Enable Access** clears the restriction and brings a removed person back with the role they held
+when removed; an archived person still needs **Restore membership**. Removed restrictions remain visible to administrators in
 the inactive member directory. Owner and self protections apply to both actions.
 
 > CapacityLens is a multi-tenant resource scheduler. It is **server-backed by default** (an empty
@@ -1042,9 +1042,8 @@ presented before the member directory, matching the action-first pattern of the 
   confirmation naming the affected member before sending its destructive or security-sensitive
   request. While any member action is in flight, the management section is marked busy, politely
   announces **Updating team access…**, and every row's pencil and gear are disabled, so a second
-  mutation cannot be raised. Removing yourself explicitly warns that you will return to the company
-  picker and need a new invitation. Disable and archive are offered only where the target is neither the Owner nor
-  yourself; a disabled or archived membership keeps its role and history but authorizes nothing, and
+  mutation cannot be raised. Disable, archive and remove are offered only where the target is neither the Owner nor
+  yourself, and the server refuses removing yourself; a disabled or archived membership keeps its role and history but authorizes nothing, and
   the member stays listed under **No longer active** so the change is visible and reversible. No row
   carries an ownership-transfer control for anyone. There is no administrative password reset or
   session revocation.

@@ -64,6 +64,11 @@ export async function changeMemberRole(
       .from('memberships')
       .where({ account_id: input.accountId, user_id: input.userId })
       .update({ role: input.role, updated_at: new Date().toISOString() })
+    // Enable Access restores the restriction's role, so it follows every change.
+    await trx
+      .from('account_access_restrictions')
+      .where({ account_id: input.accountId, principal_id: input.userId })
+      .update({ role: input.role })
     await advancePlanningRevision(trx, input.accountId)
     await writeAudit(trx, {
       accountId: input.accountId,
@@ -149,7 +154,9 @@ export async function removeMember(
   input: { accountId: string; actorId: string; actorRole: Role; userId: string }
 ) {
   const member = await targetMember(trx, input.accountId, input.userId)
-  if (!canRemoveMember(input.actorRole, member.role as Role)) throw forbidden()
+  // Removal locks the person out until an administrator acts, so nobody may remove themselves.
+  if (input.userId === input.actorId || !canRemoveMember(input.actorRole, member.role as Role))
+    throw forbidden()
   await trx
     .from('account_member_resources')
     .where({ account_id: input.accountId, user_id: input.userId })
@@ -161,7 +168,12 @@ export async function removeMember(
     .from('account_access_restrictions')
     .where({ account_id: input.accountId, principal_id: input.userId })
     .first()
-  if (!restricted) {
+  if (restricted)
+    await trx
+      .from('account_access_restrictions')
+      .where({ account_id: input.accountId, principal_id: input.userId })
+      .update({ role: member.role })
+  else {
     const principal = await trx.from('users').where('id', input.userId).select('email').first()
     const email = principal ? String(principal.email).trim().toLowerCase() : null
     await trx.table('account_access_restrictions').insert({

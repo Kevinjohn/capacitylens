@@ -6,10 +6,6 @@ import { resolveErrorMessage } from "@/lib/errorMessage";
 import type { MemberActionDependencies } from "./MemberActionDependencies";
 import type { useTeamDirectory } from "./useTeamDirectory";
 
-interface RefreshCallerAccessInput {
-  knownRemoved?: boolean | undefined;
-}
-
 type CallerAccessRefreshResult = { kind: "active" } | { kind: "left" } | { kind: "failed" };
 
 interface MemberAccessDependencies extends Pick<
@@ -27,10 +23,9 @@ interface MemberAccessDependencies extends Pick<
 type HasAuthoritativeAccountSummaryOptions = {
   summaries: Awaited<ReturnType<typeof refreshAccountSummaries>>;
   accountId: string;
-  knownRemoved: boolean;
 };
-function hasAuthoritativeAccountSummary({ summaries, accountId, knownRemoved }: HasAuthoritativeAccountSummaryOptions) {
-  return summaries !== null && !knownRemoved && summaries.some((account) => account.id === accountId);
+function hasAuthoritativeAccountSummary({ summaries, accountId }: HasAuthoritativeAccountSummaryOptions) {
+  return summaries !== null && summaries.some((account) => account.id === accountId);
 }
 
 function createRefreshCallerAccess({
@@ -44,7 +39,7 @@ function createRefreshCallerAccess({
   MemberAccessDependencies,
   "activeAccountId" | "invalidateMemberships" | "refreshAuth" | "closeActiveAccount" | "isActiveAccount" | "setNotice"
 >) {
-  return async ({ knownRemoved = false }: RefreshCallerAccessInput = {}): Promise<CallerAccessRefreshResult> => {
+  return async (): Promise<CallerAccessRefreshResult> => {
     const accountId = activeAccountId;
     if (!accountId) return { kind: "failed" };
     invalidateMemberships();
@@ -57,7 +52,7 @@ function createRefreshCallerAccess({
       setNotice(m.settings_members_access_refresh_failed(), "error");
       return { kind: "failed" };
     }
-    if (!hasAuthoritativeAccountSummary({ summaries: summaries, accountId: accountId, knownRemoved: knownRemoved })) {
+    if (!hasAuthoritativeAccountSummary({ summaries: summaries, accountId: accountId })) {
       closeActiveAccount();
       return { kind: "left" };
     }

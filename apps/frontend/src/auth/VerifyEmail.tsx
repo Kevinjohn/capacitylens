@@ -71,7 +71,8 @@ export function VerifyEmail() {
     setState("working");
     try {
       const { error: failure } = await authClient.completeEmailVerification({ token, password });
-      if (!failure) finish("done");
+      // VERIFICATION_COMMITTED: the address is confirmed and only a later step failed.
+      if (!failure || failure.code === "VERIFICATION_COMMITTED") finish("done");
       else if (failure.code === "INVALID_TOKEN") finish("invalid");
       else if (failure.status >= 500) finish("uncertain");
       else {

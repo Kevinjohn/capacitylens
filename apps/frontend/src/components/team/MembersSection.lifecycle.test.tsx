@@ -429,8 +429,7 @@ function registerLifecycleDisclosureTests(): void {
 }
 
 function registerLifecyclePermissionTests(lifecycleMembers: RawMember[]): void {
-  it("offers no status action against the Owner or against yourself", async () => {
-    const user = userEvent.setup();
+  it("offers no member action against the Owner or against yourself", async () => {
     vi.stubGlobal(
       "fetch",
       mockApi([
@@ -441,11 +440,9 @@ function registerLifecyclePermissionTests(lifecycleMembers: RawMember[]): void {
     renderSection();
     const selfRow = await waitForMemberRow(/me@x\.io/);
 
-    // Self-suspension risks locking the administrator out; the active Owner is additionally protected by the single-owner invariant.
-    await openMemberMenu(user, selfRow);
-    expect(screen.queryByTestId("member-disable")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("member-archive")).not.toBeInTheDocument();
-    await user.keyboard("{Escape}");
+    // Disabling, archiving or removing yourself would lock you out; the active Owner is additionally
+    // protected by the single-owner invariant.
+    expect(within(selfRow).queryByTestId("member-menu")).not.toBeInTheDocument();
 
     const ownerRow = await waitForMemberRow(/owner@x\.io/);
     expect(within(ownerRow).queryByTestId("member-menu")).not.toBeInTheDocument();

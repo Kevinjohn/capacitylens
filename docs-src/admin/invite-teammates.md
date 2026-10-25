@@ -99,7 +99,7 @@ All three are in **More actions**. None affects the person's other company membe
   their access; **Restore membership** reactivates it but doesn't clear Disable Access.
 - Use **Remove** when they no longer belong to the company. It ends that membership and keeps them
   out: they move to **No longer active**, and **Enable Access** brings them back with the role they
-  held when removed.
+  held when removed. You cannot remove yourself.
 
 Invitations go only to addresses without an account, so a person who has signed in before comes
 back through **Restore membership** or **Enable Access**, never a new invitation. After **Enable

@@ -26,7 +26,10 @@ test("a reset link sets a new password once and retires the old one", async ({ p
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(NEW_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("heading", { name: "Sign in" })).toHaveCount(0);
+  // The new identity has no company yet, so a signed-in session lands on an access screen naming it.
+  const accessScreen = page.locator('main[data-testid^="access-"]');
+  await expect(accessScreen).toBeVisible();
+  await expect(accessScreen).toContainText(email);
 
   const headers = { "sec-fetch-site": "same-origin" };
   const oldSignIn = await request.post(`${API}/api/auth/sign-in`, { headers, data: { email, password: PASSWORD } });

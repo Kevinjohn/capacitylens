@@ -79,21 +79,6 @@ function registerSelfMutationFailureTests(): void {
       tone: "error",
     });
   });
-
-  it("closes the company silently after a successful self-removal", async () => {
-    vi.stubGlobal("fetch", mockApi(ownerAndEditor));
-    renderSection();
-
-    await confirmMemberAction({
-      user: userEvent.setup(),
-      row: await waitForMemberRow(/me@x\.io/),
-      testId: "member-remove",
-      confirmationName: "Remove",
-    });
-
-    await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-    expect(useStore.getState().notice).toBeNull();
-  });
 }
 
 function registerAccountSwitchMutationTests(): void {

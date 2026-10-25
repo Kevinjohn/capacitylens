@@ -174,21 +174,7 @@ function registerAdminConfirmationTests(members: RawMember[]): void {
   });
 }
 
-function registerAdminSelfActionTests(): void {
-  it("spells out the access consequence of removing yourself", async () => {
-    const user = userEvent.setup();
-    const selfMembers: RawMember[] = [
-      { userId: "me", role: "admin", isSelf: true },
-      { userId: "owner", role: "owner" },
-    ];
-    vi.stubGlobal("fetch", mockApi(selfMembers));
-    renderSection();
-    const selfRow = await waitForMemberRow(/me@x\.io/);
-
-    await chooseMemberAction(user, selfRow, "member-remove");
-    expect(within(screen.getByRole("alertdialog")).getByText(/return to the company picker/i)).toBeInTheDocument();
-  });
-}
+function registerAdminSelfActionTests(): void {}
 
 function registerAdminRoleChangeTests(members: RawMember[]): void {
   it("explains and confirms a role change before sending it", async () => {

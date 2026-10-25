@@ -36,6 +36,19 @@ describe("VerifyEmail outcomes", () => {
     expect(await screen.findByTestId("verify-invalid")).toBeInTheDocument();
   });
 
+  it("reports a committed confirmation as done even when a later step failed", async () => {
+    vi.spyOn(authClient, "inspectEmailVerification").mockResolvedValue({ data: { valid: true }, error: null });
+    vi.spyOn(authClient, "completeEmailVerification").mockResolvedValue({
+      data: null,
+      error: { message: "Confirmed", status: 503, code: "VERIFICATION_COMMITTED" },
+    });
+    renderPage();
+    fireEvent.change(await screen.findByTestId("verify-password"), { target: { value: chosen } });
+    fireEvent.click(screen.getByTestId("verify-submit"));
+    expect(await screen.findByTestId("verify-success")).toBeInTheDocument();
+    expect(screen.queryByTestId("verify-uncertain")).not.toBeInTheDocument();
+  });
+
   it("does not return to the form when the confirmation answer is lost", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(authClient, "inspectEmailVerification").mockResolvedValue({ data: { valid: true }, error: null });

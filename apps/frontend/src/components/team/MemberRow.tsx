@@ -32,8 +32,10 @@ function buildMemberAffordances(
     member.membershipPresent !== false &&
     !!myRole &&
     canEditAnyMemberRole(myRole, member.role);
-  // Inactive memberships can be removed without reinstatement.
-  const mayRemove = member.membershipPresent !== false && !!myRole && canRemoveMember(myRole, member.role);
+  // Inactive memberships can be removed without reinstatement. Removal locks the person out until an
+  // administrator enables access, so the server refuses it for yourself.
+  const mayRemove =
+    member.membershipPresent !== false && !member.isSelf && !!myRole && canRemoveMember(myRole, member.role);
   const mayChangeStatus = !!myRole && canChangeMemberStatus(myRole, member.role, member.isSelf);
   return {
     mayMasquerade:

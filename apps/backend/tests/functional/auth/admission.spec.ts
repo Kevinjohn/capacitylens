@@ -202,7 +202,7 @@ test.group('address confirmation', (group) => {
     await limiter.clear()
   })
 
-  test('a removed member cannot rejoin on their own; Enable access restores the role held at removal', async ({
+  test('a removed member cannot rejoin on their own; Enable access restores the role held at removal, even after an earlier disable', async ({
     client: api,
     assert,
   }) => {
@@ -219,6 +219,15 @@ test.group('address confirmation', (group) => {
         api[method](`/api/accounts/${accountId}/members/${userId}${path}`),
         ownerSession.cookie
       )
+    // Removal locks a person out, so an Admin cannot remove themselves.
+    await expectStatus(
+      asDataOwner(api.delete(`/api/accounts/${accountId}/members/${userId}`), cookie).send(),
+      403
+    )
+    // Disabling first records the restriction while they are still an Admin; the later demotion
+    // must still be the role Enable Access restores.
+    const disabled = await asOwner('patch', '/status').json({ status: 'disabled' }).send()
+    disabled.assertStatus(200)
     const demoted = await asOwner('patch', '').json({ role: 'viewer' }).send()
     demoted.assertStatus(200)
     const removed = await asOwner('delete', '').send()
