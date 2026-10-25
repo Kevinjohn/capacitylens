@@ -28,13 +28,7 @@ export interface RawMember {
   name?: string | null;
   email?: string | null;
   isSelf?: boolean;
-  mayResetPassword?: boolean;
-  mayRevokeSessions?: boolean;
   resourceLink?: { resourceId: string; revision: string; resourceName?: string | null } | null;
-  resourceLinkException?: {
-    proposedResourceId: string | null;
-    reason: "resource_unavailable" | "resource_already_linked" | "member_already_linked";
-  } | null;
 }
 
 /** Builds a complete member fixture while leaving signInConfirmed absent unless requested; presence of that field determines whether sign-in tracking is reported enabled. */
@@ -45,8 +39,6 @@ export function rawMember(overrides: Partial<RawMember> & { userId: string; role
     name: null,
     email: `${overrides.userId}@x.io`,
     isSelf: false,
-    mayResetPassword: false,
-    mayRevokeSessions: false,
     ...overrides,
   };
 }
@@ -111,8 +103,6 @@ export function makeSignInTrackingApi(): ReturnType<typeof vi.fn> {
           name: null,
           email: `${member.userId}@x.io`,
           isSelf: false,
-          mayResetPassword: false,
-          mayRevokeSessions: true,
           ...member,
           signInConfirmed: trackingEnabled ? member.isSelf === true : null,
         })),
@@ -210,8 +200,8 @@ export async function confirmMemberAction({
 /** Test members representing an owner and editor with distinct permissions. */
 export const ownerAndEditor: RawMember[] = [
   { userId: "owner", role: "owner" },
-  { userId: "me", role: "admin", isSelf: true, mayRevokeSessions: true },
-  { userId: "ed", role: "editor", mayResetPassword: true, mayRevokeSessions: true },
+  { userId: "me", role: "admin", isSelf: true },
+  { userId: "ed", role: "editor" },
 ];
 
 /** Test members for an owner who is the only owner, plus an editor. */
@@ -228,16 +218,12 @@ export const accessibleNameMembers: RawMember[] = [
     name: "Barbara Gordon",
     email: "alice@example.test",
     role: "editor",
-    mayResetPassword: true,
-    mayRevokeSessions: true,
   },
   {
     userId: "bob",
     name: "James Gordon",
     email: "bob@example.test",
     role: "viewer",
-    mayResetPassword: true,
-    mayRevokeSessions: true,
   },
 ];
 
@@ -269,13 +255,7 @@ export async function expectAccessibleMemberControls({
     `the ${name} row in the members table`,
   );
   await openMemberMenu(user, row);
-  for (const action of [
-    `Reset password for ${member}`,
-    `Revoke sessions for ${member}`,
-    `Disable Access for ${member}`,
-    `Archive ${member}`,
-    `Remove ${member}`,
-  ]) {
+  for (const action of [`Disable Access for ${member}`, `Archive ${member}`, `Remove ${member}`]) {
     expect(screen.getByRole("button", { name: action })).toBeInTheDocument();
   }
   await user.keyboard("{Escape}");

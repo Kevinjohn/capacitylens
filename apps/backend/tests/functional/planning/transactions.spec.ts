@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { DatabaseSync } from 'node:sqlite'
+import { spawnSync } from 'node:child_process'
 import { test } from '@japa/runner'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
@@ -21,7 +21,7 @@ test.group('planning snapshot and commit boundaries', (group) => {
     await resetPlanningFixture()
   })
 
-  test('a concurrent external commit cannot mix authority, revision and projection snapshots', async ({
+  test('an external commit waits for the planning snapshot, so authority, revision and projection never mix', async ({
     client,
     assert,
     cleanup,
@@ -29,45 +29,57 @@ test.group('planning snapshot and commit boundaries', (group) => {
     configureAuth(cleanup)
     const { cookie, userId } = await signIn(client)
     const before = await readState(accountId, true)
-    // A separate test connection commits after the planning transaction reads its revision.
-    // This adversarial writer is outside the application's single-connection pool.
-    const external = new DatabaseSync(env.get('CAPACITYLENS_DB')!)
-    external.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 1000')
+    // Another process tries to commit while the planning read holds its snapshot. A connection in
+    // this process could not stand in: a second SQLite copy does not see this process's locks.
+    const externalCommit = () =>
+      spawnSync(
+        process.execPath,
+        [
+          '--input-type=module',
+          '-e',
+          `import { DatabaseSync } from 'node:sqlite'
+const [file, accountId, userId] = process.argv.slice(1)
+const db = new DatabaseSync(file)
+db.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 0')
+try {
+  db.exec('BEGIN IMMEDIATE')
+} catch {
+  process.exit(3)
+}
+db.prepare('UPDATE accounts SET name = ? WHERE id = ?').run('Wayne Revised', accountId)
+db.prepare('UPDATE memberships SET role = ? WHERE user_id = ? AND account_id = ?').run('viewer', userId, accountId)
+db.prepare('INSERT INTO company_planning_revisions(account_id, revision) VALUES (?, 1) ON CONFLICT(account_id) DO UPDATE SET revision = 1').run(accountId)
+db.exec('COMMIT')`,
+          env.get('CAPACITYLENS_DB')!,
+          accountId,
+          userId,
+        ],
+        { stdio: ['ignore', 'ignore', 'inherit'] }
+      ).status
     const knex = db.connection().getReadClient()
-    let committed = false
+    let attempted: number | null = null
     const interleave = (_rows: unknown, query: { sql?: unknown }) => {
       if (
-        committed ||
+        attempted !== null ||
         typeof query.sql !== 'string' ||
         !query.sql.includes('company_planning_revisions') ||
         !query.sql.startsWith('select')
       )
         return
-      committed = true
-      external.exec('BEGIN IMMEDIATE')
-      external.prepare('UPDATE accounts SET name = ? WHERE id = ?').run('Wayne Revised', accountId)
-      external
-        .prepare('UPDATE memberships SET role = ? WHERE user_id = ? AND account_id = ?')
-        .run('viewer', userId, accountId)
-      external
-        .prepare(
-          'INSERT INTO company_planning_revisions(account_id, revision) VALUES (?, 1) ON CONFLICT(account_id) DO UPDATE SET revision = 1'
-        )
-        .run(accountId)
-      external.exec('COMMIT')
+      attempted = externalCommit()
     }
     knex.on('query-response', interleave)
     try {
       const snapshot = await session(client.get(planningUrl), cookie).send()
       snapshot.assertStatus(200)
-      assert.isTrue(committed)
+      assert.equal(attempted, 3, 'the external writer waits for the snapshot')
       assert.equal(snapshot.body().revision, 0)
       assert.equal(snapshot.body().authority.role, 'owner')
       assert.equal(snapshot.body().data.accounts[0].name, before.accounts[0]!.name)
     } finally {
       knex.off('query-response', interleave)
-      external.close()
     }
+    assert.equal(externalCommit(), 0)
     const current = await session(client.get(planningUrl), cookie).send()
     current.assertStatus(200)
     assert.equal(current.body().revision, 1)
@@ -210,54 +222,6 @@ test.group('planning snapshot and commit boundaries', (group) => {
       .send()
     refused.assertStatus(403)
     assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0)
-  })
-  test('a rejected no-change operation keeps the real session usable across a transactional idle touch', async ({
-    client,
-    assert,
-    cleanup,
-  }) => {
-    configureAuth(cleanup)
-    const { cookie } = await signIn(client)
-    const indexed = await db.from('user_session_index').first()
-    const data = await readState(accountId, true)
-    const allocation = data.allocations[0]!
-    const originalNow = Date.now
-    const knex = db.connection().getReadClient()
-    let crossedTouchBoundary = false
-    const crossBoundary = (query: { sql?: unknown }) => {
-      if (typeof query.sql === 'string' && /^begin/i.test(query.sql)) {
-        crossedTouchBoundary = true
-        Date.now = () => Number(indexed.last_activity_at) + 60_000
-      }
-    }
-    Date.now = () => Number(indexed.last_activity_at) + 59_000
-    knex.on('query', crossBoundary)
-    try {
-      const noChange = await session(
-        client.patch(`/api/accounts/${accountId}/allocations/${allocation.id}`),
-        cookie
-      )
-        .json({
-          mutationId: randomUUID(),
-          baseRevision: 0,
-          intent: {
-            operation: 'allocation.update',
-            id: allocation.id,
-            changes: { hoursPerDay: allocation.hoursPerDay },
-          },
-        })
-        .send()
-      noChange.assertStatus(400)
-      assert.equal(noChange.body().code, 'no_change')
-      assert.isTrue(crossedTouchBoundary)
-      knex.off('query', crossBoundary)
-      const current = await session(client.get(planningUrl), cookie).send()
-      current.assertStatus(200)
-      assert.equal(current.body().revision, 0)
-    } finally {
-      Date.now = originalNow
-      knex.off('query', crossBoundary)
-    }
   })
   for (const invalidation of [
     'actor membership',

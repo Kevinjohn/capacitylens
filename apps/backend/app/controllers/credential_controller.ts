@@ -1,28 +1,15 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import accountKit from 'adonisjs-account-kit/services/main'
 import {
-  InvalidInputError,
-  InvalidTokenError,
-  NoPasswordError,
   IdentityNotConfirmedError,
+  InvalidTokenError,
   ThrottledError,
-  PostCommitError,
 } from 'adonisjs-account-kit/errors'
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password'
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
 import env from '#start/env'
-import { PasswordProcessingUnavailableError } from '#services/password_service'
-import {
-  PasswordPolicyError,
-  PasswordScreeningUnavailableError,
-} from '#services/password_screening'
-import { PasswordIneligibleError } from '#services/account_kit/users_adapter'
-import { SessionAuthorityError } from '#services/auth/session_authority'
-import {
-  changePassword,
-  CredentialUnavailableError,
-  requestPublicReset,
-  resetPassword,
-} from '#services/credentials/operations'
+import { currentAccount, sessionGuard } from '#services/auth/current_actor'
+import { isCommittedFailure } from '#services/account_kit/committed'
 
 function fields(value: unknown, allowed: string[]): value is Record<string, unknown> {
   return (
@@ -37,43 +24,25 @@ function password(value: unknown): value is string {
   return typeof value === 'string' && !passwordLengthFailure(value)
 }
 
+function token(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= 512
+}
+
 function privateErrorCode(error: unknown) {
   const code = (error as { code?: unknown })?.code
   return typeof code === 'string' && /^[A-Z_]{2,64}$/.test(code) ? code : 'RECOVERY_REQUEST_FAILED'
 }
 
-function renderError(ctx: HttpContext, error: unknown) {
-  if (error instanceof SessionAuthorityError && error.code === 'SESSION_NOT_FRESH')
-    return ctx.response.forbidden({ error: error.message, code: error.code })
-  if (error instanceof SessionAuthorityError || (error as { status?: number })?.status === 401)
-    return ctx.response.unauthorized({ error: 'Sign-in required.' })
-  if (
-    error instanceof PasswordProcessingUnavailableError ||
-    error instanceof PasswordScreeningUnavailableError
-  )
-    return ctx.response.serviceUnavailable({ error: error.message, code: error.code })
-  if (error instanceof PasswordPolicyError)
-    return ctx.response.badRequest({ error: error.message, code: error.code })
-  if (error instanceof ThrottledError)
-    return ctx.response.tooManyRequests({ error: 'Too many requests.' })
-  if (error instanceof IdentityNotConfirmedError)
-    return ctx.response.unauthorized({ error: 'Current password is incorrect.' })
-  if (error instanceof InvalidTokenError)
-    return ctx.response.badRequest({ error: 'Invalid credential request.', code: 'INVALID_TOKEN' })
-  if (
-    error instanceof InvalidInputError ||
-    error instanceof NoPasswordError ||
-    error instanceof PasswordIneligibleError
-  )
-    return ctx.response.badRequest({ error: 'Invalid credential request.' })
-  if (error instanceof PostCommitError)
-    return ctx.response.serviceUnavailable({
-      error: 'Credential update completed, but a follow-up failed.',
-      code: 'CREDENTIAL_UPDATE_COMMITTED',
-    })
-  if (error instanceof CredentialUnavailableError)
-    return ctx.response.serviceUnavailable({ error: error.message, code: error.code })
-  throw error
+/** Keeps bearer links out of shared caches and referrers. */
+function proofHeaders(ctx: HttpContext) {
+  ctx.response.header('Cache-Control', 'no-store')
+  ctx.response.header('Referrer-Policy', 'no-referrer')
+}
+
+const committed = {
+  error: 'Your password was changed, but a follow-up step failed. Sign in with the new password.',
+  code: 'CREDENTIAL_UPDATE_COMMITTED',
+  committed: true,
 }
 
 export default class CredentialController {
@@ -87,54 +56,76 @@ export default class CredentialController {
     if (!isAccountEmail(email))
       return ctx.response.badRequest({ error: 'Invalid recovery request.' })
     try {
-      await requestPublicReset(email, ctx.request.ip())
+      await accountKit.passwordReset.request({ email, clientKey: ctx.request.ip() })
     } catch (error) {
-      if (error instanceof ThrottledError) return renderError(ctx, error)
+      if (error instanceof ThrottledError) throw error
       // Public recovery does not disclose recipient or delivery state.
-      try {
-        ctx.logger.error({ code: privateErrorCode(error) }, 'Password recovery request failed')
-      } catch {
-        console.error('Credential diagnostic logger failed')
-      }
+      ctx.logger.error({ code: privateErrorCode(error) }, 'Password recovery request failed')
     }
     return ctx.response.ok({ ok: true })
   }
 
+  /** Reports whether a reset link is still usable without spending it. */
+  async inspectReset(ctx: HttpContext) {
+    proofHeaders(ctx)
+    const body: unknown = ctx.request.body()
+    if (!fields(body, ['token']) || !token(body.token))
+      return ctx.response.badRequest({ error: 'Invalid recovery request.' })
+    return ctx.response.ok({ valid: await accountKit.passwordReset.inspect({ token: body.token }) })
+  }
+
+  /** Every sign-in, including any on this device, ends with the old password. */
   async resetPassword(ctx: HttpContext) {
+    proofHeaders(ctx)
     const body: unknown = ctx.request.body()
     if (
       !fields(body, ['token', 'newPassword']) ||
-      typeof body.token !== 'string' ||
+      !token(body.token) ||
       !password(body.newPassword)
     )
       return ctx.response.badRequest({ error: 'Invalid recovery request.' })
     try {
-      await resetPassword(body.token, body.newPassword)
+      await accountKit.passwordReset.reset({ token: body.token, password: body.newPassword })
       return ctx.response.ok({ ok: true })
     } catch (error) {
-      return renderError(ctx, error)
+      if (error instanceof InvalidTokenError)
+        return ctx.response.badRequest({
+          error: 'This link is invalid or expired.',
+          code: 'INVALID_TOKEN',
+        })
+      if (isCommittedFailure(error)) return ctx.response.serviceUnavailable(committed)
+      throw error
     }
   }
 
+  /** Changes the password and ends every sign-in, this one included. */
   async changePassword(ctx: HttpContext) {
     const body: unknown = ctx.request.body()
     if (
-      !fields(body, ['currentPassword', 'newPassword', 'revokeOtherSessions']) ||
+      !fields(body, ['currentPassword', 'newPassword']) ||
       typeof body.currentPassword !== 'string' ||
-      !password(body.newPassword) ||
-      (body.revokeOtherSessions !== undefined && typeof body.revokeOtherSessions !== 'boolean')
+      !password(body.newPassword)
     )
       return ctx.response.badRequest({ error: 'Invalid credential request.' })
+    const account = await currentAccount(ctx)
+    let outcome: 'changed' | 'committed' = 'changed'
     try {
-      await changePassword(
-        ctx,
-        body.currentPassword,
-        body.newPassword,
-        body.revokeOtherSessions !== false
-      )
-      return ctx.response.ok({ ok: true })
+      await accountKit.emailPasswordManagement.changePassword({
+        actorId: account.id,
+        currentPassword: body.currentPassword,
+        newPassword: body.newPassword,
+      })
     } catch (error) {
-      return renderError(ctx, error)
+      if (error instanceof IdentityNotConfirmedError)
+        return ctx.response.forbidden({
+          error: 'Current password is incorrect.',
+          code: 'CURRENT_PASSWORD_INCORRECT',
+        })
+      if (!isCommittedFailure(error)) throw error
+      outcome = 'committed'
     }
+    await sessionGuard(ctx).terminate()
+    if (outcome === 'committed') return ctx.response.serviceUnavailable(committed)
+    return ctx.response.ok({ ok: true, signedOut: true })
   }
 }

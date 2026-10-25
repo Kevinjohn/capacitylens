@@ -1,3 +1,4 @@
+import { fixtureSession, signUpAndIn } from '../helpers/identities.js'
 import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
 import {
@@ -12,10 +13,8 @@ import { withTransaction } from '#services/with_transaction'
 import { getPlanningRevision } from '#services/planning_revision'
 import { encodeRow, readState } from '#services/state_repository'
 import { seed } from '@capacitylens/shared/data/seed'
-import env from '#start/env'
 
 const accountId = 'a-studio'
-const setupToken = 'capacitylens-japa-setup-token-0123456789abcdef'
 const password = 'fixture-password-2026'
 
 async function proof(client: ApiClient, cookie: string) {
@@ -64,7 +63,7 @@ async function restoreAllocation(client: ApiClient, cookie: string, groupId: str
 async function seedOtherCompanyRestoration(actorId: string) {
   const groupId = randomUUID()
   const mutationId = randomUUID()
-  const sessionId = 'fixture-other-company-session'
+  const sessionId = await fixtureSession(actorId)
   const createdAt = new Date().toISOString()
   const revision = (await withTransaction((trx) => getPlanningRevision(trx, 'a-loft'))) + 1
   await db.table('deleted_groups').insert({
@@ -109,21 +108,6 @@ async function seedOtherCompanyRestoration(actorId: string) {
 }
 
 test.group('company anonymisation', (group) => {
-  group.setup(() => {
-    const previous = {
-      mode: env.get('CAPACITYLENS_MODE'),
-      setup: env.get('CAPACITYLENS_SETUP_TOKEN'),
-      signup: env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP'),
-    }
-    env.set('CAPACITYLENS_MODE', 'password-only')
-    env.set('CAPACITYLENS_SETUP_TOKEN', setupToken)
-    env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', true)
-    return () => {
-      env.set('CAPACITYLENS_MODE', previous.mode)
-      env.set('CAPACITYLENS_SETUP_TOKEN', previous.setup)
-      env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', previous.signup)
-    }
-  })
   group.setup(() => freshDatabase())
 
   test('retired generic lifecycle and company deletion routes are absent', async ({ client }) => {
@@ -558,7 +542,7 @@ test.group('company anonymisation', (group) => {
       .from('planning_mutations')
       .where({ account_id: accountId, restoration_group_id: groupId })
       .first()
-    assert.isString(commitment.origin_session_id)
+    assert.isNumber(commitment.origin_session_id)
     const revision = await withTransaction((trx) => getPlanningRevision(trx, accountId))
     const restored = await asDataOwner(
       client.post(`/api/accounts/${accountId}/planning/restore-group`),
@@ -615,15 +599,12 @@ test.group('company anonymisation', (group) => {
     wrongCompany.assertStatus(403)
     assert.equal(wrongCompany.body().code, 'authorization_denied')
 
-    const otherActorSignup = await client
-      .post('/api/auth/sign-up')
-      .json({
-        email: 'diana.prince@wayne.example',
-        password,
-        name: 'Diana Prince',
-      })
-      .send()
-    otherActorSignup.assertStatus(201)
+    const otherActorSignup = await signUpAndIn(client, {
+      email: 'diana.prince@wayne.example',
+      password,
+      name: 'Diana Prince',
+    })
+    otherActorSignup.assertStatus(200)
     const otherActorCookie = otherActorSignup.cookie('adonis-session')?.value
     assert.isString(otherActorCookie)
     const otherActorId = String((otherActorSignup.body() as { user: { id: string } }).user.id)

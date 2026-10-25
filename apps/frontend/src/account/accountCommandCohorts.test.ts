@@ -10,7 +10,6 @@ vi.mock("@/data/requestTimeout", () => ({
   API_BULK_TIMEOUT_MS: 120_000,
   createRequestSignal: vi.fn((signal?: AbortSignal) => signal),
 }));
-vi.mock("@/auth/apiFetchReauth", () => ({ apiFetchReauth: mocks.apiFetch }));
 
 import { accountClient, bindStoredAccountCommandsToIdentity, clearStoredAccountCommands } from "./accountClient";
 
@@ -48,7 +47,8 @@ async function flushPromiseContinuations(): Promise<void> {
 
 const ok = () => new Response(null, { status: 201 });
 const unknown = () => new Response(null, { status: 503 });
-const createInvitation = () => accountClient.createInvitation({ accountId: "a-studio", role: "viewer" });
+const createInvitation = () =>
+  accountClient.createInvitation({ accountId: "a-studio", role: "viewer", email: "selina@wayne.test" });
 
 describe("implicit account command cohorts", () => {
   beforeEach(() => {
@@ -110,10 +110,18 @@ describe("implicit account command cohorts", () => {
     const definitive = deferred<Response>();
     mocks.apiFetch.mockImplementationOnce(() => uncertain.promise).mockImplementationOnce(() => definitive.promise);
 
-    const uncertainCall = accountClient.createInvitation({ accountId: "a-studio", role: "viewer" });
+    const uncertainCall = accountClient.createInvitation({
+      accountId: "a-studio",
+      role: "viewer",
+      email: "selina@wayne.test",
+    });
     await waitForRequests(1);
     const uncertainHeaders = commandHeadersAt(0);
-    const definitiveCall = accountClient.createInvitation({ accountId: "a-studio", role: "editor" });
+    const definitiveCall = accountClient.createInvitation({
+      accountId: "a-studio",
+      role: "editor",
+      email: "selina@wayne.test",
+    });
     await waitForRequests(2);
     const definitiveHeaders = commandHeadersAt(1);
     expect(definitiveHeaders).not.toEqual(uncertainHeaders);
@@ -123,9 +131,9 @@ describe("implicit account command cohorts", () => {
     await Promise.all([uncertainCall, definitiveCall]);
 
     mocks.apiFetch.mockResolvedValueOnce(unknown()).mockResolvedValueOnce(ok());
-    await accountClient.createInvitation({ accountId: "a-studio", role: "viewer" });
+    await accountClient.createInvitation({ accountId: "a-studio", role: "viewer", email: "selina@wayne.test" });
     expect(commandHeadersAt(2)).toEqual(uncertainHeaders);
-    await accountClient.createInvitation({ accountId: "a-studio", role: "editor" });
+    await accountClient.createInvitation({ accountId: "a-studio", role: "editor", email: "selina@wayne.test" });
     expect(commandHeadersAt(3)).not.toEqual(definitiveHeaders);
   });
 

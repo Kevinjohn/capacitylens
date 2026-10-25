@@ -14,7 +14,6 @@ import {
   rawMember,
   renderSection,
   saveRoleVia,
-  stubPageReload,
 } from "./MembersSection.testSupport";
 
 interface RoleFailureCaseInput {
@@ -29,13 +28,6 @@ interface MemberRemovalFailureCaseInput {
   body: { error: string };
   expected: RegExp;
   reconciles: boolean;
-}
-
-interface MemberReloadCaseInput {
-  status: number;
-  self: boolean;
-  reloads: boolean;
-  expected: RegExp | null;
 }
 
 const accountTransitionMocks = vi.hoisted(() => ({
@@ -86,21 +78,6 @@ function registerSelfMutationFailureTests(): void {
       message: m.settings_members_access_refresh_failed(),
       tone: "error",
     });
-  });
-
-  it("closes the company silently after a successful self-removal", async () => {
-    vi.stubGlobal("fetch", mockApi(ownerAndEditor));
-    renderSection();
-
-    await confirmMemberAction({
-      user: userEvent.setup(),
-      row: await waitForMemberRow(/me@x\.io/),
-      testId: "member-remove",
-      confirmationName: "Remove",
-    });
-
-    await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-    expect(useStore.getState().notice).toBeNull();
   });
 }
 
@@ -320,117 +297,5 @@ function registerStatusFailureTests(): void {
     });
 
     await expectNotice(/unknown outcome.*status connection lost.*reloaded/i);
-  });
-}
-
-describe("MembersSection — password reset and session failures", () => {
-  async function requestReset(): Promise<void> {
-    await confirmMemberAction({
-      user: userEvent.setup(),
-      row: await waitForMemberRow(/ed@x\.io/),
-      testId: "member-reset-password",
-      confirmationName: "Reset password",
-    });
-  }
-
-  registerPasswordResetFailureTests(requestReset);
-  registerSessionFailureTests();
-});
-
-function registerPasswordResetFailureTests(requestReset: () => Promise<void>): void {
-  it.each([
-    [503, jsonResponse({ error: "Uncertain." }, 503), /reset-token request had an unknown outcome/i],
-    [200, new Response("not-json", { status: 200 }), /one-time value was lost/i],
-    [400, jsonResponse({ error: "Password mode is disabled." }, 400), /Password mode is disabled\./],
-    [201, jsonResponse({ token: "TOKEN" }, 201), /one-time value was lost/i],
-  ])("handles reset response case %s without rendering a link", async (_status, response, expected) => {
-    vi.stubGlobal("fetch", mockApi(ownerAndEditor, { "POST /members/ed/reset-password": () => response }));
-    renderSection();
-
-    await requestReset();
-
-    if (_status === 400) expect(await screen.findByRole("alert")).toHaveTextContent(expected);
-    else await expectNotice(expected);
-    expect(screen.queryByTestId("reset-link")).not.toBeInTheDocument();
-  });
-
-  it("clears a prior reset link and reports detail when a reset request throws", async () => {
-    let attempts = 0;
-    vi.stubGlobal(
-      "fetch",
-      mockApi(ownerAndEditor, {
-        "POST /members/ed/reset-password": () => {
-          attempts += 1;
-          return attempts === 1
-            ? jsonResponse({ token: "TOKEN", expiresAt: "2026-12-01T00:00:00.000Z" }, 201)
-            : Promise.reject(new Error("reset transport lost"));
-        },
-      }),
-    );
-    renderSection();
-    await requestReset();
-    expect(await screen.findByTestId("reset-link")).toBeInTheDocument();
-
-    await requestReset();
-
-    await expectNotice(/unknown outcome.*reset transport lost/i);
-    expect(screen.queryByTestId("reset-link")).not.toBeInTheDocument();
-  });
-}
-
-function registerSessionFailureTests(): void {
-  it.each([
-    { status: 503, self: false, reloads: false, expected: /unknown outcome/i },
-    { status: 503, self: true, reloads: true, expected: null },
-  ])(
-    "handles a 503 session revocation (status=$status, self=$self)",
-    async ({ status, self, reloads, expected }: MemberReloadCaseInput) => {
-      const reload = stubPageReload();
-      vi.stubGlobal(
-        "fetch",
-        mockApi(ownerAndEditor, {
-          [`POST /members/${self ? "me" : "ed"}/revoke-sessions`]: () => jsonResponse({}, status),
-        }),
-      );
-      renderSection();
-      const row = await waitForMemberRow(self ? /me@x\.io/ : /ed@x\.io/);
-
-      await confirmMemberAction({
-        user: userEvent.setup(),
-        row: row,
-        testId: "member-revoke-sessions",
-        confirmationName: "Revoke sessions",
-      });
-
-      await waitFor(() => expect(reload).toHaveBeenCalledTimes(reloads ? 1 : 0));
-      if (expected) await expectNotice(expected);
-      else expect(useStore.getState().notice).toBeNull();
-    },
-  );
-
-  it.each([
-    [true, true],
-    [false, false],
-  ])("handles a thrown session revocation (self=%s)", async (self, reloads) => {
-    const reload = stubPageReload();
-    vi.stubGlobal(
-      "fetch",
-      mockApi(ownerAndEditor, {
-        [`POST /members/${self ? "me" : "ed"}/revoke-sessions`]: () =>
-          Promise.reject(new Error("session transport lost")),
-      }),
-    );
-    renderSection();
-
-    await confirmMemberAction({
-      user: userEvent.setup(),
-      row: await waitForMemberRow(self ? /me@x\.io/ : /ed@x\.io/),
-      testId: "member-revoke-sessions",
-      confirmationName: "Revoke sessions",
-    });
-
-    await waitFor(() => expect(reload).toHaveBeenCalledTimes(reloads ? 1 : 0));
-    if (!self) await expectNotice(/unknown outcome.*session transport lost/i);
-    else expect(useStore.getState().notice).toBeNull();
   });
 }

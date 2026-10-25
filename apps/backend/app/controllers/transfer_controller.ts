@@ -4,14 +4,13 @@ import {
   BetaTransferError,
   type BetaExportDocument,
 } from '@capacitylens/shared/data/betaTransfer'
-import { withTransaction } from '#services/with_transaction'
+import { withActor } from '#services/auth/current_actor'
 import { actionProofActor, ActionProofError, consumeActionProof } from '#services/auth/action_proof'
 import { BatchRequestError } from '#services/planning_operations/errors'
 import {
   applyBetaAccountTransfer,
   previewBetaAccountTransfer,
 } from '#services/beta_account_transfer'
-import { resolveCurrentActor, SessionAuthorityError } from '#services/auth/session_authority'
 
 function input(value: unknown, apply: boolean) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
@@ -43,7 +42,7 @@ function input(value: unknown, apply: boolean) {
 }
 
 function failure(ctx: HttpContext, error: unknown) {
-  if (error instanceof ActionProofError || error instanceof SessionAuthorityError)
+  if (error instanceof ActionProofError)
     return ctx.response.status(error.status).send({ error: error.message, code: error.code })
   if (error instanceof BatchRequestError)
     return ctx.response.status(error.status).send({
@@ -60,9 +59,8 @@ export default class TransferController {
     const body = input(ctx.request.body(), false)
     if (!body) return ctx.response.badRequest({ error: 'Invalid beta transfer document.' })
     try {
-      await resolveCurrentActor(ctx)
-      const result = await withTransaction(async (trx) => {
-        await actionProofActor(ctx, body.accountId as string, trx)
+      const result = await withActor(ctx, async (_actor, trx) => {
+        await actionProofActor(body.accountId as string, trx)
         return previewBetaAccountTransfer(trx, body.accountId as string, body.document)
       })
       return ctx.response.ok(result)
@@ -75,9 +73,8 @@ export default class TransferController {
     const body = input(ctx.request.body(), true)
     if (!body) return ctx.response.badRequest({ error: 'Invalid beta transfer request.' })
     try {
-      await resolveCurrentActor(ctx)
-      const result = await withTransaction(async (trx) => {
-        const actor = await actionProofActor(ctx, body.accountId as string, trx)
+      const result = await withActor(ctx, async (_actor, trx) => {
+        const actor = await actionProofActor(body.accountId as string, trx)
         await consumeActionProof(
           trx,
           actor,

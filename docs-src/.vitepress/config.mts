@@ -96,14 +96,7 @@ const selfHostingSidebar = [
       { text: "Backups and restore", link: "/self-hosting/backups-and-restore" },
       { text: "Upgrades", link: "/self-hosting/upgrades" },
       { text: "Monitoring and health checks", link: "/self-hosting/monitoring" },
-      {
-        text: "Company login",
-        link: "/company-login/",
-        items: [
-          { text: "Set up Google or Microsoft sign-in", link: "/company-login/set-up-company-login" },
-          { text: "Require company sign-in", link: "/company-login/move-to-single-sign-on" },
-        ],
-      },
+      { text: "Sign-in and access", link: "/company-login/" },
       { text: "Recover a blocked ownership transfer", link: "/self-hosting/ownership-transfer-recovery" },
       { text: "When something goes wrong", link: "/self-hosting/incidents" },
       { text: "Install and operations FAQ", link: "/self-hosting/faq" },

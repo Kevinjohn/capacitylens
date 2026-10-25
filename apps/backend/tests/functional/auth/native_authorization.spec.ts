@@ -8,10 +8,10 @@ import { resetState } from '#services/state_repository'
 import { seed } from '@capacitylens/shared/data/seed'
 import { buildBetaExport } from '@capacitylens/shared/data/betaTransfer'
 import { readState } from '#services/state_repository'
+import { signUpAndIn, expectStatus } from '../../helpers/identities.js'
 
 const accountId = 'a-studio'
 const otherAccountId = 'a-loft'
-const setupToken = 'native-auth-setup-token-0123456789abcdef'
 const password = 'batman-secret-2026'
 const privateClientName = 'SENTINEL_PRIVATE_CLIENT_NAME'
 const privateProjectName = 'SENTINEL_PRIVATE_PROJECT_NAME'
@@ -33,30 +33,21 @@ function withSession<
 
 function configureAuth(cleanup: (callback: () => void) => void) {
   const prior = {
-    mode: env.get('CAPACITYLENS_MODE'),
     secret: env.get('CAPACITYLENS_SECRET'),
     publicUrl: env.get('CAPACITYLENS_PUBLIC_URL'),
-    setupToken: env.get('CAPACITYLENS_SETUP_TOKEN'),
     openSignup: env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP'),
-    breachCheck: env.get('CAPACITYLENS_PASSWORD_BREACH_CHECK'),
     allowReset: env.get('CAPACITYLENS_ALLOW_RESET'),
     rateLimit: env.get('CAPACITYLENS_RATE_LIMIT'),
   }
-  env.set('CAPACITYLENS_MODE', 'password-only')
   env.set('CAPACITYLENS_SECRET', 'native-authorization-secret-2026-0123456789')
   env.set('CAPACITYLENS_PUBLIC_URL', 'https://capacity.example.test')
-  env.set('CAPACITYLENS_SETUP_TOKEN', setupToken)
   env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', false)
-  env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', false)
   env.set('CAPACITYLENS_ALLOW_RESET', true)
   env.set('CAPACITYLENS_RATE_LIMIT', '0')
   cleanup(() => {
-    env.set('CAPACITYLENS_MODE', prior.mode ?? 'password-only')
     env.set('CAPACITYLENS_SECRET', prior.secret ?? '')
     env.set('CAPACITYLENS_PUBLIC_URL', prior.publicUrl ?? '')
-    env.set('CAPACITYLENS_SETUP_TOKEN', prior.setupToken ?? '')
     env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', prior.openSignup)
-    env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', prior.breachCheck)
     env.set('CAPACITYLENS_ALLOW_RESET', prior.allowReset)
     env.set('CAPACITYLENS_RATE_LIMIT', prior.rateLimit ?? '')
   })
@@ -64,11 +55,8 @@ function configureAuth(cleanup: (callback: () => void) => void) {
 
 async function createMember(client: ApiClient, role: Role) {
   const email = `wayne-${randomUUID()}@example.test`
-  const signup = await trusted(client.post('/api/auth/sign-up'))
-    .header('x-capacitylens-setup-token', setupToken)
-    .json({ email, password, name: 'Bruce Wayne' })
-    .send()
-  signup.assertStatus(201)
+  const signup = await signUpAndIn(client, { email, password, name: 'Bruce Wayne' })
+  signup.assertStatus(200)
   const cookie = signup.cookie('adonis-session')?.value
   if (!cookie) throw new Error('Sign-up did not return a native session cookie')
   const userId = String((signup.body() as { user: { id: string } }).user.id)
@@ -153,7 +141,8 @@ async function preparePrivateProjection() {
 test.group('native authorization and role projections', (group) => {
   group.setup(() => freshDatabase())
   group.each.setup(async () => {
-    await db.from('user_session_index').delete()
+    await db.from('account_admissions').delete()
+    await db.from('account_invitations').delete()
     await db.from('adonis_sessions').delete()
     await db.from('memberships').delete()
     await db.from('users').delete()
@@ -318,34 +307,23 @@ test.group('native authorization and role projections', (group) => {
     }
   })
 
-  test('import needs action proof before and after 15 minutes while ordinary read/write remain available', async ({
+  test('import needs an action proof however recent the sign-in, while reads and writes do not', async ({
     client,
     assert,
     cleanup,
   }) => {
     configureAuth(cleanup)
     const { cookie, userId } = await createMember(client, 'owner')
-    const index = await db.from('user_session_index').where({ user_id: userId }).first()
-    assert.isDefined(index)
-    const authenticatedAt = Number(index!.authenticated_at)
-    const realNow = Date.now
-    const importing = () => importSeed(client, cookie)
-    try {
-      Date.now = () => authenticatedAt + 15 * 60 * 1000 - 1
-      const justFresh = await importing()
-      justFresh.assertStatus(403)
-      assert.equal((justFresh.body() as { code?: string }).code, 'ACTION_PROOF_REQUIRED')
-
-      Date.now = () => authenticatedAt + 15 * 60 * 1000
-      const staleExport = await stateFor(client, cookie)
-      staleExport.assertStatus(200)
-      const staleWrite = await writeDismissal(client, cookie)
-      staleWrite.assertStatus(200)
-      const staleImport = await importing()
-      staleImport.assertStatus(403)
-      assert.equal((staleImport.body() as { code?: string }).code, 'ACTION_PROOF_REQUIRED')
-    } finally {
-      Date.now = realNow
+    for (const ageMinutes of [0, 16]) {
+      await db
+        .from('account_sessions')
+        .where('user_id', userId)
+        .update({ created_at: new Date(Date.now() - ageMinutes * 60_000).toISOString() })
+      const imported = await importSeed(client, cookie)
+      imported.assertStatus(403)
+      assert.equal((imported.body() as { code?: string }).code, 'ACTION_PROOF_REQUIRED')
+      await expectStatus(stateFor(client, cookie), 200)
+      await expectStatus(writeDismissal(client, cookie), 200)
     }
   })
 

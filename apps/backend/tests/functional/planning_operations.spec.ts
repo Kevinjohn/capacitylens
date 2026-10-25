@@ -28,7 +28,7 @@ async function executePlanningIntent(
   const data = await readStateWithClient(trx, accountId, true)
   return applyPlanningIntent(trx, accountId, intent, capabilities, data, {
     actorId: 'u-bruce',
-    sessionId: 'session-bruce',
+    sessionId: 1,
     mutationId: randomUUID(),
   })
 }

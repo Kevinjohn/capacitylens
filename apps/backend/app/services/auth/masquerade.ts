@@ -1,10 +1,9 @@
-import type { HttpContext } from '@adonisjs/core/http'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import db from '@adonisjs/lucid/services/db'
 import type { Role } from '@capacitylens/shared/account/types'
 import { can } from '@capacitylens/shared/domain/access'
 import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization'
-import { resolveCurrentActor } from '#services/auth/session_authority'
+import { actorIn } from '#services/auth/current_actor'
 import { writeAudit } from '#services/audit'
 
 export class MasqueradeError extends Error {
@@ -49,7 +48,7 @@ function parseActive(row: Record<string, unknown> | undefined): ActiveMasquerade
 
 /** Reads only the projection bound to the current native session. */
 export async function activeMasquerade(
-  sessionId: string,
+  sessionId: number,
   connection: Pick<typeof db, 'from'> = db
 ): Promise<ActiveMasquerade | null> {
   return parseActive(await connection.from('masquerades').where('session_id', sessionId).first())
@@ -68,8 +67,8 @@ async function targetRole(record: ActiveMasquerade, trx: TransactionClientContra
 }
 
 /** Resolves the real actor and transaction-current effective member for data reads. */
-export async function effectiveReadPrincipal(ctx: HttpContext, trx: TransactionClientContract) {
-  const actor = await resolveCurrentActor(ctx, trx)
+export async function effectiveReadPrincipal(trx: TransactionClientContract) {
+  const actor = actorIn(trx)
   const record = await activeMasquerade(actor.sessionId, trx)
   if (!record) return { actorId: actor.userId, effectiveId: actor.userId, accountId: null }
   if (record.actorId !== actor.userId)
@@ -90,12 +89,11 @@ function responseState(record: ActiveMasquerade, target: Record<string, unknown>
 }
 
 export async function startMasquerade(
-  ctx: HttpContext,
   accountId: string,
   targetUserId: string,
   trx: TransactionClientContract
 ) {
-  const actor = await resolveCurrentActor(ctx, trx)
+  const actor = actorIn(trx)
   if (await activeMasquerade(actor.sessionId, trx))
     throw new MasqueradeError('Masquerade already active.', 'MASQUERADE_ACTIVE', 409)
   const actorRole = await activeCompanyRole(actor.userId, accountId, trx)
@@ -137,8 +135,8 @@ export async function startMasquerade(
   return responseState(record, target, role)
 }
 
-export async function currentMasquerade(ctx: HttpContext, trx: TransactionClientContract) {
-  const actor = await resolveCurrentActor(ctx, trx)
+export async function currentMasquerade(trx: TransactionClientContract) {
+  const actor = actorIn(trx)
   const record = await activeMasquerade(actor.sessionId, trx)
   if (!record) return { active: false as const }
   if (record.actorId !== actor.userId)
@@ -149,8 +147,8 @@ export async function currentMasquerade(ctx: HttpContext, trx: TransactionClient
     ...responseState(record, target, role),
     principal: {
       id: actor.userId,
-      name: actor.user.displayName ?? null,
-      email: actor.user.email,
+      name: actor.displayName,
+      email: actor.email,
     },
     authMode: 'password-only',
   }
@@ -158,12 +156,11 @@ export async function currentMasquerade(ctx: HttpContext, trx: TransactionClient
 
 /** Ends only the current session's projection and audits with the real actor. */
 export async function endMasquerade(
-  ctx: HttpContext,
   token: string,
   reason: 'explicit' | 'account_switch' | 'sign_out',
   trx: TransactionClientContract
 ) {
-  const actor = await resolveCurrentActor(ctx, trx)
+  const actor = actorIn(trx)
   const record = await activeMasquerade(actor.sessionId, trx)
   if (!record || record.token !== token || record.actorId !== actor.userId) return
   await writeAudit(trx, {
@@ -177,8 +174,8 @@ export async function endMasquerade(
   await trx.from('masquerades').where('id', record.id).delete()
 }
 
-export async function endMasqueradeForSignOut(ctx: HttpContext, trx: TransactionClientContract) {
-  const actor = await resolveCurrentActor(ctx, trx)
+export async function endMasqueradeForSignOut(trx: TransactionClientContract) {
+  const actor = actorIn(trx)
   const record = await activeMasquerade(actor.sessionId, trx)
-  if (record) await endMasquerade(ctx, record.token, 'sign_out', trx)
+  if (record) await endMasquerade(record.token, 'sign_out', trx)
 }

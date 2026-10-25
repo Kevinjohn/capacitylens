@@ -19,13 +19,13 @@ const EMAIL = "tester@capacitylens.dev";
 const ORG_NAME = `Login Studio ${Date.now()}`;
 
 // This path signs up through the API because the test does not need the form. It tolerates
-// USER_ALREADY_EXISTS (422) when rerun against a reused server. It uses the request cookie jar because
+// EMAIL_REGISTERED (409) when rerun against a reused server. It uses the request cookie jar because
 // this test does not need the returned session; the shared signUpUser helper requires a fresh signup.
 async function seedUser(request: APIRequestContext, email = EMAIL) {
   const res = await request.post(`${API}/api/auth/sign-up`, {
     data: { email, password: PASSWORD, name: "Tester" },
   });
-  if (!res.ok()) expect(res.status()).toBe(422);
+  if (!res.ok()) expect(res.status()).toBe(409);
 }
 
 function registerUnauthenticatedVisitShowsLoginScreenTest() {
@@ -158,8 +158,9 @@ function registerCreateOwnerAdminAdminBootstrapTest() {
     await page.getByLabel("Email").fill(BOOTSTRAP_ADMIN.email);
     await page.getByLabel("Password").fill(BOOTSTRAP_ADMIN.password);
     await page.getByRole("button", { name: "Sign in" }).click();
-    await expect(page.getByRole("heading", { name: "Start planning" })).toBeVisible();
-    await expect(page.getByText("Ask an admin for an invite to join a company.")).toBeVisible();
+    // Admitted but not yet a member: only the explicit join step is offered, never company data.
+    await expect(page.getByTestId("access-membership")).toBeVisible();
+    await expect(page.getByText(controlOrgName)).toHaveCount(0);
     await expect(page.getByRole("button", { name: controlOrgName, exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "New company" })).toHaveCount(0);
   });
@@ -170,7 +171,7 @@ function registerLoginWithoutMembershipTests() {
     page,
     request,
   }, testInfo) => {
-    // A user with no memberships sees no company data and must request an invitation.
+    // An unconfirmed, unadmitted identity sees only the address-confirmation step, never company data.
     const isolationSuffix = `${Date.now()}-${testInfo.workerIndex}`;
     const controlOrgName = `Isolation Control ${isolationSuffix}`;
     const controlOwner = await signUpUser(`isolation-owner-${isolationSuffix}@capacitylens.dev`);
@@ -183,15 +184,15 @@ function registerLoginWithoutMembershipTests() {
     await page.getByLabel("Password").fill(PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();
 
-    await expect(page.getByRole("heading", { name: "Start planning" })).toBeVisible();
+    await expect(page.getByTestId("access-verify-email")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
-    await expect(page.getByText("Ask an admin for an invite to join a company.")).toBeVisible();
+    await expect(page.getByText(controlOrgName)).toHaveCount(0);
     await expect(page.getByRole("button", { name: controlOrgName, exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "New company" })).toHaveCount(0);
   });
 }
 
-test.describe("login screen (CAPACITYLENS_MODE=password)", () => {
+test.describe("login screen (password sign-in)", () => {
   registerUnauthenticatedVisitShowsLoginScreenTest();
   registerSigningRevealsAppSigningOutTest();
   registerDirectAccountRouteSurvivesSignOutAndSignInTest();

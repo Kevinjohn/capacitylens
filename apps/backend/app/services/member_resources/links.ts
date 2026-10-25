@@ -30,8 +30,8 @@ async function resource(trx: Trx, accountId: string, resourceId: string) {
   return trx.from('resources').where({ account_id: accountId, id: resourceId }).first()
 }
 
-/** Checks a proposed scheduled person without reserving it. */
-export async function assertEligibleProposal(trx: Trx, accountId: string, resourceId: string) {
+/** Checks the scheduled person is still available to link. */
+async function assertAvailablePerson(trx: Trx, accountId: string, resourceId: string) {
   const row = await resource(trx, accountId, resourceId)
   if (row?.kind !== 'person' || row.archived_at || row.deleted_at)
     conflictingAdmission('The selected scheduled person is no longer available.')
@@ -44,7 +44,7 @@ export async function setMemberResourceLink(
 ) {
   const { accountId, userId, resourceId, expectedRevision } = input
   await assertEligibleMember(trx, accountId, userId)
-  await assertEligibleProposal(trx, accountId, resourceId)
+  await assertAvailablePerson(trx, accountId, resourceId)
   const current = await currentLink(trx, accountId, userId)
   if ((current?.revision ?? null) !== expectedRevision)
     conflictingAdmission('The member resource link changed. Refresh and retry.')
@@ -80,10 +80,6 @@ export async function setMemberResourceLink(
       updated_at: now,
     })
   }
-  await trx
-    .from('member_resource_link_exceptions')
-    .where({ account_id: accountId, user_id: userId })
-    .delete()
   await advancePlanningRevision(trx, accountId)
   return { resourceId, revision }
 }
@@ -102,71 +98,4 @@ export async function clearMemberResourceLink(
   if (affectedRows(changed) !== 1)
     conflictingAdmission('The member resource link changed. Refresh and retry.')
   await advancePlanningRevision(trx, accountId)
-}
-
-async function recordException(
-  trx: Trx,
-  accountId: string,
-  userId: string,
-  proposedResourceId: string | null,
-  reason: string
-) {
-  const now = new Date().toISOString()
-  await trx
-    .table('member_resource_link_exceptions')
-    .insert({
-      id: crypto.randomUUID(),
-      account_id: accountId,
-      user_id: userId,
-      proposed_resource_id: proposedResourceId,
-      reason,
-      created_at: now,
-      updated_at: now,
-    })
-    .onConflict(['account_id', 'user_id'])
-    .merge(['proposed_resource_id', 'reason', 'updated_at'])
-}
-
-/** Settles a non-reserving invitation proposal in the admission transaction. */
-export async function settleInvitationProposal(
-  trx: Trx,
-  invitationId: string,
-  accountId: string,
-  userId: string
-) {
-  const proposal = await trx
-    .from('invitation_proposals')
-    .where('invitation_id', invitationId)
-    .first()
-  if (!proposal) return
-  const invitation = await trx.from('invitations').where('id', invitationId).first()
-  if (invitation?.account_id !== accountId)
-    throw new Error('Invitation proposal belongs to another company.')
-  const resourceId: string | null =
-    proposal.resource_id === null ? null : String(proposal.resource_id)
-  if (!resourceId) return recordException(trx, accountId, userId, null, 'resource_unavailable')
-  const target = await resource(trx, accountId, resourceId)
-  if (!target) {
-    const other = await trx.from('resources').where('id', resourceId).first()
-    if (other) throw new Error('Invitation proposal references another company.')
-  }
-  if (target?.kind !== 'person' || target.archived_at || target.deleted_at)
-    return recordException(trx, accountId, userId, resourceId, 'resource_unavailable')
-  const memberLink = await currentLink(trx, accountId, userId)
-  if (memberLink?.resource_id === resourceId) {
-    await trx
-      .from('member_resource_link_exceptions')
-      .where({ account_id: accountId, user_id: userId })
-      .delete()
-    return
-  }
-  if (memberLink)
-    return recordException(trx, accountId, userId, resourceId, 'member_already_linked')
-  const occupied = await trx
-    .from('account_member_resources')
-    .where({ account_id: accountId, resource_id: resourceId })
-    .first()
-  if (occupied)
-    return recordException(trx, accountId, userId, resourceId, 'resource_already_linked')
-  await setMemberResourceLink(trx, { accountId, userId, resourceId, expectedRevision: null })
 }

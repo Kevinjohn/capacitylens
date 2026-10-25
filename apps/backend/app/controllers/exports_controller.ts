@@ -3,7 +3,7 @@ import { readStateWithClient } from '#services/state_repository'
 import { transformState } from '#transformers/state_transformer'
 import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization'
 import { effectiveReadPrincipal } from '#services/auth/masquerade'
-import { withTransaction } from '#services/with_transaction'
+import { withActor } from '#services/auth/current_actor'
 import { APP_DATA_KEYS, emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
 
 export default class ExportsController {
@@ -17,8 +17,8 @@ export default class ExportsController {
       return response.badRequest({
         error: 'includeInactive must be the literal value 1 when present.',
       })
-    return withTransaction(async (trx) => {
-      const principal = await effectiveReadPrincipal(ctx, trx)
+    return withActor(ctx, async (_actor, trx) => {
+      const principal = await effectiveReadPrincipal(trx)
       if (principal.accountId && accountId && principal.accountId !== accountId)
         throw new IdentityAuthorityError('Forbidden.')
       const memberships = accountId

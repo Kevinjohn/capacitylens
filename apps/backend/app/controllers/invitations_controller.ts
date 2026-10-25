@@ -1,43 +1,22 @@
-import { createHmac, randomUUID } from 'node:crypto'
 import type { HttpContext } from '@adonisjs/core/http'
-import mail from '@adonisjs/mail/services/main'
+import accountKit from 'adonisjs-account-kit/services/main'
+import {
+  InvalidTokenError,
+  RegistrationEmailAlreadyRegisteredError,
+} from 'adonisjs-account-kit/errors'
+import type { Invitation } from 'adonisjs-account-kit/types'
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password'
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
+import { MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings'
 import env from '#start/env'
+import { FirstCompanyPendingError } from '#models/user'
 import { assertCompanyAction } from '#services/auth/authorization'
-import { resolveCurrentActor } from '#services/auth/session_authority'
-import {
-  readAccountCommand,
-  claimAccountCommand,
-  completeAccountCommand,
-  readCompletedAccountCommand,
-} from '#services/account_commands'
-import { withTransaction } from '#services/with_transaction'
-import {
-  assertPasswordAllowed,
-  PasswordPolicyError,
-  PasswordScreeningUnavailableError,
-} from '#services/password_screening'
-import { hashPassword, PasswordProcessingUnavailableError } from '#services/password_service'
-import {
-  acceptInvitation,
-  createInvitation,
-  findInvitationByToken,
-  lookupInvitation,
-  parseInvitationCreate,
-} from '#services/admission/invitations'
-import {
-  conflictingAdmission,
-  forbiddenAdmission,
-  invalidAdmission,
-  missingAdmission,
-} from '#services/admission/errors'
-import { renderAdmissionFailure } from '#services/admission/http'
-import { reserveInvitationDelivery } from '#services/admission/mail_budget'
-import User from '#models/user'
-import { createPasswordSession } from '#services/auth/session_login'
-import { writeAudit } from '#services/audit'
-import { confirmMemberSignIn } from '#services/membership/sign_in_tracking'
+import { withActor } from '#services/auth/current_actor'
+import { installationCompanyId, isInvitableRole } from '#services/account_kit/policy'
+import { invalidAdmission, missingAdmission } from '#services/admission/errors'
+import { signInWithPassword } from '#controllers/auth_controller'
+import db from '@adonisjs/lucid/services/db'
+import { isCommittedFailure } from '#services/account_kit/committed'
 
 function fields(value: unknown, allowed: string[]): value is Record<string, unknown> {
   return (
@@ -48,300 +27,169 @@ function fields(value: unknown, allowed: string[]): value is Record<string, unkn
   )
 }
 
-function inviteLink(token: string) {
-  return new URL(
-    `/invite/${encodeURIComponent(token)}`,
-    env.get('CAPACITYLENS_PUBLIC_URL') || env.get('APP_URL')
-  ).href
+function proofHeaders(ctx: HttpContext) {
+  ctx.response.header('Cache-Control', 'no-store')
+  ctx.response.header('Referrer-Policy', 'no-referrer')
 }
 
-async function notifyInvite(ctx: HttpContext, accountId: string, email: string, token: string) {
-  if (!env.get('CAPACITYLENS_MAIL_HOST')) return false
-  if (!reserveInvitationDelivery(accountId, email)) return false
-  try {
-    await mail.send((message) => {
-      message
-        .to(email)
-        .subject('Your CapacityLens invitation')
-        .text(`Use this invitation link to join your company: ${inviteLink(token)}`)
-    })
-    return true
-  } catch (error) {
-    try {
-      ctx.logger.error(
-        { code: 'INVITATION_DELIVERY_FAILED' },
-        'Invitation delivery failed after commit'
-      )
-    } catch {
-      console.error('Invitation diagnostic logger failed')
-    }
-    return false
+function invitationId(value: unknown) {
+  const id = Number(value)
+  return Number.isSafeInteger(id) && id > 0 ? id : null
+}
+
+function projection(invitation: Invitation) {
+  return {
+    id: invitation.id,
+    role: invitation.role,
+    preauthEmail: invitation.email,
+    expiresAt: invitation.expiresAt.toISO(),
+    createdAt: invitation.createdAt.toISO(),
   }
 }
 
-/** Product invitation endpoints; bearer material leaves only first successful creation. */
+const invalidLink = { error: 'This invitation is invalid or has expired.', code: 'INVALID_TOKEN' }
+
+/**
+ * Company invitations through the Account Kit: it owns the token, its one lifetime and the email.
+ * The Kit re-checks the sender's authority inside the transaction that stores the invitation.
+ */
+function mailUnavailable(ctx: HttpContext) {
+  return ctx.response.serviceUnavailable({
+    error: 'Invitations need email delivery. Ask your administrator to configure mail.',
+    code: 'MAIL_UNAVAILABLE',
+  })
+}
+
 export default class InvitationsController {
+  /** Confirms the caller manages invitations for this installation's company. */
+  private async manager(ctx: HttpContext, accountId: unknown) {
+    if (typeof accountId !== 'string' || !accountId) invalidAdmission()
+    return withActor(ctx, async (_actor, trx) => {
+      const { actorId } = await assertCompanyAction(accountId, 'manageInvites', trx)
+      if ((await installationCompanyId(trx)) !== accountId) missingAdmission('Company not found.')
+      return actorId
+    })
+  }
+
   async create(ctx: HttpContext) {
+    const body: unknown = ctx.request.body()
+    if (!fields(body, ['accountId', 'role', 'email']) || !isInvitableRole(body.role))
+      invalidAdmission()
+    const email = typeof body.email === 'string' ? normalizeAccountEmail(body.email) : ''
+    if (!isAccountEmail(email)) invalidAdmission('Invalid invitation email.')
+    const actorId = await this.manager(ctx, body.accountId)
+    if (!env.get('CAPACITYLENS_MAIL_HOST')) return mailUnavailable(ctx)
     try {
-      const input = parseInvitationCreate(ctx.request.body())
-      const command = readAccountCommand(ctx)
-      const created = await withTransaction(async (trx) => {
-        const { actorId } = await assertCompanyAction(ctx, input.accountId, 'manageInvites', trx)
-        await claimAccountCommand(trx, {
-          actorId,
-          accountId: input.accountId,
-          operation: 'create-invitation',
-          payload: {
-            role: input.role,
-            email: input.email,
-            expiresAt: input.expiresAt,
-            proposedResourceId: input.proposedResourceId ?? null,
-          },
-          command,
-          kind: 'secret',
-        })
-        const result = await createInvitation(trx, input, actorId)
-        await completeAccountCommand(trx, command.commandId, { id: result.id })
-        return result
-      })
-      const emailed =
-        created.preauthEmail && env.get('CAPACITYLENS_MAIL_HOST')
-          ? await notifyInvite(ctx, created.accountId, created.preauthEmail, created.token)
-          : false
-      return ctx.response.created({ ...created, emailed })
+      const invitation = await accountKit.invitations.send({ actorId, email, role: body.role })
+      return ctx.response.created({ ...projection(invitation), emailed: true })
     } catch (error) {
-      return renderAdmissionFailure(ctx, error)
+      if (!isCommittedFailure(error)) throw error
+      ctx.logger.warn({ code: 'INVITATION_DELIVERY_FAILED' }, 'Invitation delivery failed')
+      return ctx.response.accepted({ committed: true, emailed: false })
     }
   }
 
   async index(ctx: HttpContext) {
+    const actorId = await this.manager(ctx, ctx.params.accountId)
+    // The Kit pages at 100; a small company's open invitations are read in full.
+    const invites = []
+    let cursor: string | undefined
+    do {
+      const page = await accountKit.invitations.list({ actorId, limit: 100, cursor })
+      invites.push(...page.items.map(projection))
+      cursor = page.nextCursor ?? undefined
+    } while (cursor)
+    return ctx.response.ok({ invites })
+  }
+
+  async resend(ctx: HttpContext) {
+    const id = invitationId(ctx.params.id)
+    if (!id) invalidAdmission()
+    const actorId = await this.manager(ctx, ctx.params.accountId)
+    // Resending replaces the link, so without mail it would only invalidate a printed one.
+    if (!env.get('CAPACITYLENS_MAIL_HOST')) return mailUnavailable(ctx)
     try {
-      const accountId = ctx.params.accountId
-      return await withTransaction(async (trx) => {
-        await assertCompanyAction(ctx, accountId, 'manageInvites', trx)
-        const rows = await trx
-          .from('invitations as invitation')
-          .leftJoin('invitation_proposals as proposal', 'proposal.invitation_id', 'invitation.id')
-          .leftJoin('resources as resource', function () {
-            this.on('resource.id', '=', 'proposal.resource_id').andOn(
-              'resource.account_id',
-              '=',
-              'invitation.account_id'
-            )
-          })
-          .where('invitation.account_id', accountId)
-          .orderBy('invitation.created_at', 'desc')
-          .select(
-            'invitation.id',
-            'invitation.role',
-            'invitation.email',
-            'invitation.expires_at',
-            'invitation.accepted_at',
-            'invitation.created_at',
-            'proposal.resource_id',
-            'resource.name as resource_name'
-          )
-        return ctx.response.ok({
-          invites: rows.map((row) => {
-            if (!['viewer', 'editor', 'admin'].includes(String(row.role)))
-              forbiddenAdmission('Invitation role is unavailable.')
-            return {
-              id: row.id,
-              role: row.role,
-              preauthEmail: row.email,
-              expiresAt: row.expires_at,
-              usedAt: row.accepted_at,
-              createdAt: row.created_at,
-              ...(row.resource_id
-                ? { proposedResourceId: row.resource_id, proposedResourceLabel: row.resource_name }
-                : {}),
-            }
-          }),
-        })
-      })
+      const invitation = await accountKit.invitations.resend({ actorId, invitationId: id })
+      return ctx.response.ok({ ...projection(invitation), emailed: true })
     } catch (error) {
-      return renderAdmissionFailure(ctx, error)
+      if (!isCommittedFailure(error)) throw error
+      return ctx.response.accepted({ committed: true, emailed: false })
     }
   }
 
   async revoke(ctx: HttpContext) {
-    try {
-      const { accountId, id } = ctx.params
-      const command = readAccountCommand(ctx)
-      await withTransaction(async (trx) => {
-        const { actorId } = await assertCompanyAction(ctx, accountId, 'manageInvites', trx)
-        const claim = await claimAccountCommand(trx, {
-          actorId,
-          accountId,
-          operation: 'revoke-invitation',
-          payload: { id },
-          command,
-          kind: 'semantic',
-        })
-        if (claim.replayed) return
-        const deleted = await trx.from('invitations').where({ id, account_id: accountId }).delete()
-        if (!deleted) missingAdmission()
-        await writeAudit(trx, {
-          accountId,
-          actorId,
-          action: 'invitation.revoked',
-          entity: 'invitation',
-          entityId: id,
-          fields: ['invitation'],
-        })
-        await completeAccountCommand(trx, command.commandId, { ok: true })
-      })
-      return ctx.response.noContent()
-    } catch (error) {
-      return renderAdmissionFailure(ctx, error)
-    }
+    const id = invitationId(ctx.params.id)
+    if (!id) invalidAdmission()
+    const actorId = await this.manager(ctx, ctx.params.accountId)
+    await accountKit.invitations.revoke({ actorId, invitationId: id })
+    return ctx.response.noContent()
   }
 
+  /** What the link offers, without spending it. */
   async preview(ctx: HttpContext) {
-    try {
-      const result = await withTransaction(async (trx) => {
-        const invitation = await lookupInvitation(trx, ctx.params.token)
-        const account = await trx
-          .from('accounts')
-          .where('id', invitation.account_id)
-          .select('name')
-          .first()
-        if (!account) missingAdmission()
-        const email = invitation.email as string | null
-        return {
-          accountId: invitation.account_id,
-          accountName: account.name,
-          role: invitation.role,
-          expiresAt: invitation.expires_at,
-          emailBound: Boolean(email),
-          emailHint: email ? `${email.slice(0, email.lastIndexOf('@'))}@…` : null,
-        }
-      })
-      return ctx.response.ok(result)
-    } catch (error) {
-      return renderAdmissionFailure(ctx, error)
-    }
+    proofHeaders(ctx)
+    const invitation = await accountKit.invitations.inspect({ token: ctx.params.token })
+    if (!invitation) return ctx.response.notFound(invalidLink)
+    const accountId = await installationCompanyId(db)
+    const account = accountId
+      ? await db.from('accounts').where('id', accountId).select('name').first()
+      : null
+    return ctx.response.ok({
+      accountId,
+      accountName: account?.name ?? null,
+      // Before the company exists the role is only bootstrap metadata; setup grants Owner.
+      role: accountId ? invitation.role : null,
+      email: invitation.email,
+    })
   }
 
-  async accept(ctx: HttpContext) {
-    try {
-      const command = readAccountCommand(ctx)
-      const result = await withTransaction(async (trx) => {
-        const current = await resolveCurrentActor(ctx, trx)
-        const invitation = await findInvitationByToken(trx, ctx.params.token)
-        if (invitation.email !== current.user.email)
-          invalidAdmission('Invitation is addressed to another email.')
-        const claimInput = {
-          actorId: current.userId,
-          accountId: String(invitation.account_id),
-          operation: 'accept-invitation',
-          payload: { invitationId: invitation.id },
-          command,
-          kind: 'semantic' as const,
-        }
-        const completed = await readCompletedAccountCommand(trx, claimInput)
-        if (completed) return completed.result
-        const claim = await claimAccountCommand(trx, claimInput)
-        if (claim.replayed) return claim.result
-        await lookupInvitation(trx, ctx.params.token, true)
-        const accepted = await acceptInvitation(
-          trx,
-          invitation,
-          current.userId,
-          String(current.user.email)
-        )
-        await confirmMemberSignIn(String(invitation.account_id), current.userId, trx)
-        await completeAccountCommand(trx, command.commandId, accepted)
-        return accepted
-      })
-      return ctx.response.ok(result)
-    } catch (error) {
-      return renderAdmissionFailure(ctx, error)
-    }
-  }
-
+  /**
+   * Creates the invited identity with a password and signs it in. The Kit refuses an address that
+   * already has an account; a repeated request after a lost response gets the invalid-link answer
+   * and the person signs in instead.
+   */
   async signUp(ctx: HttpContext) {
+    proofHeaders(ctx)
+    const body: unknown = ctx.request.body()
+    if (!fields(body, ['name', 'password'])) invalidAdmission()
+    const name = typeof body.name === 'string' ? body.name.trim() : ''
+    if (
+      !name ||
+      name.length > MAX_NAME_LENGTH ||
+      typeof body.password !== 'string' ||
+      passwordLengthFailure(body.password)
+    )
+      invalidAdmission('Invalid sign-up details.')
+    let email: string
     try {
-      const body: unknown = ctx.request.body()
-      if (!fields(body, ['name', 'email', 'password'])) invalidAdmission()
-      const email = typeof body.email === 'string' ? normalizeAccountEmail(body.email) : ''
-      const name = typeof body.name === 'string' ? body.name.trim() : ''
-      if (
-        !isAccountEmail(email) ||
-        !name ||
-        name.length > 200 ||
-        typeof body.password !== 'string' ||
-        passwordLengthFailure(body.password)
-      )
-        invalidAdmission('Invalid sign-up details.')
-      const passwordFingerprint = createHmac('sha256', env.get('APP_KEY').release())
-        .update('capacitylens-invitation-signup\0')
-        .update(body.password)
-        .digest('hex')
-      const command = readAccountCommand(ctx)
-      const completed = await withTransaction(async (trx) => {
-        const invitation = await findInvitationByToken(trx, ctx.params.token)
-        if (invitation.email !== email)
-          invalidAdmission('Invitation is addressed to another email.')
-        return readCompletedAccountCommand(trx, {
-          actorId: `signup:${email}`,
-          accountId: String(invitation.account_id),
-          operation: 'signup-invitation',
-          payload: { invitationId: invitation.id, email, name, passwordFingerprint },
-          command,
-          kind: 'semantic',
-        })
+      const user = await accountKit.invitations.accept({
+        token: ctx.params.token,
+        password: body.password,
+        registrationData: { name },
       })
-      if (completed) return ctx.response.created(completed.result)
-      await assertPasswordAllowed(body.password)
-      const passwordHash = await hashPassword(body.password)
-      const result = await withTransaction(async (trx) => {
-        const invitation = await findInvitationByToken(trx, ctx.params.token)
-        if (invitation.email !== email)
-          invalidAdmission('Invitation is addressed to another email.')
-        const claim = await claimAccountCommand(trx, {
-          actorId: `signup:${email}`,
-          accountId: String(invitation.account_id),
-          operation: 'signup-invitation',
-          payload: { invitationId: invitation.id, email, name, passwordFingerprint },
-          command,
-          kind: 'semantic',
-        })
-        if (claim.replayed) return { replayed: true as const, response: claim.result }
-        await lookupInvitation(trx, ctx.params.token, true)
-        if (invitation.accepted_at) conflictingAdmission()
-        if (await trx.from('users').where('email', email).first())
-          invalidAdmission('Use your existing account to accept this invitation.')
-        const now = new Date().toISOString()
-        const userId = randomUUID()
-        await trx.table('users').insert({
-          id: userId,
-          email,
-          email_verified: false,
-          display_name: name,
-          password_hash: passwordHash,
-          created_at: now,
-          updated_at: now,
-        })
-        const admitted = await acceptInvitation(trx, invitation, userId, email)
-        const response = { ok: true, accountId: admitted.accountId, role: admitted.role }
-        await completeAccountCommand(trx, command.commandId, response)
-        return { replayed: false as const, response, userId }
-      })
-      if (!result.replayed) {
-        const user = await User.findOrFail(result.userId)
-        await createPasswordSession(ctx, user, passwordHash)
-      }
-      return ctx.response.created(result.response)
+      email = user.email
     } catch (error) {
-      if (
-        error instanceof PasswordProcessingUnavailableError ||
-        error instanceof PasswordScreeningUnavailableError
+      if (error instanceof InvalidTokenError) return ctx.response.badRequest(invalidLink)
+      if (error instanceof RegistrationEmailAlreadyRegisteredError)
+        return ctx.response.conflict({
+          error: 'An account already uses this email. Sign in instead.',
+          code: 'EMAIL_REGISTERED',
+        })
+      if (error instanceof FirstCompanyPendingError)
+        return ctx.response.conflict({ error: error.message, code: error.code })
+      // The identity exists; only a follow-up failed, so the person signs in rather than retrying.
+      if (isCommittedFailure(error))
+        return ctx.response.accepted({ accepted: true, signInRequired: true })
+      throw error
+    }
+    try {
+      return ctx.response.created({ user: await signInWithPassword(ctx, email, body.password) })
+    } catch (error) {
+      ctx.logger.warn(
+        { code: error instanceof Error ? error.name : 'UNKNOWN' },
+        'Sign-in after invitation acceptance failed'
       )
-        return ctx.response.serviceUnavailable({ error: error.message, code: error.code })
-      if (error instanceof PasswordPolicyError)
-        return ctx.response.badRequest({ error: error.message, code: error.code })
-      return renderAdmissionFailure(ctx, error)
+      return ctx.response.accepted({ accepted: true, signInRequired: true })
     }
   }
 }

@@ -1,9 +1,12 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import type { HttpContext } from '@adonisjs/core/http'
 import { canAdministerIdentityAcrossWorkspaces } from '@capacitylens/shared/account/policy'
 import type { Role } from '@capacitylens/shared/account/types'
 import { can, type Action } from '@capacitylens/shared/domain/access'
-import { resolveCurrentActor, assertFreshSession } from '#services/auth/session_authority'
+import { actorIn } from '#services/auth/current_actor'
+import { forbiddenAdmission } from '#services/admission/errors'
+
+/** A transaction, or the default connection where a Kit callback supplies none. */
+type Reader = Pick<TransactionClientContract, 'from'>
 
 export class IdentityAuthorityError extends Error {
   code = 'IDENTITY_AUTHORITY_DENIED'
@@ -18,14 +21,14 @@ function role(value: unknown): Role {
   return value as Role
 }
 
-/** Restricts a principal directly or by a still-current, durable mailbox proof. */
-export async function restrictedCompanyIds(userId: string, trx: TransactionClientContract) {
+/** Restricts a principal directly or by its confirmed address, which outlives a re-created identity. */
+export async function restrictedCompanyIds(userId: string, trx: Reader) {
   const proof = await trx
-    .from('email_proofs as proof')
-    .innerJoin('users as principal', 'principal.id', 'proof.user_id')
-    .where('proof.user_id', userId)
-    .whereRaw('proof.email = principal.email')
-    .select('proof.email')
+    .from('users')
+    .where('id', userId)
+    .whereNotNull('email_verified_at')
+    .whereNull('unverified_email')
+    .select('email')
     .first()
   const rows = await trx
     .from('account_access_restrictions')
@@ -38,7 +41,14 @@ export async function restrictedCompanyIds(userId: string, trx: TransactionClien
   return new Set(rows.map((row) => String(row.account_id)))
 }
 
-async function memberRoles(userId: string, trx: TransactionClientContract, activeOnly: boolean) {
+/** Refuses a new membership in a company that restricted this principal or its confirmed address. */
+export async function assertCompanyAccessOpen(userId: string, accountId: string, trx: Reader) {
+  const restricted = await restrictedCompanyIds(userId, trx)
+  if (restricted.has(accountId))
+    forbiddenAdmission('Company access requires administrator restoration.')
+}
+
+async function memberRoles(userId: string, trx: Reader, activeOnly: boolean) {
   const query = trx
     .from('memberships as membership')
     .innerJoin('accounts as account', 'account.id', 'membership.account_id')
@@ -71,7 +81,7 @@ export async function assertMayAdministerTarget(
 export async function activeCompanyRole(
   actorUserId: string,
   accountId: string,
-  trx: TransactionClientContract
+  trx: Reader
 ): Promise<Role | null> {
   const row = await trx
     .from('memberships')
@@ -84,17 +94,14 @@ export async function activeCompanyRole(
   return role(row.role)
 }
 
-/** Authorizes one company action from live membership and session state inside the caller's transaction. */
+/** Authorizes one company action from live membership inside the actor's verified transaction. */
 export async function assertCompanyAction(
-  ctx: HttpContext,
   accountId: string,
   action: Action,
-  trx: TransactionClientContract,
-  fresh = false
+  trx: TransactionClientContract
 ): Promise<{ actorId: string; role: Role }> {
-  const actor = await resolveCurrentActor(ctx, trx)
+  const actor = actorIn(trx)
   const memberRole = await activeCompanyRole(actor.userId, accountId, trx)
   if (!memberRole || !can(memberRole, action)) throw new IdentityAuthorityError('Forbidden.')
-  if (fresh) assertFreshSession(actor)
   return { actorId: actor.userId, role: memberRole }
 }

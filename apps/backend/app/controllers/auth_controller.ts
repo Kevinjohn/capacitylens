@@ -1,28 +1,28 @@
-import { requiresFirstCompanySetup } from '#services/first_company_setup'
 import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
-import { randomUUID, timingSafeEqual } from 'node:crypto'
+import accountKit from 'adonisjs-account-kit/services/main'
+import {
+  InvalidCredentialsError,
+  InvalidSessionError,
+  RegistrationEmailAlreadyRegisteredError,
+} from 'adonisjs-account-kit/errors'
+import type { CurrentAccountInput } from 'adonisjs-account-kit/types'
 import env from '#start/env'
-import User from '#models/user'
-import { createPasswordSession } from '#services/auth/session_login'
-import { withTransaction } from '#services/with_transaction'
+import { FirstCompanyPendingError } from '#models/user'
+import { requiresFirstCompanySetup } from '#services/first_company_setup'
 import {
-  destroyNativeSessions,
-  resolveCurrentActor,
-  SessionAuthorityError,
-} from '#services/auth/session_authority'
-import {
-  hashPassword,
-  verifyPassword,
-  PasswordProcessingUnavailableError,
-  UNMATCHABLE_PASSWORD_HASH,
-  runWithPasswordAbortSignal,
-} from '#services/password_service'
-import { assertPasswordAllowed } from '#services/password_screening'
+  accountInput,
+  admissionDecision,
+  sessionGuard,
+  withActor,
+  type CurrentActor,
+} from '#services/auth/current_actor'
+import { endMasqueradeForSignOut } from '#services/auth/masquerade'
+import { recordMemberSignIn } from '#services/membership/sign_in_tracking'
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password'
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
-import { consumeFailedSignInBudget, resetFailedSignInBudget } from '#services/auth/request_limit'
-import { endMasqueradeForSignOut } from '#services/auth/masquerade'
+import { MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings'
+import { isCommittedFailure } from '#services/account_kit/committed'
 
 function bodyFields(value: unknown, fields: string[]): value is Record<string, unknown> {
   return (
@@ -39,62 +39,64 @@ function emailOf(value: unknown) {
   return isAccountEmail(email) ? email : null
 }
 
-function passwordOf(value: unknown) {
-  return typeof value === 'string' && !passwordLengthFailure(value) ? value : null
+function userProjection(actor: Pick<CurrentActor, 'userId' | 'email' | 'displayName'>) {
+  return { id: actor.userId, name: actor.displayName ?? undefined, email: actor.email, image: null }
 }
 
-function equalSecret(left: string, right: string) {
-  const a = Buffer.from(left)
-  const b = Buffer.from(right)
-  return a.length === b.length && timingSafeEqual(a, b)
-}
-
-function userProjection(user: User) {
-  return {
-    id: String(user.id),
-    name: user.displayName ?? undefined,
-    email: user.email,
-    image: null,
-  }
-}
-
-async function withRequestPasswordWork<T>(ctx: HttpContext, work: () => Promise<T>): Promise<T> {
-  const cancellation = new AbortController()
-  const abort = () => cancellation.abort()
-  ctx.request.request.once('aborted', abort)
-  try {
-    return await runWithPasswordAbortSignal(cancellation.signal, work)
-  } finally {
-    ctx.request.request.off('aborted', abort)
-  }
+/** Signs in through the Account Kit and records the observed sign-in for tracked companies. */
+export async function signInWithPassword(ctx: HttpContext, email: string, password: string) {
+  await accountKit.authentication.login(
+    {
+      email,
+      password,
+      clientKey: ctx.request.ip(),
+      sessionLabel: ctx.request.header('user-agent')?.slice(0, 200),
+    },
+    sessionGuard(ctx)
+  )
+  return withActor(
+    ctx,
+    async (actor, trx) => {
+      await recordMemberSignIn(actor.userId, trx)
+      return userProjection(actor)
+    },
+    { limited: true }
+  )
 }
 
 export default class AuthController {
+  /**
+   * The signed-in identity and what it may reach: a confirmed address, admission, company setup
+   * and membership decide between the limited screens and the schedule.
+   */
   async me(ctx: HttpContext) {
     try {
-      const actor = await resolveCurrentActor(ctx)
-      return {
-        authMode: 'password-only',
-        user: userProjection(actor.user),
-        providers: [],
-        canCreateAccount: false,
-        companySetupRequired: await withTransaction(async (trx) => {
-          await trx.from('account_transaction_lock').where('id', 1).increment('version', 1)
-          return requiresFirstCompanySetup(actor.userId, trx)
-        }),
-        reauthMethod: 'password',
-        reauthProviderId: null,
-      }
-    } catch (error) {
-      if (
-        !(error instanceof SessionAuthorityError) &&
-        (error as { status?: number }).status !== 401
+      return await withActor(
+        ctx,
+        async (actor, trx) => {
+          const admission = await admissionDecision(actor.userId, trx)
+          const admitted = actor.emailVerified && admission.admitted
+          return {
+            authMode: 'password-only',
+            user: userProjection(actor),
+            canCreateAccount: false,
+            emailVerified: actor.emailVerified,
+            admission,
+            companySetupRequired: admitted && (await requiresFirstCompanySetup(actor.userId, trx)),
+            // Admitted but not yet a member: the person completes their membership explicitly.
+            membershipRequired:
+              admitted &&
+              Boolean(await trx.from('accounts').select('id').first()) &&
+              !(await trx.from('memberships').where('user_id', actor.userId).first()),
+          }
+        },
+        { limited: true }
       )
-        throw error
+    } catch (error) {
+      if (!(error instanceof InvalidSessionError)) throw error
       const hasUsers = Boolean(await db.from('users').select('id').first())
       return ctx.response.unauthorized({
         authMode: 'password-only',
-        providers: [],
         error: 'Sign-in required.',
         passwordResetEmail: Boolean(env.get('CAPACITYLENS_MAIL_HOST')),
         ...(!hasUsers ? { needsSetup: true } : {}),
@@ -109,118 +111,74 @@ export default class AuthController {
     const email = emailOf(body.email)
     if (!email || typeof body.password !== 'string')
       return ctx.response.badRequest({ error: 'Invalid email or password.' })
-    const user = await User.query().where('email', email).first()
-    const hash = user?.passwordHash
     try {
-      if (!(await consumeFailedSignInBudget(ctx)))
-        return ctx.response.tooManyRequests({ error: 'Rate limit exceeded.' })
-      // Unknown addresses and identities without a password pay the same derivation, so timing reveals no account.
-      const verified = await withRequestPasswordWork(ctx, () =>
-        verifyPassword(hash || UNMATCHABLE_PASSWORD_HASH, body.password as string)
-      )
-      if (!hash || !verified)
-        return ctx.response.unauthorized({ error: 'Invalid email or password.' })
-      await createPasswordSession(ctx, user, hash)
-      await resetFailedSignInBudget(ctx)
-      return ctx.response.ok({ user: userProjection(user) })
+      return ctx.response.ok({ user: await signInWithPassword(ctx, email, body.password) })
     } catch (error) {
-      if (error instanceof SessionAuthorityError)
-        return ctx.response.unauthorized({ error: 'Credentials changed; sign in again.' })
-      if (error instanceof PasswordProcessingUnavailableError)
-        return ctx.response.serviceUnavailable({ error: error.message, code: error.code })
+      if (error instanceof InvalidCredentialsError)
+        return ctx.response.unauthorized({ error: 'Invalid email or password.' })
       throw error
     }
   }
 
+  /**
+   * Open registration, when the operator enables it, creates a limited identity that still needs
+   * a confirmed address and admission. The first identity always comes from the bootstrap invitation.
+   */
   async signUp(ctx: HttpContext) {
     const body: unknown = ctx.request.body()
     if (!bodyFields(body, ['email', 'password', 'name']))
       return ctx.response.badRequest({ error: 'Invalid sign-up request.' })
     const email = emailOf(body.email)
-    const password = passwordOf(body.password)
     const name = typeof body.name === 'string' ? body.name.trim() : ''
-    if (!email || !password || !name || name.length > 200)
-      return ctx.response.badRequest({ error: 'Invalid sign-up details.' })
-    const usersExist = Boolean(await db.from('users').select('id').first())
     if (
-      usersExist &&
-      (!env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP') ||
-        !(await db.from('accounts').select('id').first()))
+      !email ||
+      typeof body.password !== 'string' ||
+      passwordLengthFailure(body.password) ||
+      !name ||
+      name.length > MAX_NAME_LENGTH
     )
+      return ctx.response.badRequest({ error: 'Invalid sign-up details.' })
+    if (!env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP') || !(await db.from('accounts').first()))
       return ctx.response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' })
-    if (!usersExist) {
-      const configured = env.get('CAPACITYLENS_SETUP_TOKEN')
-      const submitted = ctx.request.header('x-capacitylens-setup-token') ?? ''
-      if (!configured || !equalSecret(configured, submitted))
-        return ctx.response.forbidden({
-          error: 'A valid setup token is required.',
-          code: 'INVALID_SETUP_TOKEN',
-        })
-    }
-    const hash = await withRequestPasswordWork(ctx, async () => {
-      await assertPasswordAllowed(password)
-      return hashPassword(password)
-    })
-    const now = new Date().toISOString()
-    const id = randomUUID()
     try {
-      await withTransaction(async (trx) => {
-        await trx.from('account_transaction_lock').where('id', 1).increment('version', 1)
-        const currentUsersExist = Boolean(await trx.from('users').select('id').first())
-        if (
-          currentUsersExist !== usersExist ||
-          (currentUsersExist &&
-            (!env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP') ||
-              !(await trx.from('accounts').select('id').first())))
-        )
-          throw new SessionAuthorityError('Sign-up is closed.')
-        await trx.table('users').insert({
-          id,
-          email,
-          email_verified: 0,
-          display_name: name,
-          password_hash: hash,
-          created_at: now,
-          updated_at: now,
-        })
+      await accountKit.registration.register({
+        email,
+        password: body.password,
+        registrationData: { name },
       })
     } catch (error) {
-      if (error instanceof SessionAuthorityError)
+      if (error instanceof FirstCompanyPendingError)
         return ctx.response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' })
-      throw error
+      if (error instanceof RegistrationEmailAlreadyRegisteredError)
+        return ctx.response.conflict({
+          error: 'An account already uses this email. Sign in or reset your password.',
+          code: 'EMAIL_REGISTERED',
+        })
+      // The account exists; only the confirmation email may be missing, and it can be resent.
+      if (!isCommittedFailure(error)) throw error
+      ctx.logger.warn({ code: 'REGISTRATION_FOLLOW_UP_FAILED' }, 'Registration follow-up failed')
     }
-    const user = await User.findOrFail(id)
-    await createPasswordSession(ctx, user, hash)
-    return ctx.response.created({ user: userProjection(user) })
+    try {
+      return ctx.response.created({ user: await signInWithPassword(ctx, email, body.password) })
+    } catch (error) {
+      ctx.logger.warn(
+        { code: error instanceof Error ? error.name : 'UNKNOWN' },
+        'Sign-in after registration failed'
+      )
+      return ctx.response.accepted({ accountCreated: true, signInRequired: true })
+    }
   }
 
+  /** Ends any view-as display, then the Account Kit sign-in, whose row takes its proofs with it. */
   async signOut(ctx: HttpContext) {
+    let current: CurrentAccountInput | undefined
     try {
-      const actor = await resolveCurrentActor(ctx)
-      await withTransaction(async (trx) => {
-        await endMasqueradeForSignOut(ctx, trx)
-        await trx
-          .from('user_session_index')
-          .where({ user_id: actor.userId, session_id: actor.sessionId })
-          .delete()
-        await trx
-          .from('action_proofs')
-          .where({ user_id: actor.userId, session_id: actor.sessionId })
-          .delete()
-      })
-      try {
-        await ctx.auth.use('web').logout()
-        await destroyNativeSessions([actor.sessionId])
-      } catch (error) {
-        ctx.logger.warn({ err: error }, 'Native sign-out cleanup failed after index revocation')
-      }
+      current = await accountInput(ctx)
+      await withActor(ctx, (_actor, trx) => endMasqueradeForSignOut(trx), { limited: true })
     } catch (error) {
-      if (
-        !(error instanceof SessionAuthorityError) &&
-        (error as { status?: number }).status !== 401
-      )
-        throw error
+      if (!(error instanceof InvalidSessionError)) throw error
     }
+    await accountKit.authentication.logout(sessionGuard(ctx), undefined, current)
     return ctx.response.ok({ ok: true })
   }
 }

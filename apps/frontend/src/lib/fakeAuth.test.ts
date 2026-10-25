@@ -38,11 +38,6 @@ describe("useDemoAuthActive", () => {
     const { result } = renderHook(() => useDemoAuthActive(), { wrapper: withAuthMode("password-only") });
     expect(result.current).toBe(false);
   });
-
-  it("is false when real auth is on (sso)", () => {
-    const { result } = renderHook(() => useDemoAuthActive(), { wrapper: withAuthMode("sso-only") });
-    expect(result.current).toBe(false);
-  });
 });
 
 describe("FAKE_USER", () => {

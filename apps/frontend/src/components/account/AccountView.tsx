@@ -1,10 +1,8 @@
-import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { useAuth } from "@/auth/authContext";
 import demoAvatarUrl from "@/assets/avatar-demo.svg";
 import { m } from "@/i18n";
 import { FAKE_USER, useDemoAuthActive } from "@/lib/fakeAuth";
 import { DEFAULT_COLORS } from "@/lib/palette";
-import { useStore } from "@/store/useStore";
 import { LogOut } from "lucide-react";
 import { useState } from "react";
 import { Avatar, ListPage } from "@/components/common/ui";
@@ -44,7 +42,6 @@ function EmailCell({ email }: { email: string | undefined }) {
 export function AccountView() {
   const auth = useAuth();
   const demo = useDemoAuthActive();
-  const signOutDemo = useStore((state) => state.signOutDemo);
   const { name, email, imageUrl } = resolveIdentity({ auth: auth, demo: demo });
   const [passwordOpen, setPasswordOpen] = useState(false);
 
@@ -84,21 +81,13 @@ export function AccountView() {
                   <EmailCell email={email} />
                   <td className="py-2 px-4 text-right whitespace-nowrap">
                     <div className="flex justify-end gap-2">
-                      {!demo && allowsPasswordSignIn(auth.authMode) && auth.reauthMethod !== "provider" && (
+                      {auth.authMode !== "off" && (
                         <Button type="button" size="sm" variant="outline" onClick={() => setPasswordOpen(true)}>
                           {m.settings_security_change_password()}
                         </Button>
                       )}
-                      {(demo || auth.authMode !== "off") && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="danger-soft"
-                          onClick={() => {
-                            if (demo) signOutDemo();
-                            else void auth.signOut();
-                          }}
-                        >
+                      {auth.authMode !== "off" && (
+                        <Button type="button" size="sm" variant="danger-soft" onClick={() => void auth.signOut()}>
                           <LogOut data-icon="inline-start" />
                           {m.nav_sign_out()}
                         </Button>

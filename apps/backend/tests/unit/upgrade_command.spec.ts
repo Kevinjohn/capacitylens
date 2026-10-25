@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process'
 import { openNativeDatabase } from '#services/backup/native'
 import { ensurePrivateBackupDirectory, writeOneShotSnapshot } from '#services/backup/snapshot'
 import { preMigrationBackupDirectory } from '../../commands/app_upgrade.js'
+import { scratchBackendFilter } from './operator_command_support.js'
 
 const appRoot = process.cwd()
 
@@ -31,7 +32,6 @@ function command(root: string, databasePath: string, args: string[], backupDir?:
       CAPACITYLENS_ALLOW_RESET: 'false',
       CAPACITYLENS_CREATE_ADMIN_ADMIN: 'false',
       CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: '',
-      CAPACITYLENS_MODE: 'password-only',
       CAPACITYLENS_SECRET: 'capacitylens-test-secret-0123456789abcdef',
       CAPACITYLENS_PUBLIC_URL: 'http://127.0.0.1',
     },
@@ -70,10 +70,7 @@ function tables(databasePath: string) {
 /** Copy the backend so a test can add pending migrations after the baseline. */
 function scratchApp(root: string, migrations: Record<string, string>) {
   const scratch = join(root, 'backend')
-  cpSync(appRoot, scratch, {
-    recursive: true,
-    filter: (path) => !path.endsWith('/node_modules') && !path.endsWith('/build'),
-  })
+  cpSync(appRoot, scratch, { recursive: true, filter: scratchBackendFilter })
   symlinkSync(join(appRoot, 'node_modules'), join(scratch, 'node_modules'), 'dir')
   for (const [name, source] of Object.entries(migrations))
     writeFileSync(join(scratch, `database/migrations/${name}.ts`), source)

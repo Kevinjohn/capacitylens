@@ -9,7 +9,6 @@ import {
 import { newId } from '@capacitylens/shared/lib/id'
 import { writeAudit } from '#services/audit'
 import { resetMemberSignIn } from '#services/membership/sign_in_tracking'
-import { hasCurrentEmailProof } from '#services/admission/joining_policy'
 import { advancePlanningRevision } from '#services/planning_revision'
 
 export class MembershipError extends Error {
@@ -34,11 +33,18 @@ async function targetMember(trx: TransactionClientContract, accountId: string, u
   return row
 }
 
-async function burnRecovery(trx: TransactionClientContract, userId: string) {
-  await trx.from('password_reset_tokens').where('tokenable_id', userId).delete()
+/** Whether the Account Kit has confirmed the identity's current address. */
+async function hasConfirmedEmail(trx: TransactionClientContract, userId: string, email: string) {
+  const row = await trx
+    .from('users')
+    .where({ id: userId, email })
+    .whereNotNull('email_verified_at')
+    .whereNull('unverified_email')
+    .first()
+  return Boolean(row)
 }
 
-/** Changes an active non-Owner role and its recovery authority in one transaction. */
+/** Changes an active non-Owner role in one transaction. */
 export async function changeMemberRole(
   trx: TransactionClientContract,
   input: { accountId: string; actorId: string; actorRole: Role; userId: string; role: Role }
@@ -58,7 +64,11 @@ export async function changeMemberRole(
       .from('memberships')
       .where({ account_id: input.accountId, user_id: input.userId })
       .update({ role: input.role, updated_at: new Date().toISOString() })
-    await burnRecovery(trx, input.userId)
+    // Enable Access restores the restriction's role, so it follows every change.
+    await trx
+      .from('account_access_restrictions')
+      .where({ account_id: input.accountId, principal_id: input.userId })
+      .update({ role: input.role })
     await advancePlanningRevision(trx, input.accountId)
     await writeAudit(trx, {
       accountId: input.accountId,
@@ -96,9 +106,7 @@ export async function changeMemberStatus(
     : null
   const currentEmail = principal ? String(principal.email).trim().toLowerCase() : null
   const provenEmail =
-    currentEmail && (await hasCurrentEmailProof(trx, input.userId, currentEmail))
-      ? currentEmail
-      : null
+    currentEmail && (await hasConfirmedEmail(trx, input.userId, currentEmail)) ? currentEmail : null
   const capturesEmail = Boolean(restriction && !restriction.verified_email && provenEmail)
   const changed = disabling ? !restriction || capturesEmail : member.status !== input.status
   if (disabling && !restriction) {
@@ -122,7 +130,6 @@ export async function changeMemberStatus(
         .from('memberships')
         .where({ account_id: input.accountId, user_id: input.userId })
         .update({ status: input.status, updated_at: new Date().toISOString() })
-    await burnRecovery(trx, input.userId)
     await resetMemberSignIn(input.accountId, input.userId, trx)
     await advancePlanningRevision(trx, input.accountId)
     await writeAudit(trx, {
@@ -147,21 +154,41 @@ export async function removeMember(
   input: { accountId: string; actorId: string; actorRole: Role; userId: string }
 ) {
   const member = await targetMember(trx, input.accountId, input.userId)
-  if (!canRemoveMember(input.actorRole, member.role as Role)) throw forbidden()
+  // Removal locks the person out until an administrator acts, so nobody may remove themselves.
+  if (input.userId === input.actorId || !canRemoveMember(input.actorRole, member.role as Role))
+    throw forbidden()
   await trx
     .from('account_member_resources')
     .where({ account_id: input.accountId, user_id: input.userId })
     .delete()
-  await trx
-    .from('member_resource_link_exceptions')
-    .where({ account_id: input.accountId, user_id: input.userId })
-    .delete()
   await resetMemberSignIn(input.accountId, input.userId, trx)
+  // The person stays admitted and keeps their invitation evidence, so without a restriction they
+  // could recreate the membership themselves. Enable access is the administrator's way back.
+  const restricted = await trx
+    .from('account_access_restrictions')
+    .where({ account_id: input.accountId, principal_id: input.userId })
+    .first()
+  if (restricted)
+    await trx
+      .from('account_access_restrictions')
+      .where({ account_id: input.accountId, principal_id: input.userId })
+      .update({ role: member.role })
+  else {
+    const principal = await trx.from('users').where('id', input.userId).select('email').first()
+    const email = principal ? String(principal.email).trim().toLowerCase() : null
+    await trx.table('account_access_restrictions').insert({
+      id: newId(),
+      account_id: input.accountId,
+      principal_id: input.userId,
+      verified_email: email && (await hasConfirmedEmail(trx, input.userId, email)) ? email : null,
+      role: member.role,
+      created_at: new Date().toISOString(),
+    })
+  }
   await trx
     .from('memberships')
     .where({ account_id: input.accountId, user_id: input.userId })
     .delete()
-  await burnRecovery(trx, input.userId)
   await advancePlanningRevision(trx, input.accountId)
   await writeAudit(trx, {
     accountId: input.accountId,
@@ -196,7 +223,23 @@ export async function enableMemberAccess(
     .from('account_access_restrictions')
     .where({ account_id: input.accountId, principal_id: input.userId })
     .delete()
-  await burnRecovery(trx, input.userId)
+  // A removed person returns with the role they held when removed, not their original invitation's.
+  const membership = await trx
+    .from('memberships')
+    .where({ account_id: input.accountId, user_id: input.userId })
+    .first()
+  if (!membership) {
+    const now = new Date().toISOString()
+    await trx.table('memberships').insert({
+      id: newId(),
+      account_id: input.accountId,
+      user_id: input.userId,
+      role: restriction.role,
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+    })
+  }
   await resetMemberSignIn(input.accountId, input.userId, trx)
   await advancePlanningRevision(trx, input.accountId)
   await writeAudit(trx, {

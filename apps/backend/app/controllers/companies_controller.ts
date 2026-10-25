@@ -1,8 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
 import { restrictedCompanyIds } from '#services/auth/authorization'
-import { resolveCurrentActor } from '#services/auth/session_authority'
-import { withTransaction } from '#services/with_transaction'
+import { withActor } from '#services/auth/current_actor'
 
 export default class CompaniesController {
   async index(ctx: HttpContext) {
@@ -12,8 +11,7 @@ export default class CompaniesController {
         error:
           'This installation has more than one company. Contact the administrator to resolve it.',
       })
-    const summaries = await withTransaction(async (trx) => {
-      const actor = await resolveCurrentActor(ctx, trx)
+    const summaries = await withActor(ctx, async (actor, trx) => {
       const restricted = await restrictedCompanyIds(actor.userId, trx)
       const rows = await trx
         .from('memberships as member')

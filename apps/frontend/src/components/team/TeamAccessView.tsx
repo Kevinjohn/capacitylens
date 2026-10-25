@@ -5,7 +5,7 @@ import { usePermissionStatus, useRole } from "@/auth/permissionContext";
 import { resolveAccessLabel, resolveAccessSummary } from "@/lib/accessCopy";
 import { resolveAccessExperience } from "@/lib/resolveAccessExperience";
 import { MembersSection } from "./MembersSection";
-import { JoiningPolicyPanel } from "./JoiningPolicyPanel";
+import { AdmissionRequestsPanel } from "./AdmissionRequestsPanel";
 import { useStore } from "@/store/useStore";
 import { OwnershipTransferCard } from "./OwnershipTransferCard";
 import { Badge } from "@/components/ui/badge";
@@ -136,20 +136,7 @@ function AccessManagement({ authenticated, mayManage, permissionStatus }: Access
   );
 }
 
-function PolicyManagement({
-  accountId,
-  role,
-  enabled,
-}: {
-  accountId: string | null;
-  role: Role | null;
-  enabled: boolean;
-}) {
-  if (!enabled || !accountId || (role !== "owner" && role !== "admin")) return null;
-  return <JoiningPolicyPanel key={accountId} accountId={accountId} role={role} />;
-}
-
-/** Coordinates member management, invitations, joining policy, and ownership. */
+/** Coordinates member management, invitations, admission approval, and ownership. */
 export function TeamAccessView() {
   const activeAccountId = useStore((state) => state.activeAccountId);
   const role = useRole();
@@ -188,7 +175,9 @@ export function TeamAccessView() {
           merely by visiting this page. */}
       <AccessManagement authenticated={authenticated} mayManage={mayManage} permissionStatus={permissionStatus} />
 
-      <PolicyManagement accountId={activeAccountId} role={resolvedRole} enabled={authenticated && mayManage} />
+      {authenticated && !masqueradeActive && (resolvedRole === "owner" || resolvedRole === "admin") && (
+        <AdmissionRequestsPanel key={activeAccountId} />
+      )}
 
       {/* Ownership changes remain an online action of the real Owner, never the masqueraded target. */}
       {authenticated && !masqueradeActive && resolvedRole === "owner" && <OwnershipTransferCard />}

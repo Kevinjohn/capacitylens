@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { AccountPicker } from "./accounts/AccountPicker";
 import { AccountLoadRecovery } from "./accounts/AccountLoadRecovery";
 import { ConnectionError } from "./ConnectionError";
-import { FakeSignIn } from "./FakeSignIn";
 import { RotateHint } from "./RotateHint";
 import { m } from "@/i18n";
 
@@ -36,13 +35,11 @@ interface AppEntryGateProps {
   connectionError: boolean;
   loadError: boolean;
   demoAuthActive: boolean;
-  fakeSignedIn: boolean;
   hasActiveAccount: boolean;
   allowWithoutActiveAccount: boolean;
   activeAccountId: string | null;
   activeAccountLoadFailed: string | null;
   activeAccountName: string;
-  onFakeSignIn: () => void;
   onRetryActiveAccountLoad: () => Promise<boolean>;
   onChooseAnotherAccount: () => void;
   children: ReactNode;
@@ -54,13 +51,11 @@ export function AppEntryGate({
   connectionError,
   loadError,
   demoAuthActive,
-  fakeSignedIn,
   hasActiveAccount,
   allowWithoutActiveAccount,
   activeAccountId,
   activeAccountLoadFailed,
   activeAccountName,
-  onFakeSignIn,
   onRetryActiveAccountLoad,
   onChooseAnotherAccount,
   children,
@@ -80,15 +75,6 @@ export function AppEntryGate({
       </Suspense>
     );
   if (!hydrated) return <LoadingBoundary />;
-
-  if (demoAuthActive && !fakeSignedIn) {
-    return (
-      <FocusableStage>
-        <FakeSignIn onSignIn={onFakeSignIn} />
-        <RotateHint />
-      </FocusableStage>
-    );
-  }
 
   if (activeAccountLoadFailed !== null && activeAccountLoadFailed === activeAccountId) {
     return (

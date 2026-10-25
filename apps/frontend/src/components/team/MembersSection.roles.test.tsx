@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse, makeResourceDraft } from "@/test/fixtures";
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, makeResourceDraft } from "@/test/fixtures";
 import { useStore } from "@/store/useStore";
 import { m } from "@/i18n";
 import {
@@ -13,7 +13,6 @@ import {
   expectAccessibleMemberControls,
   waitForMemberRow,
   mockApi,
-  openMemberMenu,
   renderSection,
   saveRoleVia,
   soleOwnerAndEditor,
@@ -57,11 +56,8 @@ describe("MembersSection — admin affordances", () => {
   ];
 
   registerAdminInviteTests(members);
-  registerAdminInviteLinkTests(members);
   registerAdminMemberControlTests(members);
   registerAdminConfirmationTests(members);
-  registerAdminSessionTests(members);
-  registerAdminSelfActionTests();
   registerAdminRoleChangeTests(members);
   registerAdminProjectionTests(members);
 });
@@ -110,53 +106,6 @@ function registerAdminInviteTests(members: RawMember[]): void {
     const error = await screen.findByRole("alert");
     expect(email).toHaveAttribute("aria-invalid", "true");
     expect(error).toHaveTextContent(m.identity_err_email());
-  });
-}
-
-function registerAdminInviteLinkTests(members: RawMember[]): void {
-  it("keeps an existing write-once invite link when a later submit fails validation", async () => {
-    const user = userEvent.setup();
-    let created = false;
-    const fetchMock = mockApi(members, {
-      "POST /api/invites": () => {
-        created = true;
-        return jsonResponse({ id: "invite-1", token: "WRITE_ONCE_TOKEN", role: "editor" }, 201);
-      },
-      "GET /invites": () =>
-        jsonResponse({
-          invites: created
-            ? [
-                {
-                  id: "invite-1",
-                  role: "editor",
-                  preauthEmail: "diana@example.com",
-                  expiresAt: "2026-12-01T00:00:00.000Z",
-                  usedAt: null,
-                  createdAt: "2026-07-29T00:00:00.000Z",
-                },
-              ]
-            : [],
-        }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    renderSection();
-    await openInviteDialog();
-
-    await user.type(await screen.findByTestId("invite-preauth"), "diana@example.com");
-    await user.click(screen.getByTestId("invite-submit"));
-    const link = await screen.findByTestId("invite-link");
-    expect(link).toHaveTextContent("/invite/WRITE_ONCE_TOKEN");
-
-    await user.type(screen.getByTestId("invite-preauth"), "not-an-email");
-    await user.click(screen.getByTestId("invite-submit"));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(m.identity_err_email());
-    expect(screen.getByTestId("invite-link")).toHaveTextContent("/invite/WRITE_ONCE_TOKEN");
-    expect(
-      fetchMock.mock.calls.filter(
-        ([url, init]) => String(url).endsWith("/api/invites") && (init as RequestInit | undefined)?.method === "POST",
-      ),
-    ).toHaveLength(1);
   });
 }
 
@@ -221,99 +170,6 @@ function registerAdminConfirmationTests(members: RawMember[]): void {
         expect.objectContaining({ method: "DELETE" }),
       ),
     );
-  });
-
-  it.each([
-    ["member-reset-password", /revoke any existing reset link for theeditor@x\.io/i],
-    ["member-revoke-sessions", /sign theeditor@x\.io out of every active/i],
-  ])("waits for confirmation before dispatching %s", async (testId, consequence) => {
-    const user = userEvent.setup();
-    const actionableMembers = members.map((member) =>
-      member.userId === "theeditor" ? { ...member, mayResetPassword: true, mayRevokeSessions: true } : member,
-    );
-    const fetchMock = mockApi(actionableMembers);
-    vi.stubGlobal("fetch", fetchMock);
-    renderSection();
-    const editorRow = await waitForMemberRow(/theeditor@x\.io/);
-
-    await chooseMemberAction(user, editorRow, testId);
-
-    const dialog = screen.getByRole("alertdialog");
-    expect(within(dialog).getByText(consequence)).toBeInTheDocument();
-    expect(fetchMock.mock.calls.filter(([, init]) => init?.method && init.method !== "GET")).toEqual([]);
-    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
-  });
-}
-
-function registerAdminSessionTests(members: RawMember[]): void {
-  it("uses the message catalogue for session revocation controls and success notices", async () => {
-    const user = userEvent.setup();
-    const actionableMembers = members.map((member) =>
-      member.userId === "theeditor" ? { ...member, mayRevokeSessions: true } : member,
-    );
-    vi.stubGlobal("fetch", mockApi(actionableMembers));
-    renderSection();
-    const editorRow = await waitForMemberRow(/theeditor@x\.io/);
-    await openMemberMenu(user, editorRow);
-    const revokeButton = screen.getByTestId("member-revoke-sessions");
-
-    expect(revokeButton).toHaveTextContent(m.settings_member_revoke_sessions());
-    await user.click(revokeButton);
-    await user.click(
-      within(screen.getByRole("alertdialog")).getByRole("button", {
-        name: m.settings_member_revoke_sessions(),
-      }),
-    );
-
-    await waitFor(() => expect(useStore.getState().notice?.message).toBe(m.settings_members_sessions_revoked()));
-  });
-
-  it("uses the message catalogue for the generic session revocation failure", async () => {
-    const user = userEvent.setup();
-    const actionableMembers = members.map((member) =>
-      member.userId === "theeditor" ? { ...member, mayRevokeSessions: true } : member,
-    );
-    vi.stubGlobal(
-      "fetch",
-      mockApi(actionableMembers, {
-        "POST /members/theeditor/revoke-sessions": () => jsonResponse({}, 400),
-      }),
-    );
-    renderSection();
-    const editorRow = await waitForMemberRow(/theeditor@x\.io/);
-
-    await chooseMemberAction(user, editorRow, "member-revoke-sessions");
-    await user.click(
-      within(screen.getByRole("alertdialog")).getByRole("button", {
-        name: m.settings_member_revoke_sessions(),
-      }),
-    );
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_members_err_revoke_sessions({ status: 400 }));
-  });
-}
-
-function registerAdminSelfActionTests(): void {
-  it("spells out access and reload consequences for self-targeted actions", async () => {
-    const user = userEvent.setup();
-    const selfMembers: RawMember[] = [
-      { userId: "me", role: "admin", isSelf: true, mayRevokeSessions: true },
-      { userId: "owner", role: "owner" },
-    ];
-    vi.stubGlobal("fetch", mockApi(selfMembers));
-    renderSection();
-    const selfRow = await waitForMemberRow(/me@x\.io/);
-
-    await chooseMemberAction(user, selfRow, "member-remove");
-    expect(within(screen.getByRole("alertdialog")).getByText(/return to the company picker/i)).toBeInTheDocument();
-    await user.click(
-      within(screen.getByRole("alertdialog")).getByRole("button", {
-        name: "Cancel",
-      }),
-    );
-
-    await chooseMemberAction(user, selfRow, "member-revoke-sessions");
-    expect(within(screen.getByRole("alertdialog")).getByText(/this browser.*reload into sign-in/i)).toBeInTheDocument();
   });
 }
 
@@ -447,7 +303,7 @@ describe("MembersSection — owner affordances", () => {
       "fetch",
       mockApi([
         { userId: "me", role: "owner", isSelf: true },
-        { userId: "ed", role: "editor", mayResetPassword: true },
+        { userId: "ed", role: "editor" },
       ]),
     );
     renderSection();
@@ -465,10 +321,10 @@ describe("MembersSection — owner affordances", () => {
     expect(dialog.querySelector("form > div.p-4")).toBeInTheDocument();
     expect(dialog.querySelector('[data-slot="dialog-footer"]')).toHaveClass("border-t");
     expect(within(dialog).getByRole("button", { name: "Close" })).toBeInTheDocument();
-    const resetPassword = within(dialog).getByTestId("member-reset-password");
-    expect(resetPassword).toHaveAttribute("data-slot", "button");
-    expect(resetPassword).toHaveAttribute("data-variant", "outline");
-    expect(resetPassword).toHaveClass("w-full", "justify-start");
+    const disable = within(dialog).getByTestId("member-disable");
+    expect(disable).toHaveAttribute("data-slot", "button");
+    expect(disable).toHaveAttribute("data-variant", "outline");
+    expect(disable).toHaveClass("w-full", "justify-start");
     expect(dialog.querySelector('[data-slot="dropdown-menu-content"]')).not.toBeInTheDocument();
   });
 

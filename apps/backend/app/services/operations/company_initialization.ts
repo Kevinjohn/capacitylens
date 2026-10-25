@@ -1,4 +1,5 @@
 import { createInitialCompany } from '#services/initial_company_defaults'
+import { isAdmitted } from '#services/account_kit/policy'
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
 import { assertSchemaIntegrity } from '#services/schema_integrity'
 import { withTransaction } from '#services/with_transaction'
@@ -20,17 +21,20 @@ export async function initializeCompany(input: {
     return withTransaction(async (trx) => {
       if ((await trx.from('accounts').first()) || (await trx.from('memberships').first()))
         throw new Error('Refusing company initialization: installation already has company access')
-      const users = await trx.from('users').select('id', 'email', 'password_hash')
-      const principals = users.filter((row) => normalizeAccountEmail(String(row.email)) === email)
-      if (principals.length !== 1)
-        throw new Error(
-          'Refusing company initialization: an unambiguous existing identity is required'
-        )
-      const principal = principals[0]!
-      const password =
-        typeof principal.password_hash === 'string' && principal.password_hash.length > 0
-      if (!password)
+      const principal = await trx
+        .from('users')
+        .where('email', email)
+        .select('id', 'email', 'password', 'unverified_email')
+        .first()
+      if (!principal)
+        throw new Error('Refusing company initialization: an existing identity is required')
+      if (typeof principal.password !== 'string' || !principal.password)
         throw new Error('Refusing company initialization: identity has no enabled sign-in method')
+      // Account Kit treats an address as confirmed unless it is still awaiting its own proof.
+      if (principal.unverified_email === principal.email)
+        throw new Error('Refusing company initialization: identity has not confirmed its email')
+      if (!(await isAdmitted(String(principal.id), trx)))
+        throw new Error('Refusing company initialization: identity is not admitted')
       return createInitialCompany(trx, { name, ownerId: String(principal.id), actorId: null })
     })
   })

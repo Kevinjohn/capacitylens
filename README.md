@@ -25,7 +25,7 @@ own server, and the only cost is that server
 opening the address. You manage HTTPS, backups and upgrades:
 [install CapacityLens](https://kevinjohn.github.io/capacitylens/self-hosting/index.html).
 
-**Own the company?** Sign in with the setup token, create the company, invite an Admin:
+**Own the company?** Open the setup link, create the company, invite an Admin:
 [set up your company](https://kevinjohn.github.io/capacitylens/owner/index.html).
 
 **Set the work?** Add your people, clients and projects, then book the first work:
@@ -49,8 +49,8 @@ pnpm install
 pnpm run dev:demo
 ```
 
-Then open the **Local** address it prints (usually <http://127.0.0.1:5173>), select the sample
-sign-in on **Choose an account**, then pick a company on **Choose a company**.
+Then open the **Local** address it prints (usually <http://127.0.0.1:5173>), then pick a company
+on **Choose a company**.
 
 ## What you get
 
@@ -84,8 +84,9 @@ maintenance. The operator guides cover
 [upgrades](https://kevinjohn.github.io/capacitylens/self-hosting/upgrades.html) and
 [monitoring](https://kevinjohn.github.io/capacitylens/self-hosting/monitoring.html). Docker
 support remains optional. Proxies in separate containers or on separate machines are not yet
-supported; use the native same-machine proxy setup for the first release. Google company sign-in is supported; Microsoft is deferred
-and GitHub sign-in is retired. See [company login](https://kevinjohn.github.io/capacitylens/company-login/index.html).
+supported; use the native same-machine proxy setup for the first release. Sign-in is by password,
+and invitations and password resets need email delivery. See
+[sign-in and access](https://kevinjohn.github.io/capacitylens/company-login/index.html).
 
 ## Documentation
 

@@ -8,21 +8,6 @@
     "node": ">=24"
   },
   "exports": {
-    "./account/audit": {
-      "development": "./src/account/audit.ts",
-      "types": "./src/account/audit.ts",
-      "default": "./dist/account/audit.js"
-    },
-    "./account/approvedDomains": {
-      "development": "./src/account/approvedDomains.ts",
-      "types": "./src/account/approvedDomains.ts",
-      "default": "./dist/account/approvedDomains.js"
-    },
-    "./account/conformance": {
-      "development": "./src/account/conformance.ts",
-      "types": "./src/account/conformance.ts",
-      "default": "./dist/account/conformance.js"
-    },
     "./account/errors": {
       "development": "./src/account/errors.ts",
       "types": "./src/account/errors.ts",
@@ -33,30 +18,10 @@
       "types": "./src/account/ownershipTransfer.ts",
       "default": "./dist/account/ownershipTransfer.js"
     },
-    "./account/ownershipTransferPolicy": {
-      "development": "./src/account/ownershipTransferPolicy.ts",
-      "types": "./src/account/ownershipTransferPolicy.ts",
-      "default": "./dist/account/ownershipTransferPolicy.js"
-    },
     "./account/policy": {
       "development": "./src/account/policy.ts",
       "types": "./src/account/policy.ts",
       "default": "./dist/account/policy.js"
-    },
-    "./account/ports": {
-      "development": "./src/account/ports.ts",
-      "types": "./src/account/ports.ts",
-      "default": "./dist/account/ports.js"
-    },
-    "./account/sessionPolicy": {
-      "development": "./src/account/sessionPolicy.ts",
-      "types": "./src/account/sessionPolicy.ts",
-      "default": "./dist/account/sessionPolicy.js"
-    },
-    "./account/ssoCutover": {
-      "development": "./src/account/ssoCutover.ts",
-      "types": "./src/account/ssoCutover.ts",
-      "default": "./dist/account/ssoCutover.js"
     },
     "./account/types": {
       "development": "./src/account/types.ts",
@@ -225,8 +190,7 @@
     }
   },
   "dependencies": {
-    "date-fns": "^4.3.0",
-    "tr46": "6.0.0"
+    "date-fns": "^4.3.0"
   },
   "devDependencies": {
     "@types/node": "^24.13.6",

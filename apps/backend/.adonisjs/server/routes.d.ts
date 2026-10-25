@@ -60,32 +60,33 @@ export type ScannedRoutes = {
     'api.auth.sign-out': { paramsTuple?: []; params?: {} }
     'api.auth.action-proof.password': { paramsTuple?: []; params?: {} }
     'api.auth.request-reset': { paramsTuple?: []; params?: {} }
+    'api.auth.inspect-reset': { paramsTuple?: []; params?: {} }
     'api.auth.reset-password': { paramsTuple?: []; params?: {} }
     'api.auth.change-password': { paramsTuple?: []; params?: {} }
+    'api.auth.verification.send': { paramsTuple?: []; params?: {} }
+    'api.auth.verification.inspect': { paramsTuple?: []; params?: {} }
+    'api.auth.verification.complete': { paramsTuple?: []; params?: {} }
     'api.members.index': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.members.tracking': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.members.role': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
     'api.members.status': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
     'api.members.enable-access': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
     'api.members.remove': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
-    'api.members.reset-password': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
-    'api.members.revoke-sessions': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
     'api.invites.create': { paramsTuple?: []; params?: {} }
     'api.invites.index': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
+    'api.invites.resend': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.invites.revoke': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.invites.preview': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
-    'api.invites.accept': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'api.invites.sign-up': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
-    'api.joining.policy': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.joining.update-policy': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.joining.metadata': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.joining.status': { paramsTuple?: []; params?: {} }
-    'api.joining.complete-existing': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.joining.request-proof': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.joining.verify-email': { paramsTuple?: []; params?: {} }
+    'api.admission.show': { paramsTuple?: []; params?: {} }
+    'api.admission.request': { paramsTuple?: []; params?: {} }
+    'api.admission.complete': { paramsTuple?: []; params?: {} }
+    'api.admission.index': { paramsTuple?: []; params?: {} }
+    'api.admission.approve': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
+    'api.admission.reject': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
+    'api.admission.revoke': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
     'api.member-resources.set': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'principalId': ParamValue} }
     'api.member-resources.clear': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'principalId': ParamValue} }
-    'api.member-resources.clear-exception': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'principalId': ParamValue} }
     'api.member-resources.avatars': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.masquerade.start': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.masquerade.status': { paramsTuple?: []; params?: {} }
@@ -103,9 +104,8 @@ export type ScannedRoutes = {
     'api.members.index': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.invites.index': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.invites.preview': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
-    'api.joining.policy': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.joining.metadata': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.joining.status': { paramsTuple?: []; params?: {} }
+    'api.admission.show': { paramsTuple?: []; params?: {} }
+    'api.admission.index': { paramsTuple?: []; params?: {} }
     'api.member-resources.avatars': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.masquerade.status': { paramsTuple?: []; params?: {} }
     'api.health': { paramsTuple?: []; params?: {} }
@@ -120,9 +120,8 @@ export type ScannedRoutes = {
     'api.members.index': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.invites.index': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.invites.preview': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
-    'api.joining.policy': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.joining.metadata': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.joining.status': { paramsTuple?: []; params?: {} }
+    'api.admission.show': { paramsTuple?: []; params?: {} }
+    'api.admission.index': { paramsTuple?: []; params?: {} }
     'api.member-resources.avatars': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.masquerade.status': { paramsTuple?: []; params?: {} }
     'api.health': { paramsTuple?: []; params?: {} }
@@ -169,17 +168,21 @@ export type ScannedRoutes = {
     'api.auth.sign-out': { paramsTuple?: []; params?: {} }
     'api.auth.action-proof.password': { paramsTuple?: []; params?: {} }
     'api.auth.request-reset': { paramsTuple?: []; params?: {} }
+    'api.auth.inspect-reset': { paramsTuple?: []; params?: {} }
     'api.auth.reset-password': { paramsTuple?: []; params?: {} }
     'api.auth.change-password': { paramsTuple?: []; params?: {} }
+    'api.auth.verification.send': { paramsTuple?: []; params?: {} }
+    'api.auth.verification.inspect': { paramsTuple?: []; params?: {} }
+    'api.auth.verification.complete': { paramsTuple?: []; params?: {} }
     'api.members.enable-access': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
-    'api.members.reset-password': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
-    'api.members.revoke-sessions': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
     'api.invites.create': { paramsTuple?: []; params?: {} }
-    'api.invites.accept': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'api.invites.resend': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.invites.sign-up': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
-    'api.joining.complete-existing': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.joining.request-proof': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.joining.verify-email': { paramsTuple?: []; params?: {} }
+    'api.admission.request': { paramsTuple?: []; params?: {} }
+    'api.admission.complete': { paramsTuple?: []; params?: {} }
+    'api.admission.approve': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
+    'api.admission.reject': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
+    'api.admission.revoke': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
     'api.masquerade.start': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.ownership.transfer': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
   }
@@ -200,14 +203,12 @@ export type ScannedRoutes = {
   PUT: {
     'api.getting-started.update': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.members.tracking': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.joining.update-policy': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.member-resources.set': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'principalId': ParamValue} }
   }
   DELETE: {
     'api.members.remove': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
     'api.invites.revoke': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.member-resources.clear': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'principalId': ParamValue} }
-    'api.member-resources.clear-exception': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'principalId': ParamValue} }
     'api.masquerade.end': { paramsTuple?: []; params?: {} }
   }
 }

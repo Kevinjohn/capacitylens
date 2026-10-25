@@ -1,11 +1,10 @@
 import { test } from '@japa/runner'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
-import env from '#start/env'
 import { resetState } from '#services/state_repository'
 import { createFixtureCompanyForOwner } from '../../helpers/authenticated_data_fixture.js'
+import { signUpAndIn } from '../../helpers/identities.js'
 
-const setupToken = 'masquerade-setup-token-0123456789abcdef'
 const password = 'batman-secret-2026'
 
 function asSession<
@@ -20,13 +19,12 @@ function asSession<
 }
 
 async function fixture(client: any, targetRole: 'viewer' | 'editor' = 'viewer') {
-  const owner = await client
-    .post('/api/auth/sign-up')
-    .header('sec-fetch-site', 'same-origin')
-    .header('x-capacitylens-setup-token', setupToken)
-    .json({ email: 'bruce.wayne@wayne.example', password, name: 'Bruce Wayne' })
-    .send()
-  owner.assertStatus(201)
+  const owner = await signUpAndIn(client, {
+    email: 'bruce.wayne@wayne.example',
+    password,
+    name: 'Bruce Wayne',
+  })
+  owner.assertStatus(200)
   const cookie = owner.cookie('adonis-session')!.value
   const ownerId = String((owner.body() as { user: { id: string } }).user.id)
   await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio')
@@ -36,8 +34,8 @@ async function fixture(client: any, targetRole: 'viewer' | 'editor' = 'viewer') 
     id: targetId,
     email: 'clark.kent@wayne.example',
     display_name: 'Clark Kent',
-    email_verified: true,
-    password_hash: null,
+    email_verified_at: new Date().toISOString(),
+    password: null,
     created_at: now,
     updated_at: now,
   })
@@ -54,25 +52,11 @@ async function fixture(client: any, targetRole: 'viewer' | 'editor' = 'viewer') 
 }
 
 test.group('native read-only masquerade', (group) => {
-  group.setup(() => {
-    const old = {
-      mode: env.get('CAPACITYLENS_MODE'),
-      setup: env.get('CAPACITYLENS_SETUP_TOKEN'),
-      screening: env.get('CAPACITYLENS_PASSWORD_BREACH_CHECK'),
-    }
-    env.set('CAPACITYLENS_MODE', 'password-only')
-    env.set('CAPACITYLENS_SETUP_TOKEN', setupToken)
-    env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', false)
-    return () => {
-      env.set('CAPACITYLENS_MODE', old.mode ?? 'password-only')
-      env.set('CAPACITYLENS_SETUP_TOKEN', old.setup ?? '')
-      env.set('CAPACITYLENS_PASSWORD_BREACH_CHECK', old.screening)
-    }
-  })
   group.setup(() => freshDatabase())
   group.each.setup(async () => {
     await resetState(false)
-    await db.from('user_session_index').delete()
+    await db.from('account_admissions').delete()
+    await db.from('account_invitations').delete()
     await db.from('adonis_sessions').delete()
     await db.from('users').delete()
   })
@@ -295,17 +279,14 @@ test.group('native read-only masquerade', (group) => {
       .from('memberships')
       .where({ account_id: 'a-studio', user_id: ownerId })
       .update({ role: 'owner' })
-    await db
-      .from('user_session_index')
-      .where('user_id', ownerId)
-      .update({ authenticated_at: Date.now() - 16 * 60_000 })
-    const stale = await asSession(
+    await db.from('account_sessions').where('user_id', ownerId).delete()
+    const revoked = await asSession(
       client.post('/api/accounts/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
       cookie
     )
       .json({ targetUserId: targetId })
       .send()
-    stale.assertStatus(401)
+    revoked.assertStatus(401)
   })
 
   test('ends an open view as soon as the viewer loses the role that permits it', async ({
@@ -345,22 +326,18 @@ test.group('native read-only masquerade', (group) => {
     assert,
   }) => {
     const { cookie, ownerId, targetId } = await fixture(client)
-    const indexed = await db.from('user_session_index').where('user_id', ownerId).first()
-    assert.isDefined(indexed)
-    const now = Date.now
-    Date.now = () => Number(indexed!.authenticated_at) + 16 * 60_000
-    try {
-      const started = await asSession(
-        client.post('/api/accounts/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
-        cookie
-      )
-        .json({ targetUserId: targetId })
-        .send()
-      started.assertStatus(200)
-      assert.equal((started.body() as { targetUserId: string }).targetUserId, targetId)
-    } finally {
-      Date.now = now
-    }
+    await db
+      .from('account_sessions')
+      .where('user_id', ownerId)
+      .update({ created_at: new Date(Date.now() - 16 * 60_000).toISOString() })
+    const started = await asSession(
+      client.post('/api/accounts/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
+      cookie
+    )
+      .json({ targetUserId: targetId })
+      .send()
+    started.assertStatus(200)
+    assert.equal((started.body() as { targetUserId: string }).targetUserId, targetId)
   })
 
   test('reports inactive for anonymous and revoked sessions without restoring data access', async ({
@@ -378,7 +355,7 @@ test.group('native read-only masquerade', (group) => {
       .json({ targetUserId: targetId })
       .send()
     started.assertStatus(200)
-    await db.from('user_session_index').delete()
+    await db.from('account_sessions').delete()
     const revoked = await asSession(client.get('/api/masquerade'), cookie).send()
     revoked.assertStatus(200)
     assert.deepEqual(revoked.body(), { active: false })

@@ -23,7 +23,6 @@ function buildMemberAffordances(
   mayTouch: boolean;
   mayRemove: boolean;
   mayChangeStatus: boolean;
-  mayReset: boolean;
   hasMenu: boolean;
 } {
   // Role editing requires an active, unrestricted membership on both client and server.
@@ -33,19 +32,18 @@ function buildMemberAffordances(
     member.membershipPresent !== false &&
     !!myRole &&
     canEditAnyMemberRole(myRole, member.role);
-  // Inactive memberships can be removed without reinstatement.
-  const mayRemove = member.membershipPresent !== false && !!myRole && canRemoveMember(myRole, member.role);
+  // Inactive memberships can be removed without reinstatement. Removal locks the person out until an
+  // administrator enables access, so the server refuses it for yourself.
+  const mayRemove =
+    member.membershipPresent !== false && !member.isSelf && !!myRole && canRemoveMember(myRole, member.role);
   const mayChangeStatus = !!myRole && canChangeMemberStatus(myRole, member.role, member.isSelf);
-  // The server decision includes auth mode, cross-account and self protections.
-  const mayReset = member.mayResetPassword;
   return {
     mayMasquerade:
       member.status === "active" && !member.accessDisabled && !member.isSelf && !!myRole && can(myRole, "masquerade"),
     mayTouch,
     mayRemove,
     mayChangeStatus,
-    mayReset,
-    hasMenu: mayReset || member.mayRevokeSessions || mayChangeStatus || mayRemove,
+    hasMenu: mayChangeStatus || mayRemove,
   };
 }
 
@@ -231,22 +229,6 @@ function MemberSettingsMenuItems({
 }) {
   return (
     <>
-      {affordances.mayReset && (
-        <MemberMenuItem
-          testId="member-reset-password"
-          label={m.settings_member_reset_password()}
-          ariaLabel={m.settings_member_reset_password_aria({ member: memberLabel })}
-          onSelect={() => chooseMemberAction("resetPassword", member)}
-        />
-      )}
-      {member.mayRevokeSessions && (
-        <MemberMenuItem
-          testId="member-revoke-sessions"
-          label={m.settings_member_revoke_sessions()}
-          ariaLabel={m.settings_member_revoke_sessions_aria({ member: memberLabel })}
-          onSelect={() => chooseMemberAction("revokeSessions", member)}
-        />
-      )}
       {affordances.mayChangeStatus && (
         <MemberStatusMenuItems member={member} memberLabel={memberLabel} chooseMemberAction={chooseMemberAction} />
       )}

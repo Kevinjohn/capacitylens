@@ -292,7 +292,6 @@ export function AccountPicker() {
   const accountSummariesComplete = useStore((state) => state.accountSummariesComplete);
   const accountSummariesAmbiguous = useStore((state) => state.accountSummariesAmbiguous);
   const previousAccountId = useStore((state) => state.previousAccountId);
-  const signOutDemo = useStore((state) => state.signOutDemo);
   const demoAuthActive = useDemoAuthActive();
   const previous = demoAuthActive ? (accounts.find((account) => account.id === previousAccountId) ?? null) : null;
   const { canCreateAccount: authCanCreateAccount } = useAuth();
@@ -328,12 +327,10 @@ export function AccountPicker() {
   return (
     <PickerLayout>
       <AccountPickerHeader
-        demoAuthActive={demoAuthActive}
         previous={previous}
         accountCount={accounts.length}
         canCreateAccount={canCreateAccount}
         companySetupEligible={companySetupEligible}
-        onSignOut={signOutDemo}
         onActivate={activateAccount}
       />
       {accounts.length === 0 && !form.creating ? (

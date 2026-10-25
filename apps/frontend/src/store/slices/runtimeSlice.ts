@@ -2,13 +2,11 @@ import type { StateCreator } from "zustand";
 import {
   readDefaultSidebarOpen,
   readStoredBarLabelPrefs,
-  readStoredFakeSignedIn,
   readStoredMinimiseWeekends,
   readStoredSidebarOpen,
   readStoredWeekSnapOverride,
   readStoredUtilizationPrefs,
   writeStoredBarLabelPrefs,
-  writeStoredFakeSignedIn,
   writeStoredMinimiseWeekends,
   writeStoredSidebarOpen,
   writeStoredUtilizationPrefs,
@@ -34,7 +32,6 @@ type RuntimeSliceKeys =
   | "sidebarOpen"
   | "minimiseWeekends"
   | "weekSnapEnabled"
-  | "fakeSignedIn"
   | "activeRole"
   | "activeRoleStatus"
   | "membershipRevision"
@@ -53,16 +50,14 @@ type RuntimeSliceKeys =
   | "setBarLabelPref"
   | "setSidebarOpen"
   | "setMinimiseWeekends"
-  | "setFakeSignedIn"
   | "setActiveRole"
   | "invalidateMemberships"
   | "setMasquerade"
-  | "clearUndoHistory"
-  | "signOutDemo";
+  | "clearUndoHistory";
 
 type RuntimeSlice = Pick<StoreState, RuntimeSliceKeys>;
 
-type PersistedFlagKey = "sidebarOpen" | "minimiseWeekends" | "fakeSignedIn";
+type PersistedFlagKey = "sidebarOpen" | "minimiseWeekends";
 
 const legacyDirtyFormSource = Symbol("setDirtyForm");
 
@@ -95,7 +90,6 @@ function readRuntimeInitialState() {
     sidebarOpen: readStoredSidebarOpen() ?? readDefaultSidebarOpen(),
     minimiseWeekends: readStoredMinimiseWeekends(),
     weekSnapEnabled: readStoredWeekSnapOverride(),
-    fakeSignedIn: readStoredFakeSignedIn(),
     activeRole: null,
     activeRoleStatus: "not-applicable" as const,
     membershipRevision: 0,
@@ -112,7 +106,7 @@ function applyDirtyFormSource({ state, source, dirty }: ApplyDirtyFormSourceOpti
 }
 
 /** Device preferences and transient application/session state. */
-export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> = (set, get) => {
+export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> = (set) => {
   // Share device-preference setter wiring so persistence and reactive publication stay paired.
   // Theme also repaints the document.
   return {
@@ -155,16 +149,10 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
       }),
     setSidebarOpen: createPersistedFlagSetter(set, "sidebarOpen", (open) => writeStoredSidebarOpen({ open })),
     setMinimiseWeekends: createPersistedFlagSetter(set, "minimiseWeekends", writeStoredMinimiseWeekends),
-    setFakeSignedIn: createPersistedFlagSetter(set, "fakeSignedIn", writeStoredFakeSignedIn),
     setActiveRole: (role, status = role === null ? "not-applicable" : "resolved") =>
       set({ activeRole: role, activeRoleStatus: status }),
     invalidateMemberships: () => set((state) => ({ membershipRevision: state.membershipRevision + 1 })),
     setMasquerade: (masquerade) => set({ masquerade }),
     clearUndoHistory: () => set({ past: [], future: [] }),
-    signOutDemo: () => {
-      get().setActiveAccount(null);
-      writeStoredFakeSignedIn(false);
-      set({ previousAccountId: null, fakeSignedIn: false });
-    },
   };
 };

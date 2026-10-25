@@ -88,23 +88,6 @@ export function useMemberResourceLinkRequest({ member, workspaceId, reload }: Me
       .finally(() => finishRequest(current));
   };
 
-  const dismissException = () => {
-    if (!workspaceId || !member.resourceLinkException) return;
-    const current = beginRequest(workspaceId);
-    void teamAccessClient
-      .dismissMemberResourceLinkException(workspaceId, member.userId)
-      .then((result) => {
-        if (!current()) return;
-        if (result.kind !== "ok") setError(resolveRejectionMessage(result, m.settings_member_resource_error()));
-        else invalidateResourceAvatars();
-      })
-      .catch((cause: unknown) => {
-        console.warn("Resource link exception dismissal failed", cause);
-        if (current()) setError(m.settings_member_resource_error());
-      })
-      .finally(() => finishRequest(current));
-  };
-
   const reconciled =
     !pending && expectedResourceId !== undefined && (member.resourceLink?.resourceId ?? null) === expectedResourceId;
   return {
@@ -112,6 +95,5 @@ export function useMemberResourceLinkRequest({ member, workspaceId, reload }: Me
     error,
     statusMessage: resolveResourceStatus({ expectedResourceId: expectedResourceId, reconciled: reconciled }),
     change,
-    dismissException,
   };
 }

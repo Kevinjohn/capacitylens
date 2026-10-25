@@ -16,7 +16,19 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Docker Compose now requires an HTTPS `CAPACITYLENS_PUBLIC_URL`, and the first setup link comes from `docker compose exec api node ace.js account-kit:admission:bootstrap`. The sign-in mode, setup token, breached-password, Google and backup-interval settings are removed from Compose and `.env.example`.
+- Accounts now run on Account Kit with password sign-in only. Invitations are emailed and last
+  seven days, with **Resend** in Team & access; accepting one confirms the address, and an Owner or
+  Admin then approves the person under **Waiting for approval**. The first Owner opens a one-time
+  setup link printed by `node ace.js account-kit:admission:bootstrap`, which replaces the setup
+  token. Email delivery is required, production needs an HTTPS public address, sessions end after
+  fourteen days without use, and a password change ends every session. Administrative password
+  reset and session revocation, the joining policy and joining link, and the breached-password
+  check are removed. Databases from before this change are refused at upgrade; start a fresh
+  database.
 - Remove Google sign-in, the sign-in mode switch and the dormant Microsoft verification screen from the AdonisJS fork; password sign-in is the only method until Account Kit social sign-in is adopted.
+- The demo opens straight on the company picker; the cosmetic **Choose an account** step and its Sign out are gone. Diagnostics no longer report a sign-in mode.
+- Removing a member now keeps them out until an Owner or Admin selects **Enable Access**, which restores the role they held when removed, even if their role changed while access was disabled; you can no longer remove yourself. **Waiting for approval** keeps declined and revoked people so a decision can be reversed, reads every page and offers **Try again** after a failed load. The access screen explains a missing invitation or refused email domain, and the confirmation and invitation pages tell an unreachable server or a lost answer apart from an invalid link. Invitations whose email failed report the saved invitation instead of an error, queued mail failures are logged, and email confirmation enforces the password length limits.
 - Require `--disposable` for non-production `app:reset`; production resets are refused before archiving. The nginx example no longer duplicates application HSTS or configures obsolete CSP reporting. `db:seed` now adds missing fixture rows without replacing existing product data or audit history. Diagnostics now show the last applied migration and newest completed snapshot modification time.
 
 - Native first-run setup now lets the sole signed-in identity enter a company name in the browser

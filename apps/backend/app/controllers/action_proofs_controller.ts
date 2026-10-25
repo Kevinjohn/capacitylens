@@ -1,15 +1,15 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { parseBetaExport } from '@capacitylens/shared/data/betaTransfer'
-import { withTransaction } from '#services/with_transaction'
+import hash from '@adonisjs/core/services/hash'
 import { consumeFailedSignInBudget, resetFailedSignInBudget } from '#services/auth/request_limit'
-import { verifyPassword, PasswordProcessingUnavailableError } from '#services/password_service'
 import {
+  ACTION_PROOF_KINDS,
   actionProofActor,
   ActionProofError,
   createActionProof,
   type ActionProofKind,
 } from '#services/auth/action_proof'
-import { resolveCurrentActor, SessionAuthorityError } from '#services/auth/session_authority'
+import { withActor } from '#services/auth/current_actor'
 
 type ProofRequest = {
   action: ActionProofKind
@@ -23,7 +23,7 @@ function requestBody(value: unknown): ProofRequest | null {
   const body = value as Record<string, unknown>
   const fields = ['action', 'accountId', 'intent', 'password']
   if (Object.keys(body).some((key) => !fields.includes(key))) return null
-  if (!['transfer-ownership', 'import', 'anonymise'].includes(String(body.action))) return null
+  if (!ACTION_PROOF_KINDS.includes(body.action as ActionProofKind)) return null
   if (typeof body.accountId !== 'string' || !body.accountId) return null
   if (typeof body.password !== 'string') return null
   if (!body.intent || typeof body.intent !== 'object' || Array.isArray(body.intent)) return null
@@ -53,45 +53,28 @@ function requestBody(value: unknown): ProofRequest | null {
   return body as ProofRequest
 }
 
-function failure(ctx: HttpContext, error: unknown) {
-  if (error instanceof ActionProofError || error instanceof SessionAuthorityError)
-    return ctx.response.status(error.status).send({ error: error.message, code: error.code })
-  if (error instanceof PasswordProcessingUnavailableError)
-    return ctx.response.serviceUnavailable({ error: error.message, code: error.code })
-  throw error
-}
-
 export default class ActionProofsController {
   async password(ctx: HttpContext) {
     const body = requestBody(ctx.request.body())
     if (!body) return ctx.response.badRequest({ error: 'Invalid action confirmation.' })
-    try {
-      if (!(await consumeFailedSignInBudget(ctx)))
-        return ctx.response.tooManyRequests({ error: 'Rate limit exceeded.' })
-      const actor = await resolveCurrentActor(ctx)
-      await withTransaction((trx) => actionProofActor(ctx, body.accountId, trx))
-      const hash = actor.user.passwordHash
-      if (!hash || !(await verifyPassword(hash, body.password)))
-        return ctx.response.forbidden({ error: 'Incorrect password.', code: 'ACTION_PROOF_DENIED' })
-      const proofId = await withTransaction(async (trx) => {
-        const current = await actionProofActor(ctx, body.accountId, trx)
-        const credential = await trx
-          .from('users')
-          .where('id', current.userId)
-          .select('password_hash')
-          .first()
-        if (
-          current.userId !== actor.userId ||
-          current.sessionId !== actor.sessionId ||
-          credential?.password_hash !== hash
-        )
-          throw new ActionProofError()
-        return createActionProof(trx, current, body.action, body.accountId, body.intent, true)
-      })
-      await resetFailedSignInBudget(ctx)
-      return ctx.response.ok({ proofId })
-    } catch (error) {
-      return failure(ctx, error)
-    }
+    if (!(await consumeFailedSignInBudget(ctx)))
+      return ctx.response.tooManyRequests({ error: 'Rate limit exceeded.' })
+    // Hash verification is slow and must stay outside the Kit transaction, which may be retried.
+    const first = await withActor(ctx, async (actor, trx) => {
+      await actionProofActor(body.accountId, trx)
+      const row = await trx.from('users').where('id', actor.userId).select('password').first()
+      return { sessionId: actor.sessionId, password: (row?.password as string | null) ?? null }
+    })
+    if (!first.password || !(await hash.verify(first.password, body.password)))
+      return ctx.response.forbidden({ error: 'Incorrect password.', code: 'ACTION_PROOF_DENIED' })
+    const proofId = await withActor(ctx, async (actor, trx) => {
+      const current = await actionProofActor(body.accountId, trx)
+      const row = await trx.from('users').where('id', actor.userId).select('password').first()
+      if (current.sessionId !== first.sessionId || row?.password !== first.password)
+        throw new ActionProofError()
+      return createActionProof(trx, current, body.action, body.accountId, body.intent)
+    })
+    await resetFailedSignInBudget(ctx)
+    return ctx.response.ok({ proofId })
   }
 }

@@ -15,16 +15,14 @@ next: false
 Create your sign-in, name the company and give someone its day-to-day running. Whoever manages
 hosting remains responsible for the server, backups and upgrades.
 
-You need the CapacityLens address and the [setup token](/reference/glossary#setup-token) from
-whoever installed it.
+You need the one-time setup link from whoever installed CapacityLens.
 
 <div class="steps">
 
-1. ![Owner sign-in setup form with name, email, Create a password and Owner setup token fields and Create my sign-in](../screenshots/steps/owner_setup_sign_in_form.png)
+1. ![Accept invite page with Name, Password and Accept invitation](../screenshots/steps/owner_setup_sign_in_form.png)
 
-   **Sign in for the first time.** Open the address. Enter your name, email and a password, and
-   paste the setup token into **Owner setup token**. Select **Create my sign-in**. The token works
-   once. If your installer set up Google sign-in, choose that instead.
+   **Sign in for the first time.** Open the setup link. Enter your **Name** and a **Password**, then
+   select **Accept invitation**. The link works once.
 
 2. **Create your company.** On **Set up your company**, enter **Company name** and select
    **Create company**. Schedule opens with you as Owner. [Company setup](/owner/create-your-company)
@@ -32,17 +30,17 @@ whoever installed it.
    The [demo](/getting-started/try-the-demo) lets you edit fictional companies, but its changes are
    lost on reload.
 
-3. ![Invite someone dialog with Role set to Admin, an email address, No Resource linked and Create invite](../screenshots/steps/owner_invite_admin_dialog.png)
+3. ![Invite someone dialog with Role set to Admin, an email address and Create invite](../screenshots/steps/owner_invite_admin_dialog.png)
 
    **Invite an Admin.** Open **Team & access** and select **Invite someone**. Set **Role** to
-   **Admin**, enter their email and select **Create invite**. CapacityLens emails the invitation
-   if email is set up. If it isn't, select **Copy** and send them the link yourself.
+   **Admin**, enter their email and select **Create invite**. CapacityLens emails the invitation;
+   the server needs email delivery for this.
 
-4. ![Members table listing each person's name, role and email, with an accepted member showing the Admin role](../screenshots/steps/owner_members_admin_row.png)
+4. ![Waiting for approval panel listing an invited address with Approve and Decline](../screenshots/steps/owner_approve_admin.png)
 
-   **Hand over.** Until they accept, the invitation waits under **Outstanding invites**. When
-   their row in **Team & access** shows **Admin**, send them [Get the schedule ready](/admin/).
-   They take it from here.
+   **Approve and hand over.** Until they accept, the invitation waits under **Outstanding
+   invites**. Once they have chosen a password and selected **Ask for access**, they appear under
+   **Waiting for approval**: select **Approve**. When their row shows **Admin**, send them [Get the schedule ready](/admin/).
 
 </div>
 
@@ -51,15 +49,15 @@ Running the company yourself as well? Skip step 3 and go straight to
 
 ## What stays with you
 
-Appointing an Admin does not make them the Owner. Deciding who can join, transferring ownership,
-and importing data stay with you.
+Appointing an Admin does not make them the Owner. Transferring ownership and importing data stay
+with you.
 [Owner responsibilities](/owner/responsibilities) covers each of them.
 
 <span id="in-more-detail"></span>
 
 ## Go further
 
-- [Access your company](/owner/create-your-company): company login, a rejected token, and the
+- [Access your company](/owner/create-your-company): the setup link, an expired link, and the
   first-company setup.
 - [Appoint an Admin](/owner/appoint-an-admin): lost links, pending invitations and linking a
   scheduled person.

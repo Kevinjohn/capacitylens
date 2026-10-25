@@ -14,17 +14,11 @@ export interface TeamMember {
   /** Coarse, account-opted-in observation. Null means tracking is off; no timestamp is collected. */
   signInConfirmed: boolean | null;
   isSelf: boolean;
-  mayResetPassword: boolean;
-  mayRevokeSessions: boolean;
   resourceLink?: {
     resourceId: string;
     revision: string;
     resourceName?: string | null;
     resourceStatus?: "active" | "disabled" | "archived" | null;
-  } | null;
-  resourceLinkException?: {
-    proposedResourceId: string | null;
-    reason: "resource_unavailable" | "resource_already_linked" | "member_already_linked";
   } | null;
 }
 
@@ -35,22 +29,22 @@ export interface TeamDirectory {
   resourceCandidates: { resourceId: string; label: string }[];
 }
 
-/** An invitation and its optional pre-authorised resource assignment. */
+/** A pending invitation for one address. */
 export interface TeamInvitation {
   id: string;
   role: InvitationRole;
-  preauthEmail: string | null;
+  preauthEmail: string;
   expiresAt: string;
-  usedAt: string | null;
   createdAt: string;
-  proposedResourceId?: string;
-  proposedResourceLabel?: string;
 }
 
-/** A one-time secret returned by a member-access operation. */
-export interface OneTimeToken {
-  emailed?: boolean;
-  id?: string;
-  token: string;
-  expiresAt?: string;
+/** A signed-in person waiting for an Owner or Admin to approve their access. */
+export interface AdmissionRequest {
+  userId: string;
+  email: string;
+  requestedAt: string | null;
+  /** The role an invitation offered, which completion grants when it is assignable. */
+  invitedRole: string | null;
+  /** `pending` waits for a first decision; a declined or revoked person can still be approved. */
+  approval: "pending" | "rejected" | "revoked";
 }

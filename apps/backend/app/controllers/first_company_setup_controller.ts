@@ -1,11 +1,13 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { resolveCurrentActor } from '#services/auth/session_authority'
-import { withTransaction } from '#services/with_transaction'
+import { withActor } from '#services/auth/current_actor'
 import { requiresFirstCompanySetup } from '#services/first_company_setup'
 import { createInitialCompany } from '#services/initial_company_defaults'
 import { MAX_NAME_LENGTH, parseUserName } from '@capacitylens/shared/lib/strings'
 
-/** Establishes company access only for the sole signed-in principal on an empty installation. */
+/**
+ * Establishes company access only for the sole confirmed, admitted principal on an empty
+ * installation. The Kit's account lock and the installation lock row serialise competing setups.
+ */
 export default class FirstCompanySetupController {
   async store(ctx: HttpContext) {
     const body: unknown = ctx.request.body()
@@ -19,9 +21,8 @@ export default class FirstCompanySetupController {
         error: `Enter a company name of up to ${MAX_NAME_LENGTH} characters without symbols.`,
         code: 'INVALID_INPUT',
       })
-    const result = await withTransaction(async (trx) => {
+    const result = await withActor(ctx, async (actor, trx) => {
       await trx.from('account_transaction_lock').where('id', 1).increment('version', 1)
-      const actor = await resolveCurrentActor(ctx, trx)
       if (!(await requiresFirstCompanySetup(actor.userId, trx))) return null
       return createInitialCompany(trx, { name, ownerId: actor.userId, actorId: actor.userId })
     })

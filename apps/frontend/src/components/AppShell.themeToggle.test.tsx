@@ -18,7 +18,6 @@ afterEach(() => {
 });
 
 beforeEach(() => {
-  useStore.getState().setFakeSignedIn(true);
   localStorage.setItem("capacitylens/productOrientation/v1/demo/acct-test", "dismissed");
   useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount()] }));
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);

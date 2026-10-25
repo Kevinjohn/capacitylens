@@ -1,11 +1,10 @@
 import { m } from "@/i18n";
-import { formatInstant } from "@/lib/dateDisplay";
 import { useStore } from "@/store/useStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { CopyableLinkBlock, InviteMemberPanel } from "./InviteMemberPanel";
+import { InviteMemberPanel } from "./InviteMemberPanel";
 import { MemberConfirmations } from "./MemberConfirmations";
 import { MemberRow } from "./MemberRow";
 import { useMembersOrchestration } from "./useMembersOrchestration";
@@ -38,7 +37,6 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
     <>
       {orchestration.mayManageInvites && (
         <InviteMemberPanel
-          authMode={orchestration.authMode}
           busy={orchestration.busyAction !== null}
           inviteRole={orchestration.inviteRole}
           setInviteRole={orchestration.setInviteRole}
@@ -48,19 +46,15 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
           errorField={orchestration.errorField}
           errorId={orchestration.errorId}
           clear={orchestration.clear}
-          mintedLink={orchestration.mintedLink}
           inviteDialogOpen={orchestration.inviteDialogOpen}
           openInviteDialog={orchestration.openInviteDialog}
           closeInviteDialog={orchestration.closeInviteDialog}
-          copyLink={orchestration.copyLink}
           submitInvite={orchestration.submitInvite}
           invites={invites}
           renderedAt={orchestration.renderedAt}
           revokeInvite={orchestration.revokeInvite}
+          resendInvite={orchestration.resendInvite}
           roleOptions={orchestration.roleOptions}
-          invitationPeople={orchestration.invitationPeople}
-          invitationResourceId={orchestration.invitationResourceId}
-          setInvitationResourceId={orchestration.setInvitationResourceId}
         />
       )}
       <MembersDirectorySection members={orchestration} setActionStatusElement={setActionStatusElement} />
@@ -96,9 +90,7 @@ type MemberTableCapabilities = Pick<
 >;
 type DirectoryCapabilities = MemberTableCapabilities &
   Pick<MembersOrchestration, "activeMembers" | "inactiveMembers" | "inactiveOpen" | "setInactiveOpen">;
-type ResetLinkCapabilities = Pick<MembersOrchestration, "resetLink" | "copyLink">;
 type MembersDirectoryCapabilities = DirectoryCapabilities &
-  ResetLinkCapabilities &
   Pick<MembersOrchestration, "directory" | "mayManageSignInTracking" | "changeSignInTracking">;
 
 function MembersErrorCard({ errorId, error, reload }: { errorId: string; error: string | null; reload(): void }) {
@@ -225,27 +217,6 @@ function MemberDirectory({ directory, members }: { directory: DirectoryCapabilit
   );
 }
 
-function ResetLink({ reset }: { reset: ResetLinkCapabilities }) {
-  if (!reset.resetLink) return null;
-  return (
-    <CopyableLinkBlock
-      link={reset.resetLink.link}
-      testId="reset-link"
-      copiedNotice={m.settings_members_reset_copied()}
-      copyLabel={m.settings_reset_copy_aria({ member: reset.resetLink.member })}
-      copyLink={reset.copyLink}
-      intro={
-        <p className="text-xs text-muted-foreground">
-          {m.settings_members_reset_intro({
-            member: reset.resetLink.member,
-            when: formatInstant(reset.resetLink.expiresAt),
-          })}
-        </p>
-      }
-    />
-  );
-}
-
 function MembersDirectorySection({
   members,
   setActionStatusElement,
@@ -267,7 +238,6 @@ function MembersDirectorySection({
         </p>
         <FieldError id={members.errorId}>{members.errorField === null ? members.error : null}</FieldError>
         <MemberDirectory directory={members} members={memberRows} />
-        <ResetLink reset={members} />
       </div>
     </section>
   );

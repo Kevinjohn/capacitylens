@@ -3,7 +3,7 @@ import { buildExampleCompany, countExampleRows } from '@capacitylens/shared/data
 import { todayISO } from '@capacitylens/shared/lib/dateMath'
 import { encodeRow, readStateWithClient } from '#services/state_repository'
 import { TABLE_NAMES } from '#services/planning_operations/entity_policy'
-import { withTransaction } from '#services/with_transaction'
+import { withActor } from '#services/auth/current_actor'
 import { writeAudit } from '#services/audit'
 import { BatchRequestError } from '#services/planning_operations/errors'
 import { assertCompanyAction } from '#services/auth/authorization'
@@ -25,8 +25,8 @@ export default class ExampleDataController {
     const { params, response, logger } = ctx
     const accountId = params.accountId
     try {
-      const added = await withTransaction(async (trx) => {
-        const actor = await assertCompanyAction(ctx, accountId, 'write', trx)
+      const added = await withActor(ctx, async (_actor, trx) => {
+        const actor = await assertCompanyAction(accountId, 'write', trx)
         const state = await readStateWithClient(trx, accountId, true)
         const account = state.accounts[0]
         if (!account) throw new BatchRequestError('Company not found.', 404)

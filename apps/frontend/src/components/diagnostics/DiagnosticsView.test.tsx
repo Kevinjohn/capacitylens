@@ -41,16 +41,15 @@ describe("DiagnosticsView — report", () => {
     expect(reportText()).toHaveTextContent("Build revision: a1b2c3d");
     expect(reportText()).toHaveTextContent("Deployment mode: demo");
     expect(reportText()).toHaveTextContent("Database: unavailable");
-    expect(reportText()).toHaveTextContent("Sign-in mode: off");
     expect(reportText()).toHaveTextContent(/Time zone: \S+/);
     expect(fetchMock.fetch).not.toHaveBeenCalled();
   });
 
-  it("adds the sign-in mode without exposing private identity", () => {
+  it("never includes the signed-in identity", () => {
     render(
       <AuthContext.Provider
         value={{
-          authMode: "password-and-sso",
+          authMode: "password-only",
           user: { id: "u-1", name: "Bruce Wayne", email: "bruce@wayne.example" },
           canCreateAccount: false,
           refreshAuth: async () => {},
@@ -61,7 +60,7 @@ describe("DiagnosticsView — report", () => {
       </AuthContext.Provider>,
     );
 
-    expect(reportText()).toHaveTextContent("Sign-in mode: password-and-sso");
+    expect(reportText()).not.toHaveTextContent("Sign-in mode");
     expect(reportText()).not.toHaveTextContent("Bruce Wayne");
     expect(reportText()).not.toHaveTextContent("@");
   });

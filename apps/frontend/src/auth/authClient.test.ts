@@ -37,36 +37,6 @@ describe("product auth client", () => {
     });
   });
 
-  it("sends owner setup token as a header and does not include it in the JSON body", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(
-        Response.json(
-          { user: { id: "u1", name: "Bruce Wayne", email: "bruce@example.test", image: null } },
-          { status: 201 },
-        ),
-      );
-    vi.stubGlobal("fetch", fetchMock);
-
-    await authClient.signUp.email({
-      name: "Bruce Wayne",
-      email: "bruce@example.test",
-      password: "correct horse",
-      fetchOptions: { headers: { "x-capacitylens-setup-token": "setup-secret" } },
-    });
-
-    const call = fetchMock.mock.calls[0];
-    if (!call) throw new Error("Expected one sign-up request");
-    const [, init] = call;
-    expect(init?.credentials).toBe("include");
-    expect(new Headers(init?.headers).get("x-capacitylens-setup-token")).toBe("setup-secret");
-    expect(JSON.parse(String(init?.body))).toEqual({
-      email: "bruce@example.test",
-      password: "correct horse",
-      name: "Bruce Wayne",
-    });
-  });
-
   it("maps flat API errors without losing status or code", async () => {
     vi.stubGlobal(
       "fetch",
@@ -98,11 +68,7 @@ describe("product auth client", () => {
 
     await authClient.requestPasswordReset("bruce@example.test");
     await authClient.resetPassword({ token: "single-use-token", newPassword: "new-password" });
-    await authClient.changePassword({
-      currentPassword: "current-password",
-      newPassword: "new-password",
-      revokeOtherSessions: true,
-    });
+    await authClient.changePassword({ currentPassword: "current-password", newPassword: "new-password" });
     await authClient.signOut();
 
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
@@ -114,7 +80,7 @@ describe("product auth client", () => {
     expect(fetchMock.mock.calls.map(([, init]) => JSON.parse(String(init?.body)))).toEqual([
       { email: "bruce@example.test" },
       { token: "single-use-token", newPassword: "new-password" },
-      { currentPassword: "current-password", newPassword: "new-password", revokeOtherSessions: true },
+      { currentPassword: "current-password", newPassword: "new-password" },
       {},
     ]);
   });

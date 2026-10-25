@@ -13,7 +13,6 @@ import { isShownByPlanningState } from "@/data/planning/planningCacheController"
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import { useStore } from "@/store/useStore";
 import { useAuth } from "@/auth/authContext";
-import { useDemoAuthActive } from "@/lib/fakeAuth";
 import { transitionAccount } from "@/auth/accountTransition";
 import { isServerConfigured } from "@/data/apiConfig";
 
@@ -79,8 +78,6 @@ interface SingleAccountReloadInput {
   accountSummariesComplete: boolean;
   activeAccountId: StoreState["activeAccountId"];
   previousAccountId: StoreState["previousAccountId"];
-  demoAuthActive: boolean;
-  fakeSignedIn: boolean;
   hydrated: boolean;
 }
 
@@ -90,8 +87,6 @@ interface ResolveSingleAccountForReloadInput {
   activeAccountId: StoreState["activeAccountId"];
   previousAccountId: StoreState["previousAccountId"];
   serverMode: boolean;
-  demoAuthActive: boolean;
-  fakeSignedIn: boolean;
 }
 
 function resolveSingleAccountForReload(input: ResolveSingleAccountForReloadInput) {
@@ -99,7 +94,6 @@ function resolveSingleAccountForReload(input: ResolveSingleAccountForReloadInput
   if (
     input.activeAccountId !== null ||
     (!input.serverMode && input.previousAccountId !== null) ||
-    (input.demoAuthActive && !input.fakeSignedIn) ||
     !input.accountSummariesComplete ||
     input.accountSummaries.length !== 1 ||
     account?.roleStatus === "unavailable"
@@ -110,15 +104,7 @@ function resolveSingleAccountForReload(input: ResolveSingleAccountForReloadInput
 }
 
 function useSingleAccountReload(input: SingleAccountReloadInput) {
-  const {
-    accountSummaries,
-    accountSummariesComplete,
-    activeAccountId,
-    previousAccountId,
-    demoAuthActive,
-    fakeSignedIn,
-    hydrated,
-  } = input;
+  const { accountSummaries, accountSummariesComplete, activeAccountId, previousAccountId, hydrated } = input;
   const [reloadNavigation] = useState(readReloadNavigationState);
   const singleAccountReloadHandled = useRef(false);
   const serverMode = isServerConfigured();
@@ -136,8 +122,6 @@ function useSingleAccountReload(input: SingleAccountReloadInput) {
       activeAccountId,
       previousAccountId,
       serverMode,
-      demoAuthActive,
-      fakeSignedIn,
     });
     if (!account) return;
 
@@ -149,8 +133,6 @@ function useSingleAccountReload(input: SingleAccountReloadInput) {
     activeAccountId,
     previousAccountId,
     serverMode,
-    demoAuthActive,
-    fakeSignedIn,
     hydrated,
     reloadNavigation,
   ]);
@@ -281,7 +263,6 @@ function useAuditWarning(setNotice: StoreState["setNotice"]) {
 /** Owns AppShell's bootstrap handoff, global effects, shortcuts and notice bridge. */
 export function useAppShellController() {
   const { authMode } = useAuth();
-  const demoAuthActive = useDemoAuthActive();
   // In auth-on mode PermissionProvider owns the active-account refresh and publishes the same
   // validated list to the store. The shell hook still owns picker reads; auth-off has no permission
   // lookup, so it continues refreshing the active directory itself.
@@ -297,7 +278,6 @@ export function useAppShellController() {
   const hydrated = useStore((state) => state.hydrated);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const previousAccountId = useStore((state) => state.previousAccountId);
-  const fakeSignedIn = useStore((state) => state.fakeSignedIn);
   const { pathname, search, hash } = useLocation();
   const navigate = useNavigate();
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -315,8 +295,6 @@ export function useAppShellController() {
     accountSummariesComplete,
     activeAccountId,
     previousAccountId,
-    demoAuthActive,
-    fakeSignedIn,
     hydrated,
   });
   const { activeLanguage, activeLanguagePending } = useAccountLocale(accounts, activeAccountId);

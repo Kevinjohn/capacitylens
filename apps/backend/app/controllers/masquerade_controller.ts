@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { withTransaction } from '#services/with_transaction'
-import { resolveCurrentActor, SessionAuthorityError } from '#services/auth/session_authority'
+import { InvalidSessionError } from 'adonisjs-account-kit/errors'
+import { withActor } from '#services/auth/current_actor'
 import {
   currentMasquerade,
   endMasquerade,
@@ -36,8 +36,8 @@ export default class MasqueradeController {
       return ctx.response.badRequest({ error: 'Target member is required.' })
     return respond(ctx, async () =>
       ctx.response.ok(
-        await withTransaction((trx) =>
-          startMasquerade(ctx, accountId, body.targetUserId as string, trx)
+        await withActor(ctx, (_actor, trx) =>
+          startMasquerade(accountId, body.targetUserId as string, trx)
         )
       )
     )
@@ -46,13 +46,11 @@ export default class MasqueradeController {
   async status(ctx: HttpContext) {
     return respond(ctx, async () => {
       try {
-        // The web guard loads its user through the default connection; authenticate before
-        // taking the single SQLite transaction connection used for the projection snapshot.
-        await resolveCurrentActor(ctx)
-        return ctx.response.ok(await withTransaction((trx) => currentMasquerade(ctx, trx)))
+        return ctx.response.ok(
+          await withActor(ctx, (_actor, trx) => currentMasquerade(trx), { limited: true })
+        )
       } catch (error) {
-        if (error instanceof SessionAuthorityError || (error as { status?: number }).status === 401)
-          return ctx.response.ok({ active: false })
+        if (error instanceof InvalidSessionError) return ctx.response.ok({ active: false })
         throw error
       }
     })
@@ -73,8 +71,8 @@ export default class MasqueradeController {
     )
       return ctx.response.badRequest({ error: 'Invalid masquerade end request.' })
     return respond(ctx, async () => {
-      await withTransaction((trx) =>
-        endMasquerade(ctx, body.token as string, body.reason as 'explicit' | 'account_switch', trx)
+      await withActor(ctx, (_actor, trx) =>
+        endMasquerade(body.token as string, body.reason as 'explicit' | 'account_switch', trx)
       )
       return ctx.response.noContent()
     })

@@ -3,7 +3,7 @@ import { operatorFixture, seedOwner, withOperatorServer } from './operator_comma
 
 const args = ['owner:reset-password', 'bruce@wayne.example', '--confirm-server-stopped']
 
-test('owner command issues a private audited ceremony and replaces earlier tokens', ({
+test('owner command prints an audited single-use link without changing the credential', ({
   assert,
   test: t,
 }) => {
@@ -24,22 +24,17 @@ test('owner command issues a private audited ceremony and replaces earlier token
     const firstResult = JSON.parse(first.output.trim()) as { link: string; accountIds: string[] }
     assert.deepEqual(firstResult.accountIds, ['a-studio'])
     assert.match(firstResult.link, /^http:\/\/localhost:8787\/reset-password\//)
-    assert.lengthOf(firstResult.link.split('/').at(-1)!, 54)
     const second = f.command(args)
     assert.equal(second.status, 0, second.output)
     const secondResult = JSON.parse(second.output.trim()) as { link: string }
     assert.notEqual(firstResult.link, secondResult.link)
     const inspect = f.inspect()
-    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 1)
     const audits = inspect.prepare('SELECT * FROM audit_entries').all()
     assert.lengthOf(audits, 2)
     assert.equal(audits[0]!.actor_id, null)
     assert.equal(audits[0]!.action, 'identity.owner_recovery_issued')
     assert.notInclude(JSON.stringify(audits), firstResult.link.split('/').at(-1)!)
-    assert.equal(
-      inspect.prepare('SELECT password_hash FROM users').get()!.password_hash,
-      'old-credential'
-    )
+    assert.equal(inspect.prepare('SELECT password FROM users').get()!.password, 'old-credential')
     inspect.close()
   } finally {
     f.cleanup()
@@ -75,10 +70,7 @@ test('owner command refuses missing stop intent, non-owner targets and concurren
   }
 })
 
-test('audit failure rolls back token replacement and never prints the issued secret', ({
-  assert,
-  test: t,
-}) => {
+test('an audit failure never prints the issued link', ({ assert, test: t }) => {
   t.timeout(90000)
   const f = operatorFixture()
   try {
@@ -89,7 +81,6 @@ test('audit failure rolls back token replacement and never prints the issued sec
     const first = f.command(args)
     assert.equal(first.status, 0, first.output)
     const inspect = f.inspect()
-    const before = inspect.prepare('SELECT hash FROM password_reset_tokens').get()!.hash
     inspect.exec(
       "CREATE TRIGGER fail_operator_audit BEFORE INSERT ON audit_entries BEGIN SELECT RAISE(ABORT, 'operator audit failed'); END"
     )
@@ -98,7 +89,6 @@ test('audit failure rolls back token replacement and never prints the issued sec
     const after = f.inspect()
     assert.notEqual(failed.status, 0)
     assert.notInclude(failed.output, '/reset-password/')
-    assert.equal(after.prepare('SELECT hash FROM password_reset_tokens').get()!.hash, before)
     assert.equal(after.prepare('SELECT COUNT(*) AS n FROM audit_entries').get()!.n, 1)
     after.close()
   } finally {
@@ -122,9 +112,9 @@ test('a sole-owned company permits recovery even when another company has joint 
       .run('a-loft', 'Stark Industries', '#6366f1', now, now)
     database
       .prepare(
-        'INSERT INTO users (id,email,email_verified,display_name,password_hash,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'
+        'INSERT INTO users (id,email,email_verified_at,display_name,password,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'
       )
-      .run('tony', 'tony@stark.example', 1, 'Tony Stark', 'credential', now, now)
+      .run('tony', 'tony@stark.example', now, 'Tony Stark', 'credential', now, now)
     for (const id of ['bruce', 'tony'])
       database
         .prepare(
@@ -146,7 +136,7 @@ test('a sole-owned company permits recovery even when another company has joint 
   }
 })
 
-test('a failure writing the second company audit rolls back every audit and the replacement token', ({
+test('a failure writing the second company audit rolls back every audit and prints no link', ({
   assert,
   test: t,
 }) => {
@@ -171,16 +161,16 @@ test('a failure writing the second company audit rolls back every audit and the 
     database.close()
     const result = f.command(args)
     assert.notEqual(result.status, 0)
+    assert.notInclude(result.output, '/reset-password/')
     const inspect = f.inspect()
     assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM audit_entries').get()!.n, 0)
-    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 0)
     inspect.close()
   } finally {
     f.cleanup()
   }
 })
 
-test('the issued owner link redeems once through the normal HTTP flow and revokes indexed sessions', async ({
+test('the issued owner link redeems once through the normal HTTP flow and ends every sign-in', async ({
   assert,
   test: t,
 }) => {
@@ -192,9 +182,15 @@ test('the issued owner link redeems once through the normal HTTP flow and revoke
     seedOwner(database)
     database
       .prepare(
-        'INSERT INTO user_session_index (user_id,session_id,authenticated_at,last_activity_at) VALUES (?,?,?,?)'
+        'INSERT INTO account_sessions (user_id,handle_hash,created_at,last_seen_at,expires_at) VALUES (?,?,?,?,?)'
       )
-      .run('bruce', 'prior-session', Date.now(), Date.now())
+      .run(
+        'bruce',
+        'b'.repeat(64),
+        new Date().toISOString(),
+        new Date().toISOString(),
+        '2999-01-01T00:00:00.000Z'
+      )
     database.close()
     const issued = f.command(args)
     assert.equal(issued.status, 0, issued.output)
@@ -224,13 +220,15 @@ test('the issued owner link redeems once through the normal HTTP flow and revoke
     assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 0)
     assert.equal(
       inspect
-        .prepare("SELECT COUNT(*) AS n FROM user_session_index WHERE session_id='prior-session'")
-        .get()!.n,
+        .prepare('SELECT COUNT(*) AS n FROM account_sessions WHERE handle_hash = ?')
+        .get('b'.repeat(64))!.n,
       0
     )
     assert.equal(
       inspect
-        .prepare("SELECT COUNT(*) AS n FROM audit_entries WHERE action='user.password_reset'")
+        .prepare(
+          "SELECT COUNT(*) AS n FROM audit_entries WHERE action='identity.credentials_changed'"
+        )
         .get()!.n,
       1
     )
@@ -262,35 +260,6 @@ test('owner recovery refuses invalid configuration, addresses and non-disk paths
         .status,
       0
     )
-    const inspect = f.inspect()
-    assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 0)
-    inspect.close()
-  } finally {
-    f.cleanup()
-  }
-})
-
-test('normalized duplicate identities are refused without exposing the target or issuing a token', ({
-  assert,
-  test: t,
-}) => {
-  t.timeout(90000)
-  const f = operatorFixture()
-  try {
-    assert.equal(f.command(['app:upgrade']).status, 0)
-    const database = f.inspect()
-    seedOwner(database)
-    const now = new Date().toISOString()
-    database
-      .prepare(
-        'INSERT INTO users (id,email,email_verified,display_name,password_hash,created_at,updated_at) VALUES (?,?,?,?,?,?,?)'
-      )
-      .run('ambiguous', 'BRUCE@WAYNE.EXAMPLE', 1, 'Clark Kent', 'credential', now, now)
-    database.close()
-    const result = f.command(args)
-    assert.notEqual(result.status, 0)
-    assert.include(result.output, 'unambiguous')
-    assert.notInclude(result.output, 'bruce@wayne.example')
     const inspect = f.inspect()
     assert.equal(inspect.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens').get()!.n, 0)
     inspect.close()

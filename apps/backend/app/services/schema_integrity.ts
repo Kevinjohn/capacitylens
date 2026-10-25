@@ -27,6 +27,50 @@ const scopedTables = [
 
 const tenantIndexedTables = [...scopedTables, 'account_member_resources', 'audit_entries'] as const
 
+/** Tables only a pre-Account-Kit database has; their presence means an unsupported upgrade. */
+const preCutoverTables = [
+  'sessions',
+  'user_session_index',
+  'email_proofs',
+  'invitations',
+  'invitation_proposals',
+  'account_joining_policies',
+  'company_join_intents',
+  'account_email_changes',
+] as const
+
+/** Account Kit storage, including the empty tables its pruning and checks still visit. */
+const accountKitTables = [
+  'account_sessions',
+  'account_invitations',
+  'account_admissions',
+  'account_transaction_lock',
+  'password_reset_tokens',
+  'email_verification_tokens',
+  'login_link_tokens',
+  'social_identities',
+  'social_transactions',
+  'social_sensitive_proofs',
+  'social_handoff_codes',
+] as const
+
+/**
+ * Refuses a database created before the Account Kit cutover, or one missing Kit storage. Such a
+ * database cannot be upgraded in place: the installation starts from a fresh database.
+ */
+async function assertAccountKitStorage() {
+  const rows = (await db.from('sqlite_master').where('type', 'table').select('name')) as Array<{
+    name: string
+  }>
+  const tables = new Set(rows.map((row) => row.name))
+  const stale = preCutoverTables.filter((table) => tables.has(table))
+  const missing = accountKitTables.filter((table) => !tables.has(table))
+  if (stale.length || missing.length)
+    throw new Error(
+      `Database schema drift: this database predates Account Kit sign-in (${[...stale, ...missing.map((table) => `missing ${table}`)].join(', ')}). Back it up, then start from a fresh database as the upgrade guide describes.`
+    )
+}
+
 const normalize = (sql: string) => sql.replace(/\s+/g, ' ').trim().replace(/;$/, '')
 
 async function assertIndex(table: string, column: string) {
@@ -89,6 +133,7 @@ async function assertProofStorage(table: string, expectedColumns: string[]) {
 }
 
 export async function assertSchemaIntegrity() {
+  await assertAccountKitStorage()
   await assertProofStorage('login_link_tokens', [
     'id',
     'tokenable_id',
@@ -144,13 +189,7 @@ export async function assertSchemaIntegrity() {
     'capacitylens_member_resource_kind_cleanup',
     "CREATE TRIGGER capacitylens_member_resource_kind_cleanup AFTER UPDATE OF kind ON resources WHEN OLD.kind = 'person' AND NEW.kind <> 'person' BEGIN DELETE FROM account_member_resources WHERE account_id = OLD.account_id AND resource_id = OLD.id; END"
   )
-  for (const table of [
-    'account_getting_started_dismissals',
-    'account_joining_policies',
-    'company_join_intents',
-    'account_access_restrictions',
-    'member_resource_link_exceptions',
-  ])
+  for (const table of ['account_getting_started_dismissals', 'account_access_restrictions'])
     await assertIndex(table, 'account_id')
   for (const [table, columns] of [
     [
@@ -193,40 +232,8 @@ export async function assertSchemaIntegrity() {
     ],
     ['account_getting_started_dismissals', ['id', 'account_id', 'created_at', 'updated_at']],
     [
-      'account_joining_policies',
-      ['id', 'account_id', 'policy', 'approved_domains', 'created_at', 'updated_at'],
-    ],
-    [
-      'company_join_intents',
-      [
-        'id',
-        'nonce_hash',
-        'browser_hash',
-        'purpose',
-        'account_id',
-        'invitation_id',
-        'email',
-        'principal_id',
-        'provider_id',
-        'state',
-        'token_hash',
-        'delivery_generation',
-        'expires_at',
-        'sent_count',
-        'last_sent_at',
-        'source_ip_hash',
-        'provider_state_hash',
-        'created_at',
-        'updated_at',
-      ],
-    ],
-    [
       'account_access_restrictions',
       ['id', 'account_id', 'principal_id', 'verified_email', 'role', 'created_at'],
-    ],
-    [
-      'member_resource_link_exceptions',
-      ['id', 'account_id', 'user_id', 'proposed_resource_id', 'reason', 'created_at', 'updated_at'],
     ],
   ] as const) {
     const actual = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>

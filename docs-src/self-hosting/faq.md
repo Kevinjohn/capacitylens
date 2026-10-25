@@ -24,7 +24,8 @@ records.
 
 ### Who creates the first company?
 
-The first identity completes sign-in with the setup token or configured Google sign-in, then
+The person who opens the one-time setup link printed by
+`node ace.js account-kit:admission:bootstrap <email> --role=viewer` chooses a password, then
 enters **Company name** in the browser and selects **Create company**. The company opens with that
 identity as Owner. No company command or service restart is needed. See
 [first-company setup](/owner/create-your-company).
@@ -34,10 +35,10 @@ configuration. If multiple identities already exist before the company,
 browser setup refuses; resolving that exceptional state currently needs the hosting operator's
 stopped-server `company:initialize` initializer. It is not part of the normal five-step installation.
 
-### Which company sign-in providers are available?
+### Which sign-in methods are available?
 
-Password and Google are supported. Microsoft is deferred and GitHub is retired. A successful local
-configuration does not prove live Google sign-in; verify it with the actual provider registration.
+Email and password only. There is no Google, Microsoft or other company sign-in. Invitations and
+password resets are emailed, so configure mail delivery.
 
 ## Operations
 
@@ -61,9 +62,7 @@ See [Upgrades](/self-hosting/upgrades).
 
 ### How do I recover the sole Owner's access?
 
-The command applies only when `CAPACITYLENS_MODE` is `password-only` or `password-and-sso` and the
-sole active Owner already has a local password. A Google-only `sso-only` Owner cannot use it to
-create local password credentials. Stop the service and use
+Stop the service and use
 `node ace.js owner:reset-password <email> --confirm-server-stopped` from the release's `backend/`
 directory. The audited command issues a single-use recovery link; deliver it privately and never
 set a password directly. See [When something goes wrong](/self-hosting/incidents).

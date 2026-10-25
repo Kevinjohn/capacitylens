@@ -1,6 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { withTransaction } from '#services/with_transaction'
-import { advancePlanningRevision } from '#services/planning_revision'
+import { withActor } from '#services/auth/current_actor'
 import { assertCompanyAction } from '#services/auth/authorization'
 import {
   claimAccountCommand,
@@ -37,8 +36,8 @@ export default class MemberResourcesController {
         invalidAdmission()
       const command = readAccountCommand(ctx)
       const { accountId, principalId } = ctx.params
-      const result = await withTransaction(async (trx) => {
-        const { actorId } = await assertCompanyAction(ctx, accountId, 'manageMembers', trx)
+      const result = await withActor(ctx, async (_actor, trx) => {
+        const { actorId } = await assertCompanyAction(accountId, 'manageMembers', trx)
         const claim = await claimAccountCommand(trx, {
           actorId,
           accountId,
@@ -77,8 +76,8 @@ export default class MemberResourcesController {
       if (typeof body.expectedRevision !== 'string' || !body.expectedRevision) invalidAdmission()
       const command = readAccountCommand(ctx)
       const { accountId, principalId } = ctx.params
-      await withTransaction(async (trx) => {
-        const { actorId } = await assertCompanyAction(ctx, accountId, 'manageMembers', trx)
+      await withActor(ctx, async (_actor, trx) => {
+        const { actorId } = await assertCompanyAction(accountId, 'manageMembers', trx)
         const claim = await claimAccountCommand(trx, {
           actorId,
           accountId,
@@ -109,39 +108,11 @@ export default class MemberResourcesController {
     }
   }
 
-  async clearException(ctx: HttpContext) {
-    try {
-      const command = readAccountCommand(ctx)
-      const { accountId, principalId } = ctx.params
-      await withTransaction(async (trx) => {
-        const { actorId } = await assertCompanyAction(ctx, accountId, 'manageMembers', trx)
-        const claim = await claimAccountCommand(trx, {
-          actorId,
-          accountId,
-          operation: 'clear-member-resource-exception',
-          payload: { principalId },
-          command,
-          kind: 'semantic',
-        })
-        if (claim.replayed) return
-        const removed = await trx
-          .from('member_resource_link_exceptions')
-          .where({ account_id: accountId, user_id: principalId })
-          .delete()
-        if (removed) await advancePlanningRevision(trx, accountId)
-        await completeAccountCommand(trx, command.commandId, { ok: true })
-      })
-      return ctx.response.noContent()
-    } catch (error) {
-      return renderAdmissionFailure(ctx, error)
-    }
-  }
-
   async avatars(ctx: HttpContext) {
     try {
       const { accountId } = ctx.params
-      return await withTransaction(async (trx) => {
-        await assertCompanyAction(ctx, accountId, 'read', trx)
+      return await withActor(ctx, async (_actor, trx) => {
+        await assertCompanyAction(accountId, 'read', trx)
         const rows = await trx
           .from('account_member_resources as link')
           .innerJoin('resources as resource', function () {

@@ -52,7 +52,7 @@ function usePasswordChange({ fail, clear, setMessage, setBusy }: PasswordChangeI
     const requestGeneration = ++generation.current;
     setBusy(true);
     try {
-      const result = await authClient.changePassword({ currentPassword, newPassword, revokeOtherSessions: true });
+      const result = await authClient.changePassword({ currentPassword, newPassword });
       if (requestGeneration !== generation.current) return;
       // A committed update whose follow-up failed still changed the password, so the old inputs are obsolete.
       const committedWithWarning = result.error?.code === "CREDENTIAL_UPDATE_COMMITTED";
@@ -63,6 +63,8 @@ function usePasswordChange({ fail, clear, setMessage, setBusy }: PasswordChangeI
       setMessage(
         committedWithWarning ? m.settings_security_password_changed_warning() : m.settings_security_password_changed(),
       );
+      // The change ended every sign-in, this one included; reload to sign in with the new password.
+      window.location.assign("/");
     } catch (cause) {
       // Log authentication-service failure, but publish it only while the password-change request owns the form.
       console.error("SecuritySection: password change failed", cause);

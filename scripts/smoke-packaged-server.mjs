@@ -54,16 +54,14 @@ export function buildSmokeEnvironment(inherited, { backupDir, databasePath, port
     HOST: "127.0.0.1",
     LOG_LEVEL: "info",
     APP_KEY: "capacitylens-packaged-smoke-key-0123456789abcdef",
-    APP_URL: `http://127.0.0.1:${port}`,
+    // Production refuses plain-HTTP public origins; links name HTTPS while the smoke talks to loopback.
+    APP_URL: `https://127.0.0.1:${port}`,
     SESSION_DRIVER: "database",
-    CAPACITYLENS_MODE: "password-only",
     CAPACITYLENS_SECRET: "capacitylens-packaged-secret-0123456789abcdef",
-    CAPACITYLENS_SETUP_TOKEN: "capacitylens-packaged-setup-0123456789abcdef",
-    CAPACITYLENS_PASSWORD_BREACH_CHECK: "false",
     CAPACITYLENS_AUDIT: "on",
     CAPACITYLENS_DB: databasePath,
     CAPACITYLENS_BACKUP_DIR: backupDir,
-    CAPACITYLENS_PUBLIC_URL: `http://127.0.0.1:${port}`,
+    CAPACITYLENS_PUBLIC_URL: `https://127.0.0.1:${port}`,
   });
 }
 
@@ -336,16 +334,25 @@ async function main() {
     assert.match(spa.body, /<html/);
 
     const credentials = { email: "bruce@wayne.example", password: "packaged-password-2026" };
-    const signup = await fetch(`${baseUrl}/api/auth/sign-up`, {
+    // The operator prints the first-install link; accepting it creates the first identity.
+    const bootstrap = command(
+      backend,
+      environment,
+      "account-kit:admission:bootstrap",
+      credentials.email,
+      "--role=viewer",
+    );
+    // A failed run may still have printed the one-time link; never copy it into CI logs.
+    assert.equal(bootstrap.status, 0, bootstrap.output.replace(/https?:\/\/\S+/g, "<redacted link>"));
+    const setupLink = /"url":"([^"]+)"/.exec(bootstrap.output)?.[1];
+    assert.ok(setupLink, "The packaged bootstrap command printed no setup link.");
+    const setupToken = new URL(setupLink).pathname.split("/").filter(Boolean).at(-1);
+    const signup = await fetch(`${baseUrl}/api/invites/${setupToken}/signup`, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "sec-fetch-site": "same-origin",
-        "x-capacitylens-setup-token": environment.CAPACITYLENS_SETUP_TOKEN,
-      },
-      body: JSON.stringify({ ...credentials, name: "Bruce Wayne" }),
+      headers: { "content-type": "application/json", "sec-fetch-site": "same-origin" },
+      body: JSON.stringify({ name: "Bruce Wayne", password: credentials.password }),
     });
-    assert.equal(signup.status, 201, "Packaged native signup failed");
+    assert.equal(signup.status, 201, "Packaged first-identity setup failed");
     let cookie = signup.headers
       .getSetCookie()
       .map((value) => value.split(";", 1)[0])

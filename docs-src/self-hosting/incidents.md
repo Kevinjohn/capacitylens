@@ -35,9 +35,7 @@ Use [Upgrades](/self-hosting/upgrades) for rollback and recovery.
 
 ## Sole Owner password recovery
 
-This applies only when `CAPACITYLENS_MODE` is `password-only` or `password-and-sso` and the sole
-active Owner already has a local password. A Google-only `sso-only` Owner cannot use this command
-to create local password credentials. Confirm the target is the sole active Owner, stop the service
+Confirm the target is the sole active Owner, stop the service
 and run the audited command from the release's `backend/` directory:
 
 ```bash
@@ -48,12 +46,12 @@ The result contains a single-use recovery link. Deliver it privately, do not pas
 support reports, and never set a password with direct database edits. The command refuses if the
 target is not the sole active Owner or the database is not safe for recovery.
 
-## A sign-in provider is unavailable
+## Emailed links do not arrive
 
-Check the public URL, callback registration, complete Google client configuration and mail settings
-when an email delivery flow is involved. Password and Google sign-in are supported; Microsoft is
-deferred and GitHub is retired. Deterministic checks do not establish live provider acceptance.
-Avoid changing provider settings until an operator has confirmed the intended recovery path.
+Invitations, address confirmation and password resets need the `CAPACITYLENS_MAIL_*` settings.
+Check them and the mail server's own logs. An Owner or Admin can resend an invitation from
+**Team & access** once delivery works. Emailed links point at `CAPACITYLENS_PUBLIC_URL`, which must
+be the browser-visible HTTPS address.
 
 ## Preserve incident evidence
 

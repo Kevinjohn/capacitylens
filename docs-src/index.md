@@ -52,9 +52,8 @@ developer tools Node and git, but no server and no sign-in.
 
 ## How setup fits together
 
-1. **The installer** puts CapacityLens on a server and gives the Owner an address and a one-time
-   setup token.
-2. **The Owner** signs in with that token, creates the company and invites an Admin.
+1. **The installer** puts CapacityLens on a server and sends the Owner a one-time setup link.
+2. **The Owner** opens that link, chooses a password, creates the company and invites an Admin.
 3. **The Admin** invites the team, adds the people to schedule and books the first work.
 4. **Everyone else** accepts their invitation and opens Schedule.
 

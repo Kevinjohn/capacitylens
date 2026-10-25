@@ -23,23 +23,37 @@ export class AccountAccessRestrictionSchema extends BaseModel {
   declare verifiedEmail: string | null
 }
 
-export class AccountEmailChangeSchema extends BaseModel {
-  static $columns = ['createdAt', 'currentEmail', 'expiresAt', 'id', 'newEmail', 'tokenHash', 'userId'] as const
-  $columns = AccountEmailChangeSchema.$columns
+export class AccountAdmissionSchema extends BaseModel {
+  static $columns = ['approvalActorId', 'approvalDecidedAt', 'approvalStatus', 'bootstrapEmail', 'createdAt', 'id', 'invitationId', 'invitationRecordedAt', 'invitationSource', 'invitedEmail', 'invitedRole', 'requestedAt', 'updatedAt', 'userId'] as const
+  $columns = AccountAdmissionSchema.$columns
+  @column()
+  declare approvalActorId: string | null
+  @column()
+  declare approvalDecidedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  @column()
+  declare approvalStatus: string | null
+  @column()
+  declare bootstrapEmail: string | null
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column()
-  declare currentEmail: string
-  @column()
-  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column({ isPrimary: true })
   declare id: number
   @column()
-  declare newEmail: string
+  declare invitationId: number | null
   @column()
-  declare tokenHash: string
+  declare invitationRecordedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
   @column()
-  declare userId: string
+  declare invitationSource: string | null
+  @column()
+  declare invitedEmail: string | null
+  @column()
+  declare invitedRole: string | null
+  @column()
+  declare requestedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  @column()
+  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare userId: string | null
 }
 
 export class AccountGettingStartedDismissalSchema extends BaseModel {
@@ -55,19 +69,23 @@ export class AccountGettingStartedDismissalSchema extends BaseModel {
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }
 
-export class AccountJoiningPolicySchema extends BaseModel {
-  static $columns = ['accountId', 'approvedDomains', 'createdAt', 'id', 'policy', 'updatedAt'] as const
-  $columns = AccountJoiningPolicySchema.$columns
-  @column()
-  declare accountId: string
-  @column()
-  declare approvedDomains: string[]
+export class AccountInvitationSchema extends BaseModel {
+  static $columns = ['createdAt', 'email', 'expiresAt', 'id', 'inviterId', 'role', 'tokenHash', 'updatedAt'] as const
+  $columns = AccountInvitationSchema.$columns
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column({ isPrimary: true })
-  declare id: string
   @column()
-  declare policy: 'invitation_only' | 'open' | 'approved_domains' | 'approved_domains_or_invitation'
+  declare email: string
+  @column()
+  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare inviterId: string | null
+  @column()
+  declare role: string
+  @column()
+  declare tokenHash: string
   @column()
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }
@@ -87,6 +105,25 @@ export class AccountMemberResourceSchema extends BaseModel {
   declare revision: string
   @column()
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare userId: string
+}
+
+export class AccountSessionSchema extends BaseModel {
+  static $columns = ['createdAt', 'expiresAt', 'handleHash', 'id', 'label', 'lastSeenAt', 'userId'] as const
+  $columns = AccountSessionSchema.$columns
+  @column()
+  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare handleHash: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare label: string | null
+  @column()
+  declare lastSeenAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column()
   declare userId: string
 }
@@ -155,7 +192,7 @@ export class ActionProofSchema extends BaseModel {
   @column()
   declare intentHash: string
   @column()
-  declare sessionId: string
+  declare sessionId: number
   @column()
   declare userId: string
   @column()
@@ -327,49 +364,6 @@ export class CommandResultSchema extends BaseModel {
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }
 
-export class CompanyJoinIntentSchema extends BaseModel {
-  static $columns = ['accountId', 'browserHash', 'createdAt', 'deliveryGeneration', 'email', 'expiresAt', 'id', 'invitationId', 'lastSentAt', 'nonceHash', 'principalId', 'providerId', 'providerStateHash', 'purpose', 'sentCount', 'sourceIpHash', 'state', 'tokenHash', 'updatedAt'] as const
-  $columns = CompanyJoinIntentSchema.$columns
-  @column()
-  declare accountId: string
-  @column()
-  declare browserHash: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column()
-  declare deliveryGeneration: number
-  @column()
-  declare email: string
-  @column()
-  declare expiresAt: bigint | number
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare invitationId: string | null
-  @column()
-  declare lastSentAt: bigint | number | null
-  @column()
-  declare nonceHash: string
-  @column()
-  declare principalId: string | null
-  @column()
-  declare providerId: string
-  @column()
-  declare providerStateHash: string | null
-  @column()
-  declare purpose: 'policy' | 'invitation'
-  @column()
-  declare sentCount: number
-  @column()
-  declare sourceIpHash: string
-  @column()
-  declare state: 'started' | 'mail-sent' | 'approved' | 'completed' | 'cancelled'
-  @column()
-  declare tokenHash: string | null
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-}
-
 export class CompanyPlanningRevisionSchema extends BaseModel {
   static $columns = ['accountId', 'revision'] as const
   $columns = CompanyPlanningRevisionSchema.$columns
@@ -412,7 +406,7 @@ export class DeletedGroupSchema extends BaseModel {
   @column()
   declare mutationId: string
   @column()
-  declare sessionId: string
+  declare sessionId: number
 }
 
 export class DeletedRowSchema extends BaseModel {
@@ -449,23 +443,6 @@ export class DisciplineSchema extends BaseModel {
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }
 
-export class EmailProofSchema extends BaseModel {
-  static $columns = ['createdAt', 'email', 'id', 'updatedAt', 'userId', 'verifiedAt'] as const
-  $columns = EmailProofSchema.$columns
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column()
-  declare email: string
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column()
-  declare userId: string
-  @column()
-  declare verifiedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-}
-
 export class EmailVerificationTokenSchema extends BaseModel {
   static $columns = ['createdAt', 'currentEmail', 'email', 'expiresAt', 'hash', 'id', 'purpose', 'tokenableId'] as const
   $columns = EmailVerificationTokenSchema.$columns
@@ -485,44 +462,6 @@ export class EmailVerificationTokenSchema extends BaseModel {
   declare purpose: string
   @column()
   declare tokenableId: string
-}
-
-export class InvitationProposalSchema extends BaseModel {
-  static $columns = ['createdAt', 'id', 'invitationId', 'resourceId', 'updatedAt'] as const
-  $columns = InvitationProposalSchema.$columns
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare invitationId: string
-  @column()
-  declare resourceId: string | null
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-}
-
-export class InvitationSchema extends BaseModel {
-  static $columns = ['acceptedAt', 'accountId', 'createdAt', 'email', 'expiresAt', 'id', 'role', 'tokenHash', 'updatedAt'] as const
-  $columns = InvitationSchema.$columns
-  @column()
-  declare acceptedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
-  @column()
-  declare accountId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column()
-  declare email: string | null
-  @column()
-  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare role: import('@capacitylens/shared/account/types').InvitationRole
-  @column()
-  declare tokenHash: string
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }
 
 export class LoginLinkTokenSchema extends BaseModel {
@@ -558,7 +497,7 @@ export class MasqueradeSchema extends BaseModel {
   @column()
   declare role: import('@capacitylens/shared/account/types').Role
   @column()
-  declare sessionId: string
+  declare sessionId: number
   @column()
   declare startedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
   @column()
@@ -567,25 +506,6 @@ export class MasqueradeSchema extends BaseModel {
   declare token: string | null
   @column()
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-}
-
-export class MemberResourceLinkExceptionSchema extends BaseModel {
-  static $columns = ['accountId', 'createdAt', 'id', 'proposedResourceId', 'reason', 'updatedAt', 'userId'] as const
-  $columns = MemberResourceLinkExceptionSchema.$columns
-  @column()
-  declare accountId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare proposedResourceId: string | null
-  @column()
-  declare reason: 'resource_unavailable' | 'resource_already_linked' | 'member_already_linked'
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column()
-  declare userId: string
 }
 
 export class MembershipSchema extends BaseModel {
@@ -672,7 +592,7 @@ export class PlanningMutationSchema extends BaseModel {
   @column()
   declare mutationId: string
   @column()
-  declare originSessionId: string | null
+  declare originSessionId: number | null
   @column()
   declare restorationGroupId: string | null
   @column()
@@ -764,21 +684,116 @@ export class ResourceSchema extends BaseModel {
   declare workingHoursPerDay: number
 }
 
-export class SessionSchema extends BaseModel {
-  static $columns = ['createdAt', 'expiresAt', 'id', 'payload', 'updatedAt', 'userId'] as const
-  $columns = SessionSchema.$columns
+export class SocialHandoffCodeSchema extends BaseModel {
+  static $columns = ['clientChallenge', 'createdAt', 'credentialRevision', 'expiresAt', 'hash', 'id', 'socialIdentityId', 'userId'] as const
+  $columns = SocialHandoffCodeSchema.$columns
+  @column()
+  declare clientChallenge: string
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column()
-  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column({ isPrimary: true })
-  declare id: string
+  declare credentialRevision: string | null
   @column()
-  declare payload: string | null
+  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare hash: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare socialIdentityId: number
+  @column()
+  declare userId: string
+}
+
+export class SocialIdentitySchema extends BaseModel {
+  static $columns = ['avatarUrl', 'confirmedAt', 'createdAt', 'email', 'emailVerified', 'id', 'meta', 'name', 'nickname', 'provider', 'providerUserId', 'updatedAt', 'userId'] as const
+  $columns = SocialIdentitySchema.$columns
+  @column()
+  declare avatarUrl: string | null
+  @column()
+  declare confirmedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  @column()
+  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare email: string | null
+  @column()
+  declare emailVerified: boolean
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare meta: any | null
+  @column()
+  declare name: string | null
+  @column()
+  declare nickname: string | null
+  @column()
+  declare provider: string
+  @column()
+  declare providerUserId: string
   @column()
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column()
   declare userId: string
+}
+
+export class SocialSensitiveProofSchema extends BaseModel {
+  static $columns = ['createdAt', 'credentialRevision', 'expiresAt', 'hash', 'id', 'purpose', 'userId'] as const
+  $columns = SocialSensitiveProofSchema.$columns
+  @column()
+  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare credentialRevision: string | null
+  @column()
+  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare hash: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare purpose: string
+  @column()
+  declare userId: string
+}
+
+export class SocialTransactionSchema extends BaseModel {
+  static $columns = ['avatarUrl', 'clientChallenge', 'createdAt', 'credentialRevision', 'email', 'emailVerified', 'expiresAt', 'hash', 'id', 'intent', 'name', 'nickname', 'proofHash', 'provider', 'providerUserId', 'purpose', 'userId', 'verificationHash'] as const
+  $columns = SocialTransactionSchema.$columns
+  @column()
+  declare avatarUrl: string | null
+  @column()
+  declare clientChallenge: string
+  @column()
+  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare credentialRevision: string | null
+  @column()
+  declare email: string | null
+  @column()
+  declare emailVerified: boolean | null
+  @column()
+  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column()
+  declare hash: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare intent: string
+  @column()
+  declare name: string | null
+  @column()
+  declare nickname: string | null
+  @column()
+  declare proofHash: string | null
+  @column()
+  declare provider: string
+  @column()
+  declare providerUserId: string | null
+  @column()
+  declare purpose: string | null
+  @column()
+  declare userId: string | null
+  @column()
+  declare verificationHash: string | null
 }
 
 export class TimeOffSchema extends BaseModel {
@@ -804,34 +819,25 @@ export class TimeOffSchema extends BaseModel {
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }
 
-export class UserSessionIndexSchema extends BaseModel {
-  static $columns = ['authenticatedAt', 'lastActivityAt', 'sessionId', 'userId'] as const
-  $columns = UserSessionIndexSchema.$columns
-  @column()
-  declare authenticatedAt: bigint | number | null
-  @column()
-  declare lastActivityAt: bigint | number | null
-  @column()
-  declare sessionId: string
-  @column({ isPrimary: true })
-  declare userId: string
-}
-
 export class UserSchema extends BaseModel {
-  static $columns = ['createdAt', 'displayName', 'email', 'emailVerified', 'id', 'passwordHash', 'updatedAt'] as const
+  static $columns = ['createdAt', 'credentialsChangedAt', 'displayName', 'email', 'emailVerifiedAt', 'id', 'password', 'unverifiedEmail', 'updatedAt'] as const
   $columns = UserSchema.$columns
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime()
+  declare credentialsChangedAt: import('luxon').DateTime | null | null
   @column()
   declare displayName: string | null
   @column()
   declare email: string
-  @column()
-  declare emailVerified: boolean
+  @column.dateTime()
+  declare emailVerifiedAt: import('luxon').DateTime | null | null
   @column({ isPrimary: true })
   declare id: string
+  @column({ serializeAs: null })
+  declare password: string | null
   @column()
-  declare passwordHash: string | null
+  declare unverifiedEmail: string | null
   @column()
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }

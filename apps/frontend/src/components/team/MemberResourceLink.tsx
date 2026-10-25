@@ -7,13 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Link as LinkIcon } from "lucide-react";
 import { useMemberResourceLinkRequest } from "./useMemberResourceLinkRequest";
 
-function resolveExceptionMessage(exception: TeamMember["resourceLinkException"]): string | null {
-  if (!exception) return null;
-  if (exception.reason === "resource_already_linked") return m.settings_member_resource_attention_occupied();
-  if (exception.reason === "member_already_linked") return m.settings_member_resource_attention_member_linked();
-  return m.settings_member_resource_attention_unavailable();
-}
-
 interface MemberResourceLinkProps {
   member: TeamMember;
   myRole: Role | undefined;
@@ -60,7 +53,6 @@ function buildMemberResourceView(
     // A retained link to an archived or disabled person is shown, never offered as a choice.
     showInactive: currentPersonInactive,
     canEdit: isMemberLinkEditable(member) && !currentPersonInactive && people.length > 0,
-    exceptionMessage: resolveExceptionMessage(member.resourceLinkException),
   };
 }
 
@@ -81,11 +73,6 @@ function MemberResourceCell({ linked, view }: { linked: boolean; view: MemberRes
         <span className="text-xs text-muted-foreground" aria-live="polite" data-testid="member-resource-status">
           {linked ? view.currentPersonLabel : m.settings_member_resource_not_linked()}
         </span>
-        {view.exceptionMessage && (
-          <span className="text-xs text-warn">
-            {m.settings_member_resource_attention_heading()}: {view.exceptionMessage}
-          </span>
-        )}
         {view.showInactive && (
           <span className="text-xs text-muted-foreground">
             {m.settings_member_resource_inactive({ name: view.currentPersonLabel })}
@@ -96,63 +83,20 @@ function MemberResourceCell({ linked, view }: { linked: boolean; view: MemberRes
   );
 }
 
-function MemberResourceException({
-  message,
-  canEdit,
-  disabled,
-  onChooseAnother,
-  onDismiss,
-}: {
-  message: string;
-  canEdit: boolean;
-  disabled: boolean;
-  onChooseAnother(): void;
-  onDismiss(): void;
-}) {
-  return (
-    <div className="flex flex-col items-start gap-1 rounded border border-warn/40 bg-warn/5 p-2 text-xs">
-      <strong className="font-medium text-ink">{m.settings_member_resource_attention_heading()}</strong>
-      <span>{message}</span>
-      <div className="flex flex-wrap gap-2">
-        {canEdit && (
-          <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={onChooseAnother}>
-            {m.settings_member_resource_choose_another()}
-          </Button>
-        )}
-        <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={onDismiss}>
-          {m.settings_member_resource_dismiss()}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 function MemberResourceEditor({
   member,
   workspaceId,
   reload,
   view,
 }: MemberResourceLinkProps & { view: MemberResourceView }) {
-  const { pending, error, statusMessage, change, dismissException } = useMemberResourceLinkRequest({
+  const { pending, error, statusMessage, change } = useMemberResourceLinkRequest({
     member,
     workspaceId,
     reload,
   });
-  const selectorScopeRef = useRef<HTMLDivElement>(null);
   const disabled = pending || !workspaceId;
   return (
-    <div ref={selectorScopeRef} className="flex flex-col items-start gap-2">
-      {view.exceptionMessage && (
-        <MemberResourceException
-          message={view.exceptionMessage}
-          canEdit={view.canEdit}
-          disabled={disabled}
-          onChooseAnother={() =>
-            selectorScopeRef.current?.querySelector<HTMLElement>('[data-testid="member-resource-link"]')?.focus()
-          }
-          onDismiss={dismissException}
-        />
-      )}
+    <div className="flex flex-col items-start gap-2">
       {view.showInactive && (
         <span className="text-xs text-muted-foreground">
           {m.settings_member_resource_inactive({ name: view.currentPersonLabel })}

@@ -9,6 +9,7 @@ type OptionalBooleanValidator = ReturnType<typeof Env.schema.boolean.optional>
 type EnumValidator<Value extends string> = ReturnType<typeof Env.schema.enum<Value>>
 
 type OptionalStringKey =
+  | 'CAPACITYLENS_ALLOWED_EMAIL_DOMAINS'
   | 'CAPACITYLENS_API'
   | 'CAPACITYLENS_APPLICATION_ID'
   | 'CAPACITYLENS_AUDIT'
@@ -17,7 +18,6 @@ type OptionalStringKey =
   | 'CAPACITYLENS_BACKUP_DIR'
   | 'CAPACITYLENS_BACKUP_KEEP'
   | 'CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD'
-  | 'CAPACITYLENS_BOOTSTRAP_TOKEN'
   | 'CAPACITYLENS_CORS_ORIGIN'
   | 'CAPACITYLENS_DB'
   | 'CAPACITYLENS_HOST'
@@ -27,12 +27,10 @@ type OptionalStringKey =
   | 'CAPACITYLENS_MAIL_PASSWORD'
   | 'CAPACITYLENS_MAIL_PORT'
   | 'CAPACITYLENS_MAIL_USER'
-  | 'CAPACITYLENS_MODE'
   | 'CAPACITYLENS_PUBLIC_URL'
   | 'CAPACITYLENS_RATE_LIMIT'
   | 'CAPACITYLENS_RATE_LIMITED'
   | 'CAPACITYLENS_SECRET'
-  | 'CAPACITYLENS_SETUP_TOKEN'
   | 'CAPACITYLENS_TEST_HTTP_PORT'
   | 'CAPACITYLENS_WEB_DIR'
 
@@ -44,7 +42,6 @@ type OptionalBooleanKey =
   | 'CAPACITYLENS_DEMO'
   | 'CAPACITYLENS_HEALTH_DEEP'
   | 'CAPACITYLENS_MIGRATION_READY'
-  | 'CAPACITYLENS_PASSWORD_BREACH_CHECK'
   | 'CAPACITYLENS_REQUIRE_MFA'
   | 'CAPACITYLENS_SEED_DEMO'
   | 'CAPACITYLENS_TRUST_PROXY_HEADERS'
@@ -71,6 +68,7 @@ const envSchema: CapacityLensEnvironmentSchema = {
   SESSION_DRIVER: Env.schema.enum(['cookie', 'memory', 'database'] as const),
   CAPACITYLENS_ALLOW_OPEN_SIGNUP: optionalBoolean,
   CAPACITYLENS_ALLOW_RESET: optionalBoolean,
+  CAPACITYLENS_ALLOWED_EMAIL_DOMAINS: optional,
   CAPACITYLENS_API: optional,
   CAPACITYLENS_APPLICATION_ID: optional,
   CAPACITYLENS_AUDIT: optional,
@@ -80,7 +78,6 @@ const envSchema: CapacityLensEnvironmentSchema = {
   CAPACITYLENS_BACKUP_DIR: optional,
   CAPACITYLENS_BACKUP_KEEP: optional,
   CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: optional,
-  CAPACITYLENS_BOOTSTRAP_TOKEN: optional,
   CAPACITYLENS_CORS_ORIGIN: optional,
   CAPACITYLENS_CREATE_ADMIN_ADMIN: optionalBoolean,
   CAPACITYLENS_DB: optional,
@@ -94,16 +91,12 @@ const envSchema: CapacityLensEnvironmentSchema = {
   CAPACITYLENS_MAIL_PORT: optional,
   CAPACITYLENS_MAIL_USER: optional,
   CAPACITYLENS_MIGRATION_READY: optionalBoolean,
-  CAPACITYLENS_PASSWORD_BREACH_CHECK: optionalBoolean,
-  // Ignored since provider sign-in was removed; still set by test harnesses and deploy presets.
-  CAPACITYLENS_MODE: optional,
   CAPACITYLENS_PUBLIC_URL: optional,
   CAPACITYLENS_RATE_LIMIT: optional,
   CAPACITYLENS_RATE_LIMITED: optional,
   CAPACITYLENS_REQUIRE_MFA: optionalBoolean,
   CAPACITYLENS_SECRET: optional,
   CAPACITYLENS_SEED_DEMO: optionalBoolean,
-  CAPACITYLENS_SETUP_TOKEN: optional,
   CAPACITYLENS_TEST_HTTP_PORT: optional,
   CAPACITYLENS_TRUST_PROXY_HEADERS: optionalBoolean,
   CAPACITYLENS_WEB_DIR: optional,

@@ -5,7 +5,7 @@
 ## Goal
 
 Let an Owner or Admin manage who can access their company from Team & access: see the member list, invite
-people (a link addressed to one email), change a member's role, Disable or Enable
+people (an emailed link addressed to one email), change a member's role, Disable or Enable
 Access, archive or remove a membership, and list/revoke outstanding invites. An Admin manages members but
 cannot do owner-only operations. Sign-in tracking remains a server capability, but its controls and
 status column are unavailable in this UI. Ownership transfer is not part of this story: it has no per-row control
@@ -13,7 +13,7 @@ status column are unavailable in this UI. Ownership transfer is not part of this
 [US-SET-18](US-SET-18-ownership-transfer.md).
 
 **Guide:** [Invite teammates](../../docs-src/admin/invite-teammates.md) and
-[Company sign-in](../../docs-src/company-login/set-up-company-login.md).
+[Sign-in and access](../../docs-src/company-login/index.md).
 
 An Owner or Admin opens **Team & access** from the sidebar. Linking, changing or removing a
 Resource association and creating invitations happen only here. Navigation does not submit a
@@ -29,8 +29,9 @@ limits; management controls remain Owner/Admin-only. Ownership moves only throug
 restriction that survives membership removal. It follows identity recreation at the same proven
 address only when both identities have durable mailbox proof; a legacy verified flag or addressed
 invitation alone does not supply that proof. Only an
-administrator can Enable Access. Archive retains an inactive membership; remove ends it. Neither
-action alone prevents a later invitation. Enable does not recreate an archived or removed membership.
+administrator can Enable Access. Archive retains an inactive membership; remove ends it and records
+the same restriction, so the person cannot rejoin on their own. Enable Access restores a removed
+person with the role they held when removed; it does not reactivate an archived membership.
 Invites reuse the P1.9 single-use link: the secret token is shown once at creation, stored only as a
 one-way hash, and never read back, so listing or revoking invites can never leak a live, role-bearing
 link.
@@ -57,8 +58,7 @@ or management controls exist.
 
 ## How (end-to-end)
 
-**Precondition:** The app runs in its default server mode against a server with
-`CAPACITYLENS_MODE=password-only`. Same-origin `/api` needs no frontend API setting; set
+**Precondition:** The app runs in its default server mode against a persisted server. Same-origin `/api` needs no frontend API setting; set
 `VITE_CAPACITYLENS_API` only when the API uses a different origin. Owner A has created a company and
 invited Admin B and Editor C (both accepted). Sign in as **B (admin)** and pick the company. Dismiss
 the non-blocking product orientation if it is open.
@@ -96,7 +96,7 @@ the non-blocking product orientation if it is open.
 4. B clicks **C**'s pencil, chooses Viewer in the dialog's role select
    (`data-testid="member-role-select"`), reads the plain-language summary of what Viewer can and
    cannot do, and clicks **Save role** (`data-testid="member-role-save"`).
-5. B opens **C**'s member-actions dialog. It holds **Reset password** (US-SET-13), **Revoke sessions**, **Disable
+5. B opens **C**'s member-actions dialog. It holds **Disable
    Access** (`data-testid="member-disable"`), **Archive user** (`data-testid="member-archive"`) and
    **Remove** — each behind an explicit confirmation naming C. Once access is disabled, C's row moves into
    the **No longer active** group and offers **Enable Access** (`data-testid="member-enable"`). Every
@@ -104,29 +104,20 @@ the non-blocking product orientation if it is open.
    If B removes C, the restriction stays visible and can still be enabled. Enable restores the
    existing role only when a membership remains active; otherwise C needs an invitation or a separate
    membership restore. Archive or removal without Disable Access permits a later invitation.
-6. B selects the primary **Invite someone** button above the member table to open a centered dialog,
-   then picks a role (`data-testid="invite-role"`), fills the required **Email**
-   (`data-testid="invite-preauth"`), checks the selected role's visible
-   capability summary, and clicks **Create invite**
-   (`data-testid="invite-submit"`). The full link `<origin>/invite/<token>` appears **once**
-   (`data-testid="invite-link"`) with a visible **Copy** button whose accessible name is
-   **Copy invitation link**. That write-once block disappears when the dialog closes or an
-   authoritative refresh reports that the invite was revoked, used or is missing, so the UI never
-   offers a dead bearer link. If the dialog closes before the create completes, the invite still
-   exists, and a notice says its link was not shown and how to replace it.
-7. The outstanding invitations use the same five-column bordered table as Members: **Name** is an
-   em dash, **Role** is the invited role, **Email** is the addressed recipient,
-   **Link to Resource** is the proposed resource or **None** with compact pending state, and
-   **Actions** contains **Revoke** (`data-testid="invite-revoke"`) when allowed. Email cells retain
-   the complete value in the DOM and `title` while CSS truncates the display. The table shows the new
-   invite and the admin/editor invites B and C already accepted — an accepted invite stays listed
-   **marked used** (so an admin can confirm it was taken; only an expired, unaccepted link is pruned).
-   B clicks **Revoke** on the newest and its row goes away.
+6. B selects the primary **Invite someone** button (`data-testid="invite-open"`) above the member
+   table to open a centered dialog, then picks a role (`data-testid="invite-role"`), fills the
+   required **Email** (`data-testid="invite-preauth"`), checks the selected role's visible
+   capability summary, and clicks **Create invite** (`data-testid="invite-submit"`). The server
+   emails the link; it is never shown in the app. Without email delivery the dialog says
+   invitations need email delivery and nothing is created.
+7. **Outstanding invites** (`data-testid="outstanding-invites"`) lists each unaccepted invitation
+   with its **Email**, expiry date, **Role** and actions: **Resend**
+   (`data-testid="invite-resend"`), which emails a new link and stops the old one, and **Revoke**
+   (`data-testid="invite-revoke"`). B clicks **Revoke** on the newest and its row goes away.
 8. B never sees an **Owner** option (neither in a role select nor the invite-role picker), no
    **Transfer ownership** button on any row — since #175 no row offers one to anyone — and owner A's
    row shows B neither a pencil nor a more-actions button (an Admin can't touch an owner). Signed in as A, that same
-   row keeps a more-actions button holding only the self-service **Reset password** and **Revoke sessions**: nobody
-   can disable an Owner, or themselves. See US-SET-13 for the reset-link flow itself.
+   row offers no disable, archive or remove action: nobody can disable an Owner, or themselves.
 9. **Ownership transfer** is not reachable from the member table at all. Its own **Company ownership**
    section below opens the single-confirmation transfer modal —
    see [US-SET-18](US-SET-18-ownership-transfer.md).
@@ -170,15 +161,10 @@ the non-blocking product orientation if it is open.
 - A disabled membership cannot be reversed by its holder. Redeeming an invite while access is
   disabled is **403** and leaves the invite unused; only an Owner/Admin can enable access.
   An archived member without a Disable Access restriction may rejoin through an addressed,
-  valid invitation under the current joining policy, receiving the invitation role.
-- Disabling someone never costs an administrator the ability to act on them: **Reset password** and
-  **Revoke sessions** stay available against a disabled or archived member (the compromised-account
-  case is precisely why an admin disables first), and **Remove** works on a non-active row without
-  first restoring its access. The role **pencil** is the one exception — it is offered on active rows
+  valid invitation, receiving the invitation role.
+- **Remove** works on a non-active row without first restoring its access. The role **pencil** is the one exception — it is offered on active rows
   only, so a role change can never quietly reinstate a disabled member.
-- Re-applying the status a member already holds succeeds (**200**) and changes nothing: it must not
-  burn that member's outstanding password-reset link or bump their security revision, so a second
-  admin acting on a stale screen cannot silently kill a link the first admin just handed out.
+- Re-applying the status a member already holds succeeds (**200**) and changes nothing.
 - Invite and ordinary role choices show their plain-language consequences before the mutation is
   submitted; ordinary role changes require explicit confirmation.
 - An Admin manages members but NOT owner-only operations (the acceptance headline, enforced per the
@@ -189,28 +175,17 @@ the non-blocking product orientation if it is open.
     absent everywhere); ownership moves only through the confirmation flow in US-SET-18, which re-reads both
     membership projections afterwards so the former Owner's role badge and affordances reflect the
     demotion.
-- With [account email configured](../../docs-src/self-hosting/configuration.md#account-email),
-  an addressed invitation is emailed once. Successful delivery shows **Invitation emailed to
-  {address}** above the copyable link. Delivery failure leaves the invitation usable and the
-  copy-link flow available. Reusing the same secret-bearing command returns **409**
-  `IDEMPOTENCY_CONFLICT`; it does not replay the invitation link or send another email. If the
-  one-time link was not received, refresh the invitation list and revoke or replace it. The **Email** field
-  remains required in every server-auth mode, with no explanatory helper copy. Success and recovery
-  instructions stay inline with the one-time link.
-- Recipients can choose **Sign in** or **Create account** with equally prominent controls. Only the
-  selected journey's fields appear. Existing users review and explicitly accept as the signed-in
-  identity; changing identity preserves the invitation. New password users create a credential and accept the addressed invitation atomically
-  where the current policy permits. The company,
-  role consequences and expiry remain fully readable throughout. Addressed
-  invitations show a recipient hint containing only the part before `@` followed by `@…`; recipients
-  enter the full email address themselves, and the domain stays hidden in the preview.
-- A new principal joins through an addressed invitation; an existing password principal accepts an
-  invitation or joins under the current policy with trusted email proof. The invitation and joining
-  pages currently offer password sign-in only; they do not offer Google, Microsoft or GitHub. Sign-in
-  never silently accepts an invitation.
-- The invite token is shown **once** at creation (`/invite/<token>`), is stored only as a one-way
-  hash, and the invites list carries no token. Accepted (used) invites remain listed (marked _used_)
-  for admin visibility; an expired, unaccepted link is pruned.
+- Invitations need [email delivery](../../docs-src/self-hosting/configuration.md#email). A sent
+  invitation shows **Invitation emailed to {address}**; when the email fails, the invitation is
+  saved and the notice says to use **Resend**. Without email delivery the server refuses with
+  `MAIL_UNAVAILABLE` and the dialog says invitations need email delivery.
+- An invitation lasts seven days. **Resend** emails a new link and stops the old one.
+- The recipient sees the company, invited role and addressed email, enters a name and password, and
+  selects **Accept invitation**. Accepting confirms the address and creates the membership; company
+  data then waits for an Owner or Admin approval ([US-SET-19](US-SET-19-company-joining-policy.md)).
+  There is no Google, Microsoft or GitHub path.
+- Invitation links are never shown in the app or returned by the API, and are stored only as
+  digests.
 - The server is the backstop regardless of the UI: any generic Owner assignment or Owner invite is
   **400**; touching or removing the Owner outside an ownership transfer is **403**;
   revoking another account's invite is a no-op; and reading another

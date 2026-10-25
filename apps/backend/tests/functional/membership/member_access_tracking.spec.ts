@@ -1,14 +1,12 @@
 import { test } from '@japa/runner'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
-import env from '#start/env'
 import { seed } from '@capacitylens/shared/data/seed'
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 import { encodeRow, resetState } from '#services/state_repository'
-import { acceptInvitation } from '#services/admission/invitations'
 import { createFixtureCompanyForOwner } from '../../helpers/authenticated_data_fixture.js'
+import { createIdentity, signIn, signUpAndIn } from '../../helpers/identities.js'
 
-const setupToken = 'member-setup-token-0123456789abcdef'
 const password = 'batman-secret-2026'
 
 function signed<
@@ -26,25 +24,11 @@ async function userId(email: string) {
 }
 
 test.group('company member access and tracking', (group) => {
-  group.setup(() => {
-    const original = {
-      mode: env.get('CAPACITYLENS_MODE'),
-      setup: env.get('CAPACITYLENS_SETUP_TOKEN'),
-      signup: env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP'),
-    }
-    env.set('CAPACITYLENS_MODE', 'password-only')
-    env.set('CAPACITYLENS_SETUP_TOKEN', setupToken)
-    env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', true)
-    return () => {
-      env.set('CAPACITYLENS_MODE', original.mode)
-      env.set('CAPACITYLENS_SETUP_TOKEN', original.setup)
-      env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', original.signup)
-    }
-  })
   group.setup(() => freshDatabase())
   group.each.setup(async () => {
     await resetState(false)
-    await db.from('user_session_index').delete()
+    await db.from('account_admissions').delete()
+    await db.from('account_invitations').delete()
     await db.from('adonis_sessions').delete()
     await db.from('users').delete()
   })
@@ -53,23 +37,24 @@ test.group('company member access and tracking', (group) => {
     client,
     assert,
   }) => {
-    const owner = await client
-      .post('/api/auth/sign-up')
-      .header('x-capacitylens-setup-token', setupToken)
-      .json({ email: 'bruce.wayne@wayne.example', password, name: 'Bruce Wayne' })
-      .send()
-    owner.assertStatus(201)
+    const owner = await signUpAndIn(client, {
+      email: 'bruce.wayne@wayne.example',
+      password,
+      name: 'Bruce Wayne',
+    })
+    owner.assertStatus(200)
     const ownerCookie = owner.cookie('adonis-session')!.value
     await createFixtureCompanyForOwner(
       await userId('bruce.wayne@wayne.example'),
       'Wayne Enterprises',
       'a-studio'
     )
-    const editor = await client
-      .post('/api/auth/sign-up')
-      .json({ email: 'clark.kent@wayne.example', password, name: 'Clark Kent' })
-      .send()
-    editor.assertStatus(201)
+    const editor = await signUpAndIn(client, {
+      email: 'clark.kent@wayne.example',
+      password,
+      name: 'Clark Kent',
+    })
+    editor.assertStatus(200)
     const editorCookie = editor.cookie('adonis-session')!.value
     const editorId = await userId('clark.kent@wayne.example')
     const now = new Date().toISOString()
@@ -135,28 +120,27 @@ test.group('company member access and tracking', (group) => {
     )
   })
 
-  test('Disable binds an alias only after current durable proof and rejects its readmission', async ({
+  test('Disable binds the confirmed address and refuses readmission by either identity', async ({
     client,
     assert,
   }) => {
-    const owner = await client
-      .post('/api/auth/sign-up')
-      .header('x-capacitylens-setup-token', setupToken)
-      .json({ email: 'bruce.wayne@wayne.example', password, name: 'Bruce Wayne' })
-      .send()
-    owner.assertStatus(201)
+    const owner = await signUpAndIn(client, {
+      email: 'bruce.wayne@wayne.example',
+      password,
+      name: 'Bruce Wayne',
+    })
+    owner.assertStatus(200)
     const ownerCookie = owner.cookie('adonis-session')!.value
     await createFixtureCompanyForOwner(
       await userId('bruce.wayne@wayne.example'),
       'Wayne Enterprises',
       'a-studio'
     )
-    const editor = await client
-      .post('/api/auth/sign-up')
-      .json({ email: 'clark.kent@wayne.example', password, name: 'Clark Kent' })
-      .send()
-    editor.assertStatus(201)
-    const editorId = await userId('clark.kent@wayne.example')
+    const editorId = await createIdentity('clark.kent@wayne.example', {
+      name: 'Clark Kent',
+      password,
+      verified: false,
+    })
     const now = new Date().toISOString()
     await db.table('memberships').insert({
       id: 'member-clark',
@@ -178,61 +162,43 @@ test.group('company member access and tracking', (group) => {
         .first()
     const first = await disable()
     first.assertStatus(200)
-    const initialRestriction = await restriction()
-    assert.isNull(initialRestriction?.verified_email)
-    await db.from('users').where('id', editorId).update({ email_verified: true })
-    const legacyFlagOnly = await disable()
-    legacyFlagOnly.assertStatus(200)
-    const unprovenRestriction = await restriction()
-    assert.isNull(unprovenRestriction?.verified_email)
-    await db.table('email_proofs').insert({
-      id: 'proof-clark',
-      user_id: editorId,
-      email: 'clark.kent@wayne.example',
-      verified_at: now,
-      created_at: now,
-      updated_at: now,
-    })
-    const proven = await disable()
-    proven.assertStatus(200)
-    const provenRestriction = await restriction()
-    assert.equal(provenRestriction?.verified_email, 'clark.kent@wayne.example')
+    const unboundRestriction = await restriction()
+    assert.isNull(unboundRestriction?.verified_email)
+    await db
+      .from('users')
+      .where('id', editorId)
+      .update({ email_verified_at: now, unverified_email: null })
+    const confirmed = await disable()
+    confirmed.assertStatus(200)
+    const boundRestriction = await restriction()
+    assert.equal(boundRestriction?.verified_email, 'clark.kent@wayne.example')
     const removed = await signed(
       client.delete(`/api/accounts/a-studio/members/${editorId}`),
       ownerCookie
     ).send()
     removed.assertStatus(204)
+    const complete = async (email: string) => {
+      const { cookie } = await signIn(client, email, password)
+      return signed(client.post('/api/admission/complete'), cookie)
+        .header('sec-fetch-site', 'same-origin')
+        .send()
+    }
+    const sameIdentity = await complete('clark.kent@wayne.example')
+    sameIdentity.assertStatus(403)
     await db.from('users').where('id', editorId).update({ email: 'kal-el@wayne.example' })
-    await db.table('users').insert({
-      id: 'alias-clark',
-      email: 'clark.kent@wayne.example',
-      email_verified: true,
-      display_name: 'Clark Kent',
-      created_at: now,
-      updated_at: now,
+    await db.from('account_admissions').where('user_id', editorId).delete()
+    const aliasId = await createIdentity('clark.kent@wayne.example', {
+      name: 'Clark Kent',
+      password,
     })
-    await db.table('email_proofs').insert({
-      id: 'proof-alias-clark',
-      user_id: 'alias-clark',
-      email: 'clark.kent@wayne.example',
-      verified_at: now,
-      created_at: now,
-      updated_at: now,
-    })
-    await assert.rejects(
-      () =>
-        db.transaction((trx) =>
-          acceptInvitation(
-            trx,
-            { account_id: 'a-studio', email: null },
-            'alias-clark',
-            'clark.kent@wayne.example'
-          )
-        ),
-      /administrator restoration/
-    )
-    assert.isNull(
-      await db.from('memberships').where({ account_id: 'a-studio', user_id: 'alias-clark' }).first()
+    const alias = await complete('clark.kent@wayne.example')
+    alias.assertStatus(403)
+    assert.lengthOf(
+      await db
+        .from('memberships')
+        .where('account_id', 'a-studio')
+        .whereIn('user_id', [editorId, aliasId]),
+      0
     )
   })
 
@@ -240,12 +206,12 @@ test.group('company member access and tracking', (group) => {
     client,
     assert,
   }) => {
-    const owner = await client
-      .post('/api/auth/sign-up')
-      .header('x-capacitylens-setup-token', setupToken)
-      .json({ email: 'bruce.wayne@wayne.example', password, name: 'Bruce Wayne' })
-      .send()
-    owner.assertStatus(201)
+    const owner = await signUpAndIn(client, {
+      email: 'bruce.wayne@wayne.example',
+      password,
+      name: 'Bruce Wayne',
+    })
+    owner.assertStatus(200)
     const ownerCookie = owner.cookie('adonis-session')!.value
     await createFixtureCompanyForOwner(
       await userId('bruce.wayne@wayne.example'),
@@ -269,11 +235,12 @@ test.group('company member access and tracking', (group) => {
       created_at: now,
       updated_at: now,
     })
-    const editor = await client
-      .post('/api/auth/sign-up')
-      .json({ email: 'clark.kent@wayne.example', password, name: 'Clark Kent' })
-      .send()
-    editor.assertStatus(201)
+    const editor = await signUpAndIn(client, {
+      email: 'clark.kent@wayne.example',
+      password,
+      name: 'Clark Kent',
+    })
+    editor.assertStatus(200)
     const editorId = await userId('clark.kent@wayne.example')
     await db.table('memberships').insert(
       ['a-studio', 'a-loft'].map((accountId) => ({
@@ -321,23 +288,24 @@ test.group('company member access and tracking', (group) => {
     client,
     assert,
   }) => {
-    const owner = await client
-      .post('/api/auth/sign-up')
-      .header('x-capacitylens-setup-token', setupToken)
-      .json({ email: 'bruce.wayne@wayne.example', password, name: 'Bruce Wayne' })
-      .send()
-    owner.assertStatus(201)
+    const owner = await signUpAndIn(client, {
+      email: 'bruce.wayne@wayne.example',
+      password,
+      name: 'Bruce Wayne',
+    })
+    owner.assertStatus(200)
     const ownerCookie = owner.cookie('adonis-session')!.value
     await createFixtureCompanyForOwner(
       await userId('bruce.wayne@wayne.example'),
       'Wayne Enterprises',
       'a-studio'
     )
-    const admin = await client
-      .post('/api/auth/sign-up')
-      .json({ email: 'diana.prince@wayne.example', password, name: 'Diana Prince' })
-      .send()
-    admin.assertStatus(201)
+    const admin = await signUpAndIn(client, {
+      email: 'diana.prince@wayne.example',
+      password,
+      name: 'Diana Prince',
+    })
+    admin.assertStatus(200)
     const adminCookie = admin.cookie('adonis-session')!.value
     const adminId = await userId('diana.prince@wayne.example')
     const now = new Date().toISOString()
@@ -379,23 +347,24 @@ test.group('company member access and tracking', (group) => {
     client,
     assert,
   }) => {
-    const owner = await client
-      .post('/api/auth/sign-up')
-      .header('x-capacitylens-setup-token', setupToken)
-      .json({ email: 'bruce.wayne@wayne.example', password, name: 'Bruce Wayne' })
-      .send()
-    owner.assertStatus(201)
+    const owner = await signUpAndIn(client, {
+      email: 'bruce.wayne@wayne.example',
+      password,
+      name: 'Bruce Wayne',
+    })
+    owner.assertStatus(200)
     const ownerCookie = owner.cookie('adonis-session')!.value
     await createFixtureCompanyForOwner(
       await userId('bruce.wayne@wayne.example'),
       'Wayne Enterprises',
       'a-studio'
     )
-    const editor = await client
-      .post('/api/auth/sign-up')
-      .json({ email: 'clark.kent@wayne.example', password, name: 'Clark Kent' })
-      .send()
-    editor.assertStatus(201)
+    const editor = await signUpAndIn(client, {
+      email: 'clark.kent@wayne.example',
+      password,
+      name: 'Clark Kent',
+    })
+    editor.assertStatus(200)
     const editorCookie = editor.cookie('adonis-session')!.value
     const editorId = await userId('clark.kent@wayne.example')
     const now = new Date().toISOString()
@@ -494,21 +463,21 @@ test.group('company member access and tracking', (group) => {
     assert.isFalse(remembered.membershipPresent)
     assert.isTrue(remembered.accessDisabled)
     assert.equal(remembered.status, 'disabled')
-    assert.isFalse(remembered.mayResetPassword)
-    assert.isFalse(remembered.mayRevokeSessions)
     const enabledRemoved = await enable()
     enabledRemoved.assertStatus(200)
-    assert.isNull(await membership())
+    // Enabling a removed person restores them with the role they held when removed.
+    assert.include(await membership(), { role: 'editor', status: 'active' })
     assert.isNull(await restriction())
     const enabledDirectory = await signed(
       client.get('/api/accounts/a-studio/members'),
       ownerCookie
     ).send()
     enabledDirectory.assertStatus(200)
-    assert.isUndefined(
+    assert.include(
       enabledDirectory
         .body()
-        .members.find((member: { userId: string }) => member.userId === editorId)
+        .members.find((member: { userId: string }) => member.userId === editorId),
+      { membershipPresent: true, accessDisabled: false }
     )
   })
 
@@ -516,23 +485,24 @@ test.group('company member access and tracking', (group) => {
     client,
     assert,
   }) => {
-    const owner = await client
-      .post('/api/auth/sign-up')
-      .header('x-capacitylens-setup-token', setupToken)
-      .json({ email: 'bruce.wayne@wayne.example', password, name: 'Bruce Wayne' })
-      .send()
-    owner.assertStatus(201)
+    const owner = await signUpAndIn(client, {
+      email: 'bruce.wayne@wayne.example',
+      password,
+      name: 'Bruce Wayne',
+    })
+    owner.assertStatus(200)
     const ownerCookie = owner.cookie('adonis-session')!.value
     await createFixtureCompanyForOwner(
       await userId('bruce.wayne@wayne.example'),
       'Wayne Enterprises',
       'a-studio'
     )
-    const editor = await client
-      .post('/api/auth/sign-up')
-      .json({ email: 'clark.kent@wayne.example', password, name: 'Clark Kent' })
-      .send()
-    editor.assertStatus(201)
+    const editor = await signUpAndIn(client, {
+      email: 'clark.kent@wayne.example',
+      password,
+      name: 'Clark Kent',
+    })
+    editor.assertStatus(200)
     const editorId = await userId('clark.kent@wayne.example')
     const now = new Date().toISOString()
     await db.table('memberships').insert({

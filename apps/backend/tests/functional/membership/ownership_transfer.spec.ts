@@ -2,13 +2,12 @@ import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
-import env from '#start/env'
 import { seed } from '@capacitylens/shared/data/seed'
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 import { encodeRow, resetState } from '#services/state_repository'
 import { createFixtureCompanyForOwner } from '../../helpers/authenticated_data_fixture.js'
+import { signUpAndIn } from '../../helpers/identities.js'
 
-const setupToken = 'ownership-setup-token-0123456789abcdef'
 const password = 'batman-secret-2026'
 
 async function principalId(email: string) {
@@ -18,20 +17,21 @@ async function principalId(email: string) {
 }
 
 async function fixture(client: ApiClient) {
-  const owner = await client
-    .post('/api/auth/sign-up')
-    .header('x-capacitylens-setup-token', setupToken)
-    .json({ email: 'bruce.wayne@wayne.example', password, name: 'Bruce Wayne' })
-    .send()
-  owner.assertStatus(201)
+  const owner = await signUpAndIn(client, {
+    email: 'bruce.wayne@wayne.example',
+    password,
+    name: 'Bruce Wayne',
+  })
+  owner.assertStatus(200)
   const ownerCookie = owner.cookie('adonis-session')!.value
   const ownerId = await principalId('bruce.wayne@wayne.example')
   await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio')
-  const admin = await client
-    .post('/api/auth/sign-up')
-    .json({ email: 'clark.kent@wayne.example', password, name: 'Clark Kent' })
-    .send()
-  admin.assertStatus(201)
+  const admin = await signUpAndIn(client, {
+    email: 'clark.kent@wayne.example',
+    password,
+    name: 'Clark Kent',
+  })
+  admin.assertStatus(200)
   const adminCookie = admin.cookie('adonis-session')!.value
   const adminId = await principalId('clark.kent@wayne.example')
   const now = new Date().toISOString()
@@ -65,25 +65,11 @@ async function transferProof(client: ApiClient, cookie: string, toUserId: string
 }
 
 test.group('atomic ownership transfer', (group) => {
-  group.setup(() => {
-    const previous = {
-      mode: env.get('CAPACITYLENS_MODE'),
-      setup: env.get('CAPACITYLENS_SETUP_TOKEN'),
-      signup: env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP'),
-    }
-    env.set('CAPACITYLENS_MODE', 'password-only')
-    env.set('CAPACITYLENS_SETUP_TOKEN', setupToken)
-    env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', true)
-    return () => {
-      env.set('CAPACITYLENS_MODE', previous.mode)
-      env.set('CAPACITYLENS_SETUP_TOKEN', previous.setup)
-      env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', previous.signup)
-    }
-  })
   group.setup(() => freshDatabase())
   group.each.setup(async () => {
     await resetState(false)
-    await db.from('user_session_index').delete()
+    await db.from('account_admissions').delete()
+    await db.from('account_invitations').delete()
     await db.from('adonis_sessions').delete()
     await db.from('users').delete()
   })
@@ -112,7 +98,7 @@ test.group('atomic ownership transfer', (group) => {
     retiredCompanyArchive.assertStatus(404)
   })
 
-  test('swaps exactly one Owner, burns both recovery links and replays the same receipt after demotion', async ({
+  test('swaps exactly one Owner, keeps both recovery links and replays the same receipt after demotion', async ({
     client,
     assert,
   }) => {
@@ -175,7 +161,8 @@ test.group('atomic ownership transfer', (group) => {
     assert.equal(roles.filter((row) => row.role === 'owner').length, 1)
     assert.lengthOf(
       await db.from('password_reset_tokens').whereIn('tokenable_id', [ownerId, adminId]),
-      0
+      2,
+      'a role change never cancels identity recovery'
     )
     const replay = await transfer(adminId)
     replay.assertStatus(200)
@@ -309,7 +296,7 @@ test.group('atomic ownership transfer', (group) => {
     assert.lengthOf(await db.from('audit_entries').where({ action: 'ownership.transferred' }), 1)
   })
 
-  test('promotion and audit faults roll back both roles, recovery tokens and command receipts', async ({
+  test('promotion and audit faults roll back both roles and command receipts', async ({
     client,
     assert,
   }) => {

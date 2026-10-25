@@ -1,6 +1,6 @@
 ---
 title: Invite teammates
-description: Invite teammates with a one-time link, choose their role, link them to their schedule row, and change or stop their access later.
+description: Invite teammates by email, approve them, choose their role, link them to their schedule row, and change or stop their access later.
 prev: false
 next: false
 ---
@@ -24,52 +24,49 @@ Admin can do this. An Editor or Viewer who opens **Team & access** sees their ow
    capabilities** lists everything. [Roles and permissions](/getting-started/roles-and-permissions)
    compares the roles.
 3. Enter the teammate's email. Only that address can accept the invitation.
-4. If the person already has a row on the schedule, choose it under **Link to Resource**. Otherwise
-   leave **No Resource linked**.
-5. Select **Create invite**. If email is set up, CapacityLens sends the invitation. If it isn't, or
-   sending fails, select **Copy** and send the link privately.
+4. Select **Create invite**. CapacityLens emails the link.
 
-![Invite someone dialog with the optional Link to Resource selection](../screenshots/flows/invitation_created.png)
+Invitations need the server's email delivery. Without it, the dialog says so and nothing is
+created; ask your installer to set up email. If the invitation was saved but the email failed, a
+warning says so: select **Resend** on its row to try again.
 
-The link is shown only in this dialog; nobody can retrieve it later, not even you. If it is lost,
-revoke the invitation under **Outstanding invites** and create a new one; the old link stops
-working at once. If you close the dialog before the invitation is created, a notice says the link
-was not shown.
-
-## If the linked person is no longer available
-
-The **Link to Resource** choice is a proposal: it does not reserve the person, and the recipient
-cannot see it. If that person is no longer available when the invitation is accepted, the member still
-joins and their row shows **Resource link needs attention**. Select **Choose another person** or
-**Dismiss**.
+The link is never shown in CapacityLens. It works once and expires after seven days. **Resend**
+emails a fresh link and stops the old one working. An invitation never adds the person to the
+schedule: [link their membership to a Resource](#change-a-member-s-role-or-schedule-row) after they
+join.
 
 <span id="what-the-invitee-sees"></span>
 
 ## Check what the invitee sees
 
-![Invitation preview showing company, proposed role, expiry and existing-account sign-in](../screenshots/flows/join_invitation_preview.jpg)
+![Accept invite page showing the company, the invited role, Name, Password and Accept invitation](../screenshots/flows/join_invitation_preview.jpg)
 
-The link opens a preview of your company name, the proposed role, what it allows and when the link
-expires, in the invitee's local time. Opening it does not change
-[membership](/reference/glossary#member). They then:
+The link shows your company name and the invited role. The invitee enters their name, chooses a
+password and selects **Accept invitation**. An invitation creates a new sign-in, so an address that
+already has one is refused; the installer can record the invitation for that account instead.
+[Sign-in and access](/company-login/#join-through-an-invitation) has their steps.
 
-- sign in on the **Sign in** tab with their existing password, then select **Accept invite**;
-- choose **Create account**, then **Create account and accept**, which creates the sign-in and
-  accepts in one step; or
-- choose a company login provider, return to the invitation and select **Accept invite**.
+<span id="approve-new-people"></span>
 
-The preview shows only the start of the invited address, such as `selina.kyle@…`. They must enter
-the full address. Entering a different one cannot change who the invitation is for. When they
-accept, they land on your schedule. If the link has expired, they ask the sender for a new one.
+## Approve new people
+
+![Waiting for approval panel listing an invited address with its role, Approve and Decline](../screenshots/flows/admission_waiting.png)
+
+After accepting, the person selects **Ask for access** and appears under **Waiting for approval**
+in **Team & access**, with the role their invitation offered. Select **Approve** to let them in
+with that role, or **Decline** to refuse. They see the result the next time they select **Check
+again**. Nobody can reach company data before an Owner or Admin approves them.
+
+A declined person stays in the list, marked **Declined**, so you can still select **Approve** if
+you declined by mistake.
 
 ## Revoke an invitation
 
 <span id="outstanding-invites"></span>
 <span id="pending-invites"></span>
 
-Invitations not yet accepted are listed under **Outstanding invites**, above your members. A proposed
-Resource stays marked pending until the invitation is accepted. Select **Revoke** to cancel an
-invitation.
+Invitations not yet accepted are listed under **Outstanding invites**, above your members. Select
+**Revoke** to cancel an invitation that has not expired, or **Resend** to email a fresh link.
 
 ## Change a member's role or schedule row
 
@@ -84,8 +81,10 @@ row:
 - The **link icon** opens **Link to Resource**. Choosing a person saves immediately and does not
   change their access. **Remove link to resource** unlinks them immediately.
   [Link a person to a member](/using/resources#link-a-person-to-a-member)
-- **More actions** offers the rest: reset their password, **Revoke sessions**, **Disable Access**,
-  **Archive user** or **Remove**.
+- **More actions** offers the rest: **Disable Access**, **Archive user** or **Remove**.
+
+You cannot reset another member's password or end their sessions from CapacityLens. A member who
+is locked out selects **Forgot password?** on the sign-in page; the installer can help otherwise.
 
 ![Resource link dialog for a linked member, with Remove link to resource available](../screenshots/flows/admin_resource_link_remove.jpg)
 
@@ -98,27 +97,18 @@ All three are in **More actions**. None affects the person's other company membe
   Admin selects **Enable Access** (also offered under **No longer active**).
 - Use **Archive user** when they leave but you want to keep their membership on record. It stops
   their access; **Restore membership** reactivates it but doesn't clear Disable Access.
-- Use **Remove** when they no longer belong to the company. It ends that membership but not their
-  sign-in, so they may return later if the joining policy allows it.
+- Use **Remove** when they no longer belong to the company. It ends that membership and keeps them
+  out: they move to **No longer active**, and **Enable Access** brings them back with the role they
+  held when removed. You cannot remove yourself.
 
-Archiving or removing does not block a new invitation; a returning person gets the invitation's
-role. After **Enable Access**, an active member keeps their role, but an archived or removed person
-still needs restoring or a new invitation.
+Invitations go only to addresses without an account, so a person who has signed in before comes
+back through **Restore membership** or **Enable Access**, never a new invitation. After **Enable
+Access**, an active member keeps their role and an archived person still needs restoring.
 
 <span id="if-they-come-back-with-a-new-sign-in"></span>
 
-If they return with a new sign-in, check **No longer active**: [Company login](/company-login/#if-someone-returns-with-a-new-sign-in)
-explains when the restriction follows them.
-
-## Review who can join
-
-![Admin view of Who can join with the current policy and joining link, without Owner-only policy editing](../screenshots/flows/admin_joining_policy_readonly.jpg)
-
-**Team & access → Who can join** shows the joining policy and approved domains. Only the Owner can
-change it; ask them if a teammate cannot join or registration should be tighter. Copy the
-**Joining link** to share it; the policy still decides who gets in. People who join through the
-policy get Viewer, so send an addressed invitation for any other role.
-[Decide who can join](/owner/responsibilities#decide-who-can-join) explains each policy.
+A disabled or removed person cannot rejoin until an Owner or Admin selects **Enable Access** under
+**No longer active**.
 
 A new installation allows one company. Ask your installer if you need more;
 [Configuration](/self-hosting/configuration) has the setting.

@@ -46,8 +46,6 @@ function member({
     email: `${userId}@wayne.test`,
     signInConfirmed: null,
     isSelf: userId === "bruce",
-    mayResetPassword: false,
-    mayRevokeSessions: false,
   };
 }
 

@@ -9,7 +9,8 @@ import {
 import { BatchRequestError } from '#services/planning_operations/errors'
 import { RestorationConfirmationError } from '#services/planning_operations/restoration'
 import { PlanningOperationError } from '#services/planning_operations/execute'
-import { SessionAuthorityError } from '#services/auth/session_authority'
+import { accountErrorResponse } from 'adonisjs-account-kit'
+import { AdmissionRequiredError } from 'adonisjs-account-kit/admission'
 import { IdentityAuthorityError } from '#services/auth/authorization'
 import {
   allocationMutationValidator,
@@ -66,12 +67,18 @@ function refusal(error: unknown): { status: number; body: PlanningMutationFailur
         code: 'validation_error',
       },
     }
-  if (error instanceof SessionAuthorityError)
+  if (error instanceof AdmissionRequiredError)
     return {
-      status: error.status,
+      status: 403,
+      body: { error: 'Company access needs admission.', code: 'authorization_denied' },
+    }
+  const kitResponse = accountErrorResponse(error)
+  if (kitResponse && kitResponse.status < 500)
+    return {
+      status: kitResponse.status,
       body: {
-        error: error.message,
-        code: error.status === 401 ? 'unauthenticated' : 'authorization_denied',
+        error: kitResponse.body.message,
+        code: kitResponse.status === 401 ? 'unauthenticated' : 'authorization_denied',
       },
     }
   // Identity resolution failures invalidate the projection; action refusals use PlanningOperationError.

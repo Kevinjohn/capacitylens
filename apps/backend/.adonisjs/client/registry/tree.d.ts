@@ -95,8 +95,14 @@ export interface ApiDefinition {
         password: typeof routes['api.auth.action-proof.password']
       }
       requestReset: typeof routes['api.auth.request-reset']
+      inspectReset: typeof routes['api.auth.inspect-reset']
       resetPassword: typeof routes['api.auth.reset-password']
       changePassword: typeof routes['api.auth.change-password']
+      verification: {
+        send: typeof routes['api.auth.verification.send']
+        inspect: typeof routes['api.auth.verification.inspect']
+        complete: typeof routes['api.auth.verification.complete']
+      }
     }
     members: {
       index: typeof routes['api.members.index']
@@ -105,30 +111,27 @@ export interface ApiDefinition {
       status: typeof routes['api.members.status']
       enableAccess: typeof routes['api.members.enable-access']
       remove: typeof routes['api.members.remove']
-      resetPassword: typeof routes['api.members.reset-password']
-      revokeSessions: typeof routes['api.members.revoke-sessions']
     }
     invites: {
       create: typeof routes['api.invites.create']
       index: typeof routes['api.invites.index']
+      resend: typeof routes['api.invites.resend']
       revoke: typeof routes['api.invites.revoke']
       preview: typeof routes['api.invites.preview']
-      accept: typeof routes['api.invites.accept']
       signUp: typeof routes['api.invites.sign-up']
     }
-    joining: {
-      policy: typeof routes['api.joining.policy']
-      updatePolicy: typeof routes['api.joining.update-policy']
-      metadata: typeof routes['api.joining.metadata']
-      status: typeof routes['api.joining.status']
-      completeExisting: typeof routes['api.joining.complete-existing']
-      requestProof: typeof routes['api.joining.request-proof']
-      verifyEmail: typeof routes['api.joining.verify-email']
+    admission: {
+      show: typeof routes['api.admission.show']
+      request: typeof routes['api.admission.request']
+      complete: typeof routes['api.admission.complete']
+      index: typeof routes['api.admission.index']
+      approve: typeof routes['api.admission.approve']
+      reject: typeof routes['api.admission.reject']
+      revoke: typeof routes['api.admission.revoke']
     }
     memberResources: {
       set: typeof routes['api.member-resources.set']
       clear: typeof routes['api.member-resources.clear']
-      clearException: typeof routes['api.member-resources.clear-exception']
       avatars: typeof routes['api.member-resources.avatars']
     }
     masquerade: {

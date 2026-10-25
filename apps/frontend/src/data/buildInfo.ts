@@ -10,7 +10,6 @@ import { isAccountEmail } from "@capacitylens/shared/account/validation";
 import { EXPORT_SCHEMA_VERSION } from "@capacitylens/shared/types/entities";
 import packageJson from "../../../../package.json";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
-import type { AccountMode } from "@capacitylens/shared/account/types";
 
 /** Whether the observed diagnostics response was reachable; `unavailable` means no response was usable. */
 export type DiagnosticsConnectivity = "ok" | "unavailable";
@@ -36,9 +35,8 @@ export interface BrowserDiagnostics {
   language: string;
 }
 
-/** Facts known only to the running client: its sign-in mode and browser. */
+/** Facts known only to the running client: its browser. */
 export interface ClientDiagnostics {
-  signInMode: AccountMode;
   browser: BrowserDiagnostics;
 }
 
@@ -186,7 +184,6 @@ export function formatDiagnostics(report: DiagnosticsReport): string {
     `Database: ${server.database.status}`,
     `Schema migration: ${server.schema.migration ?? UNKNOWN}`,
     `Newest snapshot: ${server.backup.newestSnapshotAt ?? UNKNOWN}`,
-    `Sign-in mode: ${report.client.signInMode}`,
     `User agent: ${browser.userAgent}`,
     `Viewport: ${browser.viewport}`,
     `Time zone: ${browser.timeZone}`,

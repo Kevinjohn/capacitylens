@@ -33,8 +33,6 @@ const corsConfig = defineConfig({
     'Content-Type',
     'Idempotency-Key',
     'x-account-command-id',
-    'x-capacitylens-bootstrap-token',
-    'x-capacitylens-setup-token',
     'x-capacitylens-sync-session',
     'x-capacitylens-sync-sequence',
   ],

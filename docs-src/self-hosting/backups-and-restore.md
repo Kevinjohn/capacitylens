@@ -61,9 +61,7 @@ startup checks. Do not edit the migration journal or database files by hand.
 
 ## Recover a sole Owner's local password
 
-This recovery command is available only when `CAPACITYLENS_MODE` is `password-only` or
-`password-and-sso`, and the sole active Owner already has a local password. A Google-only
-`sso-only` Owner cannot use it to create local password credentials. Stop the service and run the
+Use this when the sole active Owner cannot reset their own password. Stop the service and run the
 command from `backend/` with the same private environment used by the service:
 
 ```bash

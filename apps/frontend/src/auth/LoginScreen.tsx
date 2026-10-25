@@ -1,5 +1,4 @@
 import { ForgotPassword } from "./ForgotPassword";
-import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { useEffect, useId, useState } from "react";
@@ -7,11 +6,9 @@ import type { Dispatch, SetStateAction } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { LoginForm } from "./LoginForm";
-import { useOwnerSetup } from "./useOwnerSetup";
 import { usePasswordSignIn } from "./usePasswordSignIn";
 
 type LoginScreenProps = {
-  authMode: "password-only" | "sso-only" | "password-and-sso";
   needsSetup?: boolean;
   passwordResetEmail?: boolean;
   degraded?: boolean;
@@ -20,19 +17,11 @@ type LoginScreenProps = {
 };
 
 function useLoginIds() {
-  return {
-    name: useId(),
-    email: useId(),
-    password: useId(),
-    setupToken: useId(),
-    setupTokenHelp: useId(),
-    error: useId(),
-  };
+  return { email: useId(), password: useId(), error: useId() };
 }
 
-/** Renders the public sign-in screen for the current auth mode. */
+/** Renders the public password sign-in screen. */
 export function LoginScreen({
-  authMode,
   needsSetup = false,
   passwordResetEmail = false,
   degraded = false,
@@ -46,13 +35,6 @@ export function LoginScreen({
     setBusy,
     onSignedIn,
   });
-  const ownerSetup = useOwnerSetup({
-    email: passwordSignIn.email,
-    password: passwordSignIn.password,
-    setError,
-    setBusy,
-    onSignedIn,
-  });
   const ids = useLoginIds();
 
   useEffect(() => {
@@ -61,7 +43,6 @@ export function LoginScreen({
 
   return (
     <LoginView
-      authMode={authMode}
       needsSetup={needsSetup}
       passwordResetEmail={passwordResetEmail}
       degraded={degraded}
@@ -71,13 +52,11 @@ export function LoginScreen({
       setError={setError}
       ids={ids}
       passwordSignIn={passwordSignIn}
-      ownerSetup={ownerSetup}
     />
   );
 }
 
 type LoginViewProps = {
-  authMode: "password-only" | "sso-only" | "password-and-sso";
   needsSetup: boolean;
   passwordResetEmail: boolean;
   degraded: boolean;
@@ -85,38 +64,30 @@ type LoginViewProps = {
   busy: boolean;
   error: string | null;
   setError: Dispatch<SetStateAction<string | null>>;
-  ids: {
-    name: string;
-    email: string;
-    password: string;
-    setupToken: string;
-    setupTokenHelp: string;
-    error: string;
-  };
+  ids: { email: string; password: string; error: string };
   passwordSignIn: ReturnType<typeof usePasswordSignIn>;
-  ownerSetup: ReturnType<typeof useOwnerSetup>;
 };
 
 function LoginView(props: LoginViewProps) {
-  const setup = isOwnerSetupActive(props);
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
       <main className="w-full max-w-sm">
-        <LoginHeading setup={setup} />
+        <LoginHeading />
         <Card className="gap-4 py-4">
           <CardContent className="px-4">
-            <LoginNotices degraded={props.degraded} hadUnsavedChanges={props.hadUnsavedChanges} />
+            <LoginNotices
+              degraded={props.degraded}
+              hadUnsavedChanges={props.hadUnsavedChanges}
+              needsSetup={props.needsSetup}
+            />
             <LoginForm
-              authMode={props.authMode}
-              setup={setup}
               passwordAutoFocus
               busy={props.busy}
               error={props.error}
               ids={props.ids}
               passwordSignIn={props.passwordSignIn}
-              ownerSetup={props.ownerSetup}
             />
-            {props.passwordResetEmail && allowsPasswordSignIn(props.authMode) && !setup && <ForgotPassword />}
+            {props.passwordResetEmail && <ForgotPassword />}
           </CardContent>
         </Card>
       </main>
@@ -124,23 +95,28 @@ function LoginView(props: LoginViewProps) {
   );
 }
 
-function isOwnerSetupActive(props: LoginViewProps) {
-  return allowsPasswordSignIn(props.authMode) && props.needsSetup && !props.ownerSetup.setupClosed;
-}
-
-function LoginHeading({ setup }: { setup: boolean }) {
+function LoginHeading() {
   return (
     <div className="mb-6 text-center">
       <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
-      <h1 className="text-lg font-semibold text-ink">{setup ? m.login_setup_heading() : m.login_sign_in()}</h1>
-      {!setup && <p className="text-sm text-muted-foreground">{m.login_subtitle()}</p>}
+      <h1 className="text-lg font-semibold text-ink">{m.login_sign_in()}</h1>
+      <p className="text-sm text-muted-foreground">{m.login_subtitle()}</p>
     </div>
   );
 }
 
-function LoginNotices({ degraded, hadUnsavedChanges }: { degraded: boolean; hadUnsavedChanges: boolean }) {
+type LoginNoticesProps = { degraded: boolean; hadUnsavedChanges: boolean; needsSetup: boolean };
+
+function LoginNotices({ degraded, hadUnsavedChanges, needsSetup }: LoginNoticesProps) {
   return (
     <>
+      {needsSetup && (
+        <div className="mb-4">
+          <Alert role="status" data-testid="login-setup-needed">
+            <AlertDescription>{m.login_setup_link_needed({ app: APP_NAME })}</AlertDescription>
+          </Alert>
+        </div>
+      )}
       {degraded && (
         <div className="mb-4">
           <Alert variant="warn" role="status">

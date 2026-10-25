@@ -11,37 +11,30 @@ export async function readResourceCandidates(trx: TransactionClientContract, acc
   return rows.map((row) => ({ resourceId: String(row.id), label: String(row.name ?? row.role) }))
 }
 
-/** Adds only same-company association and exception fields to an authorized member row. */
+/** Adds only same-company association fields to an authorized member row. */
 export async function readMemberResourceFields(
   trx: TransactionClientContract,
   accountId: string,
   userId: string
 ) {
-  const [link, exception] = await Promise.all([
-    trx
-      .from('account_member_resources as link')
-      .leftJoin('resources as resource', function () {
-        this.on('resource.id', '=', 'link.resource_id').andOn(
-          'resource.account_id',
-          '=',
-          'link.account_id'
-        )
-      })
-      .where({ 'link.account_id': accountId, 'link.user_id': userId })
-      .select(
-        'link.resource_id',
-        'link.revision',
-        'resource.name',
-        'resource.archived_at',
-        'resource.deleted_at'
+  const link = await trx
+    .from('account_member_resources as link')
+    .leftJoin('resources as resource', function () {
+      this.on('resource.id', '=', 'link.resource_id').andOn(
+        'resource.account_id',
+        '=',
+        'link.account_id'
       )
-      .first(),
-    trx
-      .from('member_resource_link_exceptions')
-      .where({ account_id: accountId, user_id: userId })
-      .select('proposed_resource_id', 'reason')
-      .first(),
-  ])
+    })
+    .where({ 'link.account_id': accountId, 'link.user_id': userId })
+    .select(
+      'link.resource_id',
+      'link.revision',
+      'resource.name',
+      'resource.archived_at',
+      'resource.deleted_at'
+    )
+    .first()
   const resourceStatus = !link ? null : link.deleted_at || link.archived_at ? 'archived' : 'active'
   return {
     resourceLink: link
@@ -51,9 +44,6 @@ export async function readMemberResourceFields(
           resourceName: link.name ?? null,
           resourceStatus,
         }
-      : null,
-    resourceLinkException: exception
-      ? { proposedResourceId: exception.proposed_resource_id ?? null, reason: exception.reason }
       : null,
   }
 }

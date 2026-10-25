@@ -1,10 +1,9 @@
 import { Bouncer } from '@adonisjs/bouncer'
 import DataPolicy from '#policies/data_policy'
-import type { HttpContext } from '@adonisjs/core/http'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { can, canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access'
 import type { Role } from '@capacitylens/shared/account/types'
-import { resolveCurrentActor } from '#services/auth/session_authority'
+import { actorIn } from '#services/auth/current_actor'
 import { restrictedCompanyIds } from '#services/auth/authorization'
 import { effectiveReadPrincipal } from '#services/auth/masquerade'
 
@@ -52,12 +51,11 @@ export function initialCompanyDataContext(
 
 /** Builds role capabilities from transaction-current active memberships for signed-in data writes. */
 export async function dataContextForActor(
-  ctx: HttpContext,
   trx: TransactionClientContract,
   logCommitted: BatchDataContext['logCommitted'] = () => {}
 ): Promise<BatchDataContext> {
-  const actor = await resolveCurrentActor(ctx, trx)
-  const principal = await effectiveReadPrincipal(ctx, trx)
+  const actor = actorIn(trx)
+  const principal = await effectiveReadPrincipal(trx)
   const rows = await trx
     .from('memberships')
     .where({ user_id: principal.effectiveId, status: 'active' })

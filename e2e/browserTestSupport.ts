@@ -212,16 +212,10 @@ export async function openApp(page: Page, company = "Wayne Enterprises", path = 
   // Must precede goto so the app reads the frozen date on its first render.
   await freezeBrowserDate(page);
   await page.goto(path);
-  // A persisted demo sign-in flag can bypass its gate. A one-company server fixture can instead
-  // mount the app directly after resolving the server summary.
-  const signIn = page.getByTestId("fake-sign-in");
+  // A one-company server fixture mounts the app directly after resolving the server summary.
   const companyButton = page.getByRole("button", { name: company, exact: true });
   const appMain = page.locator("#main");
-  await signIn.or(companyButton).or(appMain).first().waitFor();
-  if (await signIn.isVisible()) {
-    await signIn.click();
-    await companyButton.or(appMain).first().waitFor();
-  }
+  await companyButton.or(appMain).first().waitFor();
   if (await companyButton.isVisible()) {
     // The demo picker lists seeded companies. Picking one leaves a deep-link URL intact.
     await companyButton.click();
@@ -235,11 +229,7 @@ export async function openNewCompanyForm(page: Page): Promise<void> {
   // Must precede goto so the app reads the frozen date on its first render.
   await freezeBrowserDate(page);
   await page.goto("/");
-  const signIn = page.getByTestId("fake-sign-in");
-  const newCompany = page.getByRole("button", { name: "New company" });
-  await signIn.or(newCompany).first().waitFor();
-  if (await signIn.isVisible()) await signIn.click();
-  await newCompany.click();
+  await page.getByRole("button", { name: "New company" }).click();
 }
 
 /** Submits an already-open company form and dismisses optional orientation after #main is visible. */

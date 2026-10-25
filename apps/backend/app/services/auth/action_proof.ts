@@ -1,12 +1,12 @@
 import { createHash, randomUUID } from 'node:crypto'
-import type { HttpContext } from '@adonisjs/core/http'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { activeCompanyRole } from './authorization.js'
 import { activeMasquerade } from './masquerade.js'
-import { resolveCurrentActor, type CurrentActor } from './session_authority.js'
+import { actorIn, type CurrentActor } from './current_actor.js'
 import { affectedRows } from '#services/admission/affected_rows'
 
-export type ActionProofKind = 'transfer-ownership' | 'import' | 'anonymise'
+export const ACTION_PROOF_KINDS = ['transfer-ownership', 'import', 'anonymise'] as const
+export type ActionProofKind = (typeof ACTION_PROOF_KINDS)[number]
 
 export class ActionProofError extends Error {
   readonly status = 403
@@ -33,27 +33,25 @@ export function actionIntentHash(action: ActionProofKind, accountId: string, int
   return createHash('sha256').update(canonical({ action, accountId, intent })).digest('hex')
 }
 
-/** Resolves live Owner authority for a proof request or spend. */
+/** Resolves live Owner authority for a proof request or spend inside `withActor`. */
 export async function actionProofActor(
-  ctx: HttpContext,
   accountId: string,
   trx: TransactionClientContract
 ): Promise<CurrentActor> {
-  const actor = await resolveCurrentActor(ctx, trx)
+  const actor = actorIn(trx)
   if (await activeMasquerade(actor.sessionId, trx)) throw new ActionProofError()
   if ((await activeCompanyRole(actor.userId, accountId, trx)) !== 'owner')
     throw new ActionProofError()
   return actor
 }
 
-/** Creates one proof; provider starts leave it unverified until the checked callback. */
+/** Creates one verified proof bound to the actor's sign-in, company and exact operation. */
 export async function createActionProof(
   trx: TransactionClientContract,
   actor: CurrentActor,
   action: ActionProofKind,
   accountId: string,
-  intent: unknown,
-  verified: boolean
+  intent: unknown
 ) {
   const id = randomUUID()
   const now = Date.now()
@@ -67,29 +65,16 @@ export async function createActionProof(
     action,
     intent_hash: actionIntentHash(action, accountId, intent),
     expires_at: new Date(now + PROOF_MS).toISOString(),
-    verified_at: verified ? new Date(now).toISOString() : null,
+    verified_at: new Date(now).toISOString(),
     consumed_at: null,
   })
   return id
 }
 
-/** Provider callback proves the pending row only for its original principal and native session. */
-export async function verifyActionProof(
-  trx: TransactionClientContract,
-  id: string,
-  actor: CurrentActor
-) {
-  const updated = await trx
-    .from('action_proofs')
-    .where({ id, user_id: actor.userId, session_id: actor.sessionId })
-    .whereNull('verified_at')
-    .whereNull('consumed_at')
-    .where('expires_at', '>', new Date().toISOString())
-    .update({ verified_at: new Date().toISOString() })
-  if (affectedRows(updated) !== 1) throw new ActionProofError()
-}
-
-/** The conditional spend and product mutation share one transaction and rollback boundary. */
+/**
+ * The conditional spend and product mutation share one transaction and rollback boundary. The
+ * sign-in row is locked by `withActor`; a proof whose sign-in ended was removed with it.
+ */
 export async function consumeActionProof(
   trx: TransactionClientContract,
   actor: CurrentActor,
@@ -111,9 +96,6 @@ export async function consumeActionProof(
     .whereNotNull('verified_at')
     .whereNull('consumed_at')
     .where('expires_at', '>', new Date().toISOString())
-    .whereExists((query) =>
-      query.from('user_session_index').where({ user_id: actor.userId, session_id: actor.sessionId })
-    )
     .update({ consumed_at: new Date().toISOString() })
   if (affectedRows(updated) !== 1) throw new ActionProofError()
 }

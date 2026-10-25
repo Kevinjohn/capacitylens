@@ -4,13 +4,11 @@ import type { InvitationRole } from "@capacitylens/shared/account/types";
 export interface CreateInvitationBody {
   accountId: string;
   role: InvitationRole;
-  preauthEmail?: string;
-  proposedResourceId?: string;
+  email: string;
 }
 
-/** Credentials and invitation details submitted when accepting an invitation. */
+/** The name and password an invitee chooses; the invitation fixes the address. */
 export interface InvitationSignupBody {
   name: string;
-  email: string;
   password: string;
 }

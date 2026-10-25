@@ -1,5 +1,3 @@
-import { joiningPolicyClient } from "./joiningPolicyClient";
-import { apiFetchReauth } from "@/auth/apiFetchReauth";
 import { API_BASE } from "@/data/apiConfig";
 import { apiFetch } from "@/data/requestTimeout";
 import type { BrowserAccountCommand } from "./accountCommands";
@@ -8,14 +6,11 @@ import type { EndMasqueradePayload, StartMasqueradePayload } from "@capacitylens
 import { buildPayloadOperationKey } from "./commandOutcome";
 import type { CreateInvitationBody, InvitationSignupBody } from "./accountRequestTypes";
 import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from "./commandRequest";
-import type { ReauthAction } from "@/auth/reauthCoordinator";
-import {
-  clearMemberResourceLink,
-  dismissMemberResourceLinkException,
-  resourceAvatarsUrl,
-  setMemberResourceLink,
-} from "./memberResourceClient";
+import { clearMemberResourceLink, resourceAvatarsUrl, setMemberResourceLink } from "./memberResourceClient";
 import { apiRouteUrl } from "@/api/queryClient";
+
+/** The admission records an Owner or Admin can act on; approved people are managed as members. */
+export type AdmissionStatus = "pending" | "rejected" | "revoked";
 
 interface ChangeMemberRoleInput {
   workspaceId: string;
@@ -59,36 +54,6 @@ export const accountClient = {
     return apiFetch(`${API_BASE}/api/diagnostics`, { credentials: "include", ...(signal ? { signal } : {}) });
   },
 
-  correctMemberEmail(workspaceId: string, principalId: string, email: string): Promise<Response> {
-    return apiFetchReauth(
-      `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/email`,
-      {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      },
-      { action: "correct-member-email" satisfies ReauthAction },
-    );
-  },
-
-  removeFederatedLink(
-    workspaceId: string,
-    principalId: string,
-    coordinate: { rowId: string; providerId: string; subject: string },
-  ): Promise<Response> {
-    return apiFetchReauth(
-      `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/federated-link`,
-      {
-        method: "DELETE",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(coordinate),
-      },
-      { action: "remove-federated-link" satisfies ReauthAction },
-    );
-  },
-
   /** Add the small example company to an empty company. Not idempotent: a second call is refused. */
   addExampleData(workspaceId: string): Promise<Response> {
     return apiFetch(apiRouteUrl("api.example-data", { params: { accountId: workspaceId } }), {
@@ -107,19 +72,14 @@ export const accountClient = {
   listResourceAvatars: (workspaceId: string) => apiFetch(resourceAvatarsUrl(workspaceId), { credentials: "include" }),
   setMemberResourceLink,
   clearMemberResourceLink,
-  dismissMemberResourceLinkException,
 
   setMemberSignInTracking({ workspaceId, enabled }: SetMemberSignInTrackingOptions): Promise<Response> {
-    return apiFetchReauth(
-      apiRouteUrl("api.members.tracking", { params: { accountId: workspaceId } }),
-      {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled }),
-      },
-      { action: "change-sign-in-tracking" satisfies ReauthAction },
-    );
+    return apiFetch(apiRouteUrl("api.members.tracking", { params: { accountId: workspaceId } }), {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    });
   },
 
   listInvitations(workspaceId: string, signal?: AbortSignal): Promise<Response> {
@@ -128,8 +88,6 @@ export const accountClient = {
       ...(signal ? { signal } : {}),
     });
   },
-
-  ...joiningPolicyClient,
 
   startMasquerade(workspaceId: string, body: StartMasqueradePayload): Promise<Response> {
     return apiFetch(apiRouteUrl("api.masquerade.start", { params: { accountId: workspaceId } }), {
@@ -158,10 +116,9 @@ export const accountClient = {
       operationKey: `member-role:${workspaceId}:${principalId}:${role}`,
       explicit: command,
       request: (resolved) =>
-        apiFetchReauth(
+        apiFetch(
           apiRouteUrl("api.members.role", { params: { accountId: workspaceId, userId: principalId } }),
           buildJsonCommandRequestInit("PATCH", { role }, resolved),
-          { action: "change-member-role" satisfies ReauthAction },
         ),
     });
   },
@@ -171,10 +128,9 @@ export const accountClient = {
       operationKey: `member-status:${workspaceId}:${principalId}:${status}`,
       explicit: command,
       request: (resolved) =>
-        apiFetchReauth(
+        apiFetch(
           apiRouteUrl("api.members.status", { params: { accountId: workspaceId, userId: principalId } }),
           buildJsonCommandRequestInit("PATCH", { status }, resolved),
-          { action: "change-member-status" satisfies ReauthAction },
         ),
     });
   },
@@ -184,10 +140,9 @@ export const accountClient = {
       operationKey: `member-enable-access:${workspaceId}:${principalId}`,
       explicit: command,
       request: (resolved) =>
-        apiFetchReauth(
+        apiFetch(
           apiRouteUrl("api.members.enable-access", { params: { accountId: workspaceId, userId: principalId } }),
           buildJsonCommandRequestInit("POST", {}, resolved),
-          { action: "change-member-status" satisfies ReauthAction },
         ),
     });
   },
@@ -197,10 +152,9 @@ export const accountClient = {
       operationKey: `member-remove:${workspaceId}:${principalId}`,
       explicit: command,
       request: (resolved) =>
-        apiFetchReauth(
+        apiFetch(
           apiRouteUrl("api.members.remove", { params: { accountId: workspaceId, userId: principalId } }),
           buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
-          { action: "remove-member" satisfies ReauthAction },
         ),
     });
   },
@@ -217,41 +171,13 @@ export const accountClient = {
     });
   },
 
-  issuePasswordReset(workspaceId: string, principalId: string, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand({
-      operationKey: `password-reset:${workspaceId}:${principalId}`,
-      explicit: command,
-      request: (resolved) =>
-        apiFetchReauth(
-          apiRouteUrl("api.members.reset-password", { params: { accountId: workspaceId, userId: principalId } }),
-          buildCommandRequestInit({ method: "POST", credentials: "include" }, resolved),
-          { action: "issue-password-reset" satisfies ReauthAction },
-        ),
-    });
-  },
-
-  revokeMemberSessions(workspaceId: string, principalId: string, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand({
-      operationKey: `member-sessions:${workspaceId}:${principalId}`,
-      explicit: command,
-      request: (resolved) =>
-        apiFetchReauth(
-          apiRouteUrl("api.members.revoke-sessions", { params: { accountId: workspaceId, userId: principalId } }),
-          buildCommandRequestInit({ method: "POST", credentials: "include" }, resolved),
-          { action: "revoke-member-sessions" satisfies ReauthAction },
-        ),
-    });
-  },
-
   async createInvitation(body: CreateInvitationBody, command?: BrowserAccountCommand): Promise<Response> {
     const accountId = body.accountId;
     return runCommand({
       operationKey: await buildPayloadOperationKey(`invitation-create:${accountId}`, body),
       explicit: command,
       request: (resolved) =>
-        apiFetchReauth(apiRouteUrl("api.invites.create", {}), buildJsonCommandRequestInit("POST", body, resolved), {
-          action: "create-invitation" satisfies ReauthAction,
-        }),
+        apiFetch(apiRouteUrl("api.invites.create", {}), buildJsonCommandRequestInit("POST", body, resolved)),
     });
   },
 
@@ -260,11 +186,33 @@ export const accountClient = {
       operationKey: `invitation-revoke:${workspaceId}:${invitationId}`,
       explicit: command,
       request: (resolved) =>
-        apiFetchReauth(
+        apiFetch(
           apiRouteUrl("api.invites.revoke", { params: { accountId: workspaceId, id: invitationId } }),
           buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
-          { action: "revoke-invitation" satisfies ReauthAction },
         ),
+    });
+  },
+
+  /** Sends a fresh link for a pending invitation; the earlier link stops working. */
+  resendInvitation(workspaceId: string, invitationId: string): Promise<Response> {
+    return apiFetch(apiRouteUrl("api.invites.resend", { params: { accountId: workspaceId, id: invitationId } }), {
+      method: "POST",
+      credentials: "include",
+    });
+  },
+
+  listAdmissionRequests(status: AdmissionStatus, cursor: string | null, signal?: AbortSignal): Promise<Response> {
+    const query = new URLSearchParams({ status, ...(cursor ? { cursor } : {}) });
+    return apiFetch(`${apiRouteUrl("api.admission.index", {})}?${query.toString()}`, {
+      credentials: "include",
+      ...(signal ? { signal } : {}),
+    });
+  },
+
+  decideAdmission(userId: string, decision: "approve" | "reject" | "revoke"): Promise<Response> {
+    return apiFetch(apiRouteUrl(`api.admission.${decision}`, { params: { userId } }), {
+      method: "POST",
+      credentials: "include",
     });
   },
 
@@ -274,27 +222,12 @@ export const accountClient = {
     });
   },
 
-  acceptInvitation(token: string, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand({
-      operationKey: null,
-      explicit: command,
-      request: (resolved) =>
-        apiFetch(
-          apiRouteUrl("api.invites.accept", { params: { token } }),
-          buildCommandRequestInit({ method: "POST", credentials: "include" }, resolved),
-        ),
-    });
-  },
-
-  signupWithInvitation(token: string, body: InvitationSignupBody, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand({
-      operationKey: null,
-      explicit: command,
-      request: (resolved) =>
-        apiFetch(
-          apiRouteUrl("api.invites.sign-up", { params: { token } }),
-          buildJsonCommandRequestInit("POST", body, resolved),
-        ),
+  signupWithInvitation(token: string, body: InvitationSignupBody): Promise<Response> {
+    return apiFetch(apiRouteUrl("api.invites.sign-up", { params: { token } }), {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
   },
 

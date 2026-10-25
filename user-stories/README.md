@@ -18,7 +18,7 @@ through the areas below ticking each ✅. Reload to reset the in-memory demo to 
 **How to run the automated coverage:** `pnpm run e2e` (Playwright drives the real app),
 `pnpm test` (Vitest unit/component), and the axe a11y oracle in `e2e/a11y.spec.ts`.
 
-133 stories across 17 areas. The **Automated coverage** column names the spec file(s) whose
+132 stories across 17 areas. The **Automated coverage** column names the spec file(s) whose
 tests assert the story's acceptance criteria; some intrinsically-visual or environment-only
 stories (loading gate, storage-failure banner, toast auto-dismiss, error boundary, the today
 line's position, the visible-window quick-create default, the drag-onto-placeholder rejection)
@@ -42,8 +42,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-NAV-08](navigation/US-NAV-08-command-palette.md)           | Command palette (⌘K / Ctrl+K)                                  | `e2e/palette.spec.ts` + unit (`CommandPalette.test.tsx`, `fuzzy.test.ts`)                                            |
 | [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md)        | Mobile affordances (sidebar rail + rotate hint)                | `e2e/mobile.spec.ts`                                                                                                 |
 | [US-NAV-10](navigation/US-NAV-10-login-screen.md)              | Sign in before using persisted server data                     | `e2e/login.auth.spec.ts` (auth-backed project)                                                                       |
-| [US-NAV-11](navigation/US-NAV-11-fake-sign-in.md)              | In-memory demo account picker                                  | `e2e/navigation.spec.ts`                                                                                             |
-| [US-NAV-12](navigation/US-NAV-12-product-orientation.md)       | Non-blocking, reusable product orientation                     | `ProductOrientation.test.tsx` + `AppShell.productOrientation.test.tsx` + `e2e/fake-signin.spec.ts`                   |
+| [US-NAV-12](navigation/US-NAV-12-product-orientation.md)       | Non-blocking, reusable product orientation                     | `ProductOrientation.test.tsx` + `AppShell.productOrientation.test.tsx` + `e2e/product-orientation.spec.ts`           |
 | [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Setup milestones, progress, dismissal and role-based tour      | `e2e/getting-started.spec.ts` + `e2e/getting-started.db.spec.ts` + auth E2E + `GettingStarted.test.tsx`              |
 | [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Set up and open the installation company                       | `src/components/accounts/AccountPicker.test.tsx` + `e2e/onboarding.spec.ts` + `e2e/onboarding.db.spec.ts`            |
 | [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Blue identity, green positive actions, red destructive actions | `e2e/navigation.spec.ts` + `src/components/common/ui.test.tsx` + `src/lib/designTokens.test.ts` + `e2e/a11y.spec.ts` |
@@ -209,13 +208,13 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-SET-10](settings/US-SET-10-member-management.md)      | Member management (invite / role / revoke)      | `e2e/members.auth.spec.ts` + `e2e/invite.auth.spec.ts` |
 | [US-SET-11](settings/US-SET-11-viewer-readonly.md)        | Viewer read-only mode                           | `e2e/viewer.auth.spec.ts`                              |
 | [US-SET-12](settings/US-SET-12-archived-deleted.md)       | Inline archives and deleted records             | `e2e/archived.spec.ts`                                 |
-| [US-SET-13](settings/US-SET-13-password-reset-links.md)   | Admin-issued password-reset links               | `e2e/reset-password.auth.spec.ts`                      |
+| [US-SET-13](settings/US-SET-13-password-reset-links.md)   | Password recovery by email                      | `recovery.spec.ts` + unit (`ResetPassword.test.tsx`)   |
 | [US-SET-14](settings/US-SET-14-internal-work-colours.md)  | Internal work colours                           | `e2e/internal-colours.spec.ts`                         |
 | [US-SET-15](settings/US-SET-15-global-working-days.md)    | Company-wide working days                       | `e2e/global-working-days.spec.ts`                      |
 | [US-SET-16](settings/US-SET-16-diagnostics.md)            | Copy privacy-safe diagnostics                   | `DiagnosticsView.test.tsx` + `e2e/a11y.spec.ts`        |
 | [US-SET-17](settings/US-SET-17-date-style.md)             | Company-wide date format                        | `e2e/settings-date-style.spec.ts` + `.db.spec.ts`      |
 | [US-SET-18](settings/US-SET-18-ownership-transfer.md)     | Hand the company to someone else                | `e2e/ownership-transfer.auth.spec.ts`                  |
-| [US-SET-19](settings/US-SET-19-company-joining-policy.md) | Decide who can join the company                 | joining policy, proof and provider tests               |
+| [US-SET-19](settings/US-SET-19-company-joining-policy.md) | Approve who joins the company                   | `e2e/admission.auth.spec.ts`                           |
 
 ## Keyboard & accessibility — `accessibility/`
 

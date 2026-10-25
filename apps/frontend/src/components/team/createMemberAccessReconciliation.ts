@@ -5,11 +5,6 @@ import { useStore } from "@/store/useStore";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import type { MemberActionDependencies } from "./MemberActionDependencies";
 import type { useTeamDirectory } from "./useTeamDirectory";
-import type { useMemberInvites } from "./useMemberInvites";
-
-interface RefreshCallerAccessInput {
-  knownRemoved?: boolean | undefined;
-}
 
 type CallerAccessRefreshResult = { kind: "active" } | { kind: "left" } | { kind: "failed" };
 
@@ -23,16 +18,14 @@ interface MemberAccessDependencies extends Pick<
   closeActiveAccount: () => void;
   bumpReadiness: () => void;
   replaceAuthorizedDirectory: ReturnType<typeof useTeamDirectory>["replaceAuthorizedDirectory"];
-  reconcileMintedInvite: ReturnType<typeof useMemberInvites>["reconcileMintedInvite"];
 }
 
 type HasAuthoritativeAccountSummaryOptions = {
   summaries: Awaited<ReturnType<typeof refreshAccountSummaries>>;
   accountId: string;
-  knownRemoved: boolean;
 };
-function hasAuthoritativeAccountSummary({ summaries, accountId, knownRemoved }: HasAuthoritativeAccountSummaryOptions) {
-  return summaries !== null && !knownRemoved && summaries.some((account) => account.id === accountId);
+function hasAuthoritativeAccountSummary({ summaries, accountId }: HasAuthoritativeAccountSummaryOptions) {
+  return summaries !== null && summaries.some((account) => account.id === accountId);
 }
 
 function createRefreshCallerAccess({
@@ -46,7 +39,7 @@ function createRefreshCallerAccess({
   MemberAccessDependencies,
   "activeAccountId" | "invalidateMemberships" | "refreshAuth" | "closeActiveAccount" | "isActiveAccount" | "setNotice"
 >) {
-  return async ({ knownRemoved = false }: RefreshCallerAccessInput = {}): Promise<CallerAccessRefreshResult> => {
+  return async (): Promise<CallerAccessRefreshResult> => {
     const accountId = activeAccountId;
     if (!accountId) return { kind: "failed" };
     invalidateMemberships();
@@ -59,7 +52,7 @@ function createRefreshCallerAccess({
       setNotice(m.settings_members_access_refresh_failed(), "error");
       return { kind: "failed" };
     }
-    if (!hasAuthoritativeAccountSummary({ summaries: summaries, accountId: accountId, knownRemoved: knownRemoved })) {
+    if (!hasAuthoritativeAccountSummary({ summaries: summaries, accountId: accountId })) {
       closeActiveAccount();
       return { kind: "left" };
     }
@@ -79,11 +72,7 @@ async function reloadAuthorizedDirectory({
   setNotice,
   bumpReadiness,
   replaceAuthorizedDirectory,
-  reconcileMintedInvite,
-}: Pick<
-  MemberAccessDependencies,
-  "isActiveAccount" | "setNotice" | "bumpReadiness" | "replaceAuthorizedDirectory" | "reconcileMintedInvite"
-> & {
+}: Pick<MemberAccessDependencies, "isActiveAccount" | "setNotice" | "bumpReadiness" | "replaceAuthorizedDirectory"> & {
   accountId: string;
   message: string;
 }): Promise<{ kind: "ready" } | { kind: "stale" } | { kind: "failed"; error: unknown }> {
@@ -98,7 +87,6 @@ async function reloadAuthorizedDirectory({
     }
     replaceAuthorizedDirectory(memberResult.value, inviteResult.value);
     bumpReadiness();
-    reconcileMintedInvite(inviteResult.value);
     setNotice(m.settings_members_reconcile_directory({ message }), "warning");
     return { kind: "ready" };
   } catch (error) {
@@ -128,17 +116,10 @@ function createReconcileUnknownMutation({
   setNotice,
   bumpReadiness,
   replaceAuthorizedDirectory,
-  reconcileMintedInvite,
   refreshCallerAccess,
 }: Pick<
   MemberAccessDependencies,
-  | "requestAccountId"
-  | "isActiveAccount"
-  | "fail"
-  | "setNotice"
-  | "bumpReadiness"
-  | "replaceAuthorizedDirectory"
-  | "reconcileMintedInvite"
+  "requestAccountId" | "isActiveAccount" | "fail" | "setNotice" | "bumpReadiness" | "replaceAuthorizedDirectory"
 > & {
   refreshCallerAccess: ReturnType<typeof createRefreshCallerAccess>;
 }) {
@@ -164,7 +145,6 @@ function createReconcileUnknownMutation({
       setNotice,
       bumpReadiness,
       replaceAuthorizedDirectory,
-      reconcileMintedInvite,
     });
     if (reloadResult.kind !== "failed" || !isActiveAccount(accountId)) return;
     if (accessResult?.kind === "active") {
@@ -193,7 +173,6 @@ export function createMemberAccessReconciliation({
   setNotice,
   bumpReadiness,
   replaceAuthorizedDirectory,
-  reconcileMintedInvite,
 }: MemberAccessDependencies) {
   // Revalidate role and tenant projections after a possible self-role mutation so
   // confidential fields from the old projection cannot linger.
@@ -212,7 +191,6 @@ export function createMemberAccessReconciliation({
     setNotice,
     bumpReadiness,
     replaceAuthorizedDirectory,
-    reconcileMintedInvite,
     refreshCallerAccess,
   });
 

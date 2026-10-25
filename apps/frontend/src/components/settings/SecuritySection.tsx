@@ -1,4 +1,3 @@
-import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
 import { useAuth } from "@/auth/authContext";
 import { m } from "@/i18n";
@@ -105,7 +104,7 @@ export function SecuritySection({
 }) {
   const auth = useAuth();
   const controller = useSecurityController();
-  const showPassword = allowsPasswordSignIn(auth.authMode);
+  const showPassword = auth.authMode !== "off";
   const changePasswordOpen = (open: boolean) => {
     if (!open) controller.password.reset();
     onPasswordOpenChange(open);
