@@ -552,9 +552,18 @@ export async function signUpUserWithId(
  * @throws When the command fails or prints no link.
  */
 export function printFixtureInvitation(email: string, role: "admin" | "editor" | "viewer"): string {
+  return printOperatorLink(["account-kit:invite", email, `--role=${role}`, "--print"], "invitation");
+}
+
+/** Prints a password-reset link for `email` through the operator command; returns its path. */
+export function printFixtureResetLink(email: string): string {
+  return printOperatorLink(["account-kit:reset-link", email, "--print"], "reset");
+}
+
+function printOperatorLink(args: string[], label: string): string {
   assertAuthE2EFixturePath(AUTH_E2E_DATABASE);
   const lane = ports();
-  const result = spawnSync(process.execPath, ["ace.js", "account-kit:invite", email, `--role=${role}`, "--print"], {
+  const result = spawnSync(process.execPath, ["ace.js", ...args], {
     cwd: BACKEND_DIRECTORY,
     encoding: "utf8",
     timeout: 30_000,
@@ -574,8 +583,8 @@ export function printFixtureInvitation(email: string, role: "admin" | "editor" |
       CAPACITYLENS_PUBLIC_URL: `http://localhost:${lane.authApi}`,
     },
   });
-  if (result.status !== 0) throw new Error(`Operator invitation failed: ${result.stderr || result.stdout}`);
+  if (result.status !== 0) throw new Error(`Operator ${label} link failed: ${result.stderr || result.stdout}`);
   const link = /"url":"([^"]+)"/.exec(result.stdout)?.[1];
-  if (!link) throw new Error("The operator invitation printed no acceptance link.");
+  if (!link) throw new Error(`The operator ${label} command printed no link.`);
   return new URL(link).pathname;
 }
