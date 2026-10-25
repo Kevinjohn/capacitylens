@@ -8,7 +8,10 @@ import { once } from "node:events";
 import { fileURLToPath } from "node:url";
 
 // This journey needs an empty native installation, independently of the shared role fixtures.
-test("native first sign-in creates one company and opens a usable schedule", async ({ page, request }, testInfo) => {
+test("the operator setup link creates the first Owner, one company and a usable schedule and opens a usable schedule", async ({
+  page,
+  request,
+}, testInfo) => {
   test.setTimeout(90_000);
   const backend = fileURLToPath(new URL("../apps/backend/", import.meta.url));
   expect(existsSync(join(backend, "public/index.html")), "Build and sync the production SPA before this journey.").toBe(
@@ -20,7 +23,6 @@ test("native first sign-in creates one company and opens a usable schedule", asy
   const port = (listener.address() as { port: number }).port;
   await new Promise<void>((resolve, reject) => listener.close((error) => (error ? reject(error) : resolve())));
   const origin = `http://127.0.0.1:${port}`;
-  const token = "first-company-browser-setup-2026-0123456789";
   const environment = {
     ...process.env,
     NODE_ENV: "test",
@@ -31,11 +33,8 @@ test("native first sign-in creates one company and opens a usable schedule", asy
     APP_URL: origin,
     SESSION_DRIVER: "database",
     CAPACITYLENS_DB: join(scratch, "native.db"),
-    CAPACITYLENS_MODE: "password-only",
     CAPACITYLENS_PUBLIC_URL: origin,
     CAPACITYLENS_SECRET: "first-company-browser-secret-0123456789abcdef",
-    CAPACITYLENS_SETUP_TOKEN: token,
-    CAPACITYLENS_PASSWORD_BREACH_CHECK: "false",
     CAPACITYLENS_CREATE_ADMIN_ADMIN: "false",
     CAPACITYLENS_ALLOW_OPEN_SIGNUP: "true",
     CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: "",
@@ -50,6 +49,15 @@ test("native first sign-in creates one company and opens a usable schedule", asy
       timeout: 30_000,
     });
     expect(migrate.status, `${migrate.stdout}\n${migrate.stderr}`).toBe(0);
+    // The operator prints the first-install link; the person who opens it becomes the Owner.
+    const bootstrap = spawnSync(
+      process.execPath,
+      ["ace.js", "account-kit:admission:bootstrap", "bruce@wayne.example", "--role=viewer"],
+      { cwd: backend, env: environment, encoding: "utf8", timeout: 30_000 },
+    );
+    expect(bootstrap.status, `${bootstrap.stdout}\n${bootstrap.stderr}`).toBe(0);
+    const setupLink = /"url":"([^"]+)"/.exec(bootstrap.stdout)?.[1];
+    expect(setupLink, "the bootstrap command prints the setup link").toBeTruthy();
     child = spawn(process.execPath, ["--import=@poppinss/ts-exec", "bin/server.ts"], {
       cwd: backend,
       env: environment,
@@ -68,11 +76,11 @@ test("native first sign-in creates one company and opens a usable schedule", asy
       )
       .toBe(true);
     await page.goto(origin);
-    await page.getByTestId("owner-setup-name").fill("Bruce Wayne");
-    await page.getByTestId("owner-setup-email").fill("bruce@wayne.example");
-    await page.getByTestId("owner-setup-password").fill("first-company-password-2026");
-    await page.getByTestId("owner-setup-token").fill(token);
-    await page.getByTestId("owner-setup-submit").click();
+    await expect(page.getByTestId("login-setup-needed")).toBeVisible();
+    await page.goto(setupLink!);
+    await page.getByTestId("invite-name").fill("Bruce Wayne");
+    await page.getByTestId("invite-password").fill("first-company-password-2026");
+    await page.getByTestId("invite-submit").click();
     await expect(page.getByTestId("company-setup")).toBeVisible();
     const additionalIdentity = {
       name: "Clark Kent",
@@ -81,7 +89,7 @@ test("native first sign-in creates one company and opens a usable schedule", asy
     };
     const prematureSignup = await request.post(`${origin}/api/auth/sign-up`, {
       data: additionalIdentity,
-      headers: { "x-capacitylens-setup-token": token, "sec-fetch-site": "same-origin" },
+      headers: { "sec-fetch-site": "same-origin" },
     });
     expect(prematureSignup.status()).toBe(403);
     expect((await prematureSignup.json()).code).toBe("SIGN_UP_CLOSED");

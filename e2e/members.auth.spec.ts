@@ -59,27 +59,16 @@ async function setupMembersApi(request: APIRequestContext) {
   return { owner, admin, editor, accountId };
 }
 
-async function createViewerInvite(page: Page): Promise<void> {
+/** Without mail delivery the server refuses to invite, and the dialog says why instead of saving a link. */
+async function refuseInviteWithoutMail(page: Page): Promise<void> {
   await page.getByTestId("invite-open").click();
   const dialog = page.getByRole("dialog", { name: "Invite someone" });
   await selectShadOption(dialog.getByTestId("invite-role"), "viewer");
   await dialog.getByTestId("invite-preauth").fill(`m-viewer-${STAMP}@capacitylens.dev`);
   await dialog.getByTestId("invite-submit").click();
-  await expect(dialog.getByTestId("invite-link")).toContainText("/invite/");
+  await expect(dialog).toContainText("Invitations need email delivery");
   await dialog.getByRole("button", { name: "Cancel" }).click();
-}
-
-async function revokeViewerInvite(page: Page): Promise<void> {
-  await page.getByTestId("invite-open").click();
-  const dialog = page.getByRole("dialog", { name: "Invite someone" });
-  await expect(dialog.getByTestId("invite-link")).toHaveCount(0);
-  await dialog.getByRole("button", { name: "Cancel" }).click();
-  const inviteRows = page.getByTestId("invite-row");
-  await expect(inviteRows).toHaveCount(1);
-  const viewerInvite = inviteRows.filter({ hasText: "Viewer" });
-  await expect(viewerInvite).toContainText("expires");
-  await viewerInvite.getByTestId("invite-revoke").click();
-  await expect(inviteRows).toHaveCount(0);
+  await expect(page.getByTestId("invite-row")).toHaveCount(0);
 }
 
 async function manageAdminMembers(
@@ -124,11 +113,10 @@ async function manageAdminMembers(
       return members.find((member) => member.userId === editor.userId)?.role;
     })
     .toBe("viewer");
-  await createViewerInvite(page);
+  await refuseInviteWithoutMail(page);
   await editorRow.getByTestId("member-edit").click();
   await selectShadOption(page.getByRole("dialog").getByTestId("member-role-select").getByRole("combobox"), "editor");
   await page.getByRole("dialog").getByTestId("member-role-save").click();
-  await revokeViewerInvite(page);
 }
 
 // Ownership changes require the transfer ceremony; ordinary member-row actions cannot grant or remove ownership.

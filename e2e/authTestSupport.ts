@@ -61,7 +61,8 @@ function openAuthE2EDatabase(): DatabaseSync {
         "users",
         "memberships",
         "adonis_sessions",
-        "user_session_index",
+        "account_sessions",
+        "account_admissions",
         "audit_entries",
         "account_member_resources",
         "accounts",
@@ -92,7 +93,53 @@ async function postSignUp(ctx: APIRequestContext, email: string, name = email.sp
     data: { email, password: AUTH_PASSWORD, name },
   });
   expect(res.ok(), `sign-up ${email}`).toBeTruthy();
+  admitFixtureIdentity(email);
   return cookiesOf(res.headers()["set-cookie"] ?? "");
+}
+
+/**
+ * Confirms a fixture identity's address, standing in for the confirmation email: the E2E servers
+ * have no mail transport.
+ * @throws When the identity is absent.
+ */
+export function confirmFixtureAddress(email: string): void {
+  const db = openAuthE2EDatabase();
+  try {
+    const confirmed = db
+      .prepare("UPDATE users SET email_verified_at = ?, unverified_email = NULL WHERE lower(email) = ?")
+      .run(new Date().toISOString(), email.toLowerCase());
+    if (confirmed.changes !== 1) throw new Error(`Missing E2E fixture identity for ${email}`);
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * Confirms and admits a signed-up fixture identity, standing in for the confirmation email and the
+ * operator approval a real installation needs. The admission spec drives approval through the UI.
+ * @throws When the identity is absent.
+ */
+export function admitFixtureIdentity(email: string): void {
+  confirmFixtureAddress(email);
+  const db = openAuthE2EDatabase();
+  try {
+    const user = db.prepare("SELECT id, email FROM users WHERE lower(email) = ?").get(email.toLowerCase()) as
+      { id: string; email: string } | undefined;
+    if (!user) throw new Error(`Missing E2E fixture identity for ${email}`);
+    const now = new Date().toISOString();
+    db.prepare(
+      `INSERT INTO account_admissions
+         (user_id, invited_email, invitation_source, invitation_recorded_at, approval_status,
+          approval_decided_at, created_at, updated_at)
+       VALUES (?, ?, 'operator', ?, 'approved', ?, ?, ?)
+       ON CONFLICT (user_id) DO UPDATE SET
+         invitation_recorded_at = excluded.invitation_recorded_at,
+         approval_status = 'approved',
+         approval_decided_at = excluded.approval_decided_at`,
+    ).run(user.id, user.email, now, now, now, now);
+  } finally {
+    db.close();
+  }
 }
 
 /**
@@ -122,7 +169,7 @@ export function revokeFixtureSessions(email: string): void {
     const principal = db.prepare("SELECT id FROM users WHERE lower(email) = ?").get(email.toLowerCase()) as
       { id: string } | undefined;
     if (!principal) throw new Error(`Missing E2E fixture identity for ${email}`);
-    const removed = db.prepare("DELETE FROM user_session_index WHERE user_id = ?").run(principal.id);
+    const removed = db.prepare("DELETE FROM account_sessions WHERE user_id = ?").run(principal.id);
     if (removed.changes === 0) throw new Error(`Missing E2E fixture session for ${email}`);
   } finally {
     db.close();
@@ -493,45 +540,5 @@ export async function signUpUserWithId(
     return { email, cookie, userId };
   } finally {
     await ctx.dispose();
-  }
-}
-
-/** Seed the durable address proof produced by Google in the disposable native auth database.
- * The browser test still performs real password sign-in and membership admission. */
-export function seedFixtureGoogleEmailProof(email: string): void {
-  const db = openAuthE2EDatabase();
-  try {
-    const normalized = email.toLowerCase();
-    const principal = db.prepare("SELECT id FROM users WHERE lower(email) = ?").get(normalized) as
-      { id: string } | undefined;
-    if (!principal) throw new Error(`Missing E2E fixture identity for ${email}`);
-    const now = new Date().toISOString();
-    db.exec("BEGIN IMMEDIATE");
-    try {
-      db.prepare(
-        "INSERT INTO email_proofs (id, user_id, email, verified_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-      ).run(crypto.randomUUID(), principal.id, normalized, now, now, now);
-      db.prepare("UPDATE users SET email_verified = 1, updated_at = ? WHERE id = ?").run(now, principal.id);
-      db.exec("COMMIT");
-    } catch (error) {
-      db.exec("ROLLBACK");
-      throw error;
-    }
-  } finally {
-    db.close();
-  }
-}
-
-/** Mark only the legacy email flag in the disposable native auth database. A joining test uses this
- * to prove that the flag alone is not the durable address evidence required for policy admission. */
-export function seedFixtureLegacyEmailFlag(email: string): void {
-  const db = openAuthE2EDatabase();
-  try {
-    const updated = db
-      .prepare("UPDATE users SET email_verified = 1, updated_at = ? WHERE lower(email) = ?")
-      .run(new Date().toISOString(), email.toLowerCase());
-    if (updated.changes !== 1) throw new Error(`Missing E2E fixture identity for ${email}`);
-  } finally {
-    db.close();
   }
 }

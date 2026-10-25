@@ -34,7 +34,6 @@ function seedDisposableDatabase() {
       APP_URL: API,
       SESSION_DRIVER: "database",
       CAPACITYLENS_DB: ".e2e.db",
-      CAPACITYLENS_MODE: "password-only",
       CAPACITYLENS_SECRET: "capacitylens-auth-e2e-secret-0123456789abcdef",
       CAPACITYLENS_PUBLIC_URL: API,
       CAPACITYLENS_CREATE_ADMIN_ADMIN: "1",

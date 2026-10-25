@@ -1,158 +1,27 @@
 import { test, expect } from "./fixtures";
-import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUser } from "./authTestSupport";
-import { waitForAppLanding } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-// Invite acceptance uses the password server on this run’s auth API lane.
-// A new user has no membership, so each isolated scenario creates the first company with its Owner.
-const STAMP = Date.now();
-const OWNER = `owner-${STAMP}@capacitylens.dev`;
-const JOINER = `joiner-${STAMP}@capacitylens.dev`;
-const NEW_JOINER = `new-joiner-${STAMP}@capacitylens.dev`;
-
-function registerSignedUserOpensValidInviteTest() {
-  test("a signed-in user opens a valid invite link and joins; reusing the token is 409", async ({ page, request }) => {
-    test.setTimeout(60_000);
-    // Owner A: sign up (auto-signed-in → session cookie), create the first company, mint an invite. The
-    // explicit `cookie` header (not the shared jar) carries A's session on each call. B's sign-up
-    // below is independent of this chain (it only needs its own email), so start it in parallel.
-    const joinerPromise = signUpUser(JOINER);
-    const ownerCookie = (await signUpUser(OWNER)).cookie;
-
-    const accountId = await bootstrapOrg(request, ownerCookie, `Invite Studio ${STAMP}`);
-
-    const inviteRes = await request.post(`${API}/api/invites`, {
-      headers: { cookie: ownerCookie },
-      data: { accountId, role: "editor", preauthEmail: JOINER },
-    });
-    expect(inviteRes.status()).toBe(201);
-    const token = (await inviteRes.json()).token as string;
-    expect(token.length).toBeGreaterThan(0);
-
-    // User B exists (sign-up is API-only; keep B's session cookie for the API reuse check below).
-    // Opening /invite/<token> in the browser has no session. Preview is read-only and the invite page
-    // shows its own inline onboarding form (the route is carved out of the login wall so an invitee
-    // signs in, or creates an account, in place; see InviteAccept.tsx).
-    const joinerCookie = (await joinerPromise).cookie;
-    await page.goto(`/invite/${token}`);
-
-    // The invite page previews the safe acceptance context before asking B to authenticate: company,
-    // proposed role, plain-language consequences and expiry. It then shows its own form (heading
-    // "Accept invite"), not the app login wall, so B signs in here without losing the bearer URL.
+// Invitations are emailed, and the E2E servers have no mail transport, so the emailed journey is
+// covered by the server functional tests. The bootstrap link in first-company.auth.spec exercises
+// the same acceptance page against a real server.
+test.describe("invitation page", () => {
+  test("an unknown link explains that the invitation is invalid", async ({ page }) => {
+    await page.goto("/invite/not-a-real-invitation");
     await expect(page.getByRole("heading", { name: "Accept invite" })).toBeVisible();
-    const preview = page.getByTestId("invite-preview");
-    await expect(preview).toContainText(`Invite Studio ${STAMP}`);
-    await expect(preview).toContainText("Invitation role");
-    await expect(preview).toContainText("Editor");
-    await expect(preview).toContainText("Can edit scheduling data");
-    await expect(preview).toContainText("accepting keeps your existing role");
-    await expect(preview).toContainText("This single-use invite expires");
-    await expect(page.getByLabel("Name", { exact: true })).toHaveCount(0);
-    const roleBox = await page.getByTestId("invite-role").boundingBox();
-    const companyBox = await preview.getByRole("heading", { name: `Invite Studio ${STAMP}` }).boundingBox();
-    expect(roleBox).not.toBeNull();
-    expect(companyBox).not.toBeNull();
-    expect((roleBox?.y ?? 0) + (roleBox?.height ?? 0)).toBeLessThanOrEqual(companyBox?.y ?? 0);
-    expect(
-      await preview
-        .locator("[data-slot='item-description']")
-        .evaluateAll((descriptions) =>
-          descriptions.every((description) => getComputedStyle(description).webkitLineClamp === "none"),
-        ),
-    ).toBe(true);
-    await page.getByLabel("Email", { exact: true }).fill(JOINER);
-    await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
-    await page.getByRole("button", { name: "Sign in" }).click();
-
-    // Sign-in reloads onto the same bearer URL. The membership must still be untouched until B has
-    // reviewed the invitation under the signed-in identity and activates the explicit accept action.
-    const accept = page.getByRole("button", { name: "Accept invite" });
-    await expect(accept).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(`/invite/${token}$`));
-    await expect(page.getByTestId("invite-preview")).toContainText("Editor");
-    await accept.click();
-
-    await expect(page.getByText(new RegExp(`You’ve joined Invite Studio ${STAMP} as Editor`))).toBeVisible();
-
-    // The invite preview renders outside AppShell, so the account-summary hook has not run.
-    // Acceptance refreshes the summaries and activates the joined account before following Continue.
-    // A first visit on this device may show the once-per-device intro; waitForAppLanding handles it.
-    await page.getByRole("link", { name: "Continue" }).click();
-    // Wait for the root navigation before checking the intro. The company name is no longer a safe
-    // pre-navigation sentinel because the invite preview deliberately shows it too.
-    await expect(page).toHaveURL(/\/$/);
-    await waitForAppLanding(page, page.locator("#main"));
-    // In the app, the joined company is active. Its single-company context is intentionally hidden
-    // from the sidebar, so verify the authoritative current-access card instead.
-    await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
-    await page.getByRole("link", { name: "Team & access" }).click();
-    await expect(page.getByTestId("current-access")).toContainText("Editor");
-
-    // Single-use guarantee at the API layer: the browser accept already consumed the token, so a
-    // second accept (B's API session) of the same token is 409.
-    const reuse = await request.post(`${API}/api/invites/${token}/accept`, {
-      headers: { cookie: joinerCookie },
-    });
-    expect(reuse.status()).toBe(409);
+    await expect(page.getByTestId("invite-error")).toContainText("This invitation is invalid or has expired");
+    await expect(page.getByTestId("invite-password")).toHaveCount(0);
   });
-}
 
-function registerNewPreAuthorizedIdentitySignsTests() {
-  test("a new pre-authorized identity signs up and enters the invited company", async ({ page, request }) => {
-    test.setTimeout(60_000);
-
-    const ownerCookie = (await signUpUser(`${OWNER}.signup`)).cookie;
-    const accountId = await bootstrapOrg(request, ownerCookie, `Signup Invite Studio ${STAMP}`);
-
-    // A brand-new identity takes the atomic signup path. The consumed token cannot be re-opened, so
-    // the live route refreshes /me + /api/accounts, activates the exact joined company, and replaces
-    // the invite URL with the app route instead of dropping the user onto the company picker.
-    const signupInvite = await request.post(`${API}/api/invites`, {
-      headers: { cookie: ownerCookie },
-      data: { accountId, role: "editor", preauthEmail: NEW_JOINER },
-    });
-    expect(signupInvite.status()).toBe(201);
-    const signupToken = (await signupInvite.json()).token as string;
-    await page.goto(`/invite/${signupToken}`);
-    await expect(page.getByTestId("invite-preview")).toContainText(`${NEW_JOINER.split("@")[0]}@…`);
-    await expect(page.getByTestId("invite-preview")).not.toContainText(NEW_JOINER);
-    await page.getByRole("tab", { name: "Create account" }).click();
-    await page.getByLabel("Name", { exact: true }).fill("New Joiner");
-    await page.getByLabel("Email", { exact: true }).fill(NEW_JOINER);
-    await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
-    await page.getByRole("button", { name: "Create account and accept" }).click();
-
-    await expect(page).toHaveURL(/\/$/);
-    await waitForAppLanding(page, page.locator("#main"));
-    // The joined company is active, while its single-company context is intentionally hidden from
-    // the sidebar. Team & access exposes the authoritative role projection.
-    await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
-    await page.getByRole("link", { name: "Team & access" }).click();
-    await expect(page.getByTestId("current-access")).toContainText("Editor");
-  });
-}
-
-test.describe("invite accept (CAPACITYLENS_MODE=password)", () => {
-  registerSignedUserOpensValidInviteTest();
-  registerNewPreAuthorizedIdentitySignsTests();
-
-  test("a maximum-length addressed hint wraps within a narrow invitation preview", async ({ page }) => {
+  test("a maximum-length address wraps within a narrow invitation page", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 1000 });
-    const emailHint = `${"a".repeat(252)}@…`;
+    const email = `${"a".repeat(64)}@${"b".repeat(63)}.${"c".repeat(63)}.${"d".repeat(57)}.test`;
     await page.route("**/api/invites/*/preview", (route) =>
-      route.fulfill({
-        json: {
-          accountName: "Wayne Enterprises",
-          role: "editor",
-          expiresAt: "2999-01-01T00:00:00.000Z",
-          emailBound: true,
-          emailHint,
-        },
-      }),
+      route.fulfill({ json: { accountId: "a-studio", accountName: "Wayne Enterprises", role: "editor", email } }),
     );
-    await page.goto("/invite/long-hint-layout");
-    await expect(page.getByTestId("invite-preview")).toContainText(emailHint);
+    await page.goto("/invite/long-address-layout");
+    await expect(page.getByTestId("invite-role")).toHaveText("Editor");
+    await expect(page.getByText(email)).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
   });
 });
