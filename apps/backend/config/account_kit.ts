@@ -1,3 +1,4 @@
+import { publicOrigin } from '#config/public_origin'
 import app from '@adonisjs/core/services/app'
 import env from '#start/env'
 import { createActionUrls, createMailNotifications, defineConfig } from 'adonisjs-account-kit'
@@ -13,8 +14,6 @@ import {
 } from '#services/account_kit/policy'
 import { registrationDisplayName, users } from '#services/account_kit/users'
 import { SESSION_IDLE_EXPIRY } from '#services/auth/session_expiry'
-
-const origin = env.get('CAPACITYLENS_PUBLIC_URL') || env.get('APP_URL')
 
 export default defineConfig({
   users,
@@ -42,8 +41,8 @@ export default defineConfig({
   ...(app.inTest ? { throttle: { requests: 100, duration: '15m' } } : {}),
   authorize,
   urls: createActionUrls({
-    backendOrigin: origin,
-    appFrontendUrl: origin,
+    backendOrigin: publicOrigin.origin,
+    appFrontendUrl: publicOrigin.origin,
     destinations: {
       passwordReset: 'reset-password',
       emailVerification: 'verify-email',

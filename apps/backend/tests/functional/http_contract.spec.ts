@@ -257,6 +257,14 @@ test.group('HTTP proxy, transport and cookie contract', (group) => {
     })
   })
 
+  test('an unset public origin falls back to the framework URL', async ({ assert }) => {
+    await withServer({ CAPACITYLENS_PUBLIC_URL: '' }, {}, async (server) => {
+      const response = await server.send('GET', '/health/live')
+      assert.equal(response.status, 200)
+      assert.isUndefined(response.headers['strict-transport-security'])
+    })
+  })
+
   test('production refuses an http public URL before serving', async ({ assert }) => {
     // Account links carry bearer tokens, so the Account Kit requires an HTTPS origin in production.
     await assert.rejects(

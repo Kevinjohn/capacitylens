@@ -15,12 +15,12 @@ Restart the single backend process after changing its environment.
 | --- | --- |
 | `NODE_ENV` | Set to `production` for a deployed service. |
 | `HOST`, `PORT` | Listener address and port. The supplied release example binds loopback on port 8787. |
-| `APP_URL` | Canonical public application URL. Production requires `https://`. |
+| `APP_URL` | Adonis framework URL; also the public-origin fallback when `CAPACITYLENS_PUBLIC_URL` is unset. |
 | `APP_KEY` | Adonis encryption key. Generate it from `backend/` with `node ace.js generate:key --show`; keep it stable and secret. |
 | `SESSION_DRIVER` | Use `database` for a deployed application. |
 | `CAPACITYLENS_DB` | SQLite database path. Put it in persistent storage outside the release. |
-| `CAPACITYLENS_SECRET` | Independent application secret used by product account operations. |
-| `CAPACITYLENS_PUBLIC_URL` | Public origin used in emailed links. Match `APP_URL`; production refuses an `http://` origin. |
+| `CAPACITYLENS_SECRET` | Boot requires at least 32 characters. This compatibility requirement does not supply an encryption or signing key; `APP_KEY` owns Adonis encryption. |
+| `CAPACITYLENS_PUBLIC_URL` | Optional public-origin override shared by emailed links, cookies and transport security. Bare HTTP(S) origin only: no credentials, path, query or fragment. Production requires HTTPS; development/test allow HTTP only on `localhost`, `127.0.0.1` or `[::1]`. |
 
 Run `node ace.js app:upgrade` with the service stopped before the first start and after each
 release. The application uses one SQLite connection and one writer process per database file.
@@ -44,6 +44,8 @@ may join.
 
 Keep `CAPACITYLENS_ALLOW_OPEN_SIGNUP` unset unless you intentionally allow open registration. An
 openly registered identity still needs an Owner or Admin approval before it sees company data.
+
+SQL audit records remain active for every installation. `CAPACITYLENS_AUDIT=off` is refused in production; the setting does not disable SQL audit in development or test either.
 
 ## Email
 
@@ -84,4 +86,6 @@ only needed when the browser app and API use different origins.
 `CAPACITYLENS_LOG=1` enables routine request-completion logs. Sensitive request/response values are
 redacted, and unexpected failures remain logged without their private messages. Set
 `CAPACITYLENS_RATE_LIMIT` to change the process-wide request limit; it is not a per-company
-reservation.
+reservation. Supply a whole number from 0 to 1,000,000; production requires at least 1.
+The default is 300 in production and disabled in development/test.
+SMTP and test HTTP ports must be whole numbers from 1 to 65,535.
