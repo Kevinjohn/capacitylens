@@ -542,7 +542,7 @@ export interface Registry {
       body: {}
       paramsTuple: []
       params: {}
-      query: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/export_query').exportQueryValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/exports_controller').default['show']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/exports_controller').default['show']>>>
     }
