@@ -11,7 +11,6 @@ import type { CurrentAccountInput } from 'adonisjs-account-kit/types'
 import env from '#start/env'
 import { FirstCompanyPendingError } from '#models/user'
 import { requiresFirstCompanySetup } from '#services/first_company_setup'
-import { installationCompanyId } from '#services/account_kit/policy'
 import {
   accountInput,
   admissionDecision,
@@ -77,7 +76,6 @@ export default class AuthController {
         async (actor, trx) => {
           const admission = await admissionDecision(actor.userId, trx)
           const admitted = actor.emailVerified && admission.admitted
-          const companyId = admitted ? await installationCompanyId(trx) : null
           return {
             authMode: 'password-only',
             user: userProjection(actor),
@@ -88,7 +86,8 @@ export default class AuthController {
             companySetupRequired: admitted && (await requiresFirstCompanySetup(actor.userId, trx)),
             // Admitted but not yet a member: the person completes their membership explicitly.
             membershipRequired:
-              companyId !== null &&
+              admitted &&
+              Boolean(await trx.from('accounts').select('id').first()) &&
               !(await trx.from('memberships').where('user_id', actor.userId).first()),
             reauthMethod: 'password',
             reauthProviderId: null,
