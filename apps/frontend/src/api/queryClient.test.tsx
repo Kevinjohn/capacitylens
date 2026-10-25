@@ -22,6 +22,25 @@ describe("same-origin API requests", () => {
       window.history.replaceState(null, "", "/");
     }
   });
+  it("preserves a generated request's caller abort signal at the timeout boundary", async () => {
+    const caller = new AbortController();
+    let forwardedSignal: AbortSignal | null | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        forwardedSignal = init?.signal;
+        caller.abort();
+        return Response.json({ user: { id: "bruce" } });
+      }),
+    );
+    try {
+      await client.request("api.auth.me", { signal: caller.signal });
+      expect(forwardedSignal).toBeInstanceOf(AbortSignal);
+      expect(forwardedSignal?.aborted).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
 
 describe("account query cache scope", () => {

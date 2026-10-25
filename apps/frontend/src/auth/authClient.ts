@@ -1,4 +1,6 @@
-import { API_BASE } from "@/data/apiConfig";
+import type { ResponseOf } from "@tuyau/core/types";
+import type { registry } from "@capacitylens/backend/registry";
+import { apiRouteUrl } from "@/api/queryClient";
 import { apiFetch } from "@/data/requestTimeout";
 
 export interface AuthApiError {
@@ -12,20 +14,9 @@ export interface AuthApiResult<T> {
   error: AuthApiError | null;
 }
 
-export interface AuthUserResponse {
-  id: string;
-  name: string;
-  email: string;
-  image: null;
-}
-
 interface PasswordCredentials {
   email: string;
   password: string;
-}
-
-interface AuthUserResponseBody {
-  user: AuthUserResponse;
 }
 
 interface PasswordChangeInput {
@@ -45,8 +36,18 @@ function readErrorMessage(value: unknown, status: number): AuthApiError {
   return { message: `Authentication request failed (${status}).`, status };
 }
 
-async function request<T>(method: "GET" | "POST", path: string, body: unknown): Promise<AuthApiResult<T>> {
-  const response = await apiFetch(`${API_BASE}/api/${path}`, {
+type ProductRoutes = typeof registry.routes;
+type AuthRoute = Extract<
+  keyof ProductRoutes,
+  `api.auth.${string}` | "api.admission.show" | "api.admission.request" | "api.admission.complete"
+>;
+
+async function request<Name extends AuthRoute>(
+  method: "GET" | "POST",
+  name: Name,
+  body: unknown,
+): Promise<AuthApiResult<ResponseOf<ProductRoutes[Name]>>> {
+  const response = await apiFetch(apiRouteUrl<AuthRoute>(name, {}), {
     method,
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -54,34 +55,31 @@ async function request<T>(method: "GET" | "POST", path: string, body: unknown): 
   });
   const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) return { data: null, error: readErrorMessage(payload, response.status) };
-  return { data: payload as T, error: null };
+  return { data: payload as ResponseOf<ProductRoutes[Name]>, error: null };
 }
 
-const post = <T>(path: string, body: unknown) => request<T>("POST", path, body);
-
-/** The Account Kit admission decision the server reports for the signed-in identity. */
-export interface AdmissionDecisionBody {
-  decision: { admitted: boolean };
-}
+// These controllers validate bodies manually, so their generated registry has no request body.
+// Keep the raw fetch boundary until it can describe those inputs, while deriving successes from it.
+const post = <Name extends AuthRoute>(name: Name, body: unknown) => request("POST", name, body);
 
 /** Typed browser client for the product's session, credential, confirmation and admission endpoints. */
 export const authClient = {
   signIn: {
-    email: (input: PasswordCredentials) => post<AuthUserResponseBody>("auth/sign-in", input),
+    email: (input: PasswordCredentials) => post("api.auth.sign-in", input),
   },
-  signOut: () => post<{ ok: true }>("auth/sign-out", {}),
-  requestPasswordReset: (email: string) => post<{ ok: true }>("auth/request-reset", { email }),
-  inspectPasswordReset: (token: string) => post<{ valid: boolean }>("auth/inspect-reset", { token }),
-  resetPassword: (input: { token: string; newPassword: string }) => post<{ ok: true }>("auth/reset-password", input),
+  signOut: () => post("api.auth.sign-out", {}),
+  requestPasswordReset: (email: string) => post("api.auth.request-reset", { email }),
+  inspectPasswordReset: (token: string) => post("api.auth.inspect-reset", { token }),
+  resetPassword: (input: { token: string; newPassword: string }) => post("api.auth.reset-password", input),
   /** Ends every sign-in, this one included, once the password changes. */
-  changePassword: (input: PasswordChangeInput) => post<{ ok: true; signedOut: true }>("auth/change-password", input),
-  sendEmailVerification: () => post<{ result: "sent" | "already_verified" }>("auth/verification/send", {}),
-  inspectEmailVerification: (token: string) => post<{ valid: boolean }>("auth/verification/inspect", { token }),
+  changePassword: (input: PasswordChangeInput) => post("api.auth.change-password", input),
+  sendEmailVerification: () => post("api.auth.verification.send", {}),
+  inspectEmailVerification: (token: string) => post("api.auth.verification.inspect", { token }),
   /** Confirms the address and sets the password the person chose. */
   completeEmailVerification: (input: { token: string; password: string }) =>
-    post<{ result: "verified" }>("auth/verification/complete", input),
-  admissionStatus: () => request<AdmissionDecisionBody>("GET", "admission", null),
-  requestAdmission: () => post<{ requestedAt: string }>("admission/request", {}),
+    post("api.auth.verification.complete", input),
+  admissionStatus: () => request("GET", "api.admission.show", null),
+  requestAdmission: () => post("api.admission.request", {}),
   /** Creates the admitted identity's company membership; never reactivates disabled access. */
-  completeMembership: () => post<{ accountId: string; role: string; created: boolean }>("admission/complete", {}),
+  completeMembership: () => post("api.admission.complete", {}),
 };

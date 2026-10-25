@@ -511,6 +511,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/first_company_setup_controller').default['store']>>>
     }
   }
+  'api.accounts.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/accounts'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/companies_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/companies_controller').default['index']>>>
+    }
+  }
   'api.transfer.preview': {
     methods: ["POST"]
     pattern: '/api/transfer/preview'
@@ -1075,16 +1087,16 @@ export interface Registry {
       errorResponse: unknown
     }
   }
-  'api.accounts.index': {
+  'api.diagnostics': {
     methods: ["GET","HEAD"]
-    pattern: '/api/accounts'
+    pattern: '/api/diagnostics'
     types: {
       body: {}
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/companies_controller').default['index']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/companies_controller').default['index']>>>
+      response: unknown
+      errorResponse: unknown
     }
   }
 }

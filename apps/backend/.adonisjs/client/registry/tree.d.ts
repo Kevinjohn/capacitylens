@@ -69,15 +69,15 @@ export interface ApiDefinition {
     installation: {
       company: typeof routes['api.installation.company']
     }
+    accounts: {
+      index: typeof routes['api.accounts.index']
+      anonymise: typeof routes['api.accounts.anonymise']
+    }
     transfer: {
       preview: typeof routes['api.transfer.preview']
       apply: typeof routes['api.transfer.apply']
     }
     state: typeof routes['api.state']
-    accounts: {
-      anonymise: typeof routes['api.accounts.anonymise']
-      index: typeof routes['api.accounts.index']
-    }
     resources: {
       anonymise: typeof routes['api.resources.anonymise']
     }
@@ -143,5 +143,6 @@ export interface ApiDefinition {
       transfer: typeof routes['api.ownership.transfer']
     }
     health: typeof routes['api.health']
+    diagnostics: typeof routes['api.diagnostics']
   }
 }
