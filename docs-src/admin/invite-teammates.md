@@ -57,6 +57,9 @@ in **Team & access**, with the role their invitation offered. Select **Approve**
 with that role, or **Decline** to refuse. They see the result the next time they select **Check
 again**. Nobody can reach company data before an Owner or Admin approves them.
 
+A declined person stays in the list, marked **Declined**, so you can still select **Approve** if
+you declined by mistake.
+
 ## Revoke an invitation
 
 <span id="outstanding-invites"></span>
@@ -94,17 +97,18 @@ All three are in **More actions**. None affects the person's other company membe
   Admin selects **Enable Access** (also offered under **No longer active**).
 - Use **Archive user** when they leave but you want to keep their membership on record. It stops
   their access; **Restore membership** reactivates it but doesn't clear Disable Access.
-- Use **Remove** when they no longer belong to the company. It ends that membership but not their
-  sign-in, so they may return later with a new invitation.
+- Use **Remove** when they no longer belong to the company. It ends that membership and keeps them
+  out: they move to **No longer active**, and **Enable Access** brings them back with the role they
+  held when removed.
 
-Archiving or removing does not block a new invitation; a returning person gets the invitation's
-role. After **Enable Access**, an active member keeps their role, but an archived or removed person
-still needs restoring or a new invitation.
+Invitations go only to addresses without an account, so a person who has signed in before comes
+back through **Restore membership** or **Enable Access**, never a new invitation. After **Enable
+Access**, an active member keeps their role and an archived person still needs restoring.
 
 <span id="if-they-come-back-with-a-new-sign-in"></span>
 
-A disabled address cannot rejoin through a new invitation until an Owner or Admin selects **Enable
-Access** under **No longer active**.
+A disabled or removed person cannot rejoin until an Owner or Admin selects **Enable Access** under
+**No longer active**.
 
 A new installation allows one company. Ask your installer if you need more;
 [Configuration](/self-hosting/configuration) has the setting.

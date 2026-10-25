@@ -27,7 +27,7 @@ open the app in a build with `VITE_CAPACITYLENS_DEMO=1`.
    The URL is `/diagnostics`.
 2. Review the **Support report**: the **Snapshot observed** ISO timestamp, the app version, build
    revision, deployment mode and export schema; the server connectivity, database, persistence and
-   backup values that are available; the sign-in mode; this browser session's save counters; and
+   backup values that are available; this browser session's save counters; and
    the browser's user agent, viewport, time zone and language.
 3. Click **Copy diagnostics**. A generic success message confirms that the report was copied.
 4. Paste the report into a private support note and confirm it contains no company data,

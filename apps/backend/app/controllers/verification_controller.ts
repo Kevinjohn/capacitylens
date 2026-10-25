@@ -74,6 +74,13 @@ export default class VerificationController {
           error: 'This link is invalid or expired.',
           code: 'INVALID_TOKEN',
         })
+      if (isCommittedFailure(error))
+        return ctx.response.serviceUnavailable({
+          error:
+            'Your address is confirmed and your password is set. Sign in with the new password.',
+          code: 'VERIFICATION_COMMITTED',
+          committed: true,
+        })
       throw error
     }
   }

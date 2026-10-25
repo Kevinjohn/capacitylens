@@ -1,13 +1,13 @@
 // Password policy, the pure, environment-agnostic numbers both halves of the app must agree on.
-// A dependency-free leaf (no runtime deps, no I/O), so the server (Better Auth config) and the client
+// A dependency-free leaf (no runtime deps, no I/O), so the server credential routes and the client
 // (the reset-page pre-check) import the same source and can't drift, the repo's standard no-drift
 // pattern (see access.ts). If these diverged, the client would accept a password the server rejects
 // and then show a length message that contradicts the real bound.
 
 /**
- * The minimum password length, in Unicode code points. CapacityLens enforces it before Better
- * Auth's UTF-16-based guard and passes the same numeric floor explicitly so a library upgrade cannot
- * weaken its coarse transport check. The reset-password page consumes the same policy and its
+ * The minimum password length, in Unicode code points. CapacityLens enforces it before the
+ * Account Kit's UTF-16-based guard, so a library change cannot weaken the floor. The
+ * reset-password page consumes the same policy and its
  * "at least N characters" message (src/auth/ResetPassword.tsx), so the two never disagree.
  *
  * OWASP ASVS 5.0.0 V6.2.1 requires at least 8 and strongly recommends 15 when passwords are used;
@@ -22,13 +22,13 @@ export const MIN_PASSWORD_LENGTH = 15;
  * over-long passphrase gets an actionable bound instead of a generic failure, and the bound the
  * client states is always the one the server enforces.
  *
- * 128 preserves the product's established ceiling independently of Better Auth's UTF-16-based
+ * 128 preserves the product's established ceiling independently of the Account Kit's UTF-16-based
  * transport guard.
  */
 export const MAX_PASSWORD_LENGTH = 128;
 
 /**
- * Better Auth and HTML `maxlength` count UTF-16 code units. A valid password may use two code units
+ * The Account Kit and HTML `maxlength` count UTF-16 code units. A valid password may use two code units
  * for every code point, so their transport/input ceiling must allow this many code units before
  * CapacityLens applies its own code-point policy.
  */

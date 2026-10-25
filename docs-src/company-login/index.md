@@ -65,5 +65,5 @@ delivery. Without it, CapacityLens says so instead of sending.
 ## When someone leaves
 
 In **Team & access**, remove their membership or select **Disable Access**. They lose company access
-on their next request. A removed address cannot rejoin through a new invitation until an Owner or
-Admin restores it from **No longer active**.
+on their next request. Neither can rejoin until an Owner or Admin selects **Enable Access** under
+**No longer active**; a removed person returns with the role they held when removed.

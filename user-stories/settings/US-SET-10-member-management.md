@@ -29,8 +29,9 @@ limits; management controls remain Owner/Admin-only. Ownership moves only throug
 restriction that survives membership removal. It follows identity recreation at the same proven
 address only when both identities have durable mailbox proof; a legacy verified flag or addressed
 invitation alone does not supply that proof. Only an
-administrator can Enable Access. Archive retains an inactive membership; remove ends it. Neither
-action alone prevents a later invitation. Enable does not recreate an archived or removed membership.
+administrator can Enable Access. Archive retains an inactive membership; remove ends it and records
+the same restriction, so the person cannot rejoin on their own. Enable Access restores a removed
+person with the role they held when removed; it does not reactivate an archived membership.
 Invites reuse the P1.9 single-use link: the secret token is shown once at creation, stored only as a
 one-way hash, and never read back, so listing or revoking invites can never leak a live, role-bearing
 link.

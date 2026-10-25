@@ -160,11 +160,13 @@ This is the short, present-tense record of decisions that constrain future work.
   outcome. Password sign-in is the only sign-in method; there are no identity providers.
 - Admission is cumulative and owned by the kit: an optional allowed email domain
   (`CAPACITYLENS_ALLOWED_EMAIL_DOMAINS`), invitation evidence and Owner or Admin approval, all from
-  static configuration (restart to change). Accepting an emailed invitation records the evidence and
-  confirms the address; approval is still required. A person who is signed in but not admitted
+  static configuration (restart to change). Accepting an emailed invitation records the evidence,
+  confirms the address and creates the membership with the invited role; approval is still required. A person who is signed in but not admitted
   reaches only the limited screens, which show the step that applies. Approval, rejection and
   revocation are enforced on the next request; nothing is pushed to the browser. An admitted person
-  then joins the company explicitly, with the invited role or Viewer, never Owner.
+  without a membership (operator-granted evidence or an approved registration) joins explicitly,
+  with the invited role or Viewer, never Owner. Removal records an access restriction, so only an
+  Owner or Admin can bring a removed person back.
 - Invitations are emailed only; the acceptance link is never shown in the product. One configured
   lifetime (seven days) applies to every invitation. Accepting creates a new identity and refuses an
   already-registered address; identities are never merged by email. When an existing limited

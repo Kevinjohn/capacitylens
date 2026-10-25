@@ -10,7 +10,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { authClient } from "./authClient";
 
-type State = "checking" | "form" | "working" | "done" | "invalid";
+/** `unavailable`: the link could not be checked; `uncertain`: the outcome of confirming is unknown. */
+type State = "checking" | "unavailable" | "form" | "working" | "done" | "invalid" | "uncertain";
 
 /**
  * Spends an emailed address-confirmation link. Confirming also sets the password the person
@@ -29,22 +30,30 @@ export function VerifyEmail() {
     document.title = `${m.verify_title()} · ${APP_NAME}`;
   }, []);
 
+  const [inspection, setInspection] = useState(0);
   useEffect(() => {
     if (!token) return;
     let current = true;
     authClient
       .inspectEmailVerification(token)
-      .then(({ data }) => {
-        if (current) setState(data?.valid ? "form" : "invalid");
+      .then(({ data, error: failure }) => {
+        // Only the server's answer about the link is authoritative; an outage is not an invalid link.
+        if (current) setState(failure && failure.status !== 400 ? "unavailable" : data?.valid ? "form" : "invalid");
       })
       .catch((failure: unknown) => {
         console.warn("VerifyEmail: link inspection failed", failure);
-        if (current) setState("invalid");
+        if (current) setState("unavailable");
       });
     return () => {
       current = false;
     };
-  }, [token]);
+  }, [token, inspection]);
+
+  /** A terminal or unknown outcome leaves nothing to retype, so the password is not kept. */
+  const finish = (next: State) => {
+    setPassword("");
+    setState(next);
+  };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -62,16 +71,17 @@ export function VerifyEmail() {
     setState("working");
     try {
       const { error: failure } = await authClient.completeEmailVerification({ token, password });
-      if (!failure) setState("done");
-      else if (failure.code === "INVALID_TOKEN") setState("invalid");
+      if (!failure) finish("done");
+      else if (failure.code === "INVALID_TOKEN") finish("invalid");
+      else if (failure.status >= 500) finish("uncertain");
       else {
         setError(failure.message || m.verify_failed());
         setState("form");
       }
     } catch (failure) {
+      // The link may already be spent and the password set, so repeating could only mislead.
       console.error("VerifyEmail: confirmation failed", failure);
-      setError(m.verify_failed());
-      setState("form");
+      finish("uncertain");
     }
   };
 
@@ -92,6 +102,30 @@ export function VerifyEmail() {
             {state === "invalid" && (
               <p role="alert" data-testid="verify-invalid" className="text-sm">
                 {m.verify_invalid()}
+              </p>
+            )}
+            {state === "unavailable" && (
+              <>
+                <p role="alert" data-testid="verify-unavailable" className="text-sm">
+                  {m.verify_unavailable()}
+                </p>
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setState("checking");
+                      setInspection((count) => count + 1);
+                    }}
+                  >
+                    {m.verify_retry()}
+                  </Button>
+                </div>
+              </>
+            )}
+            {state === "uncertain" && (
+              <p role="alert" data-testid="verify-uncertain" className="text-sm">
+                {m.verify_uncertain()}
               </p>
             )}
             {(state === "form" || state === "working") && (
@@ -120,7 +154,7 @@ export function VerifyEmail() {
                 </FieldGroup>
               </form>
             )}
-            {(state === "done" || state === "invalid") && (
+            {(state === "done" || state === "invalid" || state === "uncertain") && (
               <>
                 {state === "done" && (
                   <p role="status" data-testid="verify-success" className="text-sm font-medium text-ink">

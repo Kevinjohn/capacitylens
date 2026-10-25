@@ -4,6 +4,8 @@ import app from '@adonisjs/core/services/app'
 import db from '@adonisjs/lucid/services/db'
 import limiter from '@adonisjs/limiter/services/main'
 import { AccountAdmission } from 'adonisjs-account-kit/admission'
+import accountKit from 'adonisjs-account-kit/services/main'
+import { PostCommitError } from 'adonisjs-account-kit/errors'
 import { resetState } from '#services/state_repository'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import {
@@ -275,5 +277,37 @@ test.group('address confirmation', (group) => {
       .json({ email: person, password })
       .send()
     old.assertStatus(401)
+  })
+
+  test('a confirmation whose follow-up failed reports the committed result', async ({
+    client: api,
+    assert,
+    cleanup,
+  }) => {
+    const original = accountKit.emailVerification.complete
+    accountKit.emailVerification.complete = async () => {
+      throw new PostCommitError('A follow-up failed.')
+    }
+    cleanup(() => {
+      accountKit.emailVerification.complete = original
+    })
+    const confirmed = await as('').post(api, '/api/auth/verification/complete', {
+      token: 'committed-token',
+      password: 'confirmed-password-2026',
+    })
+    confirmed.assertStatus(503)
+    assert.equal(confirmed.body().code, 'VERIFICATION_COMMITTED')
+  })
+
+  test('a database holding two companies refuses membership completion with a clear conflict', async ({
+    client: api,
+    assert,
+  }) => {
+    await resetState(true)
+    await createIdentity(person, { password })
+    const { cookie } = await signIn(api, person, password)
+    const completed = await as(cookie).post(api, '/api/admission/complete')
+    completed.assertStatus(409)
+    assert.equal(completed.body().code, 'MULTIPLE_COMPANIES')
   })
 })

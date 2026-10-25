@@ -177,6 +177,9 @@ export default class InvitationsController {
         })
       if (error instanceof FirstCompanyPendingError)
         return ctx.response.conflict({ error: error.message, code: error.code })
+      // The identity exists; only a follow-up failed, so the person signs in rather than retrying.
+      if (isCommittedFailure(error))
+        return ctx.response.accepted({ accepted: true, signInRequired: true })
       throw error
     }
     try {

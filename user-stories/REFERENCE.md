@@ -893,9 +893,18 @@ screen (`access-<gate>`), titled for its next step, with **Sign out**:
   the address and sets the password chosen there, then ends every sign-in.
 - `access-admission` — **Waiting for access**, with **Ask for access**
   (`access-request-admission`) until requested, then **Your request has been sent. An Owner or Admin
-  will approve your access.**, and **Check again**.
+  will approve your access.**, and **Check again**. When approval alone cannot admit the person, it
+  says so instead: a missing invitation asks them to have the administrator record one, and an
+  address outside the allowed domains asks them to use their work address.
 - `access-membership` — **Join the company**, with **Join company** (`access-join-company`) for an
-  approved identity that has no membership yet.
+  approved identity that has no membership yet. A removed person is refused until an Owner or Admin
+  selects Enable Access.
+
+The `/verify-email/:token` page offers **Try again** (`verify-unavailable`) when the link cannot be
+checked, rather than calling it invalid. If the confirmation answer is lost it shows
+`verify-uncertain` and sends the person to sign in instead of back to the form. The invitation page
+does the same: an unreachable preview is reported as unavailable, and a lost sign-up answer shows
+`invite-uncertain`.
 
 The product auth client uses `POST /api/auth/sign-in` and `POST /api/auth/sign-out`. Password
 recovery uses `POST /api/auth/request-reset`, `POST /api/auth/inspect-reset` and
@@ -1054,7 +1063,10 @@ presented before the member directory, matching the action-first pattern of the 
 - **Waiting for approval** (`data-testid="admission-requests"`; Owner/Admin) lists each person who
   asked for access (`data-testid="admission-request"`) with their email and invited role, and
   **Approve** (`data-testid="admission-approve"`) and **Decline** (`data-testid="admission-reject"`).
-  A decided request leaves the list.
+  An approved person leaves the list; a declined or revoked one stays, labelled **Declined** or
+  **Approval revoked** (`data-testid="admission-decided"`), with **Approve** only. The list reads
+  every page, shows **Loading people waiting for approval…** while it loads, and offers **Try
+  again** after a failed load.
 - **Outstanding invites** — its own bordered section (`data-testid="outstanding-invites"`) with a
   row per unaccepted invite (`data-testid="invite-row"`): **Email** with its expiry date (or
   **Expired**), **Role**, and **Actions** holding **Resend** (`data-testid="invite-resend"`), which

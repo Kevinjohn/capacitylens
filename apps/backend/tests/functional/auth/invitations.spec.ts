@@ -3,6 +3,8 @@ import type { ApiClient } from '@japa/api-client'
 import db from '@adonisjs/lucid/services/db'
 import limiter from '@adonisjs/limiter/services/main'
 import mailService from '@adonisjs/mail/services/main'
+import accountKit from 'adonisjs-account-kit/services/main'
+import { DeliveryError } from 'adonisjs-account-kit/errors'
 import env from '#start/env'
 import { resetState } from '#services/state_repository'
 import { freshDatabase } from '../../helpers/fresh_database.js'
@@ -184,6 +186,23 @@ test.group('company invitations', (group) => {
     ).send()
     resent.assertStatus(202)
     assert.deepEqual(resent.body(), { committed: true, emailed: false })
+  })
+
+  test('an acceptance whose follow-up failed sends the person to sign in', async ({
+    client,
+    cleanup,
+    assert,
+  }) => {
+    const original = accountKit.invitations.accept
+    accountKit.invitations.accept = async () => {
+      throw new DeliveryError('The welcome notification failed.')
+    }
+    cleanup(() => {
+      accountKit.invitations.accept = original
+    })
+    const accepted = await accept(client, 'committed-token')
+    accepted.assertStatus(202)
+    assert.deepEqual(accepted.body(), { accepted: true, signInRequired: true })
   })
 
   test('a resent invitation replaces its link and a revoked one stops working', async ({

@@ -28,7 +28,9 @@ type State =
   | { kind: "checking" }
   | { kind: "form"; preview: Preview }
   | { kind: "working"; preview: Preview }
-  | { kind: "failed"; message: string };
+  | { kind: "failed"; message: string }
+  /** The sign-up answer was lost or failed after the account may have been created. */
+  | { kind: "uncertain" };
 
 function parsePreview(body: unknown): Preview | null {
   if (!isRecord(body) || typeof body.email !== "string") return null;
@@ -72,6 +74,11 @@ function useInvitePreview(token: string | undefined) {
     accountClient
       .previewInvitation(token)
       .then(async (response) => {
+        // Only a not-found or rejected token is an invalid invitation; anything else may pass on retry.
+        if (!response.ok && response.status !== 400 && response.status !== 404) {
+          if (current) setState({ kind: "failed", message: m.invite_err_unavailable() });
+          return;
+        }
         const preview = response.ok ? parsePreview(await response.json().catch(() => null)) : null;
         if (current)
           setState(preview ? { kind: "form", preview } : { kind: "failed", message: m.invite_err_invalid() });
@@ -114,6 +121,11 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
         window.location.assign("/");
         return;
       }
+      if (response.status >= 500) {
+        setPassword("");
+        setState({ kind: "uncertain" });
+        return;
+      }
       const code = await readApiErrorCode(response);
       if (code === "INVALID_TOKEN") {
         setState({ kind: "failed", message: m.invite_err_invalid() });
@@ -126,9 +138,10 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
       );
       setState({ kind: "form", preview });
     } catch (failure) {
+      // The account may exist; a retry would spend nothing useful and report a misleading invalid link.
       console.error("InviteAccept: sign-up failed", failure);
-      setError(m.invite_err_network());
-      setState({ kind: "form", preview });
+      setPassword("");
+      setState({ kind: "uncertain" });
     }
   };
 
@@ -145,6 +158,18 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
               <p role="status" className="text-sm text-muted-foreground">
                 {m.invite_checking()}
               </p>
+            )}
+            {state.kind === "uncertain" && (
+              <>
+                <p role="alert" data-testid="invite-uncertain" className="text-sm">
+                  {m.invite_uncertain()}
+                </p>
+                <div className="flex justify-end">
+                  <Button asChild size="sm">
+                    <a href="/">{m.invite_go_to_app()}</a>
+                  </Button>
+                </div>
+              </>
             )}
             {state.kind === "failed" && (
               <>

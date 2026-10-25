@@ -342,7 +342,8 @@ async function main() {
       credentials.email,
       "--role=viewer",
     );
-    assert.equal(bootstrap.status, 0, bootstrap.output);
+    // A failed run may still have printed the one-time link; never copy it into CI logs.
+    assert.equal(bootstrap.status, 0, bootstrap.output.replace(/https?:\/\/\S+/g, "<redacted link>"));
     const setupLink = /"url":"([^"]+)"/.exec(bootstrap.output)?.[1];
     assert.ok(setupLink, "The packaged bootstrap command printed no setup link.");
     const setupToken = new URL(setupLink).pathname.split("/").filter(Boolean).at(-1);
