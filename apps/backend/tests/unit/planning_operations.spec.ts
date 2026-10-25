@@ -487,19 +487,19 @@ test.group('planning operation contracts', () => {
 
     const stale = await planningMutationFailureValidator.validate({
       error: 'The planning revision changed.',
-      code: 'stale_revision',
+      code: 'STALE_REVISION',
     })
     const refused = await planningMutationFailureValidator.validate({
       error: 'This action is not allowed.',
-      code: 'authorization_denied',
+      code: 'AUTHORIZATION_DENIED',
     })
     const noChange = await planningMutationFailureValidator.validate({
       error: 'The requested values are unchanged.',
-      code: 'no_change',
+      code: 'NO_CHANGE',
     })
-    assert.equal(stale.code, 'stale_revision')
-    assert.equal(refused.code, 'authorization_denied')
-    assert.equal(noChange.code, 'no_change')
+    assert.equal(stale.code, 'STALE_REVISION')
+    assert.equal(refused.code, 'AUTHORIZATION_DENIED')
+    assert.equal(noChange.code, 'NO_CHANGE')
   })
 
   test('types delete-created restore handles and explicit refetch responses', ({ assert }) => {
@@ -669,7 +669,7 @@ test.group('planning operation contracts', () => {
     }
     assert.instanceOf(conflict, StalePlanningRevisionError)
     assert.equal((conflict as StalePlanningRevisionError).statusCode, 409)
-    assert.equal((conflict as StalePlanningRevisionError).code, 'stale_revision')
+    assert.equal((conflict as StalePlanningRevisionError).code, 'STALE_REVISION')
     assert.doesNotThrow(() => assertPlanningBaseRevision(5, 5, uuid))
   })
 })

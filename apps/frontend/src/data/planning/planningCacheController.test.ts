@@ -59,7 +59,7 @@ function harness(transport: PlanningTransport) {
 
 describe("planning cache controller", () => {
   it("retains the draft revision through refresh and refuses the stale attempt without replay", async () => {
-    const execute = vi.fn<PlanningTransport["execute"]>().mockRejectedValue({ status: 409, code: "stale_revision" });
+    const execute = vi.fn<PlanningTransport["execute"]>().mockRejectedValue({ status: 409, code: "STALE_REVISION" });
     const read = vi
       .fn<PlanningTransport["read"]>()
       .mockResolvedValue({ revision: 4, canWrite: true, data: emptyAppData() });
@@ -69,7 +69,7 @@ describe("planning cache controller", () => {
     const draft = h.controller.begin({ timezone: "Etc/GMT" });
     await h.readSnapshot({ revision: 4, canWrite: true, data: emptyAppData() });
     expect(draft.baseRevision).toBe(3);
-    await expect(h.controller.execute(draft, intent, inverse)).rejects.toMatchObject({ code: "stale_revision" });
+    await expect(h.controller.execute(draft, intent, inverse)).rejects.toMatchObject({ code: "STALE_REVISION" });
     expect(execute).toHaveBeenCalledTimes(1);
     expect(execute.mock.calls[0]?.[1].baseRevision).toBe(3);
     expect(read).toHaveBeenCalledTimes(1);
@@ -190,8 +190,8 @@ describe("planning cache controller", () => {
   it("keeps context and history for every 403 execute refusal, including membership loss", async () => {
     const execute = vi
       .fn()
-      .mockRejectedValueOnce({ status: 403, code: "authorization_denied" })
-      .mockRejectedValueOnce({ status: 403, code: "account_membership_lost" });
+      .mockRejectedValueOnce({ status: 403, code: "AUTHORIZATION_DENIED" })
+      .mockRejectedValueOnce({ status: 403, code: "ACCOUNT_MEMBERSHIP_LOST" });
     const h = harness({
       execute,
       read: vi.fn<PlanningTransport["read"]>(),
@@ -200,11 +200,11 @@ describe("planning cache controller", () => {
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 1, canWrite: true, data: emptyAppData() });
     const first = h.controller.begin({});
-    await expect(h.controller.execute(first, intent, inverse)).rejects.toMatchObject({ code: "authorization_denied" });
+    await expect(h.controller.execute(first, intent, inverse)).rejects.toMatchObject({ code: "AUTHORIZATION_DENIED" });
     expect(h.state().planning.context).toEqual(context);
     const second = h.controller.begin({});
     await expect(h.controller.execute(second, intent, inverse)).rejects.toMatchObject({
-      code: "account_membership_lost",
+      code: "ACCOUNT_MEMBERSHIP_LOST",
     });
     expect(h.state().planning.context).toEqual(context);
     expect(h.state().planning).toMatchObject({ status: "refused", revision: 1 });
@@ -237,7 +237,7 @@ describe("planning cache controller", () => {
   });
 
   it("uses the final submitted intent with the revision captured when the gesture began", async () => {
-    const execute = vi.fn<PlanningTransport["execute"]>().mockRejectedValue({ status: 409, code: "stale_revision" });
+    const execute = vi.fn<PlanningTransport["execute"]>().mockRejectedValue({ status: 409, code: "STALE_REVISION" });
     const h = harness({
       execute,
       read: vi.fn<PlanningTransport["read"]>().mockResolvedValue({ revision: 2, canWrite: true, data: emptyAppData() }),
@@ -251,7 +251,7 @@ describe("planning cache controller", () => {
       operation: "settings.update",
       changes: { timezone: "Europe/Paris" },
     } as PlanningIntent;
-    await expect(h.controller.execute(gesture, finalIntent, inverse)).rejects.toMatchObject({ code: "stale_revision" });
+    await expect(h.controller.execute(gesture, finalIntent, inverse)).rejects.toMatchObject({ code: "STALE_REVISION" });
     expect(execute.mock.calls[0]?.[1]).toMatchObject({ baseRevision: 1, intent: finalIntent });
   });
 
@@ -300,16 +300,16 @@ describe("planning cache controller", () => {
 
   it("does not add history for no_change and keeps the refusal distinct", async () => {
     const h = harness({
-      execute: vi.fn<PlanningTransport["execute"]>().mockRejectedValue({ status: 400, code: "no_change" }),
+      execute: vi.fn<PlanningTransport["execute"]>().mockRejectedValue({ status: 400, code: "NO_CHANGE" }),
       read: vi.fn<PlanningTransport["read"]>(),
       lookup: vi.fn<PlanningTransport["lookup"]>(),
     });
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 1, canWrite: true, data: emptyAppData() });
     await expect(h.controller.execute(h.controller.begin({}), intent, inverse)).rejects.toMatchObject({
-      code: "no_change",
+      code: "NO_CHANGE",
     });
-    expect(h.state().planning.outcome).toMatchObject({ kind: "refused", code: "no_change" });
+    expect(h.state().planning.outcome).toMatchObject({ kind: "refused", code: "NO_CHANGE" });
     expect(h.state().planning.history.past).toHaveLength(0);
   });
 
@@ -444,7 +444,7 @@ describe("planning cache controller", () => {
   it("uses lookup after a duplicate-id 409 and recovers commitment from the base revision", async () => {
     const execute = vi
       .fn<PlanningTransport["execute"]>()
-      .mockRejectedValue({ status: 409, code: "mutation_id_reused" });
+      .mockRejectedValue({ status: 409, code: "MUTATION_ID_REUSED" });
     const read = vi
       .fn()
       .mockResolvedValueOnce({ revision: 1, canWrite: true, data: emptyAppData() })
@@ -468,8 +468,8 @@ describe("planning cache controller", () => {
     const read = vi
       .fn()
       .mockResolvedValueOnce({ revision: 1, canWrite: true, data: emptyAppData() })
-      .mockRejectedValueOnce({ status: 403, code: "authorization_denied" })
-      .mockRejectedValueOnce({ status: 403, code: "account_membership_lost" });
+      .mockRejectedValueOnce({ status: 403, code: "AUTHORIZATION_DENIED" })
+      .mockRejectedValueOnce({ status: 403, code: "ACCOUNT_MEMBERSHIP_LOST" });
     const h = harness({
       execute: vi.fn<PlanningTransport["execute"]>(),
       read,
@@ -766,7 +766,7 @@ describe.each(["receipt", "lookup"] as const)("planning %s completion context", 
         const delayed = deferred<PlanningSnapshot>();
         read.mockImplementationOnce(() => delayed.promise);
         if (proof === "lookup") {
-          execute.mockRejectedValueOnce({ status: 409, code: "mutation_id_reused" });
+          execute.mockRejectedValueOnce({ status: 409, code: "MUTATION_ID_REUSED" });
           lookup.mockImplementationOnce(async (_context, mutationId) => ({
             status: "committed",
             mutationId,
@@ -813,7 +813,7 @@ describe("planning commitment-only completion", () => {
       const baseRevision = h.state().planning.revision;
       if (baseRevision === null) throw new Error("Expected an initialized planning revision.");
       const revision = baseRevision + 1;
-      execute.mockRejectedValueOnce({ status: 409, code: "mutation_id_reused" });
+      execute.mockRejectedValueOnce({ status: 409, code: "MUTATION_ID_REUSED" });
       lookup.mockImplementationOnce(async (_context, mutationId) => ({ status: "committed", mutationId, revision }));
       read.mockRejectedValueOnce(new TypeError("read unavailable"));
       const completion =
@@ -835,7 +835,7 @@ describe("planning commitment-only completion", () => {
   it("keeps a reused mutation uncertain when lookup has no commitment proof", async () => {
     const execute = vi
       .fn<PlanningTransport["execute"]>()
-      .mockRejectedValue({ status: 409, code: "mutation_id_reused" });
+      .mockRejectedValue({ status: 409, code: "MUTATION_ID_REUSED" });
     const lookup = vi.fn<PlanningTransport["lookup"]>(async (_context, mutationId) => ({
       status: "unknown",
       mutationId,

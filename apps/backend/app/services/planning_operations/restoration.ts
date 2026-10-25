@@ -143,7 +143,7 @@ export async function restoreGroup(
         'restoration_invalidated',
         'This deletion can no longer be restored.'
       )
-    throw new PlanningOperationError(403, 'authorization_denied', 'This action is not allowed.')
+    throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.')
   }
   const saved = await trx
     .from('deleted_rows')
@@ -272,7 +272,7 @@ export class RestorationConfirmationError extends PlanningOperationError {
   ) {
     super(
       409,
-      stale ? 'restoration_confirmation_stale' : 'restoration_confirmation_required',
+      stale ? 'RESTORATION_CONFIRMATION_STALE' : 'RESTORATION_CONFIRMATION_REQUIRED',
       stale
         ? 'The restorable items changed. Review this change again.'
         : `This change clears ${restorableItemCount} restorable ${restorableItemCount === 1 ? 'item' : 'items'}`

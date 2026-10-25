@@ -1,5 +1,6 @@
 import { indexEntities } from '@adonisjs/core/generators'
 import { defineConfig } from '@adonisjs/core/app'
+import { indexPolicies } from '@adonisjs/bouncer'
 import { generateRegistry } from '@tuyau/core/hooks'
 
 export default defineConfig({
@@ -119,6 +120,7 @@ export default defineConfig({
 
   hooks: {
     init: [
+      indexPolicies(),
       indexEntities({
         transformers: { enabled: true },
       }),

@@ -90,7 +90,7 @@ describe("planning authority publication", () => {
     expect(useStore.getState().past).toHaveLength(1);
     expect(useStore.getState().future).toHaveLength(1);
 
-    failure.read = new PlanningControllerError("Sign in again.", "unauthenticated", 401);
+    failure.read = new PlanningControllerError("Sign in again.", "UNAUTHENTICATED", 401);
     const beforeAuthLoss = useStore.getState().planningAuthLossVersion;
     await useStore.getState().refreshPlanning({ fresh: true });
 
@@ -115,7 +115,7 @@ describe("planning authority publication", () => {
     const authLossVersion = useStore.getState().planningAuthLossVersion;
     failure.execute = new PlanningControllerError(
       "You no longer belong to this company.",
-      "account_membership_lost",
+      "ACCOUNT_MEMBERSHIP_LOST",
       403,
     );
 

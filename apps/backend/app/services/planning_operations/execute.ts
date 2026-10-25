@@ -54,7 +54,7 @@ function assertAllocationGroupHomogeneous(allocations: readonly GroupAllocation[
   if (allocations.some((allocation) => allocationGroupShape(allocation) !== firstShape))
     throw new PlanningOperationError(
       400,
-      'validation_error',
+      'VALIDATION_ERROR',
       'All allocations in a group must share the same allocation details.'
     )
 }
@@ -86,7 +86,7 @@ async function transitionLifecycle(
       const noChange = lifecycleStatus(current as never) === 'active'
       throw new PlanningOperationError(
         400,
-        noChange ? 'no_change' : 'validation_error',
+        noChange ? 'NO_CHANGE' : 'VALIDATION_ERROR',
         noChange
           ? 'The record is already active.'
           : 'The record is not archived and cannot be unarchived.'
@@ -119,9 +119,9 @@ export async function executePlanningIntent(
 ): Promise<PlanningMutationSuccess['restoration']> {
   const unchanged = { consumedGroupId: null, replacementGroupId: null }
   if (!capabilities.canWrite || capabilities.role === 'viewer')
-    throw new PlanningOperationError(403, 'authorization_denied', 'Write access is required.')
+    throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'Write access is required.')
   if (!data.accounts.some((row) => row.id === accountId))
-    throw new PlanningOperationError(404, 'validation_error', 'The company was not found.')
+    throw new PlanningOperationError(404, 'VALIDATION_ERROR', 'The company was not found.')
   try {
     switch (intent.operation) {
       case 'allocation.create':
@@ -342,7 +342,7 @@ export async function executePlanningIntent(
       default:
         throw new PlanningOperationError(
           403,
-          'authorization_denied',
+          'AUTHORIZATION_DENIED',
           'This operation is unavailable.'
         )
     }
@@ -351,15 +351,15 @@ export async function executePlanningIntent(
     if (error instanceof BatchRequestError)
       throw new PlanningOperationError(
         error.status,
-        error.status === 403 ? 'authorization_denied' : 'validation_error',
+        error.status === 403 ? 'AUTHORIZATION_DENIED' : 'VALIDATION_ERROR',
         error.message
       )
     if (error instanceof DomainError)
-      throw new PlanningOperationError(400, 'validation_error', error.message)
+      throw new PlanningOperationError(400, 'VALIDATION_ERROR', error.message)
     if (error instanceof LifecycleTransitionError)
       throw new PlanningOperationError(
         400,
-        error.code === 'already_inactive' ? 'no_change' : 'validation_error',
+        error.code === 'already_inactive' ? 'NO_CHANGE' : 'VALIDATION_ERROR',
         error.message
       )
     if (
@@ -373,7 +373,7 @@ export async function executePlanningIntent(
       const first = error.messages[0]
       throw new PlanningOperationError(
         400,
-        'validation_error',
+        'VALIDATION_ERROR',
         typeof first?.message === 'string' ? first.message : 'The operation is invalid.'
       )
     }

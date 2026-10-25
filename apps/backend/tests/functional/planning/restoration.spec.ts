@@ -287,7 +287,7 @@ test.group('session-bound allocation restoration', (suite) => {
     ]
     for (const refused of attempts) {
       refused.assertStatus(403)
-      assert.equal(refused.body().code, 'authorization_denied')
+      assert.equal(refused.body().code, 'AUTHORIZATION_DENIED')
     }
     assert.deepEqual(await readState(accountId, true), studioBefore)
     assert.deepEqual(await readState('a-loft', true), loftBefore)
@@ -324,7 +324,7 @@ test.group('session-bound allocation restoration', (suite) => {
     const before = await readState(accountId, true)
     const partial = await deleteGroup(client, cookie, [kept!, randomUUID()], 2)
     partial.assertStatus(400)
-    assert.equal(partial.body().code, 'validation_error')
+    assert.equal(partial.body().code, 'VALIDATION_ERROR')
     assert.deepEqual(await readState(accountId, true), before)
     assert.lengthOf(await db.from('deleted_groups'), 1)
     const restored = await restore(client, cookie, deleted.body().restoration.replacementGroupId, 2)
@@ -431,7 +431,7 @@ test.group('session-bound allocation restoration', (suite) => {
     const [id, other] = await createAllocations(client, cookie, 2)
     const staleDelete = await deleteOne(client, cookie, id!, 0)
     staleDelete.assertStatus(409)
-    assert.equal(staleDelete.body().code, 'stale_revision')
+    assert.equal(staleDelete.body().code, 'STALE_REVISION')
     assert.isDefined(await stored(id!))
     assert.lengthOf(await db.from('deleted_groups'), 0)
     const deleted = await deleteOne(client, cookie, other!, 1)
@@ -440,7 +440,7 @@ test.group('session-bound allocation restoration', (suite) => {
     const before = await readState(accountId, true)
     const staleRestore = await restore(client, cookie, groupId, 1)
     staleRestore.assertStatus(409)
-    assert.equal(staleRestore.body().code, 'stale_revision')
+    assert.equal(staleRestore.body().code, 'STALE_REVISION')
     assert.deepEqual(await readState(accountId, true), before)
     assert.isNull(await consumedAt(groupId))
     assert.lengthOf(await markers(), 2)
@@ -500,7 +500,7 @@ test.group('session-bound allocation restoration', (suite) => {
     const before = await readState(accountId, true)
     const refused = await restore(client, later, groupId, revision)
     refused.assertStatus(403)
-    assert.equal(refused.body().code, 'authorization_denied')
+    assert.equal(refused.body().code, 'AUTHORIZATION_DENIED')
     assert.deepEqual(await readState(accountId, true), before)
     assert.isUndefined(await stored(id!))
   })
@@ -540,7 +540,7 @@ test.group('session-bound allocation restoration', (suite) => {
 
     const lateDelete = await deleteOne(client, owner.cookie, id!, 1, deleteId)
     lateDelete.assertStatus(409)
-    assert.equal(lateDelete.body().code, 'mutation_id_reused')
+    assert.equal(lateDelete.body().code, 'MUTATION_ID_REUSED')
     assert.lengthOf(await db.from('deleted_groups'), 1)
 
     const restoreId = randomUUID()
@@ -550,7 +550,7 @@ test.group('session-bound allocation restoration', (suite) => {
     assert.deepEqual(consumed.body(), committed)
     const lateRestore = await restore(client, owner.cookie, groupId, 2, restoreId)
     lateRestore.assertStatus(409)
-    assert.equal(lateRestore.body().code, 'mutation_id_reused')
+    assert.equal(lateRestore.body().code, 'MUTATION_ID_REUSED')
     assert.lengthOf(await db.from('allocations').where('id', id!), 1)
     assert.equal(await currentRevision(client, owner.cookie), 3)
     assert.lengthOf(await markers(), 3)
@@ -571,7 +571,7 @@ test.group('session-bound allocation restoration', (suite) => {
       id: other,
     })
     mismatched.assertStatus(400)
-    assert.equal(mismatched.body().code, 'validation_error')
+    assert.equal(mismatched.body().code, 'VALIDATION_ERROR')
     const wrongOperation = await send(
       client,
       cookie,
@@ -580,7 +580,7 @@ test.group('session-bound allocation restoration', (suite) => {
       { operation: 'allocation.delete', id }
     )
     wrongOperation.assertStatus(400)
-    assert.equal(wrongOperation.body().code, 'validation_error')
+    assert.equal(wrongOperation.body().code, 'VALIDATION_ERROR')
     assert.deepEqual(await readState(accountId, true), before)
     assert.lengthOf(await markers(), 1)
   })
@@ -915,7 +915,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       'patch'
     )
     changed.assertStatus(409)
-    assert.equal(changed.body().code, 'restoration_confirmation_required')
+    assert.equal(changed.body().code, 'RESTORATION_CONFIRMATION_REQUIRED')
     assert.equal(changed.body().restorableItemCount, 1)
     assert.isDefined(await group(groupId))
     const confirmed = await session(
@@ -985,7 +985,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       'patch'
     )
     changed.assertStatus(409)
-    assert.equal(changed.body().code, 'restoration_confirmation_required')
+    assert.equal(changed.body().code, 'RESTORATION_CONFIRMATION_REQUIRED')
     assert.equal(changed.body().restorableItemCount, 1)
     assert.isDefined(await group(groupId))
     const confirmed = await session(
@@ -1087,12 +1087,12 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       .update({ expires_at: '2000-01-01T00:00:00.000Z' })
     const stale = await request(3)
     stale.assertStatus(409)
-    assert.equal(stale.body().code, 'restoration_confirmation_stale')
+    assert.equal(stale.body().code, 'RESTORATION_CONFIRMATION_STALE')
     assert.equal(stale.body().restorableItemCount, 1)
     assert.deepEqual(await readState(accountId, true), before)
     const staleRevision = await request(1, 1)
     staleRevision.assertStatus(409)
-    assert.equal(staleRevision.body().code, 'stale_revision')
+    assert.equal(staleRevision.body().code, 'STALE_REVISION')
     assert.isUndefined(staleRevision.body().restorableItemCount)
     await db
       .from('memberships')

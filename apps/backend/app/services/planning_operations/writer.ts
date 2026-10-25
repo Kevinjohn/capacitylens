@@ -61,7 +61,7 @@ function lookupFor(data: AppData): ValidationDataLookup {
 /** Resolves a stored row from the complete company snapshot, refusing missing targets. */
 export function existingRow(data: AppData, table: AppDataKey, id: string): Row {
   const row = (data[table] as unknown as Row[]).find((item) => item.id === id)
-  if (!row) throw new PlanningOperationError(404, 'validation_error', 'The record was not found.')
+  if (!row) throw new PlanningOperationError(404, 'VALIDATION_ERROR', 'The record was not found.')
   return row
 }
 
@@ -81,13 +81,13 @@ function requirePrivacyPermission(
   )
     throw new PlanningOperationError(
       403,
-      'authorization_denied',
+      'AUTHORIZATION_DENIED',
       'Only an owner can change private names.'
     )
   if (table === 'timeOff' && !capabilities.canSeeTimeOffNote && Object.hasOwn(fields, 'note'))
     throw new PlanningOperationError(
       403,
-      'authorization_denied',
+      'AUTHORIZATION_DENIED',
       'The time-off note is restricted.'
     )
 }
@@ -112,14 +112,14 @@ export async function writeRow(
   const existing = (data[table] as unknown as Row[]).find((row) => row.id === id)
   requirePrivacyPermission(table, fields, capabilities, mode)
   if (mode === 'create' && existing)
-    throw new PlanningOperationError(409, 'validation_error', 'The record already exists.')
+    throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.')
   if (
     mode === 'create' &&
     (await trx.from(TABLE_NAMES[table]).select('id').where('id', id).first())
   )
-    throw new PlanningOperationError(409, 'validation_error', 'The record already exists.')
+    throw new PlanningOperationError(409, 'VALIDATION_ERROR', 'The record already exists.')
   if (mode === 'update' && !existing)
-    throw new PlanningOperationError(404, 'validation_error', 'The record was not found.')
+    throw new PlanningOperationError(404, 'VALIDATION_ERROR', 'The record was not found.')
   const candidate: Record<string, unknown> = {
     ...(existing ?? {}),
     ...fields,
@@ -156,7 +156,7 @@ export async function writeRow(
       if (!effectiveWeekIncludes(effectiveWeek, weekdayOf(clean.startDate)))
         throw new PlanningOperationError(
           400,
-          'validation_error',
+          'VALIDATION_ERROR',
           'The allocation must start on a working day.'
         )
     }
@@ -191,7 +191,7 @@ export async function updateSettings(
   )
     throw new PlanningOperationError(
       403,
-      'authorization_denied',
+      'AUTHORIZATION_DENIED',
       'This setting requires an administrator.'
     )
   const existing = existingRow(data, 'accounts', accountId)
