@@ -37,7 +37,9 @@ export function AccessScreen(props: AccessScreenProps) {
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             {props.user?.email && (
-              <p className="text-sm text-muted-foreground">{m.limited_signed_in_as({ email: props.user.email })}</p>
+              <p className="text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                {m.limited_signed_in_as({ email: props.user.email })}
+              </p>
             )}
             <GateContent {...props} />
             <Button type="button" variant="link" onClick={() => void props.onSignOut()}>

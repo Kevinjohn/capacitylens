@@ -171,7 +171,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
                     <dt className="text-muted-foreground">{m.invite_proposed_role_label()}</dt>
                     <dd data-testid="invite-role">{roleText(state.preview.role)}</dd>
                   </dl>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground [overflow-wrap:anywhere]">
                     {m.invite_signup_intro({ email: state.preview.email })}
                   </p>
                   <Field>

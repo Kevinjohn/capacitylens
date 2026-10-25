@@ -158,8 +158,9 @@ function registerCreateOwnerAdminAdminBootstrapTest() {
     await page.getByLabel("Email").fill(BOOTSTRAP_ADMIN.email);
     await page.getByLabel("Password").fill(BOOTSTRAP_ADMIN.password);
     await page.getByRole("button", { name: "Sign in" }).click();
-    await expect(page.getByRole("heading", { name: "Start planning" })).toBeVisible();
-    await expect(page.getByText("Ask an admin for an invite to join a company.")).toBeVisible();
+    // Admitted but not yet a member: only the explicit join step is offered, never company data.
+    await expect(page.getByTestId("access-membership")).toBeVisible();
+    await expect(page.getByText(controlOrgName)).toHaveCount(0);
     await expect(page.getByRole("button", { name: controlOrgName, exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "New company" })).toHaveCount(0);
   });
@@ -170,7 +171,7 @@ function registerLoginWithoutMembershipTests() {
     page,
     request,
   }, testInfo) => {
-    // A user with no memberships sees no company data and must request an invitation.
+    // An unconfirmed, unadmitted identity sees only the address-confirmation step, never company data.
     const isolationSuffix = `${Date.now()}-${testInfo.workerIndex}`;
     const controlOrgName = `Isolation Control ${isolationSuffix}`;
     const controlOwner = await signUpUser(`isolation-owner-${isolationSuffix}@capacitylens.dev`);
@@ -183,9 +184,9 @@ function registerLoginWithoutMembershipTests() {
     await page.getByLabel("Password").fill(PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();
 
-    await expect(page.getByRole("heading", { name: "Start planning" })).toBeVisible();
+    await expect(page.getByTestId("access-verify-email")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
-    await expect(page.getByText("Ask an admin for an invite to join a company.")).toBeVisible();
+    await expect(page.getByText(controlOrgName)).toHaveCount(0);
     await expect(page.getByRole("button", { name: controlOrgName, exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "New company" })).toHaveCount(0);
   });

@@ -1040,7 +1040,7 @@
   "reset_err_mismatch": "The passwords do not match.",
   "reset_err_short": "The password must be at least {min} characters.",
   "reset_err_long": "The password must be at most {max} characters.",
-  "reset_err_invalid": "This reset link is invalid, already used, or expired. Ask your admin for a new one.",
+  "reset_err_invalid": "This reset link is invalid, already used, or expired. Request a new one from the sign-in page.",
   "reset_err_generic": "Could not set the new password. Please try again.",
   "reset_err_unavailable": "Password reset is not available on this instance. Contact your administrator.",
   "reset_err_network": "Could not reach the server. Check your connection and try again.",

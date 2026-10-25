@@ -175,26 +175,4 @@ test.group('password sign-in and sessions', (group) => {
     assert.equal(Number(revoked), 1)
     await expectStatus(dismiss(client, cookie), 401)
   })
-
-  test('a company-deletion proof needs the Owner, the password and an empty intent', async ({
-    client,
-    assert,
-  }) => {
-    const userId = await owner()
-    const { cookie } = await signIn(client, email, password)
-    const prove = (body: object) =>
-      asDataOwner(client.post('/api/auth/action-proof/password'), cookie)
-        .json({ action: 'delete-company', accountId, intent: {}, password, ...body })
-        .send()
-    await expectStatus(prove({ intent: { cascade: true } }), 400)
-    const wrong = await prove({ password: 'not-the-password-2026' })
-    wrong.assertStatus(403)
-    assert.equal((wrong.body() as { code?: string }).code, 'ACTION_PROOF_DENIED')
-    const proved = await prove({})
-    proved.assertStatus(200)
-    const proof = await db.from('action_proofs').where('id', proved.body().proofId).first()
-    assert.deepInclude(proof, { user_id: userId, account_id: accountId, action: 'delete-company' })
-    await db.from('memberships').where('user_id', userId).update({ role: 'admin' })
-    await expectStatus(prove({}), 403)
-  })
 })

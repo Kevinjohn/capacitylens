@@ -5,12 +5,7 @@ import { activeMasquerade } from './masquerade.js'
 import { actorIn, type CurrentActor } from './current_actor.js'
 import { affectedRows } from '#services/admission/affected_rows'
 
-export const ACTION_PROOF_KINDS = [
-  'transfer-ownership',
-  'import',
-  'anonymise',
-  'delete-company',
-] as const
+export const ACTION_PROOF_KINDS = ['transfer-ownership', 'import', 'anonymise'] as const
 export type ActionProofKind = (typeof ACTION_PROOF_KINDS)[number]
 
 export class ActionProofError extends Error {

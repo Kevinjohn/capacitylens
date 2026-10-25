@@ -9,6 +9,8 @@ const TERMINAL_COMMAND_CONFLICT_CODES = new Set<string>([
   "AUTHORITY_CHANGED",
   "IDEMPOTENCY_CONFLICT",
 ] satisfies readonly AccountErrorCode[]);
+// The server refuses an emailed command without mail delivery before it writes anything.
+const TERMINAL_SERVER_CODES = new Set<string>(["MAIL_UNAVAILABLE"]);
 /** The unknown-outcome decision `runCommand` made for each response it classified. */
 export const commandOutcomeDecisions = new WeakMap<Response, boolean>();
 
@@ -47,13 +49,15 @@ export async function buildPayloadOperationKey(operation: string, body: unknown)
 
 /** HTTP responses for which the client cannot prove whether a command committed. */
 export async function readUnknownAccountCommandOutcome(response: Response, parsedBody?: unknown): Promise<boolean> {
-  if (response.status === 408 || response.status >= 500) return true;
-  if (response.status !== 409) return false;
+  if (response.status === 408) return true;
+  const terminalCodes =
+    response.status >= 500 ? TERMINAL_SERVER_CODES : response.status === 409 ? TERMINAL_COMMAND_CONFLICT_CODES : null;
+  if (!terminalCodes) return false;
   try {
     const body = await readResponseBody(response, parsedBody);
     if (!isRecord(body)) return true;
     const code = body.code;
-    return typeof code !== "string" || !TERMINAL_COMMAND_CONFLICT_CODES.has(code);
+    return typeof code !== "string" || !terminalCodes.has(code);
   } catch {
     // Status alone cannot distinguish a terminal rejection from an in-flight command. Retain the
     // identity unless a readable, known code proves finality.

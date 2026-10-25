@@ -603,6 +603,12 @@ function registerResponseClassificationTests(): void {
     await expect(readUnknownAccountCommandOutcome(new Response(null, { status: 408 }))).resolves.toBe(true);
     await expect(readUnknownAccountCommandOutcome(new Response(null, { status: 503 }))).resolves.toBe(true);
     await expect(
+      readUnknownAccountCommandOutcome(Response.json({ code: "DEPENDENCY_UNAVAILABLE" }, { status: 503 })),
+    ).resolves.toBe(true);
+    await expect(
+      readUnknownAccountCommandOutcome(Response.json({ code: "MAIL_UNAVAILABLE" }, { status: 503 })),
+    ).resolves.toBe(false);
+    await expect(
       readUnknownAccountCommandOutcome(Response.json({ code: "IDEMPOTENCY_CONFLICT" }, { status: 409 })),
     ).resolves.toBe(false);
   });

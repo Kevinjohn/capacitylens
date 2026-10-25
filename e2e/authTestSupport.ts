@@ -1,6 +1,7 @@
 import { expect, request as playwrightRequest } from "@playwright/test";
 import type { APIRequestContext } from "@playwright/test";
 import { DatabaseSync } from "node:sqlite";
+import { spawnSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,6 +27,7 @@ export const AUTH_PASSWORD = "demo-password-123456";
 export const BOOTSTRAP_ADMIN = { email: "admin@admin.admin", password: "auth-e2e-password-2026" };
 
 const AUTH_E2E_DATABASE = fileURLToPath(new URL("../apps/backend/.auth-e2e.db", import.meta.url));
+const BACKEND_DIRECTORY = fileURLToPath(new URL("../apps/backend/", import.meta.url));
 const AUTH_E2E_BASELINE_COMPANY = "Daily Planet E2E Baseline";
 const AUTH_E2E_BASELINE_OWNER = "baseline-owner@capacitylens.dev";
 
@@ -102,7 +104,7 @@ async function postSignUp(ctx: APIRequestContext, email: string, name = email.sp
  * have no mail transport.
  * @throws When the identity is absent.
  */
-export function confirmFixtureAddress(email: string): void {
+function confirmFixtureAddress(email: string): void {
   const db = openAuthE2EDatabase();
   try {
     const confirmed = db
@@ -541,4 +543,39 @@ export async function signUpUserWithId(
   } finally {
     await ctx.dispose();
   }
+}
+
+/**
+ * Issues an operator invitation against the auth E2E server's database and returns its acceptance
+ * link, which the operator command prints instead of emailing. Keep the settings aligned with the
+ * auth flavour in `apps/backend/scripts/e2e-server.mjs`.
+ * @throws When the command fails or prints no link.
+ */
+export function printFixtureInvitation(email: string, role: "admin" | "editor" | "viewer"): string {
+  assertAuthE2EFixturePath(AUTH_E2E_DATABASE);
+  const lane = ports();
+  const result = spawnSync(process.execPath, ["ace.js", "account-kit:invite", email, `--role=${role}`, "--print"], {
+    cwd: BACKEND_DIRECTORY,
+    encoding: "utf8",
+    timeout: 30_000,
+    env: {
+      ...process.env,
+      NODE_ENV: "development",
+      HOST: "127.0.0.1",
+      PORT: String(lane.authApi),
+      LOG_LEVEL: "error",
+      APP_KEY: "capacitylens-e2e-key-0123456789abcdef",
+      APP_URL: `http://127.0.0.1:${lane.authApi}`,
+      SESSION_DRIVER: "database",
+      CAPACITYLENS_DB: ".auth-e2e.db",
+      CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
+      CAPACITYLENS_CREATE_ADMIN_ADMIN: "false",
+      CAPACITYLENS_SECRET: "capacitylens-auth-e2e-secret-0123456789abcdef",
+      CAPACITYLENS_PUBLIC_URL: `http://localhost:${lane.authApi}`,
+    },
+  });
+  if (result.status !== 0) throw new Error(`Operator invitation failed: ${result.stderr || result.stdout}`);
+  const link = /"url":"([^"]+)"/.exec(result.stdout)?.[1];
+  if (!link) throw new Error("The operator invitation printed no acceptance link.");
+  return new URL(link).pathname;
 }
