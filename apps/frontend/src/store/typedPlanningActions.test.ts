@@ -53,7 +53,7 @@ describe("typed planning domain rejections", () => {
   it("rejects project attribution supplied for an internal activity", async () => {
     await expect(
       useStore.getState().addActivity({ name: "Operations", kind: "internal", projectId: "project-not-allowed" }),
-    ).rejects.toMatchObject({ code: "activity_project_forbidden" });
+    ).rejects.toMatchObject({ code: "ACTIVITY_PROJECT_FORBIDDEN" });
     expect(useStore.getState().data.activities).toHaveLength(0);
   });
 
@@ -91,7 +91,7 @@ describe("typed planning domain rejections", () => {
   it("keeps the closure-name code after a typed command is rejected", async () => {
     await expect(
       useStore.getState().addClosure({ name: "  ", startDate: "2026-12-24", endDate: "2026-12-25" }),
-    ).rejects.toMatchObject({ code: "closure_name_required" });
+    ).rejects.toMatchObject({ code: "CLOSURE_NAME_REQUIRED" });
     expect(useStore.getState().data.closures).toHaveLength(0);
   });
 });
