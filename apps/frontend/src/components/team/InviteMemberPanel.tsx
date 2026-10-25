@@ -1,10 +1,8 @@
-import type { ReactNode } from "react";
 import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
 import type { TeamInvitation } from "@/account/teamAccessClient";
-import type { InvitationPersonOption } from "./useMemberInvites";
 import { formatInviteExpiryDate } from "@/components/invites/inviteExpiry";
 import { resolveRoleLabel, resolveRoleSummary } from "@/lib/accessCopy";
 import { Modal, SelectField, TextField } from "@/components/common/ui";
@@ -12,54 +10,7 @@ import { Button } from "@/components/ui/button";
 import { FieldError, FieldSet } from "@/components/ui/field";
 import { sortInvitationsForPresentation } from "./buildMemberDirectoryPresentation";
 
-/** Shows a freshly issued invitation or reset link once, with an optional introduction. The secret is never read back after issuance. */
-export function CopyableLinkBlock({
-  link,
-  testId,
-  copiedNotice,
-  copyLabel,
-  copyLink,
-  intro,
-}: {
-  link: string;
-  testId: string;
-  copiedNotice: string;
-  copyLabel: string;
-  copyLink: (link: string, copiedNotice: string) => void;
-  intro?: ReactNode;
-}) {
-  const code = (
-    <code data-testid={testId} className="min-w-0 flex-1 break-all text-xs text-ink">
-      {link}
-    </code>
-  );
-  const button = (
-    <Button aria-label={copyLabel} size="sm" variant="outline" onClick={() => copyLink(link, copiedNotice)}>
-      {m.settings_invite_copy()}
-    </Button>
-  );
-  if (intro) {
-    return (
-      <div className="mb-4 flex flex-col gap-2 rounded bg-canvas p-2">
-        {intro}
-        <div className="flex flex-wrap items-center gap-2">
-          {code}
-          {button}
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="flex flex-wrap items-center gap-2 rounded bg-canvas p-2">
-      {code}
-      {button}
-    </div>
-  );
-}
-
-/** Creates an account invitation with permitted role and resource options. */
-export function InviteMemberPanel(props: {
-  authMode: string;
+type InviteMemberPanelProps = {
   busy: boolean;
   inviteRole: InvitationRole;
   setInviteRole(role: InvitationRole): void;
@@ -69,20 +20,19 @@ export function InviteMemberPanel(props: {
   errorField: string | null;
   errorId: string;
   clear(): void;
-  mintedLink: { inviteId: string | null; link: string; emailedTo?: string | null } | null;
   inviteDialogOpen: boolean;
   openInviteDialog(): void;
   closeInviteDialog(): void;
-  copyLink(link: string, copiedNotice: string): void;
   submitInvite(): Promise<void>;
   invites: readonly TeamInvitation[];
   renderedAt: number;
   revokeInvite(id: string): Promise<void>;
+  resendInvite(invitation: TeamInvitation): Promise<void>;
   roleOptions: { value: Role; label: string }[];
-  invitationPeople: readonly InvitationPersonOption[];
-  invitationResourceId: string;
-  setInvitationResourceId(value: string): void;
-}) {
+};
+
+/** Emails an account invitation with a permitted role, and lists the pending ones. */
+export function InviteMemberPanel(props: InviteMemberPanelProps) {
   return (
     <section data-testid="invites-section" aria-busy={props.busy} className="flex flex-col gap-4">
       <InviteHeader onOpen={props.openInviteDialog} />
@@ -125,45 +75,8 @@ function InviteHeader({ onOpen }: { onOpen: () => void }) {
   );
 }
 
-type InviteFormProps = Pick<
-  Parameters<typeof InviteMemberPanel>[0],
-  | "authMode"
-  | "busy"
-  | "inviteRole"
-  | "setInviteRole"
-  | "invitationPreauthorizedEmail"
-  | "setInvitationPreauthorizedEmail"
-  | "error"
-  | "errorField"
-  | "errorId"
-  | "clear"
-  | "mintedLink"
-  | "copyLink"
-  | "roleOptions"
-  | "invitationPeople"
-  | "invitationResourceId"
-  | "setInvitationResourceId"
->;
-
-function InviteForm(props: InviteFormProps) {
-  const {
-    authMode,
-    busy,
-    inviteRole,
-    setInviteRole,
-    invitationPreauthorizedEmail,
-    setInvitationPreauthorizedEmail,
-    error,
-    errorField,
-    errorId,
-    clear,
-    mintedLink,
-    copyLink,
-    roleOptions,
-    invitationPeople,
-    invitationResourceId,
-    setInvitationResourceId,
-  } = props;
+function InviteForm(props: InviteMemberPanelProps) {
+  const { busy, inviteRole, setInviteRole, error, errorField, errorId, clear } = props;
   return (
     <FieldSet className="gap-3">
       <SelectField
@@ -172,7 +85,7 @@ function InviteForm(props: InviteFormProps) {
         value={inviteRole}
         onChange={(value) => setInviteRole(value as InvitationRole)}
         disabled={busy}
-        options={roleOptions}
+        options={props.roleOptions}
         layout="label-control"
         testId="invite-role"
       />
@@ -185,119 +98,36 @@ function InviteForm(props: InviteFormProps) {
           {resolveRoleSummary(inviteRole)}
         </p>
       </div>
-      <InviteEmailField
-        {...{
-          authMode,
-          busy,
-          invitationPreauthorizedEmail,
-          setInvitationPreauthorizedEmail,
-          errorField,
-          errorId,
-          clear,
+      <TextField
+        label={m.settings_invite_preauth_label()}
+        ariaLabel={m.settings_invite_preauth_aria()}
+        type="email"
+        value={props.invitationPreauthorizedEmail}
+        onChange={(next) => {
+          props.setInvitationPreauthorizedEmail(next);
+          if (errorField === "invite") clear();
         }}
-      />
-      <SelectField
-        label={m.settings_invite_person_label()}
-        ariaLabel={m.settings_invite_person_aria()}
-        value={invitationResourceId}
-        onChange={setInvitationResourceId}
         disabled={busy}
-        options={[
-          { value: "", label: m.settings_invite_person_none() },
-          ...invitationPeople.map((person) => ({ value: person.id, label: person.label })),
-        ]}
+        invalid={errorField === "invite"}
         layout="label-control"
-        testId="invite-person"
+        required
+        describedById={errorId}
+        placeholder={m.settings_invite_preauth_placeholder()}
+        testId="invite-preauth"
       />
       <FieldError id={errorId}>{errorField === "invite" ? error : null}</FieldError>
-      <MintedInviteLink mintedLink={mintedLink} copyLink={copyLink} />
     </FieldSet>
   );
 }
 
-function MintedInviteLink({ mintedLink, copyLink }: Pick<InviteFormProps, "mintedLink" | "copyLink">) {
-  if (!mintedLink) return null;
-  return (
-    <div
-      data-testid="invite-created-status"
-      role="status"
-      aria-live="polite"
-      className="flex flex-col gap-2 rounded border border-ok/40 bg-ok/5 p-3"
-    >
-      <p className="text-sm font-medium text-ok">{m.settings_members_invite_created()}</p>
-      {mintedLink.emailedTo && (
-        <p className="text-sm">{m.settings_invite_emailed({ address: mintedLink.emailedTo })}</p>
-      )}
-      <CopyableLinkBlock
-        link={mintedLink.link}
-        testId="invite-link"
-        copiedNotice={m.settings_members_invite_copied()}
-        copyLabel={m.settings_invite_copy_aria()}
-        copyLink={copyLink}
-      />
-      <p className="text-xs text-muted-foreground">{m.settings_members_invite_created_recovery()}</p>
-    </div>
-  );
-}
-
-type InviteEmailFieldProps = Pick<
-  InviteFormProps,
-  | "authMode"
-  | "busy"
-  | "invitationPreauthorizedEmail"
-  | "setInvitationPreauthorizedEmail"
-  | "errorField"
-  | "errorId"
-  | "clear"
->;
-
-function InviteEmailField(props: InviteEmailFieldProps) {
-  const { authMode, busy, invitationPreauthorizedEmail, setInvitationPreauthorizedEmail, errorField, errorId, clear } =
-    props;
-  return (
-    <TextField
-      label={m.settings_invite_preauth_label()}
-      ariaLabel={m.settings_invite_preauth_aria()}
-      type="email"
-      value={invitationPreauthorizedEmail}
-      onChange={(next) => {
-        setInvitationPreauthorizedEmail(next);
-        if (errorField === "invite") clear();
-      }}
-      disabled={busy}
-      invalid={errorField === "invite"}
-      layout="label-control"
-      required={authMode !== "off"}
-      describedById={errorId}
-      placeholder={m.settings_invite_preauth_placeholder()}
-      testId="invite-preauth"
-    />
-  );
-}
-
-type OutstandingInvitesProps = Pick<
-  Parameters<typeof InviteMemberPanel>[0],
-  "invites" | "renderedAt" | "busy" | "revokeInvite" | "invitationPeople"
->;
-
-type ResolveInvitationStatusOptions = { invitation: TeamInvitation; expired: boolean };
-function resolveInvitationStatus({ invitation, expired }: ResolveInvitationStatusOptions): string {
-  if (invitation.usedAt) return m.settings_invite_suffix_used();
+function resolveInvitationStatus(invitation: TeamInvitation, expired: boolean): string {
   if (expired) return m.settings_invite_suffix_expired();
   // Invite validity spans several days, so keep this compact row date-only while rendering the
   // date on the viewer's local calendar rather than slicing UTC.
   return m.settings_invite_suffix_expires({ date: formatInviteExpiryDate(invitation.expiresAt) });
 }
 
-function resolveInvitationPerson(invitation: TeamInvitation, people: readonly InvitationPersonOption[]): string | null {
-  if (!invitation.proposedResourceId) return null;
-  if (invitation.proposedResourceLabel) return invitation.proposedResourceLabel;
-  return (
-    people.find((person) => person.id === invitation.proposedResourceId)?.label ?? m.settings_invite_person_missing()
-  );
-}
-
-function OutstandingInvites({ invites, renderedAt, busy, revokeInvite, invitationPeople }: OutstandingInvitesProps) {
+function OutstandingInvites({ invites, renderedAt, busy, revokeInvite, resendInvite }: InviteMemberPanelProps) {
   if (invites.length === 0) return null;
   return (
     <section data-testid="outstanding-invites" className="flex flex-col gap-2">
@@ -307,16 +137,10 @@ function OutstandingInvites({ invites, renderedAt, busy, revokeInvite, invitatio
           <thead>
             <tr className="border-b text-left text-xs font-medium text-muted-foreground">
               <th scope="col" className="py-2 px-4 font-medium">
-                {m.settings_member_col_name()}
-              </th>
-              <th scope="col" className="py-2 px-4 font-medium">
-                {m.settings_invite_role_label()}
-              </th>
-              <th scope="col" className="py-2 px-4 font-medium">
                 {m.settings_member_col_email()}
               </th>
               <th scope="col" className="py-2 px-4 font-medium">
-                {m.settings_member_col_scheduled_person()}
+                {m.settings_invite_role_label()}
               </th>
               <th scope="col" className="py-2 px-4 text-right font-medium">
                 {m.settings_member_col_actions()}
@@ -326,42 +150,41 @@ function OutstandingInvites({ invites, renderedAt, busy, revokeInvite, invitatio
           <tbody>
             {sortInvitationsForPresentation(invites).map((invitation) => {
               const expired = Date.parse(invitation.expiresAt) <= renderedAt;
-              const actionable = invitation.usedAt === null && !expired;
-              const proposedPerson = resolveInvitationPerson(invitation, invitationPeople);
               return (
                 <tr key={invitation.id} className="border-b last:border-b-0" data-testid="invite-row">
-                  <td className="py-2 px-4">—</td>
-                  <td className="py-2 px-4">{resolveRoleLabel(invitation.role)}</td>
                   <td className="max-w-52 py-2 px-4 text-xs text-muted-foreground">
-                    <span className="block truncate" title={invitation.preauthEmail ?? undefined}>
-                      {invitation.preauthEmail ?? m.settings_invite_table_link()}
+                    <span className="block truncate" title={invitation.preauthEmail}>
+                      {invitation.preauthEmail}
                     </span>
                     <span className="block">
-                      {resolveInvitationStatus({ invitation: invitation, expired: expired }).replace(/^\s*·\s*/, "")}
+                      {resolveInvitationStatus(invitation, expired).replace(/^\s*·\s*/, "")}
                     </span>
                   </td>
-                  <td className="py-2 px-4 text-xs text-muted-foreground">
-                    {proposedPerson ? (
-                      <>
-                        {proposedPerson}{" "}
-                        {actionable && <span className="text-warn">{m.settings_invite_table_pending()}</span>}
-                      </>
-                    ) : (
-                      m.settings_member_resource_not_linked()
-                    )}
-                  </td>
+                  <td className="py-2 px-4">{resolveRoleLabel(invitation.role)}</td>
                   <td className="py-2 px-4 text-right">
-                    {actionable && (
+                    <div className="flex justify-end gap-2">
                       <Button
                         size="sm"
                         variant="outline"
-                        data-testid="invite-revoke"
+                        data-testid="invite-resend"
+                        aria-label={m.settings_invite_resend_aria({ email: invitation.preauthEmail })}
                         disabled={busy}
-                        onClick={() => void revokeInvite(invitation.id)}
+                        onClick={() => void resendInvite(invitation)}
                       >
-                        {m.settings_invite_revoke()}
+                        {m.settings_invite_resend()}
                       </Button>
-                    )}
+                      {!expired && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          data-testid="invite-revoke"
+                          disabled={busy}
+                          onClick={() => void revokeInvite(invitation.id)}
+                        >
+                          {m.settings_invite_revoke()}
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );

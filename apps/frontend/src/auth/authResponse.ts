@@ -1,13 +1,17 @@
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 import { allowsProviderSignIn } from "@capacitylens/shared/account/types";
 import { useStore } from "@/store/useStore";
 import { readApiError } from "@/lib/readApiError";
 import { m } from "@/i18n";
 import { isAuthMode, parseAuthProviders } from "./authStatus";
-import type { AuthStatusResult } from "./authStatus";
+import type { AccessGate, AdmissionSummary, AuthStatusResult } from "./authStatus";
 import { parseAuthUser } from "./validateAuthUser";
 
 interface AuthResponseFields {
+  admission: unknown;
   authMode: unknown;
+  emailVerified: unknown;
+  membershipRequired: unknown;
   canCreateAccount: unknown;
   companySetupRequired: unknown;
   needsSetup: unknown;
@@ -25,7 +29,10 @@ function readField(value: object, key: keyof AuthResponseFields): unknown {
 function parseAuthResponseFields(value: unknown): AuthResponseFields | null {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
   return {
+    admission: readField(value, "admission"),
     authMode: readField(value, "authMode"),
+    emailVerified: readField(value, "emailVerified"),
+    membershipRequired: readField(value, "membershipRequired"),
     canCreateAccount: readField(value, "canCreateAccount"),
     companySetupRequired: readField(value, "companySetupRequired"),
     needsSetup: readField(value, "needsSetup"),
@@ -54,6 +61,29 @@ function parseLoginResult(body: unknown): AuthStatusResult {
   };
 }
 
+const APPROVAL_STATUSES = new Set(["pending", "approved", "rejected", "revoked"]);
+
+/** Reads the approval part of the Account Kit decision; null when the field is malformed. */
+function parseAdmission(value: unknown): { admitted: boolean; summary: AdmissionSummary } | null {
+  if (!isRecord(value) || typeof value.admitted !== "boolean") return null;
+  const requirements = isRecord(value.requirements) ? value.requirements : {};
+  const approval = isRecord(requirements.approval) ? requirements.approval : {};
+  const status =
+    typeof approval.status === "string" && APPROVAL_STATUSES.has(approval.status) ? approval.status : "pending";
+  return {
+    admitted: value.admitted,
+    summary: { approvalStatus: status as AdmissionSummary["approvalStatus"], requested: approval.requested === true },
+  };
+}
+
+/** The first limited screen that applies, in the order the server enforces them. */
+function resolveAccessGate(fields: AuthResponseFields, admitted: boolean | null): AccessGate | undefined {
+  if (fields.emailVerified === false) return "verify-email";
+  if (admitted === false) return "admission";
+  if (fields.membershipRequired === true) return "membership";
+  return undefined;
+}
+
 /** Reject identity responses whose mode cannot be trusted. */
 export function invalidResponse(): AuthStatusResult {
   console.warn("AuthProvider: /api/auth/me returned an unexpected authMode; nothing trustworthy learned");
@@ -69,6 +99,8 @@ function parsePassResult(body: unknown): AuthStatusResult {
     console.warn("AuthProvider: /api/auth/me returned auth-on without a valid user");
     return { kind: "error", message: m.auth_service_invalid_response() };
   }
+  const admission = parseAdmission(fields.admission);
+  const accessGate = resolveAccessGate(fields, admission?.admitted ?? null);
   const next: Extract<AuthStatusResult, { kind: "pass" }> = {
     kind: "pass",
     identitySource: "live",
@@ -76,6 +108,8 @@ function parsePassResult(body: unknown): AuthStatusResult {
     user,
     canCreateAccount: false,
     companySetupRequired: fields.companySetupRequired === true,
+    ...(accessGate ? { accessGate } : {}),
+    ...(admission ? { admission: admission.summary } : {}),
     providers: authMode === "password-only" ? [] : parseAuthProviders(fields.providers),
     reauthMethod: fields.reauthMethod === "provider" || authMode === "sso-only" ? "provider" : "password",
     reauthProviderId: typeof fields.reauthProviderId === "string" ? fields.reauthProviderId : null,

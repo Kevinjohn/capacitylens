@@ -4,6 +4,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
+import type { TeamInvitation } from "@/account/teamAccessClient";
 import { InviteMemberPanel } from "./InviteMemberPanel";
 
 type InvitePanelProps = React.ComponentProps<typeof InviteMemberPanel>;
@@ -23,7 +24,6 @@ function InvitePanelHarness(props: Omit<InvitePanelProps, DialogProps>) {
 
 function renderInvite(overrides: Partial<Omit<InvitePanelProps, DialogProps>> = {}) {
   const props: Omit<InvitePanelProps, DialogProps> = {
-    authMode: "password-only",
     busy: false,
     inviteRole: "editor" satisfies InvitationRole,
     setInviteRole: vi.fn(),
@@ -33,90 +33,49 @@ function renderInvite(overrides: Partial<Omit<InvitePanelProps, DialogProps>> = 
     errorField: null,
     errorId: "invite-error",
     clear: vi.fn(),
-    mintedLink: null,
-    copyLink: vi.fn(),
     submitInvite: vi.fn(async () => {}),
     invites: [],
     renderedAt: Date.now(),
     revokeInvite: vi.fn(async () => {}),
+    resendInvite: vi.fn(async () => {}),
     roleOptions: [{ value: "editor" satisfies Role, label: "Editor" }],
-    invitationPeople: [],
-    invitationResourceId: "",
-    setInvitationResourceId: vi.fn(),
     ...overrides,
   };
-  return render(<InvitePanelHarness {...props} />);
+  render(<InvitePanelHarness {...props} />);
+  return props;
 }
+
+const invitation = (overrides: Partial<TeamInvitation>): TeamInvitation => ({
+  id: "1",
+  role: "editor",
+  preauthEmail: "diana@example.com",
+  expiresAt: "2099-01-01T00:00:00.000Z",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  ...overrides,
+});
 
 describe("InviteMemberPanel creation guidance", () => {
   it("keeps the invite form closed until the primary invite button is activated", async () => {
     const user = userEvent.setup();
     renderInvite();
 
-    expect(screen.getByTestId("invite-open")).toBeInTheDocument();
     expect(screen.queryByTestId("invite-preauth")).not.toBeInTheDocument();
-
     await user.click(screen.getByTestId("invite-open"));
 
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveAccessibleName("Invite someone");
-    expect(dialog).toHaveAccessibleDescription(/When SMTP is configured and email sending is available/);
-    expect(dialog.querySelector('[data-slot="dialog-header"]')).toHaveClass("border-b");
-    expect(dialog.querySelector("form > div.p-4")).toBeInTheDocument();
-    expect(dialog.querySelector('[data-slot="dialog-footer"]')).toHaveClass("border-t");
-    expect(dialog.querySelectorAll('[data-product-layout="label-control"]')).toHaveLength(3);
-    const roleField = within(dialog).getByTestId("invite-role").closest('[data-product-layout="label-control"]');
-    const emailField = within(dialog).getByTestId("invite-preauth").closest('[data-product-layout="label-control"]');
-    const personField = within(dialog).getByTestId("invite-person").closest('[data-product-layout="label-control"]');
-    expect(roleField?.parentElement).toBe(emailField?.parentElement);
-    expect(roleField?.parentElement).toBe(personField?.parentElement);
+    expect(dialog).toHaveAccessibleDescription(/emails each invitation/);
+    expect(dialog.querySelectorAll('[data-product-layout="label-control"]')).toHaveLength(2);
     expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeInTheDocument();
-    expect(screen.getByTestId("invite-preauth")).toBeInTheDocument();
   });
 
-  it("renders outstanding invites in their own bordered section outside the invite dialog", () => {
-    renderInvite({
-      invites: [
-        {
-          id: "invite-1",
-          role: "editor",
-          preauthEmail: null,
-          expiresAt: "2099-01-01T00:00:00.000Z",
-          usedAt: null,
-          createdAt: "2026-01-01T00:00:00.000Z",
-        },
-      ],
-    });
-
-    const section = screen.getByTestId("outstanding-invites");
-    expect(section).toHaveTextContent("Outstanding invites");
-    expect(within(section).getByRole("table").parentElement).toHaveClass("border");
-    expect(section).not.toHaveAttribute("data-slot", "card");
-    expect(screen.queryByTestId("invite-preauth")).not.toBeInTheDocument();
-  });
-
-  it("uses a plain Email label without field exposition", () => {
+  it("requires a plain Email field", () => {
     renderInvite();
     fireEvent.click(screen.getByTestId("invite-open"));
 
-    expect(screen.getByTestId("invites-section")).toHaveTextContent(
-      /When SMTP is configured and email sending is available, CapacityLens emails addressed invitations\./,
-    );
     expect(screen.getByLabelText("Email")).toBe(screen.getByTestId("invite-preauth"));
     expect(screen.getByTestId("invite-preauth")).toHaveAttribute("aria-required", "true");
     expect(screen.getByTestId("invite-preauth")).not.toHaveAttribute("aria-describedby");
-    expect(screen.queryByText(/Supply an email to restrict this invite/)).not.toBeInTheDocument();
-  });
-
-  it("marks Email as required for invitations without adding helper copy", () => {
-    renderInvite({ authMode: "sso-only" });
-    fireEvent.click(screen.getByTestId("invite-open"));
-
-    expect(screen.getByTestId("invites-section")).toHaveTextContent(/If email is unavailable or sending fails/);
-    expect(screen.getByLabelText("Email")).toBe(screen.getByTestId("invite-preauth"));
-    expect(screen.getByTestId("invite-preauth")).toHaveAttribute("aria-required", "true");
-    expect(screen.getByTestId("invite-preauth")).not.toHaveAttribute("aria-describedby");
-    expect(screen.queryByText(/verified company login/)).not.toBeInTheDocument();
   });
 
   it("associates only the conditional error with Email", () => {
@@ -125,120 +84,49 @@ describe("InviteMemberPanel creation guidance", () => {
 
     expect(screen.getByTestId("invite-preauth")).toHaveAttribute("aria-describedby", "invite-error");
   });
+});
 
-  it("keeps the minted link and its recovery instructions in an inline status", () => {
-    renderInvite({
-      mintedLink: { inviteId: "invite-1", link: "https://app.example/invite/secret", emailedTo: "diana@example.test" },
-    });
-    fireEvent.click(screen.getByTestId("invite-open"));
+describe("InviteMemberPanel outstanding invites", () => {
+  it("renders pending invites in their own bordered section outside the invite dialog", () => {
+    renderInvite({ invites: [invitation({})] });
 
-    const status = screen.getByTestId("invite-created-status");
-    expect(status).toHaveAttribute("role", "status");
-    expect(status).toHaveTextContent("Invitation emailed to diana@example.test");
-    expect(status).toHaveTextContent("Invite created. Its one-time link is available below.");
-    expect(status).toHaveTextContent("If you lose it, revoke this invite and create a new one.");
-    expect(status).toContainElement(screen.getByRole("button", { name: "Copy invitation link" }));
+    const section = screen.getByTestId("outstanding-invites");
+    expect(section).toHaveTextContent("Outstanding invites");
+    expect(within(section).getByRole("table").parentElement).toHaveClass("border");
+    expect(screen.queryByTestId("invite-preauth")).not.toBeInTheDocument();
   });
 
-  it("defaults the private schedule-person proposal to not on the schedule", async () => {
-    renderInvite({ invitationPeople: [{ id: "r1", label: "Bruce Wayne" }] });
-    await userEvent.click(screen.getByTestId("invite-open"));
-
-    expect(screen.getByTestId("invite-person")).toHaveValue("");
-    await userEvent.click(screen.getByTestId("invite-person"));
-    expect(screen.getByRole("option", { name: "No Resource linked" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Bruce Wayne" })).toBeInTheDocument();
-  });
-
-  it("renders a proposed Resource as compact pending information", () => {
-    renderInvite({
-      invitationPeople: [{ id: "r1", label: "Bruce Wayne" }],
-      invites: [
-        {
-          id: "invite-1",
-          role: "editor",
-          preauthEmail: null,
-          expiresAt: "2099-01-01T00:00:00.000Z",
-          usedAt: null,
-          createdAt: "2026-01-01T00:00:00.000Z",
-          proposedResourceId: "r1",
-        },
-      ],
-    });
-    fireEvent.click(screen.getByTestId("invite-open"));
-
-    expect(screen.getByTestId("invite-row")).toHaveTextContent("Bruce Wayne Pending");
-  });
-
-  it("uses the five-column contract and deterministically orders invitation states", () => {
+  it("orders invites deterministically and offers resend for each, revoke only while live", () => {
     renderInvite({
       renderedAt: Date.parse("2026-06-01T00:00:00.000Z"),
-      invitationPeople: [{ id: "r1", label: "Bruce Wayne" }],
       invites: [
-        {
-          id: "viewer",
-          role: "viewer",
-          preauthEmail: null,
-          expiresAt: "2099-01-01T00:00:00.000Z",
-          usedAt: null,
-          createdAt: "2026-01-03T00:00:00.000Z",
-        },
-        {
-          id: "editor-used",
-          role: "editor",
-          preauthEmail: "used@example.com",
-          expiresAt: "2099-01-01T00:00:00.000Z",
-          usedAt: "2026-02-01T00:00:00.000Z",
-          createdAt: "2026-01-02T00:00:00.000Z",
-        },
-        {
-          id: "admin-b",
-          role: "admin",
-          preauthEmail: "same@example.com",
-          expiresAt: "2026-01-01T00:00:00.000Z",
-          usedAt: null,
-          createdAt: "2026-01-01T00:00:00.000Z",
-          proposedResourceId: "r1",
-        },
-        {
-          id: "admin-a",
-          role: "admin",
-          preauthEmail: "same@example.com",
-          expiresAt: "2099-01-01T00:00:00.000Z",
-          usedAt: null,
-          createdAt: "2026-01-01T00:00:00.000Z",
-          proposedResourceId: "r1",
-        },
+        invitation({ id: "4", role: "viewer", preauthEmail: "viewer@example.com" }),
+        invitation({ id: "3", role: "admin", preauthEmail: "same@example.com", expiresAt: "2026-01-01T00:00:00.000Z" }),
+        invitation({ id: "2", role: "admin", preauthEmail: "same@example.com" }),
       ],
     });
 
     const table = within(screen.getByTestId("outstanding-invites")).getByRole("table");
     const headers = within(table).getAllByRole("columnheader");
-    expect(headers.map((header) => header.textContent)).toEqual([
-      "Name",
-      "Role",
-      "Email",
-      "Link to Resource",
-      "Actions",
-    ]);
+    expect(headers.map((header) => header.textContent)).toEqual(["Email", "Role", "Actions"]);
     expect(headers.every((header) => header.getAttribute("scope") === "col")).toBe(true);
     const rows = within(table).getAllByTestId("invite-row");
-    expect(rows.map((row) => within(row).getAllByRole("cell")[2]?.textContent)).toEqual([
+    expect(rows.map((row) => within(row).getAllByRole("cell")[0]?.textContent)).toEqual([
       expect.stringContaining("same@example.com"),
       expect.stringContaining("same@example.com"),
-      expect.stringContaining("used@example.com"),
-      expect.stringContaining("Invite link"),
+      expect.stringContaining("viewer@example.com"),
     ]);
     expect(rows[0]).toHaveTextContent(/expires/i);
-    expect(rows[0]).toHaveTextContent("Bruce Wayne Pending");
     expect(rows[1]).toHaveTextContent(/expired/i);
-    expect(rows[1]).toHaveTextContent("Bruce Wayne");
-    expect(rows[1]).not.toHaveTextContent("Pending");
-    expect(rows[2]).toHaveTextContent(/used/i);
+    expect(within(table).getAllByTestId("invite-resend")).toHaveLength(3);
     expect(within(table).getAllByTestId("invite-revoke")).toHaveLength(2);
-    const [firstRow] = rows;
-    expect(firstRow).toBeDefined();
-    if (!firstRow) throw new Error("Expected at least one invitation row.");
-    expect(within(firstRow).getByText("same@example.com")).toHaveAttribute("title", "same@example.com");
+  });
+
+  it("resends the chosen invitation", async () => {
+    const props = renderInvite({ invites: [invitation({})] });
+
+    await userEvent.click(screen.getByRole("button", { name: "Resend the invitation to diana@example.com" }));
+
+    expect(props.resendInvite).toHaveBeenCalledWith(invitation({}));
   });
 });

@@ -13,8 +13,6 @@ const member: TeamMember = {
   email: "ed@x.io",
   signInConfirmed: null,
   isSelf: false,
-  mayResetPassword: false,
-  mayRevokeSessions: false,
   resourceLink: null,
 };
 

@@ -5,7 +5,6 @@ import { useStore } from "@/store/useStore";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import type { MemberActionDependencies } from "./MemberActionDependencies";
 import type { useTeamDirectory } from "./useTeamDirectory";
-import type { useMemberInvites } from "./useMemberInvites";
 
 interface RefreshCallerAccessInput {
   knownRemoved?: boolean | undefined;
@@ -23,7 +22,6 @@ interface MemberAccessDependencies extends Pick<
   closeActiveAccount: () => void;
   bumpReadiness: () => void;
   replaceAuthorizedDirectory: ReturnType<typeof useTeamDirectory>["replaceAuthorizedDirectory"];
-  reconcileMintedInvite: ReturnType<typeof useMemberInvites>["reconcileMintedInvite"];
 }
 
 type HasAuthoritativeAccountSummaryOptions = {
@@ -79,11 +77,7 @@ async function reloadAuthorizedDirectory({
   setNotice,
   bumpReadiness,
   replaceAuthorizedDirectory,
-  reconcileMintedInvite,
-}: Pick<
-  MemberAccessDependencies,
-  "isActiveAccount" | "setNotice" | "bumpReadiness" | "replaceAuthorizedDirectory" | "reconcileMintedInvite"
-> & {
+}: Pick<MemberAccessDependencies, "isActiveAccount" | "setNotice" | "bumpReadiness" | "replaceAuthorizedDirectory"> & {
   accountId: string;
   message: string;
 }): Promise<{ kind: "ready" } | { kind: "stale" } | { kind: "failed"; error: unknown }> {
@@ -98,7 +92,6 @@ async function reloadAuthorizedDirectory({
     }
     replaceAuthorizedDirectory(memberResult.value, inviteResult.value);
     bumpReadiness();
-    reconcileMintedInvite(inviteResult.value);
     setNotice(m.settings_members_reconcile_directory({ message }), "warning");
     return { kind: "ready" };
   } catch (error) {
@@ -128,17 +121,10 @@ function createReconcileUnknownMutation({
   setNotice,
   bumpReadiness,
   replaceAuthorizedDirectory,
-  reconcileMintedInvite,
   refreshCallerAccess,
 }: Pick<
   MemberAccessDependencies,
-  | "requestAccountId"
-  | "isActiveAccount"
-  | "fail"
-  | "setNotice"
-  | "bumpReadiness"
-  | "replaceAuthorizedDirectory"
-  | "reconcileMintedInvite"
+  "requestAccountId" | "isActiveAccount" | "fail" | "setNotice" | "bumpReadiness" | "replaceAuthorizedDirectory"
 > & {
   refreshCallerAccess: ReturnType<typeof createRefreshCallerAccess>;
 }) {
@@ -164,7 +150,6 @@ function createReconcileUnknownMutation({
       setNotice,
       bumpReadiness,
       replaceAuthorizedDirectory,
-      reconcileMintedInvite,
     });
     if (reloadResult.kind !== "failed" || !isActiveAccount(accountId)) return;
     if (accessResult?.kind === "active") {
@@ -193,7 +178,6 @@ export function createMemberAccessReconciliation({
   setNotice,
   bumpReadiness,
   replaceAuthorizedDirectory,
-  reconcileMintedInvite,
 }: MemberAccessDependencies) {
   // Revalidate role and tenant projections after a possible self-role mutation so
   // confidential fields from the old projection cannot linger.
@@ -212,7 +196,6 @@ export function createMemberAccessReconciliation({
     setNotice,
     bumpReadiness,
     replaceAuthorizedDirectory,
-    reconcileMintedInvite,
     refreshCallerAccess,
   });
 

@@ -95,7 +95,7 @@ function registerMemberResourceLinkTests(): void {
       "fetch",
       mockApi([
         { userId: "me", role: "owner", isSelf: true },
-        { userId: "ed", role: "editor", mayResetPassword: true, mayRevokeSessions: true },
+        { userId: "ed", role: "editor" },
       ]),
     );
     renderSection();
@@ -124,38 +124,6 @@ function registerMemberResourceLinkTests(): void {
     expect(within(settingsDialog).queryByTestId("member-resource-status")).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
     await waitFor(() => expect(settingsTrigger).toHaveFocus());
-  });
-
-  it("shows schedule attention and clears it through choose-another-person", async () => {
-    const user = userEvent.setup();
-    const resource = await requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
-    const members: RawMember[] = [
-      { userId: "me", role: "owner", isSelf: true },
-      {
-        userId: "ed",
-        role: "editor",
-        name: "Clark Kent",
-        resourceLinkException: { proposedResourceId: "missing", reason: "resource_unavailable" },
-      },
-    ];
-    const fetchMock = mockApi(members, {
-      "PUT /members/ed/resource-link": () => jsonResponse({ resourceId: resource.id, revision: "rev-2" }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    renderSection();
-    const row = await waitForMemberRow(/ed@x\.io/);
-    expect(row).toHaveTextContent("Resource link needs attention");
-    expect(row).toHaveTextContent("That Resource is no longer available.");
-
-    await user.click(within(row).getByTestId("member-resource-menu"));
-    const dialog = await screen.findByRole("dialog");
-    const select = within(dialog).getByRole("combobox", { name: /choose Resource/i });
-    expect(select).toHaveFocus();
-    await user.click(select);
-    await user.click(screen.getByRole("option", { name: "Bruce Wayne" }));
-    await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/members/ed/resource-link"), expect.anything()),
-    );
   });
 
   it("announces a completed Resource-link save inside the open dialog", async () => {
@@ -195,34 +163,6 @@ function registerMemberResourceLinkTests(): void {
     await user.click(within(dialog).getByRole("combobox", { name: /choose Resource/i }));
     await user.click(screen.getByRole("option", { name: "Bruce Wayne" }));
     expect(await within(dialog).findByRole("status")).toHaveTextContent("Resource link updated.");
-  });
-
-  it("dismisses a schedule attention exception and refreshes the directory", async () => {
-    const resource = await requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
-    const fetchMock = mockApi(
-      [
-        { userId: "me", role: "owner", isSelf: true },
-        {
-          userId: "ed",
-          role: "editor",
-          name: "Clark Kent",
-          resourceLinkException: { proposedResourceId: resource.id, reason: "resource_already_linked" },
-        },
-      ],
-      { "DELETE /members/ed/resource-link-exception": () => new Response(null, { status: 204 }) },
-    );
-    vi.stubGlobal("fetch", fetchMock);
-    renderSection();
-    const row = await waitForMemberRow(/ed@x\.io/);
-    await userEvent.click(within(row).getByTestId("member-resource-menu"));
-    const dialog = await screen.findByRole("dialog");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Dismiss" }));
-    await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining("/members/ed/resource-link-exception"),
-        expect.objectContaining({ method: "DELETE" }),
-      ),
-    );
   });
 
   it("retains the current inactive person for direct unlink and reconciles after the write", async () => {
@@ -406,13 +346,13 @@ function registerLifecycleVisibilityTests(): void {
     );
   });
 
-  it("hides the role pencil on a non-active row while keeping the gear's actions", async () => {
+  it("hides the role pencil on a non-active row while keeping removal", async () => {
     const user = userEvent.setup();
     vi.stubGlobal(
       "fetch",
       mockApi([
         { userId: "me", role: "owner", isSelf: true },
-        { userId: "ed", role: "editor", accessDisabled: true, mayResetPassword: true, mayRevokeSessions: true },
+        { userId: "ed", role: "editor", accessDisabled: true },
       ]),
     );
     renderSection();
@@ -422,10 +362,8 @@ function registerLifecycleVisibilityTests(): void {
     // Inactive memberships cannot receive a role edit; reinstatement is a separate explicit transition.
     expect(within(edRow).queryByTestId("member-edit")).not.toBeInTheDocument();
 
-    // Disabling membership must preserve authorized credential and removal actions so administrators can recover or revoke access.
+    // Disabling membership must preserve removal so administrators can still revoke access.
     await openMemberMenu(user, edRow);
-    expect(screen.getByTestId("member-reset-password")).toBeInTheDocument();
-    expect(screen.getByTestId("member-revoke-sessions")).toBeInTheDocument();
     expect(screen.getByTestId("member-remove")).toBeInTheDocument();
   });
 }
@@ -496,7 +434,7 @@ function registerLifecyclePermissionTests(lifecycleMembers: RawMember[]): void {
     vi.stubGlobal(
       "fetch",
       mockApi([
-        { userId: "me", role: "admin", isSelf: true, mayRevokeSessions: true },
+        { userId: "me", role: "admin", isSelf: true },
         { userId: "owner", role: "owner" },
       ]),
     );
@@ -629,8 +567,8 @@ function registerLifecycleReconciliationTests(): void {
         return jsonResponse({
           members: [
             rawMember({ userId: "owner", role: "owner" }),
-            rawMember({ userId: "me", role: "admin", isSelf: true, mayResetPassword: true, mayRevokeSessions: true }),
-            rawMember({ userId: "ed", role: "editor", mayResetPassword: true, mayRevokeSessions: true }),
+            rawMember({ userId: "me", role: "admin", isSelf: true }),
+            rawMember({ userId: "ed", role: "editor" }),
           ],
         });
       }

@@ -1,4 +1,3 @@
-import type { Dispatch, SetStateAction } from "react";
 import { m } from "@/i18n";
 import type { MembershipStatus } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
@@ -7,7 +6,6 @@ import type { TeamMember as Member } from "@/account/teamAccessClient";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import type { MemberActionDependencies } from "./MemberActionDependencies";
 import type { createMemberAccessReconciliation } from "./createMemberAccessReconciliation";
-import { createMemberCredentialMutations } from "./createMemberCredentialMutations";
 
 interface ChangeSignInTrackingInput {
   next: boolean;
@@ -23,8 +21,6 @@ export interface MemberMutationDependencies extends Pick<
   refreshDirectory: () => void;
   reload: () => void;
   bumpReadiness: () => void;
-  clearResetLinkFor: (userId: string) => void;
-  setResetLink: Dispatch<SetStateAction<{ userId: string; link: string; member: string; expiresAt: string } | null>>;
 }
 
 function createSignInTrackingMutation(dependencies: MemberMutationDependencies) {
@@ -74,7 +70,6 @@ function createRoleMutation(dependencies: MemberMutationDependencies) {
           return;
         }
         dependencies.setNotice(m.settings_members_role_updated());
-        dependencies.clearResetLinkFor(member.userId);
         if (member.isSelf) await dependencies.refreshCallerAccess();
         dependencies.refreshDirectory();
       } catch (cause) {
@@ -111,7 +106,6 @@ function createRemoveMemberMutation(dependencies: MemberMutationDependencies) {
           return;
         }
         dependencies.setNotice(m.settings_members_removed());
-        dependencies.clearResetLinkFor(member.userId);
         if (member.isSelf) {
           await dependencies.refreshCallerAccess({ knownRemoved: true });
         }
@@ -148,7 +142,6 @@ function createStatusMutation(dependencies: MemberMutationDependencies) {
           return;
         }
         dependencies.setNotice(m.settings_members_status_changed());
-        dependencies.clearResetLinkFor(member.userId);
         dependencies.refreshDirectory();
       } catch (cause) {
         // An uncertain membership-status change requires authoritative reconciliation before another action.
@@ -202,6 +195,5 @@ export function createMemberMutations(dependencies: MemberMutationDependencies) 
     removeMember: createRemoveMemberMutation(dependencies),
     changeStatus: createStatusMutation(dependencies),
     enableAccess: createEnableAccessMutation(dependencies),
-    ...createMemberCredentialMutations(dependencies),
   };
 }

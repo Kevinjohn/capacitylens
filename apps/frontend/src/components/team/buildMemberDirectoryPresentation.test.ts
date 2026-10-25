@@ -46,7 +46,6 @@ describe("member directory presentation", () => {
         preauthEmail: "a@example.com",
         createdAt: "2026-01-01",
         expiresAt: "2026-12-01T00:00:00.000Z",
-        usedAt: null,
       },
       {
         id: "admin-b",
@@ -54,7 +53,6 @@ describe("member directory presentation", () => {
         preauthEmail: "same@example.com",
         createdAt: "2026-01-01",
         expiresAt: "2026-12-01T00:00:00.000Z",
-        usedAt: null,
       },
       {
         id: "admin-a",
@@ -62,15 +60,13 @@ describe("member directory presentation", () => {
         preauthEmail: "same@example.com",
         createdAt: "2026-01-01",
         expiresAt: "2026-12-01T00:00:00.000Z",
-        usedAt: null,
       },
       {
         id: "editor",
         role: "editor",
-        preauthEmail: null,
+        preauthEmail: "editor@example.com",
         createdAt: "2026-01-01",
         expiresAt: "2026-12-01T00:00:00.000Z",
-        usedAt: null,
       },
     ] satisfies TeamInvitation[];
 

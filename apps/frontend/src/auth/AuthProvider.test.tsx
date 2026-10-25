@@ -33,14 +33,11 @@ async function freshProvider() {
   // internally): a statically-imported useAuth from before vi.resetModules() would read the
   // context object's default value, not whatever this AuthProvider instance provides.
   const { useAuth } = await import("./authContext");
-  const { requestReauth, isReauthPending } = await import("./reauthCoordinator");
   return {
     AuthProvider,
     useStore,
     useAuth,
     resetStoreWithAccount,
-    requestReauth,
-    isReauthPending,
   };
 }
 
@@ -598,7 +595,7 @@ function registerServerModeTest19() {
 }
 
 function registerServerModeTest20() {
-  it("a 401 with needsSetup:true shows the first-run owner-setup form instead of sign-in", async () => {
+  it("a 401 with needsSetup:true explains the setup link above the sign-in form", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
       "fetch",
@@ -610,8 +607,8 @@ function registerServerModeTest20() {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByRole("heading", { name: "Setup the account Owner" })).toBeInTheDocument();
-    expect(screen.getByLabelText("name")).toBeInTheDocument();
+    expect(await screen.findByTestId("login-setup-needed")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(screen.queryByText("app-content")).not.toBeInTheDocument();
   });
 }
@@ -813,37 +810,28 @@ function registerServerModeTest27() {
 }
 
 function registerServerModeTest28() {
-  it("cancels a pending step-up when a session re-check removes its React host", async () => {
+  it.each([
+    [{ emailVerified: false, admission: { admitted: false } }, "access-verify-email"],
+    [{ emailVerified: true, admission: { admitted: false } }, "access-admission"],
+    [{ emailVerified: true, admission: { admitted: true }, membershipRequired: true }, "access-membership"],
+  ])("holds a signed-in identity on its limited screen until every gate passes (%o)", async (gates, screenId) => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-    const fetchSpy = vi
-      .fn()
-      .mockResolvedValueOnce(
-        me(200, {
-          authMode: "password-only",
-          user: { id: "u1", email: "a@b.test" },
-        }),
-      )
-      .mockResolvedValue(me(401, { authMode: "password-only", providers: [] }));
-    vi.stubGlobal("fetch", fetchSpy);
-    const { AuthProvider, useStore, requestReauth, isReauthPending } = await freshProvider();
+    const onTenantAccessReady = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(me(200, { authMode: "password-only", user: { id: "u1", email: "a@b.test" }, ...gates })),
+    );
+    const { AuthProvider } = await freshProvider();
     render(
-      <AuthProvider>
+      <AuthProvider onTenantAccessReady={onTenantAccessReady}>
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByText("app-content")).toBeInTheDocument();
-
-    const outcome = requestReauth();
-    expect(isReauthPending()).toBe(true);
-    act(() => useStore.setState((state) => ({ planningAuthLossVersion: state.planningAuthLossVersion + 1 })));
-    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-
-    const settled = await Promise.race([
-      outcome,
-      new Promise<"unsettled">((resolve) => setTimeout(() => resolve("unsettled"), 100)),
-    ]);
-    expect(settled).toEqual({ kind: "cancelled" });
-    expect(isReauthPending()).toBe(false);
+    expect(await screen.findByTestId(screenId)).toBeInTheDocument();
+    expect(screen.queryByText("app-content")).not.toBeInTheDocument();
+    expect(onTenantAccessReady).not.toHaveBeenCalled();
   });
 }
 

@@ -59,9 +59,7 @@ const HelpView = lazy(() => import("./components/HelpView").then((module) => ({ 
 const InviteAccept = lazy(() =>
   import("./components/invites/InviteAccept").then((module) => ({ default: module.InviteAccept })),
 );
-const JoinCompany = lazy(() =>
-  import("./components/join/JoinCompany").then((module) => ({ default: module.JoinCompany })),
-);
+const VerifyEmail = lazy(() => import("./auth/VerifyEmail").then((module) => ({ default: module.VerifyEmail })));
 // Keep password reset outside tenant and login gates so a visitor without a session
 // can redeem a reset link.
 const ResetPassword = lazy(() => import("./auth/ResetPassword").then((module) => ({ default: module.ResetPassword })));
@@ -160,11 +158,12 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    path: PUBLIC_AUTH_ENTRY_PATHS.companyJoin,
+    // Address confirmation links open signed out or on the limited screen for an unconfirmed address.
+    path: PUBLIC_AUTH_ENTRY_PATHS.emailVerification,
     errorElement: <RouteError />,
     element: (
       <Suspense fallback={<RouteLoading />}>
-        <JoinCompany />
+        <VerifyEmail />
       </Suspense>
     ),
   },

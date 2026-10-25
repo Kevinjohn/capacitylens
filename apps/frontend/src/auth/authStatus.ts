@@ -2,6 +2,18 @@ import { isSupportedSocialProviderId } from "./authContext";
 import type { AccountMode, AuthProviderBrand, AuthProviderInfo, AuthUser } from "./authContext";
 import { hasDuplicateIdentity } from "@/lib/hasDuplicateIdentity";
 
+/**
+ * The limited screen a signed-in identity sees before company data: an unconfirmed address, a
+ * pending or refused admission, or an admitted person who has not yet joined the company.
+ */
+export type AccessGate = "verify-email" | "admission" | "membership";
+
+/** The parts of the server's admission decision the limited screen explains. */
+export interface AdmissionSummary {
+  approvalStatus: "pending" | "approved" | "rejected" | "revoked";
+  requested: boolean;
+}
+
 /** Possible outcomes while resolving the current auth mode and user access. */
 export type AuthStatusResult =
   | { kind: "checking" }
@@ -14,6 +26,8 @@ export type AuthStatusResult =
       user: AuthUser | null;
       canCreateAccount: boolean;
       companySetupRequired?: boolean;
+      accessGate?: AccessGate;
+      admission?: AdmissionSummary;
       providers: AuthProviderInfo[];
       reauthMethod: "password" | "provider";
       reauthProviderId: string | null;

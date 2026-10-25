@@ -1,11 +1,9 @@
 import { m } from "@/i18n";
 import type { MembershipStatus } from "@capacitylens/shared/account/types";
-import { APP_NAME } from "@capacitylens/shared/brand";
 import type { TeamMember } from "@/account/teamAccessClient";
 
 /** Member administration actions that require a confirmation message. */
-export type MemberConfirmationAction =
-  "masquerade" | "remove" | "resetPassword" | "revokeSessions" | "disable" | "enable" | "archive" | "restore";
+export type MemberConfirmationAction = "masquerade" | "remove" | "disable" | "enable" | "archive" | "restore";
 /** A pending action and its target member. */
 export type MemberConfirmation = { kind: MemberConfirmationAction; member: TeamMember };
 
@@ -38,20 +36,6 @@ export function buildMemberConfirmationCopy({ kind, member }: MemberConfirmation
         message: member.isSelf
           ? m.settings_remove_self_message()
           : m.settings_remove_member_message({ member: resolveMemberLabel(member) }),
-      };
-    case "resetPassword":
-      return {
-        title: m.settings_reset_password_title(),
-        confirmLabel: m.settings_member_reset_password(),
-        message: m.settings_reset_password_message({ member: resolveMemberLabel(member) }),
-      };
-    case "revokeSessions":
-      return {
-        title: m.settings_revoke_sessions_title(),
-        confirmLabel: m.settings_member_revoke_sessions(),
-        message: member.isSelf
-          ? m.settings_revoke_self_sessions_message({ app: APP_NAME })
-          : m.settings_revoke_sessions_message({ member: resolveMemberLabel(member), app: APP_NAME }),
       };
     case "disable":
       return {

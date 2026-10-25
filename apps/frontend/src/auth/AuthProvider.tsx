@@ -20,7 +20,8 @@ import { APP_NAME } from "@capacitylens/shared/brand";
 import { buildOpenAuthResult } from "./authStatus";
 import type { AuthStatusResult } from "./authStatus";
 import { fetchAuthStatus } from "./fetchAuthStatus";
-import { AuthLoading, ReauthMount } from "./authScreens";
+import { AuthLoading } from "./authScreens";
+import { AccessScreen } from "./AccessScreens";
 import { useAuthContextValue } from "./useAuthContextValue";
 
 // Auth boundary. In the demo build (VITE_CAPACITYLENS_DEMO=1) this is a
@@ -37,7 +38,7 @@ function useTenantAccessReady(
   onTenantAccessReady?: (identitySource: "live" | "open") => void,
 ) {
   const tenantAccessSignalled = useRef(false);
-  const ready = status.kind === "pass" && !status.companySetupRequired;
+  const ready = status.kind === "pass" && !status.companySetupRequired && !status.accessGate;
   const identitySource = status.kind === "pass" ? (status.identitySource ?? "open") : "open";
   useEffect(() => {
     if (!ready) {
@@ -160,7 +161,7 @@ function LoginBoundary({
 }) {
   const publicEntry = resolvePublicAuthEntry(window.location.pathname);
   if (publicEntry === "password-reset") return <>{children}</>;
-  if (publicEntry === "invitation" || publicEntry === "company-join") {
+  if (publicEntry === "invitation" || publicEntry === "email-verification") {
     return <AuthContext.Provider value={authContextValue}>{children}</AuthContext.Provider>;
   }
   return (
@@ -196,21 +197,13 @@ function AuthError({ message, retry }: { message: string; retry: () => void }) {
 }
 
 function AuthenticatedBoundary({
-  status,
   children,
   authContextValue,
 }: {
-  status: Extract<AuthStatusResult, { kind: "pass" }>;
   children: ReactNode;
   authContextValue: ReturnType<typeof useAuthContextValue>;
 }) {
-  const authEnabled = status.authMode !== "off";
-  return (
-    <AuthContext.Provider value={authContextValue}>
-      {children}
-      {authEnabled && <ReauthMount user={status.user} />}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={authContextValue}>{children}</AuthContext.Provider>;
 }
 /** Provides server-verified authentication state and a retryable boot boundary. Demo mode permits access without a request; unresolved later checks preserve the current snapshot, while a confirmed 401 opens sign-in. */
 export function AuthProvider({
@@ -273,6 +266,23 @@ function AuthenticatedAppProvider({
       </LoginBoundary>
     );
   }
+  // The address confirmation page stays reachable from the limited screen that asks for it.
+  const confirmingAddress =
+    status.accessGate === "verify-email" && resolvePublicAuthEntry(window.location.pathname) === "email-verification";
+  if (status.accessGate && !confirmingAddress)
+    return (
+      <AccessScreen
+        gate={status.accessGate}
+        user={status.user}
+        {...(status.admission ? { admission: status.admission } : {})}
+        onSignOut={signOut}
+        onRefresh={async () => {
+          await checkAuth("report-error");
+        }}
+      />
+    );
+  if (confirmingAddress)
+    return <AuthenticatedBoundary authContextValue={authContextValue}>{children}</AuthenticatedBoundary>;
   if (status.companySetupRequired)
     return (
       <CompanySetup
@@ -296,9 +306,5 @@ function AuthenticatedAppProvider({
         }}
       />
     );
-  return (
-    <AuthenticatedBoundary status={status} authContextValue={authContextValue}>
-      {children}
-    </AuthenticatedBoundary>
-  );
+  return <AuthenticatedBoundary authContextValue={authContextValue}>{children}</AuthenticatedBoundary>;
 }

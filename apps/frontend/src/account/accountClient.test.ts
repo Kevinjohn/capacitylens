@@ -4,9 +4,6 @@ const mocks = vi.hoisted(() => ({
   apiFetch: vi
     .fn<(url: string, init?: RequestInit) => Promise<Response>>()
     .mockResolvedValue(new Response(null, { status: 204 })),
-  apiFetchReauth: vi
-    .fn<(url: string, init?: RequestInit, timeout?: number) => Promise<Response>>()
-    .mockResolvedValue(new Response(null, { status: 204 })),
   requestSignal: vi.fn((signal?: AbortSignal) => signal),
 }));
 
@@ -15,9 +12,6 @@ vi.mock("@/data/requestTimeout", () => ({
   apiFetch: mocks.apiFetch,
   API_BULK_TIMEOUT_MS: 120_000,
   createRequestSignal: mocks.requestSignal,
-}));
-vi.mock("@/auth/apiFetchReauth", () => ({
-  apiFetchReauth: mocks.apiFetchReauth,
 }));
 
 import {
@@ -60,7 +54,6 @@ describe("browser account client", () => {
   beforeEach(() => {
     clearStoredAccountCommands();
     mocks.apiFetch.mockReset().mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
-    mocks.apiFetchReauth.mockReset().mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
     mocks.requestSignal.mockClear();
     sessionStorage.clear();
   });
@@ -145,7 +138,7 @@ function registerAuditWarningTests(): void {
 }
 
 function registerMutationRouteTests(): void {
-  it("adds command headers, JSON encoding, safe path encoding, reauth, and bulk timeout policy", async () => {
+  it("adds command headers, JSON encoding, safe path encoding, and bulk timeout policy", async () => {
     await transferOwner({ name: "Studio" }, command);
     await accountClient.changeMemberRole({
       workspaceId: "workspace / one",
@@ -160,9 +153,10 @@ function registerMutationRouteTests(): void {
       proofId: "proof-1",
       command,
     });
-    await accountClient.issuePasswordReset("workspace / one", "person / one", command);
-    await accountClient.revokeMemberSessions("workspace / one", "person / one", command);
-    await accountClient.createInvitation({ accountId: "workspace / one", role: "viewer" }, command);
+    await accountClient.createInvitation(
+      { accountId: "workspace / one", role: "viewer", email: "selina@wayne.test" },
+      command,
+    );
     await accountClient.revokeInvitation("workspace / one", "invite / one", command);
 
     const [createUrl, createInit] = mocks.apiFetch.mock.calls[0] as unknown as [string, RequestInit];
@@ -171,12 +165,10 @@ function registerMutationRouteTests(): void {
     expect(new Headers(createInit.headers).get("content-type")).toBe("application/json");
     expect(createInit.body).toBe(JSON.stringify({ toUserId: "Studio", proofId: "proof-1" }));
 
-    const urls = mocks.apiFetchReauth.mock.calls.map((call) => String(call[0]));
+    const urls = mocks.apiFetch.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual(
       expect.arrayContaining([
         "https://app.example/api/accounts/workspace%20%2F%20one/members/person%20%2F%20one",
-        "https://app.example/api/accounts/workspace%20%2F%20one/members/person%20%2F%20one/reset-password",
-        "https://app.example/api/accounts/workspace%20%2F%20one/members/person%20%2F%20one/revoke-sessions",
         "https://app.example/api/accounts/workspace%20%2F%20one/invites/invite%20%2F%20one",
       ]),
     );
@@ -251,19 +243,14 @@ function registerMemberResourceCommandTests(): void {
 }
 
 function registerMembershipRouteTests(): void {
-  it("owns member, invitation preview, acceptance, and signup routes", async () => {
+  it("owns member, invitation preview, and signup routes", async () => {
     await accountClient.listMembers("workspace / one");
     await accountClient.listInvitations("workspace / one");
     await accountClient.startMasquerade("workspace / one", { targetUserId: "person / one" });
     await accountClient.masqueradeStatus();
     await accountClient.endMasquerade({ token: "token-1", reason: "explicit" });
     await accountClient.previewInvitation("token / one");
-    await accountClient.acceptInvitation("token / one", command);
-    await accountClient.signupWithInvitation(
-      "token / one",
-      { name: "New user", email: "new@wayne.test", password: "example-password" },
-      command,
-    );
+    await accountClient.signupWithInvitation("token / one", { name: "New user", password: "example-password" });
 
     const directoryUrls = mocks.apiFetch.mock.calls
       .map((call) => String(call[0]))
@@ -280,7 +267,6 @@ function registerMembershipRouteTests(): void {
       "https://app.example/api/masquerade",
       "https://app.example/api/masquerade",
       "https://app.example/api/invites/token%20%2F%20one/preview",
-      "https://app.example/api/invites/token%20%2F%20one/accept",
       "https://app.example/api/invites/token%20%2F%20one/signup",
     ]);
     expect(requestInitAt(mocks.apiFetch.mock.calls, 2)).toMatchObject({
@@ -294,8 +280,10 @@ function registerMembershipRouteTests(): void {
       credentials: "include",
       body: JSON.stringify({ token: "token-1", reason: "explicit" }),
     });
-    expectCommand(requestInitAt(mocks.apiFetch.mock.calls, 6), "POST");
-    expectCommand(requestInitAt(mocks.apiFetch.mock.calls, 7), "POST");
+    expect(requestInitAt(mocks.apiFetch.mock.calls, 6)).toMatchObject({
+      method: "POST",
+      body: JSON.stringify({ name: "New user", password: "example-password" }),
+    });
   });
 }
 
@@ -593,12 +581,12 @@ function registerSemanticPayloadOrderTests(): void {
     vi.spyOn(globalThis.crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000021")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000022");
-    mocks.apiFetchReauth.mockResolvedValue(new Response(null, { status: 503 }));
+    mocks.apiFetch.mockResolvedValue(new Response(null, { status: 503 }));
 
-    await accountClient.createInvitation({ accountId: "a-studio", role: "viewer", preauthEmail: "bruce@example.test" });
-    await accountClient.createInvitation({ preauthEmail: "bruce@example.test", role: "viewer", accountId: "a-studio" });
+    await accountClient.createInvitation({ accountId: "a-studio", role: "viewer", email: "bruce@example.test" });
+    await accountClient.createInvitation({ email: "bruce@example.test", role: "viewer", accountId: "a-studio" });
 
-    const commandIds = mocks.apiFetchReauth.mock.calls.map(([, init]) =>
+    const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get("x-account-command-id"),
     );
     expect(commandIds).toEqual(["00000000-0000-4000-8000-000000000021", "00000000-0000-4000-8000-000000000021"]);

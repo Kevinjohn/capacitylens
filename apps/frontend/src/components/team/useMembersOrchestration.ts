@@ -10,7 +10,6 @@ import { useStore } from "@/store/useStore";
 import type { StoreState } from "@/store/types";
 import { useTeamDirectory } from "./useTeamDirectory";
 import { useMemberInvites } from "./useMemberInvites";
-import type { InvitationPersonOption } from "./useMemberInvites";
 import { createMemberAccessReconciliation } from "./createMemberAccessReconciliation";
 import { createMemberMutations } from "./createMemberMutations";
 import { startMasquerade } from "@/auth/accountTransition";
@@ -35,7 +34,6 @@ function selectAuthorizedDirectory(directory: ReturnType<typeof useTeamDirectory
 
 function pickNextInviteDeadline(invites: readonly TeamInvitation[], clock: number): number | null {
   const nextExpiry = invites
-    .filter((invite) => invite.usedAt === null)
     .map((invite) => Date.parse(invite.expiresAt))
     .filter((expiry) => Number.isFinite(expiry) && expiry > clock)
     .reduce((nearest, expiry) => Math.min(nearest, expiry), Number.POSITIVE_INFINITY);
@@ -43,19 +41,11 @@ function pickNextInviteDeadline(invites: readonly TeamInvitation[], clock: numbe
 }
 
 function useMemberViewState() {
-  const [resetLink, setResetLink] = useState<{
-    userId: string;
-    link: string;
-    member: string;
-    expiresAt: string;
-  } | null>(null);
   const [roleEdit, setRoleEdit] = useState<{ member: Member; nextRole: Role } | null>(null);
   const [memberConfirmation, setMemberConfirmation] = useState<MemberConfirmation | null>(null);
   const [openMenuFor, setOpenMenuFor] = useState<string | null>(null);
   const [inactiveOpen, setInactiveOpen] = useState(false);
   return {
-    resetLink,
-    setResetLink,
     roleEdit,
     setRoleEdit,
     memberConfirmation,
@@ -98,12 +88,6 @@ function createConfirmationActions(
       case "remove":
         void actions.removeMember(pending.member);
         return;
-      case "resetPassword":
-        void actions.resetPassword(pending.member);
-        return;
-      case "revokeSessions":
-        void actions.revokeSessions(pending.member);
-        return;
       case "disable":
       case "archive":
       case "restore":
@@ -124,7 +108,6 @@ interface MemberDirectoryStateInput {
   setNotice: StoreState["setNotice"];
   setActiveAccount: StoreState["setActiveAccount"];
   viewState: ReturnType<typeof useMemberViewState>;
-  reconcileMintedInvite: ReturnType<typeof useMemberInvites>["reconcileMintedInvite"];
 }
 
 function useMemberDirectoryState(input: MemberDirectoryStateInput) {
@@ -132,7 +115,6 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
     enabled: input.enabled,
     activeAccountId: input.activeAccountId,
     fail: input.fail,
-    onInvitesLoaded: input.reconcileMintedInvite,
   });
   const authorizedDirectory = selectAuthorizedDirectory(directoryState.directory);
   const members = authorizedDirectory?.members ?? null;
@@ -157,9 +139,6 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
       directoryState.endAction();
     }
   };
-  const clearResetLinkFor = (userId: string): void => {
-    if (input.viewState.resetLink?.userId === userId) input.viewState.setResetLink(null);
-  };
   const renderedAt = useDeadlineClock({
     pickNextDeadline: (clock) => pickNextInviteDeadline(invites, clock),
     readNow: Date.now,
@@ -170,7 +149,6 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
     resourceCandidates,
     renderedAt,
     closeActiveAccount,
-    clearResetLinkFor,
     actionDependencies: {
       requestAccountId,
       isActiveAccount,
@@ -183,15 +161,12 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
 
 interface MemberMutationStateInput {
   activeAccountId: string | null;
-  authMode: ReturnType<typeof useAuth>["authMode"];
   refreshAuth: ReturnType<typeof useAuth>["refreshAuth"];
   invalidateMemberships: StoreState["invalidateMemberships"];
   clear: ReturnType<typeof useFieldError>["clear"];
   viewState: ReturnType<typeof useMemberViewState>;
-  inviteState: ReturnType<typeof useMemberInvites>;
   createInviteActions: ReturnType<typeof useMemberInvites>["createActions"];
   directoryState: ReturnType<typeof useMemberDirectoryState>;
-  invitationPeople: readonly InvitationPersonOption[];
 }
 
 function useMemberMutationState(input: MemberMutationStateInput) {
@@ -205,24 +180,19 @@ function useMemberMutationState(input: MemberMutationStateInput) {
     ...input.directoryState.actionDependencies,
     bumpReadiness,
     replaceAuthorizedDirectory: input.directoryState.replaceAuthorizedDirectory,
-    reconcileMintedInvite: input.inviteState.reconcileMintedInvite,
   });
   const actions = createMemberMutations({
     ...input.directoryState.actionDependencies,
     ...reconciliation,
     refreshDirectory,
     reload: input.directoryState.reload,
-    clearResetLinkFor: input.directoryState.clearResetLinkFor,
-    setResetLink: input.viewState.setResetLink,
     bumpReadiness,
   });
   const inviteActions = input.createInviteActions({
-    authMode: input.authMode,
     clear: input.clear,
     ...input.directoryState.actionDependencies,
     reloadInvites: input.directoryState.reloadInvites,
     reconcileUnknownMutation: reconciliation.reconcileUnknownMutation,
-    invitationPeople: input.invitationPeople,
   });
   return {
     actions,
@@ -259,7 +229,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   const { error, errorField, errorId, fail, clear } = useFieldError();
   const viewState = useMemberViewState();
   const memberInvites = useMemberInvites();
-  const { reconcileMintedInvite, resetInviteDraft, createActions: createInviteActions, ...inviteState } = memberInvites;
+  const { resetInviteDraft, createActions: createInviteActions, ...inviteState } = memberInvites;
   const enabled = authMode !== "off" && isServerConfigured();
   const directoryState = useMemberDirectoryState({
     activeAccountId,
@@ -268,7 +238,6 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     setNotice,
     setActiveAccount,
     viewState,
-    reconcileMintedInvite,
   });
   useEffect(() => {
     const unauthorized =
@@ -284,23 +253,14 @@ export function useMembersOrchestration(activeAccountId: string | null) {
       (resourceOrder.get(left.resourceId) ?? Number.POSITIVE_INFINITY) -
       (resourceOrder.get(right.resourceId) ?? Number.POSITIVE_INFINITY),
   );
-  const linkedResourceIds = new Set(
-    (directoryState.members ?? []).flatMap((member) => (member.resourceLink ? [member.resourceLink.resourceId] : [])),
-  );
-  const invitationPeople: InvitationPersonOption[] = resourceCandidates
-    .filter(({ resourceId }) => !linkedResourceIds.has(resourceId))
-    .map(({ resourceId, label }) => ({ id: resourceId, label }));
   const mutationState = useMemberMutationState({
     activeAccountId,
-    authMode,
     invalidateMemberships,
     refreshAuth,
     clear,
     viewState,
-    inviteState: memberInvites,
     createInviteActions,
     directoryState,
-    invitationPeople,
   });
   const setActionStatusElement = useActionStatusFocus(directoryState.busyAction);
   return {
@@ -318,9 +278,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     ...buildMemberDirectoryPresentation(directoryState.members),
     changeSignInTracking: mutationState.actions.changeSignInTracking,
     busyAction: directoryState.busyAction,
-    resetLink: viewState.resetLink,
     ...inviteState,
-    invitationPeople,
     ...mutationState.inviteActions,
     renderedAt: directoryState.renderedAt,
     ...selectPublicViewState(viewState),

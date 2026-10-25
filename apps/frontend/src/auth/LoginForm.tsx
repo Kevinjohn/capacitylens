@@ -1,6 +1,6 @@
 import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { m } from "@/i18n";
-import { MAX_PASSWORD_INPUT_CODE_UNITS, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
+import { MAX_PASSWORD_INPUT_CODE_UNITS } from "@capacitylens/shared/domain/password";
 import type { Dispatch, FormEvent, SetStateAction } from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -8,17 +8,13 @@ import { FieldError, FieldGroup } from "@/components/ui/field";
 import { LoginField } from "./LoginField";
 
 type LoginIds = {
-  name: string;
   email: string;
   password: string;
-  setupToken: string;
-  setupTokenHelp: string;
   error: string;
 };
 
 type LoginFormProps = {
   authMode: "password-only" | "sso-only" | "password-and-sso";
-  setup: boolean;
   passwordAutoFocus: boolean;
   busy: boolean;
   error: string | null;
@@ -30,28 +26,10 @@ type LoginFormProps = {
     setPassword: Dispatch<SetStateAction<string>>;
     signInWithPassword: (event: FormEvent) => Promise<void>;
   };
-  ownerSetup: {
-    name: string;
-    setName: Dispatch<SetStateAction<string>>;
-    setupToken: string;
-    setSetupToken: Dispatch<SetStateAction<string>>;
-    createOwner: (event: FormEvent) => Promise<void>;
-  };
 };
 
-/** Chooses the owner-setup or password sign-in form from the current login state. */
+/** Shows the password sign-in form when the current auth mode allows passwords. */
 export function LoginForm(props: LoginFormProps) {
-  if (props.setup) {
-    return (
-      <OwnerSetupForm
-        busy={props.busy}
-        error={props.error}
-        ids={props.ids}
-        ownerSetup={props.ownerSetup}
-        passwordSignIn={props.passwordSignIn}
-      />
-    );
-  }
   if (allowsPasswordSignIn(props.authMode)) {
     return (
       <PasswordForm
@@ -64,99 +42,6 @@ export function LoginForm(props: LoginFormProps) {
     );
   }
   return null;
-}
-
-type OwnerSetupFormProps = Pick<LoginFormProps, "busy" | "error" | "ids" | "ownerSetup" | "passwordSignIn">;
-
-function OwnerSetupForm({ busy, error, ids, ownerSetup, passwordSignIn }: OwnerSetupFormProps) {
-  const setupTokenTooLong = ownerSetup.setupToken.length > 512;
-  return (
-    <form
-      onSubmit={(event) => {
-        if (setupTokenTooLong) {
-          event.preventDefault();
-          return;
-        }
-        void ownerSetup.createOwner(event);
-      }}
-      noValidate
-    >
-      <FieldGroup className="gap-3">
-        <OwnerSetupFields
-          error={error}
-          ids={ids}
-          ownerSetup={ownerSetup}
-          passwordSignIn={passwordSignIn}
-          setupTokenTooLong={setupTokenTooLong}
-        />
-        <FieldError id={ids.error}>{setupTokenTooLong ? m.login_setup_token_invalid() : error}</FieldError>
-        <div className="flex justify-end">
-          <Button size="sm" type="submit" data-testid="owner-setup-submit" disabled={busy}>
-            {m.login_create_owner()}
-          </Button>
-        </div>
-      </FieldGroup>
-    </form>
-  );
-}
-
-type OwnerSetupFieldsProps = Pick<LoginFormProps, "error" | "ids" | "ownerSetup" | "passwordSignIn"> & {
-  setupTokenTooLong: boolean;
-};
-
-function OwnerSetupFields({ error, ids, ownerSetup, passwordSignIn, setupTokenTooLong }: OwnerSetupFieldsProps) {
-  const describedBy = error || setupTokenTooLong ? ids.error : undefined;
-  return (
-    <>
-      <LoginField
-        id={ids.name}
-        label={m.login_name()}
-        data-testid="owner-setup-name"
-        type="text"
-        autoComplete="name"
-        value={ownerSetup.name}
-        onChange={(event) => ownerSetup.setName(event.target.value)}
-        aria-describedby={describedBy}
-        autoFocus
-      />
-      <LoginField
-        id={ids.email}
-        label={m.login_setup_email()}
-        data-testid="owner-setup-email"
-        type="email"
-        autoComplete="email"
-        value={passwordSignIn.email}
-        onChange={(event) => passwordSignIn.setEmail(event.target.value)}
-        aria-describedby={describedBy}
-      />
-      <LoginField
-        id={ids.password}
-        label={m.login_setup_password()}
-        data-testid="owner-setup-password"
-        type="password"
-        autoComplete="new-password"
-        value={passwordSignIn.password}
-        minLength={MIN_PASSWORD_LENGTH}
-        onChange={(event) => passwordSignIn.setPassword(event.target.value)}
-        aria-describedby={describedBy}
-      />
-      <LoginField
-        id={ids.setupToken}
-        label={m.login_setup_token()}
-        data-testid="owner-setup-token"
-        type="password"
-        autoComplete="off"
-        value={ownerSetup.setupToken}
-        onChange={(event) => ownerSetup.setSetupToken(event.target.value)}
-        placeholder={m.login_setup_token_placeholder()}
-        aria-invalid={setupTokenTooLong || undefined}
-        aria-describedby={[ids.setupTokenHelp, describedBy].filter(Boolean).join(" ")}
-      />
-      <p id={ids.setupTokenHelp} className="text-xs text-muted-foreground">
-        {m.login_setup_token_help()}
-      </p>
-    </>
-  );
 }
 
 type PasswordFormProps = Pick<LoginFormProps, "busy" | "error" | "ids" | "passwordSignIn"> & {

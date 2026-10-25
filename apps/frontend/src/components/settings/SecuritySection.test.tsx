@@ -55,8 +55,10 @@ it("keeps password controls hidden until the password dialog is opened", () => {
   expect(screen.queryByLabelText(m.settings_security_current_password())).not.toBeInTheDocument();
 });
 
-it("changes a password through the dialog and revokes other sessions", async () => {
-  changePassword.mockResolvedValue({ data: { status: true }, error: null });
+it("changes a password through the dialog and returns to sign-in", async () => {
+  const assign = vi.fn();
+  vi.stubGlobal("location", { ...window.location, assign });
+  changePassword.mockResolvedValue({ data: { ok: true, signedOut: true }, error: null });
   renderSecurity({ overrides: {}, passwordOpen: true });
   fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
     target: { value: "current-password" },
@@ -72,10 +74,11 @@ it("changes a password through the dialog and revokes other sessions", async () 
     expect(changePassword).toHaveBeenCalledWith({
       currentPassword: "current-password",
       newPassword: "a-strong-new-password",
-      revokeOtherSessions: true,
     }),
   );
   expect(await screen.findByRole("status")).toHaveTextContent(m.settings_security_password_changed());
+  expect(assign).toHaveBeenCalledWith("/");
+  vi.unstubAllGlobals();
 });
 
 it("clears obsolete inputs and reports a committed password change when follow-up cleanup fails", async () => {

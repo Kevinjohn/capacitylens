@@ -11,53 +11,35 @@ const json = (body: unknown) =>
 
 afterEach(() => vi.restoreAllMocks());
 
-describe("teamAccessClient identity validation", () => {
+describe("teamAccessClient command outcomes", () => {
   it("classifies a clone-less in-progress command from one body read", async () => {
     const readBody = vi
       .fn()
       .mockResolvedValueOnce({ code: "COMMAND_IN_PROGRESS", error: "Still running." })
       .mockRejectedValue(new Error("body already consumed"));
-    vi.spyOn(accountClient, "issuePasswordReset").mockResolvedValue({
+    vi.spyOn(accountClient, "createInvitation").mockResolvedValue({
       ok: false,
       status: 409,
       json: readBody,
     } as unknown as Response);
 
-    await expect(teamAccessClient.issuePasswordReset("account-1", "user-1")).resolves.toEqual({
-      kind: "unknown",
-      status: 409,
-      message: "Still running.",
-    });
+    await expect(
+      teamAccessClient.createInvitation({ accountId: "account-1", role: "viewer", email: "selina@wayne.test" }),
+    ).resolves.toEqual({ kind: "unknown", status: 409, message: "Still running." });
     expect(readBody).toHaveBeenCalledOnce();
   });
 
   it("decodes an equivalent successful status instead of reporting a rejected command", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    vi.spyOn(accountClient, "issuePasswordReset").mockResolvedValue(
-      new Response(JSON.stringify({ token: "one-time-token" }), { status: 200 }),
+    vi.spyOn(accountClient, "createInvitation").mockResolvedValue(
+      new Response(JSON.stringify({ emailed: true }), { status: 200 }),
     );
 
-    await expect(teamAccessClient.issuePasswordReset("account-1", "user-1")).resolves.toMatchObject({
-      kind: "ok",
-      status: 200,
-      value: { token: "one-time-token" },
-    });
+    await expect(
+      teamAccessClient.createInvitation({ accountId: "account-1", role: "viewer", email: "selina@wayne.test" }),
+    ).resolves.toMatchObject({ kind: "ok", status: 200, value: { emailed: true } });
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("equivalent success 200"));
   });
-
-  it.each([" ", "token\nwith-control", "x".repeat(4_097)])(
-    "rejects an unsafe successful one-time token payload",
-    async (token) => {
-      vi.spyOn(accountClient, "issuePasswordReset").mockResolvedValue(
-        new Response(JSON.stringify({ token }), { status: 201 }),
-      );
-
-      await expect(teamAccessClient.issuePasswordReset("account-1", "user-1")).resolves.toMatchObject({
-        kind: "invalid",
-        status: 201,
-      });
-    },
-  );
 });
 
 describe("teamAccessClient directory validation", () => {
@@ -96,8 +78,6 @@ describe("teamAccessClient directory validation", () => {
           {
             userId: "legacy-user",
             signInConfirmed: null,
-            mayResetPassword: false,
-            mayRevokeSessions: false,
           },
         ],
       },
@@ -179,50 +159,40 @@ describe("teamAccessClient member resource links", () => {
   });
 });
 
-describe("teamAccessClient invitation defaults", () => {
-  it("defaults an absent invitation preauthorization email and preserves valid peers", async () => {
+describe("teamAccessClient invitation rows", () => {
+  it("drops rows without an address or an invitable role and keeps valid peers", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const row = { expiresAt: "2026-08-27T10:00:00.000Z", createdAt: "2026-07-27T10:00:00.000Z" };
     vi.spyOn(accountClient, "listInvitations").mockResolvedValue(
       json({
         invites: [
-          {
-            id: "legacy-invite",
-            role: "viewer",
-            expiresAt: "2026-08-27T10:00:00.000Z",
-            usedAt: null,
-            createdAt: "2026-07-27T10:00:00.000Z",
-          },
-          {
-            id: "future-invite",
-            role: "auditor",
-            expiresAt: "2026-08-27T10:00:00.000Z",
-            usedAt: null,
-            createdAt: "2026-07-27T10:00:00.000Z",
-          },
+          { ...row, id: 1, role: "viewer", preauthEmail: "selina@wayne.test" },
+          { ...row, id: 2, role: "viewer" },
+          { ...row, id: 3, role: "auditor", preauthEmail: "harley@wayne.test" },
         ],
       }),
     );
 
     await expect(teamAccessClient.listInvitations("account-1")).resolves.toMatchObject({
       kind: "ok",
-      value: [{ id: "legacy-invite", preauthEmail: null }],
+      value: [{ id: "1", preauthEmail: "selina@wayne.test" }],
     });
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("unsupported invitation-directory row"));
   });
 });
 
-describe("teamAccessClient invitation validation", () => {
-  it("forwards an optional private schedule-person proposal without exposing it in invitee codecs", async () => {
-    const create = vi.spyOn(accountClient, "createInvitation").mockResolvedValue(
-      new Response(JSON.stringify({ id: "invite-1", token: "opaque-token", expiresAt: "2026-08-27T10:00:00.000Z" }), {
-        status: 201,
-      }),
-    );
+describe("teamAccessClient invitation creation", () => {
+  it.each([
+    [201, true],
+    [202, false],
+  ])("reports whether a %s invitation was emailed", async (status, emailed) => {
+    const create = vi
+      .spyOn(accountClient, "createInvitation")
+      .mockResolvedValue(new Response(JSON.stringify({ id: 1, emailed }), { status }));
+    const input = { accountId: "a1", role: "editor" as const, email: "selina@wayne.test" };
 
-    await expect(
-      teamAccessClient.createInvitation({ accountId: "a1", role: "editor", proposedResourceId: "r1" }),
-    ).resolves.toMatchObject({ kind: "ok", value: { id: "invite-1" } });
-    expect(create).toHaveBeenCalledWith({ accountId: "a1", role: "editor", proposedResourceId: "r1" });
+    await expect(teamAccessClient.createInvitation(input)).resolves.toMatchObject({ kind: "ok", value: { emailed } });
+    expect(create).toHaveBeenCalledWith(input);
   });
 
   it.each(["2026-02-30T10:00:00.000Z", "0", "2026-08-27", "2026-08-27T11:00:00.000+01:00"])(
@@ -233,11 +203,10 @@ describe("teamAccessClient invitation validation", () => {
         json({
           invites: [
             {
-              id: "invite-1",
+              id: 1,
               role: "viewer",
-              preauthEmail: null,
+              preauthEmail: "selina@wayne.test",
               expiresAt,
-              usedAt: null,
               createdAt: "2026-07-27T10:00:00.000Z",
             },
           ],
@@ -259,8 +228,6 @@ describe("teamAccessClient duplicate validation", () => {
       name: "Ada",
       email: "ada@example.test",
       isSelf: false,
-      mayResetPassword: false,
-      mayRevokeSessions: false,
     };
     vi.spyOn(accountClient, "listMembers").mockResolvedValue(
       json({
@@ -273,11 +240,10 @@ describe("teamAccessClient duplicate validation", () => {
 
   it("rejects duplicate invitation identities", async () => {
     const invitation = {
-      id: "invite-1",
+      id: 1,
       role: "viewer",
-      preauthEmail: null,
+      preauthEmail: "selina@wayne.test",
       expiresAt: "2026-08-27T10:00:00.000Z",
-      usedAt: null,
       createdAt: "2026-07-27T10:00:00.000Z",
     };
     vi.spyOn(accountClient, "listInvitations").mockResolvedValue(
