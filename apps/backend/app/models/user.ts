@@ -11,6 +11,9 @@ export class FirstCompanyPendingError extends Error {
 }
 
 export default class User extends UserSchema {
+  // Identities use UUIDs; without this Lucid replaces the id with SQLite's row id after insert.
+  static selfAssignPrimaryKey = true
+
   @column({ serializeAs: null })
   declare password: string | null
 
