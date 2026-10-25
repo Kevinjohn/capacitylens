@@ -53,6 +53,13 @@ const invalidLink = { error: 'This invitation is invalid or has expired.', code:
  * Company invitations through the Account Kit: it owns the token, its one lifetime and the email.
  * The Kit re-checks the sender's authority inside the transaction that stores the invitation.
  */
+function mailUnavailable(ctx: HttpContext) {
+  return ctx.response.serviceUnavailable({
+    error: 'Invitations need email delivery. Ask your administrator to configure mail.',
+    code: 'MAIL_UNAVAILABLE',
+  })
+}
+
 export default class InvitationsController {
   /** Confirms the caller manages invitations for this installation's company. */
   private async manager(ctx: HttpContext, accountId: unknown) {
@@ -71,11 +78,7 @@ export default class InvitationsController {
     const email = typeof body.email === 'string' ? normalizeAccountEmail(body.email) : ''
     if (!isAccountEmail(email)) invalidAdmission('Invalid invitation email.')
     const actorId = await this.manager(ctx, body.accountId)
-    if (!env.get('CAPACITYLENS_MAIL_HOST'))
-      return ctx.response.serviceUnavailable({
-        error: 'Invitations need email delivery. Ask your administrator to configure mail.',
-        code: 'MAIL_UNAVAILABLE',
-      })
+    if (!env.get('CAPACITYLENS_MAIL_HOST')) return mailUnavailable(ctx)
     try {
       const invitation = await accountKit.invitations.send({ actorId, email, role: body.role })
       return ctx.response.created({ ...projection(invitation), emailed: true })
@@ -96,6 +99,8 @@ export default class InvitationsController {
     const id = invitationId(ctx.params.id)
     if (!id) invalidAdmission()
     const actorId = await this.manager(ctx, ctx.params.accountId)
+    // Resending replaces the link, so without mail it would only invalidate a printed one.
+    if (!env.get('CAPACITYLENS_MAIL_HOST')) return mailUnavailable(ctx)
     try {
       const invitation = await accountKit.invitations.resend({ actorId, invitationId: id })
       return ctx.response.ok({ ...projection(invitation), emailed: true })

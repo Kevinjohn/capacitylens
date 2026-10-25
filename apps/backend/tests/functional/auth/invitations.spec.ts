@@ -2,6 +2,7 @@ import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
 import db from '@adonisjs/lucid/services/db'
 import limiter from '@adonisjs/limiter/services/main'
+import env from '#start/env'
 import { resetState } from '#services/state_repository'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import {
@@ -171,6 +172,14 @@ test.group('company invitations', (group) => {
     const second = mail.tokenFor(invitee)
     assert.notEqual(second, first)
     await expectStatus(client.get(`/api/invites/${first}/preview`).send(), 404)
+    env.set('CAPACITYLENS_MAIL_HOST', '')
+    const unavailable = await asDataOwner(
+      client.post(`/api/accounts/${accountId}/invites/${id}/resend`),
+      cookie
+    ).send()
+    unavailable.assertStatus(503)
+    assert.equal((unavailable.body() as { code?: string }).code, 'MAIL_UNAVAILABLE')
+    env.set('CAPACITYLENS_MAIL_HOST', 'mail.wayne.example')
     await expectStatus(client.get(`/api/invites/${second}/preview`).send(), 200)
     const revoked = await asDataOwner(
       client.delete(`/api/accounts/${accountId}/invites/${id}`),
