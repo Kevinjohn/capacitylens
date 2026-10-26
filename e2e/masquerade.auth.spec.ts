@@ -141,7 +141,7 @@ test.describe("member masquerade", () => {
     await expect(page.getByRole("heading", { name: "Resources" })).toBeVisible();
     await expectNoOnboardingNoise(page, onboardingRequests);
     await page.getByRole("link", { name: "Activities" }).click();
-    await expect(page.getByRole("heading", { name: "Activities" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Activities", exact: true })).toBeVisible();
     await expectNoOnboardingNoise(page, onboardingRequests);
     await page.getByRole("link", { name: "Schedule" }).click();
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
