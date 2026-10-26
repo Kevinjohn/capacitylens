@@ -9,34 +9,12 @@ import { passwordLengthFailure } from '@capacitylens/shared/domain/password'
 
 const PRUNE_INTERVAL_MS = 60 * 60_000
 
-function assertAuthenticationConfiguration(inProduction: boolean) {
+function assertAuthenticationConfiguration() {
   const secret = env.get('CAPACITYLENS_SECRET')
   if (!secret || secret.length < 32)
     throw new Error(
       'CAPACITYLENS_SECRET must contain at least 32 characters when authentication is enabled'
     )
-  const publicUrl = env.get('CAPACITYLENS_PUBLIC_URL')
-  if (!publicUrl)
-    throw new Error('CAPACITYLENS_PUBLIC_URL is required when authentication is enabled')
-  let url: URL
-  try {
-    url = new URL(publicUrl)
-  } catch {
-    throw new Error('CAPACITYLENS_PUBLIC_URL must be a bare HTTP(S) origin')
-  }
-  if (
-    !['http:', 'https:'].includes(url.protocol) ||
-    url.origin !== publicUrl ||
-    url.username ||
-    url.password
-  )
-    throw new Error('CAPACITYLENS_PUBLIC_URL must be a bare HTTP(S) origin')
-  if (
-    inProduction &&
-    url.protocol !== 'https:' &&
-    !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
-  )
-    throw new Error('CAPACITYLENS_PUBLIC_URL must use HTTPS outside loopback in production')
 }
 
 interface ProductionPosture {
@@ -66,7 +44,7 @@ export default class ConfigurationProvider {
 
   constructor(protected app: ApplicationService) {}
   async boot() {
-    assertAuthenticationConfiguration(this.app.inProduction)
+    assertAuthenticationConfiguration()
     if (this.app.inProduction)
       assertProductionPosture({
         allowReset: env.get('CAPACITYLENS_ALLOW_RESET'),

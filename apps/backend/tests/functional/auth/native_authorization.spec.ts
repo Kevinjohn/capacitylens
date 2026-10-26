@@ -33,20 +33,14 @@ function withSession<
 
 function configureAuth(cleanup: (callback: () => void) => void) {
   const prior = {
-    secret: env.get('CAPACITYLENS_SECRET'),
-    publicUrl: env.get('CAPACITYLENS_PUBLIC_URL'),
     openSignup: env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP'),
     allowReset: env.get('CAPACITYLENS_ALLOW_RESET'),
     rateLimit: env.get('CAPACITYLENS_RATE_LIMIT'),
   }
-  env.set('CAPACITYLENS_SECRET', 'native-authorization-secret-2026-0123456789')
-  env.set('CAPACITYLENS_PUBLIC_URL', 'https://capacity.example.test')
   env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', false)
   env.set('CAPACITYLENS_ALLOW_RESET', true)
   env.set('CAPACITYLENS_RATE_LIMIT', '0')
   cleanup(() => {
-    env.set('CAPACITYLENS_SECRET', prior.secret ?? '')
-    env.set('CAPACITYLENS_PUBLIC_URL', prior.publicUrl ?? '')
     env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', prior.openSignup)
     env.set('CAPACITYLENS_ALLOW_RESET', prior.allowReset)
     env.set('CAPACITYLENS_RATE_LIMIT', prior.rateLimit ?? '')

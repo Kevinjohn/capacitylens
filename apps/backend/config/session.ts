@@ -1,9 +1,8 @@
-import env from '#start/env'
+import { publicOrigin } from '#config/public_origin'
 import { defineConfig, stores } from '@adonisjs/session'
 import { SESSION_IDLE_EXPIRY } from '#services/auth/session_expiry'
 
-const secure =
-  new URL(env.get('CAPACITYLENS_PUBLIC_URL') || env.get('APP_URL')).protocol === 'https:'
+const secure = publicOrigin.secure
 
 const sessionConfig = defineConfig({
   /**

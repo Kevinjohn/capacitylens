@@ -10,6 +10,7 @@ new features and **patch** versions carry fixes.
 ### Fixed
 
 - Preserve caller cancellation when generated API requests pass through the request timeout handler.
+- Validate the public origin consistently for emailed account links, cookies and transport security; reject malformed operator limits and retire unused configuration declarations.
 - Load company and planning data correctly when opening or refreshing nested app URLs.
 - Explain when a password update succeeded but follow-up cleanup failed, clear obsolete form values, and give recovery guidance when the response is uncertain.
 

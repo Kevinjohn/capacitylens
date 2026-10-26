@@ -6,8 +6,9 @@ import { defineConfig } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
 
+type MutableKey = 'CAPACITYLENS_RATE_LIMIT'
+
 type Cleanup = (callback: () => void) => void
-type MutableKey = 'CAPACITYLENS_RATE_LIMIT' | 'CAPACITYLENS_SECRET' | 'CAPACITYLENS_PUBLIC_URL'
 
 function captureEnvironment(cleanup: Cleanup, keys: MutableKey[]) {
   const previous = new Map(keys.map((key) => [key, env.get(key)]))
@@ -121,15 +122,9 @@ test.group('native auth and API rate limits', (group) => {
     assert,
     cleanup,
   }) => {
-    captureEnvironment(cleanup, [
-      'CAPACITYLENS_RATE_LIMIT',
-      'CAPACITYLENS_SECRET',
-      'CAPACITYLENS_PUBLIC_URL',
-    ])
+    captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT'])
     setEnvironment('CAPACITYLENS_RATE_LIMIT', '0')
     trustProxyHeaders(true)
-    setEnvironment('CAPACITYLENS_SECRET', 'n'.repeat(32))
-    setEnvironment('CAPACITYLENS_PUBLIC_URL', 'https://capacity.example.test')
 
     const email = `private-${crypto.randomUUID()}@example.test`
     const forwardedIp = `198.51.100.${Math.floor(Math.random() * 200) + 1}`

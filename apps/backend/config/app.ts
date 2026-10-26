@@ -1,3 +1,4 @@
+import { publicOrigin } from '#config/public_origin'
 import env from '#start/env'
 import { defineConfig } from '@adonisjs/core/http'
 
@@ -85,7 +86,7 @@ export const http = defineConfig({
     /**
      * Send cookies only over HTTPS when the public URL is HTTPS.
      */
-    secure: new URL(env.get('CAPACITYLENS_PUBLIC_URL') || env.get('APP_URL')).protocol === 'https:',
+    secure: publicOrigin.secure,
 
     /**
      * Cross-site policy for cookie sending.
