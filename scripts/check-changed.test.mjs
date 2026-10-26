@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { planChecks, ranNoTests } from "./check-changed.mjs";
+import { planChecks, ranNoTests, testCount } from "./check-changed.mjs";
 
 const everything = () => true;
 const labels = (steps) => steps.map((step) => step.label);
@@ -92,4 +92,12 @@ test("a focused test step that executes nothing fails, while related tests may f
   assert.equal(ranNoTests(scripts, "ℹ tests 3\nℹ pass 3\n"), false);
   const related = step(planChecks(["apps/frontend/src/App.tsx"], everything), "test: frontend tests related");
   assert.equal(ranNoTests(related, "No test files found, exiting with code 0\n"), false);
+});
+
+test("a passing test step reports how many tests it ran", () => {
+  assert.equal(testCount(" Test Files  136 passed (136)\n      Tests  1743 passed (1743)\n"), 1743);
+  assert.equal(testCount(" PASSED \n\nTests  63 passed (63)\n Time  8s\n"), 63);
+  assert.equal(testCount("ℹ tests 9\nℹ pass 9\n"), 9);
+  assert.equal(testCount("# tests 4\n# pass 4\n"), 4);
+  assert.equal(testCount("No test files found, exiting with code 0\n"), undefined);
 });

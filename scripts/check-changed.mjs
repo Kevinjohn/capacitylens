@@ -23,6 +23,8 @@ const backendSpec = /^apps\/backend\/tests\/.+\.spec\.ts$/;
 // A filter that matches nothing reports success; these markers turn it into a failure.
 const japaNoTests = /NO TESTS EXECUTED/;
 const nodeTestNoTests = /^(?:# |ℹ )tests 0$/m;
+// Vitest and Japa summarise as "Tests  12 passed (12)"; node --test reports "tests 12".
+const testCounts = [/^\s*Tests\s+(\d+) passed/m, /^(?:# |ℹ )tests (\d+)$/m];
 
 const relativeTo = (prefix) => (path) => path.slice(prefix.length);
 
@@ -135,6 +137,21 @@ export function ranNoTests(step, output) {
   return step.noTests ? step.noTests.test(output) : false;
 }
 
+/** Read how many tests a passing test step ran, so a pass shows what it covered. */
+export function testCount(output) {
+  for (const pattern of testCounts) {
+    const match = pattern.exec(output);
+    if (match) return Number(match[1]);
+  }
+  return undefined;
+}
+
+function passDetail(step, output) {
+  if (!step.label.startsWith("test:")) return "";
+  const count = testCount(output);
+  return count === undefined ? " (no test count reported)" : ` (${count} tests)`;
+}
+
 function git(args) {
   return execFileSync("git", args, { cwd: root, encoding: "utf8" });
 }
@@ -208,8 +225,11 @@ async function main() {
         continue;
       }
       const result = await runStep(step);
-      console.log(`${result.passed ? "pass" : "fail"}  ${step.label}`);
-      if (result.passed) continue;
+      if (result.passed) {
+        console.log(`pass  ${step.label}${passDetail(step, result.output)}`);
+        continue;
+      }
+      console.log(`fail  ${step.label}`);
       failed = true;
       console.log(result.output.trimEnd().split("\n").slice(-logTailLines).join("\n"));
       if (step.prepare) break;
