@@ -131,11 +131,18 @@ async function lockState(page) {
 
 async function expectLocked(page, count, baseline) {
   await expect(page.locator("body")).toHaveAttribute("data-scroll-locked", String(count));
-  const state = await lockState(page);
-  assert.equal(state.overflow, "hidden");
-  assert.equal(state.styles, baseline.styles, "A modal injected a style element into the production document.");
-  assert.equal(parseFloat(state.gap), baseline.scrollbar);
-  assert.equal(parseFloat(state.margin), baseline.scrollbar);
+  await expect
+    .poll(async () => {
+      const state = await lockState(page);
+      return { ...state, gap: parseFloat(state.gap), margin: parseFloat(state.margin) };
+    })
+    .toMatchObject({
+      count: String(count),
+      overflow: "hidden",
+      styles: baseline.styles,
+      gap: baseline.scrollbar,
+      margin: baseline.scrollbar,
+    });
 }
 
 async function expectUnlocked(page, baseline) {
