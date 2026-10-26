@@ -76,7 +76,7 @@ The operator is responsible for the SMTP provider's processing and retention.
   and clears notes from its bookings and time off. The resource and its links remain.
 - **Anonymise all people** applies the same scrub to every resource. Client, project and activity
   catalogue fields, the company, Owner, memberships and planning links stay unchanged.
-- Anonymisation does not change audit files, existing backups or off-host copies. The operator
+- Anonymisation does not change audit rows in SQLite, existing backups or off-host copies. The operator
   needs a separate process to remove data from them.
 
 ## Who is responsible for what

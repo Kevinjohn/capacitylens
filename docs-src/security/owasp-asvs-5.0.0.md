@@ -21,7 +21,7 @@ TLS, disks, collectors, secret stores and external authentication policy cannot 
 an environment acknowledgement is set; those stay Partial where deployment evidence is required.
 Requirement descriptions are not reproduced here; use the [official ASVS 5.0.0 release](https://github.com/OWASP/ASVS/tree/v5.0.0_release) alongside these IDs.
 
-Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Following the 2026-10-09 local MFA removal, the 2026-10-21 retirement of the automated cryptographic path check, and this 2026-10-26 authentication amendment, the current rows total **153 Pass, 60 Partial, 13 Gap and 119 N/A = 345**. These are not a score or certification percentage.
+Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Following the 2026-10-09 local MFA removal, the 2026-10-21 retirement of the automated cryptographic path check, and this 2026-10-26 authentication amendment, the current rows total **152 Pass, 58 Partial, 16 Gap and 119 N/A = 345**. These are not a score or certification percentage.
 
 ## V1 Encoding and sanitization
 
@@ -58,8 +58,8 @@ Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Fo
 
 | Section              | Evidence summary                                                                                                    | Pass                   | Partial                        | Gap | N/A                            |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------- | ------------------------------ | --- | ------------------------------ |
-| V4.1 HTTP use        | Correct content types and explicit methods; packaged TLS proxy behavior needs deployment proof | V4.1.1, V4.1.4 | V4.1.2, V4.1.3 | — | V4.1.5 |
-| V4.2 Message framing | Current nginx/Adonis/Node framing; auth proxy strips length/transfer headers; outbound URI/header compatibility needs evidence | — | V4.2.1, V4.2.2, V4.2.3, V4.2.4, V4.2.5 | — | — |
+| V4.1 HTTP use        | Correct content types and explicit methods; deployed TLS behavior needs operator evidence | V4.1.1, V4.1.4 | V4.1.2, V4.1.3 | — | V4.1.5 |
+| V4.2 Message framing | Adonis/Node framing; deployed proxy and outbound URI/header compatibility need evidence | — | V4.2.1, V4.2.2, V4.2.3, V4.2.4, V4.2.5 | — | — |
 | V4.3 GraphQL         | No GraphQL endpoint                                                                                                 | —                      | —                              | —   | V4.3.1, V4.3.2                 |
 | V4.4 WebSocket       | No WebSocket endpoint                                                                                               | —                      | —                              | —   | V4.4.1, V4.4.2, V4.4.3, V4.4.4 |
 
@@ -76,8 +76,8 @@ Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Fo
 
 | Section                          | Evidence summary                                                                                                                                                                                                         | Pass                                                                                     | Partial | Gap            | N/A                            |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- | ------- | -------------- | ------------------------------ |
-| V6.1 Documentation               | Password pathways, throttling, password length and the lack of local MFA are documented | V6.1.1, V6.1.2, V6.1.3 | — | — | — |
-| V6.2 Passwords                   | 15–128, change/current-password flow, no composition rule, paste/managers, exact bytes and no periodic expiry; no common-password or breached-password screening | V6.2.1, V6.2.2, V6.2.3, V6.2.5, V6.2.6, V6.2.7, V6.2.8, V6.2.9, V6.2.10, V6.2.11 | — | V6.2.4, V6.2.12 | — |
+| V6.1 Documentation               | Password pathways, throttling, password length and the lack of local MFA are documented; no documented context-specific word list | V6.1.1, V6.1.3 | — | V6.1.2 | — |
+| V6.2 Passwords                   | 15–128, change/current-password flow, no composition rule, paste/managers, exact bytes and no periodic expiry; no context-word enforcement, common-password list or breached-password screening | V6.2.1, V6.2.2, V6.2.3, V6.2.5, V6.2.6, V6.2.7, V6.2.8, V6.2.9, V6.2.10 | — | V6.2.4, V6.2.11, V6.2.12 | — |
 | V6.3 Authentication controls     | API throttling and no default account; failed-challenge indistinguishability across responses and timing remains unproved | V6.3.1, V6.3.2, V6.3.4, V6.3.6 | V6.3.7, V6.3.8 | V6.3.3, V6.3.5 | — |
 | V6.4 Recovery                    | Production setup avoids initial passwords; password reset revokes sessions; stopped-server recovery issues a reset link only for an eligible sole Owner; no product-admin reset flow | V6.4.1, V6.4.2, V6.4.3 | V6.4.6 | — | V6.4.4, V6.4.5 |
 | V6.5 Factor properties | No local authenticator, TOTP enrolment or recovery-code flow | — | — | — | V6.5.1, V6.5.2, V6.5.3, V6.5.4, V6.5.5, V6.5.6, V6.5.7, V6.5.8 |
@@ -131,7 +131,7 @@ Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Fo
 | V11.1 Inventory/lifecycle     | Repository crypto inventory reviewed by hand, without automated implementation-path discovery; deployment key rotation/PQC migration remain operator/planning work | V11.1.2                            | V11.1.1, V11.1.3, V11.1.4 | —       | —       |
 | V11.2 Design/implementation   | Node/Web Crypto, Account Kit and Adonis primitives, ≥128-bit random tokens and fail-closed errors; password scrypt parameters are documented separately | V11.2.1, V11.2.3, V11.2.5 | V11.2.2, V11.2.4 | — | — |
 | V11.3 Symmetric encryption    | `config/encryption.ts` declares AES-256-GCM with `APP_KEY`, but current call sites and protected stored data are not established | — | V11.3.1, V11.3.2, V11.3.3, V11.3.4 | — | V11.3.5 |
-| V11.4 Hash/KDF                | SHA-256 token and intent digests; scrypt uses `N=2^14`, `r=8`, `p=1`, below the OWASP recommended parallelization profile | — | V11.4.1, V11.4.2, V11.4.3, V11.4.4 | — | — |
+| V11.4 Hash/KDF                | SHA-256 token and intent digests; password verifier uses scrypt `N=2^14`, `r=8`, `p=1`; no password-derived application encryption key | V11.4.1, V11.4.3 | V11.4.2 | — | V11.4.4 |
 | V11.5 Randomness              | Platform CSPRNG with ≥128-bit security for tokens/keys and OS heavy-demand behavior                                                                                 | V11.5.1, V11.5.2                   | —                | —       | —       |
 | V11.6 Key generation/exchange | Platform-approved generation and TLS exchange primitives                                                                                                            | V11.6.1, V11.6.2                   | —                | —       | —       |
 | V11.7 In-use data             | Data minimisation/short-lived values exist; no full-memory encryption and necessary plaintext exists while processing                                               | —                                  | V11.7.2          | V11.7.1 | —       |
@@ -168,7 +168,7 @@ Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Fo
 | V15.1 Documentation/inventory  | Remediation policy, SBOM/third parties, expensive/risky/dangerous function inventory                                                    | V15.1.1, V15.1.2, V15.1.3, V15.1.4, V15.1.5                   | —       | —   | —                         |
 | V15.2 Components/resources     | Audits/scans, bounded heavy paths, minimal production graph with leak assertion, lockfile-recorded patch, non-root read-only containers | V15.2.1, V15.2.2, V15.2.3, V15.2.4, V15.2.5                   | —       | —   | —                         |
 | V15.3 Defensive implementation | Output projection, no-redirect outbound call, allowlisted fields, trusted proxy, strict TS/types/prototype/parameter handling           | V15.3.1, V15.3.2, V15.3.3, V15.3.4, V15.3.5, V15.3.6, V15.3.7 | —       | —   | —                         |
-| V15.4 Concurrency              | SQLite transaction checks and single-process ownership; no import worker threads or separate worker lock lifecycle | V15.4.2 | — | — | V15.4.1, V15.4.3, V15.4.4 |
+| V15.4 Concurrency              | SQLite transaction checks and single-process ownership; no import worker threads or separate worker lock lifecycle; async scrypt uses the shared libuv threadpool and no fairness guard was identified | V15.4.2 | V15.4.4 | — | V15.4.1, V15.4.3 |
 
 ## V16 Security logging and error handling
 
@@ -176,9 +176,9 @@ Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Fo
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ---------------- | --- | --- |
 | V16.1 Inventory        | Layer/event/format/destination/sensitivity inventory exists; actual access control and retention need operator evidence | — | V16.1.1 | — | — |
 | V16.2 Log content      | UTC ISO metadata, documented JSON streams and credential/body redaction; clock synchronization and deployed processor correlation need evidence | V16.2.1, V16.2.3, V16.2.5 | V16.2.2, V16.2.4 | — | — |
-| V16.3 Security events  | Request logging, when enabled, records route/status metadata; no auth-specific success, failure or throttling event is written | V16.3.3, V16.3.4 | V16.3.2 | V16.3.1 | — |
+| V16.3 Security events  | Optional request logging records event, method, route, status, outcome and correlation ID; expected authority/proof/validation/Kit failures are not individually logged, and no auth-specific success, failure or throttling event is written | V16.3.4 | V16.3.2, V16.3.3 | V16.3.1 | — |
 | V16.4 Log protection   | Structured serialization prevents injection; audit rows are in SQLite; external forwarding is not provided and deployment access controls require operator evidence | V16.4.1 | V16.4.2, V16.4.3 | — | — |
-| V16.5 Failure handling | Generic responses, fail-closed external/control failures and transaction rollback; a process-wide last-resort handler records the local error plus a sanitized security event, drains, exits non-zero and relies on supervisor restart rather than continuing potentially corrupt state | V16.5.1, V16.5.2, V16.5.3          | V16.5.4          | —   | —   |
+| V16.5 Failure handling | Generic responses, fail-closed external/control failures, transaction rollback and startup error handling; no process-wide last-resort handler for unhandled exceptions was identified | V16.5.1, V16.5.2, V16.5.3 | — | V16.5.4 | — |
 
 ## V17 WebRTC
 
@@ -197,6 +197,7 @@ changed rows are supported by the following source evidence:
 
 | Controls | Current evidence |
 | --- | --- |
+| V6.1.2, V6.2.11 | No documented context-specific word list or enforcement against such words was found; current password configuration establishes length only. Both controls are Gap. |
 | V6.2.4, V6.2.12 | Product routes enforce the shared password length bounds; `apps/backend/config/account_kit.ts` enables password flows without common-password or breach screening. `DECISIONS.md` records the absence of breached-password screening. |
 | V6.3.7 | Account Kit credential-change notifications are configured in `apps/backend/config/account_kit.ts`; the product exposes password change/reset but no email-change route in `apps/backend/start/auth_routes.ts`. |
 | V6.4.6 | Account Kit operator commands are registered in `apps/backend/adonisrc.ts`; `apps/backend/app/services/operations/owner_recovery.ts` adds the stopped-server sole-Owner recovery path and audit. The product has no Admin-triggered reset route. |
@@ -205,13 +206,12 @@ changed rows are supported by the following source evidence:
 | V7.1.1–V7.1.3 | `apps/backend/config/account_kit.ts` sets a 14-day idle expiry; it does not configure an absolute lifetime or concurrent-session cap. Current docs record the absence of an absolute lifetime but not its risk rationale; unlimited concurrent sessions are allowed with no count-based eviction. No federation exists. |
 | V7.5.3 | `apps/backend/app/services/auth/action_proof.ts` binds single-use, five-minute password proofs to user, Kit session, company, action and intent. |
 | V11.3 | `apps/backend/config/encryption.ts` declares AES-256-GCM using `APP_KEY`; no application call site proving which stored data uses it was identified, so the classifications remain Partial. |
-| V11.4 | `apps/backend/config/hash.ts` sets scrypt to `N=2^14`, `r=8`, `p=1`. The [OWASP Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html) lists `p=5` at this memory cost. |
-| V16.3.1 | `apps/backend/app/controllers/auth_controller.ts` does not write auth events; `apps/backend/app/services/audit.ts` records product mutations, while `apps/backend/app/middleware/request_logging_middleware.ts` only records route/status request metadata. |
+| V11.4.1–V11.4.4 | SHA-256 is used for token and intent digests (approved hash and adequate digest length); password scrypt has the approved KDF but its `p=1` profile is below the selected recommendation (Partial); the application does not derive encryption keys from passwords (N/A). |
+| V16.3.1, V16.3.3 | `apps/backend/app/middleware/request_logging_middleware.ts` is opt-in and records event, method, route, status, outcome and correlation ID, but no latency; authority/proof/validation/Kit failures are not individually logged, so V16.3.3 is Partial. |
 
 ## Input-boundary evidence update (2026-10-10)
 
-Historical input-boundary evidence from 2026-10-10. This evidence predates the Account Kit cutover; the current
-classifications above and the 2026-10-26 amendment below supersede authentication-specific claims. The source checks
+Historical input-boundary evidence from 2026-10-10. This evidence predates the Account Kit cutover; current classifications and the 2026-10-26 amendment above supersede authentication-specific claims. The source checks
 were made against the applicable [ASVS 5.0.0 release](https://github.com/OWASP/ASVS/tree/v5.0.0_release) and
 [Input Validation Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html).
 
@@ -233,8 +233,8 @@ not claims that input validation alone completes another control.
 | --- | --- |
 | V1.1.1, V1.5.3 — Partial | Maintainers must audit every parser and downstream encoding context, including Account Kit password and recovery request bodies, against the maintained parser contracts; the application scan does not cover `/api/auth/`. |
 | V1.3.11 — Partial | Account addresses are validated and handed to structured `nodemailer` fields. The review has not proved every user-controlled SMTP field and transport library behavior against header injection. |
-| V4.1.2 — Partial | The packaged proxy redirects HTTP requests, but the requirement permits automatic redirects only for browser-facing endpoints. Operators and maintainers must show that API requests over HTTP are rejected and cannot hide cleartext client requests. |
-| V4.1.3, V4.2.1–V4.2.4 — Partial | Operators must demonstrate the deployed proxy/Node HTTP framing and trusted-forwarding configuration against ambiguous requests; source-level request tests cannot prove a public deployment. |
+| V4.1.2 — Partial | Historical 2026-10-10 proxy evidence; current product routes call Account Kit directly and have no authentication proxy. Reassess deployed HTTP redirect behavior separately. |
+| V4.1.3, V4.2.1–V4.2.4 — Partial | Historical 2026-10-10 proxy evidence. Current product routes call Account Kit directly and have no authentication proxy; deployed proxy/Node framing and trusted-forwarding still require deployment evidence. |
 | V4.2.5 — Partial | Maintainers must bound constructed outbound URI and header fields against each receiving service's accepted size; transport response limits do not establish that request-side property. |
 | V5.2.2 — Partial | Import parses and validates JSON content, while the file chooser's `.json` hint does not enforce extension/content agreement. Maintainers would need an explicit filename and content check for this control. |
 | V5.4.1 — N/A | Export uses a fixed browser Blob filename through `anchor.download`; it has no HTTP attachment response or user-submitted download filename. No `Content-Disposition` header is emitted or claimed. |
@@ -245,7 +245,7 @@ not claims that input validation alone completes another control.
 | V6.3.7 — Partial | Account Kit sends notices after password change and reset completion when mail is configured. No email-change route is exposed by the product. |
 | V8.2.4 — Gap; V8.4.2 — Partial | Adaptive device/risk authorization is absent, and action-bound password proofs cover only the specified sensitive actions. Maintainers would need a separate product decision and enforcement tests to change this scope. |
 | V16.2.2, V16.3.2, V16.4.2–V16.4.3 — Partial | Operators must provide clock and external collector/ACL/retention evidence; maintainers would need additional event coverage for successful high-assurance decisions. Local safe-error tests do not prove those deployment controls. |
-| V16.5.4 — Partial | The last-resort handler deliberately drains and terminates on an unhandled failure, then relies on supervisor restart. This fails closed but does not meet the control's literal continue-without-termination limb. |
+| V16.5.4 — Gap | The 2026-10-26 source review found no process-wide last-resort handler; `apps/backend/bin/server.ts` catches startup failure only. |
 | V16.1.1, V16.2.4 — Partial | The checked-in logging inventory does not establish deployed retention/access or show that the selected log processor can read and correlate each stream. Operators must supply processor and access evidence. |
 
 ## Interpretation

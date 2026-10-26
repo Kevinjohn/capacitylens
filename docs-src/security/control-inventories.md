@@ -48,7 +48,7 @@ retaining its URL path.
 
 | Purpose | Primitive/library | Key/material | Lifecycle and migration |
 | --- | --- | --- | --- |
-| Password storage | Node scrypt, `N=2^14`, `r=8`, `p=1`; 16-byte salt and 64-byte derived result | Password-derived; random salt | Current profile is below the OWASP Password Storage Cheat Sheet recommendation at the same memory target; see the ASVS ledger and G1 follow-up |
+| Password storage | Node scrypt, `N=2^14`, `r=8`, `p=1`; 16-byte salt and 64-byte derived result | Password-derived; random salt | Current profile is below the OWASP Password Storage Cheat Sheet recommendation at the same memory target; see the ASVS ledger and [issue #1583](https://github.com/Kevinjohn/capacitylens/issues/1583) |
 | Password verifier comparison | Adonis scrypt hasher | Stored and derived verifier | Uses framework verification; test coverage is in Account Kit password-flow tests |
 | Invitation and reset lookup | Account Kit SHA-256 token digest | Random one-time token shown to the recipient | Expiring, single-use rows are removed or invalidated by the Kit flow |
 | Session registry handle | Account Kit random token and SHA-256 digest | Raw token remains in the server session; registry stores the digest | Database-backed session with sliding idle expiry; no maximum simultaneous-session count is configured |
@@ -56,9 +56,9 @@ retaining its URL path.
 | API rate-limit key | SHA-256 of request client IP | Address-derived limiter key | Used as the limiter key; application configuration controls the API request limit |
 | View-as-member token | Web Crypto generates 32 random bytes, encoded as base64url | Random session-bound token stored with the active company/actor/target row | Removed when the projection ends; no Node `node:crypto` import |
 | Account-command payload | SHA-256 over canonical operation, company and payload; random command/idempotency UUIDs | Payload hash and operation context | Replay/identity handles only; raw credentials are not stored as command results |
-| Company-transfer recheck | SHA-256 of canonical full export rows | Current company data fingerprint | Compares the preview with current rows before applying the import |
+| Import impact fingerprint | SHA-256 of canonical full export rows | Current company data fingerprint | Compares previewed content with current rows; stale-preview rejection separately compares the planning revision and requires a new preview |
 | Record identifiers | CSPRNG UUIDs | Identifier, not a secret | Used for users, restoration groups and account command/proof records |
-| Encryption configuration and limiter | Adonis AES-256-GCM encryptor declaration and Account Kit limiter HMAC | `APP_KEY` | The application configures the key, but this inventory does not establish which stored application data uses the encryptor; the session cookie flags are configured separately |
+| Encryption configuration | Adonis AES-256-GCM encryptor declaration | `APP_KEY` | The application configures the key, but this inventory does not establish which stored application data uses the encryptor; the session cookie flags are configured separately |
 | Account Kit limiter | HMAC-keyed limiter with `APP_KEY` | `APP_KEY` | Keeps rate-limit keys scoped to the application secret |
 | Internal service TLS | OpenSSL P-256/SHA-256, Node HTTPS and nginx verification | Per-install root-only CA key; API-only leaf key; public CA/leaf | automatic in Compose; optional for same-host bare metal; configured identities never fall back silently; coordinated renewal/recreation |
 | Public TLS | TLS proxy and Node trust store | Public certificate and chain | Operator-managed certificate lifecycle |
@@ -83,10 +83,10 @@ policy and backup-encryption controls.
 | Service/resource | Maximum | Limit behavior and recovery |
 | --- | ---: | --- |
 | API accepted sockets | 512 per process | New sockets are refused; proxy surfaces upstream failure |
-| API request/incomplete connection | 30 seconds | Request work is bounded; clients and proxies should bound retries and upstream waits |
-| SQLite | One synchronous connection per process and database file | A held lock waits five seconds, then surfaces failure; do not spawn another writer |
-| Production API requests | 300 per minute per IP by default; operator may configure another bounded value | Invalid or zero values disable the configured application limit; retain edge controls for deployment protection |
-| Failed sign-in/action-proof password checks | 3 per 10 seconds per IP | Successful proof/sign-in resets the shared failure budget |
+| API request/incomplete connection | 30 seconds for request reception and socket inactivity | These are HTTP receive/inactivity timeouts, not handler or database execution deadlines; clients and proxies should bound retries and upstream waits |
+| SQLite | One synchronous connection per process and database file | Pool acquisition waits up to five seconds; SQLite lock waits up to one second before surfacing failure; these are separate limits, not an aggregate operation deadline; do not spawn another writer |
+| Production API requests | 300 per minute per IP by default; operator may configure another bounded value | Production startup rejects invalid or zero values; unset configuration uses the 300/minute default; retain edge controls for deployment protection |
+| Failed action-proof password checks | 3 per 10 seconds per IP | Action-proof controller consumes and resets this budget; sign-in has separate Account Kit throttles |
 | Account Kit sign-in throttle | 10 requests/minute per client; 5/minute per identity with a 20-minute block | Defaults in the vendored Account Kit; application configuration changes only test throttling |
 | Import preparation | Atomic database operation; framework request-size limit | Invalid imports fail without replacing stored data |
 | Batch mutation | Framework parser limits | One SQLite transaction; authorization/validation per operation; a stale conflict rolls the batch back |
@@ -96,9 +96,9 @@ policy and backup-encryption controls.
 
 | Layer | Events | Format/destination | Sensitive-data rule |
 | --- | --- | --- | --- |
-| API request log | Method, route, status, latency and request metadata when request logging is enabled | Pino JSON stdout | No request/response bodies, cookie or authorization values; sensitive bearer path segments are redacted |
+| API request log | Event, method, route, status, outcome and correlation ID when request logging is enabled; no latency is recorded | Pino JSON stdout | No request/response bodies, cookie or authorization values; sensitive bearer path segments are redacted |
 | Application audit | Actor, company, action, entity, id and changed field names | Transactional SQLite `audit_entries` table | No entity values, passwords or bearer tokens |
-| Authentication events | No auth-specific success, failure or throttling events are written to the application audit table | No application security event stream is configured; optional request logs record route/status metadata | Generic request telemetry is not a complete authentication event record; see G3 |
+| Authentication events | No auth-specific success, failure or throttling events are written to the application audit table | No application security event stream is configured; optional request logs record route/status metadata | Generic request telemetry is not a complete authentication event record; see [issue #1583](https://github.com/Kevinjohn/capacitylens/issues/1583) |
 | Proxy/platform | TLS/access/container/collector events | Deployment-defined systems | Operator classifies, redacts, restricts, retains and correlates in UTC |
 
 Production configuration requires application audit to remain enabled. The application does not
