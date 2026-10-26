@@ -17,8 +17,6 @@ import { isAccountEmail } from "../../packages/shared/src/account/validation.ts"
 // Lane-derived ports keep concurrent worktrees on disjoint service endpoints.
 const lanePorts = ports();
 const devApiPort = parsePort(process.env.CAPACITYLENS_DEV_API_PORT, lanePorts.dbApi, "CAPACITYLENS_DEV_API_PORT");
-// Stryker loads this config from the repository root, so resolve frontend paths from the config file.
-const frontendRoot = fileURLToPath(new URL(".", import.meta.url));
 // One Vite config serves several dev servers on different ports (the core app, and the db/auth
 // flavours Playwright boots). The service name selects which lane port this invocation binds,
 // so no script has to pass a literal `--port`.
@@ -55,6 +53,8 @@ export function staticSpaRouteDocuments(): Plugin {
 
 /** Configures application builds and lane-local development, refusing invalid client deployment settings. */
 export default defineConfig(({ mode }) => {
+  // Stryker loads this config from the repository root, so resolve frontend paths from the config file.
+  const frontendRoot = fileURLToPath(new URL(".", import.meta.url));
   const fileEnv = loadEnv(mode, frontendRoot, "VITE_CAPACITYLENS_");
   const clientEnv = (name: "VITE_CAPACITYLENS_API" | "VITE_CAPACITYLENS_DEMO" | "VITE_CAPACITYLENS_FEEDBACK_MAILTO") =>
     process.env[name] ?? fileEnv[name] ?? "";
