@@ -258,6 +258,12 @@ const routes = {
     tokens: [{"old":"/api/installation/company","type":0,"val":"api","end":""},{"old":"/api/installation/company","type":0,"val":"installation","end":""},{"old":"/api/installation/company","type":0,"val":"company","end":""}],
     types: placeholder as Registry['api.installation.company']['types'],
   },
+  'api.accounts.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/accounts',
+    tokens: [{"old":"/api/accounts","type":0,"val":"api","end":""},{"old":"/api/accounts","type":0,"val":"accounts","end":""}],
+    types: placeholder as Registry['api.accounts.index']['types'],
+  },
   'api.transfer.preview': {
     methods: ["POST"],
     pattern: '/api/transfer/preview',
@@ -540,11 +546,11 @@ const routes = {
     tokens: [{"old":"/api/health","type":0,"val":"api","end":""},{"old":"/api/health","type":0,"val":"health","end":""}],
     types: placeholder as Registry['api.health']['types'],
   },
-  'api.accounts.index': {
+  'api.diagnostics': {
     methods: ["GET","HEAD"],
-    pattern: '/api/accounts',
-    tokens: [{"old":"/api/accounts","type":0,"val":"api","end":""},{"old":"/api/accounts","type":0,"val":"accounts","end":""}],
-    types: placeholder as Registry['api.accounts.index']['types'],
+    pattern: '/api/diagnostics',
+    tokens: [{"old":"/api/diagnostics","type":0,"val":"api","end":""},{"old":"/api/diagnostics","type":0,"val":"diagnostics","end":""}],
+    types: placeholder as Registry['api.diagnostics']['types'],
   },
 } as const satisfies Record<string, AdonisEndpoint>
 

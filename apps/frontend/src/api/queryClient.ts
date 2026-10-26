@@ -26,7 +26,12 @@ export const client = createTuyau({
   credentials: "include",
   retry: 0,
   timeout: false,
-  fetch: (input, init) => apiFetch(input, init),
+  // Tuyau carries cancellation on a Request; apiFetch composes its timeout from init.signal.
+  fetch: (input, init) =>
+    apiFetch(input, {
+      ...init,
+      signal: init?.signal ?? (input instanceof Request ? input.signal : null),
+    }),
 });
 
 /** Typed route queries and mutation options generated from the backend registry. */

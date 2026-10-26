@@ -42,9 +42,14 @@ test.group('Backup diagnostics', (group) => {
     const response = await owner.get('/api/diagnostics')
     const latest = await db.from('adonis_schema').select('name').orderBy('id', 'desc').first()
     assert.equal(response.status(), 200)
-    assert.equal(response.body().server.schema.migration, latest!.name)
-    assert.deepEqual(response.body().server.backup, { newestSnapshotAt: null })
-    assert.notProperty(response.body().server, 'persistence')
+    assert.deepEqual(response.body(), {
+      server: {
+        connectivity: 'ok',
+        database: { status: 'ok' },
+        schema: { migration: latest!.name },
+        backup: { newestSnapshotAt: null },
+      },
+    })
   })
 
   test('an unreadable backup directory does not erase verified database diagnostics', async ({
@@ -57,11 +62,13 @@ test.group('Backup diagnostics', (group) => {
       const latest = await db.from('adonis_schema').select('name').orderBy('id', 'desc').first()
       const response = await owner.get('/api/diagnostics')
       assert.equal(response.status(), 200)
-      assert.deepEqual(response.body().server, {
-        connectivity: 'ok',
-        database: { status: 'ok' },
-        schema: { migration: latest!.name },
-        backup: { newestSnapshotAt: null },
+      assert.deepEqual(response.body(), {
+        server: {
+          connectivity: 'ok',
+          database: { status: 'ok' },
+          schema: { migration: latest!.name },
+          backup: { newestSnapshotAt: null },
+        },
       })
     } finally {
       env.set('CAPACITYLENS_BACKUP_DIR', original ?? '')
@@ -85,8 +92,8 @@ test.group('Backup diagnostics', (group) => {
       env.set('CAPACITYLENS_BACKUP_DIR', dir)
       const response = await owner.get('/api/diagnostics')
       assert.equal(response.status(), 200)
-      assert.deepEqual(response.body().server.backup, {
-        newestSnapshotAt: '2026-10-21T23:00:00.000Z',
+      assert.containsSubset(response.body(), {
+        server: { backup: { newestSnapshotAt: '2026-10-21T23:00:00.000Z' } },
       })
     } finally {
       env.set('CAPACITYLENS_BACKUP_DIR', original ?? '')

@@ -2,7 +2,7 @@ import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { API_BASE } from "@/data/apiConfig";
+import { apiRouteUrl } from "@/api/queryClient";
 import { apiFetch } from "@/data/requestTimeout";
 import { readApiError } from "@/lib/readApiError";
 import { MAX_NAME_LENGTH } from "@capacitylens/shared/lib/strings";
@@ -26,7 +26,7 @@ export function CompanySetup({
     setBusy(true);
     setError(null);
     try {
-      const response = await apiFetch(`${API_BASE}/api/installation/company`, {
+      const response = await apiFetch(apiRouteUrl("api.installation.company", {}), {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

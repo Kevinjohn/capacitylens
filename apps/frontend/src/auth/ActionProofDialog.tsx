@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { API_BASE } from "@/data/apiConfig";
+import { apiRouteUrl } from "@/api/queryClient";
 import { apiFetch } from "@/data/requestTimeout";
 import { readApiError } from "@/lib/readApiError";
 import { Modal } from "@/components/common/ui";
@@ -29,7 +29,7 @@ export function ActionProofDialog({ action, accountId, intent, onConfirmed, onCa
     setBusy(true);
     setError(null);
     try {
-      const url = `${API_BASE}/api/auth/action-proof/password`;
+      const url = apiRouteUrl("api.auth.action-proof.password", {});
       const body = { action, accountId, intent, password };
       const response = await apiFetch(url, {
         method: "POST",
