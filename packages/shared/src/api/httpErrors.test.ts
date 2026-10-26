@@ -45,4 +45,4 @@ function productTypeContracts() {
   const misplacedCount: ProductHttpErrorBody = { error: "Invalid", code: "VALIDATION_ERROR", restorableItemCount: 2 };
   return [validation, wrongStatus, unsupported, missingCount, misplacedCount];
 }
-it("keeps the compile-time examples in the checked test project", () => expect(productTypeContracts()).toHaveLength(5));
+void productTypeContracts;
