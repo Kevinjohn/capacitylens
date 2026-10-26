@@ -3,6 +3,7 @@ import test from "node:test";
 import { planChecks, ranNoTests, testCount } from "./check-changed.mjs";
 
 const everything = () => true;
+const noImporters = () => [];
 const labels = (steps) => steps.map((step) => step.label);
 const step = (steps, prefix) => steps.find((candidate) => candidate.label.startsWith(prefix));
 
@@ -64,9 +65,38 @@ test("a changed script runs its own test file when one exists", () => {
   const steps = planChecks(
     ["scripts/lanes.mjs", "scripts/bundleBudget.mjs"],
     (path) => path !== "scripts/bundleBudget.test.mjs",
+    noImporters,
   );
   assert.deepEqual(step(steps, "test: 1 script test").args, ["--test", "scripts/lanes.test.mjs"]);
   assert.equal(step(steps, "test: 1 script test").command, "node");
+});
+
+test("a changed script also runs the differently named test files that import it", () => {
+  const steps = planChecks(["scripts/gateCommands.mjs"], everything, (path) =>
+    path === "scripts/gateCommands.mjs" ? ["scripts/run-gate.test.mjs", "scripts/check-dependabot.test.mjs"] : [],
+  );
+  assert.deepEqual(step(steps, "test: 3 script test").args, [
+    "--test",
+    "scripts/gateCommands.test.mjs",
+    "scripts/run-gate.test.mjs",
+    "scripts/check-dependabot.test.mjs",
+  ]);
+  assert.deepEqual(
+    step(
+      planChecks(["scripts/gateCommands.mjs"], (path) => !path.endsWith("gateCommands.test.mjs")),
+      "test:",
+    ).args,
+    ["--test", "scripts/check-dependabot.test.mjs", "scripts/run-gate.test.mjs"],
+  );
+});
+
+test("a lint or format configuration change checks the whole repository", () => {
+  const lint = planChecks(["apps/backend/eslint.config.js", "apps/frontend/src/App.tsx"], everything);
+  assert.deepEqual(step(lint, "lint: whole repository").args, ["run", "lint"]);
+  assert.equal(step(lint, "lint: frontend"), undefined);
+  assert.equal(step(lint, "lint: backend"), undefined);
+  const format = planChecks([".prettierignore", "README.md"], everything);
+  assert.deepEqual(step(format, "format").args, ["run", "format:check"]);
 });
 
 test("documentation sources rebuild docs/ and end-to-end specs are reported as skipped", () => {
@@ -87,7 +117,7 @@ test("a focused test step that executes nothing fails, while related tests may f
   const specs = step(planChecks(["apps/backend/tests/unit/b.spec.ts"], everything), "test: 1 backend spec");
   assert.equal(ranNoTests(specs, "booting application to run tests...\n\n NO TESTS EXECUTED\n"), true);
   assert.equal(ranNoTests(specs, " PASSED \nTests  4 passed (4)\n"), false);
-  const scripts = step(planChecks(["scripts/lanes.mjs"], everything), "test: 1 script test");
+  const scripts = step(planChecks(["scripts/lanes.mjs"], everything, noImporters), "test: 1 script test");
   assert.equal(ranNoTests(scripts, "# tests 0\n# pass 0\n"), true);
   assert.equal(ranNoTests(scripts, "ℹ tests 3\nℹ pass 3\n"), false);
   const related = step(planChecks(["apps/frontend/src/App.tsx"], everything), "test: frontend tests related");

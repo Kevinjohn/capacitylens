@@ -6,7 +6,7 @@
 // Uncommitted and untracked files count as changed. `pnpm run gate:all` and `pnpm run e2e` remain
 // the submission gate; this is the fast loop while implementing or reviewing a change.
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { assertSupportedNodeVersion } from "../apps/backend/start/node_version.ts";
 import { nonColourEnvironment, spawnPnpm } from "./pnpmSpawn.mjs";
@@ -20,6 +20,9 @@ const logTailLines = 40;
 const codeFile = /\.(?:[cm]?[jt]s|[jt]sx)$/;
 const typeInput = /(?:^|\/)(?:tsconfig[^/]*\.json|package\.json)$/;
 const backendSpec = /^apps\/backend\/tests\/.+\.spec\.ts$/;
+// A rule or ignore change can fail files the branch never touched.
+const lintConfig = /(?:^|\/)eslint\.config\.[cm]?js$/;
+const formatConfig = /^\.prettier(?:rc[^/]*|ignore)$/;
 // A filter that matches nothing reports success; these markers turn it into a failure.
 const japaNoTests = /NO TESTS EXECUTED/;
 const nodeTestNoTests = /^(?:# |ℹ )tests 0$/m;
@@ -28,13 +31,26 @@ const testCounts = [/^\s*Tests\s+(\d+) passed/m, /^(?:# |ℹ )tests (\d+)$/m];
 
 const relativeTo = (prefix) => (path) => path.slice(prefix.length);
 
+/** List the script test files that import `scripts/<name>.mjs`, whatever they are called. */
+function scriptTestsImporting(path) {
+  const scripts = new URL("scripts/", pathToFileURL(root));
+  const specifier = `./${path.slice("scripts/".length)}"`;
+  return readdirSync(scripts)
+    .filter((name) => name.endsWith(".test.mjs") && readFileSync(new URL(name, scripts), "utf8").includes(specifier))
+    .map((name) => `scripts/${name}`);
+}
+
 /**
  * Plan the checks for a branch's changed paths, in run order.
  *
  * Deleted paths still select suites and the type-check, but are never passed to a tool that
  * expects existing files.
  */
-export function planChecks(paths, exists = (path) => existsSync(new URL(path, pathToFileURL(root)))) {
+export function planChecks(
+  paths,
+  exists = (path) => existsSync(new URL(path, pathToFileURL(root))),
+  testsImporting = scriptTestsImporting,
+) {
   const present = paths.filter(exists);
   const presentCode = present.filter((path) => codeFile.test(path));
   const backendPaths = paths.filter((path) => path.startsWith("apps/backend/"));
@@ -53,7 +69,9 @@ export function planChecks(paths, exists = (path) => existsSync(new URL(path, pa
     ...new Set(
       paths
         .filter((path) => /^scripts\/[^/]+\.mjs$/.test(path))
-        .map((path) => (path.endsWith(".test.mjs") ? path : path.replace(/\.mjs$/, ".test.mjs")))
+        .flatMap((path) =>
+          path.endsWith(".test.mjs") ? [path] : [path.replace(/\.mjs$/, ".test.mjs"), ...testsImporting(path)],
+        )
         .filter(exists),
     ),
   ];
@@ -68,23 +86,28 @@ export function planChecks(paths, exists = (path) => existsSync(new URL(path, pa
   if (frontendLint.length)
     steps.push({ label: "prepare: compile messages", args: ["run", "paraglide:compile"], prepare: true });
 
-  if (present.length)
+  const fullLint = paths.some((path) => lintConfig.test(path));
+  if (paths.some((path) => formatConfig.test(path)))
+    steps.push({ label: "format: whole repository", args: ["run", "format:check"] });
+  else if (present.length)
     steps.push({
       label: `format: ${present.length} file(s)`,
       args: ["exec", "prettier", "--check", "--ignore-unknown", "--no-error-on-unmatched-pattern", ...present],
     });
   const eslint = ["exec", "eslint", "--max-warnings", "0", "--no-warn-ignored"];
-  if (backendLint.length)
+  if (fullLint) steps.push({ label: "lint: whole repository", args: ["run", "lint"] });
+  if (!fullLint && backendLint.length)
     steps.push({
       label: `lint: backend ${backendLint.length} file(s)`,
       args: ["--dir", "apps/backend", ...eslint, ...backendLint.map(relativeTo("apps/backend/"))],
     });
-  if (frontendLint.length)
+  if (!fullLint && frontendLint.length)
     steps.push({
       label: `lint: frontend ${frontendLint.length} file(s)`,
       args: ["--dir", "apps/frontend", ...eslint, ...frontendLint.map(relativeTo("apps/frontend/"))],
     });
-  if (rootLint.length) steps.push({ label: `lint: ${rootLint.length} file(s)`, args: [...eslint, ...rootLint] });
+  if (!fullLint && rootLint.length)
+    steps.push({ label: `lint: ${rootLint.length} file(s)`, args: [...eslint, ...rootLint] });
   if (paths.some((path) => codeFile.test(path) || typeInput.test(path)))
     steps.push({ label: "typecheck", args: ["run", "typecheck"] });
 
