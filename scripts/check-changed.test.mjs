@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
-import { planChecks, ranNoTests, testCount } from "./check-changed.mjs";
+import { changedPaths, planChecks, ranNoTests, runStep, testCount } from "./check-changed.mjs";
 
 const everything = () => true;
 const noImporters = () => [];
@@ -97,6 +101,49 @@ test("a lint or format configuration change checks the whole repository", () => 
   assert.equal(step(lint, "lint: backend"), undefined);
   const format = planChecks([".prettierignore", "README.md"], everything);
   assert.deepEqual(step(format, "format").args, ["run", "format:check"]);
+});
+
+test("a dependency or workspace change runs the type-check and both full suites", () => {
+  for (const path of ["pnpm-lock.yaml", "pnpm-workspace.yaml", "turbo.json", "package.json"]) {
+    const planned = labels(planChecks([path], everything));
+    for (const expected of ["typecheck", "test: frontend suite", "test: backend suite"])
+      assert.ok(planned.includes(expected), `${path}: ${expected}`);
+  }
+});
+
+test("backend lint allows warnings like its own lint script; the others refuse them", () => {
+  const steps = planChecks(["apps/backend/app/a.ts", "apps/frontend/src/App.tsx", "scripts/lanes.mjs"], everything);
+  assert.equal(step(steps, "lint: backend").args.includes("--max-warnings"), false);
+  assert.ok(step(steps, "lint: frontend").args.includes("--max-warnings"));
+  assert.ok(step(steps, "lint: 1 file").args.includes("--max-warnings"));
+});
+
+test("a renamed file is listed under both its old and new paths", (t) => {
+  const repo = mkdtempSync(join(tmpdir(), "check-changed-"));
+  t.after(() => rmSync(repo, { recursive: true, force: true }));
+  const git = (...args) =>
+    execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.test", ...args], { cwd: repo });
+  git("init", "-q");
+  writeFileSync(join(repo, "old.mjs"), "export const value = 1;\n");
+  git("add", ".");
+  git("commit", "-q", "-m", "base");
+  renameSync(join(repo, "old.mjs"), join(repo, "new.mjs"));
+  git("add", "-A");
+  git("commit", "-q", "-m", "rename");
+  assert.deepEqual(changedPaths("HEAD~1", repo), ["new.mjs", "old.mjs"]);
+});
+
+test("a step that ignores SIGTERM after its time limit is killed and fails", async () => {
+  const result = await runStep(
+    {
+      label: "test: stubborn",
+      command: "node",
+      args: ["-e", "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000);"],
+    },
+    { timeoutMs: 300, killGraceMs: 300 },
+  );
+  assert.equal(result.passed, false);
+  assert.match(result.output, /stopped after 0\.3 seconds/);
 });
 
 test("documentation sources rebuild docs/ and end-to-end specs are reported as skipped", () => {

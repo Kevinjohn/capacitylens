@@ -14,7 +14,8 @@ import { nonColourEnvironment, spawnPnpm } from "./pnpmSpawn.mjs";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const defaultBase = "origin/platform/adonisjs";
 // Japa keeps its process alive after a planner error, so a step that never exits must still fail.
-const stepTimeoutMs = 20 * 60_000;
+// The backend test runner turns SIGTERM into a graceful shutdown that can hang too, hence SIGKILL.
+const stepLimits = { timeoutMs: 20 * 60_000, killGraceMs: 10_000 };
 const logTailLines = 40;
 
 const codeFile = /\.(?:[cm]?[jt]s|[jt]sx)$/;
@@ -23,6 +24,8 @@ const backendSpec = /^apps\/backend\/tests\/.+\.spec\.ts$/;
 // A rule or ignore change can fail files the branch never touched.
 const lintConfig = /(?:^|\/)eslint\.config\.[cm]?js$/;
 const formatConfig = /^\.prettier(?:rc[^/]*|ignore)$/;
+// Dependency and workspace changes can break any package without touching its sources.
+const workspaceInput = /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json)$/;
 // A filter that matches nothing reports success; these markers turn it into a failure.
 const japaNoTests = /NO TESTS EXECUTED/;
 const nodeTestNoTests = /^(?:# |ℹ )tests 0$/m;
@@ -55,16 +58,19 @@ export function planChecks(
   const presentCode = present.filter((path) => codeFile.test(path));
   const backendPaths = paths.filter((path) => path.startsWith("apps/backend/"));
   const sharedChanged = paths.some((path) => path.startsWith("packages/shared/"));
-  const backendSuite = sharedChanged || backendPaths.some((path) => !backendSpec.test(path));
+  const workspaceChanged = paths.some((path) => workspaceInput.test(path));
+  const backendSuite = sharedChanged || workspaceChanged || backendPaths.some((path) => !backendSpec.test(path));
   const backendSpecs = backendSuite ? [] : present.filter((path) => backendSpec.test(path));
   const frontendLint = presentCode.filter((path) => path.startsWith("apps/frontend/"));
   const rootLint = presentCode.filter((path) => /^(?:scripts|e2e|packages\/shared\/src)\//.test(path));
   const backendLint = presentCode.filter((path) => path.startsWith("apps/backend/"));
   const related = presentCode.filter((path) => /^(?:apps\/frontend\/src|packages\/shared\/src)\//.test(path));
   // Configuration outside src affects every frontend test, which `vitest related` cannot see.
-  const frontendSuite = paths.some(
-    (path) => path.startsWith("apps/frontend/") && !path.startsWith("apps/frontend/src/") && !path.endsWith(".md"),
-  );
+  const frontendSuite =
+    workspaceChanged ||
+    paths.some(
+      (path) => path.startsWith("apps/frontend/") && !path.startsWith("apps/frontend/src/") && !path.endsWith(".md"),
+    );
   const scriptTests = [
     ...new Set(
       paths
@@ -94,7 +100,9 @@ export function planChecks(
       label: `format: ${present.length} file(s)`,
       args: ["exec", "prettier", "--check", "--ignore-unknown", "--no-error-on-unmatched-pattern", ...present],
     });
-  const eslint = ["exec", "eslint", "--max-warnings", "0", "--no-warn-ignored"];
+  // Each package's own lint script decides whether warnings fail: the backend's allows them.
+  const eslint = ["exec", "eslint", "--no-warn-ignored"];
+  const strictEslint = [...eslint, "--max-warnings", "0"];
   if (fullLint) steps.push({ label: "lint: whole repository", args: ["run", "lint"] });
   if (!fullLint && backendLint.length)
     steps.push({
@@ -104,11 +112,11 @@ export function planChecks(
   if (!fullLint && frontendLint.length)
     steps.push({
       label: `lint: frontend ${frontendLint.length} file(s)`,
-      args: ["--dir", "apps/frontend", ...eslint, ...frontendLint.map(relativeTo("apps/frontend/"))],
+      args: ["--dir", "apps/frontend", ...strictEslint, ...frontendLint.map(relativeTo("apps/frontend/"))],
     });
   if (!fullLint && rootLint.length)
-    steps.push({ label: `lint: ${rootLint.length} file(s)`, args: [...eslint, ...rootLint] });
-  if (paths.some((path) => codeFile.test(path) || typeInput.test(path)))
+    steps.push({ label: `lint: ${rootLint.length} file(s)`, args: [...strictEslint, ...rootLint] });
+  if (workspaceChanged || paths.some((path) => codeFile.test(path) || typeInput.test(path)))
     steps.push({ label: "typecheck", args: ["run", "typecheck"] });
 
   if (scriptTests.length)
@@ -175,28 +183,34 @@ function passDetail(step, output) {
   return count === undefined ? " (no test count reported)" : ` (${count} tests)`;
 }
 
-function git(args) {
-  return execFileSync("git", args, { cwd: root, encoding: "utf8" });
+function git(args, cwd = root) {
+  return execFileSync("git", args, { cwd, encoding: "utf8" });
 }
 
-function changedPaths(base) {
-  const mergeBase = git(["merge-base", base, "HEAD"]).trim();
-  const tracked = git(["diff", "--name-only", mergeBase]);
-  const untracked = git(["ls-files", "--others", "--exclude-standard"]);
+/**
+ * List the paths changed since the merge-base with `base`, uncommitted and untracked ones included.
+ *
+ * A rename is listed as both paths, so tests that still import the old one are selected.
+ */
+export function changedPaths(base, cwd = root) {
+  const mergeBase = git(["merge-base", base, "HEAD"], cwd).trim();
+  const tracked = git(["diff", "--name-only", "--no-renames", mergeBase], cwd);
+  const untracked = git(["ls-files", "--others", "--exclude-standard"], cwd);
   return [...new Set(`${tracked}\n${untracked}`.split("\n").filter(Boolean))].sort();
 }
 
-function stopGroup(child) {
+function stopGroup(child, signal) {
   try {
-    if (process.platform === "win32") child.kill("SIGTERM");
-    else process.kill(-child.pid, "SIGTERM");
+    if (process.platform === "win32") child.kill(signal);
+    else process.kill(-child.pid, signal);
   } catch (error) {
     // The group may already have exited between the timeout firing and the signal.
     if (error.code !== "ESRCH") throw error;
   }
 }
 
-function runStep(step) {
+/** Run one planned step, stopping its whole process group if it outlives `limits.timeoutMs`. */
+export function runStep(step, limits = stepLimits) {
   return new Promise((resolve) => {
     const options = {
       cwd: root,
@@ -207,20 +221,26 @@ function runStep(step) {
     const child = step.command === "node" ? spawn(process.execPath, step.args, options) : spawnPnpm(step.args, options);
     const chunks = [];
     let timedOut = false;
+    let killTimer;
     child.stdout.on("data", (chunk) => chunks.push(chunk));
     child.stderr.on("data", (chunk) => chunks.push(chunk));
     const timer = setTimeout(() => {
       timedOut = true;
-      stopGroup(child);
-    }, stepTimeoutMs);
-    child.on("error", (error) => {
+      stopGroup(child, "SIGTERM");
+      killTimer = setTimeout(() => stopGroup(child, "SIGKILL"), limits.killGraceMs);
+    }, limits.timeoutMs);
+    const stopTimers = () => {
       clearTimeout(timer);
+      clearTimeout(killTimer);
+    };
+    child.on("error", (error) => {
+      stopTimers();
       resolve({ passed: false, output: `could not start: ${error.message}` });
     });
     child.on("close", (status) => {
-      clearTimeout(timer);
+      stopTimers();
       const output = Buffer.concat(chunks).toString("utf8");
-      if (timedOut) resolve({ passed: false, output: `${output}\nstopped after ${stepTimeoutMs / 60_000} minutes` });
+      if (timedOut) resolve({ passed: false, output: `${output}\nstopped after ${limits.timeoutMs / 1000} seconds` });
       else if (status !== 0) resolve({ passed: false, output });
       else if (ranNoTests(step, output)) resolve({ passed: false, output: `${output}\nno tests were executed` });
       else if (step.docsClean && git(["status", "--porcelain", "--", "docs"]).trim())
