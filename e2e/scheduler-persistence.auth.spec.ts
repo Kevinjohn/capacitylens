@@ -300,6 +300,117 @@ test("same-revision authenticated refresh preserves Undo and Redo in SQLite", as
   await expect(page.getByTestId("allocation-bar").filter({ hasText: "City planning" })).toBeVisible();
 });
 
+test("same-revision background refresh preserves Undo for a keyboard resize", async ({ page, request }) => {
+  const { owner, accountId, ownerEmail, projectId, activityId } = await createScenario(request);
+  await signIn(page, ownerEmail);
+  const bar = await createAllocation(page, projectId, activityId);
+  const allocationId = await bar.getAttribute("data-alloc-id");
+  expect(allocationId).toBeTruthy();
+
+  await bar.focus();
+  await expect(bar).toBeFocused();
+  const resize = page.waitForResponse((response) =>
+    isTypedAllocationWrite(accountId, {
+      method: response.request().method(),
+      path: new URL(response.url()).pathname,
+    }),
+  );
+  await page.keyboard.press("Shift+ArrowRight");
+  expect((await resize).status()).toBe(200);
+  await expect(bar).toHaveAccessibleName(/1 Jun to 2 Jun/);
+  await expect
+    .poll(async () => allocationFrom(request, owner.cookie, accountId, allocationId!))
+    .toMatchObject({ startDate: "2026-06-01", endDate: "2026-06-02" });
+
+  // Use the normal focus-triggered revalidation after the server has acknowledged the resize.
+  await page.clock.setFixedTime(new Date("2026-06-03T12:00:31"));
+  const refresh = page.waitForResponse((response) =>
+    isPlanningRead(accountId, response.request().method(), response.url()),
+  );
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  const refreshed = await refresh;
+  await refreshed.finished();
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+
+  const undo = page.getByTestId("undo-button");
+  await expect(undo).toBeEnabled();
+  await undo.click();
+  await expect(bar).toHaveAccessibleName(/1 Jun to 1 Jun/);
+  await expect
+    .poll(async () => allocationFrom(request, owner.cookie, accountId, allocationId!))
+    .toMatchObject({ startDate: "2026-06-01", endDate: "2026-06-01" });
+});
+
+test("a remote allocation deletion invalidates keyboard history after refresh", async ({ page, request }) => {
+  const { owner, accountId, ownerEmail, resourceId, projectId, activityId } = await createScenario(request);
+  const allocationId = crypto.randomUUID();
+  await sendPlanningFixtureCommand(request, owner.cookie, accountId, "allocations", {
+    operation: "allocation.create",
+    allocation: {
+      id: allocationId,
+      resourceId,
+      activityId,
+      projectId,
+      startDate: "2026-06-01",
+      endDate: "2026-06-01",
+      hoursPerDay: 8,
+      status: "confirmed",
+    },
+  });
+  await signIn(page, ownerEmail);
+  const bar = page.getByTestId("allocation-bar").filter({ hasText: "City planning" });
+  await expect(bar).toHaveCount(1);
+  await bar.focus();
+  await expect(bar).toBeFocused();
+  const resize = page.waitForResponse((response) =>
+    isTypedAllocationWrite(accountId, {
+      method: response.request().method(),
+      path: new URL(response.url()).pathname,
+    }),
+  );
+  await page.keyboard.press("Shift+ArrowRight");
+  expect((await resize).status()).toBe(200);
+  await expect
+    .poll(async () => allocationFrom(request, owner.cookie, accountId, allocationId))
+    .toMatchObject({ startDate: "2026-06-01", endDate: "2026-06-02" });
+  await expect(page.getByTestId("undo-button")).toBeEnabled();
+
+  // The owner cookie belongs to a separate HTTP session from the browser's sign-in session.
+  const planning = await request.get(`${AUTH_API}/api/accounts/${accountId}/planning`, {
+    headers: { cookie: owner.cookie },
+  });
+  expect(planning.status()).toBe(200);
+  const { revision } = (await planning.json()) as { revision: number };
+  const deletion = await request.post(`${AUTH_API}/api/accounts/${accountId}/allocations/${allocationId}/delete`, {
+    headers: { cookie: owner.cookie, "content-type": "application/json" },
+    data: {
+      mutationId: crypto.randomUUID(),
+      baseRevision: revision,
+      intent: { operation: "allocation.delete", id: allocationId },
+    },
+  });
+  expect(deletion.status()).toBe(200);
+  expect(await allocationFrom(request, owner.cookie, accountId, allocationId)).toBeUndefined();
+
+  await page.clock.setFixedTime(new Date("2026-06-03T12:00:31"));
+  const refresh = page.waitForResponse((response) =>
+    isPlanningRead(accountId, response.request().method(), response.url()),
+  );
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  const refreshed = await refresh;
+  await refreshed.finished();
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+
+  await expect(bar).toHaveCount(0);
+  await expect(page.getByTestId("undo-button")).toBeDisabled();
+  await expect(page.getByTestId("redo-button")).toBeDisabled();
+  const requests = recordRequests(page);
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(requests.filter((request) => isTypedAllocationWrite(accountId, request))).toEqual([]);
+  await expect(bar).toHaveCount(0);
+  expect(await allocationFrom(request, owner.cookie, accountId, allocationId)).toBeUndefined();
+});
+
 test("a refused scheduler write keeps the schedule and history visible and does not persist", async ({
   page,
   request,
