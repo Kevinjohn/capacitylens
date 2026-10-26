@@ -263,7 +263,11 @@ framework defaults; any other departure needs a decision recorded here first.
   ratchet or custom structural rule. Add a focused check only when experience shows it protects a
   concrete invariant.
 - Local commands and CI validate the same behaviour. A test run passes only when its process exits.
-- CodeQL runs in the public security workflow. Dependabot runs monthly, patch-only.
+- CodeQL runs in the public security workflow. Dependabot proposes npm patch and minor updates
+  weekly in separate groups and ignores automatic major updates. GitHub Actions and Docker
+  updates remain monthly and patch-only. A monthly workflow reports newer major versions for
+  installed direct workspace dependencies in one standing issue; it uses the pinned Node/pnpm
+  toolchain, makes no dependency changes, and closes the issue when no newer majors remain.
 
 ## Module boundaries
 
@@ -280,8 +284,9 @@ transitive dependency out of shipped runtimes. Development tooling still contain
 this is not a claim that every workspace dependency is patched. The production audit uses the same
 optional-free graph and retains its high-severity failure threshold.
 
-The exact `@adonisjs/mail>nodemailer` override to 10.1.1 is a reviewed major-version exception for
-the mail security fixes. CapacityLens configures SMTP only. Authenticated TLS delivery, attachment
-encoding, authentication and recipient refusal, and pooled connection closure are verified through
-the public Adonis SMTP adapter. Nodemailer 10 is incompatible with the unused Postmark transport's
-internal MIME import; Postmark is unsupported and must be reassessed before enabling that transport.
+The `@adonisjs/mail>nodemailer` override keeps SMTP on Nodemailer 10 and at least 10.1.4, which fixes
+three address-parser advisories. CapacityLens configures SMTP only. Authenticated TLS delivery,
+attachment encoding, authentication and recipient refusal, and pooled connection closure are
+verified through the public Adonis SMTP adapter. Nodemailer 10 is incompatible with the unused
+Postmark transport's internal MIME import; Postmark is unsupported and must be reassessed before
+enabling that transport.

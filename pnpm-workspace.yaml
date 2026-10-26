@@ -27,22 +27,27 @@ patchedDependencies:
 # raised their own minimums. Every override remains inside the range accepted by its consumer except the reviewed SMTP-only Nodemailer major transition and
 # VitePress's separately documented Vite transition below.
 overrides:
-  # Mail exposes only SMTP here; reviewed Nodemailer 10 fixes the mail advisories.
-  "@adonisjs/mail>nodemailer": 10.1.1
+  # Mail exposes only SMTP here; 10.1.4 fixes three parser advisories while retaining Nodemailer 10.
+  "@adonisjs/mail>nodemailer": ^10.1.4
   # VitePress 1.x still declares Vite 5 even though its Vue plugin supports Vite 6. Keep the docs
   # build on the first supported line containing the fixes for the Vite 5 advisories.
   vitepress>vite: 6.4.3
-  # Keep Vitest peer-context splits on the dependency versions already used by this lockfile.
-  vitest>picomatch: 4.0.5
-  vitest>tinyexec: 1.2.4
+  # The Oct 2026 release includes the fixes beyond brace-expansion's affected releases.
   brace-expansion: 5.0.12
+  # These floors fix fast-uri SSRF and host-confusion advisories while consumers still accept affected lines.
   fast-uri@>=3.0.0 <3.1.6: ^3.1.6
   fast-uri@>=4.0.0 <4.1.3: ^4.1.3
+  # Keep the audited fixed release until upstream ranges exclude vulnerable find-my-way versions.
   find-my-way: 9.7.0
+  # Keep the audited fixed release until upstream ranges exclude vulnerable nanoid versions.
   nanoid: 3.3.18
+  # Keep the audited fixed release until upstream ranges exclude vulnerable postcss versions.
   postcss: 8.5.23
+  # Keep the security-reviewed release while consumers still allow vulnerable Browserslist versions.
   browserslist: 4.28.7
+  # Keep the fixed release used to close the qs advisory in Stryker's typed-rest-client tree.
   qs: 6.16.0
+  # Fixes GHSA-w293-vg96-wgc3 and the TLS certificate validation bypass in affected Undici releases.
   undici: 7.29.1
 
 # pnpm 11 blocks dependency postinstall scripts by default; esbuild's is the one we

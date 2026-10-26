@@ -80,6 +80,8 @@
     "policy:check-changed:test": "node --test scripts/check-changed.test.mjs",
     "policy:dependabot": "node scripts/check-dependabot.mjs",
     "policy:dependabot:test": "node --test scripts/check-dependabot.test.mjs",
+    "dependency:major-report": "node scripts/report-major-dependencies.mjs",
+    "dependency:major-report:test": "node --test scripts/report-major-dependencies.test.mjs",
     "policy:packaged-smoke:test": "node --test scripts/smoke-packaged-server.test.mjs",
     "policy:node-runtime:test": "node --test scripts/check-node-runtime.test.mjs scripts/check-node26.test.mjs"
   },
