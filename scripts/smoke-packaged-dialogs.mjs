@@ -315,7 +315,7 @@ export async function acceptPackagedDialogs({ baseUrl, credentials, workDir, res
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     const signin = await signinResponse;
     assert.equal(signin.status(), 200, "Native production browser sign-in failed.");
-    const signinHeaders = signin.request().headers();
+    const signinHeaders = await signin.request().allHeaders();
     assert.equal(signinHeaders.origin, origin);
     assert.equal(signinHeaders["sec-fetch-site"], "same-origin");
     const cookie = (await signin.headerValue("set-cookie")) ?? "";
