@@ -66,24 +66,33 @@ const post = <Name extends AuthRoute>(name: Name, body: unknown) => request("POS
 export const authClient = {
   signIn: {
     email: async (input: PasswordCredentials) => {
+      const received: { response?: { ok: boolean; status: number; payload: unknown } } = {};
       const [data, error] = await client
         .request("api.auth.sign-in", {
           body: input,
           responseType: "json",
-          // Keep the existing null result for a successful response with an unreadable JSON body.
-          parseJson: (text) => {
-            try {
-              return JSON.parse(text);
-            } catch {
-              return null;
-            }
+          hooks: {
+            afterResponse: [
+              async (_request, _options, response) => {
+                // Ky supplies a clone: retain the original JSON-read fallback and HTTP status
+                // even when Tuyau's later success/error decoding cannot read the body.
+                received.response = {
+                  ok: response.ok,
+                  status: response.status,
+                  payload: await response.json().catch(() => null),
+                };
+              },
+            ],
           },
         })
         .safe();
+      if (received.response && !received.response.ok)
+        return { data: null, error: readErrorMessage(received.response.payload, received.response.status) };
       if (!error) return { data, error: null };
-      // Callers already distinguish native transport/abort failures from HTTP refusals.
+      if (received.response) return { data: null, error: null };
+      // Before a response, callers still receive the native fetch or abort failure.
       if (error.kind === "network") throw error.cause;
-      return { data: null, error: readErrorMessage(error.response, error.status ?? 500) };
+      throw error;
     },
   },
   signOut: () => post("api.auth.sign-out", {}),

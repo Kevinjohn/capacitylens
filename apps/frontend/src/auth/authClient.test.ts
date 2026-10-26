@@ -37,13 +37,16 @@ describe("product auth client", () => {
     });
   });
 
-  it("preserves native transport failures and unreadable-success fallback", async () => {
+  it("preserves native fetch and abort failures before a response", async () => {
     for (const failure of [new TypeError("Network unavailable"), new DOMException("Aborted", "AbortError")]) {
       const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(failure);
       vi.stubGlobal("fetch", fetchMock);
       await expect(authClient.signIn.email({ email: "clark@wayne.example", password: "secret" })).rejects.toBe(failure);
       expect(fetchMock).toHaveBeenCalledOnce();
     }
+  });
+
+  it("keeps null success for malformed JSON", async () => {
     vi.stubGlobal(
       "fetch",
       vi
@@ -53,6 +56,73 @@ describe("product auth client", () => {
     await expect(authClient.signIn.email({ email: "clark@wayne.example", password: "secret" })).resolves.toEqual({
       data: null,
       error: null,
+    });
+  });
+
+  it("keeps null success for an empty successful response", async () => {
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 })));
+    await expect(authClient.signIn.email({ email: "clark@wayne.example", password: "secret" })).resolves.toEqual({
+      data: null,
+      error: null,
+    });
+  });
+
+  it("keeps null success when the sign-in response body stream rejects", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.error(new TypeError("Body disconnected"));
+            },
+          }),
+          { headers: { "content-type": "application/json" } },
+        ),
+      ),
+    );
+
+    await expect(authClient.signIn.email({ email: "clark@wayne.example", password: "secret" })).resolves.toEqual({
+      data: null,
+      error: null,
+    });
+  });
+
+  it.each([401, 403, 503])("keeps HTTP %s when its sign-in response body stream rejects", async (status) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.error(new TypeError("Body disconnected"));
+            },
+          }),
+          { status, headers: { "content-type": "application/json" } },
+        ),
+      ),
+    );
+
+    await expect(authClient.signIn.email({ email: "clark@wayne.example", password: "secret" })).resolves.toEqual({
+      data: null,
+      error: { message: `Authentication request failed (${status}).`, status },
+    });
+  });
+
+  it("reads a flat JSON refusal independently of the response content type", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(JSON.stringify({ error: "Sign-in refused.", code: "REFUSED" }), {
+          status: 403,
+          headers: { "content-type": "text/plain" },
+        }),
+      ),
+    );
+
+    await expect(authClient.signIn.email({ email: "clark@wayne.example", password: "secret" })).resolves.toEqual({
+      data: null,
+      error: { message: "Sign-in refused.", code: "REFUSED", status: 403 },
     });
   });
 
