@@ -140,11 +140,15 @@ async function expectLocked(page, count, baseline) {
 
 async function expectUnlocked(page, baseline) {
   await expect(page.locator("body")).not.toHaveAttribute("data-scroll-locked");
-  const state = await lockState(page);
-  assert.equal(state.gap, baseline.gap);
-  assert.equal(state.overflow, baseline.overflow);
-  assert.equal(state.margin, baseline.margin);
-  assert.equal(state.styles, baseline.styles);
+  // Chromium can resolve the restored margin after the lock attribute's effect cleanup.
+  await expect
+    .poll(() => lockState(page))
+    .toMatchObject({
+      gap: baseline.gap,
+      overflow: baseline.overflow,
+      margin: baseline.margin,
+      styles: baseline.styles,
+    });
 }
 
 async function proveDialogScrolling(page, dialog) {
