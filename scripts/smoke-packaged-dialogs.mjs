@@ -112,7 +112,7 @@ async function proveCspGuard(context, origin) {
       await probe.evaluate(() => getComputedStyle(document.body).getPropertyValue("--packaged-blocked-probe")),
       "",
     );
-    assert.throws(() => assertNoStyleViolations([{ directive: "style-src-elem", blocked: "inline" }]));
+    assert.throws(() => assertNoStyleViolations(violations));
   } finally {
     await probe.close();
   }
@@ -248,11 +248,7 @@ async function exerciseDialogs(page, { origin, resourceName, outputDir }) {
     ),
   };
   const project = allocation.getByLabel("Project", { exact: true });
-  await project.click();
-  await expect(page.getByRole("listbox")).toBeVisible();
-  await page.getByRole("option", { name: "Internal", exact: true }).click();
   await expect(project).toHaveText("Internal");
-  await expectLocked(page, 1, allocationBaseline);
   await project.click();
   await expect(page.getByRole("listbox")).toBeVisible();
   await expectLocked(page, 2, allocationBaseline);
@@ -262,7 +258,27 @@ async function exerciseDialogs(page, { origin, resourceName, outputDir }) {
   await expect(project).toBeFocused();
   await expectLocked(page, 1, allocationBaseline);
   if (outputDir) await page.screenshot({ path: join(outputDir, "production_allocation_dialog_after.png") });
+
+  const repeat = allocation.getByRole("combobox", { name: "Repeat", exact: true });
+  await expect(repeat).toHaveText("Doesn’t repeat");
+  await repeat.click();
+  await expectLocked(page, 2, allocationBaseline);
+  await page.getByRole("option", { name: "Weekly", exact: true }).click();
+  await expect(repeat).toHaveText("Weekly");
+  await expect(allocation.getByLabel("Repeat until", { exact: true })).toBeVisible();
+  await expectLocked(page, 1, allocationBaseline);
+  await repeat.click();
+  await expect(page.getByRole("option", { name: "Weekly", exact: true })).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("Escape");
+  await expect(page.getByRole("listbox")).not.toBeVisible();
+  await expect(repeat).toBeFocused();
+  await expectLocked(page, 1, allocationBaseline);
+  await page.keyboard.press("Escape");
+  await expect(allocation).toBeVisible();
+  await expect(
+    page.getByText("You have unsaved changes — use Cancel or Save to close this dialog.", { exact: true }),
+  ).toBeVisible();
+  await allocation.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(allocation).not.toBeVisible();
   await expectUnlocked(page, baseline);
 }
@@ -271,6 +287,7 @@ async function exerciseDialogs(page, { origin, resourceName, outputDir }) {
 export async function acceptPackagedDialogs({ baseUrl, credentials, workDir, resourceName }) {
   const { edge, origin } = await startTlsEdge(baseUrl, workDir);
   let browser;
+  const failures = [];
   try {
     browser = await chromium.launch({
       ignoreDefaultArgs: ["--hide-scrollbars"],
@@ -316,22 +333,32 @@ export async function acceptPackagedDialogs({ baseUrl, credentials, workDir, res
     await exerciseDialogs(page, { origin, resourceName, outputDir });
     assertNoStyleViolations(violations);
     assert.deepEqual(errors, [], "Uncaught production browser exceptions.");
-    console.log(
-      JSON.stringify({
-        productionDialogs: "passed",
-        cspFailureGuard: "proved",
-        desktopAndNarrow: "verified",
-        nestedLocksAndFocus: "verified",
-      }),
-    );
+  } catch (error) {
+    failures.push(error);
   } finally {
     try {
       if (browser) await browser.close();
-    } finally {
+    } catch (error) {
+      failures.push(new Error("Production acceptance browser cleanup failed.", { cause: error }));
+    }
+    try {
       edge.closeAllConnections();
       await new Promise((done, reject) => edge.close((error) => (error ? reject(error) : done())));
+    } catch (error) {
+      failures.push(new Error("Production acceptance HTTPS edge cleanup failed.", { cause: error }));
     }
   }
+  if (failures.length) {
+    throw new AggregateError(failures, "Production dialog acceptance failed.", { cause: failures[0] });
+  }
+  console.log(
+    JSON.stringify({
+      productionDialogs: "passed",
+      cspFailureGuard: "proved",
+      desktopAndNarrow: "verified",
+      nestedLocksAndFocus: "verified",
+    }),
+  );
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
