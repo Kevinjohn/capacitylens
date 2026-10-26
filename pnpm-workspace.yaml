@@ -30,8 +30,6 @@ overrides:
   # Fixes the active fast-uri advisories without replacing consumer-supported major lines.
   fast-uri@>=3.0.0 <3.1.9: ^3.1.9
   fast-uri@>=4.0.0 <4.2.3: ^4.2.3
-  # Vite 8.3.5 requires PostCSS ^8.5.30; keep older transitive requests within that supported line.
-  postcss@>=8.0.0 <8.5.30: ^8.5.30
   # GHSA-q8mj-m7cp-5q26 is fixed at qs 6.15.2; typed-rest-client 2.3.1 requests vulnerable 6.15.1 exactly.
   qs@>=6.0.0 <6.15.2: ^6.15.2
   # Vitest's jsdom accepts Undici 7; these floors address the current advisory ranges below 7.30.1.
