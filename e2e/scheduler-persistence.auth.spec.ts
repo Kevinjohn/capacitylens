@@ -306,9 +306,13 @@ test("same-revision background refresh preserves Undo for a keyboard resize", as
   const bar = await createAllocation(page, projectId, activityId);
   const allocationId = await bar.getAttribute("data-alloc-id");
   expect(allocationId).toBeTruthy();
+  await expect(page.getByTestId("undo-button")).toBeEnabled();
 
   await bar.focus();
   await expect(bar).toBeFocused();
+  const resizeRefresh = page.waitForResponse((response) =>
+    isPlanningRead(accountId, response.request().method(), response.url()),
+  );
   const resize = page.waitForResponse((response) =>
     isTypedAllocationWrite(accountId, {
       method: response.request().method(),
@@ -317,6 +321,9 @@ test("same-revision background refresh preserves Undo for a keyboard resize", as
   );
   await page.keyboard.press("Shift+ArrowRight");
   expect((await resize).status()).toBe(200);
+  const resizedRead = await resizeRefresh;
+  expect(resizedRead.status()).toBe(200);
+  await resizedRead.finished();
   await expect(bar).toHaveAccessibleName(/1 Jun to 2 Jun/);
   await expect
     .poll(async () => allocationFrom(request, owner.cookie, accountId, allocationId!))
@@ -362,6 +369,9 @@ test("a remote allocation deletion invalidates keyboard history after refresh", 
   await expect(bar).toHaveCount(1);
   await bar.focus();
   await expect(bar).toBeFocused();
+  const resizeRefresh = page.waitForResponse((response) =>
+    isPlanningRead(accountId, response.request().method(), response.url()),
+  );
   const resize = page.waitForResponse((response) =>
     isTypedAllocationWrite(accountId, {
       method: response.request().method(),
@@ -370,6 +380,9 @@ test("a remote allocation deletion invalidates keyboard history after refresh", 
   );
   await page.keyboard.press("Shift+ArrowRight");
   expect((await resize).status()).toBe(200);
+  const resizedRead = await resizeRefresh;
+  expect(resizedRead.status()).toBe(200);
+  await resizedRead.finished();
   await expect
     .poll(async () => allocationFrom(request, owner.cookie, accountId, allocationId))
     .toMatchObject({ startDate: "2026-06-01", endDate: "2026-06-02" });
@@ -406,9 +419,10 @@ test("a remote allocation deletion invalidates keyboard history after refresh", 
   await expect(page.getByTestId("redo-button")).toBeDisabled();
   const requests = recordRequests(page);
   await page.keyboard.press("ControlOrMeta+z");
-  expect(requests.filter((request) => isTypedAllocationWrite(accountId, request))).toEqual([]);
   await expect(bar).toHaveCount(0);
   expect(await allocationFrom(request, owner.cookie, accountId, allocationId)).toBeUndefined();
+  await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
+  expect(requests.filter((request) => isTypedAllocationWrite(accountId, request))).toEqual([]);
 });
 
 test("a refused scheduler write keeps the schedule and history visible and does not persist", async ({
