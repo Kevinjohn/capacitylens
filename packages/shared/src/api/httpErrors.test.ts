@@ -10,6 +10,7 @@ describe("flat HTTP failure boundary", () => {
     });
     expect(isProductErrorCode("FUTURE_DEPENDENCY_CODE")).toBe(false);
     expect(isProductErrorCode("VALIDATION_ERROR")).toBe(true);
+    expect(isProductErrorCode("EMAIL_REGISTERED")).toBe(true);
   });
   it("retains committed and admission metadata without trusting malformed values", () => {
     const decision = { admitted: false, requirements: { invitation: { met: false } } };
@@ -35,6 +36,10 @@ describe("flat HTTP failure boundary", () => {
 // These examples are checked by the shared test TypeScript project, alongside runtime tests.
 function productTypeContracts() {
   const validation: ProductValidationFailure = { status: 400, body: { error: "Invalid", code: "VALIDATION_ERROR" } };
+  const registered = {
+    error: "An account already uses this email.",
+    code: "EMAIL_REGISTERED",
+  } satisfies ProductHttpErrorBody;
   // @ts-expect-error Product validation does not use Tuyau's default 422 status.
   const wrongStatus: ProductValidationFailure = { ...validation, status: 422 };
   // @ts-expect-error An arbitrary dependency code cannot be assumed to be a known product code.
@@ -43,6 +48,6 @@ function productTypeContracts() {
   const missingCount: ProductHttpErrorBody = { error: "Confirm", code: "RESTORATION_CONFIRMATION_REQUIRED" };
   // @ts-expect-error Ordinary validation has no restoration metadata.
   const misplacedCount: ProductHttpErrorBody = { error: "Invalid", code: "VALIDATION_ERROR", restorableItemCount: 2 };
-  return [validation, wrongStatus, unsupported, missingCount, misplacedCount];
+  return [validation, registered, wrongStatus, unsupported, missingCount, misplacedCount];
 }
 void productTypeContracts;

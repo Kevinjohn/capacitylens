@@ -1,5 +1,8 @@
 import { test } from '@japa/runner'
+import accountKit from 'adonisjs-account-kit/services/main'
+import { RegistrationEmailAlreadyRegisteredError } from 'adonisjs-account-kit/errors'
 import limiter from '@adonisjs/limiter/services/main'
+import env from '#start/env'
 import { resetState } from '#services/state_repository'
 import { createIdentity, clearIdentities, signIn } from '../../helpers/identities.js'
 import {
@@ -116,6 +119,40 @@ test.group('ordinary authentication request contracts', (group) => {
       response.assertStatus(403)
       assert.deepEqual(response.body(), { error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' })
     }
+  })
+
+  test('open registration keeps the product 409 response for an existing email', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    const userId = await createIdentity('bruce.wayne@wayne.example', { name: 'Bruce Wayne' })
+    await createFixtureCompanyForOwner(userId, 'Wayne Enterprises', 'a-studio')
+    const previousSignup = env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP')
+    const originalRegister = accountKit.registration.register
+    env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', true)
+    accountKit.registration.register = async () => {
+      throw new RegistrationEmailAlreadyRegisteredError()
+    }
+    cleanup(() => {
+      env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', previousSignup)
+      accountKit.registration.register = originalRegister
+    })
+
+    const response = await client
+      .post('/api/auth/sign-up')
+      .json({
+        email: 'clark.kent@wayne.example',
+        password: 'account-password-2026',
+        name: 'Clark Kent',
+      })
+      .send()
+
+    response.assertStatus(409)
+    assert.deepEqual(response.body(), {
+      error: 'An account already uses this email. Sign in or reset your password.',
+      code: 'EMAIL_REGISTERED',
+    })
   })
 
   test('sign-up rejects unknown fields and invalid details without changing flat errors', async ({

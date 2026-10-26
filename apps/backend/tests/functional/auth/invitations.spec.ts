@@ -4,7 +4,7 @@ import db from '@adonisjs/lucid/services/db'
 import limiter from '@adonisjs/limiter/services/main'
 import mailService from '@adonisjs/mail/services/main'
 import accountKit from 'adonisjs-account-kit/services/main'
-import { DeliveryError } from 'adonisjs-account-kit/errors'
+import { DeliveryError, RegistrationEmailAlreadyRegisteredError } from 'adonisjs-account-kit/errors'
 import env from '#start/env'
 import { resetState } from '#services/state_repository'
 import { freshDatabase } from '../../helpers/fresh_database.js'
@@ -203,6 +203,30 @@ test.group('company invitations', (group) => {
     const accepted = await accept(client, 'committed-token')
     accepted.assertStatus(202)
     assert.deepEqual(accepted.body(), { accepted: true, signInRequired: true })
+  })
+
+  test('accepting an invitation for an existing identity keeps the product 409 response', async ({
+    client,
+    cleanup,
+    assert,
+  }) => {
+    const original = accountKit.invitations.accept
+    accountKit.invitations.accept = async () => {
+      throw new RegistrationEmailAlreadyRegisteredError()
+    }
+    cleanup(() => {
+      accountKit.invitations.accept = original
+    })
+
+    const response = await accept(client, 'existing-identity-token')
+
+    response.assertStatus(409)
+    assert.deepEqual(response.body(), {
+      error: 'An account already uses this email. Sign in instead.',
+      code: 'EMAIL_REGISTERED',
+    })
+    assert.equal(response.header('cache-control'), 'no-store')
+    assert.equal(response.header('referrer-policy'), 'no-referrer')
   })
 
   test('a resent invitation replaces its link and a revoked one stops working', async ({

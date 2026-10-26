@@ -22,6 +22,7 @@ import { recordMemberSignIn } from '#services/membership/sign_in_tracking'
 import { errors as vineErrors } from '@vinejs/vine'
 import { signInValidator, signUpValidator } from '#validators/auth_requests'
 import { isCommittedFailure } from '#services/account_kit/committed'
+import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors'
 
 function invalidAuthRequest(error: unknown, operation: 'sign-in' | 'sign-up') {
   if (!(error instanceof vineErrors.E_VALIDATION_ERROR)) throw error
@@ -144,7 +145,7 @@ export default class AuthController {
         return ctx.response.conflict({
           error: 'An account already uses this email. Sign in or reset your password.',
           code: 'EMAIL_REGISTERED',
-        })
+        } satisfies ProductHttpErrorBody)
       // The account exists; only the confirmation email may be missing, and it can be resent.
       if (!isCommittedFailure(error)) throw error
       ctx.logger.warn({ code: 'REGISTRATION_FOLLOW_UP_FAILED' }, 'Registration follow-up failed')
