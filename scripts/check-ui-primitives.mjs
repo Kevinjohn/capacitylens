@@ -9,6 +9,14 @@ if (!registryPin || registryPin !== mcpPin) {
   console.error(`shadcn tooling versions differ: registry=${registryPin ?? "missing"}, MCP=${mcpPin ?? "missing"}`);
   process.exit(1);
 }
+// shadcn reads components.json from its working directory, so both entry points must start beside it.
+const registryDir = registryCommand.match(/cwd: fileURLToPath\(new URL\("\.\.\/([^"]+?)\/?"/)?.[1];
+const mcpArgs = mcpManifest.mcpServers.shadcn.args;
+const mcpDir = mcpArgs[mcpArgs.indexOf("--cwd") + 1];
+if (!registryDir || !mcpArgs.includes("--cwd") || registryDir !== mcpDir) {
+  console.error(`shadcn tooling directories differ: registry=${registryDir ?? "missing"}, MCP=${mcpDir ?? "missing"}`);
+  process.exit(1);
+}
 
 const sourceOwnedPrimitives = {
   "apps/frontend/src/components/ui/alert-dialog.tsx":
