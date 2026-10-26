@@ -97,7 +97,7 @@ test("rejects missing or malformed registry versions", () => {
   assert.throws(() => findMajorUpdates(installed, new Map([["react", "not-a-version"]])), /Invalid latest/);
 });
 
-test("runs the workflow report command through pnpm without forwarding extra arguments", () => {
+test("workflow invokes the report script without forwarding extra arguments", () => {
   const workflow = parseDocument(
     readFileSync(new URL("../.github/workflows/major-dependency-report.yml", import.meta.url), "utf8"),
   ).toJS();
