@@ -52,12 +52,16 @@ export function assertDeploySucceeded(result) {
  */
 export async function readDevelopmentPackages(repositoryRoot) {
   const readManifest = async (path) => JSON.parse(await readFile(join(repositoryRoot, path), "utf8"));
-  const manifests = await Promise.all(
-    ["package.json", "apps/backend/package.json", "packages/shared/package.json"].map(readManifest),
+  const [root, frontend, backend, shared] = await Promise.all(
+    ["package.json", "apps/frontend/package.json", "apps/backend/package.json", "packages/shared/package.json"].map(
+      readManifest,
+    ),
   );
-  const runtime = new Set(manifests.slice(1).flatMap((manifest) => Object.keys(manifest.dependencies ?? {})));
+  const runtime = new Set([backend, shared].flatMap((manifest) => Object.keys(manifest.dependencies ?? {})));
   const runtimeScopes = new Set([...runtime].filter((name) => name.startsWith("@")).map(scopeOf));
-  const development = manifests.flatMap((manifest) => Object.keys(manifest.devDependencies ?? {}));
+  const development = [root, frontend, backend, shared].flatMap((manifest) =>
+    Object.keys(manifest.devDependencies ?? {}),
+  );
   const names = development.filter((name) => !runtime.has(name));
   const scopes = names
     .filter((name) => name.startsWith("@"))
