@@ -6,7 +6,7 @@ description: Run the native CapacityLens archive on a managed Linux host with a 
 # Deploy on a managed host
 
 Use a managed host that lets you run a persistent Node process as a dedicated site user. Labels
-vary by provider; the requirements are the same: Node 24 in the supported 24.x line, one process,
+vary by provider; the requirements are the same: Node 24.19.0 or later within the 24.x line, one process,
 a writable data directory outside release folders, and an HTTPS reverse proxy.
 
 ## Prepare the host
