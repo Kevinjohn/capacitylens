@@ -38,7 +38,7 @@ it("revalidates /me after a real planning GET returns 401 and clears private que
           { status: authReads === 1 ? 200 : 401 },
         );
       }
-      return Response.json({ error: "Sign in", code: "unauthenticated" }, { status: 401 });
+      return Response.json({ error: "Sign in", code: "UNAUTHENTICATED" }, { status: 401 });
     }),
   );
   const { AuthProvider } = await import("./AuthProvider");

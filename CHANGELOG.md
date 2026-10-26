@@ -7,8 +7,15 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- `pnpm run check:changed` runs only the formatting, lint, type-check, test and documentation checks that a branch's changed files need (#1603).
+
 ### Fixed
 
+- Preserve caller cancellation when generated API requests pass through the request timeout handler.
+- Validate the public origin consistently for emailed account links, cookies and transport security; reject malformed operator limits and retire unused configuration declarations.
+- Show unexpected error details only in development; test and production responses stay generic.
 - Load company and planning data correctly when opening or refreshing nested app URLs.
 - Explain when a password update succeeded but follow-up cleanup failed, clear obsolete form values, and give recovery guidance when the response is uncertain.
 
@@ -16,6 +23,7 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Product API error codes now use uppercase consistently, and export queries reject unsupported fields.
 - Docker Compose now requires an HTTPS `CAPACITYLENS_PUBLIC_URL`, and the first setup link comes from `docker compose exec api node ace.js account-kit:admission:bootstrap`. The sign-in mode, setup token, breached-password, Google and backup-interval settings are removed from Compose and `.env.example`.
 - Accounts now run on Account Kit with password sign-in only. Invitations are emailed and last
   seven days, with **Resend** in Team & access; accepting one confirms the address, and an Owner or

@@ -69,7 +69,6 @@ describe("browser account client", () => {
   registerMemberResourceCommandTests();
   registerMembershipRouteTests();
   registerOwnershipTransferTests();
-  registerReconciliationTests();
   registerStoredCommandTests();
   registerStorageFallbackTests();
   registerCeremonyCleanupTests();
@@ -284,24 +283,6 @@ function registerMembershipRouteTests(): void {
       method: "POST",
       body: JSON.stringify({ name: "New user", password: "example-password" }),
     });
-  });
-}
-
-function registerReconciliationTests(): void {
-  it("keeps reconciliation bearers out of the URL", async () => {
-    await accountClient.reconcileCommand(command, "password-reset");
-
-    const [url, init] = mocks.apiFetch.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe("https://app.example/api/account-commands/reconcile");
-    expect(init).toMatchObject({ method: "POST", credentials: "include" });
-    expect(new Headers(init.headers).get("content-type")).toBe("application/json");
-    expect(JSON.parse(String(init.body))).toEqual({
-      commandId: command.commandId,
-      idempotencyKey: command.idempotencyKey,
-      operation: "password-reset",
-    });
-    expect(url).not.toContain(command.commandId);
-    expect(url).not.toContain(command.idempotencyKey);
   });
 }
 

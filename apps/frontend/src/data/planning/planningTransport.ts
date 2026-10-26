@@ -235,7 +235,7 @@ async function sendOperation(
         await apiClient.request("api.planning.restoreGroup", { params, body: { ...execution, intent }, signal }),
       );
   }
-  throw new PlanningControllerError("This planning operation is not available.", "validation_error", 400);
+  throw new PlanningControllerError("This planning operation is not available.", "VALIDATION_ERROR", 400);
 }
 
 /** Calls implemented generated routes directly; this transport never owns or persists planning data. */

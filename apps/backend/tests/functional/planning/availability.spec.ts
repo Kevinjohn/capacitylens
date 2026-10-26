@@ -107,7 +107,7 @@ test.group('typed resource availability', (group) => {
       )
       .send()
     inclusive.assertStatus(400)
-    assert.equal((inclusive.body() as { code: string }).code, 'validation_error')
+    assert.equal((inclusive.body() as { code: string }).code, 'VALIDATION_ERROR')
     const after = await readState(accountId, true)
     assert.isDefined(after.allocations.find((row) => row.id === candidate.id))
     assert.isUndefined(
@@ -151,7 +151,7 @@ test.group('typed resource availability', (group) => {
       .json(input(1, { operation: 'allocation.createGroup', allocations: [inside, after] }))
       .send()
     refused.assertStatus(400)
-    assert.equal((refused.body() as { code: string }).code, 'validation_error')
+    assert.equal((refused.body() as { code: string }).code, 'VALIDATION_ERROR')
     assert.deepEqual(await readState(accountId, true), before)
   })
 })

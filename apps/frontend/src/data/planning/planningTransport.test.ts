@@ -267,7 +267,7 @@ describe("generated planning transport", () => {
   it.each(["read", "execute", "lookup"] as const)(
     "preserves flat HTTP loss/refusal semantics for %s",
     async (stage) => {
-      const { transport } = harness({ error: "Membership ended", code: "account_membership_lost" }, 403);
+      const { transport } = harness({ error: "Membership ended", code: "ACCOUNT_MEMBERSHIP_LOST" }, 403);
       const request =
         stage === "read"
           ? transport.read(context, signal)
@@ -276,7 +276,7 @@ describe("generated planning transport", () => {
             : transport.execute(context, execution({ operation: "allocation.create", allocation }), signal);
       await expect(request).rejects.toMatchObject({
         status: 403,
-        code: "account_membership_lost",
+        code: "ACCOUNT_MEMBERSHIP_LOST",
         message: "Membership ended",
       });
     },

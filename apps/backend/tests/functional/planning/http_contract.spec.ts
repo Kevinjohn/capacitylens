@@ -51,7 +51,7 @@ test.group('authenticated typed planning transactions', (group) => {
     )
     const foreign = await session(client.get('/api/accounts/a-loft/planning'), cookie).send()
     foreign.assertStatus(403)
-    assert.equal(foreign.body().code, 'account_membership_lost')
+    assert.equal(foreign.body().code, 'ACCOUNT_MEMBERSHIP_LOST')
     const anonymous = await trusted(client.get(planningUrl)).send()
     anonymous.assertStatus(401)
   })
@@ -90,7 +90,7 @@ test.group('authenticated typed planning transactions', (group) => {
       .json(input)
       .send()
     duplicate.assertStatus(409)
-    assert.equal(duplicate.body().code, 'mutation_id_reused')
+    assert.equal(duplicate.body().code, 'MUTATION_ID_REUSED')
     const stale = await session(
       client.patch(`/api/accounts/${accountId}/allocations/${allocation.id}`),
       cookie
@@ -106,7 +106,7 @@ test.group('authenticated typed planning transactions', (group) => {
       })
       .send()
     stale.assertStatus(409)
-    assert.equal(stale.body().code, 'stale_revision')
+    assert.equal(stale.body().code, 'STALE_REVISION')
     const moved = await session(
       client.patch(`/api/accounts/${accountId}/allocations/${allocation.id}`),
       cookie
@@ -155,7 +155,7 @@ test.group('authenticated typed planning transactions', (group) => {
       })
       .send()
     occupied.assertStatus(400)
-    assert.equal(occupied.body().code, 'validation_error')
+    assert.equal(occupied.body().code, 'VALIDATION_ERROR')
     const missingId = randomUUID()
     const missing = await session(
       client.patch(`/api/accounts/${accountId}/allocations/${missingId}`),
@@ -172,7 +172,7 @@ test.group('authenticated typed planning transactions', (group) => {
       })
       .send()
     missing.assertStatus(400)
-    assert.equal(missing.body().code, 'validation_error')
+    assert.equal(missing.body().code, 'VALIDATION_ERROR')
     assert.deepEqual(await readState(accountId, true), before)
     assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 1)
     assert.lengthOf(
@@ -244,7 +244,7 @@ test.group('authenticated typed planning transactions', (group) => {
       })
       .send()
     response.assertStatus(400)
-    assert.equal(response.body().code, 'no_change')
+    assert.equal(response.body().code, 'NO_CHANGE')
     assert.deepEqual(await readState(accountId, true), before)
     assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0)
     assert.lengthOf(

@@ -46,6 +46,7 @@ export type ScannedRoutes = {
     'api.planning.timeOff.repeat': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.settings.update': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.installation.company': { paramsTuple?: []; params?: {} }
+    'api.accounts.index': { paramsTuple?: []; params?: {} }
     'api.transfer.preview': { paramsTuple?: []; params?: {} }
     'api.transfer.apply': { paramsTuple?: []; params?: {} }
     'api.state': { paramsTuple?: []; params?: {} }
@@ -93,11 +94,12 @@ export type ScannedRoutes = {
     'api.masquerade.end': { paramsTuple?: []; params?: {} }
     'api.ownership.transfer': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.health': { paramsTuple?: []; params?: {} }
-    'api.accounts.index': { paramsTuple?: []; params?: {} }
+    'api.diagnostics': { paramsTuple?: []; params?: {} }
   }
   GET: {
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.lookup': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'mutationId': ParamValue} }
+    'api.accounts.index': { paramsTuple?: []; params?: {} }
     'api.state': { paramsTuple?: []; params?: {} }
     'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.auth.me': { paramsTuple?: []; params?: {} }
@@ -109,11 +111,12 @@ export type ScannedRoutes = {
     'api.member-resources.avatars': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.masquerade.status': { paramsTuple?: []; params?: {} }
     'api.health': { paramsTuple?: []; params?: {} }
-    'api.accounts.index': { paramsTuple?: []; params?: {} }
+    'api.diagnostics': { paramsTuple?: []; params?: {} }
   }
   HEAD: {
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.lookup': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'mutationId': ParamValue} }
+    'api.accounts.index': { paramsTuple?: []; params?: {} }
     'api.state': { paramsTuple?: []; params?: {} }
     'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.auth.me': { paramsTuple?: []; params?: {} }
@@ -125,7 +128,7 @@ export type ScannedRoutes = {
     'api.member-resources.avatars': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.masquerade.status': { paramsTuple?: []; params?: {} }
     'api.health': { paramsTuple?: []; params?: {} }
-    'api.accounts.index': { paramsTuple?: []; params?: {} }
+    'api.diagnostics': { paramsTuple?: []; params?: {} }
   }
   POST: {
     'api.planning.allocation.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }

@@ -1,7 +1,5 @@
+import { publicOrigin } from '#config/public_origin'
 import { defineConfig } from '@adonisjs/shield'
-import env from '#start/env'
-
-const publicUrl = new URL(env.get('CAPACITYLENS_PUBLIC_URL') || env.get('APP_URL'))
 
 const shieldConfig = defineConfig({
   /**
@@ -75,7 +73,7 @@ const shieldConfig = defineConfig({
     /**
      * Send the host-only Strict-Transport-Security header for an HTTPS public URL.
      */
-    enabled: publicUrl.protocol === 'https:',
+    enabled: publicOrigin.secure,
 
     /**
      * HSTS policy duration remembered by browsers.

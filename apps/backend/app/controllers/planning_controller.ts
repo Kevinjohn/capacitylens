@@ -28,13 +28,17 @@ import type {
   PlanningMutationFailure,
 } from '#validators/planning_operations'
 
-function refusal(error: unknown): { status: number; body: PlanningMutationFailure } {
+function refusal(error: unknown): {
+  status: number
+  body: PlanningMutationFailure
+  headers?: Record<string, string>
+} {
   if (error instanceof RestorationConfirmationError)
     return {
       status: 409,
       body: {
         error: error.message,
-        code: error.code as 'restoration_confirmation_required' | 'restoration_confirmation_stale',
+        code: error.code,
         restorableItemCount: error.restorableItemCount,
       },
     }
@@ -42,11 +46,11 @@ function refusal(error: unknown): { status: number; body: PlanningMutationFailur
     const code =
       planningMutationErrorCodes.find((candidate) => candidate === error.code) ??
       (error.status === 400
-        ? 'validation_error'
+        ? 'VALIDATION_ERROR'
         : error.status === 403
-          ? 'authorization_denied'
+          ? 'AUTHORIZATION_DENIED'
           : undefined)
-    const status = code === 'validation_error' ? 400 : error.status
+    const status = code === 'VALIDATION_ERROR' ? 400 : error.status
     return { status, body: { error: error.message, ...(code ? { code } : {}) } }
   }
   if (error instanceof BatchRequestError)
@@ -54,40 +58,53 @@ function refusal(error: unknown): { status: number; body: PlanningMutationFailur
       status: error.status === 403 ? 403 : 400,
       body: {
         error: error.message,
-        code: error.status === 403 ? 'authorization_denied' : 'validation_error',
+        code: error.status === 403 ? 'AUTHORIZATION_DENIED' : 'VALIDATION_ERROR',
       },
     }
   if (error instanceof StalePlanningRevisionError)
-    return { status: 409, body: { error: error.message, code: 'stale_revision' } }
+    return { status: 409, body: { error: error.message, code: 'STALE_REVISION' } }
   if (error instanceof vineErrors.E_VALIDATION_ERROR)
     return {
       status: 400,
       body: {
         error: error.messages[0]?.message ?? 'Invalid planning input.',
-        code: 'validation_error',
+        code: 'VALIDATION_ERROR',
       },
     }
   if (error instanceof AdmissionRequiredError)
     return {
       status: 403,
-      body: { error: 'Company access needs admission.', code: 'authorization_denied' },
+      body: {
+        error: 'Company access needs admission.',
+        code: 'ADMISSION_REQUIRED',
+        decision: error.decision,
+      },
     }
   const kitResponse = accountErrorResponse(error)
   if (kitResponse && kitResponse.status < 500)
     return {
       status: kitResponse.status,
+      headers: kitResponse.headers,
       body: {
         error: kitResponse.body.message,
-        code: kitResponse.status === 401 ? 'unauthenticated' : 'authorization_denied',
+        code: kitResponse.body.code,
+        ...(kitResponse.body.committed ? { committed: kitResponse.body.committed } : {}),
       },
     }
   // Identity resolution failures invalidate the projection; action refusals use PlanningOperationError.
   if (error instanceof IdentityAuthorityError)
     return {
       status: 403,
-      body: { error: 'Planning access is unavailable.', code: 'account_membership_lost' },
+      body: { error: 'Planning access is unavailable.', code: 'ACCOUNT_MEMBERSHIP_LOST' },
     }
   throw error
+}
+
+function sendRefusal(error: unknown, ctx: HttpContext) {
+  const failure = refusal(error)
+  for (const [name, value] of Object.entries(failure.headers ?? {}))
+    ctx.response.header(name, value)
+  return ctx.response.status(failure.status).send(failure.body)
 }
 
 /** Resource routes accept only their named operation and matching target; the body never selects a table. */
@@ -96,8 +113,7 @@ export default class PlanningController {
     try {
       return await readPlanning(ctx, String(ctx.params.accountId))
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -106,8 +122,7 @@ export default class PlanningController {
       const mutationId = await validatePlanningMutationId(ctx.params.mutationId)
       return await lookupPlanningMutation(ctx, String(ctx.params.accountId), mutationId)
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -121,14 +136,14 @@ export default class PlanningController {
       if (input.intent.operation !== operation)
         throw new PlanningOperationError(
           400,
-          'validation_error',
+          'VALIDATION_ERROR',
           'The operation does not match this resource route.'
         )
       const target = 'entity' in input.intent ? input.intent.entity : input.intent
       if (entity && (!('entity' in target) || target.entity !== entity))
         throw new PlanningOperationError(
           400,
-          'validation_error',
+          'VALIDATION_ERROR',
           'The operation does not match this resource route.'
         )
       const targetId =
@@ -140,13 +155,12 @@ export default class PlanningController {
       if (ctx.params.id !== undefined && targetId !== ctx.params.id)
         throw new PlanningOperationError(
           400,
-          'validation_error',
+          'VALIDATION_ERROR',
           'The operation target does not match this resource route.'
         )
       return await mutatePlanning(ctx, String(ctx.params.accountId), input)
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -155,8 +169,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(allocationMutationValidator)
       return await this.execute(ctx, input, 'allocation.create')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -165,8 +178,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(allocationMutationValidator)
       return await this.execute(ctx, input, 'allocation.update')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -175,8 +187,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(allocationMutationValidator)
       return await this.execute(ctx, input, 'allocation.duplicate')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -185,8 +196,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(allocationMutationValidator)
       return await this.execute(ctx, input, 'allocation.repeat')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -195,8 +205,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(allocationMutationValidator)
       return await this.execute(ctx, input, 'allocation.createGroup')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -205,8 +214,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(allocationMutationValidator)
       return await this.execute(ctx, input, 'allocation.delete')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -215,8 +223,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(allocationMutationValidator)
       return await this.execute(ctx, input, 'allocation.deleteGroup')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -225,8 +232,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(planningMutationValidator)
       return await this.execute(ctx, input, 'planning.restoreGroup')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -235,8 +241,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(resourceMutationValidator)
       return await this.execute(ctx, input, 'resource.create')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -245,8 +250,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(resourceMutationValidator)
       return await this.execute(ctx, input, 'resource.update')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -255,8 +259,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(timeOffMutationValidator)
       return await this.execute(ctx, input, 'timeOff.create')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -265,8 +268,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(timeOffMutationValidator)
       return await this.execute(ctx, input, 'timeOff.update')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -275,8 +277,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(timeOffMutationValidator)
       return await this.execute(ctx, input, 'timeOff.delete')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -285,8 +286,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(timeOffMutationValidator)
       return await this.execute(ctx, input, 'timeOff.deleteGroup')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -295,8 +295,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(timeOffMutationValidator)
       return await this.execute(ctx, input, 'timeOff.repeat')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -305,8 +304,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(closureMutationValidator)
       return await this.execute(ctx, input, 'closure.create')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -315,8 +313,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(closureMutationValidator)
       return await this.execute(ctx, input, 'closure.update')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -325,8 +322,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(closureMutationValidator)
       return await this.execute(ctx, input, 'closure.delete')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -335,8 +331,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(settingsMutationValidator)
       return await this.execute(ctx, input, 'settings.update')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -345,8 +340,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.create', 'clients')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -355,8 +349,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.update', 'clients')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -365,8 +358,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.archive', 'clients')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -375,8 +367,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.unarchive', 'clients')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -385,8 +376,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.create', 'projects')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -395,8 +385,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.update', 'projects')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -405,8 +394,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.archive', 'projects')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -415,8 +403,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.unarchive', 'projects')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -425,8 +412,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.create', 'activities')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -435,8 +421,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.update', 'activities')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -445,8 +430,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.archive', 'activities')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -455,8 +439,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.unarchive', 'activities')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -465,8 +448,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.create', 'phases')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -475,8 +457,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.update', 'phases')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -485,8 +466,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.delete', 'phases')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -495,8 +475,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.create', 'disciplines')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -505,8 +484,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.update', 'disciplines')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -515,8 +493,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(catalogueMutationValidator)
       return await this.execute(ctx, input, 'catalogue.delete', 'disciplines')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -525,8 +502,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(resourceMutationValidator)
       return await this.execute(ctx, input, 'resource.archive')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 
@@ -535,8 +511,7 @@ export default class PlanningController {
       const input = await ctx.request.validateUsing(resourceMutationValidator)
       return await this.execute(ctx, input, 'resource.unarchive')
     } catch (error) {
-      const failure = refusal(error)
-      return ctx.response.status(failure.status).send(failure.body)
+      return sendRefusal(error, ctx)
     }
   }
 }

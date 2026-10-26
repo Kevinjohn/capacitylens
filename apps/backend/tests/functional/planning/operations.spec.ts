@@ -45,7 +45,7 @@ test.group('authenticated planning operations', (group) => {
       .json(input(0, { operation: 'allocation.create', allocation }))
       .send()
     viewer.assertStatus(403)
-    assert.equal(body(viewer).code, 'authorization_denied')
+    assert.equal(body(viewer).code, 'AUTHORIZATION_DENIED')
 
     const { cookie } = await signIn(client)
     const mismatch = await session(
@@ -61,7 +61,7 @@ test.group('authenticated planning operations', (group) => {
       )
       .send()
     mismatch.assertStatus(400)
-    assert.equal(body(mismatch).code, 'validation_error')
+    assert.equal(body(mismatch).code, 'VALIDATION_ERROR')
 
     const allAccounts = await readState()
     const foreignResource = allAccounts.resources.find((row) => row.accountId === 'a-loft')!
@@ -77,7 +77,7 @@ test.group('authenticated planning operations', (group) => {
       )
       .send()
     foreign.assertStatus(400)
-    assert.equal(body(foreign).code, 'validation_error')
+    assert.equal(body(foreign).code, 'VALIDATION_ERROR')
     const current = await session(client.get(planningUrl), cookie).send()
     assert.equal(body(current).revision, 0)
     assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0)
@@ -260,7 +260,7 @@ test.group('authenticated planning operations', (group) => {
       )
       .send()
     nameEdit.assertStatus(400)
-    assert.equal(body(nameEdit).code, 'no_change')
+    assert.equal(body(nameEdit).code, 'NO_CHANGE')
     const colourEdit = await session(client.patch(route(`clients/${clientId}`)), cookie)
       .json(
         input(2, {
@@ -450,7 +450,7 @@ test.group('authenticated planning operations', (group) => {
       )
       .send()
     refused.assertStatus(400)
-    assert.equal(body(refused).code, 'validation_error')
+    assert.equal(body(refused).code, 'VALIDATION_ERROR')
     const retained = await session(client.post('/api/batch'), cookie)
       .json({
         ops: [
@@ -569,7 +569,7 @@ test.group('authenticated planning operations', (group) => {
       )
       .send()
     sameKindOnly.assertStatus(400)
-    assert.equal(body(sameKindOnly).code, 'no_change')
+    assert.equal(body(sameKindOnly).code, 'NO_CHANGE')
     assert.deepEqual(await readState(accountId, true), afterKindChange)
     assert.deepEqual(await db.from('audit_entries').where('account_id', accountId), auditBeforeNoop)
     assert.deepEqual(

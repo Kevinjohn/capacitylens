@@ -293,7 +293,7 @@ it("keeps the server's own reason when a save is rejected as invalid", async () 
   const user = userEvent.setup();
   const onClose = vi.fn();
   vi.spyOn(useStore.getState(), "addResource").mockRejectedValue(
-    new PlanningControllerError("That discipline no longer exists.", "validation_error", 400),
+    new PlanningControllerError("That discipline no longer exists.", "VALIDATION_ERROR", 400),
   );
   try {
     render(<ResourceForm kind="person" onClose={onClose} />);

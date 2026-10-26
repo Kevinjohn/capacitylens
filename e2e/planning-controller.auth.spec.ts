@@ -335,7 +335,7 @@ test("unactivated planning controller uses authenticated typed routes and reconc
       changes: { startDate: "2026-10-26" },
     } satisfies Intent,
   );
-  expect(stale.result).toMatchObject({ kind: "rejected", code: "stale_revision", status: 409 });
+  expect(stale.result).toMatchObject({ kind: "rejected", code: "STALE_REVISION", status: 409 });
   expect(stale.state.status).toBe("ready");
   expect(await callHarness<Array<{ mutationId: string }>>(page, "planningHarnessExecutions", primaryKey)).toHaveLength(
     beforeStaleCount + 1,

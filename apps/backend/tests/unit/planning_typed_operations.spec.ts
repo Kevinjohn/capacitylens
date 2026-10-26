@@ -139,7 +139,7 @@ test.group('typed allocation group and lifecycle operations', (group) => {
     })
 
     assert.equal(error.status, 400)
-    assert.equal(error.code, 'validation_error')
+    assert.equal(error.code, 'VALIDATION_ERROR')
     const after = await readState('a-studio', true)
     assert.isFalse(after.allocations.some((row) => row.id === firstId || row.id === secondId))
   })
@@ -186,7 +186,7 @@ test.group('typed allocation group and lifecycle operations', (group) => {
       entity: { entity: 'clients', id: client.id },
     })
     assert.equal(activeUnarchive.status, 400)
-    assert.equal(activeUnarchive.code, 'no_change')
+    assert.equal(activeUnarchive.code, 'NO_CHANGE')
 
     const protectedArchive = await refused({
       operation: 'catalogue.archive',
@@ -203,7 +203,7 @@ test.group('typed allocation group and lifecycle operations', (group) => {
       entity: { entity: 'clients', id: client.id },
     })
     assert.equal(repeatedArchive.status, 400)
-    assert.equal(repeatedArchive.code, 'no_change')
+    assert.equal(repeatedArchive.code, 'NO_CHANGE')
     const afterRepeatedArchiveState = await readState('a-studio', true)
     const afterRepeatedArchive = afterRepeatedArchiveState.clients.find(
       (row) => row.id === client.id
@@ -219,7 +219,7 @@ test.group('typed allocation group and lifecycle operations', (group) => {
       entity: { entity: 'clients', id: client.id },
     })
     assert.equal(tombstoneUnarchive.status, 400)
-    assert.equal(tombstoneUnarchive.code, 'validation_error')
+    assert.equal(tombstoneUnarchive.code, 'VALIDATION_ERROR')
     const after = await readState('a-studio', true)
     assert.equal(
       after.clients.find((row) => row.id === client.id)?.deletedAt,

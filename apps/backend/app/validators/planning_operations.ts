@@ -934,30 +934,34 @@ export const mutationLookupReplyValidator = vine.compile(
 )
 export type MutationLookupInput = Infer<typeof mutationLookupValidator>
 
-/** These codes distinguish admission loss (clear account state) from a refused action. */
+/** Product planning refusal codes; Kit codes retain their own contract. */
 export const planningMutationErrorCodes = [
-  'validation_error',
-  'unauthenticated',
-  'account_membership_lost',
-  'authorization_denied',
-  'stale_revision',
-  'mutation_id_reused',
-  'no_change',
-  'restoration_confirmation_required',
-  'restoration_confirmation_stale',
+  'VALIDATION_ERROR',
+  'UNAUTHENTICATED',
+  'ACCOUNT_MEMBERSHIP_LOST',
+  'AUTHORIZATION_DENIED',
+  'STALE_REVISION',
+  'MUTATION_ID_REUSED',
+  'NO_CHANGE',
+  'RESTORATION_CONFIRMATION_REQUIRED',
+  'RESTORATION_CONFIRMATION_STALE',
 ] as const
 
-/** Flat command failure body; transport maps stale_revision to HTTP 409. */
+/** Flat command failure body; conflicts use HTTP 409. */
 export interface PlanningMutationFailure {
   error: string
   restorableItemCount?: number
-  code?: (typeof planningMutationErrorCodes)[number]
+  code?: string
+  decision?: unknown
+  committed?: boolean
 }
 
 export const planningMutationFailureValidator = vine.compile(
   vine.object({
     error: vine.string(),
-    code: vine.enum(planningMutationErrorCodes).optional(),
+    code: vine.string().optional(),
+    decision: vine.any().optional(),
+    committed: vine.boolean({ strict: true }).optional(),
     restorableItemCount: revision().optional(),
   })
 )
@@ -966,7 +970,7 @@ export type PlanningMutationFailureInput = Infer<typeof planningMutationFailureV
 /** A pre-transaction check only; callers must read and compare under the write transaction. */
 export class StalePlanningRevisionError extends Error {
   readonly statusCode = 409
-  readonly code = 'stale_revision' as const
+  readonly code = 'STALE_REVISION' as const
 
   constructor(
     readonly mutationId: string,

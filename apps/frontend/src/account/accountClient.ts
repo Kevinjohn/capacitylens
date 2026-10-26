@@ -1,4 +1,3 @@
-import { API_BASE } from "@/data/apiConfig";
 import { apiFetch } from "@/data/requestTimeout";
 import type { BrowserAccountCommand } from "./accountCommands";
 import type { MembershipStatus, Role } from "@capacitylens/shared/account/types";
@@ -51,7 +50,7 @@ export const accountClient = {
     return apiFetch(apiRouteUrl("api.accounts.index", {}), { credentials: "include", ...(signal ? { signal } : {}) });
   },
   diagnostics(signal?: AbortSignal): Promise<Response> {
-    return apiFetch(`${API_BASE}/api/diagnostics`, { credentials: "include", ...(signal ? { signal } : {}) });
+    return apiFetch(apiRouteUrl("api.diagnostics", {}), { credentials: "include", ...(signal ? { signal } : {}) });
   },
 
   /** Add the small example company to an empty company. Not idempotent: a second call is refused. */
@@ -228,19 +227,6 @@ export const accountClient = {
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    });
-  },
-
-  reconcileCommand(command: BrowserAccountCommand, operation: string): Promise<Response> {
-    return apiFetch(`${API_BASE}/api/account-commands/reconcile`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        commandId: command.commandId,
-        idempotencyKey: command.idempotencyKey,
-        operation,
-      }),
     });
   },
 };

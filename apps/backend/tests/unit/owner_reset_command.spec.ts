@@ -250,7 +250,7 @@ test('owner recovery refuses invalid configuration, addresses and non-disk paths
     seedOwner(database)
     database.close()
     for (const overrides of [
-      { CAPACITYLENS_PUBLIC_URL: '' },
+      { CAPACITYLENS_PUBLIC_URL: 'https://capacity.example.test/path' },
       { CAPACITYLENS_DB: ':memory:' },
       { CAPACITYLENS_DB: `${f.databasePath}.missing` },
     ])

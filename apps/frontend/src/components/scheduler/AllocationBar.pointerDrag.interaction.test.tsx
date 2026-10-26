@@ -42,7 +42,7 @@ function registerBasicPointerTests() {
     const original = useStore.getState().updateAllocation;
     useStore.setState({
       updateAllocation: () =>
-        Promise.reject(new PlanningControllerError("The schedule changed.", "stale_revision", 409)),
+        Promise.reject(new PlanningControllerError("The schedule changed.", "STALE_REVISION", 409)),
     });
     try {
       render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);

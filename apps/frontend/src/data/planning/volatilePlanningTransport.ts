@@ -33,8 +33,8 @@ type Group = { companyId: string; key: AppDataKey; rows: Row[]; links: Link[] };
 type Company = { data: AppData; revision: number; pendingRefetch: boolean };
 
 const conflict = () =>
-  new PlanningControllerError("This planning change can no longer be applied.", "validation_error", 409);
-const invalid = (message: string) => new PlanningControllerError(message, "validation_error", 400);
+  new PlanningControllerError("This planning change can no longer be applied.", "VALIDATION_ERROR", 409);
+const invalid = (message: string) => new PlanningControllerError(message, "VALIDATION_ERROR", 400);
 
 function rowId(value: unknown): string {
   if (typeof value !== "string" || value.length === 0) throw conflict();
@@ -311,7 +311,7 @@ function apply(data: AppData, companyId: string, intent: PlanningIntent, groups:
         ((entity === "clients" || entity === "projects") && ("isPrivate" in changes || "codeName" in changes)) ||
         (entity === "activities" && "kind" in changes);
       if (refetch && !Object.keys(changes).some((field) => previous[field] !== current[field]))
-        throw new PlanningControllerError("The operation does not change planning data.", "no_change", 400);
+        throw new PlanningControllerError("The operation does not change planning data.", "NO_CHANGE", 400);
       if (entity === "activities" && "kind" in changes && changes.kind !== "project") {
         for (const row of rows(data, "allocations"))
           if (row.activityId === id && row.projectId !== null) patch(data, "allocations", row.id, { projectId: null });
@@ -449,9 +449,9 @@ export function createVolatilePlanningTransport(readData: () => AppData): Planni
       const visible = slice(readData(), context.companyId);
       if (!company.pendingRefetch && JSON.stringify(visible) !== JSON.stringify(company.data)) company.data = visible;
       if (commitments.has(execution.mutationId))
-        throw new PlanningControllerError("This planning change was already committed.", "mutation_id_reused", 409);
+        throw new PlanningControllerError("This planning change was already committed.", "MUTATION_ID_REUSED", 409);
       if (execution.baseRevision !== company.revision)
-        throw new PlanningControllerError("The schedule changed before this edit was saved.", "stale_revision", 409);
+        throw new PlanningControllerError("The schedule changed before this edit was saved.", "STALE_REVISION", 409);
       const before = company.data;
       const after = { ...before };
       const draftGroups = new Map(groups);
@@ -460,7 +460,8 @@ export function createVolatilePlanningTransport(readData: () => AppData): Planni
         result = apply(after, context.companyId, execution.intent, draftGroups);
       } catch (error) {
         // Local domain assertions are definitive rejections, not uncertain network outcomes.
-        if (error instanceof DomainError) throw new PlanningControllerError(error.message, error.code, 400);
+        if (error instanceof DomainError)
+          throw new PlanningControllerError(error.message, error.code.toUpperCase(), 400);
         throw error;
       }
       if (result.clearsRestoration) {
@@ -470,7 +471,7 @@ export function createVolatilePlanningTransport(readData: () => AppData): Planni
         if (execution.confirmedRestorationCount !== undefined && execution.confirmedRestorationCount !== count)
           throw new PlanningControllerError(
             "The restorable items changed. Review this change again.",
-            "restoration_confirmation_stale",
+            "RESTORATION_CONFIRMATION_STALE",
             409,
             false,
             count,
@@ -478,7 +479,7 @@ export function createVolatilePlanningTransport(readData: () => AppData): Planni
         if (count > 0 && execution.confirmedRestorationCount === undefined)
           throw new PlanningControllerError(
             `This change clears ${count} restorable items`,
-            "restoration_confirmation_required",
+            "RESTORATION_CONFIRMATION_REQUIRED",
             409,
             false,
             count,

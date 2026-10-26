@@ -597,7 +597,7 @@ test.group('company anonymisation', (group) => {
       })
       .send()
     wrongCompany.assertStatus(403)
-    assert.equal(wrongCompany.body().code, 'authorization_denied')
+    assert.equal(wrongCompany.body().code, 'AUTHORIZATION_DENIED')
 
     const otherActorSignup = await signUpAndIn(client, {
       email: 'diana.prince@wayne.example',
@@ -629,6 +629,6 @@ test.group('company anonymisation', (group) => {
       })
       .send()
     otherActor.assertStatus(403)
-    assert.equal(otherActor.body().code, 'authorization_denied')
+    assert.equal(otherActor.body().code, 'AUTHORIZATION_DENIED')
   })
 })
