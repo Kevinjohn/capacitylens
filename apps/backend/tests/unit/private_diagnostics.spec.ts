@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import { InvalidSessionError, UnverifiedEmailError } from 'adonisjs-account-kit/errors'
 import { IdentityAuthorityError } from '#services/auth/authorization'
 import { ActionProofError } from '#services/auth/action_proof'
@@ -62,3 +63,36 @@ test('expected authentication and authorization refusals do not report server er
     assert.deepEqual(captured.records, [])
   }
 })
+
+for (const environment of ['development', 'test', 'production'] as const) {
+  test(`unexpected failures expose details only in development: ${environment}`, async ({
+    assert,
+  }) => {
+    const descriptor = Object.getOwnPropertyDescriptor(app, 'inDev')
+    Object.defineProperty(app, 'inDev', {
+      configurable: true,
+      value: environment === 'development',
+    })
+    const failure = new Error('PRIVATE_UNEXPECTED_MESSAGE')
+    let body: unknown
+    const ctx = {
+      response: {
+        internalServerError(value: unknown) {
+          body = value
+        },
+      },
+    } as unknown as HttpContext
+    try {
+      await new HttpExceptionHandler().handle(failure, ctx)
+      assert.deepEqual(
+        body,
+        environment === 'development'
+          ? { error: failure.message, stack: failure.stack }
+          : { error: 'Internal server error.' }
+      )
+    } finally {
+      if (descriptor) Object.defineProperty(app, 'inDev', descriptor)
+      else Reflect.deleteProperty(app, 'inDev')
+    }
+  })
+}

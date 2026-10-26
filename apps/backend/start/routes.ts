@@ -5,6 +5,7 @@ import { statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { listSnapshots, type FileIdentity } from '#services/backup/retention'
 import router from '@adonisjs/core/services/router'
+import logger from '@adonisjs/core/services/logger'
 import { checkDatabase, readState, resetState } from '#services/state_repository'
 import { withActor } from '#services/auth/current_actor'
 import { activeCompanyRole } from '#services/auth/authorization'
@@ -52,7 +53,7 @@ router.get('/api/meta', async () => {
 })
 router
   .get('/api/diagnostics', async (ctx) => {
-    const { response, logger } = ctx
+    const { response } = ctx
     // Release level and backup timing are administration facts: Owners and Admins only.
     const administers = await withActor(ctx, async (actor, trx) => {
       const memberships = await trx
