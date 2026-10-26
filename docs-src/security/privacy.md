@@ -20,6 +20,9 @@ data-processing agreements, and a professional privacy and security review befor
 The SQLite database can contain company names, member names and email addresses, resource names,
 projects, activities, bookings, time off and free-text notes. The authentication tables hold
 identities, sessions, invitations, admission requests and decisions, and emailed-link state.
+Session records include a browser user-agent label of up to 200 characters, creation time,
+last-seen time and expiry. The product has no screen for viewing or revoking another member's
+sessions.
 
 **Sign-in confirmation.** An Owner can record whether each member has successfully signed in. It
 is off by default. When on, CapacityLens stores one yes-or-no value per membership, not the time
@@ -29,8 +32,9 @@ access state clears theirs until they sign in again. Older backups may still hol
 **Invitations.** An unused invitation expires after seven days and can be revoked at any time.
 Invitation links are stored only as digests and never shown in the app.
 
-**Audit log.** It records who changed which record and which fields, not the values. A short-lived
-queue holds the same metadata in SQLite until it is durably written to disk, also without values.
+**Audit log.** Transactional audit rows record who changed which record and which fields, not the
+values. They remain in SQLite with the company data; database backups can contain them. Sign-in
+success, failure and throttling outcomes are not recorded in the application audit table.
 
 **Backups.** Database snapshots contain the full database; protect them like the live data.
 
@@ -56,16 +60,15 @@ app if another tab is holding that database open.
 
 ## Network behaviour
 
-CapacityLens includes no product analytics, advertising or crash-reporting service, and its
-authentication library's telemetry is turned off. Scheduling requests normally go to the
-application server on the same origin. External avatar URLs make the browser fetch images from
-that image host.
+CapacityLens includes no product analytics, advertising or crash-reporting service. Scheduling
+requests normally go to the application server on the same origin. External avatar URLs make the
+browser fetch images from that image host.
 
-**Email.** CapacityLens sends invitations, address confirmations, email-change confirmations and
-password-reset links through the operator's SMTP service. Messages contain the recipient's address
-and a single-use bearer link. Invitation links expire after seven days; the others after one hour.
-Unknown addresses get no reset email. The operator is responsible for the SMTP provider's
-processing and retention.
+**Email.** CapacityLens sends invitations, address confirmations and password-reset links through
+the operator's SMTP service. Messages contain the recipient's address and a single-use bearer
+link. Invitation links expire after seven days; address-confirmation and reset links expire after
+one hour. The product does not expose an email-change route. Unknown addresses get no reset email.
+The operator is responsible for the SMTP provider's processing and retention.
 
 ## Keeping and deleting data
 
@@ -80,5 +83,5 @@ processing and retention.
 
 For a self-hosted install, the operator decides the purpose, lawful basis, access, retention,
 backup policy and access control, which in most privacy frameworks makes them the data controller.
-Protect the SQLite database, audit log, backup snapshots, staff devices and identity-provider
-credentials accordingly. The [Self-hosting](/self-hosting/) guide covers each.
+Protect the SQLite database, `APP_KEY`, SMTP credentials, backup snapshots and staff devices
+accordingly. The [Self-hosting](/self-hosting/) guide covers each.
