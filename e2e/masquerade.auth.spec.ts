@@ -160,12 +160,16 @@ test.describe("member masquerade", () => {
       baseURL: new URL(page.url()).origin,
       reducedMotion: "reduce",
     });
-    const editorPage = await editorContext.newPage();
-    await signIn(editorPage, editor.email);
-    await expect(editorPage.getByTestId("getting-started-progress")).toBeVisible();
-    await expect(editorPage.getByTestId("getting-started")).toBeVisible();
-    await editorPage.getByRole("link", { name: "Team & access" }).click();
-    await expect(editorPage.getByTestId("current-access")).toContainText("Editor");
-    await expect(editorPage.getByTestId("getting-started-progress")).toBeVisible();
+    try {
+      const editorPage = await editorContext.newPage();
+      await signIn(editorPage, editor.email);
+      await expect(editorPage.getByTestId("getting-started-progress")).toBeVisible();
+      await expect(editorPage.getByTestId("getting-started")).toBeVisible();
+      await editorPage.getByRole("link", { name: "Team & access" }).click();
+      await expect(editorPage.getByTestId("current-access")).toContainText("Editor");
+      await expect(editorPage.getByTestId("getting-started-progress")).toBeVisible();
+    } finally {
+      await editorContext.close();
+    }
   });
 });
