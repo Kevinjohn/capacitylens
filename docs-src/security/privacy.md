@@ -67,7 +67,8 @@ browser fetch images from that image host.
 **Email.** CapacityLens sends invitations, address confirmations and password-reset links through
 the operator's SMTP service. Messages contain the recipient's address and a single-use bearer
 link. Invitation links expire after seven days; address-confirmation and reset links expire after
-one hour. The product does not expose an email-change route. Unknown addresses get no reset email.
+one hour. Password-change and reset-completion notices contain no bearer link. The product does
+not expose an email-change route. Unknown addresses get no reset email.
 The operator is responsible for the SMTP provider's processing and retention.
 
 ## Keeping and deleting data
