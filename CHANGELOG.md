@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- `pnpm run check:changed` runs only the formatting, lint, type-check, test and documentation checks that a branch's changed files need (#1603).
+
 ### Fixed
 
 - Preserve caller cancellation when generated API requests pass through the request timeout handler.
