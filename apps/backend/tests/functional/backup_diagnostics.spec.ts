@@ -68,11 +68,13 @@ test.group('Backup diagnostics', (group) => {
       assert.notInclude(output, root)
       assert.notInclude(output, 'ENOENT')
       assert.notInclude(output, 'PRIVATE_BACKUP_TOKEN')
-      assert.deepEqual(response.body().server, {
-        connectivity: 'ok',
-        database: { status: 'ok' },
-        schema: { migration: latest!.name },
-        backup: { newestSnapshotAt: null },
+      assert.deepEqual(response.body(), {
+        server: {
+          connectivity: 'ok',
+          database: { status: 'ok' },
+          schema: { migration: latest!.name },
+          backup: { newestSnapshotAt: null },
+        },
       })
     } finally {
       logger.warn = originalWarn
@@ -97,11 +99,13 @@ test.group('Backup diagnostics', (group) => {
     try {
       const response = await owner.get('/api/diagnostics')
       assert.equal(response.status(), 503)
-      assert.deepEqual(response.body().server, {
-        connectivity: 'ok',
-        database: { status: 'unavailable' },
-        schema: { migration: null },
-        backup: { newestSnapshotAt: null },
+      assert.deepEqual(response.body(), {
+        server: {
+          connectivity: 'ok',
+          database: { status: 'unavailable' },
+          schema: { migration: null },
+          backup: { newestSnapshotAt: null },
+        },
       })
       assert.deepEqual(warnings, [['Diagnostics could not read database state']])
       assert.notInclude(JSON.stringify(warnings), 'PRIVATE_DATABASE_PATH_TOKEN')
