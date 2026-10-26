@@ -134,14 +134,17 @@ test("a renamed file is listed under both its old and new paths", (t) => {
 });
 
 test("a step that ignores SIGTERM after its time limit is killed and fails", async () => {
+  const started = Date.now();
+  // The child gives up after 10 seconds by itself, so a missing SIGKILL fails this test instead of hanging it.
   const result = await runStep(
     {
       label: "test: stubborn",
       command: "node",
-      args: ["-e", "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000);"],
+      args: ["-e", "process.on('SIGTERM', () => {}); setTimeout(() => {}, 10_000);"],
     },
     { timeoutMs: 300, killGraceMs: 300 },
   );
+  assert.ok(Date.now() - started < 5_000, "the step was not killed");
   assert.equal(result.passed, false);
   assert.match(result.output, /stopped after 0\.3 seconds/);
 });
