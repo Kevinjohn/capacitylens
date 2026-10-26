@@ -23,11 +23,11 @@ async function signIn(page: Page, email: string) {
 }
 
 async function expectNoOnboardingNoise(page: Page, requests: string[]) {
-  expect(requests).toEqual([]);
   await expect(page.getByTestId("getting-started-progress")).toHaveCount(0);
   await expect(page.getByTestId("getting-started")).toHaveCount(0);
   await expect(page.getByText("Getting started could not be refreshed. Try again.", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
+  expect(requests).toEqual([]);
 }
 
 test.describe("member masquerade", () => {
