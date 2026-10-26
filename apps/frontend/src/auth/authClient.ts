@@ -1,6 +1,6 @@
-import type { ResponseOf } from "@tuyau/core/types";
+import type { RequestArgs, ResponseOf } from "@tuyau/core/types";
 import type { registry } from "@capacitylens/backend/registry";
-import { apiRouteUrl } from "@/api/queryClient";
+import { client, apiRouteUrl } from "@/api/queryClient";
 import { apiFetch } from "@/data/requestTimeout";
 
 export interface AuthApiError {
@@ -14,10 +14,7 @@ export interface AuthApiResult<T> {
   error: AuthApiError | null;
 }
 
-interface PasswordCredentials {
-  email: string;
-  password: string;
-}
+type PasswordCredentials = RequestArgs<(typeof registry.routes)["api.auth.sign-in"]>["body"];
 
 interface PasswordChangeInput {
   currentPassword: string;
@@ -37,9 +34,12 @@ function readErrorMessage(value: unknown, status: number): AuthApiError {
 }
 
 type ProductRoutes = typeof registry.routes;
-type AuthRoute = Extract<
-  keyof ProductRoutes,
-  `api.auth.${string}` | "api.admission.show" | "api.admission.request" | "api.admission.complete"
+type AuthRoute = Exclude<
+  Extract<
+    keyof ProductRoutes,
+    `api.auth.${string}` | "api.admission.show" | "api.admission.request" | "api.admission.complete"
+  >,
+  "api.auth.sign-in" | "api.auth.sign-up"
 >;
 
 async function request<Name extends AuthRoute>(
@@ -58,14 +58,33 @@ async function request<Name extends AuthRoute>(
   return { data: payload as ResponseOf<ProductRoutes[Name]>, error: null };
 }
 
-// These controllers validate bodies manually, so their generated registry has no request body.
-// Keep the raw fetch boundary until it can describe those inputs, while deriving successes from it.
+// The remaining credential controllers validate bodies manually. Keep their existing transport
+// until their generated registry describes those inputs, while deriving successes from it.
 const post = <Name extends AuthRoute>(name: Name, body: unknown) => request("POST", name, body);
 
 /** Typed browser client for the product's session, credential, confirmation and admission endpoints. */
 export const authClient = {
   signIn: {
-    email: (input: PasswordCredentials) => post("api.auth.sign-in", input),
+    email: async (input: PasswordCredentials) => {
+      const [data, error] = await client
+        .request("api.auth.sign-in", {
+          body: input,
+          responseType: "json",
+          // Keep the existing null result for a successful response with an unreadable JSON body.
+          parseJson: (text) => {
+            try {
+              return JSON.parse(text);
+            } catch {
+              return null;
+            }
+          },
+        })
+        .safe();
+      if (!error) return { data, error: null };
+      // Callers already distinguish native transport/abort failures from HTTP refusals.
+      if (error.kind === "network") throw error.cause;
+      return { data: null, error: readErrorMessage(error.response, error.status ?? 500) };
+    },
   },
   signOut: () => post("api.auth.sign-out", {}),
   requestPasswordReset: (email: string) => post("api.auth.request-reset", { email }),
