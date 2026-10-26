@@ -3,6 +3,7 @@ import type { HealthCheckResult } from '@adonisjs/core/types/health'
 import { assertSchemaIntegrity } from '#services/schema_integrity'
 import db from '@adonisjs/lucid/services/db'
 
+/** Checks connectivity and product schema together, without exposing failure details. */
 export class DatabaseReadinessCheck extends BaseCheck {
   name = 'Database health check (sqlite)'
 
