@@ -350,7 +350,7 @@ test("same-revision background refresh preserves Undo for a keyboard resize", as
 });
 
 test("a remote allocation deletion invalidates keyboard history after refresh", async ({ page, request }) => {
-  const { owner, accountId, ownerEmail, resourceId, projectId, activityId } = await createScenario(request);
+  const { owner, accountId, ownerEmail, resourceId, activityId } = await createScenario(request);
   const allocationId = crypto.randomUUID();
   await sendPlanningFixtureCommand(request, owner.cookie, accountId, "allocations", {
     operation: "allocation.create",
@@ -358,7 +358,7 @@ test("a remote allocation deletion invalidates keyboard history after refresh", 
       id: allocationId,
       resourceId,
       activityId,
-      projectId,
+      projectId: null,
       startDate: "2026-06-01",
       endDate: "2026-06-01",
       hoursPerDay: 8,
