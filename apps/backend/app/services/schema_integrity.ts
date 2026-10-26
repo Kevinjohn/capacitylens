@@ -1,5 +1,7 @@
 import db from '@adonisjs/lucid/services/db'
 
+const baselineMigration = 'database/migrations/202610120001_create_capacitylens_baseline'
+
 const relationships = [
   ['projects', 'client_id', 'clients'],
   ['phases', 'project_id', 'projects'],
@@ -71,6 +73,17 @@ async function assertAccountKitStorage() {
     )
 }
 
+async function assertBaselineMigrationRecord() {
+  const rows = await db.from('adonis_schema').select('batch').where('name', baselineMigration)
+  if (
+    rows.length !== 1 ||
+    typeof rows[0]?.batch !== 'number' ||
+    !Number.isSafeInteger(rows[0].batch) ||
+    rows[0].batch < 1
+  )
+    throw new Error('Database schema drift: baseline migration record is missing or invalid')
+}
+
 const normalize = (sql: string) => sql.replace(/\s+/g, ' ').trim().replace(/;$/, '')
 
 async function assertIndex(table: string, column: string) {
@@ -134,6 +147,7 @@ async function assertProofStorage(table: string, expectedColumns: string[]) {
 
 export async function assertSchemaIntegrity() {
   await assertAccountKitStorage()
+  await assertBaselineMigrationRecord()
   await assertProofStorage('login_link_tokens', [
     'id',
     'tokenable_id',
