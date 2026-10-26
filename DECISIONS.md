@@ -290,3 +290,9 @@ attachment encoding, authentication and recipient refusal, and pooled connection
 verified through the public Adonis SMTP adapter. Nodemailer 10 is incompatible with the unused
 Postmark transport's internal MIME import; Postmark is unsupported and must be reassessed before
 enabling that transport.
+
+The `qs` floor addresses GHSA-q8mj-m7cp-5q26, fixed at 6.15.2. `typed-rest-client@2.3.1` requests
+`qs@6.15.1` exactly, so this is a reviewed compatibility exception. Other security overrides are
+limited to affected version ranges and keep the consumer's supported major line. VitePress 1.x
+declares Vite 5 while its Vue plugin accepts Vite 6; its documentation-build override uses the
+patched Vite 6 line.
