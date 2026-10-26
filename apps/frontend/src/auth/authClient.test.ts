@@ -174,3 +174,22 @@ describe("product auth client", () => {
     ]);
   });
 });
+
+it("retains unknown HTTP codes and safe operation metadata", async () => {
+  const decision = { admitted: false, requirements: { invitation: { met: false } } };
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        Response.json(
+          { error: "Follow-up failed", code: "DEPENDENCY_FUTURE_CODE", committed: true, decision },
+          { status: 503 },
+        ),
+      ),
+  );
+  await expect(authClient.signIn.email({ email: "bruce@wayne.example", password: "secret" })).resolves.toMatchObject({
+    data: null,
+    error: { status: 503, message: "Follow-up failed", code: "DEPENDENCY_FUTURE_CODE", committed: true, decision },
+  });
+});

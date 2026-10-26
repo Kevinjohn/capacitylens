@@ -1,11 +1,12 @@
+import { readHttpErrorBody } from "@capacitylens/shared/api/httpErrors";
+import type { HttpErrorBody } from "@capacitylens/shared/api/httpErrors";
 import type { RequestArgs, ResponseOf } from "@tuyau/core/types";
 import type { registry } from "@capacitylens/backend/registry";
 import { client, apiRouteUrl } from "@/api/queryClient";
 import { apiFetch } from "@/data/requestTimeout";
 
-export interface AuthApiError {
+export interface AuthApiError extends Omit<HttpErrorBody, "error"> {
   message: string;
-  code?: string;
   status: number;
 }
 
@@ -22,15 +23,8 @@ interface PasswordChangeInput {
 }
 
 function readErrorMessage(value: unknown, status: number): AuthApiError {
-  if (typeof value === "object" && value !== null) {
-    const body = value as Record<string, unknown>;
-    return {
-      message: typeof body.error === "string" ? body.error : `Authentication request failed (${status}).`,
-      ...(typeof body.code === "string" ? { code: body.code } : {}),
-      status,
-    };
-  }
-  return { message: `Authentication request failed (${status}).`, status };
+  const { error: message, ...metadata } = readHttpErrorBody(value, `Authentication request failed (${status}).`);
+  return { message, ...metadata, status };
 }
 
 type ProductRoutes = typeof registry.routes;
