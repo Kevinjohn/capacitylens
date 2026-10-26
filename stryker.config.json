@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "Mutation testing covers pure shared domain logic, scheduler helpers, and the reset failure mapper. React hooks are excluded because their lifecycle orchestration is covered by component and browser tests and does not produce isolated function evidence. Run with pnpm run mutation before releases or after core changes; it is too slow for the standard gate. List the Vitest plugin explicitly because Stryker auto-discovery does not find plugins in pnpm's nested node_modules layout.",
+  "_comment": "Mutation testing covers pure shared domain logic, scheduler helpers, and the reset failure mapper. React hooks are excluded because their lifecycle orchestration is covered by component and browser tests and does not produce isolated function evidence. Run with pnpm run mutation before releases or after core changes; it is too slow for the standard gate. The related frontend/shared test run takes 7+ minutes on Node 24, so allow extra room for shared validation load. List the Vitest plugin explicitly because Stryker auto-discovery does not find plugins in pnpm's nested node_modules layout.",
   "packageManager": "pnpm",
   "testRunner": "vitest",
   "plugins": ["@stryker-mutator/vitest-runner"],
@@ -19,6 +19,7 @@
     "configFile": "apps/frontend/vite.config.ts"
   },
   "concurrency": 6,
+  "dryRunTimeoutMinutes": 15,
   "timeoutMS": 20000,
   "thresholds": {
     "high": 90,
