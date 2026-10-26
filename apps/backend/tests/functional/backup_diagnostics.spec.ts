@@ -31,10 +31,44 @@ test.group('Backup diagnostics', (group) => {
   test('readiness reports database health without a backup latch', async ({ client, assert }) => {
     const response = await client.get('/health/ready')
     assert.equal(response.status(), 200)
+    assert.isTrue(
+      response
+        .body()
+        .checks.some((check: { name: string }) => check.name === 'Database health check (sqlite)')
+    )
     assert.equal(
       response.body().checks.some((check: { name: string }) => check.name === 'Backups'),
       false
     )
+  })
+
+  test('readiness fails safely when the schema integrity check detects drift', async ({
+    client,
+    assert,
+  }) => {
+    const index = await db
+      .from('sqlite_master')
+      .select('name', 'sql')
+      .where('type', 'index')
+      .where('tbl_name', 'projects')
+      .whereNotNull('sql')
+      .whereLike('sql', '%client_id%')
+      .first()
+    assert.isDefined(index?.sql)
+    await db.rawQuery(`DROP INDEX "${String(index!.name)}"`)
+    try {
+      const response = await client.get('/health/ready')
+      assert.equal(response.status(), 503)
+      assert.isFalse(response.body().isHealthy)
+      const check = response
+        .body()
+        .checks.find((item: { name: string }) => item.name === 'Database health check (sqlite)')
+      assert.equal(check.status, 'error')
+      assert.equal(check.message, 'Database readiness check failed')
+      assert.notInclude(JSON.stringify(response.body()), String(index!.name))
+    } finally {
+      await db.rawQuery(String(index!.sql))
+    }
   })
 
   test('diagnostics reports the last applied migration and no snapshot when none exists', async ({
