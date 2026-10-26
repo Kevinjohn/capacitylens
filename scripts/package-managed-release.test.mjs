@@ -145,11 +145,16 @@ test("forbids the repository's development dependencies but not server runtime d
 test("does not forbid a development dependency the server also needs at runtime", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "capacitylens-manifest-test-"));
   context.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(join(root, "apps", "frontend"), { recursive: true });
   await mkdir(join(root, "apps", "backend"), { recursive: true });
   await mkdir(join(root, "packages", "shared"), { recursive: true });
   await writeFile(
     join(root, "package.json"),
     JSON.stringify({ devDependencies: { yaml: "1", vite: "1", "@fastify/type-provider": "1" } }),
+  );
+  await writeFile(
+    join(root, "apps", "frontend", "package.json"),
+    JSON.stringify({ devDependencies: { "@vitest/coverage-v8": "1", vite: "1" } }),
   );
   await writeFile(
     join(root, "apps", "backend", "package.json"),
@@ -159,7 +164,14 @@ test("does not forbid a development dependency the server also needs at runtime"
     join(root, "packages", "shared", "package.json"),
     JSON.stringify({ devDependencies: { "fast-check": "1" } }),
   );
-  assert.deepEqual(await readDevelopmentPackages(root), ["@fastify/type-provider", "fast-check", "tsx", "vite"]);
+  assert.deepEqual(await readDevelopmentPackages(root), [
+    "@fastify/type-provider",
+    "@vitest/",
+    "@vitest/coverage-v8",
+    "fast-check",
+    "tsx",
+    "vite",
+  ]);
 });
 
 test("rejects an artifact missing its frontend, compiled shared runtime, or SQLite addon", async (context) => {
