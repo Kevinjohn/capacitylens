@@ -74,6 +74,7 @@ test.describe("member masquerade", () => {
     page,
     request,
     context,
+    newObservedContext,
   }) => {
     const owner = await signUpUser(`masq-editor-owner-${STAMP}@capacitylens.dev`, "Bruce Wayne");
     const editor = await signUpUser(EDITOR_EMAIL, "Clark Kent");
@@ -155,12 +156,16 @@ test.describe("member masquerade", () => {
     await page.getByRole("link", { name: "Team & access" }).click();
     await expect(page.getByTestId("current-access")).toContainText("Owner");
 
-    await context.clearCookies();
-    await signIn(page, editor.email);
-    await expect(page.getByTestId("getting-started-progress")).toBeVisible();
-    await expect(page.getByTestId("getting-started")).toBeVisible();
-    await page.getByRole("link", { name: "Team & access" }).click();
-    await expect(page.getByTestId("current-access")).toContainText("Editor");
-    await expect(page.getByTestId("getting-started-progress")).toBeVisible();
+    const editorContext = await newObservedContext({
+      baseURL: new URL(page.url()).origin,
+      reducedMotion: "reduce",
+    });
+    const editorPage = await editorContext.newPage();
+    await signIn(editorPage, editor.email);
+    await expect(editorPage.getByTestId("getting-started-progress")).toBeVisible();
+    await expect(editorPage.getByTestId("getting-started")).toBeVisible();
+    await editorPage.getByRole("link", { name: "Team & access" }).click();
+    await expect(editorPage.getByTestId("current-access")).toContainText("Editor");
+    await expect(editorPage.getByTestId("getting-started-progress")).toBeVisible();
   });
 });
