@@ -101,7 +101,8 @@ pnpm run smoke:packaged-dialogs /absolute/path/to/copied-production/backend
 Use the Node version in `.nvmrc`, an installed Playwright Chromium browser and `openssl`. This runs
 against the packaged native production server with disposable SQLite data and password sign-in,
 not the development server. A temporary loopback HTTPS edge preserves secure session cookies;
-only the test browser accepts its self-signed certificate. It runs the existing HTTP installation,
+only the test browser accepts its self-signed certificate. On macOS a process-only preference makes
+scrollbars visible without changing OS preferences. It runs the existing HTTP installation,
 scheduling, backup and restore smoke as well as desktop/narrow modal scrolling, background locking,
 scrollbar compensation, nested dialogs and selection, Escape, focus restoration and lock cleanup.
 A separate page proves that the shipped CSP blocks an injected stylesheet and that the violation

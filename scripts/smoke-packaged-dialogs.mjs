@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { request } from "node:http";
 import { createServer } from "node:https";
 import { join, resolve } from "node:path";
@@ -283,16 +283,29 @@ async function exerciseDialogs(page, { origin, resourceName, outputDir }) {
   await expectUnlocked(page, baseline);
 }
 
+async function launchBrowser(workDir) {
+  const options = {
+    ignoreDefaultArgs: ["--hide-scrollbars"],
+    args: ["--disable-features=OverlayScrollbar"],
+  };
+  if (process.platform === "darwin") {
+    // Cocoa's argument domain applies this preference only to the disposable browser process.
+    // A launcher keeps Playwright from interpreting the separate preference value as a page URL.
+    const launcher = join(workDir, "browser-launcher.sh");
+    const executable = "'" + chromium.executablePath().replaceAll("'", "'\\''") + "'";
+    await writeFile(launcher, `#!/bin/sh\nexec ${executable} -AppleShowScrollBars Always "$@"\n`, { mode: 0o700 });
+    options.executablePath = launcher;
+  }
+  return chromium.launch(options);
+}
+
 /** Exercise native production dialogs through a disposable HTTPS edge and real Chromium. */
 export async function acceptPackagedDialogs({ baseUrl, credentials, workDir, resourceName }) {
   const { edge, origin } = await startTlsEdge(baseUrl, workDir);
   let browser;
   const failures = [];
   try {
-    browser = await chromium.launch({
-      ignoreDefaultArgs: ["--hide-scrollbars"],
-      args: ["--disable-features=OverlayScrollbar"],
-    });
+    browser = await launchBrowser(workDir);
     const context = await browser.newContext({
       ignoreHTTPSErrors: true,
       viewport: { width: 1280, height: 600 },
