@@ -336,6 +336,7 @@ test("same-revision background refresh preserves Undo for a keyboard resize", as
   );
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   const refreshed = await refresh;
+  expect(refreshed.status()).toBe(200);
   await refreshed.finished();
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
@@ -411,6 +412,7 @@ test("a remote allocation deletion invalidates keyboard history after refresh", 
   );
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   const refreshed = await refresh;
+  expect(refreshed.status()).toBe(200);
   await refreshed.finished();
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
