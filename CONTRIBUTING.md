@@ -77,6 +77,10 @@ pnpm run gate:all
 pnpm run e2e
 ```
 
+While you work, `pnpm run check:changed [base]` runs only the checks for files changed since the
+merge-base with `base` (default `origin/platform/adonisjs`), including uncommitted files. It does not
+replace the gate above.
+
 A prose-only change needs formatting and a content and link review instead; rebuild the
 documentation when its sources change. Run the focused checks for changed behavior and preserve
 the security, data-integrity and migration invariants in [DECISIONS.md](DECISIONS.md).
