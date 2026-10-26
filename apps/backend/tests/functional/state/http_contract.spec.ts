@@ -23,17 +23,24 @@ test.group('M1 HTTP contract', (group) => {
     client = await resetAuthenticatedClient(client, true)
     const empty = await client.get('/api/state?accountId=')
     assert.equal(empty.status(), 400)
-    assert.deepEqual(empty.body(), { error: 'accountId must be a non-empty string.' })
+    assert.equal(empty.body().code, 'VALIDATION_ERROR')
     const repeated = await client.get('/api/state?accountId=a-studio&accountId=a-loft')
     assert.equal(repeated.status(), 400)
     const whitespace = await client.get('/api/state?accountId=%20%20')
     assert.equal(whitespace.status(), 400)
-    assert.deepEqual(whitespace.body(), { error: 'accountId must be a non-empty string.' })
+    assert.equal(whitespace.body().code, 'VALIDATION_ERROR')
     const invalidInactive = await client.get('/api/state?accountId=a-studio&includeInactive=true')
     assert.equal(invalidInactive.status(), 400)
-    assert.deepEqual(invalidInactive.body(), {
-      error: 'includeInactive must be the literal value 1 when present.',
-    })
+    assert.equal(invalidInactive.body().code, 'VALIDATION_ERROR')
+    for (const query of [
+      'unknown=1',
+      'includeInactive=1&includeInactive=1',
+      'accountId[unexpected]=1',
+    ]) {
+      const invalid = await client.get(`/api/state?${query}`)
+      invalid.assertStatus(400)
+      assert.equal(invalid.body().code, 'VALIDATION_ERROR')
+    }
     const scoped = await client.get('/api/state?accountId=a-studio')
     assert.equal(scoped.status(), 200)
     assert.deepEqual(

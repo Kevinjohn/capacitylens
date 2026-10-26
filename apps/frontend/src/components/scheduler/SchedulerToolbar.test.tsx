@@ -485,7 +485,7 @@ describe("SchedulerToolbar history errors", () => {
       }),
     );
     const undo = vi.fn(() =>
-      Promise.reject(new PlanningControllerError("The schedule changed.", "stale_revision", 409)),
+      Promise.reject(new PlanningControllerError("The schedule changed.", "STALE_REVISION", 409)),
     );
     const original = useStore.getState().undoPlanning;
     useStore.setState({ undoPlanning: undo });

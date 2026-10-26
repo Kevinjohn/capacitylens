@@ -91,7 +91,7 @@ test.group('independent typed planning operations', (group) => {
       .send()
 
     refused.assertStatus(400)
-    assert.equal(body(refused).code, 'validation_error')
+    assert.equal(body(refused).code, 'VALIDATION_ERROR')
     assert.deepEqual(await readState(accountId, true), before)
     const snapshot = await session(client.get(planningUrl), cookie).send()
     assert.equal(snapshot.body().revision, 0)
@@ -202,7 +202,7 @@ test.group('independent typed planning operations', (group) => {
       )
       .send()
     alreadyActive.assertStatus(400)
-    assert.equal(body(alreadyActive).code, 'no_change')
+    assert.equal(body(alreadyActive).code, 'NO_CHANGE')
     assert.deepEqual(Object.keys(alreadyActive.body() as object).sort(), ['code', 'error'])
 
     const missing = await session(client.post(route(`clients/${missingId}/archive`)), cookie)
@@ -211,7 +211,7 @@ test.group('independent typed planning operations', (group) => {
       )
       .send()
     missing.assertStatus(400)
-    assert.equal(body(missing).code, 'validation_error')
+    assert.equal(body(missing).code, 'VALIDATION_ERROR')
     assert.deepEqual(Object.keys(missing.body() as object).sort(), ['code', 'error'])
 
     const archived = await session(client.post(route(`clients/${clientId}/archive`)), cookie)
@@ -226,7 +226,7 @@ test.group('independent typed planning operations', (group) => {
       )
       .send()
     repeated.assertStatus(400)
-    assert.equal(body(repeated).code, 'no_change')
+    assert.equal(body(repeated).code, 'NO_CHANGE')
     assert.deepEqual(Object.keys(repeated.body() as object).sort(), ['code', 'error'])
 
     const snapshot = await session(client.get(planningUrl), cookie).send()

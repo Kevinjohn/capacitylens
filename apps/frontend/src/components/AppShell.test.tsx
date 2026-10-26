@@ -1210,7 +1210,7 @@ describe("AppShell hydration gate", () => {
 
 describe("AppShell planning problems", () => {
   it.each([
-    ["refused", new PlanningControllerError("Refused.", "account_membership_lost", 403), m.app_planning_refused()],
+    ["refused", new PlanningControllerError("Refused.", "ACCOUNT_MEMBERSHIP_LOST", 403), m.app_planning_refused()],
     ["error", new Error("Network down"), m.app_planning_unavailable()],
   ] as const)("shows a visible alert for a %s planning state", (status, error, text) => {
     useStore.getState().setHydrated(true);
@@ -1284,7 +1284,7 @@ describe("AppShell undo/redo keyboard", () => {
       act(() =>
         useStore.setState({
           undoPlanning: () =>
-            Promise.reject(new PlanningControllerError("The schedule changed.", "stale_revision", 409)),
+            Promise.reject(new PlanningControllerError("The schedule changed.", "STALE_REVISION", 409)),
         }),
       );
       await act(async () => {

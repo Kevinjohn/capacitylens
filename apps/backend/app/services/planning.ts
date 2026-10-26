@@ -55,17 +55,17 @@ async function currentAuthority(trx: TransactionClientContract, accountId: strin
   if (!role || (principal.accountId !== null && principal.accountId !== accountId))
     throw new PlanningOperationError(
       403,
-      'account_membership_lost',
+      'ACCOUNT_MEMBERSHIP_LOST',
       'Company membership is unavailable.'
     )
   const bouncer = new Bouncer({ id: principal.actorId })
   if (!(await bouncer.with(DataPolicy).allows('read', { accountId, hasMembership: true })))
-    throw new PlanningOperationError(403, 'authorization_denied', 'This action is not allowed.')
+    throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.')
   const account = await trx.from('accounts').where('id', accountId).select('id').first()
   if (!account)
     throw new PlanningOperationError(
       403,
-      'account_membership_lost',
+      'ACCOUNT_MEMBERSHIP_LOST',
       'Company membership is unavailable.'
     )
   const masquerading = (await activeMasquerade(actorIn(trx).sessionId, trx)) !== null
@@ -163,7 +163,7 @@ export function mutatePlanning(
   return withActor(ctx, async (actor, trx) => {
     const { authority, capabilities, bouncer } = await currentAuthority(trx, accountId)
     if (!(await bouncer.with(DataPolicy).allows('write', { accountId, capabilities })))
-      throw new PlanningOperationError(403, 'authorization_denied', 'This action is not allowed.')
+      throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.')
     const previous = await trx
       .from('planning_mutations')
       .where({ account_id: accountId, mutation_id: input.mutationId })
@@ -172,7 +172,7 @@ export function mutatePlanning(
     if (previous)
       throw new PlanningOperationError(
         409,
-        'mutation_id_reused',
+        'MUTATION_ID_REUSED',
         'This mutation identity has already committed.'
       )
     assertPlanningBaseRevision(
@@ -193,7 +193,7 @@ export function mutatePlanning(
     if (semanticState(before) === semanticState(after))
       throw new PlanningOperationError(
         400,
-        'no_change',
+        'NO_CHANGE',
         'The operation does not change planning data.'
       )
     // Private names and activity kind can change what a saved before-image may safely reveal.

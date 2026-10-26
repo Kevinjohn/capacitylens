@@ -54,7 +54,7 @@ test.group('M1 framework JSON parsing', (group) => {
     const response = await postRawJson(body, cookieHeader)
 
     assert.equal(response.statusCode, 400)
-    assert.equal(JSON.parse(response.body).code, 'validation_error')
+    assert.equal(JSON.parse(response.body).code, 'VALIDATION_ERROR')
   })
 
   test('passes valid non-ASCII UTF-8 JSON bytes to normal route validation', async ({
@@ -66,6 +66,6 @@ test.group('M1 framework JSON parsing', (group) => {
     const response = await postRawJson(body, cookieHeader)
 
     assert.equal(response.statusCode, 400)
-    assert.equal(JSON.parse(response.body).code, 'validation_error')
+    assert.equal(JSON.parse(response.body).code, 'VALIDATION_ERROR')
   })
 })

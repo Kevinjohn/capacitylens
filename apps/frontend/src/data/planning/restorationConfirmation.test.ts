@@ -20,7 +20,7 @@ function harness(confirm?: (count: number, signal: AbortSignal) => Promise<boole
     .mockRejectedValueOnce(
       new PlanningControllerError(
         "This change clears 3 restorable items",
-        "restoration_confirmation_required",
+        "RESTORATION_CONFIRMATION_REQUIRED",
         409,
         false,
         3,
@@ -71,22 +71,22 @@ describe("restoration cleanup confirmation", () => {
     const closed = harness();
     await closed.controller.refresh();
     await expect(closed.controller.execute(closed.controller.begin({}), intent, null)).rejects.toMatchObject({
-      code: "restoration_confirmation_required",
+      code: "RESTORATION_CONFIRMATION_REQUIRED",
     });
     expect(closed.execute).toHaveBeenCalledTimes(1);
     const confirm = vi.fn(async () => true);
     const h = harness(confirm);
     h.execute.mockReset();
     h.execute.mockRejectedValue(
-      new PlanningControllerError("The count changed.", "restoration_confirmation_stale", 409, false, 2),
+      new PlanningControllerError("The count changed.", "RESTORATION_CONFIRMATION_STALE", 409, false, 2),
     );
     // First refusal carries the original exact count; the confirmed retry receives the changed count.
     h.execute.mockRejectedValueOnce(
-      new PlanningControllerError("Confirm cleanup.", "restoration_confirmation_required", 409, false, 3),
+      new PlanningControllerError("Confirm cleanup.", "RESTORATION_CONFIRMATION_REQUIRED", 409, false, 3),
     );
     await h.controller.refresh();
     await expect(h.controller.execute(h.controller.begin({}), intent, null)).rejects.toMatchObject({
-      code: "restoration_confirmation_stale",
+      code: "RESTORATION_CONFIRMATION_STALE",
     });
     expect(confirm).toHaveBeenCalledTimes(1);
     expect(h.execute).toHaveBeenCalledTimes(2);
@@ -97,11 +97,11 @@ describe("restoration cleanup confirmation", () => {
     h.execute
       .mockReset()
       .mockRejectedValue(
-        new PlanningControllerError("Invalid count.", "restoration_confirmation_required", 409, false, -1),
+        new PlanningControllerError("Invalid count.", "RESTORATION_CONFIRMATION_REQUIRED", 409, false, -1),
       );
     await h.controller.refresh();
     await expect(h.controller.execute(h.controller.begin({}), intent, null)).rejects.toMatchObject({
-      code: "restoration_confirmation_required",
+      code: "RESTORATION_CONFIRMATION_REQUIRED",
     });
     expect(confirm).not.toHaveBeenCalled();
     expect(h.execute).toHaveBeenCalledTimes(1);

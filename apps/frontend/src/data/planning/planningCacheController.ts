@@ -187,7 +187,7 @@ function errorDetails(error: unknown): { code?: string; status?: number; message
  * stale revision, and a 403 refusal stays visible as refused. Callers add no notice for either. */
 export function isShownByPlanningState(error: unknown): boolean {
   const { code, status } = errorDetails(error);
-  return code === "stale_revision" || status === 409 || status === 403;
+  return code === "STALE_REVISION" || status === 409 || status === 403;
 }
 
 /** The planning notice to show: a 403 refusal keeps the rows (K2), and a failed read leaves them stale. */
@@ -284,7 +284,7 @@ function isValidReceipt(receipt: unknown, execution: PlanningExecution): receipt
 // keeps the readable rows and history.
 function losesScope(error: unknown): boolean {
   const details = errorDetails(error);
-  return details.status === 401 || details.code === "unauthenticated";
+  return details.status === 401 || details.code === "UNAUTHENTICATED";
 }
 
 function restoreIntent(handle: string): PlanningIntent {
@@ -531,7 +531,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     const context = state.planning.context;
     const baseRevision = state.planning.revision;
     if (!state.planning.canWrite)
-      throw new PlanningControllerError("This planning view is read-only.", "authorization_denied", 403);
+      throw new PlanningControllerError("This planning view is read-only.", "AUTHORIZATION_DENIED", 403);
     if (
       !context ||
       baseRevision === null ||
@@ -632,7 +632,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     if (!isCurrent(draft.generation, draft.context) || state.planning.revision === null)
       throw new PlanningControllerError("Planning context changed before the change could be sent.");
     if (!state.planning.canWrite)
-      throw new PlanningControllerError("This planning view is read-only.", "authorization_denied", 403);
+      throw new PlanningControllerError("This planning view is read-only.", "AUTHORIZATION_DENIED", 403);
     if (state.planning.pending) throw new PlanningControllerError("A planning change is already pending or uncertain.");
     if (state.planning.status !== "ready" && state.planning.status !== "refused")
       throw new PlanningControllerError("Planning is not ready for a new change.");
@@ -668,7 +668,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       } catch (error) {
         if (
           !(error instanceof PlanningControllerError) ||
-          error.code !== "restoration_confirmation_required" ||
+          error.code !== "RESTORATION_CONFIRMATION_REQUIRED" ||
           !Number.isSafeInteger(error.restorableItemCount) ||
           error.restorableItemCount === undefined ||
           error.restorableItemCount <= 0 ||
@@ -739,7 +739,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         if (ownsAttempt(owner)) loseScope();
         throw new PlanningControllerError(details.message, details.code, details.status);
       }
-      if (details.code === "mutation_id_reused") {
+      if (details.code === "MUTATION_ID_REUSED") {
         if (ownsAttempt(owner)) {
           store.setState((current) => ({
             planning: {
@@ -755,7 +755,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         }
         throw new PlanningControllerError(details.message, details.code, details.status, true);
       }
-      if (details.code === "stale_revision" || details.status === 409) {
+      if (details.code === "STALE_REVISION" || details.status === 409) {
         if (ownsAttempt(owner)) {
           attempt = null;
           store.setState((current) => ({
@@ -763,7 +763,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
               ...current.planning,
               status: "refused",
               pending: null,
-              outcome: { kind: "refused", mutationId: execution.mutationId, code: details.code ?? "stale_revision" },
+              outcome: { kind: "refused", mutationId: execution.mutationId, code: details.code ?? "STALE_REVISION" },
               error,
               history:
                 current.planning.revision !== null && current.planning.revision > draft.baseRevision
@@ -773,13 +773,13 @@ export function createPlanningCacheController(options: PlanningControllerOptions
           }));
           await refresh();
         }
-        throw new PlanningControllerError(details.message, details.code ?? "stale_revision", details.status);
+        throw new PlanningControllerError(details.message, details.code ?? "STALE_REVISION", details.status);
       }
       if (
         details.status !== 408 &&
-        (details.code === "authorization_denied" ||
-          details.code === "validation_error" ||
-          details.code === "no_change" ||
+        (details.code === "AUTHORIZATION_DENIED" ||
+          details.code === "VALIDATION_ERROR" ||
+          details.code === "NO_CHANGE" ||
           (details.status !== undefined && details.status < 500))
       ) {
         if (ownsAttempt(owner)) {

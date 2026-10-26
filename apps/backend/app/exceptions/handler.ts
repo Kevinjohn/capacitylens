@@ -113,6 +113,7 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       )
         return ctx.response.badRequest({
           error: 'That change references missing data or conflicts with an existing record.',
+          code: 'VALIDATION_ERROR',
         })
     }
     return ctx.response.internalServerError({ error: 'Internal server error.' })

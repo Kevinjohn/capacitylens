@@ -96,7 +96,7 @@ describe("planning request access boundaries", () => {
     });
 
     // K2: every 403 keeps data and history and shows the refusal; nothing finer.
-    for (const code of ["authorization_denied", "account_membership_lost"]) {
+    for (const code of ["AUTHORIZATION_DENIED", "ACCOUNT_MEMBERSHIP_LOST"]) {
       it(`keeps readable rows and history and shows the refusal after ${stage} reports 403/${code}`, async () => {
         const fixture = await setup();
         const history = fixture.store.getState().planning.history;

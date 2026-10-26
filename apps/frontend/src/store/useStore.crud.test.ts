@@ -5,7 +5,7 @@ import { useStore } from "./useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation, AppData, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 import { PRESET_COLORS } from "@capacitylens/shared/lib/color";
-import type { DomainError } from "@capacitylens/shared/domain/errors";
+import type { PlanningControllerError } from "@/data/planning/planningCacheController";
 import {
   DEFAULT_ACCOUNT_ID,
   makeAppData,
@@ -401,7 +401,7 @@ function registerStoreCrudEntity20(): void {
   it("company closure: add / update / delete with range validation", async () => {
     await expect(
       requireCreated(s().addClosure({ name: "  ", startDate: "2026-12-24", endDate: "2026-12-25" })),
-    ).rejects.toThrow(expect.objectContaining<Partial<DomainError>>({ code: "closure_name_required" }));
+    ).rejects.toThrow(expect.objectContaining<Partial<PlanningControllerError>>({ code: "CLOSURE_NAME_REQUIRED" }));
     const closure = await requireCreated(
       s().addClosure({ name: "Christmas shutdown", startDate: "2026-12-24", endDate: "2026-12-25" }),
     );
@@ -411,7 +411,7 @@ function registerStoreCrudEntity20(): void {
       /end date cannot be before the start date/i,
     );
     await expect(s().updateClosure(closure.id, { name: "  " })).rejects.toThrow(
-      expect.objectContaining<Partial<DomainError>>({ code: "closure_name_required" }),
+      expect.objectContaining<Partial<PlanningControllerError>>({ code: "CLOSURE_NAME_REQUIRED" }),
     );
     await s().deleteClosure(closure.id);
     expect(s().data.closures).toHaveLength(0);

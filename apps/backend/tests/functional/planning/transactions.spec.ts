@@ -144,7 +144,7 @@ db.exec('COMMIT')`,
       )
     )
     assert.deepEqual(replies.map((reply) => reply.status()).sort(), [200, 409])
-    assert.equal(replies.find((reply) => reply.status() === 409)!.body().code, 'stale_revision')
+    assert.equal(replies.find((reply) => reply.status() === 409)!.body().code, 'STALE_REVISION')
     assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 1)
     assert.lengthOf(
       await db.from('allocations').whereIn(
@@ -184,7 +184,7 @@ db.exec('COMMIT')`,
       )
     )
     assert.deepEqual(replies.map((reply) => reply.status()).sort(), [200, 409])
-    assert.equal(replies.find((reply) => reply.status() === 409)!.body().code, 'mutation_id_reused')
+    assert.equal(replies.find((reply) => reply.status() === 409)!.body().code, 'MUTATION_ID_REUSED')
     const committed = await session(
       client.get(`${planningUrl}/mutations/${mutationId}`),
       cookie
@@ -254,7 +254,7 @@ db.exec('COMMIT')`,
         .update(invalidation === 'actor permission' ? { role: 'editor' } : { status: 'archived' })
       const lost = await session(client.get(planningUrl), owner.cookie).send()
       lost.assertStatus(403)
-      assert.equal(lost.body().code, 'account_membership_lost')
+      assert.equal(lost.body().code, 'ACCOUNT_MEMBERSHIP_LOST')
       assert.isUndefined(lost.body().data)
       assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0)
     })

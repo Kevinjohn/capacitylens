@@ -38,7 +38,7 @@ describe("volatile planning transport", () => {
         { mutationId: "m1", baseRevision: revision - 1, intent: { operation: "allocation.delete", id: "a1" } },
         signal,
       ),
-    ).rejects.toMatchObject({ code: "stale_revision", status: 409 });
+    ).rejects.toMatchObject({ code: "STALE_REVISION", status: 409 });
   });
 
   it("advances the revision only when allocations changed outside the transport", async () => {
@@ -155,13 +155,13 @@ describe("demo Restore cleanup", () => {
     } as const;
     const execution = { mutationId: "change", baseRevision: revision, intent };
     await expect(h.transport.execute(context, execution, signal)).rejects.toMatchObject({
-      code: "restoration_confirmation_required",
+      code: "RESTORATION_CONFIRMATION_REQUIRED",
       restorableItemCount: 1,
     });
     await expect(h.transport.lookup(context, "delete", signal)).resolves.toMatchObject({ restorationGroupId: group });
     await expect(
       h.transport.execute(context, { ...execution, confirmedRestorationCount: 2 }, signal),
-    ).rejects.toMatchObject({ code: "restoration_confirmation_stale" });
+    ).rejects.toMatchObject({ code: "RESTORATION_CONFIRMATION_STALE" });
     await expect(
       h.transport.execute(context, { ...execution, confirmedRestorationCount: 1 }, signal),
     ).resolves.toMatchObject({ revision: revision + 1 });
@@ -185,7 +185,7 @@ describe("demo Restore cleanup", () => {
         },
         signal,
       ),
-    ).rejects.toMatchObject({ code: "no_change" });
+    ).rejects.toMatchObject({ code: "NO_CHANGE" });
     expect((await h.transport.read(context, signal)).revision).toBe(revision);
     await expect(h.transport.lookup(context, "unchanged", signal)).resolves.toEqual({
       status: "unknown",

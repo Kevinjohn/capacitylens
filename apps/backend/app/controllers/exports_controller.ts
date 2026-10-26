@@ -1,3 +1,4 @@
+import { exportQueryValidator } from '#validators/export_query'
 import type { HttpContext } from '@adonisjs/core/http'
 import { readStateWithClient } from '#services/state_repository'
 import { transformState } from '#transformers/state_transformer'
@@ -9,14 +10,7 @@ import { APP_DATA_KEYS, emptyAppData, type AppData } from '@capacitylens/shared/
 export default class ExportsController {
   async show(ctx: HttpContext) {
     const { request, response } = ctx
-    const accountId = request.qs().accountId
-    const includeInactive = request.qs().includeInactive
-    if (accountId !== undefined && (typeof accountId !== 'string' || !accountId.trim()))
-      return response.badRequest({ error: 'accountId must be a non-empty string.' })
-    if (includeInactive !== undefined && includeInactive !== '1')
-      return response.badRequest({
-        error: 'includeInactive must be the literal value 1 when present.',
-      })
+    const { accountId, includeInactive } = await exportQueryValidator.validate(request.qs())
     return withActor(ctx, async (_actor, trx) => {
       const principal = await effectiveReadPrincipal(trx)
       if (principal.accountId && accountId && principal.accountId !== accountId)
