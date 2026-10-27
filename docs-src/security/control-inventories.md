@@ -48,7 +48,7 @@ retaining its URL path.
 
 | Purpose | Primitive/library | Key/material | Lifecycle and migration |
 | --- | --- | --- | --- |
-| Password storage | Node scrypt, `N=2^14`, `r=8`, `p=1`; 16-byte salt and 64-byte derived result | Password-derived; random salt | Current profile is below the OWASP Password Storage Cheat Sheet recommendation at the same memory target; see the ASVS ledger and [issue #1583](https://github.com/Kevinjohn/capacitylens/issues/1583) |
+| Password storage | Node scrypt, `N=2^14`, `r=8`, `p=1`; 16-byte salt and 64-byte derived result | Password-derived; random salt | Current profile is below the OWASP Password Storage Cheat Sheet recommendation at the same memory target; see the ASVS ledger; this open code gap is recorded in [issue #1583](https://github.com/Kevinjohn/capacitylens/issues/1583) |
 | Password verifier comparison | Adonis scrypt hasher | Stored and derived verifier | Uses framework verification; test coverage is in Account Kit password-flow tests |
 | Invitation and reset lookup | Account Kit SHA-256 token digest | Random one-time token shown to the recipient | Expiring, single-use rows are removed or invalidated by the Kit flow |
 | Session registry handle | Account Kit random token and SHA-256 digest | Raw token remains in the server session; registry stores the digest | Database-backed session with sliding idle expiry; no maximum simultaneous-session count is configured |
@@ -98,7 +98,7 @@ policy and backup-encryption controls.
 | --- | --- | --- | --- |
 | API request log | Event, method, route, status, outcome and correlation ID when request logging is enabled; no latency is recorded | Pino JSON stdout | No request/response bodies, cookie or authorization values; sensitive bearer path segments are redacted |
 | Application audit | Actor, company, action, entity, id and changed field names | Transactional SQLite `audit_entries` table | No entity values, passwords or bearer tokens |
-| Authentication events | No auth-specific success, failure or throttling events are written to the application audit table | No application security event stream is configured; optional request logs record route/status metadata | Generic request telemetry is not a complete authentication event record; see [issue #1583](https://github.com/Kevinjohn/capacitylens/issues/1583) |
+| Authentication events | No auth-specific success, failure or throttling events are written to the application audit table | No application security event stream is configured; optional request logs record route/status metadata | Generic request telemetry is not a complete authentication event record; this open code gap is recorded in [issue #1583](https://github.com/Kevinjohn/capacitylens/issues/1583) |
 | Proxy/platform | TLS/access/container/collector events | Deployment-defined systems | Operator classifies, redacts, restricts, retains and correlates in UTC |
 
 Production configuration requires application audit to remain enabled. The application does not
