@@ -278,9 +278,9 @@ export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture) {
 }
 
 /** Exercise an extracted native artifact, optionally including its browser acceptance journey. */
-export async function runPackagedSmoke({ acceptBrowser } = {}) {
+export async function runPackagedSmoke({ acceptBrowser, usageCommand = "smoke:packaged-server" } = {}) {
   const backend = resolve(process.argv.slice(2).find((argument) => argument !== "--") ?? "");
-  if (!process.argv[2]) throw new Error("Usage: pnpm run smoke:packaged-server <extracted-artifact>/backend");
+  if (!process.argv[2]) throw new Error(`Usage: pnpm run ${usageCommand} <extracted-artifact>/backend`);
   await stat(join(backend, "bin", "server.js"));
   const workDir = await mkdtemp(join(tmpdir(), "capacitylens_package_smoke_"));
   const databasePath = join(workDir, "live.db");

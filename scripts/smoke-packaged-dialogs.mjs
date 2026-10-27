@@ -314,6 +314,7 @@ async function launchBrowser(workDir) {
 export async function acceptPackagedDialogs({ baseUrl, credentials, workDir, resourceName }) {
   const { edge, origin } = await startTlsEdge(baseUrl, workDir);
   let browser;
+  let violations = [];
   const failures = [];
   try {
     browser = await launchBrowser(workDir);
@@ -326,7 +327,7 @@ export async function acceptPackagedDialogs({ baseUrl, credentials, workDir, res
     const page = await context.newPage();
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    const violations = await observeStyleViolations(page);
+    violations = await observeStyleViolations(page);
     const response = await page.goto(origin);
     assert.equal(new URL(response.url()).origin, origin);
     assertStrictStylePolicy(response.headers()["content-security-policy"]);
@@ -355,11 +356,16 @@ export async function acceptPackagedDialogs({ baseUrl, credentials, workDir, res
     const outputDir = process.env.CAPACITYLENS_BROWSER_ARTIFACT_DIR;
     if (outputDir) await mkdir(outputDir, { recursive: true });
     await exerciseDialogs(page, { origin, resourceName, outputDir });
-    assertNoStyleViolations(violations);
     assert.deepEqual(errors, [], "Uncaught production browser exceptions.");
   } catch (error) {
     failures.push(error);
   } finally {
+    // Report blocked styles even when a later lock assertion timed out because of them.
+    try {
+      assertNoStyleViolations(violations);
+    } catch (error) {
+      failures.push(error);
+    }
     try {
       if (browser) await browser.close();
     } catch (error) {
@@ -386,5 +392,5 @@ export async function acceptPackagedDialogs({ baseUrl, credentials, workDir, res
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  await runPackagedSmoke({ acceptBrowser: acceptPackagedDialogs });
+  await runPackagedSmoke({ acceptBrowser: acceptPackagedDialogs, usageCommand: "smoke:packaged-dialogs" });
 }
