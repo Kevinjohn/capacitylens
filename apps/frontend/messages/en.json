@@ -880,6 +880,7 @@
   "app_masquerade_starting": "Starting member view…",
   "app_masquerade_end_now": "End now",
   "app_masquerade_retry": "Retry",
+  "app_masquerade_expires": "Ends {time}",
   "app_audit_log_warning": "Your change was saved, but the audit log could not be written. Contact the server administrator.",
   "settings_signed_in_as": "Signed in as {who}",
   "settings_signed_in_unknown": "unknown",

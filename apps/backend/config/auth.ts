@@ -2,6 +2,9 @@ import { defineConfig } from '@adonisjs/auth'
 import type { InferAuthenticators } from '@adonisjs/auth/types'
 import { sessionGuard, sessionUserProvider } from '@adonisjs/auth/session'
 
+/** The raw session provider shared with the Masquerade Account Kit adapter. */
+export const sessionUsers = sessionUserProvider({ model: () => import('#models/user') })
+
 type AuthConfig = {
   web: ReturnType<typeof sessionGuard>
 }
@@ -11,7 +14,7 @@ const authConfig: ReturnType<typeof defineConfig<AuthConfig>> = defineConfig({
   guards: {
     web: sessionGuard({
       useRememberMeTokens: false,
-      provider: sessionUserProvider({ model: () => import('#models/user') }),
+      provider: sessionUsers,
     }),
   },
 })

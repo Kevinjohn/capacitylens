@@ -12,23 +12,25 @@ import type { AccountMode } from "./authContext";
 import { accountClient } from "@/account/accountClient";
 import { extractApiErrorMessage } from "@/lib/readApiError";
 
-function parseMasqueradeState(value: unknown): MasqueradeState | null {
+function parseMasqueradeState(value: unknown, accountIdFallback?: string): MasqueradeState | null {
   if (!isRecord(value)) return null;
   const state = value;
+  const accountId = typeof state.accountId === "string" ? state.accountId : accountIdFallback;
   if (
-    typeof state.accountId !== "string" ||
-    state.accountId.length === 0 ||
+    typeof accountId !== "string" ||
+    accountId.length === 0 ||
     typeof state.targetUserId !== "string" ||
     state.targetUserId.length === 0 ||
     typeof state.targetName !== "string" ||
     !isAccountRole(state.effectiveRole) ||
     !isTimestamp(state.startedAt) ||
+    !isTimestamp(state.expiresAt) ||
     typeof state.token !== "string" ||
     state.token.length === 0
   ) {
     return null;
   }
-  return state as unknown as MasqueradeState;
+  return { ...(state as unknown as MasqueradeState), accountId };
 }
 
 function parseBootstrapPrincipal(value: unknown): { id: string; name?: string | null; email: string } | null {
@@ -70,22 +72,33 @@ async function assertMasqueradeState(response: Response): Promise<MasqueradeStat
 
 /** Reads and changes the current user’s temporary account masquerade. */
 export const masqueradeApi = {
-  async status(): Promise<MasqueradeBootstrapStatus> {
-    const response = await accountClient.masqueradeStatus();
+  async status(accountId?: string): Promise<MasqueradeBootstrapStatus> {
+    const response = await accountClient.masqueradeStatus(accountId);
     const body = await readMasqueradeBody(response, `Masquerade status could not be read (${response.status}).`);
     if (typeof body === "object" && body !== null && (body as { active?: unknown }).active === false) {
-      return { active: false };
+      const contextToken = (body as { contextToken?: unknown }).contextToken;
+      if (
+        !Object.hasOwn(body, "contextToken") ||
+        (contextToken !== null && (typeof contextToken !== "string" || contextToken.length === 0))
+      ) {
+        throw new Error("The server returned an invalid masquerade status.");
+      }
+      return { active: false, contextToken };
     }
-    const state = parseMasqueradeState(body);
+    const state = parseMasqueradeState(body, accountId);
     if (!state || (body as { active?: unknown }).active !== true) {
       throw new Error(extractApiErrorMessage(body) ?? "The server returned an invalid masquerade status.");
+    }
+    const contextToken = (body as { contextToken?: unknown }).contextToken;
+    if (typeof contextToken !== "string" || contextToken.length === 0 || contextToken !== state.token) {
+      throw new Error("The server returned an invalid masquerade status.");
     }
     const principal = parseBootstrapPrincipal((body as { principal?: unknown }).principal);
     const authMode = (body as { authMode?: unknown }).authMode;
     if (!principal || !isAccountMode(authMode)) {
       throw new Error("The server returned an invalid masquerade principal.");
     }
-    return { active: true, ...state, principal, authMode };
+    return { active: true, ...state, contextToken, principal, authMode };
   },
 
   async start(accountId: string, targetUserId: string): Promise<MasqueradeState> {

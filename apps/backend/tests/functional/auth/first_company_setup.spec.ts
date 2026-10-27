@@ -6,7 +6,12 @@ import env from '#start/env'
 import User, { FirstCompanyPendingError } from '#models/user'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import { asDataOwner } from '../../helpers/authenticated_data_fixture.js'
-import { bootstrapInvitation, createIdentity, signIn } from '../../helpers/identities.js'
+import {
+  bootstrapInvitation,
+  createIdentity,
+  rememberSessionCookie,
+  signIn,
+} from '../../helpers/identities.js'
 
 const email = 'bruce.wayne@wayne.example'
 const password = 'company-setup-password-2026'
@@ -29,6 +34,7 @@ async function acceptBootstrap(client: ApiClient) {
     .json({ name: 'Bruce Wayne', password })
     .send()
   accepted.assertStatus(201)
+  rememberSessionCookie(accepted)
   return { token, cookie: accepted.cookie('adonis-session')!.value, accepted }
 }
 

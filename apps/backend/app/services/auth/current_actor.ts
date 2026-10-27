@@ -7,6 +7,9 @@ import { InvalidSessionError, UnverifiedEmailError } from 'adonisjs-account-kit/
 import type { CurrentAccountInput, Trx } from 'adonisjs-account-kit/types'
 import type User from '#models/user'
 import { users } from '#services/account_kit/users'
+import { capturedMasqueradeContext } from '#services/auth/masquerade_request'
+import { MasqueradeError } from 'adonisjs-masquerade'
+import type { ResolvedContext } from 'adonisjs-masquerade'
 
 const revisionKey = 'accountKitRevision'
 const handleKey = 'accountKitSession'
@@ -20,6 +23,8 @@ export interface CurrentActor {
   displayName: string | null
   /** False until the address is confirmed; only limited routes see such an actor. */
   emailVerified: boolean
+  /** Immutable package admission captured before this request's product transaction. */
+  masqueradeContext?: ResolvedContext
 }
 
 /** The Account Kit guard port for the existing `web` session guard. */
@@ -111,7 +116,11 @@ export async function withActor<T>(
       email: account.email,
       displayName: row?.display_name ?? null,
       emailVerified: account.active,
+      masqueradeContext: capturedMasqueradeContext(ctx),
     }
+    const captured = capturedMasqueradeContext(ctx)
+    if (captured && captured.actorId !== actor.userId)
+      throw new MasqueradeError('E_MASQUERADE_CONTEXT_CHANGED')
     actors.set(trx, actor)
     try {
       return await run(actor, trx)

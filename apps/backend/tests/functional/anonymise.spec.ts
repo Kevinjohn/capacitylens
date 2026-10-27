@@ -1,4 +1,4 @@
-import { fixtureSession, signUpAndIn } from '../helpers/identities.js'
+import { fixtureSession, signIn, signUpAndIn } from '../helpers/identities.js'
 import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
 import {
@@ -567,16 +567,14 @@ test.group('company anonymisation', (group) => {
       })
       .send()
     unknown.assertStatus(403)
-    const signIn = await client
-      .post('/api/auth/sign-in')
-      .json({ email: 'bruce.wayne@wayne.example', password: 'fixture-password-2026' })
-      .send()
-    signIn.assertStatus(200)
-    const otherSession = signIn.cookie('adonis-session')?.value
-    assert.isString(otherSession)
+    const { cookie: otherSession } = await signIn(
+      client,
+      'bruce.wayne@wayne.example',
+      'fixture-password-2026'
+    )
     const foreignSession = await asDataOwner(
       client.post(`/api/accounts/${accountId}/planning/restore-group`),
-      otherSession!
+      otherSession
     )
       .json({
         mutationId: randomUUID(),

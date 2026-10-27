@@ -145,9 +145,60 @@ async function assertProofStorage(table: string, expectedColumns: string[]) {
     throw new Error(`Database schema drift: ${table} proof uniqueness is missing`)
 }
 
+async function assertMasqueradeStorage(table: string, expectedColumns: string[]) {
+  const columns = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>
+  if (JSON.stringify(columns.map(({ name }) => name)) !== JSON.stringify(expectedColumns))
+    throw new Error(
+      `Database schema drift: ${table} columns differ from the Masquerade package schema`
+    )
+}
+
+async function assertLegacyMasqueradeRetired() {
+  const legacy = await db
+    .from('sqlite_master')
+    .where({ type: 'table', name: 'masquerades' })
+    .first()
+  if (legacy) throw new Error('Database schema drift: legacy masquerades table remains')
+}
+
 export async function assertSchemaIntegrity() {
   await assertAccountKitStorage()
   await assertBaselineMigrationRecord()
+  await assertLegacyMasqueradeRetired()
+  await assertMasqueradeStorage('masquerade_modes', [
+    'authority_namespace',
+    'actor_id',
+    'actor_incarnation',
+    'revision',
+    'revision_nonce',
+    'state',
+    'access',
+    'mode_id',
+    'last_transition_id',
+    'target_id',
+    'target_incarnation',
+    'actor_stamp_hash',
+    'target_stamp_hash',
+    'reason',
+    'started_at',
+    'expires_at',
+    'updated_at',
+  ])
+  await assertMasqueradeStorage('masquerade_events', [
+    'id',
+    'mode_id',
+    'authority_namespace',
+    'actor_id',
+    'actor_incarnation',
+    'target_id',
+    'target_incarnation',
+    'at',
+    'kind',
+    'outcome_code',
+    'access',
+    'revision',
+    'reason',
+  ])
   await assertProofStorage('login_link_tokens', [
     'id',
     'tokenable_id',

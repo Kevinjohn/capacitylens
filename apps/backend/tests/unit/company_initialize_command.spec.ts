@@ -237,11 +237,23 @@ test('the bootstrap invitation then stopped-server initialization opens one Owne
           origin: string,
           cookie: string,
           accountId: string,
-          fixture: unknown
+          fixture: unknown,
+          contextToken: string
         ): Promise<{ allocation: { id: string } }>
       }
+      const modeResponse = await fetch(`${origin}/api/masquerade`, { headers: { cookie } })
+      const modeBody = await modeResponse.text()
+      assert.equal(modeResponse.status, 200, modeBody)
+      const mode = JSON.parse(modeBody) as { contextToken?: unknown }
+      assert.isString(mode.contextToken)
       const { seed } = await import('@capacitylens/shared/data/seed')
-      const { allocation } = await writeSmokeSchedule(origin, cookie, accountId, seed())
+      const { allocation } = await writeSmokeSchedule(
+        origin,
+        cookie,
+        accountId,
+        seed(),
+        mode.contextToken as string
+      )
       const persisted = f.inspect()
       assert.equal(
         persisted.prepare('SELECT hours_per_day FROM allocations WHERE id = ?').get(allocation.id)!

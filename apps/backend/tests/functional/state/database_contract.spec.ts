@@ -51,7 +51,10 @@ test.group('M1 database contract', (group) => {
     const journal = await db.from('adonis_schema').orderBy('id').select('name')
     assert.deepEqual(
       journal.map((row) => row.name),
-      ['database/migrations/202610120001_create_capacitylens_baseline']
+      [
+        'database/migrations/202610120001_create_capacitylens_baseline',
+        'database/migrations/202610270001_replace_legacy_masquerades_with_package',
+      ]
     )
     const rows = await db.from('sqlite_master').select('name').where('type', 'table')
     assert.includeMembers(

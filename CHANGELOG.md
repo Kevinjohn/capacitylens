@@ -29,6 +29,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Use a shared, read-only member view across signed-in sessions, with a 15-minute deadline, context-safe recovery and durable lifecycle audit (#1646).
+
 - Adopt the pinned Lucid soft-delete alpha for backend lifecycle models, with strict UTC timestamp serialization and tenant-scoped integration checks. Archive controls and planning restoration behavior are unchanged.
 - Set new and password-replacement hashes to the OWASP-minimum scrypt profile for the 16 MiB memory target. Legacy hashes remain verifiable, but sign-in does not automatically rehash them.
 

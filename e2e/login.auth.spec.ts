@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
-import type { APIRequestContext } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
+import { request as playwrightRequest } from "@playwright/test";
 import {
   AUTH_API as API,
   AUTH_PASSWORD as PASSWORD,
@@ -18,14 +18,18 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 const EMAIL = "tester@capacitylens.dev";
 const ORG_NAME = `Login Studio ${Date.now()}`;
 
-// This path signs up through the API because the test does not need the form. It tolerates
-// EMAIL_REGISTERED (409) when rerun against a reused server. It uses the request cookie jar because
-// this test does not need the returned session; the shared signUpUser helper requires a fresh signup.
-async function seedUser(request: APIRequestContext, email = EMAIL) {
-  const res = await request.post(`${API}/api/auth/sign-up`, {
-    data: { email, password: PASSWORD, name: "Tester" },
-  });
-  if (!res.ok()) expect(res.status()).toBe(409);
+// This unconfirmed identity uses its own anonymous request context, separate from any session used
+// to create the control company. The test tolerates EMAIL_REGISTERED (409) on a reused server.
+async function seedUser(email = EMAIL) {
+  const anonymousRequest = await playwrightRequest.newContext();
+  try {
+    const res = await anonymousRequest.post(`${API}/api/auth/sign-up`, {
+      data: { email, password: PASSWORD, name: "Tester" },
+    });
+    if (!res.ok()) expect(res.status()).toBe(409);
+  } finally {
+    await anonymousRequest.dispose();
+  }
 }
 
 function registerUnauthenticatedVisitShowsLoginScreenTest() {
@@ -36,7 +40,7 @@ function registerUnauthenticatedVisitShowsLoginScreenTest() {
     await expect(page.getByRole("link", { name: "Schedule" })).toHaveCount(0);
     expect((await request.get(`${API}/api/state`)).status()).toBe(401);
 
-    await seedUser(request);
+    await seedUser();
     await page.getByLabel("Email").fill(EMAIL);
     await page.getByLabel("Password").fill("not-the-password");
     await page.getByRole("button", { name: "Sign in" }).click();
@@ -178,7 +182,7 @@ function registerLoginWithoutMembershipTests() {
     await bootstrapOrg(request, controlOwner.cookie, controlOrgName);
 
     const lonely = `lonely-${isolationSuffix}@capacitylens.dev`;
-    await seedUser(request, lonely);
+    await seedUser(lonely);
     await page.goto("/");
     await page.getByLabel("Email").fill(lonely);
     await page.getByLabel("Password").fill(PASSWORD);

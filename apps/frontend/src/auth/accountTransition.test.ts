@@ -6,9 +6,12 @@ const mocks = vi.hoisted(() => ({
   transitionAccount: vi.fn(),
   start: vi.fn(),
   adoptStatus: vi.fn(),
+  captureStatusReconciliation: vi.fn(),
+  status: vi.fn(),
   retryProjection: vi.fn(),
   end: vi.fn(),
   setActiveAccount: vi.fn(),
+  activeAccountId: "a-studio" as string | null,
 }));
 
 vi.mock("@/data/apiConfig", () => ({
@@ -16,7 +19,13 @@ vi.mock("@/data/apiConfig", () => ({
 }));
 
 vi.mock("@/store/useStore", () => ({
-  useStore: { getState: () => ({ setActiveAccount: mocks.setActiveAccount }) },
+  useStore: {
+    getState: () => ({ activeAccountId: mocks.activeAccountId, setActiveAccount: mocks.setActiveAccount }),
+  },
+}));
+
+vi.mock("./masqueradeApi", () => ({
+  masqueradeApi: { status: mocks.status },
 }));
 
 vi.mock("./masqueradeController", () => ({
@@ -26,6 +35,7 @@ vi.mock("./masqueradeController", () => ({
       transitionAccount: mocks.transitionAccount,
       start: mocks.start,
       adoptStatus: mocks.adoptStatus,
+      captureStatusReconciliation: mocks.captureStatusReconciliation,
       retryProjection: mocks.retryProjection,
       end: mocks.end,
     }),
@@ -39,16 +49,21 @@ describe("account transition boundary", () => {
     mocks.transitionAccount.mockReset();
     mocks.start.mockReset();
     mocks.adoptStatus.mockReset();
+    mocks.captureStatusReconciliation.mockReset();
+    mocks.status.mockReset();
     mocks.retryProjection.mockReset();
     mocks.end.mockReset();
     mocks.setActiveAccount.mockReset();
+    mocks.activeAccountId = "a-studio";
   });
 
   it("rechecks refresh ownership after the controller finishes loading", async () => {
     const isCurrent = vi.fn(() => mocks.controllerLoaded.mock.calls.length === 0);
     const boundary = await import("./accountTransition");
 
-    await expect(boundary.adoptMasqueradeStatus({ active: false }, isCurrent)).resolves.toBe(false);
+    await expect(
+      boundary.adoptMasqueradeStatus({ active: false, contextToken: "idle-context" }, isCurrent),
+    ).resolves.toBe(false);
     expect(mocks.controllerLoaded).toHaveBeenCalledOnce();
     expect(isCurrent).toHaveBeenCalledOnce();
     expect(mocks.adoptStatus).not.toHaveBeenCalled();
@@ -89,12 +104,32 @@ describe("account transition boundary", () => {
   });
 
   it("adopts server status through the lazy controller boundary", async () => {
-    const status = { active: false as const };
+    const status = { active: false as const, contextToken: "idle-context" };
     const boundary = await import("./accountTransition");
 
     await expect(boundary.adoptMasqueradeStatus(status)).resolves.toBe(true);
 
     expect(mocks.adoptStatus).toHaveBeenCalledWith(status);
+  });
+
+  it("ignores a status response that arrives after its captured projection becomes stale", async () => {
+    let isCurrent = true;
+    let resolveStatus!: (status: { active: false; contextToken: string }) => void;
+    mocks.captureStatusReconciliation.mockReturnValue(() => isCurrent);
+    mocks.status.mockReturnValue(
+      new Promise((resolve) => {
+        resolveStatus = resolve;
+      }),
+    );
+    const boundary = await import("./accountTransition");
+    const reconciliation = boundary.reconcileMasqueradeStatus();
+
+    await vi.waitFor(() => expect(mocks.status).toHaveBeenCalledWith("a-studio"));
+    isCurrent = false;
+    resolveStatus({ active: false, contextToken: "stale-idle-context" });
+
+    await expect(reconciliation).resolves.toBeUndefined();
+    expect(mocks.adoptStatus).not.toHaveBeenCalled();
   });
 
   it("retries projection through the lazy controller boundary", async () => {

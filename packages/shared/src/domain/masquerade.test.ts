@@ -16,6 +16,8 @@ describe("masquerade contracts", () => {
       active: "MASQUERADE_ACTIVE",
       readOnly: "MASQUERADE_READ_ONLY",
       ended: "MASQUERADE_ENDED",
+      contextRequired: "MASQUERADE_CONTEXT_REQUIRED",
+      contextChanged: "MASQUERADE_CONTEXT_CHANGED",
     });
   });
 });

@@ -197,3 +197,9 @@ the non-blocking product orientation if it is open.
   `DELETE …/members/:userId`,
   `GET /api/accounts/:accountId/invites`, `DELETE …/invites/:id`. The in-memory demo makes no
   invitation requests.
+
+An Owner/Admin can [view the company as another active member](../../docs-src/getting-started/roles-and-permissions.md#view-the-company-as-a-member)
+without changing data. The banner names the target, shows the 15-minute deadline and offers **End now**.
+The view applies across that operator’s signed-in sessions. Returning to a tab refreshes its view;
+ending or switching company restores the operator’s view before writes resume. Signing out ends
+only that session. Expiry or changed context requires recovery without replaying an old action.

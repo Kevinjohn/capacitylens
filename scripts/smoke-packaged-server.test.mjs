@@ -3,9 +3,18 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { buildSmokeEnvironment, startServer, waitFor, writeSmokeSchedule } from "./smoke-packaged-server.mjs";
+import {
+  buildSmokeEnvironment,
+  expireSmokeViewer,
+  expectJsonStatus,
+  seedSmokeViewer,
+  startServer,
+  waitFor,
+  writeSmokeSchedule,
+} from "./smoke-packaged-server.mjs";
 
 test("packaged smoke strips deployment settings before applying its loopback fixture", () => {
   const inherited = {
@@ -32,6 +41,7 @@ test("packaged smoke strips deployment settings before applying its loopback fix
   assert.equal(environment.HOST, "127.0.0.1");
   assert.equal(environment.NODE_ENV, "production");
   assert.equal(environment.CAPACITYLENS_PUBLIC_URL, "https://127.0.0.1:43210");
+  assert.equal(environment.CAPACITYLENS_ALLOW_OPEN_SIGNUP, "true");
   assert.equal(environment.SESSION_DRIVER, "database");
   assert.equal(environment.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION, undefined);
   assert.equal(environment.CAPACITYLENS_INTERNAL_TLS_KEY, undefined);
@@ -40,6 +50,91 @@ test("packaged smoke strips deployment settings before applying its loopback fix
   assert.equal(environment.CAPACITYLENS_OIDC_DISCOVERY_URL, undefined);
   assert.equal(environment.BETTER_AUTH_SECRET, undefined);
   assert.equal(environment.VITE_CAPACITYLENS_API, undefined);
+});
+
+test("packaged smoke seeds its fictional Viewer only in the disposable stopped database", () => {
+  const directory = mkdtempSync(join(tmpdir(), "capacitylens-smoke-viewer-fixture-"));
+  const path = join(directory, "fixture.db");
+  const database = new DatabaseSync(path);
+  try {
+    database.exec(`
+      CREATE TABLE accounts (id TEXT PRIMARY KEY);
+      CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT, email_verified_at TEXT, unverified_email TEXT);
+      CREATE TABLE account_admissions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT UNIQUE, invited_email TEXT,
+        invitation_source TEXT, invitation_recorded_at TEXT, approval_status TEXT,
+        approval_actor_id TEXT, approval_decided_at TEXT, created_at TEXT, updated_at TEXT
+      );
+      CREATE TABLE memberships (
+        id TEXT PRIMARY KEY, account_id TEXT, user_id TEXT, role TEXT, status TEXT,
+        created_at TEXT, updated_at TEXT, UNIQUE (account_id, user_id)
+      );
+      CREATE TABLE masquerade_modes (
+        authority_namespace TEXT, actor_id TEXT, state TEXT, started_at TEXT, expires_at TEXT
+      );
+      INSERT INTO accounts VALUES ('wayne-enterprises');
+      INSERT INTO users (id, email) VALUES ('owner', 'bruce@wayne.example');
+      INSERT INTO users (id, email) VALUES ('viewer', 'clark@wayne.example');
+      INSERT INTO masquerade_modes VALUES (
+        'capacitylens', 'owner', 'active', '2026-10-27T00:00:00.000Z', '2026-10-27T00:15:00.000Z'
+      );
+    `);
+  } finally {
+    database.close();
+  }
+
+  try {
+    seedSmokeViewer(path, {
+      accountId: "wayne-enterprises",
+      actorUserId: "owner",
+      targetUserId: "viewer",
+      targetEmail: "clark@wayne.example",
+    });
+    expireSmokeViewer(path, "owner");
+
+    const verification = new DatabaseSync(path, { readOnly: true });
+    try {
+      assert.equal(
+        verification.prepare("SELECT email_verified_at FROM users WHERE id = 'viewer'").get().email_verified_at !==
+          null,
+        true,
+      );
+      const membership = verification.prepare("SELECT role, status FROM memberships WHERE user_id = 'viewer'").get();
+      assert.equal(membership.role, "viewer");
+      assert.equal(membership.status, "active");
+      assert.equal(
+        verification.prepare("SELECT approval_status FROM account_admissions WHERE user_id = 'viewer'").get()
+          .approval_status,
+        "approved",
+      );
+      const mode = verification
+        .prepare("SELECT started_at, expires_at FROM masquerade_modes WHERE actor_id = 'owner'")
+        .get();
+      const startedAt = Date.parse(mode.started_at);
+      const expiresAt = Date.parse(mode.expires_at);
+      assert.equal(mode.started_at, new Date(startedAt).toISOString());
+      assert.equal(mode.expires_at, new Date(expiresAt).toISOString());
+      assert.equal(expiresAt - startedAt, 15 * 60_000);
+      assert.ok(expiresAt < Date.now(), "Expired fixture deadline must be in the past");
+    } finally {
+      verification.close();
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("packaged smoke reads control response bodies once and keeps failure details", async () => {
+  const result = await expectJsonStatus(
+    new Response('{"active":true}', { status: 200 }),
+    200,
+    "Member-view start failed",
+  );
+  assert.deepEqual(result, { active: true });
+  await assert.rejects(
+    () => expectJsonStatus(new Response('{"code":"UNAVAILABLE"}', { status: 503 }), 200, "Member-view start failed"),
+    /Member-view start failed: \{"code":"UNAVAILABLE"\}/,
+  );
 });
 
 test("packaged smoke rejects an incomplete artifact before starting the server", () => {
@@ -121,7 +216,13 @@ test("authenticated smoke writes a typed allocation under its isolated company",
         },
       ],
     };
-    const written = await writeSmokeSchedule("http://localhost:8787", "fixture-session", "isolated-company", fixture);
+    const written = await writeSmokeSchedule(
+      "http://localhost:8787",
+      "fixture-session",
+      "isolated-company",
+      fixture,
+      "0.fixture-context",
+    );
     assert.equal(requests[0].url, "http://localhost:8787/api/accounts/isolated-company/resources");
     assert.equal(requests[0].headers.cookie, "fixture-session");
     assert.equal(requests[0].body.baseRevision, 1);
@@ -141,6 +242,7 @@ test("authenticated smoke writes a typed allocation under its isolated company",
     assert.equal(requests[2].body.intent.allocation.activityId, written.activity.id);
     assert.equal(written.allocation.id, requests[2].body.intent.allocation.id);
     assert.equal(requests.length, 3);
+    for (const request of requests) assert.equal(request.headers["X-Masquerade-Context"], "0.fixture-context");
     assert.equal(written.accountId, "isolated-company");
     assert.equal(fixture.resources[0].accountId, "a-studio");
   } finally {

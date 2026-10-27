@@ -9,6 +9,7 @@ import { seed } from '@capacitylens/shared/data/seed'
 import { buildBetaExport } from '@capacitylens/shared/data/betaTransfer'
 import { readState } from '#services/state_repository'
 import { signUpAndIn, expectStatus } from '../../helpers/identities.js'
+import { asDataOwner } from '../../helpers/authenticated_data_fixture.js'
 
 const accountId = 'a-studio'
 const otherAccountId = 'a-loft'
@@ -23,13 +24,7 @@ function trusted<T extends { header(name: string, value: string): T }>(request: 
   return request.header('sec-fetch-site', 'same-origin')
 }
 
-function withSession<
-  T extends { setup(callback: () => void): T; withCookie(name: string, value: string): T },
->(request: T, cookie: string): T {
-  return request.setup(() => {
-    request.withCookie('adonis-session', cookie)
-  })
-}
+const withSession = asDataOwner
 
 function configureAuth(cleanup: (callback: () => void) => void) {
   const prior = {

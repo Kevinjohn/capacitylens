@@ -4,9 +4,10 @@ import { m } from "@/i18n";
 import { isAuthMode } from "./authStatus";
 import type { AuthStatusResult } from "./authStatus";
 import { parseAuthUser } from "./validateAuthUser";
-import { adoptMasqueradeStatus } from "./accountTransition";
+import { adoptMasqueradeStatus, captureMasqueradeStatusGuard } from "./accountTransition";
 import { masqueradeApi } from "./masqueradeApi";
 import { invalidResponse, readAuthResponse } from "./authResponse";
+import { useStore } from "@/store/useStore";
 
 async function resolveIdentityWhileMasqueradeStatusIsUnknown(statusError: unknown): Promise<AuthStatusResult> {
   if (!isTransportFailure(statusError)) return authServiceError(statusError);
@@ -57,15 +58,24 @@ function authServiceError(error: unknown): AuthStatusResult {
 }
 
 export async function fetchAuthStatus(acceptEffects: () => boolean): Promise<AuthStatusResult | null> {
+  let isCurrent: () => boolean;
   let masquerade: Awaited<ReturnType<typeof masqueradeApi.status>>;
   try {
-    masquerade = await masqueradeApi.status();
+    isCurrent = await captureMasqueradeStatusGuard();
+    masquerade = await masqueradeApi.status(useStore.getState().activeAccountId ?? undefined);
   } catch (error) {
     // /me can resolve only a 401 here; a successful response does not prove inactivity.
     console.warn("AuthProvider: masquerade status could not be checked", error);
     return resolveIdentityWhileMasqueradeStatusIsUnknown(error);
   }
-  if (masquerade.active) return readActiveMasqueradeAuthStatus(masquerade, acceptEffects);
+  const acceptStatus = () => acceptEffects() && isCurrent();
+  if (!acceptStatus()) return null;
+  if (masquerade.active) {
+    const activeStatus = await readActiveMasqueradeAuthStatus(masquerade, acceptStatus);
+    return acceptEffects() ? activeStatus : null;
+  }
+  if (!(await adoptMasqueradeStatus(masquerade, acceptStatus))) return null;
+  if (!acceptEffects()) return null;
   try {
     return await readAuthResponse(await accountClient.me());
   } catch (error) {

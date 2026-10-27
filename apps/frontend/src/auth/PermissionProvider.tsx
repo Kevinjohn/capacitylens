@@ -7,7 +7,7 @@ import { PermissionContext } from "./permissionContext";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { refreshAccountSummaries } from "./useAccountSummaries";
 import { masqueradeApi } from "./masqueradeApi";
-import { adoptMasqueradeStatus } from "./accountTransition";
+import { adoptMasqueradeStatus, captureMasqueradeStatusGuard } from "./accountTransition";
 
 type PermissionStatus = "not-applicable" | "pending" | "resolved" | "unavailable";
 
@@ -56,9 +56,13 @@ async function refreshPermission(refresh: PermissionRefresh) {
   try {
     // Adopt masquerade status before publishing an effective role so reloads never render one
     // writable frame under a masqueraded session.
-    const masquerade = await masqueradeApi.status();
+    const projectionIsCurrent = await captureMasqueradeStatusGuard();
+    const isCurrent = () => refresh.isCurrent() && projectionIsCurrent();
+    if (!isCurrent()) return;
+    const masquerade = await masqueradeApi.status(refresh.accountId);
+    if (!isCurrent()) return;
+    if (!(await adoptMasqueradeStatus(masquerade, isCurrent))) return;
     if (!refresh.isCurrent()) return;
-    if (!(await adoptMasqueradeStatus(masquerade, refresh.isCurrent))) return;
     // One validated request drives the picker list and permission projection while retaining their
     // distinct failure postures.
     const summaries = await refreshAccountSummaries({

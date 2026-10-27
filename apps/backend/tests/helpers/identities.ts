@@ -1,4 +1,4 @@
-import type { ApiClient } from '@japa/api-client'
+import type { ApiClient, ApiResponse } from '@japa/api-client'
 import app from '@adonisjs/core/services/app'
 import db from '@adonisjs/lucid/services/db'
 import hash from '@adonisjs/core/services/hash'
@@ -8,6 +8,23 @@ import mail from '@adonisjs/mail/services/main'
 import env from '#start/env'
 
 export const fixturePassword = 'fixture-password-2026'
+const sessionCookieHeaders = new Map<string, string>()
+
+/** Returns the exact session cookie header captured from a sign-in response. */
+export function sessionCookieHeader(cookie: string) {
+  return sessionCookieHeaders.get(cookie) ?? `adonis-session=${cookie}`
+}
+
+export function rememberSessionCookie(response: ApiResponse) {
+  const cookie = response.cookie('adonis-session')?.value
+  const setCookies = response.header('set-cookie')
+  const cookieHeader = (Array.isArray(setCookies) ? setCookies : [setCookies])
+    .find(
+      (value): value is string => typeof value === 'string' && value.startsWith('adonis-session=')
+    )
+    ?.split(';', 1)[0]
+  if (cookie && cookieHeader) sessionCookieHeaders.set(cookie, cookieHeader)
+}
 
 /**
  * Inserts an identity the way an accepted invitation leaves it: a password, and unless asked
@@ -54,6 +71,7 @@ export async function signIn(client: ApiClient, email: string, password = fixtur
     )
     ?.split(';', 1)[0]
   if (!cookie || !cookieHeader) throw new Error('Sign-in did not create a session.')
+  sessionCookieHeaders.set(cookie, cookieHeader)
   const userId = String((response.body() as { user: { id: string } }).user.id)
   return { cookie, cookieHeader, userId }
 }
@@ -72,11 +90,13 @@ export async function signUpAndIn(
   details: { email: string; password: string; name: string }
 ) {
   await createIdentity(details.email, { name: details.name, password: details.password })
-  return client
+  const response = await client
     .post('/api/auth/sign-in')
     .header('sec-fetch-site', 'same-origin')
     .json({ email: details.email, password: details.password })
     .send()
+  rememberSessionCookie(response)
+  return response
 }
 
 /** Records an Account Kit sign-in row for `userId`, creating that identity when it is absent. */

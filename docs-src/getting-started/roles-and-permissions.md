@@ -87,11 +87,18 @@ _name_** stays visible throughout.
 
 You can read the company using that member's role and redactions, but you cannot change data. The
 server refuses every write and every company, membership, or authentication route while this view is
-active, except **End now** and sign out. It never applies to another company. An Admin who views the
+active, except **End now** and sign out. Each company request still checks both your access and the
+member’s access. An Admin who views the
 company as the Owner sees what the Owner sees, including real names.
 
-Select **End now** to return to your own view. Signing out also ends it. Switching company ends the
-view before changing company. The server records when a view starts and ends.
+The banner shows the deadline: a view lasts 15 minutes. Select **End now** to return to your own
+view sooner. The view applies to all your signed-in sessions; another tab updates when you return
+to it or make a request. Switching company ends the view for all sessions before changing company.
+Signing out ends that session only; your other sessions keep the view until it ends or expires.
+
+If a view changes while you are working, the app reloads the correct view before allowing changes.
+An interrupted action is never submitted automatically: check the restored screen and try again.
+The server records starts, ends, expiry and invalidation.
 
 ## Check what exports contain
 

@@ -105,6 +105,13 @@ test('both E2E server flavours require sign-in and refuse installation reset', a
           .join('; ')
         assert.isNotEmpty(cookie, 'password sign-in creates a native session cookie')
 
+        const contextResponse = await fetch(`http://127.0.0.1:${port}/api/masquerade`, {
+          headers: { cookie, 'sec-fetch-site': 'same-origin' },
+        })
+        assert.equal(contextResponse.status, 200, 'signed-in requests resolve their context')
+        const context = (await contextResponse.json()) as { contextToken?: unknown }
+        assert.isString(context.contextToken, 'signed-in requests receive a context token')
+
         const session = await fetch(`http://127.0.0.1:${port}/api/auth/me`, {
           headers: { cookie },
         })
@@ -116,7 +123,11 @@ test('both E2E server flavours require sign-in and refuse installation reset', a
 
         const memberlessReset = await fetch(resetUrl, {
           method: 'POST',
-          headers: { cookie, 'content-type': 'application/json' },
+          headers: {
+            cookie,
+            'content-type': 'application/json',
+            'X-Masquerade-Context': context.contextToken as string,
+          },
           body: JSON.stringify({ seed: true }),
         })
         assert.equal(

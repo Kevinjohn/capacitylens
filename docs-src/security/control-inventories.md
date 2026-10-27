@@ -54,7 +54,7 @@ retaining its URL path.
 | Session registry handle | Account Kit random token and SHA-256 digest | Raw token remains in the server session; registry stores the digest | Database-backed session with sliding idle expiry; no maximum simultaneous-session count is configured |
 | Action-proof intent | SHA-256 over canonical action, company and intent; UUID proof id | No raw import document is stored in the proof | Five-minute, single-use, session- and company-bound proof; mutation and consume share a transaction |
 | API rate-limit key | SHA-256 of request client IP | Address-derived limiter key | Used as the limiter key; application configuration controls the API request limit |
-| View-as-member token | Web Crypto generates 32 random bytes, encoded as base64url | Random session-bound token stored with the active company/actor/target row | Removed when the projection ends; no Node `node:crypto` import |
+| View-as-member context | Package-owned revision and random nonce | Identity-wide context checked on covered mutations, including idle-mode writes | Idle control rows remain to reject stale contexts; active modes expire after 15 minutes |
 | Account-command payload | SHA-256 over canonical operation, company and payload; random command/idempotency UUIDs | Payload hash and operation context | Replay/identity handles only; raw credentials are not stored as command results |
 | Import impact fingerprint | SHA-256 of canonical full export rows | Current company data fingerprint | Compares previewed content with current rows; stale-preview rejection separately compares the planning revision and requires a new preview |
 | Record identifiers | CSPRNG UUIDs | Identifier, not a secret | Used for users, restoration groups and account command/proof records |
@@ -98,6 +98,7 @@ policy and backup-encryption controls.
 | --- | --- | --- | --- |
 | API request log | Event, method, route, status, outcome and correlation ID when request logging is enabled; no latency is recorded | Pino JSON stdout | No request/response bodies, cookie or authorization values; sensitive bearer path segments are redacted |
 | Application audit | Actor, company, action, entity, id and changed field names | Transactional SQLite `audit_entries` table | No entity values, passwords or bearer tokens |
+| Member-view lifecycle | Actor, target, revision, time, outcome and transition kind | Package-owned SQLite control/event tables, included in database backups | Historical product audit remains; new events omit company and legacy end classifications; excluded from scheduling exports |
 | Authentication events | When `CAPACITYLENS_LOG=1`, password sign-in success, credential failure and throttling are structured `auth.sign_in` events with outcome and request correlation ID | Pino JSON stdout, correlated with the HTTP completion record | Events omit email, IP, user-agent, password, session and bearer values; log access and retention remain operator responsibilities |
 | Proxy/platform | TLS/access/container/collector events | Deployment-defined systems | Operator classifies, redacts, restricts, retains and correlates in UTC |
 

@@ -97,8 +97,12 @@ export const accountClient = {
     });
   },
 
-  masqueradeStatus(): Promise<Response> {
-    return apiFetch(apiRouteUrl("api.masquerade.status", {}), { credentials: "include" });
+  masqueradeStatus(workspaceId?: string): Promise<Response> {
+    const route = apiRouteUrl("api.masquerade.status", {});
+    const url = workspaceId
+      ? `${route}${route.includes("?") ? "&" : "?"}accountId=${encodeURIComponent(workspaceId)}`
+      : route;
+    return apiFetch(url, { credentials: "include" });
   },
 
   endMasquerade(body: EndMasqueradePayload): Promise<Response> {

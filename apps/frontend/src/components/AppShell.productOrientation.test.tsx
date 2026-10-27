@@ -208,7 +208,7 @@ describe("AppShell product orientation", () => {
           );
         }
         return Promise.resolve(
-          new Response(JSON.stringify({ active: false }), {
+          new Response(JSON.stringify({ active: false, contextToken: "idle" }), {
             status: 200,
             headers: { "Content-Type": "application/json" },
           }),

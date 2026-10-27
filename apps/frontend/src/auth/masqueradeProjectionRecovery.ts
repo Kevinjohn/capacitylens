@@ -1,5 +1,6 @@
 import type { MasqueradeState, MasqueradeStatus } from "@capacitylens/shared/domain/masquerade";
 import { useStore } from "@/store/useStore";
+import { setMasqueradeContextToken } from "./masqueradeContext";
 
 export type FinishProjectionResult = { kind: "finished" } | { kind: "failed"; message: string };
 export type RealProjectionResult =
@@ -37,6 +38,7 @@ export async function restoreMasqueradeProjection({
 }: RestoreMasqueradeProjectionInput): Promise<RealProjectionResult> {
   const status = await readStatus();
   if (!isCurrent()) return { kind: "superseded" };
+  setMasqueradeContextToken(status.contextToken);
   if (status.active) {
     publishActive(status);
     return { kind: "active" };

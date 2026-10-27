@@ -1,23 +1,15 @@
 import { test } from '@japa/runner'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
-import { createFixtureCompanyForOwner } from '../../helpers/authenticated_data_fixture.js'
+import {
+  asDataOwner,
+  createFixtureCompanyForOwner,
+} from '../../helpers/authenticated_data_fixture.js'
 import { resetState } from '#services/state_repository'
 import { signUpAndIn } from '../../helpers/identities.js'
 
 const password = 'batman-secret-2026'
-const withSession = <
-  T extends {
-    setup(callback: (request: T) => void): T
-    withCookie(name: string, value: string): T
-  },
->(
-  request: T,
-  cookie: string
-) =>
-  request.setup((prepared) => {
-    prepared.withCookie('adonis-session', cookie)
-  })
+const withSession = asDataOwner
 
 test.group('direct member resource association', (group) => {
   group.setup(() => freshDatabase())

@@ -44,6 +44,15 @@ startup refuse it with a `Database schema drift` message. Start a fresh database
 4. Print a setup link with `node ace.js account-kit:admission:bootstrap <owner-email> --role=viewer`
    and send it to the Owner, who recreates the company and invites everyone again.
 
+## Member-view state
+
+This upgrade ends existing member views. Their old tokens cannot continue a view; sign in and start
+a new view if needed. Historical application audit remains intact. New lifecycle events use the
+package event schema, without the old company ID or separate company-switch/sign-out reasons.
+The database backup includes current member-view control state and lifecycle events. A restored
+mode still has its original deadline and must pass current credential and company-access checks.
+Scheduling exports do not contain this control data.
+
 ## Roll back
 
 Migrations are forward-only; there are no down migrations. To roll back an application release,

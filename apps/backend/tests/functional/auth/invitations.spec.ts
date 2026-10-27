@@ -12,6 +12,7 @@ import {
   asDataOwner,
   createFixtureCompanyForOwner,
 } from '../../helpers/authenticated_data_fixture.js'
+import { rememberSessionCookie } from '../../helpers/identities.js'
 import {
   captureMail,
   clearIdentities,
@@ -117,6 +118,7 @@ test.group('company invitations', (group) => {
         .first()
     )
     // Acceptance confirms the address; company data still waits for an Owner or Admin approval.
+    rememberSessionCookie(accepted)
     const inviteeCookie = accepted.cookie('adonis-session')!.value
     const pending = await asDataOwner(client.get('/api/auth/me'), inviteeCookie).send()
     assert.isTrue(pending.body().emailVerified)

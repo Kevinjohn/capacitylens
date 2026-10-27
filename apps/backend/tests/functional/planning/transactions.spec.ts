@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { test } from '@japa/runner'
 import { freshDatabase } from '../../helpers/fresh_database.js'
+import { sessionCookieHeader } from '../../helpers/identities.js'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
 import { readState } from '#services/state_repository'
@@ -243,8 +244,30 @@ db.exec('COMMIT')`,
         .json({ targetUserId: target.userId })
         .send()
       started.assertStatus(200)
-      const before = await session(client.get(planningUrl), owner.cookie).send()
-      before.assertStatus(200)
+      const contextToken = (started.body() as { contextToken: string }).contextToken
+      const capturedPlanningRead = async () => {
+        const response = await fetch(
+          `http://127.0.0.1:${process.env.CAPACITYLENS_TEST_HTTP_PORT}${planningUrl}`,
+          {
+            headers: {
+              'cookie': sessionCookieHeader(owner.cookie),
+              'X-Masquerade-Context': contextToken,
+              'sec-fetch-site': 'same-origin',
+            },
+          }
+        )
+        return {
+          status: response.status,
+          body: (await response.json()) as {
+            code?: string
+            data?: unknown
+            authority?: { effectiveActorId?: string }
+          },
+        }
+      }
+      const before = await capturedPlanningRead()
+      assert.equal(before.status, 200)
+      assert.equal(before.body.authority?.effectiveActorId, target.userId)
       await db
         .from('memberships')
         .where({
@@ -252,10 +275,10 @@ db.exec('COMMIT')`,
           user_id: invalidation === 'target membership' ? target.userId : owner.userId,
         })
         .update(invalidation === 'actor permission' ? { role: 'editor' } : { status: 'archived' })
-      const lost = await session(client.get(planningUrl), owner.cookie).send()
-      lost.assertStatus(403)
-      assert.equal(lost.body().code, 'ACCOUNT_MEMBERSHIP_LOST')
-      assert.isUndefined(lost.body().data)
+      const lost = await capturedPlanningRead()
+      assert.equal(lost.status, 409)
+      assert.equal(lost.body.code, 'MASQUERADE_CONTEXT_CHANGED')
+      assert.isUndefined(lost.body.data)
       assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0)
     })
   }

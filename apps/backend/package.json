@@ -82,6 +82,7 @@
     "@tuyau/core": "1.2.2",
     "@vinejs/vine": "4.4.0",
     "adonisjs-account-kit": "file:../../vendor/adonisjs-account-kit/adonisjs-account-kit-0.1.3.tgz",
+    "adonisjs-masquerade": "file:../../vendor/adonisjs-masquerade/adonisjs-masquerade-0.1.1-alpha.tgz",
     "better-sqlite3": "13.0.3",
     "luxon": "^3.7.2",
     "reflect-metadata": "^0.2.2"

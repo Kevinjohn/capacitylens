@@ -122,6 +122,7 @@ describe("Getting started", () => {
         targetName: "Clark Kent",
         effectiveRole: "editor" as const,
         startedAt: "2026-10-19T10:00:00.000Z",
+        expiresAt: "2999-10-19T10:15:00.000Z",
         token: "test-projection",
       };
       useStore

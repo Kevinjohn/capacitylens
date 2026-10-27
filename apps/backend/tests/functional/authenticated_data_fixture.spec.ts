@@ -24,5 +24,15 @@ test.group('authenticated data fixture', (group) => {
     const owner = authenticatedDataClient(client, session.cookie)
     const proxied = await owner.get('/api/state?accountId=a-studio').send()
     proxied.assertStatus(200)
+    const context = await owner.get('/api/masquerade').send()
+    context.assertStatus(200)
+    const contextToken = (context.body() as unknown as { contextToken?: unknown }).contextToken
+    assert.isString(contextToken)
+    assert.isAbove((contextToken as string).length, 0)
+    const write = await owner
+      .put('/api/accounts/a-studio/getting-started')
+      .json({ dismissed: true })
+      .send()
+    assert.equal(write.status(), 200, JSON.stringify(write.body()))
   })
 })

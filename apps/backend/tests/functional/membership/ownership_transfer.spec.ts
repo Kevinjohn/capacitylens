@@ -5,7 +5,10 @@ import db from '@adonisjs/lucid/services/db'
 import { seed } from '@capacitylens/shared/data/seed'
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 import { encodeRow, resetState } from '#services/state_repository'
-import { createFixtureCompanyForOwner } from '../../helpers/authenticated_data_fixture.js'
+import {
+  asDataOwner,
+  createFixtureCompanyForOwner,
+} from '../../helpers/authenticated_data_fixture.js'
 import { signUpAndIn } from '../../helpers/identities.js'
 
 const password = 'batman-secret-2026'
@@ -47,13 +50,7 @@ async function fixture(client: ApiClient) {
   return { ownerId, adminId, ownerCookie, adminCookie, now }
 }
 
-function signed<
-  T extends { setup(callback: () => void): T; withCookie(name: string, value: string): T },
->(request: T, cookie: string): T {
-  return request.setup(() => {
-    request.withCookie('adonis-session', cookie)
-  })
-}
+const signed = asDataOwner
 
 async function transferProof(client: ApiClient, cookie: string, toUserId: string) {
   const result = await signed(client.post('/api/auth/action-proof/password'), cookie)
@@ -282,7 +279,7 @@ test.group('atomic ownership transfer', (group) => {
     const ended = await signed(client.delete('/api/masquerade'), ownerCookie)
       .json({ token, reason: 'explicit' })
       .send()
-    ended.assertStatus(204)
+    ended.assertStatus(200)
     const completed = await ownerRequest()
     completed.assertStatus(200)
     const otherActor = await signed(

@@ -9,9 +9,10 @@ import { makeAccount, makeAppData, resetStoreWithAccount } from "@/test/fixtures
 import { useStore } from "@/store/useStore";
 import { useAccountSummaries } from "./useAccountSummaries";
 import * as accountTransition from "./accountTransition";
+import type { MasqueradeStatus } from "@capacitylens/shared/domain/masquerade";
 
 const permissionMocks = vi.hoisted(() => ({
-  masqueradeStatus: vi.fn(async () => ({ active: false as const })),
+  masqueradeStatus: vi.fn<() => Promise<MasqueradeStatus>>(async () => ({ active: false, contextToken: "idle" })),
 }));
 vi.mock("./masqueradeApi", () => ({
   masqueradeApi: { status: permissionMocks.masqueradeStatus },
@@ -90,7 +91,7 @@ function addSecondAccount() {
 }
 
 beforeEach(async () => {
-  permissionMocks.masqueradeStatus.mockReset().mockResolvedValue({ active: false });
+  permissionMocks.masqueradeStatus.mockReset().mockResolvedValue({ active: false, contextToken: "idle" });
   await resetStoreWithAccount();
   useStore.setState({ masquerade: { kind: "inactive" } });
   vi.stubEnv("VITE_CAPACITYLENS_DEMO", "");
@@ -116,6 +117,7 @@ describe("PermissionProvider authenticated lookup posture", () => {
           targetName: "Selina Kyle",
           effectiveRole: "viewer",
           startedAt: "2026-09-01T10:00:00.000Z",
+          expiresAt: "2999-09-01T10:15:00.000Z",
           token: "session-token",
         },
       },
@@ -179,7 +181,7 @@ describe("PermissionProvider refresh behavior", () => {
 
 describe("PermissionProvider membership invalidation", () => {
   it("starts the directory read only after status resolves and adopts status before publishing the role", async () => {
-    let resolveStatus!: (status: { active: false }) => void;
+    let resolveStatus!: (status: { active: false; contextToken: string }) => void;
     permissionMocks.masqueradeStatus.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
@@ -202,7 +204,8 @@ describe("PermissionProvider membership invalidation", () => {
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(useStore.getState().activeRoleStatus).toBe("pending");
-    resolveStatus({ active: false });
+    await waitFor(() => expect(permissionMocks.masqueradeStatus).toHaveBeenCalledOnce());
+    resolveStatus({ active: false, contextToken: "idle" });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     expect(await screen.findByText("resolved:owner:edit")).toBeInTheDocument();
 
@@ -303,23 +306,64 @@ describe("PermissionProvider account-switch safety", () => {
 
   it("does not adopt an old account's delayed masquerade status after a switch", async () => {
     addSecondAccount();
-    const aStatus = deferred<{ active: false }>();
+    const aStatus = deferred<{ active: false; contextToken: string }>();
     permissionMocks.masqueradeStatus
       .mockImplementationOnce(() => aStatus.promise)
-      .mockResolvedValueOnce({ active: false });
+      .mockResolvedValueOnce({ active: false, contextToken: "idle" });
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(accountResponse("a-studio", "editor")));
     const adoptStatus = vi.spyOn(accountTransition, "adoptMasqueradeStatus");
     renderProvider();
 
+    await waitFor(() => expect(permissionMocks.masqueradeStatus).toHaveBeenCalledOnce());
     act(() => useStore.getState().setActiveAccount("a-studio"));
     expect(screen.getByText("pending:viewer:read")).toBeInTheDocument();
     expect(await screen.findByText("resolved:editor:edit")).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBe("editor");
 
-    await act(async () => aStatus.resolve({ active: false }));
+    await act(async () => aStatus.resolve({ active: false, contextToken: "idle" }));
     expect(adoptStatus).toHaveBeenCalledTimes(1);
     expect(screen.getByText("resolved:editor:edit")).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBe("editor");
+  });
+
+  it("ignores a delayed active status after a local controller transition", async () => {
+    await resetStoreWithAccount("a-studio");
+    let resolveStatus!: (status: MasqueradeStatus) => void;
+    permissionMocks.masqueradeStatus.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveStatus = resolve;
+        }),
+    );
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { masqueradeController } = await import("./masqueradeController");
+    const inactiveProjection = useStore.getState().masquerade;
+    const adoptStatus = vi.spyOn(accountTransition, "adoptMasqueradeStatus");
+    renderProvider();
+
+    await waitFor(() => expect(permissionMocks.masqueradeStatus).toHaveBeenCalledOnce());
+    act(() => {
+      masqueradeController.invalidate();
+      useStore.setState({ masquerade: inactiveProjection });
+    });
+    await act(async () =>
+      resolveStatus({
+        active: true,
+        accountId: "a-studio",
+        targetUserId: "u-viewer",
+        targetName: "Selina Kyle",
+        effectiveRole: "viewer",
+        startedAt: "2026-09-01T10:00:00.000Z",
+        expiresAt: "2026-09-01T10:15:00.000Z",
+        token: "stale-mode-token",
+        contextToken: "stale-mode-token",
+      }),
+    );
+
+    expect(adoptStatus).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(useStore.getState().masquerade).toBe(inactiveProjection);
   });
 });
 

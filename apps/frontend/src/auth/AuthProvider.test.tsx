@@ -4,14 +4,17 @@ import type { MasqueradeBootstrapStatus } from "./masqueradeApi";
 import { AUTH_INVALIDATION_STORAGE_KEY } from "./signOut";
 
 const authBootstrapMocks = vi.hoisted(() => ({
-  masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({ active: false })),
+  masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({
+    active: false,
+    contextToken: "idle",
+  })),
 }));
 vi.mock("./masqueradeApi", () => ({ masqueradeApi: { status: authBootstrapMocks.masqueradeStatus } }));
 
 // The API base captures build settings at module load, so each test creates a fresh module graph for its configured deployment. Auth context must come from that same graph.
 
 afterEach(() => {
-  authBootstrapMocks.masqueradeStatus.mockReset().mockResolvedValue({ active: false });
+  authBootstrapMocks.masqueradeStatus.mockReset().mockResolvedValue({ active: false, contextToken: "idle" });
   localStorage.clear();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
@@ -272,7 +275,9 @@ function registerServerModeTest06() {
       targetName: "Selina Kyle",
       effectiveRole: "viewer",
       startedAt: "2026-09-01T10:00:00.000Z",
+      expiresAt: "2026-09-01T10:15:00.000Z",
       token: "session-token",
+      contextToken: "session-token",
       principal: { id: "real-principal", name: "Bruce Wayne", email: "bruce@example.test" },
       authMode: "password-only",
     });
@@ -302,7 +307,9 @@ function registerServerModeTest06() {
       targetName: "Selina Kyle",
       effectiveRole: "viewer",
       startedAt: "2026-09-01T10:00:00.000Z",
+      expiresAt: "2026-09-01T10:15:00.000Z",
       token: "session-token",
+      contextToken: "session-token",
       principal: { id: "real-principal", name: "Bruce Wayne", email: "bruce@example.test" },
       authMode: "password-only",
     });
@@ -341,6 +348,7 @@ function registerServerModeTest06() {
       { id: "a-studio", name: "Wayne Enterprises", role: "viewer" },
     ]);
     expect(useStore.getState().masquerade.kind).toBe("active");
+    expect(authBootstrapMocks.masqueradeStatus).toHaveBeenCalledWith(undefined);
     expect(fetchSpy).toHaveBeenCalled();
   });
 
@@ -353,7 +361,9 @@ function registerServerModeTest06() {
       targetName: "Selina Kyle",
       effectiveRole: "viewer",
       startedAt: "2026-09-01T10:00:00.000Z",
+      expiresAt: "2026-09-01T10:15:00.000Z",
       token: "session-token",
+      contextToken: "session-token",
       principal: { id: "real-principal", name: "Bruce Wayne", email: "bruce@example.test" },
       authMode: "off",
     });
@@ -888,6 +898,7 @@ function registerServerModeTest31() {
     expect(await screen.findByRole("button", { name: /refresh/ })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /refresh/ }));
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
     act(() => useStore.setState((state) => ({ planningAuthLossVersion: state.planningAuthLossVersion + 1 })));
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
 

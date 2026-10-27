@@ -9,6 +9,7 @@ import hash from '@adonisjs/core/services/hash'
 import { asDataOwner, resetAuthenticatedData } from '../helpers/authenticated_data_fixture.js'
 import { freshDatabase } from '../helpers/fresh_database.js'
 import type { ApiClient } from '@japa/api-client'
+import { signIn } from '../helpers/identities.js'
 
 const accountId = 'a-studio'
 const password = 'fixture-password-2026'
@@ -450,13 +451,7 @@ test.group('beta transfer apply', (group) => {
     const full = await document()
     const baseRevision = await revision()
     const actionProof = await proof(client, cookie, { baseRevision, document: full })
-    const second = await client
-      .post('/api/auth/sign-in')
-      .json({ email: 'bruce.wayne@wayne.example', password })
-      .send()
-    second.assertStatus(200)
-    const secondCookie = second.cookie('adonis-session')?.value
-    if (!secondCookie) throw new Error('The second native session was not established.')
+    const { cookie: secondCookie } = await signIn(client, 'bruce.wayne@wayne.example', password)
     const wrongSession = await apply(client, secondCookie, full, baseRevision, actionProof)
     wrongSession.assertStatus(403)
     const unspent = await db.from('action_proofs').where('id', actionProof).first()

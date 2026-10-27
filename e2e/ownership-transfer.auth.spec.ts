@@ -6,6 +6,7 @@ import {
   AUTH_PASSWORD as PASSWORD,
   bootstrapOrg,
   seedFixtureMember,
+  masqueradeContextHeaders,
   signUpUserWithId,
 } from "./authTestSupport";
 import { waitForAppLanding } from "./browserTestSupport";
@@ -72,7 +73,7 @@ test("the Owner confirms one immediate handover and both memberships refresh", a
     await expect(adminPage.getByTestId("current-access")).toContainText("Admin");
     await expect(adminPage.getByTestId("ownership-transfer-card")).toHaveCount(0);
     const refused = await request.post(`${API}/api/accounts/${accountId}/ownership-transfer`, {
-      headers: { cookie: editor.cookie },
+      headers: await masqueradeContextHeaders(request, editor.cookie),
       data: { toUserId: admin.userId },
     });
     expect(refused.status()).toBe(403);

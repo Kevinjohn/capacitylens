@@ -200,8 +200,21 @@ This is the short, present-tense record of decisions that constrain future work.
 - Members and schedulable Resources are separate records linked explicitly. Adding a Resource never
   grants access; inviting a member never creates a person. Team & access is visible to every role;
   only Owner/Admin see invitation and access-management controls.
-- View-as-member is a read-only projection for Owner/Admin, audited on start and end. Every write
-  under a projection is refused server-side.
+- View-as-member uses the pinned Masquerade package for identity-wide, read-only modes and durable
+  lifecycle audit, with a fixed 15-minute expiry. Every signed-in session observes the same mode on
+  its next request; focus and visibility reconciliation refresh the browser. Company navigation
+  ends the mode globally; signing out ends only the current session. Each company request checks
+  both real-actor and target permissions. No failed target check falls back to actor permissions.
+- Package admission captures the request identity before product transactions. The product
+  transaction revalidates the same real actor/session and company/target access. Already-admitted
+  operator requests may finish after start; already-admitted target requests remain read-only after
+  stop. Package operations never run inside the single-connection product transaction. Covered
+  writes require the context captured for the action, including idle-mode writes; stale actions are
+  refused and never automatically replayed.
+- Package events are authoritative for new view-as lifecycle audit. Historical product audit stays
+  intact, but new events do not retain a company ID or separate explicit/company-switch/sign-out
+  classifications. Control state and events stay in database backups, outside scheduling exports.
+  Upgrades end legacy projections without converting their tokens into new authority.
 - Cross-site writes are refused by the Origin / Sec-Fetch-Site check, with one exemption for a
   same-host Origin that claims `https` behind a TLS-terminating proxy. Shield owns HSTS, `nosniff`
   and frame protection; HSTS is sent only when the public URL is HTTPS. There is no CSP report
