@@ -1,3 +1,4 @@
+import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors'
 import type { HttpContext } from '@adonisjs/core/http'
 import accountKit from 'adonisjs-account-kit/services/main'
 import { InvalidTokenError } from 'adonisjs-account-kit/errors'
@@ -80,7 +81,7 @@ export default class VerificationController {
             'Your address is confirmed and your password is set. Sign in with the new password.',
           code: 'VERIFICATION_COMMITTED',
           committed: true,
-        })
+        } satisfies ProductHttpErrorBody)
       throw error
     }
   }
