@@ -19,24 +19,21 @@ import {
 } from '#services/auth/current_actor'
 import { endMasqueradeForSignOut } from '#services/auth/masquerade'
 import { recordMemberSignIn } from '#services/membership/sign_in_tracking'
-import { passwordLengthFailure } from '@capacitylens/shared/domain/password'
-import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
-import { MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings'
+import { errors as vineErrors } from '@vinejs/vine'
+import { signInValidator, signUpValidator } from '#validators/auth_requests'
 import { isCommittedFailure } from '#services/account_kit/committed'
+import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors'
 
-function bodyFields(value: unknown, fields: string[]): value is Record<string, unknown> {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value).every((key) => fields.includes(key))
+function invalidAuthRequest(error: unknown, operation: 'sign-in' | 'sign-up') {
+  if (!(error instanceof vineErrors.E_VALIDATION_ERROR)) throw error
+  const shape = error.messages.some(
+    (message: { rule: string }) => message.rule === 'unknownField' || message.rule === 'object'
   )
-}
-
-function emailOf(value: unknown) {
-  if (typeof value !== 'string') return null
-  const email = normalizeAccountEmail(value)
-  return isAccountEmail(email) ? email : null
+  return shape
+    ? `Invalid ${operation} request.`
+    : operation === 'sign-in'
+      ? 'Invalid email or password.'
+      : 'Invalid sign-up details.'
 }
 
 function userProjection(actor: Pick<CurrentActor, 'userId' | 'email' | 'displayName'>) {
@@ -105,12 +102,13 @@ export default class AuthController {
   }
 
   async signIn(ctx: HttpContext) {
-    const body: unknown = ctx.request.body()
-    if (!bodyFields(body, ['email', 'password']))
-      return ctx.response.badRequest({ error: 'Invalid sign-in request.' })
-    const email = emailOf(body.email)
-    if (!email || typeof body.password !== 'string')
-      return ctx.response.badRequest({ error: 'Invalid email or password.' })
+    let body
+    try {
+      body = await ctx.request.validateUsing(signInValidator, { data: ctx.request.body() })
+    } catch (error) {
+      return ctx.response.badRequest({ error: invalidAuthRequest(error, 'sign-in') })
+    }
+    const { email } = body
     try {
       return ctx.response.ok({ user: await signInWithPassword(ctx, email, body.password) })
     } catch (error) {
@@ -125,19 +123,13 @@ export default class AuthController {
    * a confirmed address and admission. The first identity always comes from the bootstrap invitation.
    */
   async signUp(ctx: HttpContext) {
-    const body: unknown = ctx.request.body()
-    if (!bodyFields(body, ['email', 'password', 'name']))
-      return ctx.response.badRequest({ error: 'Invalid sign-up request.' })
-    const email = emailOf(body.email)
-    const name = typeof body.name === 'string' ? body.name.trim() : ''
-    if (
-      !email ||
-      typeof body.password !== 'string' ||
-      passwordLengthFailure(body.password) ||
-      !name ||
-      name.length > MAX_NAME_LENGTH
-    )
-      return ctx.response.badRequest({ error: 'Invalid sign-up details.' })
+    let body
+    try {
+      body = await ctx.request.validateUsing(signUpValidator, { data: ctx.request.body() })
+    } catch (error) {
+      return ctx.response.badRequest({ error: invalidAuthRequest(error, 'sign-up') })
+    }
+    const { email, name } = body
     if (!env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP') || !(await db.from('accounts').first()))
       return ctx.response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' })
     try {
@@ -153,7 +145,7 @@ export default class AuthController {
         return ctx.response.conflict({
           error: 'An account already uses this email. Sign in or reset your password.',
           code: 'EMAIL_REGISTERED',
-        })
+        } satisfies ProductHttpErrorBody)
       // The account exists; only the confirmation email may be missing, and it can be resent.
       if (!isCommittedFailure(error)) throw error
       ctx.logger.warn({ code: 'REGISTRATION_FOLLOW_UP_FAILED' }, 'Registration follow-up failed')

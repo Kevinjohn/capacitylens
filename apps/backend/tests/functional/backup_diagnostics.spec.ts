@@ -31,10 +31,84 @@ test.group('Backup diagnostics', (group) => {
   test('readiness reports database health without a backup latch', async ({ client, assert }) => {
     const response = await client.get('/health/ready')
     assert.equal(response.status(), 200)
+    assert.isTrue(
+      response
+        .body()
+        .checks.some((check: { name: string }) => check.name === 'Database health check (sqlite)')
+    )
     assert.equal(
       response.body().checks.some((check: { name: string }) => check.name === 'Backups'),
       false
     )
+  })
+
+  test('readiness fails safely when the schema integrity check detects drift', async ({
+    client,
+    assert,
+  }) => {
+    const index = await db
+      .from('sqlite_master')
+      .select('name', 'sql')
+      .where('type', 'index')
+      .where('tbl_name', 'projects')
+      .whereNotNull('sql')
+      .whereLike('sql', '%client_id%')
+      .first()
+    assert.isDefined(index?.sql)
+    await db.rawQuery(`DROP INDEX "${String(index!.name)}"`)
+    const errors: unknown[][] = []
+    const originalError = logger.error
+    logger.error = ((...args: unknown[]) => {
+      errors.push(args)
+    }) as typeof logger.error
+    try {
+      const response = await client.get('/health/ready')
+      assert.deepEqual(errors, [
+        [
+          { reason: 'Database schema drift: projects.client_id index is missing' },
+          'Database readiness check failed',
+        ],
+      ])
+      assert.equal(response.status(), 503)
+      assert.isFalse(response.body().isHealthy)
+      const check = response
+        .body()
+        .checks.find((item: { name: string }) => item.name === 'Database health check (sqlite)')
+      assert.equal(check.status, 'error')
+      assert.equal(check.message, 'Database readiness check failed')
+      assert.notInclude(JSON.stringify(response.body()), String(index!.name))
+    } finally {
+      logger.error = originalError
+      await db.rawQuery(String(index!.sql))
+    }
+  })
+
+  test('readiness fails safely when the baseline migration record is missing', async ({
+    client,
+    assert,
+  }) => {
+    const baseline = await db
+      .from('adonis_schema')
+      .where('name', 'database/migrations/202610120001_create_capacitylens_baseline')
+      .first()
+    assert.isDefined(baseline)
+    await db.from('adonis_schema').where('id', baseline!.id).delete()
+    try {
+      const response = await client.get('/health/ready')
+      assert.equal(response.status(), 503)
+      assert.isFalse(response.body().isHealthy)
+      const check = response
+        .body()
+        .checks.find((item: { name: string }) => item.name === 'Database health check (sqlite)')
+      assert.equal(check.status, 'error')
+      assert.equal(check.message, 'Database readiness check failed')
+      assert.notInclude(JSON.stringify(response.body()), 'database/migrations/')
+      assert.notInclude(JSON.stringify(response.body()), 'adonis_schema')
+    } finally {
+      await db.table('adonis_schema').insert(baseline!)
+    }
+    const healthy = await client.get('/health/ready')
+    assert.equal(healthy.status(), 200)
   })
 
   test('diagnostics reports the last applied migration and no snapshot when none exists', async ({

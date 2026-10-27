@@ -1,6 +1,6 @@
 import { requireCreated } from "@/test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { act, render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AllocationModal } from "./AllocationModal";
 import { useStore } from "@/store/useStore";
@@ -37,6 +37,105 @@ async function addInlineActivityTestPerson() {
 }
 
 describe("AllocationModal inline activity creation pref", () => {
+  it("keeps a newer project and activity selection when inline creation resolves late", async () => {
+    const resourceId = await addInlineActivityTestPerson();
+    await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
+    const user = userEvent.setup();
+    let finishCreation!: () => void;
+    const creationPending = new Promise<void>((resolve) => {
+      finishCreation = resolve;
+    });
+    const addActivity = useStore.getState().addActivity;
+    let pendingCreation: ReturnType<typeof addActivity> | undefined;
+    const addActivitySpy = vi.spyOn(useStore.getState(), "addActivity").mockImplementation((draft) => {
+      pendingCreation = (async () => {
+        await creationPending;
+        return addActivity(draft);
+      })();
+      return pendingCreation;
+    });
+
+    render(
+      <AllocationModal
+        kind="create"
+        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await chooseOption(user, "Project", "Ferris / Other");
+    await user.type(screen.getByLabelText("New activity name"), "Late activity");
+
+    await user.click(screen.getByRole("button", { name: "Add activity" }));
+    expect(addActivitySpy).toHaveBeenCalledOnce();
+    const activityCreation = pendingCreation;
+    if (!activityCreation) throw new Error("Expected inline activity creation to be pending.");
+    await chooseOption(user, "Project", "Ferris / Lightning");
+    await chooseOption(user, "Activity", "Wireframes");
+
+    await act(async () => {
+      finishCreation();
+      await activityCreation;
+    });
+
+    expect(useStore.getState().data.activities.find(({ name }) => name === "Late activity")).toMatchObject({
+      name: "Late activity",
+      projectId: "p2",
+    });
+    expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Ferris / Lightning");
+    expect(screen.getByRole("combobox", { name: "Activity" })).toHaveTextContent("Wireframes");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(useStore.getState().data.allocations).toHaveLength(1);
+    expect(useStore.getState().data.allocations[0]?.activityId).toBe("t1");
+    expect(useStore.getState().data.allocations[0]?.activityId).not.toBe(
+      useStore.getState().data.activities.find(({ name }) => name === "Late activity")?.id,
+    );
+  });
+
+  it("keeps a new activity name typed while an earlier inline creation is pending", async () => {
+    const resourceId = await addInlineActivityTestPerson();
+    await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
+    const user = userEvent.setup();
+    let finishCreation!: () => void;
+    const creationPending = new Promise<void>((resolve) => {
+      finishCreation = resolve;
+    });
+    const addActivity = useStore.getState().addActivity;
+    let pendingCreation: ReturnType<typeof addActivity> | undefined;
+    vi.spyOn(useStore.getState(), "addActivity").mockImplementation((draft) => {
+      pendingCreation = (async () => {
+        await creationPending;
+        return addActivity(draft);
+      })();
+      return pendingCreation;
+    });
+
+    render(
+      <AllocationModal
+        kind="create"
+        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await chooseOption(user, "Project", "Ferris / Other");
+    const nameInput = screen.getByLabelText("New activity name");
+    await user.type(nameInput, "Late activity");
+    await user.click(screen.getByRole("button", { name: "Add activity" }));
+    const activityCreation = pendingCreation;
+    if (!activityCreation) throw new Error("Expected inline activity creation to be pending.");
+    await user.clear(nameInput);
+    await user.type(nameInput, "Next activity");
+
+    await act(async () => {
+      finishCreation();
+      await activityCreation;
+    });
+
+    expect(useStore.getState().data.activities.some(({ name }) => name === "Late activity")).toBe(true);
+    expect(screen.getByLabelText("New activity name")).toHaveValue("Next activity");
+  });
+
   it('renders the inline "Add activity" input + button when explicitly enabled', async () => {
     const resourceId = await addInlineActivityTestPerson();
     await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });

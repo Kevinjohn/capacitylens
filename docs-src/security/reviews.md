@@ -13,10 +13,11 @@ on its own page; this page just explains what each one is and when to reach for 
 
 ## [OWASP ASVS 5.0.0 ledger](/security/owasp-asvs-5.0.0)
 
-Dated 2026-08-18 for alpha4. Every one of the 345 requirements in the OWASP Application Security
-Verification Standard 5.0.0 (covering Levels 1 to 3), assessed as Pass, Partial, Gap or Not
-Applicable, with the repository evidence behind each one. Read this when you need to check a
-specific control by ASVS requirement id, or want the complete picture rather than a summary.
+The original assessment is dated 2026-08-18 for alpha4. The ledger now includes a 2026-10-26
+amendment for the Account Kit cutover. It assesses all 345 requirements in the OWASP Application
+Security Verification Standard 5.0.0 (Levels 1 to 3) as Pass, Partial, Gap or Not Applicable, with
+repository evidence behind each one. Read it to check a specific ASVS requirement or see the
+current classification; the dated security reviews remain point-in-time records.
 
 ## [OpenSSF Baseline self-assessment](/security/OpenSSF-best-practices-dev)
 
@@ -29,7 +30,8 @@ Read this when completing or checking the project's public OpenSSF badge entry.
 The alpha4 reassessment covered the complete source at that time and the security-relevant delta
 since July. It records the fixed session-idle, strict-OIDC SSRF and provider-token findings, refreshed
 the threat model and inventories, and reconciled all 345 ASVS controls with the CI and ZAP evidence
-available then.
+available then. Its identity-provider findings describe the 2026-08-18 product state, before the
+Account Kit password-only cutover.
 
 ## [Security review — 2026-07-14](/security/reviews/security-review-2026-07-14)
 
@@ -41,20 +43,17 @@ what is left to the self-hosting operator. Read this for the narrative version o
 
 ## [Threat model](/security/threat-model)
 
-Dated 2026-08-18. States CapacityLens's security objectives in plain terms, lists the assets and
-trust boundaries being protected, names the realistic attackers (a malicious teammate, a
-credential-stuffing bot, a compromised identity provider, a careless operator, and more), and maps
-each abuse case to the controls and tests that address it. Ends with the risks that are
-consciously accepted rather than fixed. Read this to understand _why_ a control exists, not just
-that it does.
+Current authentication posture reviewed 2026-10-26 against the Account Kit password-only cutover.
+The threat model states CapacityLens's security objectives, assets, trust boundaries, realistic
+attackers (including a malicious teammate, credential-guessing bot, mailbox access and a careless
+operator), and maps abuse cases to controls and tests. It distinguishes current controls from
+accepted risks; it is not a fresh review of the full model.
 
 ## [Control inventories](/security/control-inventories)
 
-Dated 2026-08-18. The reference tables behind the threat model and ASVS ledger: every entry point
-and untrusted input, every class of sensitive data and how long it is kept, the full cryptographic
-inventory (what algorithm protects what, and its key lifecycle), service and rate limits, and the
-audit/security event log. Read this when you need the specific technical detail — for example,
-exactly what algorithm hashes a password, or exactly how long a session token lives.
+Reviewed 2026-10-26. These reference tables support the threat model and ASVS ledger: entry points,
+untrusted input, sensitive-data classes and retention, cryptographic controls, service limits and
+audit events. They distinguish application controls from operator-managed deployment evidence.
 
 ## [Mutation-test review — 2026-07-15](/security/reviews/mutation-review-2026-07-15)
 
