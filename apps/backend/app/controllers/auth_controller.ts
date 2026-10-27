@@ -5,6 +5,7 @@ import {
   InvalidCredentialsError,
   InvalidSessionError,
   RegistrationEmailAlreadyRegisteredError,
+  ThrottledError,
 } from 'adonisjs-account-kit/errors'
 import type { CurrentAccountInput } from 'adonisjs-account-kit/types'
 import env from '#start/env'
@@ -38,6 +39,20 @@ function invalidAuthRequest(error: unknown, operation: 'sign-in' | 'sign-up') {
 
 function userProjection(actor: Pick<CurrentActor, 'userId' | 'email' | 'displayName'>) {
   return { id: actor.userId, name: actor.displayName ?? undefined, email: actor.email, image: null }
+}
+
+function logSignInOutcome(ctx: HttpContext, outcome: 'success' | 'failure' | 'throttled') {
+  if (env.get('CAPACITYLENS_LOG') !== '1') return
+  try {
+    const fields = { event: 'auth.sign_in', outcome }
+    if (outcome === 'failure' || outcome === 'throttled') {
+      ctx.logger.warn(fields, 'Authentication outcome')
+    } else {
+      ctx.logger.info(fields, 'Authentication outcome')
+    }
+  } catch {
+    console.error('Authentication outcome logging failed')
+  }
 }
 
 /** Signs in through the Account Kit and records the observed sign-in for tracked companies. */
@@ -110,10 +125,15 @@ export default class AuthController {
     }
     const { email } = body
     try {
-      return ctx.response.ok({ user: await signInWithPassword(ctx, email, body.password) })
+      const user = await signInWithPassword(ctx, email, body.password)
+      logSignInOutcome(ctx, 'success')
+      return ctx.response.ok({ user })
     } catch (error) {
-      if (error instanceof InvalidCredentialsError)
+      if (error instanceof InvalidCredentialsError) {
+        logSignInOutcome(ctx, 'failure')
         return ctx.response.unauthorized({ error: 'Invalid email or password.' })
+      }
+      if (error instanceof ThrottledError) logSignInOutcome(ctx, 'throttled')
       throw error
     }
   }
