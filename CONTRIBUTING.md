@@ -20,6 +20,54 @@ timesheets, hour-by-hour workflows and mobile scheduling are not planned.
 9. Push your branch and open a pull request; the template lists what to include.
 10. Leave the pull request open and respond to review. Merging is the maintainer's decision.
 
+## Runtime and dependency upgrades
+
+The supported and recommended server runtime is Node 24.19.0 or later within 24.x. The package
+engine declaration and backend startup guard also accept Node 26.9.0 or later within 26.x, but that
+path remains experimental and best-effort: [`.nvmrc`](.nvmrc) selects Node 24 for development and
+standard CI setup, while [`check:node26`](scripts/check-node26.mjs) covers selected compatibility
+paths rather than the complete gate. Keep the documented production host boundary in the
+[self-hosting installation guide](docs-src/self-hosting/install.md): Linux. CI also builds and
+smoke-tests native packages on macOS arm64; that job does not add a production-host support
+promise. The runtime floors are declared in [package.json](package.json) and enforced before the
+backend starts in [node_version.ts](apps/backend/start/node_version.ts).
+
+Use `nvm use` and the pinned pnpm version before changing dependencies. Ranges live in the root,
+[backend](apps/backend/package.json), [frontend](apps/frontend/package.json) and
+[shared](packages/shared/package.json) manifests; [pnpm-lock.yaml](pnpm-lock.yaml) records the
+resolved workspace graph. Upgrade related AdonisJS packages as a compatible set. Keep the backend
+and frontend Tuyau dependencies compatible, then regenerate the backend route client and type-check
+its consumers. Account Kit is a vendored release archive: changing its pin also changes native
+packaging and can affect sign-in, admission and sessions, so include the relevant backend auth tests
+and packaged smoke checks.
+
+The intended registry policy in [Dependabot configuration](.github/dependabot.yml) is separate
+weekly groups for npm patch and minor updates, with majors reviewed manually from the
+[monthly major report](.github/workflows/major-dependency-report.yml). GitHub Actions and Docker
+updates stay monthly and patch-only. Advisories are checked by
+`pnpm run gate:deps`. Keep [pnpm-workspace.yaml](pnpm-workspace.yaml) overrides only for a specific
+advisory when consumers still allow the affected version; explain the reason beside the override
+and remove it when no longer needed. Track a wider security upgrade and any exception in the issue
+or pull request that owns the change. Dependabot reads its configuration from default `main`, and
+scheduled workflows run there too: while this policy is only on a feature branch, do not rely on its
+weekly updates or monthly report being active.
+
+Choose checks for the changed boundary. Run focused tests first; framework or Tuyau changes also
+need generated route types and the relevant backend/client type checks. Dependency and code changes
+use the applicable [repository gate](.github/workflows/gate.yml) and
+[browser suite](.github/workflows/e2e.yml).
+Backend, runtime, native-module or packaged-runtime changes need the native package build and
+packaged-server smoke checks on the workflow's Linux x64 and macOS arm64 targets. A prose-only
+change needs formatting and content/link review; changes under `docs-src/` also need
+`pnpm run docs:build`.
+
+When a release changes the runtime floor or host, required configuration, database migration,
+package format or recovery action, update the release notes and the relevant operator instructions
+in `docs-src/self-hosting/`, especially [installation](docs-src/self-hosting/install-without-docker.md)
+and [upgrades](docs-src/self-hosting/upgrades.md). State the required sequence and recovery action
+operators can actually use. Do not copy historical compatibility investigations into the install
+steps or treat experimental checks as a new support commitment.
+
 ## Set up
 
 ```bash
@@ -31,6 +79,24 @@ pnpm run dev
 
 `pnpm run dev:demo` starts the temporary in-memory demo without SQLite or authentication. The
 workspace contains the web app, the pure `@capacitylens/shared` domain package, and the server.
+
+## AdonisJS review record
+
+The [26 October 2026 review bundle](https://gist.github.com/Kevinjohn/9c7367be1c8231f260ed1e3c3136535c)
+records the framework-alignment, package-adoption and reusable-boundary assessments completed under
+[#1604](https://github.com/Kevinjohn/capacitylens/issues/1604). It includes the findings register,
+coverage and evidence records, reconciled recommendations and independent completeness assessment.
+
+The reviewed source is `6c92d3710ed1d30bc925bd97e5d701ea551db452`, not the current branch.
+The later integration checkpoint `f52bee5fe75604b33c1191294a80259825461aba` adds 28 commits and
+changes 102 paths; the report's final status update qualifies that delta, which did not receive
+the same complete review. Check the affected current source before acting on a finding.
+
+The frozen-source verdict was changes required: archived-parent placeholder projection, late
+inline-activity completion, mutation-test discovery and current security-documentation claims.
+The report separates confirmed defects from conditional package trials and extraction proposals.
+It does not establish security certification, production acceptance or package-adoption approval.
+Implementation scope and current acceptance evidence remain in the owning GitHub issues.
 
 ## Beta transfer contract
 
@@ -88,6 +154,29 @@ the security, data-integrity and migration invariants in [DECISIONS.md](DECISION
 Authentication and account changes require focused backend tests for the affected authority and
 failure paths. Provider checks use controlled responses; live-provider checks need an authorized
 test registration and must be reported separately.
+
+## Native production dialog acceptance
+
+After building and packaging with `pnpm run build` and `pnpm run package:managed-release`, copy
+`production/` outside the checkout and run:
+
+```bash
+pnpm run smoke:packaged-dialogs /absolute/path/to/copied-production/backend
+```
+
+Use the Node version in `.nvmrc`, an installed Playwright Chromium browser and `openssl`. This runs
+against the packaged native production server with disposable SQLite data and password sign-in,
+not the development server. A temporary loopback HTTPS edge preserves secure session cookies;
+only the test browser accepts its self-signed certificate. On macOS a process-only preference makes
+scrollbars visible without changing OS preferences. It runs the existing HTTP installation,
+scheduling, backup and restore smoke as well as desktop/narrow modal scrolling, background locking,
+scrollbar compensation, nested dialogs and selection, Escape, focus restoration and lock cleanup.
+A separate page proves that the shipped CSP blocks an injected stylesheet and that the violation
+guard detects it. Runtime style violations or uncaught browser exceptions fail acceptance.
+
+Set `CAPACITYLENS_BROWSER_ARTIFACT_DIR` to a scratch directory to retain the two fictional-data
+after screenshots. Browser contexts, TLS connections, server processes and disposable state are
+closed or removed on success and failure. This command does not build, publish or deploy a release.
 
 ## Formatting
 

@@ -72,6 +72,7 @@
     "gate:all": "node scripts/with-lane.mjs node scripts/run-gate.mjs all",
     "mutation": "pnpm run paraglide:compile && stryker run",
     "smoke:packaged-server": "node scripts/smoke-packaged-server.mjs",
+    "smoke:packaged-dialogs": "node scripts/smoke-packaged-dialogs.mjs",
     "check:node26": "node scripts/check-node26.mjs",
     "test:server": "node scripts/with-lane.mjs pnpm --dir apps/backend test",
     "gate:server": "node scripts/with-lane.mjs node scripts/run-gate.mjs backend",
@@ -80,7 +81,9 @@
     "policy:check-changed:test": "node --test scripts/check-changed.test.mjs",
     "policy:dependabot": "node scripts/check-dependabot.mjs",
     "policy:dependabot:test": "node --test scripts/check-dependabot.test.mjs",
-    "policy:packaged-smoke:test": "node --test scripts/smoke-packaged-server.test.mjs",
+    "dependency:major-report": "node scripts/report-major-dependencies.mjs",
+    "dependency:major-report:test": "node --test scripts/report-major-dependencies.test.mjs",
+    "policy:packaged-smoke:test": "node --test scripts/smoke-packaged-server.test.mjs scripts/smoke-packaged-dialogs.test.mjs",
     "policy:node-runtime:test": "node --test scripts/check-node-runtime.test.mjs scripts/check-node26.test.mjs"
   },
   "lint-staged": {

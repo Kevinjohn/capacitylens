@@ -1,3 +1,4 @@
+import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors'
 import type { HttpContext } from '@adonisjs/core/http'
 import { errors as vineErrors } from '@vinejs/vine'
 import {
@@ -40,7 +41,7 @@ function refusal(error: unknown): {
         error: error.message,
         code: error.code,
         restorableItemCount: error.restorableItemCount,
-      },
+      } satisfies ProductHttpErrorBody,
     }
   if (error instanceof PlanningOperationError) {
     const code =
@@ -78,7 +79,7 @@ function refusal(error: unknown): {
         error: 'Company access needs admission.',
         code: 'ADMISSION_REQUIRED',
         decision: error.decision,
-      },
+      } satisfies ProductHttpErrorBody,
     }
   const kitResponse = accountErrorResponse(error)
   if (kitResponse && kitResponse.status < 500)

@@ -75,6 +75,77 @@ test.group('M1 database contract', (group) => {
     await assertSchemaIntegrity()
   })
 
+  test('readiness refuses a missing baseline migration record while schema objects remain intact', async ({
+    assert,
+  }) => {
+    const baseline = await db
+      .from('adonis_schema')
+      .where('name', 'database/migrations/202610120001_create_capacitylens_baseline')
+      .first()
+    assert.isDefined(baseline)
+    await db.from('adonis_schema').where('id', baseline!.id).delete()
+    try {
+      await assert.rejects(() => assertSchemaIntegrity(), /baseline migration record/)
+      await assert.rejects(() => checkDatabase(), /baseline migration record/)
+    } finally {
+      await db.table('adonis_schema').insert(baseline!)
+    }
+    await assertSchemaIntegrity()
+  })
+
+  test('readiness requires one baseline record with a positive integral batch', async ({
+    assert,
+  }) => {
+    const name = 'database/migrations/202610120001_create_capacitylens_baseline'
+    const baseline = await db.from('adonis_schema').where('name', name).first()
+    assert.isDefined(baseline)
+
+    try {
+      await db.from('adonis_schema').where('id', baseline!.id).update({ batch: 0 })
+      await assert.rejects(() => assertSchemaIntegrity(), /baseline migration record/)
+
+      await db.from('adonis_schema').where('id', baseline!.id).update({ batch: 1.5 })
+      await assert.rejects(() => checkDatabase(), /baseline migration record/)
+
+      await db.from('adonis_schema').where('id', baseline!.id).update({ batch: baseline!.batch })
+      await assertSchemaIntegrity()
+      await db.table('adonis_schema').insert({
+        name,
+        batch: baseline!.batch,
+        migration_time: baseline!.migration_time,
+      })
+      await assert.rejects(() => assertSchemaIntegrity(), /baseline migration record/)
+    } finally {
+      await db.from('adonis_schema').where('name', name).whereNot('id', baseline!.id).delete()
+      await db.from('adonis_schema').where('id', baseline!.id).update({ batch: baseline!.batch })
+    }
+    await assertSchemaIntegrity()
+  })
+
+  test('readiness allows later append-only migration records', async () => {
+    const name = 'database/migrations/209901010000_append_only_example'
+    try {
+      await db.table('adonis_schema').insert({ name, batch: 2 })
+      await assertSchemaIntegrity()
+      await checkDatabase()
+    } finally {
+      await db.from('adonis_schema').where('name', name).delete()
+    }
+  })
+
+  test('readiness fails when Lucid migration metadata cannot provide its batch column', async ({
+    assert,
+  }) => {
+    await db.rawQuery('ALTER TABLE adonis_schema RENAME COLUMN batch TO unavailable_batch')
+    try {
+      await assert.rejects(() => assertSchemaIntegrity())
+      await assert.rejects(() => checkDatabase())
+    } finally {
+      await db.rawQuery('ALTER TABLE adonis_schema RENAME COLUMN unavailable_batch TO batch')
+    }
+    await assertSchemaIntegrity()
+  })
+
   test('round-trips every seeded entity through the migrated database read path', async ({
     assert,
   }) => {

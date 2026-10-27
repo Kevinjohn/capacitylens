@@ -11,7 +11,7 @@ next:
 
 # Install without Docker
 
-These steps use the native release archive, Node 24 in the supported 24.x line, systemd and a
+These steps use the native release archive, Node 24.19.0 or later within the 24.x line, systemd and a
 reverse proxy on the same machine that terminates public TLS. Whoever manages hosting follows
 these five steps and remains responsible for backups, upgrades and service health. Replace `X.Y.Z`, hostnames and paths with your own.
 
@@ -25,7 +25,7 @@ sudo install -d -m 0755 /opt/capacitylens
 sudo install -d -o capacitylens -g capacitylens -m 0700 /var/lib/capacitylens /var/lib/capacitylens/backups
 ```
 
-Install Node 24 on the host and verify `node --version` reports a supported 24.x release. The
+Install Node 24.19.0 or a later 24.x release on the host and verify it with `node --version`. The
 archive contains a native SQLite addon and must match the host operating system and architecture.
 
 ## 2. Download and unpack a release

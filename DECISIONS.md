@@ -214,6 +214,45 @@ This is the short, present-tense record of decisions that constrain future work.
   password resets only.
 - Errors on data paths are surfaced, not swallowed.
 
+### Action-proof capability audit (26 October 2026)
+
+Retain the product proof for ownership transfer, import and company-wide people anonymisation. The installed
+Account Kit 0.1.2 has recent-password proofs, but its public contract does not provide all the
+bindings and caller-owned transactional consumption needed by these operations. A time-based
+confirmation or a different proof purpose is not an equivalent replacement.
+
+This source audit checked application revision `f52bee5fe75604b33c1191294a80259825461aba` and
+[`vendor/adonisjs-account-kit/adonisjs-account-kit-0.1.2.tgz`](vendor/adonisjs-account-kit/adonisjs-account-kit-0.1.2.tgz)
+(SHA-256 `18696d27971605dbbada54ccb9066260499fc9ab3f258cd7684ed6098dacf573`).
+The archive's `build/src/account_kit.d.ts`, `social_enums.d.ts`, `social_proofs.d.ts`, package
+exports and bundled proof implementation establish the Kit column below. This is not a claim that
+Kit runtime parity tests passed.
+
+| Required guarantee                                          | Product implementation                                                                                                                                               | Installed Kit contract                                                                                                                 |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Confirm the real principal's current password               | Verifies the password, then rechecks the live principal and password before issuing                                                                                  | `socialAuthentication.provePassword` accepts the current principal, password and purpose; that optional capability is not enabled here |
+| Bind the intended operation                                 | Binds `transfer-ownership`, `import` or `anonymise`                                                                                                                  | Fixed purposes cover social linking/unlinking, password/email changes and account export/deletion; not these product operations        |
+| Bind the principal                                          | Stores and conditionally matches `user_id`                                                                                                                           | Stores and conditionally matches `user_id`                                                                                             |
+| Bind the current session and company                        | Stores and conditionally matches both identifiers                                                                                                                    | No session or company binding in the inspected proof issuance/consumption contract                                                     |
+| Reject a proof after its session ends                       | The session foreign key deletes its proofs; spending through `withActor` also rejects an ended session                                                               | Checks credential revision but has no issuing-session binding; credential invalidation is not session-specific revocation              |
+| Bind the exact contents without storing the import document | Matches a SHA-256 hash of the action, company and canonical intent                                                                                                   | No exact-intent argument or stored binding in the inspected proof contract                                                             |
+| Expiry and conditional single use                           | Five-minute expiry and one conditional spend                                                                                                                         | Internal implementation has expiry, single-use consumption and credential-revision checking; these alone do not establish full parity  |
+| Spend with mutation and audit, rolling all back together    | Uses the caller's Lucid transaction                                                                                                                                  | Internal helpers accept a transaction, but they are not a supported exported caller-transaction API for arbitrary product mutations    |
+| Recheck authority and refuse view-as                        | Requires a live Owner and refuses masquerade at issuance and before a new protected mutation; a committed ownership-transfer receipt may still replay after demotion | Product membership, role and projection policy must remain product-owned; no equivalent combined product operation is established      |
+
+The owning product code is
+[`action_proof.ts`](apps/backend/app/services/auth/action_proof.ts) and
+[`action_proofs_controller.ts`](apps/backend/app/controllers/action_proofs_controller.ts).
+Existing regression sources cover the protected mutation boundaries in
+[`transfer_apply.spec.ts`](apps/backend/tests/functional/transfer_apply.spec.ts),
+[`ownership_transfer.spec.ts`](apps/backend/tests/functional/membership/ownership_transfer.spec.ts)
+and [`anonymise.spec.ts`](apps/backend/tests/functional/anonymise.spec.ts), including refusal and
+audit-failure rollback paths. Inspecting those sources is not new runtime validation.
+
+The result for [#1597](https://github.com/Kevinjohn/capacitylens/issues/1597) is **no migration**.
+Reassess when a supported Kit release exposes equivalent principal/session/company/action/intent
+binding and transactional consumption. Internal declarations are not an integration contract.
+
 ## AdonisJS framework departures
 
 The AdonisJS documentation is the structural reference. These choices deliberately differ from
@@ -263,7 +302,11 @@ framework defaults; any other departure needs a decision recorded here first.
   ratchet or custom structural rule. Add a focused check only when experience shows it protects a
   concrete invariant.
 - Local commands and CI validate the same behaviour. A test run passes only when its process exits.
-- CodeQL runs in the public security workflow. Dependabot runs monthly, patch-only.
+- CodeQL runs in the public security workflow. Dependabot proposes npm patch and minor updates
+  weekly in separate groups and ignores automatic major updates. GitHub Actions and Docker
+  updates remain monthly and patch-only. A monthly workflow reports newer major versions for
+  installed direct workspace dependencies in one standing issue; it uses the pinned Node/pnpm
+  toolchain, makes no dependency changes, and closes the issue when no newer majors remain.
 
 ## Module boundaries
 
@@ -280,8 +323,15 @@ transitive dependency out of shipped runtimes. Development tooling still contain
 this is not a claim that every workspace dependency is patched. The production audit uses the same
 optional-free graph and retains its high-severity failure threshold.
 
-The exact `@adonisjs/mail>nodemailer` override to 10.1.1 is a reviewed major-version exception for
-the mail security fixes. CapacityLens configures SMTP only. Authenticated TLS delivery, attachment
-encoding, authentication and recipient refusal, and pooled connection closure are verified through
-the public Adonis SMTP adapter. Nodemailer 10 is incompatible with the unused Postmark transport's
-internal MIME import; Postmark is unsupported and must be reassessed before enabling that transport.
+The `@adonisjs/mail>nodemailer` override keeps SMTP on Nodemailer 10 and at least 10.1.4, which fixes
+three address-parser advisories. CapacityLens configures SMTP only. Authenticated TLS delivery,
+attachment encoding, authentication and recipient refusal, and pooled connection closure are
+verified through the public Adonis SMTP adapter. Nodemailer 10 is incompatible with the unused
+Postmark transport's internal MIME import; Postmark is unsupported and must be reassessed before
+enabling that transport.
+
+The `qs` floor addresses GHSA-q8mj-m7cp-5q26, GHSA-4mjr-xmp4-gh2g and GHSA-x5fp-wj9c-mxmx, all fixed by 6.16.0. `typed-rest-client@2.3.1` requests
+`qs@6.15.1` exactly, so this is a reviewed compatibility exception. Other security overrides are
+limited to affected version ranges and keep the consumer's supported major line. VitePress 1.x
+declares Vite 5 while its Vue plugin accepts Vite 6; its documentation-build override uses the
+patched Vite 6 line.

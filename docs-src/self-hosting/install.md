@@ -12,7 +12,7 @@ The current server is a single AdonisJS application. It serves the web app and A
 one SQLite database, and runs as one process. The native release archive is the installation
 route documented for this application.
 
-You need a Linux host, Node 24 within the supported 24.x line, a persistent data directory and a
+You need a Linux host, Node 24.19.0 or later within the 24.x line, a persistent data directory and a
 public HTTPS address. A background process runs as a dedicated site user; keep the database and
 backup directory outside the versioned release folder under that user's access.
 The full procedure is [Install without Docker](/self-hosting/install-without-docker); managed
