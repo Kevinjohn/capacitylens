@@ -2,6 +2,7 @@
 //
 //   pnpm run check:changed           changes since the merge-base with origin/platform/adonisjs
 //   pnpm run check:changed <base>    changes since the merge-base with <base>
+//   pnpm run check:changed --static  the same, without dependency lookups or whole test suites
 //
 // Uncommitted and untracked files count as changed. `pnpm run gate:all` and `pnpm run e2e` remain
 // the submission gate; this is the fast loop while implementing or reviewing a change.
@@ -21,6 +22,22 @@ const logTailLines = 40;
 const codeFile = /\.(?:[cm]?[jt]s|[jt]sx)$/;
 const typeInput = /(?:^|\/)(?:tsconfig[^/]*\.json|package\.json)$/;
 const backendSpec = /^apps\/backend\/tests\/.+\.spec\.ts$/;
+const frontendTest = /^(?:apps\/frontend\/src\/.+\.(?:test|spec)\.tsx?|packages\/shared\/.+\.(?:test|spec)\.ts)$/;
+// Backend static file tests read the built application, which a fresh worktree lacks.
+const appBuildOutput = "apps/backend/public/assets";
+// CI builds the application before backend tests with these fixed, non-secret values
+// (.github/workflows/gate.yml).
+const appBuildEnvironment = {
+  NODE_ENV: "production",
+  CAPACITYLENS_SECRET: "capacitylens-build-secret-0123456789abcdef",
+  CAPACITYLENS_PUBLIC_URL: "https://127.0.0.1",
+  HOST: "127.0.0.1",
+  PORT: "0",
+  LOG_LEVEL: "error",
+  APP_KEY: "capacitylens-test-key-0123456789abcdef",
+  APP_URL: "http://127.0.0.1",
+  SESSION_DRIVER: "memory",
+};
 // A rule or ignore change can fail files the branch never touched.
 const lintConfig = /(?:^|\/)eslint\.config\.[cm]?js$/;
 const formatConfig = /^\.prettier(?:rc[^/]*|ignore)$/;
@@ -47,12 +64,14 @@ function scriptTestsImporting(path) {
  * Plan the checks for a branch's changed paths, in run order.
  *
  * Deleted paths still select suites and the type-check, but are never passed to a tool that
- * expects existing files.
+ * expects existing files. With `staticOnly`, changed test files run on their own and every
+ * dependency lookup or whole suite becomes a skip line, for changes that share one full run.
  */
 export function planChecks(
   paths,
   exists = (path) => existsSync(new URL(path, pathToFileURL(root))),
   testsImporting = scriptTestsImporting,
+  { staticOnly = false } = {},
 ) {
   const present = paths.filter(exists);
   const presentCode = present.filter((path) => codeFile.test(path));
@@ -61,7 +80,8 @@ export function planChecks(
   const sharedMetadataChanged = paths.some((path) => path.startsWith("packages/shared/") && typeInput.test(path));
   const workspaceChanged = paths.some((path) => workspaceInput.test(path));
   const backendSuite = sharedChanged || workspaceChanged || backendPaths.some((path) => !backendSpec.test(path));
-  const backendSpecs = backendSuite ? [] : present.filter((path) => backendSpec.test(path));
+  const backendSpecs = backendSuite && !staticOnly ? [] : present.filter((path) => backendSpec.test(path));
+  const frontendTests = present.filter((path) => frontendTest.test(path));
   const frontendLint = presentCode.filter((path) => path.startsWith("apps/frontend/"));
   const rootLint = presentCode.filter((path) => /^(?:scripts|e2e|packages\/shared\/src)\//.test(path));
   const backendLint = presentCode.filter((path) => path.startsWith("apps/backend/"));
@@ -84,11 +104,19 @@ export function planChecks(
     ),
   ];
 
+  const runsBackendSuite = backendSuite && !staticOnly;
   const steps = [{ label: "prepare: stop leftover servers", args: ["run", "lanes", "--stop-orphans"], prepare: true }];
-  if (backendSuite || backendSpecs.length)
+  if (runsBackendSuite || backendSpecs.length)
     steps.push({
       label: "prepare: build @capacitylens/shared",
       args: ["--filter", "@capacitylens/shared", "build"],
+      prepare: true,
+    });
+  if ((runsBackendSuite || backendSpecs.length) && !exists(appBuildOutput))
+    steps.push({
+      label: "prepare: build application",
+      args: ["run", "build"],
+      env: appBuildEnvironment,
       prepare: true,
     });
   if (frontendLint.length) {
@@ -136,7 +164,24 @@ export function planChecks(
       args: ["--test", ...scriptTests],
       noTests: nodeTestNoTests,
     });
-  if (frontendSuite)
+  if (staticOnly) {
+    if (frontendTests.length)
+      // Vitest filters match by path substring; frontend paths are relative to its project root.
+      steps.push({
+        label: `test: ${frontendTests.length} frontend test file(s)`,
+        args: [
+          "--dir",
+          "apps/frontend",
+          "exec",
+          "vitest",
+          "run",
+          ...frontendTests.map((path) => path.replace(/^apps\/frontend\//, "")),
+        ],
+      });
+    if (frontendSuite) steps.push({ label: "test: frontend suite", skip: "--static; the full check runs it" });
+    else if (related.some((path) => !frontendTest.test(path)))
+      steps.push({ label: "test: frontend tests related to changes", skip: "--static; the full check runs them" });
+  } else if (frontendSuite)
     steps.push({ label: "test: frontend suite", args: ["--dir", "apps/frontend", "exec", "vitest", "run"] });
   else if (related.length)
     // A changed file with no dependent tests is a legitimate result, unlike a filter that matches nothing.
@@ -153,7 +198,7 @@ export function planChecks(
         ...related.map((path) => `../../${path}`),
       ],
     });
-  if (backendSuite) steps.push({ label: "test: backend suite", args: ["--dir", "apps/backend", "test"] });
+  if (runsBackendSuite) steps.push({ label: "test: backend suite", args: ["--dir", "apps/backend", "test"] });
   else if (backendSpecs.length)
     steps.push({
       label: `test: ${backendSpecs.length} backend spec file(s)`,
@@ -165,6 +210,8 @@ export function planChecks(
       ],
       noTests: japaNoTests,
     });
+  if (backendSuite && staticOnly)
+    steps.push({ label: "test: backend suite", skip: "--static; the full check runs it" });
 
   if (paths.some((path) => path.startsWith("docs-src/")))
     steps.push({ label: "docs: build and compare docs/", args: ["run", "docs:build"], docsClean: true });
@@ -224,7 +271,7 @@ export function runStep(step, limits = stepLimits) {
   return new Promise((resolve) => {
     const options = {
       cwd: root,
-      env: nonColourEnvironment(),
+      env: { ...nonColourEnvironment(), ...step.env },
       stdio: ["ignore", "pipe", "pipe"],
       detached: process.platform !== "win32",
     };
@@ -263,8 +310,10 @@ export function runStep(step, limits = stepLimits) {
 async function main() {
   try {
     assertSupportedNodeVersion();
-    const [base = defaultBase, ...extra] = process.argv.slice(2);
-    if (extra.length) throw new Error("Expected at most one base ref.");
+    const args = process.argv.slice(2);
+    const staticOnly = args.includes("--static");
+    const [base = defaultBase, ...extra] = args.filter((arg) => arg !== "--static");
+    if (extra.length || base.startsWith("-")) throw new Error("Expected --static and at most one base ref.");
     const paths = changedPaths(base);
     if (!paths.length) {
       console.log(`No changes since ${base}.`);
@@ -272,7 +321,7 @@ async function main() {
     }
     console.log(`check:changed: ${paths.length} changed path(s) since ${base}`);
     let failed = false;
-    for (const step of planChecks(paths)) {
+    for (const step of planChecks(paths, undefined, undefined, { staticOnly })) {
       if (step.skip) {
         console.log(`skip  ${step.label} (${step.skip})`);
         continue;

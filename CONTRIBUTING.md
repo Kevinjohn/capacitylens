@@ -144,8 +144,11 @@ pnpm run e2e
 ```
 
 While you work, `pnpm run check:changed [base]` runs only the checks for files changed since the
-merge-base with `base` (default `origin/platform/adonisjs`), including uncommitted files. It does not
-replace the gate above.
+merge-base with `base` (default `origin/platform/adonisjs`), including uncommitted files. It builds
+the application first when backend tests need it and a fresh worktree has no build yet. Add
+`--static` to skip whole test suites and related-test lookups while still running the changed test
+files, when one full run on a combined tree covers several changes. It does not replace the gate
+above.
 
 A prose-only change needs formatting and a content and link review instead; rebuild the
 documentation when its sources change. Run the focused checks for changed behavior and preserve
