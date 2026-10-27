@@ -58,6 +58,7 @@ export function planChecks(
   const presentCode = present.filter((path) => codeFile.test(path));
   const backendPaths = paths.filter((path) => path.startsWith("apps/backend/"));
   const sharedChanged = paths.some((path) => path.startsWith("packages/shared/"));
+  const sharedMetadataChanged = paths.some((path) => path.startsWith("packages/shared/") && typeInput.test(path));
   const workspaceChanged = paths.some((path) => workspaceInput.test(path));
   const backendSuite = sharedChanged || workspaceChanged || backendPaths.some((path) => !backendSpec.test(path));
   const backendSpecs = backendSuite ? [] : present.filter((path) => backendSpec.test(path));
@@ -68,6 +69,7 @@ export function planChecks(
   // Configuration outside src affects every frontend test, which `vitest related` cannot see.
   const frontendSuite =
     workspaceChanged ||
+    sharedMetadataChanged ||
     paths.some(
       (path) => path.startsWith("apps/frontend/") && !path.startsWith("apps/frontend/src/") && !path.endsWith(".md"),
     );

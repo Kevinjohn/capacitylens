@@ -56,6 +56,47 @@ test("frontend and shared source run related frontend tests, lint and the type-c
   assert.ok(step(steps, "typecheck"));
 });
 
+test("shared package metadata runs the full frontend suite and type-check", () => {
+  for (const path of ["packages/shared/package.json", "packages/shared/tsconfig.json"]) {
+    const steps = planChecks([path], everything);
+    assert.deepEqual(
+      step(steps, "test: frontend suite").args,
+      ["--dir", "apps/frontend", "exec", "vitest", "run"],
+      path,
+    );
+    assert.equal(step(steps, "test: frontend tests related"), undefined, path);
+    assert.ok(step(steps, "typecheck"), path);
+    assert.ok(step(steps, "test: backend suite"), path);
+  }
+});
+
+test("deleted shared metadata runs the full frontend suite without passing deleted paths to tools", () => {
+  const deleted = "packages/shared/tsconfig.json";
+  const steps = planChecks([deleted], (path) => path !== deleted);
+  assert.deepEqual(step(steps, "test: frontend suite").args, ["--dir", "apps/frontend", "exec", "vitest", "run"]);
+  assert.ok(step(steps, "typecheck"));
+  assert.ok(step(steps, "test: backend suite"));
+  assert.equal(step(steps, "lint: 1 file"), undefined);
+  assert.equal(step(steps, "format"), undefined);
+});
+
+test("shared metadata mixed with source uses the full frontend suite", () => {
+  const steps = planChecks(["packages/shared/package.json", "packages/shared/src/lib/color.ts"], everything);
+  assert.ok(step(steps, "test: frontend suite"));
+  assert.equal(step(steps, "test: frontend tests related"), undefined);
+  assert.deepEqual(step(steps, "lint: 1 file").args.slice(-1), ["packages/shared/src/lib/color.ts"]);
+});
+
+test("shared documentation and source-only changes do not select the full frontend suite", () => {
+  const readme = planChecks(["packages/shared/README.md"], everything);
+  assert.equal(step(readme, "test: frontend suite"), undefined);
+  assert.equal(step(readme, "typecheck"), undefined);
+
+  const source = planChecks(["packages/shared/src/lib/color.ts"], everything);
+  assert.ok(step(source, "test: frontend tests related"));
+  assert.equal(step(source, "test: frontend suite"), undefined);
+});
+
 test("frontend configuration outside src runs the whole frontend suite", () => {
   const steps = planChecks(["apps/frontend/vite.config.ts", "apps/frontend/src/App.tsx"], everything);
   assert.deepEqual(step(steps, "test: frontend suite").args, ["--dir", "apps/frontend", "exec", "vitest", "run"]);
