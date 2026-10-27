@@ -60,7 +60,8 @@ test("native compilation tools are installed before dependencies and stay outsid
   assert.ok(runtime);
   assert.match(dependencies, /apt-get install --yes --no-install-recommends python3 make g\+\+/);
   assert.ok(dependencies.indexOf("apt-get install") < dependencies.indexOf("pnpm install --frozen-lockfile"));
-  assert.match(runtime, /^FROM public\.ecr\.aws\/docker\/library\/node:[^\n]+ AS api/m);
+  assert.match(dependencies, /^FROM docker\.io\/library\/node:[^\n]+@sha256:[a-f0-9]{64} AS deps/m);
+  assert.match(runtime, /^FROM docker\.io\/library\/node:[^\n]+ AS api/m);
   assert.doesNotMatch(runtime, /\b(?:python3|make|build-essential)\b|g\+\+/);
   const copies = [...runtime.matchAll(/^COPY --from=(.+)$/gm)].map((match) => match[1]);
   assert.deepEqual(copies, ["server-deploy /prod/backend ./"]);

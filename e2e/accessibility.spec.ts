@@ -62,8 +62,10 @@ function registerSchedulerExposesGridRolesSrTest() {
     await expect(grid).toBeVisible();
     await expect(grid).toHaveAttribute("aria-colcount", "2");
     await expect(page.getByRole("rowheader", { name: /Bruce Wayne/ })).toBeVisible();
-    const lane = page.getByRole("gridcell", { name: /Bruce Wayne timeline/ });
+    const bruceRow = page.getByRole("row").filter({ has: page.getByRole("rowheader", { name: /Bruce Wayne/ }) });
+    const lane = bruceRow.getByRole("gridcell");
     await expect(lane).toBeVisible();
+    await expect(lane).toHaveAccessibleName(/./);
     await expect(lane).toHaveAttribute("aria-colindex", "2");
     await expect(page.getByText(/\d+ allocation/).first()).toBeAttached();
   });

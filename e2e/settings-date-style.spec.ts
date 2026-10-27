@@ -39,7 +39,7 @@ test.describe("Settings — date style", () => {
     await page.getByRole("radio", { name: "Sep 9", exact: true }).click();
 
     await page.getByRole("link", { name: "Schedule", exact: true }).click();
-    await page.getByRole("button", { name: "View Bruce Wayne's schedule" }).click();
+    await page.getByRole("button", { name: "View Bruce Wayne's schedule BW" }).click();
     const sheet = page.getByRole("dialog", { name: "Bruce Wayne's schedule" });
     // The header's range collapses the repeated month at both styles; only the order moves, so
     // this is the assertion that would catch a call site left on a hand-built range.

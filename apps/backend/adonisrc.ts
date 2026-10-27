@@ -3,6 +3,19 @@ import { defineConfig } from '@adonisjs/core/app'
 import { indexPolicies } from '@adonisjs/bouncer'
 import { generateRegistry } from '@tuyau/core/hooks'
 
+async function accountKitCommands() {
+  const commands = await import('adonisjs-account-kit/commands')
+  return {
+    getMetaData: async () => {
+      const metadata = await commands.getMetaData()
+      return metadata.filter(
+        (commandMetadata) => commandMetadata.commandName !== 'account-kit:reset-link'
+      )
+    },
+    getCommand: commands.getCommand,
+  }
+}
+
 export default defineConfig({
   /*
   |--------------------------------------------------------------------------
@@ -30,7 +43,7 @@ export default defineConfig({
     () => import('@adonisjs/lucid/commands'),
     () => import('@adonisjs/session/commands'),
     () => import('@adonisjs/bouncer/commands'),
-    () => import('adonisjs-account-kit/commands'),
+    accountKitCommands,
     () => import('adonisjs-account-kit/admission/commands'),
   ],
 
@@ -62,6 +75,7 @@ export default defineConfig({
     () => import('@adonisjs/limiter/limiter_provider'),
     () => import('adonisjs-account-kit/account_kit_provider'),
     () => import('adonisjs-account-kit/admission/provider'),
+    () => import('@kevinjohn/lucid-soft-deletes/provider'),
     () => import('#providers/api_provider'),
     () => import('#providers/configuration_provider'),
     () => import('#providers/backup_provider'),

@@ -37,6 +37,15 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 test("scheduler has no serious or critical accessibility violations", async ({ page }) => {
   await openApp(page);
   await expect(page.getByTestId("scheduler-grid")).toBeVisible();
+  await setZoom(page, 4);
+  await resetSchedulerScroll(page);
+  const scheduleTrigger = page
+    .getByTestId("scheduler-row")
+    .filter({ hasText: "Bruce Wayne" })
+    .getByTestId("person-schedule-trigger");
+  await expect(scheduleTrigger).toHaveAttribute("aria-label", /BW$/);
+  const wireframesLane = page.getByTestId("resource-lane").filter({ has: page.getByText("Wireframes") });
+  await expect(wireframesLane).toHaveAccessibleName(/Wireframes/);
   await settledAxe(page);
 });
 

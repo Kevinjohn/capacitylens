@@ -83,8 +83,11 @@ URL sends no HSTS and uses plain cookies. The supplied nginx file leaves HSTS to
 and does not configure CSP reporting. `CAPACITYLENS_CORS_ORIGIN` is
 only needed when the browser app and API use different origins.
 
-`CAPACITYLENS_LOG=1` enables routine request-completion logs. Sensitive request/response values are
-redacted, and unexpected failures remain logged without their private messages. Set
+`CAPACITYLENS_LOG=1` enables routine request-completion and structured password sign-in outcome
+logs. Sign-in records identify success, credential failure or throttling and share the request's
+correlation ID; they omit identity, network, user-agent and credential values. Sensitive
+request/response values are redacted, and unexpected failures remain logged without their private
+messages. Set
 `CAPACITYLENS_RATE_LIMIT` to change the process-wide request limit; it is not a per-company
 reservation. Supply a whole number from 0 to 1,000,000; production requires at least 1.
 The default is 300 in production and disabled in development/test.

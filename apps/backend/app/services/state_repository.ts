@@ -110,23 +110,39 @@ export async function readStateWithClient(
       ? Account.query({ client })
       : Account.query({ client }).where('id', accountId),
     accountId === undefined
-      ? Client.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
-      : Client.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
+      ? Client.query({ client })
+          .withTrashed()
+          .withScopes((scopes) => scopes.forTrustedLocal())
+      : Client.query({ client })
+          .withTrashed()
+          .withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
       ? Discipline.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
       : Discipline.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
-      ? Project.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
-      : Project.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
+      ? Project.query({ client })
+          .withTrashed()
+          .withScopes((scopes) => scopes.forTrustedLocal())
+      : Project.query({ client })
+          .withTrashed()
+          .withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
       ? Phase.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
       : Phase.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
-      ? Resource.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
-      : Resource.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
+      ? Resource.query({ client })
+          .withTrashed()
+          .withScopes((scopes) => scopes.forTrustedLocal())
+      : Resource.query({ client })
+          .withTrashed()
+          .withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
-      ? Activity.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
-      : Activity.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
+      ? Activity.query({ client })
+          .withTrashed()
+          .withScopes((scopes) => scopes.forTrustedLocal())
+      : Activity.query({ client })
+          .withTrashed()
+          .withScopes((scopes) => scopes.forCompany(accountId)),
     accountId === undefined
       ? Allocation.query({ client }).withScopes((scopes) => scopes.forTrustedLocal())
       : Allocation.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),

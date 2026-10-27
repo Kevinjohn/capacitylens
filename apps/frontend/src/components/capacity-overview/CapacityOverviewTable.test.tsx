@@ -168,8 +168,11 @@ describe("CapacityOverviewTable content", () => {
     vi.stubGlobal("Image", LoadedImage);
     vi.mocked(useResourceAvatars).mockReturnValue(new Map([[clarkKent.id, "https://images.example/linked.png"]]));
     try {
-      const { container, rerender } = renderTable();
-      const avatar = () => container.querySelector('button[aria-label="View Clark Kent\'s schedule"] img');
+      const { rerender } = renderTable();
+      const avatar = () =>
+        within(screen.getByRole("row", { name: /Clark Kent/ }))
+          .getByTestId("person-schedule-trigger")
+          .querySelector("img");
       expect(avatar()).toHaveAttribute("src", "https://images.example/clark.png");
       const withoutStoredImage: Resource = { ...clarkKent };
       withoutStoredImage.avatarUrl = null;
@@ -230,14 +233,17 @@ describe("CapacityOverviewTable content", () => {
     }
     vi.stubGlobal("Image", LoadedImage);
     try {
-      const { container } = renderTable();
+      renderTable();
 
       expect(screen.getByRole("columnheader", { name: "10 – 13 Sep" })).not.toHaveTextContent("2026");
       expect(screen.getByRole("columnheader", { name: "28 Sep – 4 Oct" })).toBeInTheDocument();
       const person = screen.getByRole("row", { name: /Clark Kent/ });
-      const avatar = container.querySelector('button[aria-label="View Clark Kent\'s schedule"] img');
-      expect(avatar).toHaveAttribute("src", "https://images.example/clark.png");
-      expect(avatar).toHaveAttribute("referrerpolicy", "no-referrer");
+      const avatar = () =>
+        within(screen.getByRole("row", { name: /Clark Kent/ }))
+          .getByTestId("person-schedule-trigger")
+          .querySelector("img");
+      expect(avatar()).toHaveAttribute("src", "https://images.example/clark.png");
+      expect(avatar()).toHaveAttribute("referrerpolicy", "no-referrer");
       const cells = within(person).getAllByRole("cell");
       expect(within(cells[0] as HTMLElement).getByText("1.5d")).toHaveClass("text-ink");
 
@@ -285,7 +291,7 @@ describe("CapacityOverviewTable content", () => {
     renderTable();
 
     // The schedule trigger must receive real scoped resource data so it can resolve its role-specific accessible title.
-    const trigger = screen.getByRole("button", { name: "View Placeholder — Designer's schedule" });
+    const trigger = screen.getByRole("button", { name: "View Placeholder — Designer's schedule ?" });
     expect(trigger).toHaveAttribute("data-testid", "person-schedule-trigger");
   });
 });

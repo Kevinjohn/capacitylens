@@ -98,6 +98,35 @@ The report separates confirmed defects from conditional package trials and extra
 It does not establish security certification, production acceptance or package-adoption approval.
 Implementation scope and current acceptance evidence remain in the owning GitHub issues.
 
+## Lucid soft-delete integration
+
+The backend pins `@kevinjohn/lucid-soft-deletes` version `0.1.0-alpha` as a packed archive in
+[`vendor/lucid-soft-deletes/`](vendor/lucid-soft-deletes/), built from upstream revision
+[`2d6f4e9900e05956a87111ce78bb0e2161ed763d`](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/commit/2d6f4e9900e05956a87111ce78bb0e2161ed763d).
+The adjacent SHA-256 file identifies the installed bytes. This is a source-revision pin, not a
+claim that the package is available from the registry. Update the archive, checksum, backend
+manifest and lockfile together.
+
+Client, Project, Activity and Resource keep the package's Luxon `deletedAt` attribute. Their
+serializers validate the UTC ISO timestamp sent to the shared domain and wire contract. Keep the
+schema generator's deletion-column rule aligned with that type; ordinary product timestamps
+retain their existing string contract.
+
+Complete-state reads explicitly include trashed rows at each lifecycle model. A root
+`withTrashed()` does not change related queries; select the mode separately on every preload.
+The shared `activeOnly` projection owns descendant hiding, using the complete parent state.
+The package hides a model's own tombstone and does not implement application ancestry rules.
+
+Archive transitions, planning revisions, audit rows and session-bound restoration groups already
+exist in Adonis. The package integration does not introduce a public soft-delete or purge action,
+a retention policy or deletion undo tokens for lifecycle models. Hard-deleted bookings, time off,
+closures, phases and disciplines retain their existing restoration representation. Package
+lifecycle operations and database bookkeeping share the caller's transaction; after-hooks run
+before commit, so dispatch external effects only after that transaction resolves.
+
+[Issue #1640](https://github.com/Kevinjohn/capacitylens/issues/1640) records integration commands,
+results and the remaining application migration boundaries.
+
 ## Beta transfer contract
 
 The beta-native document has `format: "capacitylens-beta"`, `schemaVersion: 1` and

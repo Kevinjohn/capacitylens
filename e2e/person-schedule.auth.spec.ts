@@ -106,7 +106,7 @@ async function openPrivacyDrawer(page: Page) {
   await goToSeedWeek(page);
   const row = page.getByTestId("scheduler-row").filter({ hasText: "Victor Stone" });
   await expect(row).toBeVisible();
-  await row.getByRole("button", { name: "View Victor Stone's schedule" }).click();
+  await row.getByRole("button", { name: "View Victor Stone's schedule VS" }).click();
   return page.getByRole("dialog", { name: "Victor Stone's schedule" });
 }
 

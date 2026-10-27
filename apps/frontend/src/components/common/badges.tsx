@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { resolveAccessibleBarColors } from "@capacitylens/shared/lib/color";
 import { Avatar as ShadAvatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { resolveAvatarInitials } from "@/lib/metadata";
 
 /** Shows a preset colour without changing its semantic value. */
 export function ColorSwatch({ color }: { color: string }) {
@@ -11,11 +12,6 @@ export function ColorSwatch({ color }: { color: string }) {
     />
   );
 }
-
-// Placeholder avatars use a question mark instead of initials. The display name lives in
-// src/lib/metadata.ts because this module is a React component boundary.
-/** Fallback symbol shown when an avatar has no initial. */
-export const PLACEHOLDER_AVATAR_SYMBOL = "?";
 
 // All props are primitives, so the default shallow prop compare is exact, memoised to skip
 // re-rendering every row's avatar when an unrelated sibling in a list (e.g. SchedulerGrid) updates.
@@ -35,15 +31,7 @@ export const Avatar = memo(function Avatar({
    * the initials; the Radix primitive keeps the initials as the fallback while loading/on error. */
   imageUrl?: string;
 }) {
-  const initials = placeholder
-    ? PLACEHOLDER_AVATAR_SYMBOL
-    : name
-        .trim()
-        .split(/\s+/)
-        .map((word) => Array.from(word)[0] ?? "")
-        .slice(0, 2)
-        .join("")
-        .toUpperCase() || "—";
+  const initials = resolveAvatarInitials(name, placeholder);
   // Keep the initials legible (white-on-mid-tone often fails AA) by nudging the fill.
   const { bg: background, ink } = resolveAccessibleBarColors(color);
   return (

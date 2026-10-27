@@ -11,7 +11,6 @@ import { useResourceLaneInteraction } from "./useResourceLaneInteraction";
 /** Resource, geometry, and interaction state consumed by one schedule lane. */
 export interface ResourceLaneProps {
   resourceId: ID;
-  ariaLabel: string;
   days: ISODate[];
   dayStates: DayState[];
   timeOff: TimeOffBlock[];
@@ -25,7 +24,7 @@ export interface ResourceLaneProps {
   onEdit?: (allocationId: ID) => void;
   onDraw?: (resourceId: ID, startDate: ISODate, endDate: ISODate) => void;
 }
-interface LayersProps extends Omit<ResourceLaneProps, "ariaLabel" | "geom" | "resourceId" | "rowHeight"> {
+interface LayersProps extends Omit<ResourceLaneProps, "geom" | "resourceId" | "rowHeight"> {
   geometry: ColumnGeometry;
   draw: { a: number; b: number } | null;
   hoverDay: number | null;
@@ -210,7 +209,6 @@ export const ResourceLane = memo(function ResourceLane({
       data-resource-id={props.resourceId}
       role="gridcell"
       aria-colindex={2}
-      aria-label={props.ariaLabel}
       className="relative shrink-0 transition-colors"
       style={{ width: geometry.totalWidth, height: props.rowHeight }}
       onPointerDown={onPointerDown}
