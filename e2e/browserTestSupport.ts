@@ -1,5 +1,5 @@
 import { expect } from "@playwright/test";
-import type { Locator, Page } from "@playwright/test";
+import type { JSHandle, Locator, Page } from "@playwright/test";
 import { WEEK_SNAP_IDLE_MS } from "../apps/frontend/src/lib/schedulerConfig";
 
 // Freeze browser Date inside the June seed window so scheduler tests remain independent of the wall clock.
@@ -35,19 +35,43 @@ export async function computedStyles<const Properties extends readonly string[]>
 
 /**
  * Reach a target through real keyboard navigation. `:focus-visible` depends on input modality, so
- * programmatic focus does not reproduce a keyboard user and can diverge across browsers. For a
- * roving-tabindex group, the selected item is the group's tab stop. Call this helper before any
- * mouse interaction in the test, or `:focus-visible` will not match.
- * @throws An error named FocusByKeyboardError when the target is not reached within 100 Tab presses.
+ * programmatic focus does not reproduce a keyboard user and can diverge across browsers. Safari on
+ * macOS may reserve plain Tab for text fields and pop-up menus; Option+Tab also reaches buttons
+ * and links. Start with plain Tab, then use that Safari path only after a complete cycle misses the
+ * target. This works with either keyboard-navigation preference without changing host settings.
+ * For a roving-tabindex group, the selected item is the group's tab stop. Call this helper before
+ * any mouse interaction in the test, or `:focus-visible` will not match.
+ * @throws An error named FocusByKeyboardError when the target is not reached within 100 key presses.
  */
 export async function focusByKeyboard(page: Page, target: Locator): Promise<number> {
   const maxTabPresses = 100;
-  for (let tabPresses = 1; tabPresses <= maxTabPresses; tabPresses += 1) {
-    await page.keyboard.press("Tab");
-    if (await target.evaluate((element) => element === document.activeElement)) return tabPresses;
+  const browserName = page.context().browser()?.browserType().name();
+  const useSafariFallback = process.platform === "darwin" && browserName === "webkit";
+  let firstFocusedElement: JSHandle<Element | null> | undefined;
+  let safariFallbackActive = false;
+
+  try {
+    for (let keyPresses = 1; keyPresses <= maxTabPresses; keyPresses += 1) {
+      await page.keyboard.press(safariFallbackActive ? "Alt+Tab" : "Tab");
+      if (await target.evaluate((element) => element === document.activeElement)) return keyPresses;
+
+      if (useSafariFallback && !safariFallbackActive) {
+        if (firstFocusedElement === undefined) {
+          firstFocusedElement = await page.evaluateHandle(() => document.activeElement);
+        } else if (await firstFocusedElement.evaluate((first) => first === document.activeElement)) {
+          // A complete plain-Tab cycle without reaching the target means Safari is using its
+          // default native-control policy. Option+Tab includes buttons and links in that mode.
+          safariFallbackActive = true;
+          await firstFocusedElement.dispose();
+          firstFocusedElement = undefined;
+        }
+      }
+    }
+  } finally {
+    await firstFocusedElement?.dispose();
   }
 
-  const error = new Error(`Target was not reached after ${maxTabPresses} Tab presses`);
+  const error = new Error(`Target was not reached after ${maxTabPresses} keyboard presses`);
   error.name = "FocusByKeyboardError";
   throw error;
 }
