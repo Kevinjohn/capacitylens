@@ -13,7 +13,6 @@ import { freshDatabase } from '../../helpers/fresh_database.js'
 import { fixtureSession } from '../../helpers/identities.js'
 import ConvertPlanningDeleteSnapshots from '../../../database/migrations/202610270002_convert_planning_delete_snapshots.js'
 import CreateBaseline from '../../../database/migrations/202610120001_create_capacitylens_baseline.js'
-import AddDeletionOwnership from '../../../database/migrations/202610270001_planning_soft_delete_ownership.js'
 import { resetPlanningFixture } from './helpers.js'
 
 const models = {
@@ -174,7 +173,7 @@ test.group('planning deletion ownership', (suite) => {
     )
     await db.from('allocations').where('id', row.id).delete()
     await db.transaction(async (trx) => {
-      await new ConvertPlanningDeleteSnapshots(trx, 'legacy-upgrade-proof').up()
+      await new ConvertPlanningDeleteSnapshots(trx, 'legacy-upgrade-proof').execUp()
     })
     const retained = await db.from('allocations').where('id', row.id).first()
     assert.exists(retained?.deleted_at)
@@ -213,7 +212,7 @@ test.group('planning deletion ownership', (suite) => {
     ])
     await db.from('resources').where('id', orphan.resourceId).delete()
     await db.transaction(async (trx) => {
-      await new ConvertPlanningDeleteSnapshots(trx, 'legacy-upgrade-proof').up()
+      await new ConvertPlanningDeleteSnapshots(trx, 'legacy-upgrade-proof').execUp()
     })
     const stillActive = await db.from('allocations').where('id', active.id).first()
     assert.isNull(stillActive?.deleted_at)
@@ -236,6 +235,20 @@ test.group('planning deletion ownership', (suite) => {
     if (wipe.exitCode) throw wipe.error ?? new Error('Database wipe failed')
     try {
       await new CreateBaseline(db.connection(), 'populated-upgrade-proof').execUp()
+      await db.connection().schema.createTable('adonis_schema', (table) => {
+        table.increments('id')
+        table.string('name').notNullable()
+        table.integer('batch').notNullable()
+        table.timestamp('migration_time')
+      })
+      await db.connection().schema.createTable('adonis_schema_versions', (table) => {
+        table.integer('version').primary()
+      })
+      await db.table('adonis_schema').insert({
+        name: 'database/migrations/202610120001_create_capacitylens_baseline',
+        batch: 1,
+      })
+      await db.table('adonis_schema_versions').insert({ version: 2 })
       const data = seed()
       const mappings = {
         accounts: 'accounts',
@@ -285,24 +298,49 @@ test.group('planning deletion ownership', (suite) => {
         )
       )
       const receiptBefore = await db.from('deleted_rows').where('group_id', groupId).first()
-      await new AddDeletionOwnership(db.connection(), 'populated-upgrade-proof').up()
+      const schemaBefore = await db
+        .from('sqlite_master')
+        .whereNot('name', 'like', 'sqlite_%')
+        .select('type', 'name', 'sql')
+        .orderBy('name')
+      const groupsBefore = await db.from('deleted_groups').orderBy('group_id')
+      const rowsBefore = await db.from('deleted_rows').orderBy('id')
+      const dryRun = await ace.exec('migration:run', [
+        '--dry-run',
+        '--force',
+        '--no-schema-generate',
+      ])
+      if (dryRun.exitCode) throw dryRun.error ?? new Error('Migration dry run failed')
+      assert.deepEqual(
+        await db
+          .from('sqlite_master')
+          .whereNot('name', 'like', 'sqlite_%')
+          .select('type', 'name', 'sql')
+          .orderBy('name'),
+        schemaBefore
+      )
+      for (const table of Object.values(mappings))
+        assert.deepEqual(await db.from(table).orderBy('id'), before[table])
+      assert.deepEqual(await db.from('deleted_groups').orderBy('group_id'), groupsBefore)
+      assert.deepEqual(await db.from('deleted_rows').orderBy('id'), rowsBefore)
+      const applied = await ace.exec('migration:run', ['--force', '--no-schema-generate'])
+      if (applied.exitCode) throw applied.error ?? new Error('Migration apply failed')
       for (const table of Object.values(mappings)) {
         const actualRows = await db.from(table).orderBy('id')
-        const after = actualRows.map((row) => {
-          if (!['allocations', 'time_off', 'closures', 'phases', 'disciplines'].includes(table))
-            return row
-          const original = { ...row }
-          delete original.deleted_at
-          delete original.deletion_group_id
-          return original
-        })
+        const after = actualRows
+          .filter((row) => table !== 'allocations' || row.id !== removed.id)
+          .map((row) => {
+            if (!['allocations', 'time_off', 'closures', 'phases', 'disciplines'].includes(table))
+              return row
+            const original = { ...row }
+            delete original.deleted_at
+            delete original.deletion_group_id
+            return original
+          })
         assert.deepEqual(after, before[table], `${table} changed during schema rebuild`)
       }
       const receiptAfter = await db.from('deleted_rows').where('group_id', groupId).first()
       assert.equal(receiptAfter?.id, receiptBefore?.id)
-      await db.transaction(async (trx) => {
-        await new ConvertPlanningDeleteSnapshots(trx, 'populated-upgrade-proof').up()
-      })
       const retained = await db.from('allocations').where('id', removed.id).first()
       assert.equal(retained?.account_id, removed.accountId)
       assert.equal(retained?.created_at, removed.createdAt)
