@@ -266,6 +266,8 @@ export async function countRestorableItems(trx: TransactionClientContract, accou
 
 /** Carries only the count required for an explicit, revision-bound cleanup decision. */
 export class RestorationConfirmationError extends PlanningOperationError {
+  declare readonly code: 'RESTORATION_CONFIRMATION_REQUIRED' | 'RESTORATION_CONFIRMATION_STALE'
+
   constructor(
     readonly restorableItemCount: number,
     stale: boolean

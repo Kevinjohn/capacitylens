@@ -5,7 +5,7 @@ import {
   parseBetaExport,
 } from "@capacitylens/shared/data/betaTransfer";
 import { readApiError } from "@/lib/readApiError";
-import { apiRouteUrl } from "@/api/queryClient";
+import { apiReadRouteUrl } from "@/api/queryClient";
 import { apiFetch, API_BULK_TIMEOUT_MS } from "./requestTimeout";
 
 // The shared inactive-slice reader validates the complete tenant projection so backup and lifecycle views cannot accept a partial response.
@@ -48,7 +48,7 @@ export class InactiveSliceShapeError extends Error {
  */
 export async function fetchInactiveSlice(accountId: ID, signal?: AbortSignal): Promise<AppData> {
   const res = await apiFetch(
-    `${apiRouteUrl("api.state", {})}?${new URLSearchParams({ accountId, includeInactive: "1" })}`,
+    apiReadRouteUrl("api.state", { query: { accountId, includeInactive: "1" } }),
     { credentials: "include", ...(signal ? { signal } : {}) },
     // The complete (archived + soft-deleted) slice is the heaviest read the app makes, the bulk
     // tier, not the interactive 15s, so a large tenant's export/backup isn't aborted mid-flight.

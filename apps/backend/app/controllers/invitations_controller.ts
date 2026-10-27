@@ -17,6 +17,7 @@ import { invalidAdmission, missingAdmission } from '#services/admission/errors'
 import { signInWithPassword } from '#controllers/auth_controller'
 import db from '@adonisjs/lucid/services/db'
 import { isCommittedFailure } from '#services/account_kit/committed'
+import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors'
 
 function fields(value: unknown, allowed: string[]): value is Record<string, unknown> {
   return (
@@ -174,7 +175,7 @@ export default class InvitationsController {
         return ctx.response.conflict({
           error: 'An account already uses this email. Sign in instead.',
           code: 'EMAIL_REGISTERED',
-        })
+        } satisfies ProductHttpErrorBody)
       if (error instanceof FirstCompanyPendingError)
         return ctx.response.conflict({ error: error.message, code: error.code })
       // The identity exists; only a follow-up failed, so the person signs in rather than retrying.

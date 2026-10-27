@@ -47,6 +47,20 @@ export function apiRouteUrl<Name extends keyof ProductRoutes>(
   return `${API_BASE}${client.getRoute(name, args).url}`;
 }
 
+type QueryReadRoute = "api.state" | "api.admission.index";
+
+/** Build query-bearing read URLs with generated inputs; Tuyau getRoute omits query arguments. */
+export function apiReadRouteUrl<Name extends QueryReadRoute>(
+  name: Name,
+  args: RequestArgs<ProductRoutes[Name]>,
+): string;
+export function apiReadRouteUrl(
+  name: QueryReadRoute,
+  args: { query?: ProductRoutes[QueryReadRoute]["types"]["query"] },
+): string {
+  return `${API_BASE}${client.urlFor.get(name, undefined, args.query === undefined ? {} : { qs: args.query }).url}`;
+}
+
 /** Prefix a Tuyau route key with the identity scope that is allowed to observe its result. */
 export function scopeQueryKey<const T extends readonly unknown[]>(scope: ApiQueryScope, routeKey: T) {
   return ["capacitylens", scope.principalId, scope.accountId, scope.masqueradeGeneration, ...routeKey] as const;

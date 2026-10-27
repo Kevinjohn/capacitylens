@@ -40,9 +40,7 @@ router.get('/health/live', () => ({ ok: true }))
 router.get('/health/ready', async ({ response }) => {
   try {
     const report = await healthChecks.run()
-    if (!report.isHealthy) return response.serviceUnavailable(report)
-    await checkDatabase()
-    return response.ok(report)
+    return report.isHealthy ? response.ok(report) : response.serviceUnavailable(report)
   } catch {
     return response.serviceUnavailable({ isHealthy: false, status: 'error', checks: [] })
   }
