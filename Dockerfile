@@ -1,7 +1,7 @@
 # Use BuildKit's bundled frontend to avoid a separate Docker Hub syntax-image pull.
 
-# Publisher mirrors retain the pinned images without Docker Hub's anonymous pull quota.
-FROM public.ecr.aws/docker/library/node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 AS deps
+# GitHub-hosted runners are exempt from Docker Hub public-image pull limits; ECR Public is not.
+FROM docker.io/library/node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 AS deps
 WORKDIR /app
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
@@ -40,7 +40,7 @@ FROM web-build AS server-deploy
 RUN pnpm --filter @capacitylens/backend deploy --prod --legacy --no-optional /runtime-deploy \
     && node scripts/prepare-container-runtime.mjs /app /runtime-deploy /prod/backend
 
-FROM public.ecr.aws/docker/library/node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 AS api
+FROM docker.io/library/node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 AS api
 WORKDIR /app/backend
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0 PORT=8787 SESSION_DRIVER=database
