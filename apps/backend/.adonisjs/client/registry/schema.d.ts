@@ -635,10 +635,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/auth/sign-up'
     types: {
-      body: {}
+      body: ExtractBody<InferInput<(typeof import('#validators/auth_requests').signUpValidator)>>
       paramsTuple: []
       params: {}
-      query: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/auth_requests').signUpValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signUp']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signUp']>>>
     }
@@ -647,10 +647,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/auth/sign-in'
     types: {
-      body: {}
+      body: ExtractBody<InferInput<(typeof import('#validators/auth_requests').signInValidator)>>
       paramsTuple: []
       params: {}
-      query: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/auth_requests').signInValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signIn']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signIn']>>>
     }
@@ -950,7 +950,7 @@ export interface Registry {
       body: {}
       paramsTuple: []
       params: {}
-      query: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/admission_query').admissionQueryValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['index']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['index']>>>
     }

@@ -35,8 +35,13 @@ export function parseInstalledDependencies(source, repositoryRoot) {
       }
       for (const [manifestName, dependency] of Object.entries(listed)) {
         const installed = dependency?.version;
-        // AccountKit is vendored with file: references; workspace links are local code, not registry releases.
-        if (typeof installed === "string" && /^(?:file|link|workspace):/.test(installed)) continue;
+        // Local file and workspace dependencies have no registry release to compare.
+        if (
+          [installed, dependency?.resolved].some(
+            (value) => typeof value === "string" && /^(?:file|link|workspace):/.test(value),
+          )
+        )
+          continue;
         versionMajor(installed, `installed ${manifestName}`);
         const name = dependency.from ?? manifestName;
         if (typeof name !== "string" || !name)
@@ -85,20 +90,6 @@ export function renderReport(updates, date) {
   return lines.join("\n");
 }
 
-async function mapConcurrent(values, limit, callback) {
-  const results = new Array(values.length);
-  let next = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(limit, values.length) }, async () => {
-      while (next < values.length) {
-        const index = next++;
-        results[index] = await callback(values[index]);
-      }
-    }),
-  );
-  return results;
-}
-
 function getLatestVersion(name) {
   const value = execFileSync("pnpm", ["view", `${name}@latest`, "version", "--json"], {
     encoding: "utf8",
@@ -107,14 +98,9 @@ function getLatestVersion(name) {
   return JSON.parse(value);
 }
 
-async function main() {
-  const args = process.argv.slice(2);
-  let outputPath;
-  if (args.length) {
-    if (args.length !== 2 || args[0] !== "--output")
-      throw new Error("Usage: report-major-dependencies.mjs [--output <path>]");
-    outputPath = args[1];
-  }
+function main() {
+  if (process.argv.length !== 2) throw new Error("Usage: report-major-dependencies.mjs");
+  const outputPath = process.env.MAJOR_DEPENDENCY_REPORT_FILE;
 
   const repositoryRoot = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
   const listing = execFileSync("pnpm", ["list", "--recursive", "--depth", "0", "--json"], {
@@ -124,15 +110,17 @@ async function main() {
   });
   const dependencies = parseInstalledDependencies(listing, repositoryRoot);
   const names = [...new Set(dependencies.map(({ name }) => name))];
-  const versions = await mapConcurrent(names, 4, async (name) => [name, getLatestVersion(name)]);
+  const versions = names.map((name) => [name, getLatestVersion(name)]);
   const report = renderReport(findMajorUpdates(dependencies, new Map(versions)), new Date().toISOString().slice(0, 10));
   if (outputPath) writeFileSync(outputPath, report);
   else process.stdout.write(report);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
-  main().catch((error) => {
+  try {
+    main();
+  } catch (error) {
     console.error(`Major dependency report failed: ${error.message}`);
     process.exitCode = 1;
-  });
+  }
 }

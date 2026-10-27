@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { parseDocument } from "yaml";
 import { findMajorUpdates, parseInstalledDependencies, renderReport } from "./report-major-dependencies.mjs";
@@ -23,7 +27,11 @@ test("collects installed direct dependencies from each workspace and skips local
           "@capacitylens/shared": { from: "@capacitylens/shared", version: "link:packages/shared" },
         },
         {
-          "adonisjs-account-kit": { from: "adonisjs-account-kit", version: "file:vendor/account-kit/core" },
+          "adonisjs-account-kit": {
+            from: "adonisjs-account-kit",
+            version: "0.1.2",
+            resolved: "file:vendor/adonisjs-account-kit/adonisjs-account-kit-0.1.2.tgz",
+          },
         },
       ),
       workspace(
@@ -56,7 +64,7 @@ test("fails closed on invalid installed package lists and versions", () => {
   );
 });
 
-test("reports only higher stable majors with package, workspace and both versions", () => {
+test("reports direct dependencies whose registry latest version has a higher major", () => {
   const installed = [
     { name: "zod", workspace: "packages/shared", installed: "3.25.0" },
     { name: "react", workspace: "apps/frontend", installed: "19.3.1" },
@@ -89,7 +97,7 @@ test("rejects missing or malformed registry versions", () => {
   assert.throws(() => findMajorUpdates(installed, new Map([["react", "not-a-version"]])), /Invalid latest/);
 });
 
-test("keeps the scheduled workflow read-only for source and limited to standing issue writes", () => {
+test("workflow invokes the report script without forwarding extra arguments", () => {
   const workflow = parseDocument(
     readFileSync(new URL("../.github/workflows/major-dependency-report.yml", import.meta.url), "utf8"),
   ).toJS();
@@ -98,8 +106,49 @@ test("keeps the scheduled workflow read-only for source and limited to standing 
   assert.deepEqual(workflow.permissions, {});
   assert.deepEqual(workflow.jobs.report.permissions, { contents: "read", issues: "write" });
   const steps = workflow.jobs.report.steps;
-  assert.ok(steps.some(({ run }) => run?.includes("dependency:major-report")));
+  const reportStep = steps.find(({ name }) => name === "Compare installed workspace versions with npm latest versions");
+  assert.equal(reportStep.run, "pnpm run dependency:major-report");
+  assert.equal(reportStep.env.MAJOR_DEPENDENCY_REPORT_FILE, "${{ runner.temp }}/major-dependency-report.md");
+
+  const temporaryDirectory = mkdtempSync(path.join(os.tmpdir(), "major-dependency-report-"));
+  try {
+    const shimDirectory = path.join(temporaryDirectory, "bin");
+    const outputPath = path.join(temporaryDirectory, "major-dependency-report.md");
+    const workspacePath = fileURLToPath(new URL("..", import.meta.url));
+    const workspaceJsonPath = path.join(temporaryDirectory, "workspace.json");
+    const pnpmShimPath = path.join(shimDirectory, "pnpm");
+    const reportScriptPath = fileURLToPath(new URL("./report-major-dependencies.mjs", import.meta.url));
+    mkdirSync(shimDirectory);
+    writeFileSync(
+      workspaceJsonPath,
+      JSON.stringify([{ path: workspacePath, dependencies: { react: { from: "react", version: "19.3.1" } } }]),
+    );
+    writeFileSync(
+      pnpmShimPath,
+      `#!/bin/sh\ncase "$1" in\n  run)\n    [ "$#" -eq 2 ] && [ "$2" = "dependency:major-report" ] || { echo "unexpected pnpm run arguments: $*" >&2; exit 2; }\n    exec "$NODE_BIN" "$REPORT_SCRIPT"\n    ;;\n  list) cat "$WORKSPACE_JSON" ;;\n  view) printf '"20.0.0"\\n' ;;\n  *) echo "unexpected pnpm command: $*" >&2; exit 2 ;;\nesac\n`,
+    );
+    chmodSync(pnpmShimPath, 0o755);
+    execFileSync("bash", ["-euo", "pipefail", "-c", reportStep.run], {
+      cwd: workspacePath,
+      env: {
+        ...process.env,
+        PATH: `${shimDirectory}:${process.env.PATH}`,
+        NODE_BIN: process.execPath,
+        REPORT_SCRIPT: reportScriptPath,
+        WORKSPACE_JSON: workspaceJsonPath,
+        MAJOR_DEPENDENCY_REPORT_FILE: outputPath,
+      },
+      stdio: "pipe",
+    });
+    assert.match(readFileSync(outputPath, "utf8"), /`react`/);
+    assert.match(readFileSync(outputPath, "utf8"), /`19\.3\.1` \| `20\.0\.0`/);
+  } finally {
+    rmSync(temporaryDirectory, { recursive: true, force: true });
+  }
+
   const maintenance = steps.find(({ run }) => run?.includes("gh issue list"))?.run;
+  const maintenanceStep = steps.find(({ run }) => run?.includes("gh issue list"));
+  assert.equal(maintenanceStep.env.GH_TOKEN, "${{ github.token }}");
   assert.match(maintenance, /--state all --label/);
   assert.match(maintenance, /Expected one standing issue/);
   assert.match(maintenance, /gh issue edit/);

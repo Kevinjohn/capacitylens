@@ -53,7 +53,9 @@ export function staticSpaRouteDocuments(): Plugin {
 
 /** Configures application builds and lane-local development, refusing invalid client deployment settings. */
 export default defineConfig(({ mode }) => {
-  const fileEnv = loadEnv(mode, process.cwd(), "VITE_CAPACITYLENS_");
+  // Stryker loads this config from the repository root, so resolve frontend paths from the config file.
+  const frontendRoot = fileURLToPath(new URL(".", import.meta.url));
+  const fileEnv = loadEnv(mode, frontendRoot, "VITE_CAPACITYLENS_");
   const clientEnv = (name: "VITE_CAPACITYLENS_API" | "VITE_CAPACITYLENS_DEMO" | "VITE_CAPACITYLENS_FEEDBACK_MAILTO") =>
     process.env[name] ?? fileEnv[name] ?? "";
   parseClientApiOrigin(clientEnv("VITE_CAPACITYLENS_API"), clientEnv("VITE_CAPACITYLENS_DEMO"));
@@ -63,6 +65,7 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
+    root: frontendRoot,
     build: {
       outDir: "../../dist",
       emptyOutDir: true,

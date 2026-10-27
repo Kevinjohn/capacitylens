@@ -25,9 +25,12 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
       - name: Compare installed workspace versions with npm latest versions
-        run: pnpm run dependency:major-report -- --output "$RUNNER_TEMP/major-dependency-report.md"
+        env:
+          MAJOR_DEPENDENCY_REPORT_FILE: ${{ runner.temp }}/major-dependency-report.md
+        run: pnpm run dependency:major-report
       - name: Update the standing report issue
         env:
+          GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           OWNER: ${{ github.repository_owner }}
           REPORT_FILE: ${{ runner.temp }}/major-dependency-report.md

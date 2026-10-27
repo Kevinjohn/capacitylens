@@ -10,6 +10,7 @@ import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } f
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 const ok = (body: unknown): Response => ({ ok: true, status: 200, json: async () => body }) as unknown as Response;
@@ -20,6 +21,7 @@ describe("fetchInactiveSlice", () => {
     const fetchMock = vi.fn(async () => ok(body));
     vi.stubGlobal("fetch", fetchMock);
 
+    const timeout = vi.spyOn(AbortSignal, "timeout");
     const controller = new AbortController();
     const data = await fetchInactiveSlice("a-studio", controller.signal);
 
@@ -27,6 +29,9 @@ describe("fetchInactiveSlice", () => {
     expect(url).toContain("/api/state?accountId=a-studio&includeInactive=1");
     expect(init.credentials).toBe("include");
     expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(timeout).toHaveBeenCalledWith(120_000);
+    controller.abort();
+    expect(init.signal?.aborted).toBe(true);
 
     expect(data).toEqual(body);
   });

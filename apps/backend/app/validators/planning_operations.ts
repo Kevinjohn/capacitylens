@@ -1,3 +1,4 @@
+import type { HttpErrorBody, ProductErrorCode } from '@capacitylens/shared/api/httpErrors'
 import vine from '@vinejs/vine'
 import type { Infer } from '@vinejs/vine/types'
 import {
@@ -945,16 +946,10 @@ export const planningMutationErrorCodes = [
   'NO_CHANGE',
   'RESTORATION_CONFIRMATION_REQUIRED',
   'RESTORATION_CONFIRMATION_STALE',
-] as const
+] as const satisfies readonly ProductErrorCode[]
 
 /** Flat command failure body; conflicts use HTTP 409. */
-export interface PlanningMutationFailure {
-  error: string
-  restorableItemCount?: number
-  code?: string
-  decision?: unknown
-  committed?: boolean
-}
+export type PlanningMutationFailure = HttpErrorBody
 
 export const planningMutationFailureValidator = vine.compile(
   vine.object({

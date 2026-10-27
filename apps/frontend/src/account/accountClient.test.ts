@@ -618,3 +618,17 @@ function registerTerminalClassificationTests(): void {
     ).resolves.toBe(true);
   });
 }
+
+describe("admission list query", () => {
+  it("encodes an opaque cursor once and preserves credentials and cancellation", async () => {
+    const controller = new AbortController();
+    await accountClient.listAdmissionRequests("pending", "next+/=&?", controller.signal);
+    const call = mocks.apiFetch.mock.calls.at(-1);
+    if (!call) throw new Error("Expected admission read");
+    const url = new URL(call[0]);
+    expect(url.pathname).toBe("/api/admission/requests");
+    expect(url.searchParams.get("status")).toBe("pending");
+    expect(url.searchParams.get("cursor")).toBe("next+/=&?");
+    expect(call[1]).toMatchObject({ credentials: "include", signal: controller.signal });
+  });
+});

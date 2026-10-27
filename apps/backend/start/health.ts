@@ -1,5 +1,4 @@
 import { HealthChecks } from '@adonisjs/core/health'
-import { DbCheck } from '@adonisjs/lucid/database'
-import db from '@adonisjs/lucid/services/db'
+import { DatabaseReadinessCheck } from '#services/health/database_readiness_check'
 
-export const healthChecks = new HealthChecks().register([new DbCheck(db.connection())])
+export const healthChecks = new HealthChecks().register([new DatabaseReadinessCheck()])
