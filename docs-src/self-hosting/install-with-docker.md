@@ -22,6 +22,11 @@ only when another service already uses that port.
 
 ## Build and start
 
+The Node base image comes from Docker Hub and remains pinned by digest. GitHub-hosted runners
+are [exempt from its public-image pull limit](https://docs.github.com/en/actions/reference/limits#docker-hubs-rate-limit-for-github-actions).
+Local and self-hosted runners remain subject to [Docker Hub pull limits](https://docs.docker.com/docker-hub/usage/pulls/);
+use `docker login` with your own account if your host reaches that limit.
+
 ```bash
 docker compose up --build --detach --wait
 ```
