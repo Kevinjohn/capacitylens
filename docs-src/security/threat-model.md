@@ -75,7 +75,7 @@ Test paths below are relative to `apps/backend/tests/functional/` unless the ful
 | Operator-issued reset outside product recovery | The unaudited `account-kit:reset-link` command is excluded from the registered Account Kit commands. Operators use `owner:reset-password`, which requires a stopped server and eligible sole Owner and writes an audit row before showing the single-use link | `tests/unit/owner_reset_command.spec.ts`; `tests/functional/auth/recovery.spec.ts` |
 | Injection, malformed writes or unsafe imports | Vine validation strips unknown fields; ordinary writes reject invalid input; import is Owner-only, validates references and replaces data atomically | `http_parser_regressions.spec.ts`, `transfer_apply.spec.ts`, `planning/transactions.spec.ts` |
 | Database corruption or partial write | Startup refuses schema drift in tables, columns, indexes, triggers and proof-table foreign-key declarations; backup snapshots must pass SQLite `quick_check` and `foreign_key_check`; write transactions, WAL and operator backups support recovery | `state/database_contract.spec.ts`, `transaction_faults.spec.ts`, `backup_diagnostics.spec.ts`; restore procedures are operator-run |
-| Log leakage or uninvestigated authentication | Application audit rows are stored in SQLite. No auth-specific success, failure or throttling event is written; the optional request log records event, method, route, status, outcome and correlation ID (no latency), but not a complete authentication event; bearer values are excluded | `logging.spec.ts`; no automated test covers authentication event logging, an open code gap tracked in [issue #1629](https://github.com/Kevinjohn/capacitylens/issues/1629) |
+| Log leakage or uninvestigated authentication | With `CAPACITYLENS_LOG=1`, password sign-in success, credential failure and throttling produce bounded structured events correlated with request completion; bearer values are excluded | `authentication_events.spec.ts`, `logging.spec.ts`; other authorization, proof and validation refusals are not individually logged |
 | Resource exhaustion | 512 accepted-socket ceiling, 30-second request-reception and socket-inactivity timeouts (not handler/database deadlines), separate password and request throttles, five-second pool acquisition and one-second SQLite busy timeout, and framework request-body limits | `request_limits.spec.ts`, `auth/native_auth_limits.spec.ts`, `backup_diagnostics.spec.ts`, `transfer_apply.spec.ts` |
 | Supply-chain compromise | Lockfile-pinned dependencies, Dependabot, CodeQL, Gitleaks, SBOM, vulnerability scans, DAST and tagged provenance | Local gates and documented public/manual workflows |
 
@@ -90,9 +90,8 @@ Test paths below are relative to `apps/backend/tests/functional/` unless the ful
 - Account Kit's operator commands are registered alongside the product's stricter owner-recovery
   path. The host operator already has database authority; some Kit commands do not create product
   audit rows. Treat command access as privileged host access and retain shell audit evidence.
-- Authentication outcomes are not recorded in the product audit log. The application request log,
-  when enabled, records event, method, route, status, outcome and correlation ID (no latency), not authentication
-  outcomes.
+- Sign-in outcomes are not product audit rows. The opt-in application log records password sign-in
+  success, credential failure and throttling separately from the request completion event.
 - Password reset and invitation bearers occur in URL paths. Application route logging suppresses
   sensitive path values, but proxy, SMTP and mailbox access remain operator-controlled boundaries.
 - SMTP delivery, mailbox security and retention, public TLS, encrypted host volumes, secret-manager

@@ -98,12 +98,12 @@ policy and backup-encryption controls.
 | --- | --- | --- | --- |
 | API request log | Event, method, route, status, outcome and correlation ID when request logging is enabled; no latency is recorded | Pino JSON stdout | No request/response bodies, cookie or authorization values; sensitive bearer path segments are redacted |
 | Application audit | Actor, company, action, entity, id and changed field names | Transactional SQLite `audit_entries` table | No entity values, passwords or bearer tokens |
-| Authentication events | No auth-specific success, failure or throttling events are written to the application audit table | No application security event stream is configured; optional request logs record route/status metadata | Generic request telemetry is not a complete authentication event record; this open code gap is tracked in [issue #1629](https://github.com/Kevinjohn/capacitylens/issues/1629) |
+| Authentication events | When `CAPACITYLENS_LOG=1`, password sign-in success, credential failure and throttling are structured `auth.sign_in` events with outcome and request correlation ID | Pino JSON stdout, correlated with the HTTP completion record | Events omit email, IP, user-agent, password, session and bearer values; log access and retention remain operator responsibilities |
 | Proxy/platform | TLS/access/container/collector events | Deployment-defined systems | Operator classifies, redacts, restricts, retains and correlates in UTC |
 
-Production configuration requires application audit to remain enabled. The application does not
-provide a security-log stream or write authentication outcomes. The operator must document access,
-retention, time synchronization, alerting and any external log collection.
+Production configuration requires application audit to remain enabled. Authentication outcomes
+use the opt-in application log stream, not transactional audit rows. The operator must document
+access, retention, time synchronization, alerting and any external log collection.
 
 ## Third parties and build inputs
 

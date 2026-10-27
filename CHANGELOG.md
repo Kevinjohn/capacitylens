@@ -13,6 +13,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Record bounded password sign-in outcomes, including automatic sign-in after registration.
 - Pull the pinned Node container base from Docker Hub so replacement CI avoids the anonymous ECR Public quota.
 
 - Hide a placeholder from active views when its bound project or that project's client is archived or deleted.
