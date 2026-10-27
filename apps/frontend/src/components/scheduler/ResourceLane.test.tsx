@@ -67,7 +67,6 @@ function renderLane(overrides: Partial<Parameters<typeof ResourceLane>[0]> = {})
   const onDraw = vi.fn<NonNullable<Parameters<typeof ResourceLane>[0]["onDraw"]>>();
   const baseProps: Parameters<typeof ResourceLane>[0] = {
     resourceId: "r1",
-    ariaLabel: "Resource one timeline",
     days: DAYS,
     dayStates: DAY_STATES,
     timeOff: TIME_OFF_BLOCKS,
@@ -339,7 +338,7 @@ describe("ResourceLane draw reconciliation", () => {
     setLaneRect();
     fireEvent.pointerDown(screen.getByTestId("resource-lane"), { clientX: 120, pointerId: 6, button: 0 });
 
-    rerenderLane({ ariaLabel: "Resource one updated timeline" });
+    rerenderLane({ todayX: 24 });
     act(() => {
       document.dispatchEvent(new PointerEvent("pointerup", { clientX: 20, pointerId: 6, bubbles: true }));
     });

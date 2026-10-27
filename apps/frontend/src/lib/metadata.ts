@@ -88,6 +88,24 @@ export function resolvePlaceholderDisplayName(): string {
   return m.placeholder_display_name();
 }
 
+// Placeholder avatars use a question mark instead of initials. This lives beside the display name
+// rather than in the avatar component, so accessible names can repeat what the avatar shows.
+const PLACEHOLDER_AVATAR_SYMBOL = "?";
+
+/** Returns the text an avatar shows: up to two initials, or the placeholder symbol. */
+export function resolveAvatarInitials(name: string, placeholder = false): string {
+  if (placeholder) return PLACEHOLDER_AVATAR_SYMBOL;
+  return (
+    name
+      .trim()
+      .split(/\s+/)
+      .map((word) => Array.from(word)[0] ?? "")
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "—"
+  );
+}
+
 /** Returns the placeholder label for slots, otherwise the resource name with role fallback. */
 export function resolveResourceDisplayName(resource: Resource): string {
   if (resource.kind === "placeholder") return resolvePlaceholderDisplayName();

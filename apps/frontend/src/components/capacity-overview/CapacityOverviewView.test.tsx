@@ -109,7 +109,7 @@ describe("CapacityOverviewView", () => {
 
     render(<CapacityOverviewView />);
 
-    const trigger = screen.getByRole("button", { name: "View Clark Kent's schedule" });
+    const trigger = screen.getByRole("button", { name: "View Clark Kent's schedule CK" });
     expect(trigger).toHaveAttribute("data-testid", "person-schedule-trigger");
     await user.click(trigger);
 

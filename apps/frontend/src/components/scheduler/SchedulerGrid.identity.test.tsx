@@ -45,7 +45,7 @@ describe("SchedulerGrid component identity and row variants", () => {
       try {
         const { container } = render(<SchedulerGrid />, { wrapper: MemoryRouter });
 
-        const avatar = container.querySelector('button[aria-label="View Bruce\'s schedule"] img');
+        const avatar = container.querySelector('button[data-testid="person-schedule-trigger"] img');
         expect(avatar).toHaveAttribute("src", avatarUrl ?? "https://images.example/linked.png");
         expect(avatar).toHaveAttribute("referrerpolicy", "no-referrer");
       } finally {
@@ -76,7 +76,7 @@ describe("SchedulerGrid component identity and row variants", () => {
     expect(screen.getByTestId("scheduler-row")).toBeVisible();
     expect(screen.queryByRole("button", { name: /Add allocation for/ })).not.toBeInTheDocument();
     expect(screen.getByTestId("allocation-bar")).toHaveAttribute("role", "img");
-    const trigger = screen.getByRole("button", { name: "View Bruce's schedule" });
+    const trigger = screen.getByRole("button", { name: "View Bruce's schedule B" });
     expect(trigger).toBeVisible();
     expect(trigger).toHaveAttribute("data-testid", "person-schedule-trigger");
     expect(within(trigger).getByTestId("person-schedule-avatar")).toBeVisible();
@@ -85,7 +85,7 @@ describe("SchedulerGrid component identity and row variants", () => {
       "group-focus-visible:opacity-100",
     );
     expect(
-      within(screen.getByTestId("scheduler-row")).getAllByRole("button", { name: "View Bruce's schedule" }),
+      within(screen.getByTestId("scheduler-row")).getAllByRole("button", { name: "View Bruce's schedule B" }),
     ).toHaveLength(1);
   });
 });
@@ -96,7 +96,7 @@ describe("SchedulerGrid individual schedule drawer", () => {
     render(<SchedulerGrid />, { wrapper: MemoryRouter });
     const grid = screen.getByTestId("scheduler-grid");
 
-    await user.click(screen.getByRole("button", { name: "View Bruce's schedule" }));
+    await user.click(screen.getByRole("button", { name: "View Bruce's schedule B" }));
 
     expect(screen.getByRole("dialog", { name: "Bruce's schedule" })).toBeVisible();
     expect(screen.getByTestId("scheduler-grid")).toBe(grid);
@@ -110,7 +110,7 @@ describe("SchedulerGrid individual schedule drawer", () => {
     const grid = screen.getByTestId("scheduler-grid");
     grid.scrollLeft = 37;
     grid.scrollTop = 19;
-    const trigger = screen.getByRole("button", { name: "View Bruce's schedule" });
+    const trigger = screen.getByRole("button", { name: "View Bruce's schedule B" });
     await user.click(trigger);
     trigger.remove();
 
@@ -124,7 +124,7 @@ describe("SchedulerGrid individual schedule drawer", () => {
   it("removes selected account content synchronously on an account switch", async () => {
     const user = userEvent.setup();
     render(<SchedulerGrid />, { wrapper: MemoryRouter });
-    await user.click(screen.getByRole("button", { name: "View Bruce's schedule" }));
+    await user.click(screen.getByRole("button", { name: "View Bruce's schedule B" }));
     expect(screen.getByRole("dialog", { name: "Bruce's schedule" })).toBeVisible();
 
     act(() => useStore.getState().setActiveAccount("a2"));

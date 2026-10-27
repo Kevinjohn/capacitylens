@@ -13,6 +13,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Align scheduler accessible names with visible avatar and lane content.
 - Record bounded password sign-in outcomes, including automatic sign-in after registration.
 - Pull the pinned Node container base from Docker Hub so replacement CI avoids the anonymous ECR Public quota.
 

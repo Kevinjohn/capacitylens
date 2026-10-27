@@ -81,7 +81,7 @@ async function prepareFilteredGrid(page: import("@playwright/test").Page) {
 function registerPreservationScenario() {
   test("opens as one read-only modal and preserves the grid state", async ({ page }) => {
     const { grid, gridElement, before } = await prepareFilteredGrid(page);
-    const trigger = page.getByRole("button", { name: "View Bruce Wayne's schedule" });
+    const trigger = page.getByRole("button", { name: "View Bruce Wayne's schedule BW" });
     await expect(trigger).toHaveAttribute("title", "View Bruce Wayne's schedule");
     await trigger.click();
     const sheet = await assertReadOnlySchedule(page);
@@ -101,7 +101,7 @@ function registerLayoutScenario() {
   test("traps focus, closes with Escape, and fits a narrow layout", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openApp(page);
-    const normalTrigger = page.getByRole("button", { name: "View Bruce Wayne's schedule" });
+    const normalTrigger = page.getByRole("button", { name: "View Bruce Wayne's schedule BW" });
     const normalRow = page.getByTestId("scheduler-row").filter({ hasText: "Bruce Wayne" });
     const normalRowBox = await normalRow.boundingBox();
     expect(normalRowBox).not.toBeNull();
@@ -121,7 +121,7 @@ function registerLayoutScenario() {
 
     await page.setViewportSize({ width: 520, height: 800 });
     await dismissLandscapeHint(page);
-    const narrowTrigger = page.getByRole("button", { name: "View Bruce Wayne's schedule" });
+    const narrowTrigger = page.getByRole("button", { name: "View Bruce Wayne's schedule BW" });
     await expect(narrowTrigger).toBeVisible();
     await narrowTrigger.click();
     const narrowSheet = page.getByRole("dialog", { name: "Bruce Wayne's schedule" });
@@ -139,7 +139,7 @@ function registerLayoutScenario() {
 test("opens from the trigger with both keyboard activation keys", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openApp(page);
-  const trigger = page.getByRole("button", { name: "View Bruce Wayne's schedule" });
+  const trigger = page.getByRole("button", { name: "View Bruce Wayne's schedule BW" });
 
   await focusByKeyboard(page, trigger);
   await page.keyboard.press("Enter");
@@ -158,7 +158,7 @@ test("opens from the trigger with both keyboard activation keys", async ({ page 
 test("uses the avatar as the sole trigger with resting, hover, and focus cues", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openApp(page);
-  const trigger = page.getByRole("button", { name: "View Bruce Wayne's schedule" });
+  const trigger = page.getByRole("button", { name: "View Bruce Wayne's schedule BW" });
   const triggerBox = await boundingBoxOrThrow(trigger);
   expect(triggerBox.width).toBe(28);
   expect(triggerBox.height).toBe(28);
@@ -205,7 +205,7 @@ test("renders three drawer entries with dark-theme colors", async ({ page }) => 
   await openApp(page);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
-  const trigger = page.getByRole("button", { name: "View Bruce Wayne's schedule" });
+  const trigger = page.getByRole("button", { name: "View Bruce Wayne's schedule BW" });
   await trigger.click();
   const dialog = page.getByRole("dialog", { name: "Bruce Wayne's schedule" });
   await expect(dialog).toBeVisible();

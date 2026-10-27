@@ -35,7 +35,7 @@ test("reviews the four-week capacity ledger and filters available rows", async (
   await expect(page.getByRole("radio", { name: "Load curve" })).toHaveAttribute("aria-checked", "true");
   await expect(table.getByTestId("capacity-load-curve").first()).toBeVisible();
 
-  await table.getByRole("button", { name: "View Bruce Wayne's schedule" }).click();
+  await table.getByRole("button", { name: "View Bruce Wayne's schedule BW" }).click();
   await expect(page.getByRole("dialog", { name: "Bruce Wayne's schedule" })).toBeVisible();
   await expect(page.getByTestId("person-schedule-sheet")).toHaveCount(1);
 });
