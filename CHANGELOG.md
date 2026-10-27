@@ -13,6 +13,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Pull the pinned Node container base from Docker Hub so replacement CI avoids the anonymous ECR Public quota.
+
 - Hide a placeholder from active views when its bound project or that project's client is archived or deleted.
 - Preserve caller cancellation when generated API requests pass through the request timeout handler.
 - Validate the public origin consistently for emailed account links, cookies and transport security; reject malformed operator limits and retire unused configuration declarations.
