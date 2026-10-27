@@ -1,10 +1,13 @@
 import { randomUUID } from 'node:crypto'
+import { createRequire } from 'node:module'
 import { test } from '@japa/runner'
 import app from '@adonisjs/core/services/app'
 import db from '@adonisjs/lucid/services/db'
+import env from '#start/env'
 import { seed } from '@capacitylens/shared/data/seed'
 import { encodeRow } from '#services/state_repository'
 import Allocation from '#models/allocation'
+import Client from '#models/client'
 import Closure from '#models/closure'
 import Discipline from '#models/discipline'
 import Phase from '#models/phase'
@@ -12,6 +15,15 @@ import TimeOff from '#models/time_off'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import { fixtureSession } from '../../helpers/identities.js'
 import ConvertPlanningDeleteSnapshots from '../../../database/migrations/202610270002_convert_planning_delete_snapshots.js'
+
+type NativeConnection = {
+  pragma(sql: string): unknown
+  prepare(sql: string): { run(...values: string[]): unknown }
+  close(): void
+}
+const NativeDatabase = createRequire(import.meta.url)('better-sqlite3') as new (
+  path: string
+) => NativeConnection
 import CreateBaseline from '../../../database/migrations/202610120001_create_capacitylens_baseline.js'
 import { resetPlanningFixture } from './helpers.js'
 
@@ -297,6 +309,7 @@ test.group('planning deletion ownership', (suite) => {
           Object.values(mappings).map(async (table) => [table, await db.from(table).orderBy('id')])
         )
       )
+      await db.rawQuery('CREATE INDEX time_off_deletion_group_id_index ON time_off(id)')
       const receiptBefore = await db.from('deleted_rows').where('group_id', groupId).first()
       const schemaBefore = await db
         .from('sqlite_master')
@@ -305,6 +318,7 @@ test.group('planning deletion ownership', (suite) => {
         .orderBy('name')
       const groupsBefore = await db.from('deleted_groups').orderBy('group_id')
       const rowsBefore = await db.from('deleted_rows').orderBy('id')
+      const migrationLedgerBefore = await db.from('adonis_schema').orderBy('id')
       const dryRun = await ace.exec('migration:run', [
         '--dry-run',
         '--force',
@@ -323,6 +337,22 @@ test.group('planning deletion ownership', (suite) => {
         assert.deepEqual(await db.from(table).orderBy('id'), before[table])
       assert.deepEqual(await db.from('deleted_groups').orderBy('group_id'), groupsBefore)
       assert.deepEqual(await db.from('deleted_rows').orderBy('id'), rowsBefore)
+      const failedApply = await ace.exec('migration:run', ['--force', '--no-schema-generate'])
+      assert.isAbove(failedApply.exitCode ?? 0, 0)
+      assert.deepEqual(
+        await db
+          .from('sqlite_master')
+          .whereNot('name', 'like', 'sqlite_%')
+          .select('type', 'name', 'sql')
+          .orderBy('name'),
+        schemaBefore
+      )
+      for (const table of Object.values(mappings))
+        assert.deepEqual(await db.from(table).orderBy('id'), before[table])
+      assert.deepEqual(await db.from('deleted_groups').orderBy('group_id'), groupsBefore)
+      assert.deepEqual(await db.from('deleted_rows').orderBy('id'), rowsBefore)
+      assert.deepEqual(await db.from('adonis_schema').orderBy('id'), migrationLedgerBefore)
+      await db.rawQuery('DROP INDEX time_off_deletion_group_id_index')
       const applied = await ace.exec('migration:run', ['--force', '--no-schema-generate'])
       if (applied.exitCode) throw applied.error ?? new Error('Migration apply failed')
       for (const table of Object.values(mappings)) {
@@ -337,7 +367,7 @@ test.group('planning deletion ownership', (suite) => {
             delete original.deletion_group_id
             return original
           })
-        assert.deepEqual(after, before[table], `${table} changed during schema rebuild`)
+        assert.deepEqual(after, before[table], `${table} changed during schema migration`)
       }
       const receiptAfter = await db.from('deleted_rows').where('group_id', groupId).first()
       assert.equal(receiptAfter?.id, receiptBefore?.id)
@@ -353,6 +383,30 @@ test.group('planning deletion ownership', (suite) => {
         ),
         { kind: 'row' }
       )
+      const native = new NativeDatabase(env.get('CAPACITYLENS_DB')!)
+      try {
+        native.pragma('foreign_keys = ON')
+        const project = data.projects.find((row) => row.accountId === 'a-loft')!
+        native.prepare('DELETE FROM projects WHERE id = ?').run(project.id)
+      } finally {
+        native.close()
+      }
+      const client = data.clients.find(
+        (row) =>
+          row.accountId === 'a-studio' &&
+          data.projects.some((project) => project.clientId === row.id)
+      )!
+      await db
+        .from('clients')
+        .where('id', client.id)
+        .update({ deleted_at: new Date().toISOString() })
+      await db.manager.close('sqlite')
+      const purged = await Client.query()
+        .onlyTrashed()
+        .withScopes((scopes) => scopes.forCompany('a-studio'))
+        .where('id', client.id)
+        .forceDelete()
+      assert.equal(purged, 1)
     } finally {
       await freshDatabase()
     }

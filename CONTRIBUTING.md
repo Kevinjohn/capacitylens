@@ -126,9 +126,9 @@ a retention policy or deletion undo tokens for lifecycle models. Planning delete
 time off, closures, phases and disciplines use package lifecycle operations. Their rows stay in
 their own tables; the recovery ledger contains only expected row IDs and surviving-child links.
 These five types keep internal deletion fields out of serialization and omit deleted rows even
-from inactive-inclusive state reads. The current deletion group owns each retained row through a
-company-qualified foreign key, so session and privacy cleanup cannot affect a replacement or a
-later deletion. Package lifecycle operations and database bookkeeping share the caller's
+from inactive-inclusive state reads. A group foreign key and mandatory company-matching
+guards bind each retained row to its current deletion. Session and privacy cleanup cannot affect
+a replacement or a later deletion. Package lifecycle operations and database bookkeeping share the caller's
 transaction; after-hooks run before commit, so dispatch external effects only after that
 transaction resolves.
 

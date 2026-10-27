@@ -223,13 +223,6 @@ export async function assertSchemaIntegrity() {
       !references.some(
         (reference) =>
           reference.table === 'deleted_groups' &&
-          reference.from === 'account_id' &&
-          reference.to === 'account_id' &&
-          reference.on_delete === 'CASCADE'
-      ) ||
-      !references.some(
-        (reference) =>
-          reference.table === 'deleted_groups' &&
           reference.from === 'deletion_group_id' &&
           reference.to === 'group_id' &&
           reference.on_delete === 'CASCADE'
@@ -239,12 +232,16 @@ export async function assertSchemaIntegrity() {
     for (const operation of ['insert', 'update'])
       await assertTrigger(
         `${table}_deletion_group_${operation}`,
-        `CREATE TRIGGER ${table}_deletion_group_${operation} BEFORE ${operation.toUpperCase()} ON ${table} WHEN NEW.deletion_group_id IS NOT NULL AND NEW.deleted_at IS NULL BEGIN SELECT RAISE(ABORT, 'active row cannot belong to deletion group'); END`
+        `CREATE TRIGGER ${table}_deletion_group_${operation} BEFORE ${operation.toUpperCase()} ON ${table} WHEN NEW.deletion_group_id IS NOT NULL AND (NEW.deleted_at IS NULL OR NOT EXISTS (SELECT 1 FROM deleted_groups WHERE group_id = NEW.deletion_group_id AND account_id = NEW.account_id)) BEGIN SELECT RAISE(ABORT, 'invalid deletion group association'); END`
       )
   }
   await assertTrigger(
     'deleted_groups_active_row_guard',
     `CREATE TRIGGER deleted_groups_active_row_guard BEFORE DELETE ON deleted_groups WHEN ${['allocations', 'time_off', 'closures', 'phases', 'disciplines'].map((table) => `EXISTS (SELECT 1 FROM ${table} WHERE deletion_group_id = OLD.group_id AND deleted_at IS NULL)`).join(' OR ')} BEGIN SELECT RAISE(ABORT, 'active row cannot belong to deletion group'); END`
+  )
+  await assertTrigger(
+    'deleted_groups_account_immutable',
+    "CREATE TRIGGER deleted_groups_account_immutable BEFORE UPDATE OF account_id ON deleted_groups WHEN NEW.account_id <> OLD.account_id BEGIN SELECT RAISE(ABORT, 'account_id is immutable'); END"
   )
   for (const [table, columns] of [
     [
