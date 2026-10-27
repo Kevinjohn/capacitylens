@@ -63,6 +63,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Keep a newer allocation target selection when inline activity creation finishes after the user changes it.
 - Refuse allocation restoration when current references or resource availability are incompatible, keeping the deletion available for retry.
 
 ### Added
