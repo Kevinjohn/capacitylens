@@ -4,6 +4,8 @@ import type { ApiClient } from '@japa/api-client'
 import { test } from '@japa/runner'
 import { freshDatabase } from '../../helpers/fresh_database.js'
 import db from '@adonisjs/lucid/services/db'
+import Activity from '#models/activity'
+import Resource from '#models/resource'
 import { encodeRow, readState } from '#services/state_repository'
 import { withTransaction } from '#services/with_transaction'
 import { deleteAllocations } from '#services/planning_operations/restoration'
@@ -161,6 +163,15 @@ test.group('session-bound allocation restoration', (suite) => {
       assert.deepEqual(deleted.body().projection.changed.removed, [{ entity: 'allocations', id }])
       assert.notInclude(deleted.text(), note)
       assert.isUndefined(await stored(id!))
+      const retained = await db.from('allocations').where('id', id!).first()
+      assert.isDefined(retained)
+      assert.isNotNull(retained.deleted_at)
+      assert.equal(retained.deletion_group_id, groupId)
+      const ledger = await db.from('deleted_rows').where('group_id', groupId).first()
+      assert.deepEqual(JSON.parse(ledger.payload_json), { kind: 'row' })
+      assert.equal(ledger.entity, 'allocations')
+      assert.equal(ledger.row_id, id)
+      assert.notInclude(ledger.payload_json, note)
       mutations.push({ mutationId: deleteId, action: 'allocation.delete' })
 
       const restoreId = randomUUID()
@@ -173,6 +184,9 @@ test.group('session-bound allocation restoration', (suite) => {
         replacementGroupId: null,
       })
       assert.deepEqual(await stored(id!), original)
+      const restoredRow = await db.from('allocations').where('id', id!).first()
+      assert.isNull(restoredRow.deleted_at)
+      assert.isNull(restoredRow.deletion_group_id)
       mutations.push({ mutationId: restoreId, action: 'planning.restoreGroup' })
     }
     assert.equal(await currentRevision(client, cookie), 5)
@@ -458,9 +472,13 @@ test.group('session-bound allocation restoration', (suite) => {
     deleted.assertStatus(200)
     const groupId = deleted.body().restoration.replacementGroupId
     const before = await readState(accountId, true)
-    await db.rawQuery(
-      `CREATE TEMP TRIGGER restore_constraint_failure BEFORE INSERT ON allocations WHEN NEW.id = '${second}' BEGIN SELECT RAISE(ABORT, 'test constraint failure'); END`
-    )
+    const retainedBefore = await db.from('allocations').where('id', second!).first()
+    assert.isNotNull(retainedBefore.deleted_at)
+    assert.equal(retainedBefore.deletion_group_id, groupId)
+    await db.rawQuery(`CREATE TEMP TRIGGER restore_constraint_failure
+      BEFORE UPDATE OF deleted_at ON allocations
+      WHEN NEW.id = '${second}' AND NEW.deleted_at IS NULL
+      BEGIN SELECT RAISE(ABORT, 'test constraint failure'); END`)
     try {
       const failed = await restore(client, cookie, groupId, 2)
       assert.isAtLeast(failed.status(), 400)
@@ -470,11 +488,17 @@ test.group('session-bound allocation restoration', (suite) => {
     }
     assert.deepEqual(await readState(accountId, true), before)
     assert.isNull(await consumedAt(groupId))
+    const retainedAfterFailure = await db.from('allocations').where('id', second!).first()
+    assert.isNotNull(retainedAfterFailure.deleted_at)
+    assert.equal(retainedAfterFailure.deletion_group_id, groupId)
     assert.equal(await currentRevision(client, cookie), 2)
     const restored = await restore(client, cookie, groupId, 2)
     restored.assertStatus(200)
     assert.isDefined(await stored(first!))
     assert.isDefined(await stored(second!))
+    const restoredSecond = await db.from('allocations').where('id', second!).first()
+    assert.isNull(restoredSecond.deleted_at)
+    assert.isNull(restoredSecond.deletion_group_id)
   })
 
   test('signing out removes its groups; a later session is refused the old handle', async ({
@@ -602,6 +626,12 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const before = await readState(accountId, true)
     const resource = before.resources.find((row) => row.disciplineId !== null)!
     const disciplineId = resource.disciplineId!
+    await Resource.query()
+      .withScopes((scopes) => scopes.forCompany(accountId))
+      .where('id', resource.id)
+      .softDelete()
+    const hiddenResource = await db.from('resources').where('id', resource.id).first()
+    const childDeletedAt = hiddenResource.deleted_at
     const deleted = await send(
       client,
       cookie,
@@ -615,12 +645,18 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     deleted.assertStatus(200)
     const afterDelete = await readState(accountId, true)
     assert.isNull(afterDelete.resources.find((row) => row.id === resource.id)?.disciplineId)
+    const detachedResource = await db.from('resources').where('id', resource.id).first()
+    assert.equal(detachedResource.updated_at, hiddenResource.updated_at)
+    assert.equal(detachedResource.deleted_at, childDeletedAt)
     await db.from('resources').where('id', resource.id).update({ role: 'Updated Gotham role' })
     const restored = await restore(client, cookie, deleted.body().restoration.replacementGroupId, 1)
     restored.assertStatus(200)
     const after = await readState(accountId, true)
     assert.equal(after.resources.find((row) => row.id === resource.id)?.disciplineId, disciplineId)
     assert.equal(after.resources.find((row) => row.id === resource.id)?.role, 'Updated Gotham role')
+    const relinkedResource = await db.from('resources').where('id', resource.id).first()
+    assert.equal(relinkedResource.deleted_at, childDeletedAt)
+    assert.isAbove(Date.parse(relinkedResource.updated_at), Date.parse(hiddenResource.updated_at))
   })
 
   test('a reassigned child prevents partial discipline relinking and leaves the group usable', async ({
@@ -668,7 +704,14 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     configureAuth(cleanup)
     const { cookie } = await signIn(client)
     const before = await readState(accountId, true)
-    const activity = before.activities.find((row) => row.phaseId !== null)!
+    const seededActivity = before.activities.find((row) => row.phaseId !== null)!
+    await Activity.query()
+      .withScopes((scopes) => scopes.forCompany(accountId))
+      .where('id', seededActivity.id)
+      .softDelete()
+    const activity = before.activities.find((row) => row.id === seededActivity.id)!
+    const hiddenActivity = await db.from('activities').where('id', activity.id).first()
+    const childDeletedAt = hiddenActivity.deleted_at
     const phaseId = activity.phaseId!
     const deleted = await send(
       client,
@@ -684,6 +727,9 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const groupId = deleted.body().restoration.replacementGroupId
     const afterDelete = await readState(accountId, true)
     assert.isNull(afterDelete.activities.find((row) => row.id === activity.id)?.phaseId)
+    const detachedActivity = await db.from('activities').where('id', activity.id).first()
+    assert.equal(detachedActivity.updated_at, hiddenActivity.updated_at)
+    assert.equal(detachedActivity.deleted_at, childDeletedAt)
     const otherProject = before.projects.find((row) => row.id !== activity.projectId)!
     await db.from('activities').where('id', activity.id).update({ project_id: otherProject.id })
     const refused = await restore(client, cookie, groupId, 1)
@@ -700,6 +746,9 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const after = await readState(accountId, true)
     assert.equal(after.activities.find((row) => row.id === activity.id)?.phaseId, phaseId)
     assert.equal(after.activities.find((row) => row.id === activity.id)?.name, 'Gotham review')
+    const relinkedActivity = await db.from('activities').where('id', activity.id).first()
+    assert.equal(relinkedActivity.deleted_at, childDeletedAt)
+    assert.isAbove(Date.parse(relinkedActivity.updated_at), Date.parse(hiddenActivity.updated_at))
   })
 
   test('a missing phase project returns a restoration conflict without consuming its group', async ({
@@ -939,6 +988,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     confirmed.assertStatus(200)
     assert.isNull(await group(groupId))
     assert.isDefined(await group(foreignGroup))
+    assert.isNull(await db.from('allocations').where('id', allocationId!).first())
   })
 
   test('only an actual activity-kind change clears pending groups', async ({
@@ -1004,6 +1054,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       .send()
     confirmed.assertStatus(200)
     assert.isNull(await group(groupId))
+    assert.isNull(await db.from('allocations').where('id', allocationId!).first())
   })
 
   test('cleanup counts pending deleted rows of live sign-ins, excludes links and consumed groups, and rejects stale consent', async ({
@@ -1038,13 +1089,13 @@ test.group('typed catalogue and time-off restoration', (suite) => {
           group_id: id,
           entity: 'closures',
           row_id: randomUUID(),
-          payload_json: JSON.stringify({ kind: 'row', row: {} }),
+          payload_json: JSON.stringify({ kind: 'row' }),
         },
         {
           group_id: id,
           entity: 'phases',
           row_id: randomUUID(),
-          payload_json: JSON.stringify({ kind: 'row', row: {} }),
+          payload_json: JSON.stringify({ kind: 'row' }),
         },
         {
           group_id: id,

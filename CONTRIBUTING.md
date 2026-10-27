@@ -115,20 +115,26 @@ serializers validate the UTC ISO timestamp sent to the shared domain and wire co
 schema generator's deletion-column rule aligned with that type; ordinary product timestamps
 retain their existing string contract.
 
-Complete-state reads explicitly include trashed rows at each lifecycle model. A root
+Complete-state reads explicitly include trashed Client, Project, Activity and Resource rows. A root
 `withTrashed()` does not change related queries; select the mode separately on every preload.
 The shared `activeOnly` projection owns descendant hiding, using the complete parent state.
 The package hides a model's own tombstone and does not implement application ancestry rules.
 
 Archive transitions, planning revisions, audit rows and session-bound restoration groups already
 exist in Adonis. The package integration does not introduce a public soft-delete or purge action,
-a retention policy or deletion undo tokens for lifecycle models. Hard-deleted bookings, time off,
-closures, phases and disciplines retain their existing restoration representation. Package
-lifecycle operations and database bookkeeping share the caller's transaction; after-hooks run
-before commit, so dispatch external effects only after that transaction resolves.
+a retention policy or deletion undo tokens for lifecycle models. Planning deletes for bookings,
+time off, closures, phases and disciplines use package lifecycle operations. Their rows stay in
+their own tables; the recovery ledger contains only expected row IDs and surviving-child links.
+These five types keep internal deletion fields out of serialization and omit deleted rows even
+from inactive-inclusive state reads. The current deletion group owns each retained row through a
+company-qualified foreign key, so session and privacy cleanup cannot affect a replacement or a
+later deletion. Package lifecycle operations and database bookkeeping share the caller's
+transaction; after-hooks run before commit, so dispatch external effects only after that
+transaction resolves.
 
 [Issue #1640](https://github.com/Kevinjohn/capacitylens/issues/1640) records integration commands,
-results and the remaining application migration boundaries.
+results; [issue #1653](https://github.com/Kevinjohn/capacitylens/issues/1653) records planning
+recovery and cleanup acceptance.
 
 ## Beta transfer contract
 
@@ -159,7 +165,7 @@ company revision and audit once; an unchanged replacement does neither. Do not p
 data to the legacy remapping writer.
 
 Before activation, import replacement, anonymisation and privacy scrubbing must invalidate affected
-server-side restoration groups in the same transaction as the data change. Retained before-images
+server-side restoration groups in the same transaction as the data change. Retained recovery data
 must not restore replaced or scrubbed information after commit. Real SQLite acceptance must prove
 that committed invalidation refuses restoration and that a failed transaction rolls back both the
 data change and invalidation. Invalidation must preserve durable planning mutation commitment
