@@ -227,10 +227,6 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
 
       <ResourceLane
         resourceId={resource.id}
-
-        ariaLabel={m.scheduler_lane_aria({
-          name: resolveResourceDisplayName(resource),
-        })}
         days={days}
         dayStates={dayStates}
         timeOff={timeOff}

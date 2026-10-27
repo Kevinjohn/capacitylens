@@ -28,13 +28,22 @@ export function PersonScheduleTrigger({
   onViewSchedule,
 }: PersonScheduleTriggerProps) {
   const triggerLabel = m.scheduler_person_schedule_trigger({ name: scheduleTitle });
+  const visibleAvatarName = placeholder
+    ? "?"
+    : avatarName
+        .trim()
+        .split(/\s+/)
+        .map((word) => Array.from(word)[0] ?? "")
+        .slice(0, 2)
+        .join("")
+        .toUpperCase() || "—";
   return (
     <Button
       type="button"
       variant="ghost"
       size="icon"
       data-testid="person-schedule-trigger"
-      aria-label={triggerLabel}
+      aria-label={`${triggerLabel} ${visibleAvatarName}`}
       title={triggerLabel}
       className="group relative size-7 shrink-0 cursor-pointer rounded-full p-0"
       onClick={(event) => onViewSchedule(resourceId, event.currentTarget)}
