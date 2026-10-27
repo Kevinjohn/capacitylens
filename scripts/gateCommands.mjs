@@ -14,6 +14,7 @@ const commands = {
     ["run", "gate:deps"],
     ["run", "policy:dependabot"],
     ["run", "policy:dependabot:test"],
+    ["run", "dependency:major-report:test"],
     ["run", "security:gitleaks-config"],
     ["run", "policy:dco:test"],
     ...structuralChecks,

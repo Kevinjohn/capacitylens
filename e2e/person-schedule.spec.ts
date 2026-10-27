@@ -141,7 +141,7 @@ test("opens from the trigger with both keyboard activation keys", async ({ page 
   await openApp(page);
   const trigger = page.getByRole("button", { name: "View Bruce Wayne's schedule" });
 
-  await trigger.focus();
+  await focusByKeyboard(page, trigger);
   await page.keyboard.press("Enter");
   const dialog = page.getByRole("dialog", { name: "Bruce Wayne's schedule" });
   await expect(dialog).toBeVisible();
@@ -167,14 +167,28 @@ test("uses the avatar as the sole trigger with resting, hover, and focus cues", 
   const eye = trigger.getByTestId("person-schedule-eye");
   await expect(avatar).toHaveCSS("opacity", "1");
   await expect(eye).toHaveCSS("opacity", "0");
-  await trigger.hover();
-  await expect(avatar).toHaveCSS("opacity", "0");
-  await expect(eye).toHaveCSS("opacity", "1");
-  await page.mouse.move(900, 700);
   await focusByKeyboard(page, trigger);
   await expect(trigger).toBeFocused();
   await expect(avatar).toHaveCSS("opacity", "0");
   await expect(eye).toHaveCSS("opacity", "1");
+  await trigger.hover();
+  await expect(avatar).toHaveCSS("opacity", "0");
+  await expect(eye).toHaveCSS("opacity", "1");
+  await page.mouse.move(900, 700);
+  await expect(trigger).toBeFocused();
+  await expect(avatar).toHaveCSS("opacity", "0");
+  await expect(eye).toHaveCSS("opacity", "1");
+  await page.keyboard.press("Tab");
+  await expect(trigger).not.toBeFocused();
+  await expect(avatar).toHaveCSS("opacity", "1");
+  await expect(eye).toHaveCSS("opacity", "0");
+
+  await trigger.hover();
+  await expect(avatar).toHaveCSS("opacity", "0");
+  await expect(eye).toHaveCSS("opacity", "1");
+  await page.mouse.move(900, 700);
+  await expect(avatar).toHaveCSS("opacity", "1");
+  await expect(eye).toHaveCSS("opacity", "0");
   await expect(trigger).toHaveCSS("cursor", "pointer");
 
   const identityColumn = page
