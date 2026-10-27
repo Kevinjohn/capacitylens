@@ -3,6 +3,7 @@ import type { ID } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { Avatar } from "@/components/common/ui";
 import { Button } from "@/components/ui/button";
+import { resolveAvatarInitials } from "@/lib/metadata";
 
 /** Resource identity, title, and open action for a person schedule trigger. */
 export interface PersonScheduleTriggerProps {
@@ -28,15 +29,7 @@ export function PersonScheduleTrigger({
   onViewSchedule,
 }: PersonScheduleTriggerProps) {
   const triggerLabel = m.scheduler_person_schedule_trigger({ name: scheduleTitle });
-  const visibleAvatarName = placeholder
-    ? "?"
-    : avatarName
-        .trim()
-        .split(/\s+/)
-        .map((word) => Array.from(word)[0] ?? "")
-        .slice(0, 2)
-        .join("")
-        .toUpperCase() || "—";
+  const visibleAvatarName = resolveAvatarInitials(avatarName, placeholder);
   return (
     <Button
       type="button"
