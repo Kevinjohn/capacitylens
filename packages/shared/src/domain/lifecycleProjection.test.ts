@@ -36,6 +36,11 @@ const makeActiveOnlyResource = (id: string, name: string, tombstones: LifecycleF
   updatedAt: T_ARCH,
   ...tombstones,
 });
+const makeActiveOnlyPlaceholder = (id: string, name: string, projectId: string | null) => ({
+  ...makeActiveOnlyResource(id, name),
+  kind: "placeholder" as const,
+  projectId,
+});
 const makeActiveOnlyClient = (id: string, name: string, tombstones: LifecycleFields = {}) => ({
   ...NULLABLE_FIELDS.clients,
   id,
@@ -244,6 +249,44 @@ const registerActiveOnlyTest1 = (): void => {
   });
 };
 
+const registerActiveOnlyTestResourceAncestry = (): void => {
+  it("hides bound placeholders whose project ancestry is inactive and retains unresolved or cross-account bindings", () => {
+    const input = makeActiveOnlyData();
+    input.projects = [
+      ...input.projects,
+      {
+        ...makeActiveOnlyProject({
+          id: "p-other-account",
+          name: "Avengers Tower",
+          clientId: "c-active",
+        }),
+        accountId: "acct-2",
+      },
+    ];
+    input.resources = [
+      ...input.resources,
+      makeActiveOnlyPlaceholder("r-bound-active", "Bound active", "p-active"),
+      makeActiveOnlyPlaceholder("r-bound-hidden-client", "Bound hidden client", "p-hidden-parent"),
+      makeActiveOnlyPlaceholder("r-bound-archived-project", "Bound archived project", "p-archived"),
+      makeActiveOnlyPlaceholder("r-bound-deleted-project", "Bound deleted project", "p-deleted"),
+      makeActiveOnlyPlaceholder("r-bound-missing-project", "Bound missing project", "missing-project"),
+      makeActiveOnlyPlaceholder("r-bound-cross-account", "Bound cross-account project", "p-other-account"),
+      makeActiveOnlyPlaceholder("r-unbound", "Unbound placeholder", null),
+    ];
+
+    const out = activeOnly(input);
+
+    expect(out.resources.map(({ id }) => id)).toEqual([
+      "r-active",
+      "r-bound-active",
+      "r-bound-missing-project",
+      "r-bound-cross-account",
+      "r-unbound",
+    ]);
+    expect(input.resources.map(({ id }) => id)).toContain("r-bound-hidden-client");
+  });
+};
+
 const registerActiveOnlyTest2 = (): void => {
   it("closure-prunes descendants of hidden parents/resources while preserving top-level metadata", () => {
     const input = makeActiveOnlyData();
@@ -433,6 +476,7 @@ const registerActiveOnlyTest9 = (): void => {
 
 describe("activeOnly — VIEW/read projection that drops non-active resources/clients/projects (pure, immutable)", () => {
   registerActiveOnlyTest1();
+  registerActiveOnlyTestResourceAncestry();
   registerActiveOnlyTest2();
   registerActiveOnlyTest3();
   registerActiveOnlyTest4();
