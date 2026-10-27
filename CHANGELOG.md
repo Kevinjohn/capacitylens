@@ -28,6 +28,7 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Adopt the pinned Lucid soft-delete alpha for backend lifecycle models, with strict UTC timestamp serialization and tenant-scoped integration checks. Archive controls and planning restoration behavior are unchanged.
 - Set new and password-replacement hashes to the OWASP-minimum scrypt profile for the 16 MiB memory target. Legacy hashes remain verifiable, but sign-in does not automatically rehash them.
 
 - Update Account Kit to 0.1.3; account behavior, configuration and the database schema are unchanged.

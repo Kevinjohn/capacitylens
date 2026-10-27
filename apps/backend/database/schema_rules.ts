@@ -23,6 +23,10 @@ export default {
       tsType: "import('@capacitylens/shared/types/entities').ISOTimestamp",
       decorators: [{ name: '@column' }],
     },
+    deleted_at: {
+      tsType: "import('luxon').DateTime",
+      decorators: [{ name: '@column.dateTime' }],
+    },
     working_days: weekdays,
     half_days: weekdays,
     disciplines_enabled: boolean,
