@@ -89,8 +89,16 @@ export function planChecks(
       args: ["--filter", "@capacitylens/shared", "build"],
       prepare: true,
     });
-  if (frontendLint.length)
+  if (frontendLint.length) {
     steps.push({ label: "prepare: compile messages", args: ["run", "paraglide:compile"], prepare: true });
+    // Type-aware frontend lint reads backend route types through a project reference whose output
+    // lives under apps/backend/node_modules: a reinstall deletes it and another commit leaves it stale.
+    steps.push({
+      label: "prepare: build backend client types",
+      args: ["--dir", "apps/backend", "typecheck:client"],
+      prepare: true,
+    });
+  }
 
   const fullLint = paths.some((path) => lintConfig.test(path));
   if (paths.some((path) => formatConfig.test(path)))

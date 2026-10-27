@@ -178,7 +178,7 @@ test.group('native read-only masquerade', (group) => {
         {}
       ),
       asSession(
-        client.post('/api/auth/sign-in').header('sec-fetch-site', 'same-origin'),
+        client.post<string>('/api/auth/sign-in').header('sec-fetch-site', 'same-origin'),
         cookie
       ).json({}),
       asSession(client.get('/api/auth/me'), cookie),
