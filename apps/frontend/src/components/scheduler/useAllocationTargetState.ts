@@ -2,7 +2,7 @@ import { m } from "@/i18n";
 import { effectiveProjectId } from "@capacitylens/shared/lib/integrity";
 import type { Activity, Resource } from "@capacitylens/shared/types/entities";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { resolveResourceDisplayName } from "@/lib/metadata";
 import { parseText } from "@/lib/validation";
@@ -209,6 +209,7 @@ function useAddInlineActivity({
   setInlineActivityOption,
   setActivityId,
   setNewActivityName,
+  selectionVersion,
 }: Pick<TargetInput, "canEdit" | "addActivity" | "fail"> & {
   newActivityName: string;
   activityScope: ReturnType<typeof buildActivityScope>;
@@ -217,6 +218,7 @@ function useAddInlineActivity({
   >;
   setActivityId: React.Dispatch<React.SetStateAction<string>>;
   setNewActivityName: React.Dispatch<React.SetStateAction<string>>;
+  selectionVersion: React.MutableRefObject<number>;
 }) {
   return async () => {
     if (!canEdit) return;
@@ -225,6 +227,7 @@ function useAddInlineActivity({
       requiredMessage: m.form_allocation_err_new_activity_name(),
     });
     if (cleanActivityName === null) return;
+    const selectionVersionAtStart = selectionVersion.current;
     try {
       const activity = await addActivity({ name: cleanActivityName, ...activityScope });
       if (activity.kind === "blocked") return;
@@ -236,8 +239,9 @@ function useAddInlineActivity({
           ...(activity.value.projectId ? { projectId: activity.value.projectId } : {}),
         });
       });
-      setActivityId(activity.value.id);
-      setNewActivityName("");
+      if (selectionVersion.current === selectionVersionAtStart) setActivityId(activity.value.id);
+      // A name typed while the request was pending belongs to the next activity, so keep it.
+      setNewActivityName((current) => (current === newActivityName ? "" : current));
     } catch (error) {
       // Report inline-creation failure without treating the new target as successfully selected.
       fail(null, error instanceof Error ? error.message : m.form_allocation_err_save_failed());
@@ -251,13 +255,16 @@ function useTargetChangeHandlers({
   setResourceId,
   setProjectSelection,
   setActivityId,
+  selectionVersion,
 }: Pick<TargetInput, "clear"> & {
   resourcesById: Map<string, Resource>;
   setResourceId: React.Dispatch<React.SetStateAction<string>>;
   setProjectSelection: React.Dispatch<React.SetStateAction<string>>;
   setActivityId: React.Dispatch<React.SetStateAction<string>>;
+  selectionVersion: React.MutableRefObject<number>;
 }) {
   const changeAssignee = (value: string) => {
+    selectionVersion.current += 1;
     clear();
     setResourceId(value);
     const resource = resourcesById.get(value);
@@ -267,6 +274,7 @@ function useTargetChangeHandlers({
     }
   };
   const changeProject = (value: string) => {
+    selectionVersion.current += 1;
     clear();
     setProjectSelection(value);
     setActivityId("");
@@ -302,11 +310,21 @@ export function useAllocationTargetState(input: TargetInput) {
   const { inlineActivityCreateEnabled, fail, clear, errorField, errorId, addActivity } = input;
   const { create } = seed;
   const fieldState = useTargetFieldState(seed);
+  const selectionVersion = useRef(0);
   const { resourceId, projectSelection, activityId, setActivityId } = fieldState;
   const { newActivityName, setNewActivityName, setInlineActivityOption } = fieldState;
   // Keep an allocation's current assignee available during editing even when the company hides that resource kind, or saving could silently reassign the work.
   const choices = useTargetChoices({ ...input, ...fieldState, resourcesById });
-  const { changeAssignee, changeProject } = useTargetChangeHandlers({ ...fieldState, resourcesById, clear });
+  const { changeAssignee, changeProject } = useTargetChangeHandlers({
+    ...fieldState,
+    resourcesById,
+    clear,
+    selectionVersion,
+  });
+  const changeActivity = (value: string) => {
+    selectionVersion.current += 1;
+    setActivityId(value);
+  };
   const addInlineActivity = useAddInlineActivity({
     canEdit,
     newActivityName,
@@ -316,6 +334,7 @@ export function useAllocationTargetState(input: TargetInput) {
     setInlineActivityOption,
     setActivityId,
     setNewActivityName,
+    selectionVersion,
   });
 
   return {
@@ -333,7 +352,7 @@ export function useAllocationTargetState(input: TargetInput) {
       onProjectChange: changeProject,
       projectOptions: choices.projectOptions,
       activityId,
-      setActivityId,
+      setActivityId: changeActivity,
       activityOptions: choices.activityOptions,
       inlineActivityCreateEnabled,
       canEdit,
