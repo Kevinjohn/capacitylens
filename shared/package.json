@@ -61,7 +61,7 @@
     "tr46": "6.0.0"
   },
   "devDependencies": {
-    "@types/node": "^24.13.6",
+    "@types/node": "^24.19.2",
     "fast-check": "^4.10.2",
     "vite": "^8.3.5",
     "vitest": "^4.1.12"
