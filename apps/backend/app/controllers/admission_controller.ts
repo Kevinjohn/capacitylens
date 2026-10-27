@@ -4,8 +4,10 @@ import { AccountAdmission } from 'adonisjs-account-kit/admission'
 import { accountInput, currentAccount, withActor } from '#services/auth/current_actor'
 import { completeMembership } from '#services/membership/admission_membership'
 
+import { admissionQueryValidator } from '#validators/admission_query'
+import { errors as vineErrors } from '@vinejs/vine'
+
 const admission = () => app.container.make(AccountAdmission)
-const statuses = ['pending', 'approved', 'rejected', 'revoked'] as const
 
 function userIdParam(value: unknown) {
   return typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(value) ? value : null
@@ -29,13 +31,14 @@ export default class AdmissionController {
   }
 
   async index(ctx: HttpContext) {
-    const status = ctx.request.input('status')
-    const cursor = ctx.request.input('cursor')
-    if (
-      (status !== undefined && !statuses.includes(status)) ||
-      (cursor !== undefined && (typeof cursor !== 'string' || cursor.length > 512))
-    )
+    let query
+    try {
+      query = await ctx.request.validateUsing(admissionQueryValidator, { data: ctx.request.qs() })
+    } catch (error) {
+      if (!(error instanceof vineErrors.E_VALIDATION_ERROR)) throw error
       return ctx.response.badRequest({ error: 'Invalid admission list request.' })
+    }
+    const { status, cursor } = query
     const actor = await currentAccount(ctx)
     const service = await admission()
     const page = await service.list({ actorId: actor.id, status, cursor, limit: 100 })
