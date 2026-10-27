@@ -21,7 +21,7 @@ TLS, disks, collectors, secret stores and external authentication policy cannot 
 an environment acknowledgement is set; those stay Partial where deployment evidence is required.
 Requirement descriptions are not reproduced here; use the [official ASVS 5.0.0 release](https://github.com/OWASP/ASVS/tree/v5.0.0_release) alongside these IDs.
 
-Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Following the 2026-10-09 local MFA removal, the 2026-10-21 retirement of the automated cryptographic path check, and this 2026-10-26 authentication amendment, the current rows total **152 Pass, 58 Partial, 16 Gap and 119 N/A = 345**. These are not a score or certification percentage.
+Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Following the 2026-10-09 local MFA removal, the 2026-10-21 retirement of the automated cryptographic path check, the 2026-10-26 authentication amendment and the 2026-10-27 password hashing update, the current rows total **153 Pass, 57 Partial, 16 Gap and 119 N/A = 345**. These are not a score or certification percentage.
 
 ## V1 Encoding and sanitization
 

@@ -24,7 +24,7 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
-- Set new and rehashed password hashes to the OWASP-minimum scrypt profile for the 16 MiB memory target; existing hashes remain verifiable and are flagged for rehash.
+- Set new and password-replacement hashes to the OWASP-minimum scrypt profile for the 16 MiB memory target. Legacy hashes remain verifiable, but sign-in does not automatically rehash them.
 
 - Update Account Kit to 0.1.3; account behavior, configuration and the database schema are unchanged.
 - Product API error codes now use uppercase consistently, and export queries reject unsupported fields.
