@@ -124,7 +124,7 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
   await expect(viewerResourceRow.getByRole("button", { name: "Edit Viewer-visible person" })).toHaveCount(0);
 
   await page.getByRole("link", { name: "Schedule" }).click();
-  const viewerScheduleTrigger = page.getByRole("button", { name: "View Viewer-visible person's schedule" });
+  const viewerScheduleTrigger = page.getByRole("button", { name: "View Viewer-visible person's schedule VP" });
   await expect(viewerScheduleTrigger.locator("img")).toHaveAttribute("src", VIEWER_AVATAR_URL);
   await expect(viewerScheduleTrigger.locator("img")).toHaveAttribute("referrerpolicy", "no-referrer");
   await expect(page.getByTestId("scheduler-grid")).toBeVisible();
