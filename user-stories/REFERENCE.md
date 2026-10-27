@@ -750,7 +750,8 @@ handling keeps the card itself on-screen near a viewport edge. The retained drag
 guidance is exposed as the popover's assistive label rather than as a footer over the schedule.
 
 **Individual schedule drawer.** Every visible resource row uses its avatar as the schedule button,
-named **View _name_'s schedule** (`data-testid="person-schedule-trigger"`). Initials (or the
+named **View _name_'s schedule** with the visible initials (or the placeholder question mark)
+included in its accessible name (`data-testid="person-schedule-trigger"`). Initials (or the
 placeholder question mark) remain visible at rest; pointer hover and keyboard focus replace them
 with an eye icon, and focus has the standard visible ring. It is
 available to every role, including Viewers, and opens one read-only Sheet from the right without
