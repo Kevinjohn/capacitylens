@@ -40,7 +40,9 @@ export function activeOnly(data: AppData): AppData {
   const memo: LifecycleAncestryMemo = new Map();
   const hasVisibleAncestry = (table: AppDataKey, row: object): boolean =>
     inspectAncestry({ table, row: row as LifecycleAncestryRow, lookup, memo }).kind === "visible";
-  const resources = data.resources.filter(isActive);
+  const resources = data.resources.filter(
+    (resource) => isActive(resource) && hasVisibleAncestry("resources", resource),
+  );
   const clients = data.clients.filter(isActive);
   // An active child of an archived or deleted parent stays stored but is hidden from the app.
   const projects = data.projects.filter((project) => isActive(project) && hasVisibleAncestry("projects", project));
