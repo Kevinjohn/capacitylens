@@ -30,8 +30,9 @@ overrides:
   # Fixes the active fast-uri advisories without replacing consumer-supported major lines.
   fast-uri@>=3.0.0 <3.1.9: ^3.1.9
   fast-uri@>=4.0.0 <4.2.3: ^4.2.3
-  # GHSA-q8mj-m7cp-5q26 is fixed at qs 6.15.2; typed-rest-client 2.3.1 requests vulnerable 6.15.1 exactly.
-  qs@>=6.0.0 <6.15.2: ^6.15.2
+  # GHSA-q8mj-m7cp-5q26, GHSA-4mjr-xmp4-gh2g and GHSA-x5fp-wj9c-mxmx are all fixed by qs 6.16.0;
+  # typed-rest-client 2.3.1 requests vulnerable 6.15.1 exactly.
+  qs@>=6.0.0 <6.16.0: ^6.16.0
   # Vitest's jsdom accepts Undici 7; these floors address the current advisory ranges below 7.30.1.
   undici@>=7.0.0 <7.30.1: ^7.30.1
   # Current Vite advisories affect 8.3.0 through 8.3.2; workspace consumers accept Vite ^8.

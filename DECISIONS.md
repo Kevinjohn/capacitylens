@@ -393,8 +393,7 @@ This is the short, present-tense record of decisions that constrain future work.
   the issue when no newer majors remain.
 - Transitive security overrides are conditional floors for affected version ranges and preserve
   consumers' supported major lines. VitePress 1.x declares Vite 5 while its Vue plugin accepts
-  Vite 6, so its documentation build uses the patched Vite 6 line. The `qs` floor addresses
-  GHSA-q8mj-m7cp-5q26, fixed at 6.15.2, because `typed-rest-client@2.3.1` requests vulnerable
+  Vite 6, so its documentation build uses the patched Vite 6 line. The `qs` floor addresses GHSA-q8mj-m7cp-5q26, GHSA-4mjr-xmp4-gh2g and GHSA-x5fp-wj9c-mxmx, all fixed by 6.16.0, because `typed-rest-client@2.3.1` requests vulnerable
   `qs@6.15.1` exactly. The server's Nodemailer floor addresses three parser advisories within its
   declared `^10.0.16` range.
 
