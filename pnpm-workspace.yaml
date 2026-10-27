@@ -23,27 +23,27 @@ patchedDependencies:
   react-remove-scroll-bar@2.3.8: patches/react-remove-scroll-bar@2.3.8.patch
   sonner@2.0.8: patches/sonner@2.0.8.patch
 
-# Keep vulnerable transitive packages on compatible patched releases where their parents have not
-# raised their own minimums. Every override remains inside the range accepted by its consumer except the reviewed SMTP-only Nodemailer major transition and
-# VitePress's separately documented Vite transition below.
+# Conditional floors address the current advisory ranges while allowing later compatible releases.
+# The documented exceptions are VitePress's Vite 6 transition, qs for typed-rest-client's exact
+# vulnerable pin, and the SMTP-only Nodemailer 10 transition.
 overrides:
-  # Mail exposes only SMTP here; reviewed Nodemailer 10 fixes the mail advisories.
-  "@adonisjs/mail>nodemailer": 10.1.1
-  # VitePress 1.x still declares Vite 5 even though its Vue plugin supports Vite 6. Keep the docs
-  # build on the first supported line containing the fixes for the Vite 5 advisories.
-  vitepress>vite: 6.4.3
-  # Keep Vitest peer-context splits on the dependency versions already used by this lockfile.
-  vitest>picomatch: 4.0.5
-  vitest>tinyexec: 1.2.4
-  brace-expansion: 5.0.12
-  fast-uri@>=3.0.0 <3.1.6: ^3.1.6
-  fast-uri@>=4.0.0 <4.1.3: ^4.1.3
-  find-my-way: 9.7.0
-  nanoid: 3.3.18
-  postcss: 8.5.23
-  browserslist: 4.28.7
-  qs: 6.16.0
-  undici: 7.29.1
+  # Mail exposes only SMTP here; 10.1.4 fixes three parser advisories while retaining Nodemailer 10.
+  "@adonisjs/mail>nodemailer": ^10.1.4
+  # VitePress 1.x declares Vite 5 but its Vue plugin accepts Vite 6; use an updated 6.x release.
+  vitepress>vite: ^6.4.5
+  # Fixes the active fast-uri advisories without replacing consumer-supported major lines.
+  fast-uri@>=3.0.0 <3.1.9: ^3.1.9
+  fast-uri@>=4.0.0 <4.2.3: ^4.2.3
+  # GHSA-q8mj-m7cp-5q26, GHSA-4mjr-xmp4-gh2g and GHSA-x5fp-wj9c-mxmx are all fixed by qs 6.16.0;
+  # typed-rest-client 2.3.1 requests vulnerable 6.15.1 exactly.
+  qs@>=6.0.0 <6.16.0: ^6.16.0
+  # jsdom accepts Undici 7; these floors address the current advisory ranges below 7.30.1.
+  undici@>=7.0.0 <7.30.1: ^7.30.1
+  # The current Vite advisory affects 8.3.0 through 8.3.2; workspace consumers accept Vite ^8.
+  vite@>=8.3.0 <8.3.3: ^8.3.3
+  # Current advisories are fixed at these releases; all affected workspace consumers use these major lines.
+  vue@>=3.0.0 <3.5.42: ^3.5.42
+  zod@>=4.0.0 <4.6.6: ^4.6.6
 
 # pnpm 11 blocks dependency postinstall scripts by default; esbuild's is the one we
 # trust and need (it links the platform binary Vite/Vitest shell out to). Keep the
@@ -60,7 +60,4 @@ allowBuilds:
 minimumReleaseAgeExclude:
   # The reviewed release archive is vendored by tag and digest, with no registry release date.
   - adonisjs-account-kit@0.1.2
-  - browserslist@4.28.7
-  - fast-uri@4.1.4
-  - fast-uri@3.1.7
   - qs@6.16.0
