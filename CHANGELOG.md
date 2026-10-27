@@ -26,6 +26,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Set new and password-replacement hashes to the OWASP-minimum scrypt profile for the 16 MiB memory target. Legacy hashes remain verifiable, but sign-in does not automatically rehash them.
+
 - Update Account Kit to 0.1.3; account behavior, configuration and the database schema are unchanged.
 - Product API error codes now use uppercase consistently, and export queries reject unsupported fields.
 - Docker Compose now requires an HTTPS `CAPACITYLENS_PUBLIC_URL`, and the first setup link comes from `docker compose exec api node ace.js account-kit:admission:bootstrap`. The sign-in mode, setup token, breached-password, Google and backup-interval settings are removed from Compose and `.env.example`.
