@@ -197,6 +197,7 @@ new features and **patch** versions carry fixes.
 
 ### Documentation
 
+- Align current security guidance and the ASVS ledger with the password-only Account Kit controls.
 - Replaced retired framework and repository-policy references with the native Adonis operator
   guides. Installation, backup, upgrade, reset, monitoring and external TLS instructions now use
   the current packaged commands and paths; Docker mechanics remain deferred pending image work.
