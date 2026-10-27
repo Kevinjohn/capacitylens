@@ -62,6 +62,7 @@ export default defineConfig({
     () => import('@adonisjs/limiter/limiter_provider'),
     () => import('adonisjs-account-kit/account_kit_provider'),
     () => import('adonisjs-account-kit/admission/provider'),
+    () => import('@kevinjohn/lucid-soft-deletes/provider'),
     () => import('#providers/api_provider'),
     () => import('#providers/configuration_provider'),
     () => import('#providers/backup_provider'),

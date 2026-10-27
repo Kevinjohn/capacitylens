@@ -24,6 +24,7 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Adopt the pinned Lucid soft-delete alpha for backend lifecycle models, with strict UTC timestamp serialization and tenant-scoped integration checks. Archive controls and planning restoration behavior are unchanged.
 - Update Account Kit to 0.1.3; account behavior, configuration and the database schema are unchanged.
 - Product API error codes now use uppercase consistently, and export queries reject unsupported fields.
 - Docker Compose now requires an HTTPS `CAPACITYLENS_PUBLIC_URL`, and the first setup link comes from `docker compose exec api node ace.js account-kit:admission:bootstrap`. The sign-in mode, setup token, breached-password, Google and backup-interval settings are removed from Compose and `.env.example`.

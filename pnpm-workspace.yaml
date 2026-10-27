@@ -58,6 +58,7 @@ allowBuilds:
   tree-sitter-bash: false
 
 minimumReleaseAgeExclude:
-  # The reviewed release archive is vendored by tag and digest, with no registry release date.
+  # Reviewed release archives are vendored by revision and digest, with no registry release date.
   - adonisjs-account-kit@0.1.3
+  - "@kevinjohn/lucid-soft-deletes@0.1.0-alpha"
   - qs@6.16.0
