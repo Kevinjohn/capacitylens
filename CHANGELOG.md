@@ -21,6 +21,7 @@ new features and **patch** versions carry fixes.
 - Show unexpected error details only in development; test and production responses stay generic.
 - Load company and planning data correctly when opening or refreshing nested app URLs.
 - Explain when a password update succeeded but follow-up cleanup failed, clear obsolete form values, and give recovery guidance when the response is uncertain.
+- Remove the unaudited Account Kit reset-link command; operator-issued Owner recovery continues through the audited stopped-server command.
 
 - Align remaining security-header and first-company guides with native setup and the supported Google provider.
 

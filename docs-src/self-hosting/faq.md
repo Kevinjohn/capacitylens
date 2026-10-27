@@ -65,7 +65,8 @@ See [Upgrades](/self-hosting/upgrades).
 Stop the service and use
 `node ace.js owner:reset-password <email> --confirm-server-stopped` from the release's `backend/`
 directory. The audited command issues a single-use recovery link; deliver it privately and never
-set a password directly. See [When something goes wrong](/self-hosting/incidents).
+set a password directly. The generic Account Kit reset-link command is not registered. See
+[When something goes wrong](/self-hosting/incidents).
 
 ### How do I move to a new host?
 

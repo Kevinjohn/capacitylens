@@ -555,36 +555,52 @@ export function printFixtureInvitation(email: string, role: "admin" | "editor" |
   return printOperatorLink(["account-kit:invite", email, `--role=${role}`, "--print"], "invitation");
 }
 
-/** Prints a password-reset link for `email` through the operator command; returns its path. */
+/** Provisions a reset link through Account Kit's operator API; returns its path. */
 export function printFixtureResetLink(email: string): string {
-  return printOperatorLink(["account-kit:reset-link", email, "--print"], "reset");
+  assertAuthE2EFixturePath(AUTH_E2E_DATABASE);
+  const result = spawnSync(process.execPath, ["--import=@poppinss/ts-exec", "scripts/e2e-reset-link.mjs", email], {
+    cwd: BACKEND_DIRECTORY,
+    encoding: "utf8",
+    timeout: 30_000,
+    env: operatorFixtureEnvironment(),
+  });
+  if (result.error || result.status !== 0)
+    throw new Error(`Auth E2E reset-link fixture failed (${result.status ?? "spawn"}).`);
+  const url = /"url":"([^"]+)"/.exec(result.stdout)?.[1];
+  if (!url) throw new Error("The auth E2E reset-link fixture returned no link.");
+  return new URL(url).pathname;
 }
 
 function printOperatorLink(args: string[], label: string): string {
   assertAuthE2EFixturePath(AUTH_E2E_DATABASE);
-  const lane = ports();
   const result = spawnSync(process.execPath, ["ace.js", ...args], {
     cwd: BACKEND_DIRECTORY,
     encoding: "utf8",
     timeout: 30_000,
-    env: {
-      ...process.env,
-      NODE_ENV: "development",
-      HOST: "127.0.0.1",
-      PORT: String(lane.authApi),
-      LOG_LEVEL: "error",
-      APP_KEY: "capacitylens-e2e-key-0123456789abcdef",
-      APP_URL: `http://127.0.0.1:${lane.authApi}`,
-      SESSION_DRIVER: "database",
-      CAPACITYLENS_DB: ".auth-e2e.db",
-      CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
-      CAPACITYLENS_CREATE_ADMIN_ADMIN: "false",
-      CAPACITYLENS_SECRET: "capacitylens-auth-e2e-secret-0123456789abcdef",
-      CAPACITYLENS_PUBLIC_URL: `http://localhost:${lane.authApi}`,
-    },
+    env: operatorFixtureEnvironment(),
   });
-  if (result.status !== 0) throw new Error(`Operator ${label} link failed: ${result.stderr || result.stdout}`);
+  if (result.error || result.status !== 0)
+    throw new Error(`Operator ${label} fixture failed (${result.status ?? "spawn"}).`);
   const link = /"url":"([^"]+)"/.exec(result.stdout)?.[1];
   if (!link) throw new Error(`The operator ${label} command printed no link.`);
   return new URL(link).pathname;
+}
+
+function operatorFixtureEnvironment(): NodeJS.ProcessEnv {
+  const lane = ports();
+  return {
+    ...process.env,
+    NODE_ENV: "development",
+    HOST: "127.0.0.1",
+    PORT: String(lane.authApi),
+    LOG_LEVEL: "error",
+    APP_KEY: "capacitylens-e2e-key-0123456789abcdef",
+    APP_URL: `http://127.0.0.1:${lane.authApi}`,
+    SESSION_DRIVER: "database",
+    CAPACITYLENS_DB: ".auth-e2e.db",
+    CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
+    CAPACITYLENS_CREATE_ADMIN_ADMIN: "false",
+    CAPACITYLENS_SECRET: "capacitylens-auth-e2e-secret-0123456789abcdef",
+    CAPACITYLENS_PUBLIC_URL: `http://localhost:${lane.authApi}`,
+  };
 }
