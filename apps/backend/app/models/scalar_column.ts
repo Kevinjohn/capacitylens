@@ -31,14 +31,18 @@ export const isoDateColumn = (table: string, column: string) =>
 export const isoTimestampColumn = (table: string, column: string) =>
   checkedColumn<ISOTimestamp>(table, column, 'timestamp', isIsoInstant)
 
-/** Converts a valid Luxon tombstone to the canonical UTC value stored in SQLite. */
-function prepareDeletedAt(value: unknown): ISOTimestamp | null | undefined {
+/** Converts a valid Luxon tombstone to the canonical UTC value stored in SQLite and sent to the API. */
+function canonicalDeletedAt(
+  value: unknown,
+  boundary: 'persistence' | 'serialization'
+): ISOTimestamp | null | undefined {
   if (value === undefined || value === null) return value
-  if (!DateTime.isDateTime(value) || !value.isValid)
-    throw new Error('Invalid soft-delete timestamp in model persistence.')
-  const serialized = value.toUTC().toISO({ suppressMilliseconds: false })
+  const serialized =
+    DateTime.isDateTime(value) && value.isValid
+      ? value.toUTC().toISO({ suppressMilliseconds: false })
+      : null
   if (!isIsoInstant(serialized))
-    throw new Error('Invalid soft-delete timestamp in model persistence.')
+    throw new Error(`Invalid soft-delete timestamp in model ${boundary}.`)
   return serialized
 }
 
@@ -61,24 +65,13 @@ function consumeDeletedAt(value: unknown): DateTime | null | undefined {
   return dateTime
 }
 
-/** Serializes package-owned Luxon tombstones to the API's canonical UTC timestamp string. */
-function serializeDeletedAt(value: unknown): ISOTimestamp | null | undefined {
-  if (value === undefined || value === null) return value
-  if (!DateTime.isDateTime(value) || !value.isValid)
-    throw new Error('Invalid soft-delete timestamp in model serialization.')
-  const serialized = value.toUTC().toISO({ suppressMilliseconds: false })
-  if (!isIsoInstant(serialized))
-    throw new Error('Invalid soft-delete timestamp in model serialization.')
-  return serialized
-}
-
 /** Keeps the package's Luxon model property on the existing strict ISO SQLite and DTO contract. */
 export const deletedAtColumn: Pick<
   ColumnOptions,
   'columnName' | 'prepare' | 'consume' | 'serialize'
 > = {
   columnName: 'deleted_at',
-  prepare: prepareDeletedAt,
+  prepare: (value: unknown) => canonicalDeletedAt(value, 'persistence'),
   consume: consumeDeletedAt,
-  serialize: serializeDeletedAt,
+  serialize: (value: unknown) => canonicalDeletedAt(value, 'serialization'),
 }
