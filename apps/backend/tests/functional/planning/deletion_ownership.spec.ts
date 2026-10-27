@@ -93,19 +93,36 @@ test.group('planning deletion ownership', (suite) => {
     }
   })
 
-  test('rejects active and cross-company associations', async ({ assert }) => {
+  test('rejects active and cross-company associations and group-company changes', async ({
+    assert,
+  }) => {
     const sessionId = await fixtureSession('u-bruce')
-    const groupId = await group('a-loft', sessionId)
+    const foreignGroupId = await group('a-loft', sessionId)
+    const ownGroupId = await group('a-studio', sessionId)
     const row = await Allocation.query()
       .withScopes((scopes) => scopes.forCompany('a-studio'))
       .firstOrFail()
     await assert.rejects(() =>
-      db.from('allocations').where('id', row.id).update({ deletion_group_id: groupId })
+      db.from('allocations').where('id', row.id).update({ deletion_group_id: ownGroupId })
     )
     await row.delete()
     await assert.rejects(() =>
-      db.from('allocations').where('id', row.id).update({ deletion_group_id: groupId })
+      db.from('allocations').where('id', row.id).update({ deletion_group_id: foreignGroupId })
     )
+    await db.from('allocations').where('id', row.id).update({ deletion_group_id: ownGroupId })
+    const groupBefore = await db.from('deleted_groups').where('group_id', ownGroupId).first()
+    const rowBefore = await db.from('allocations').where('id', row.id).first()
+    await assert.rejects(() =>
+      db.from('deleted_groups').where('group_id', ownGroupId).update({
+        account_id: 'a-loft',
+        consumed_at: new Date().toISOString(),
+      })
+    )
+    assert.deepEqual(
+      await db.from('deleted_groups').where('group_id', ownGroupId).first(),
+      groupBefore
+    )
+    assert.deepEqual(await db.from('allocations').where('id', row.id).first(), rowBefore)
   })
 
   test('session cleanup removes attached trash but preserves a newer deletion generation', async ({
