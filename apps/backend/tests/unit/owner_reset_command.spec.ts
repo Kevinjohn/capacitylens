@@ -3,6 +3,24 @@ import { operatorFixture, seedOwner, withOperatorServer } from './operator_comma
 
 const args = ['owner:reset-password', 'bruce@wayne.example', '--confirm-server-stopped']
 
+test('the unaudited Account Kit reset-link command is not registered', ({ assert, test: t }) => {
+  t.timeout(90000)
+  const f = operatorFixture()
+  try {
+    const discovered = f.command(['list'])
+    assert.equal(discovered.status, 0, discovered.output)
+    assert.include(discovered.output, 'owner:reset-password')
+    assert.include(discovered.output, 'account-kit:admission:bootstrap')
+    assert.notInclude(discovered.output, 'account-kit:reset-link')
+
+    const attempted = f.command(['account-kit:reset-link', '--help'])
+    assert.notEqual(attempted.status, 0, attempted.output)
+    assert.notInclude(attempted.output, '/reset-password/')
+  } finally {
+    f.cleanup()
+  }
+})
+
 test('owner command prints an audited single-use link without changing the credential', ({
   assert,
   test: t,

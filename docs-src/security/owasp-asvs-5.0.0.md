@@ -1,11 +1,11 @@
 ---
 title: OWASP ASVS 5.0.0 complete control ledger
-description: ASVS 5.0.0 control ledger assessed in 2026 with a 2026-10-26 Account Kit authentication update.
+description: ASVS 5.0.0 control ledger assessed in 2026 with a 2026-10-27 authentication event update.
 ---
 
 # OWASP ASVS 5.0.0 complete control ledger
 
-Original assessment date: 2026-08-18. Authentication and related controls amended: 2026-10-26, after the Account Kit cutover. Every Level 1–3 requirement is assessed. Password-only deployments do not meet the Level 2 multi-factor requirement.
+Original assessment date: 2026-08-18. Authentication and related controls amended: 2026-10-27, after the Account Kit cutover. Every Level 1–3 requirement is assessed. Password-only deployments do not meet the Level 2 multi-factor requirement.
 Baseline: OWASP Application Security Verification Standard 5.0.0 (May 2025), 345 requirements.
 
 This ledger is an evidence-based source/configuration review, not an OWASP certification. It uses:
@@ -21,7 +21,7 @@ TLS, disks, collectors, secret stores and external authentication policy cannot 
 an environment acknowledgement is set; those stay Partial where deployment evidence is required.
 Requirement descriptions are not reproduced here; use the [official ASVS 5.0.0 release](https://github.com/OWASP/ASVS/tree/v5.0.0_release) alongside these IDs.
 
-Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Following the 2026-10-09 local MFA removal, the 2026-10-21 retirement of the automated cryptographic path check, and this 2026-10-26 authentication amendment, the current rows total **152 Pass, 58 Partial, 16 Gap and 119 N/A = 345**. These are not a score or certification percentage.
+Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Following the 2026-10-09 local MFA removal, the 2026-10-21 retirement of the automated cryptographic path check, the 2026-10-26 Account Kit update, the 2026-10-27 password hashing update and the 2026-10-27 authentication event update, the current rows total **154 Pass, 57 Partial, 15 Gap and 119 N/A = 345**. These are not a score or certification percentage.
 
 ## V1 Encoding and sanitization
 
@@ -131,7 +131,7 @@ Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Fo
 | V11.1 Inventory/lifecycle     | Repository crypto inventory reviewed by hand, without automated implementation-path discovery; deployment key rotation/PQC migration remain operator/planning work | V11.1.2                            | V11.1.1, V11.1.3, V11.1.4 | —       | —       |
 | V11.2 Design/implementation   | Node/Web Crypto, Account Kit and Adonis primitives, ≥128-bit random tokens and fail-closed errors; password scrypt parameters are documented separately | V11.2.1, V11.2.3, V11.2.5 | V11.2.2, V11.2.4 | — | — |
 | V11.3 Symmetric encryption    | `config/encryption.ts` declares AES-256-GCM with `APP_KEY`, but current call sites and protected stored data are not established | — | V11.3.1, V11.3.2, V11.3.3, V11.3.4 | — | V11.3.5 |
-| V11.4 Hash/KDF                | SHA-256 token and intent digests; password verifier uses scrypt `N=2^14`, `r=8`, `p=1`; no password-derived application encryption key | V11.4.1, V11.4.3 | V11.4.2 | — | V11.4.4 |
+| V11.4 Hash/KDF                | SHA-256 token and intent digests; password verifier uses OWASP-minimum scrypt `N=2^14`, `r=8`, `p=5`; no password-derived application encryption key | V11.4.1, V11.4.2, V11.4.3 | — | — | V11.4.4 |
 | V11.5 Randomness              | Platform CSPRNG with ≥128-bit security for tokens/keys and OS heavy-demand behavior                                                                                 | V11.5.1, V11.5.2                   | —                | —       | —       |
 | V11.6 Key generation/exchange | Platform-approved generation and TLS exchange primitives                                                                                                            | V11.6.1, V11.6.2                   | —                | —       | —       |
 | V11.7 In-use data             | Data minimisation/short-lived values exist; no full-memory encryption and necessary plaintext exists while processing                                               | —                                  | V11.7.2          | V11.7.1 | —       |
@@ -176,7 +176,7 @@ Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Fo
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ---------------- | --- | --- |
 | V16.1 Inventory        | Layer/event/format/destination/sensitivity inventory exists; actual access control and retention need operator evidence | — | V16.1.1 | — | — |
 | V16.2 Log content      | UTC ISO metadata, documented JSON streams and credential/body redaction; clock synchronization and deployed processor correlation need evidence | V16.2.1, V16.2.3, V16.2.5 | V16.2.2, V16.2.4 | — | — |
-| V16.3 Security events  | Optional request logging records event, method, route, status, outcome and correlation ID; expected authority/proof/validation/Kit failures are not individually logged, and no auth-specific success, failure or throttling event is written | V16.3.4 | V16.3.2, V16.3.3 | V16.3.1 | — |
+| V16.3 Security events  | Optional request logging records event, method, route, status, outcome and correlation ID; password sign-in success, credential failure and throttling are separately logged with bounded fields; other authority/proof/validation failures are not individually logged | V16.3.1, V16.3.4 | V16.3.2, V16.3.3 | — | — |
 | V16.4 Log protection   | Structured serialization prevents injection; audit rows are in SQLite; external forwarding is not provided and deployment access controls require operator evidence | V16.4.1 | V16.4.2, V16.4.3 | — | — |
 | V16.5 Failure handling | Generic responses, fail-closed external/control failures, transaction rollback and startup error handling; no process-wide last-resort handler for unhandled exceptions was identified | V16.5.1, V16.5.2, V16.5.3 | — | V16.5.4 | — |
 
@@ -206,8 +206,8 @@ changed rows are supported by the following source evidence:
 | V7.1.1–V7.1.3 | `apps/backend/config/account_kit.ts` sets a 14-day idle expiry; it does not configure an absolute lifetime or concurrent-session cap. Current docs record the absence of an absolute lifetime but not its risk rationale; unlimited concurrent sessions are allowed with no count-based eviction. No federation exists. |
 | V7.5.3 | `apps/backend/app/services/auth/action_proof.ts` binds single-use, five-minute password proofs to user, Kit session, company, action and intent. |
 | V11.3 | `apps/backend/config/encryption.ts` declares AES-256-GCM using `APP_KEY`; no application call site proving which stored data uses it was identified, so the classifications remain Partial. |
-| V11.4.1–V11.4.4 | SHA-256 is used for token and intent digests (approved hash and adequate digest length); password scrypt has the approved KDF but its `p=1` profile is below the selected recommendation (Partial); the application does not derive encryption keys from passwords (N/A). |
-| V16.3.1, V16.3.3 | `apps/backend/app/middleware/request_logging_middleware.ts` is opt-in and records event, method, route, status, outcome and correlation ID, but no latency; authority/proof/validation/Kit failures are not individually logged, so V16.3.3 is Partial. |
+| V11.4.1–V11.4.4 | SHA-256 is used for token and intent digests (approved hash and adequate digest length); password scrypt meets the selected OWASP minimum profile (Met); the application does not derive encryption keys from passwords (N/A). |
+| V16.3.1, V16.3.3 | `apps/backend/app/middleware/request_logging_middleware.ts` and `apps/backend/app/controllers/auth_controller.ts` are opt-in and record request completion plus password sign-in success, credential failure and throttling with a shared correlation ID; other authority/proof/validation/Kit failures are not individually logged, so V16.3.3 is Partial. |
 
 ## Input-boundary evidence update (2026-10-10)
 
@@ -250,4 +250,4 @@ not claims that input validation alone completes another control.
 
 ## Interpretation
 
-CapacityLens supports password sign-in only and has no local multi-factor authentication or breached-password screening. It therefore does not meet V6.3.3 L2. A Gap in a Level 3-only requirement documents a higher-assurance boundary rather than an L2 failure. Partial/Gap controls remain real limitations, including password-hash parameters, authentication event logging, URL bearer links and deployment public-TLS/secret/log/storage evidence.
+CapacityLens supports password sign-in only and has no local multi-factor authentication or breached-password screening. It therefore does not meet V6.3.3 L2. A Gap in a Level 3-only requirement documents a higher-assurance boundary rather than an L2 failure. Partial/Gap controls remain real limitations, including broader authorization-event coverage, URL bearer links and deployment public-TLS/secret/log/storage evidence.

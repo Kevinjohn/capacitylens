@@ -18,7 +18,7 @@ substitute for deployment-specific data classification, key inventory or log-ret
 | Sign-in credentials | Email and password in bounded JSON | Account Kit with application auth routes | Generic invalid-credential response and authentication throttling |
 | Registration, invitation, address-confirmation and reset links | Bounded JSON/path/header values; invitation 7 days, other emailed links 1 hour | Account Kit plus application routes and admission policy | One-time links are stored as SHA-256 digests; address confirmation and admission are checked before product access |
 | Action-proof request | Password plus bounded action/intent payload | Application route and `action_proof.ts` | Owner authority is checked in the current Kit transaction; the five-minute proof binds user, session, company, action and intent and is consumed with the mutation |
-| Operator commands | Shell arguments and current SQLite state | Registered Account Kit/operator commands | Bootstrap issues the first invitation; `owner:reset-password` requires a stopped server and eligible sole Owner. Other registered Kit commands run with host operator authority |
+| Operator commands | Shell arguments and current SQLite state | Registered Account Kit/operator commands (excluding `account-kit:reset-link`) | Bootstrap issues the first invitation; `owner:reset-password` requires a stopped server and eligible sole Owner and writes an audit row before displaying its link |
 | CORS, origin and forwarding headers | HTTP headers | Root middleware and configured proxy trust | Exact origin policy, unsafe cross-site rejection and configured trusted-proxy handling |
 | Environment and numeric settings | Process environment | Startup parsers and configuration provider | Bounded integers, explicit boolean grammar and production guards |
 
@@ -48,7 +48,7 @@ retaining its URL path.
 
 | Purpose | Primitive/library | Key/material | Lifecycle and migration |
 | --- | --- | --- | --- |
-| Password storage | Node scrypt, `N=2^14`, `r=8`, `p=1`; 16-byte salt and 64-byte derived result | Password-derived; random salt | Current profile is below the OWASP Password Storage Cheat Sheet recommendation at the same memory target; see the ASVS ledger; this open code gap is tracked in [issue #1627](https://github.com/Kevinjohn/capacitylens/issues/1627) |
+| Password storage | Node scrypt, `N=2^14`, `r=8`, `p=5`; 16-byte salt and 64-byte derived result | Password-derived; random salt | New and password-replacement hashes meet the OWASP Password Storage Cheat Sheet minimum profile for the 16 MiB memory target. Legacy hashes remain verifiable and Adonis detects their older profile with `needsReHash`, but Account Kit sign-in only verifies hashes and does not automatically rehash them; they remain unchanged until password replacement |
 | Password verifier comparison | Adonis scrypt hasher | Stored and derived verifier | Uses framework verification; test coverage is in Account Kit password-flow tests |
 | Invitation and reset lookup | Account Kit SHA-256 token digest | Random one-time token shown to the recipient | Expiring, single-use rows are removed or invalidated by the Kit flow |
 | Session registry handle | Account Kit random token and SHA-256 digest | Raw token remains in the server session; registry stores the digest | Database-backed session with sliding idle expiry; no maximum simultaneous-session count is configured |
@@ -98,12 +98,12 @@ policy and backup-encryption controls.
 | --- | --- | --- | --- |
 | API request log | Event, method, route, status, outcome and correlation ID when request logging is enabled; no latency is recorded | Pino JSON stdout | No request/response bodies, cookie or authorization values; sensitive bearer path segments are redacted |
 | Application audit | Actor, company, action, entity, id and changed field names | Transactional SQLite `audit_entries` table | No entity values, passwords or bearer tokens |
-| Authentication events | No auth-specific success, failure or throttling events are written to the application audit table | No application security event stream is configured; optional request logs record route/status metadata | Generic request telemetry is not a complete authentication event record; this open code gap is tracked in [issue #1629](https://github.com/Kevinjohn/capacitylens/issues/1629) |
+| Authentication events | When `CAPACITYLENS_LOG=1`, password sign-in success, credential failure and throttling are structured `auth.sign_in` events with outcome and request correlation ID | Pino JSON stdout, correlated with the HTTP completion record | Events omit email, IP, user-agent, password, session and bearer values; log access and retention remain operator responsibilities |
 | Proxy/platform | TLS/access/container/collector events | Deployment-defined systems | Operator classifies, redacts, restricts, retains and correlates in UTC |
 
-Production configuration requires application audit to remain enabled. The application does not
-provide a security-log stream or write authentication outcomes. The operator must document access,
-retention, time synchronization, alerting and any external log collection.
+Production configuration requires application audit to remain enabled. Authentication outcomes
+use the opt-in application log stream, not transactional audit rows. The operator must document
+access, retention, time synchronization, alerting and any external log collection.
 
 ## Third parties and build inputs
 

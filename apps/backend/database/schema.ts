@@ -208,8 +208,8 @@ export class ActivitySchema extends BaseModel {
   declare archivedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column()
-  declare deletedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  @column.dateTime()
+  declare deletedAt: import('luxon').DateTime | null
   @column({ isPrimary: true })
   declare id: string
   @column()
@@ -310,8 +310,8 @@ export class ClientSchema extends BaseModel {
   declare color: string
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column()
-  declare deletedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  @column.dateTime()
+  declare deletedAt: import('luxon').DateTime | null
   @column({ isPrimary: true })
   declare id: string
   @column()
@@ -614,8 +614,8 @@ export class ProjectSchema extends BaseModel {
   declare color: string
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column()
-  declare deletedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  @column.dateTime()
+  declare deletedAt: import('luxon').DateTime | null
   @column({ isPrimary: true })
   declare id: string
   @column()
@@ -650,8 +650,8 @@ export class ResourceSchema extends BaseModel {
   declare color: string
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column()
-  declare deletedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  @column.dateTime()
+  declare deletedAt: import('luxon').DateTime | null
   @column()
   declare disciplineId: string | null
   @column()
