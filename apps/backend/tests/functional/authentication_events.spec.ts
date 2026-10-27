@@ -201,6 +201,7 @@ test.group('authentication outcome events', (group) => {
   test('keeps the successful login event when post-login tracking fails', async ({
     client,
     assert,
+    cleanup,
   }) => {
     const userId = await createIdentity(email, { name: 'Bruce Wayne', password })
     await createFixtureCompanyForOwner(userId, 'Wayne Enterprises', 'a-studio')
@@ -219,6 +220,7 @@ test.group('authentication outcome events', (group) => {
       WHEN NEW.key LIKE 'member-sign-in:%'
       BEGIN SELECT RAISE(ABORT, 'sign-in tracking failure'); END
     `)
+    cleanup(() => db.rawQuery('DROP TRIGGER IF EXISTS fail_sign_in_tracking'))
 
     const { lines, result } = await captureLogs(() =>
       client.post('/api/auth/sign-in').json({ email, password }).send()
