@@ -6,7 +6,7 @@ import { buildPayloadOperationKey } from "./commandOutcome";
 import type { CreateInvitationBody, InvitationSignupBody } from "./accountRequestTypes";
 import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from "./commandRequest";
 import { clearMemberResourceLink, resourceAvatarsUrl, setMemberResourceLink } from "./memberResourceClient";
-import { apiRouteUrl } from "@/api/queryClient";
+import { apiRouteUrl, apiReadRouteUrl } from "@/api/queryClient";
 
 /** The admission records an Owner or Admin can act on; approved people are managed as members. */
 export type AdmissionStatus = "pending" | "rejected" | "revoked";
@@ -201,8 +201,7 @@ export const accountClient = {
   },
 
   listAdmissionRequests(status: AdmissionStatus, cursor: string | null, signal?: AbortSignal): Promise<Response> {
-    const query = new URLSearchParams({ status, ...(cursor ? { cursor } : {}) });
-    return apiFetch(`${apiRouteUrl("api.admission.index", {})}?${query.toString()}`, {
+    return apiFetch(apiReadRouteUrl("api.admission.index", { query: { status, ...(cursor ? { cursor } : {}) } }), {
       credentials: "include",
       ...(signal ? { signal } : {}),
     });

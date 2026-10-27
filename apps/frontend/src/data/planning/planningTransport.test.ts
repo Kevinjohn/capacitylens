@@ -295,4 +295,21 @@ describe("generated planning transport", () => {
     ).rejects.toMatchObject({ status: 408, message: "Request timed out" });
     expect(fetcher).toHaveBeenCalledOnce();
   });
+  it("narrows restoration metadata from generated HTTP errors", async () => {
+    const { transport } = harness(
+      { error: "Confirm restoration", code: "RESTORATION_CONFIRMATION_REQUIRED", restorableItemCount: 3 },
+      409,
+    );
+    await expect(
+      transport.execute(context, execution({ operation: "allocation.create", allocation }), signal),
+    ).rejects.toMatchObject({ status: 409, code: "RESTORATION_CONFIRMATION_REQUIRED", restorableItemCount: 3 });
+  });
+  it("keeps unknown HTTP codes without granting them known product semantics", async () => {
+    const { transport } = harness({ error: "New refusal", code: "FUTURE_CODE", restorableItemCount: "3" }, 403);
+    await expect(transport.read(context, signal)).rejects.toMatchObject({
+      status: 403,
+      code: "FUTURE_CODE",
+      restorableItemCount: undefined,
+    });
+  });
 });

@@ -109,6 +109,7 @@ test.group('M1 read path', (group) => {
     assert.deepEqual(live.body(), { ok: true })
     assert.isTrue(ready.body().isHealthy)
     assert.equal(ready.body().status, 'ok')
+    assert.lengthOf(ready.body().checks, 1)
     assert.equal(ready.body().checks[0].name, 'Database health check (sqlite)')
   })
 })

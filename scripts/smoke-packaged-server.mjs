@@ -277,9 +277,10 @@ export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture) {
   return { accountId, resource, activity, allocation };
 }
 
-async function main() {
+/** Exercise an extracted native artifact, optionally including its browser acceptance journey. */
+export async function runPackagedSmoke({ acceptBrowser, usageCommand = "smoke:packaged-server" } = {}) {
   const backend = resolve(process.argv.slice(2).find((argument) => argument !== "--") ?? "");
-  if (!process.argv[2]) throw new Error("Usage: pnpm run smoke:packaged-server <extracted-artifact>/backend");
+  if (!process.argv[2]) throw new Error(`Usage: pnpm run ${usageCommand} <extracted-artifact>/backend`);
   await stat(join(backend, "bin", "server.js"));
   const workDir = await mkdtemp(join(tmpdir(), "capacitylens_package_smoke_"));
   const databasePath = join(workDir, "live.db");
@@ -406,6 +407,7 @@ async function main() {
     const { resource, allocation } = await writeSmokeSchedule(baseUrl, cookie, accountId, fixture);
     assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, MIGRATION_COUNT);
     assertAllocationInDatabase(databasePath, accountId, allocation);
+    if (acceptBrowser) await acceptBrowser({ baseUrl, credentials, workDir, resourceName: resource.name });
 
     const beforeExplicit = await snapshotFiles(backupDir);
     const explicit = command(backend, environment, "db:backup");
@@ -501,4 +503,4 @@ async function main() {
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await runPackagedSmoke();

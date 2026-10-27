@@ -1,6 +1,5 @@
-import { TuyauHTTPError } from "@tuyau/core/client";
+import { readProductHttpFailure } from "@/api/productHttpError";
 import type { PlanningExecution, PlanningMutationSuccess } from "@capacitylens/backend/planning";
-import { isRecord } from "@capacitylens/shared/lib/isRecord";
 import { client } from "@/api/queryClient";
 import { PlanningControllerError } from "./planningCacheController";
 import type { PlanningClientContext, PlanningTransport } from "./planningCacheController";
@@ -15,18 +14,15 @@ function requireReply<T>(reply: T | void): T {
 }
 
 function planningError(error: unknown): unknown {
-  if (!(error instanceof TuyauHTTPError)) return error;
-  const body: unknown = error.response;
-  const message = isRecord(body) && typeof body.error === "string" ? body.error : "The planning request was refused.";
-  const code = isRecord(body) && typeof body.code === "string" ? body.code : undefined;
-  const count =
-    isRecord(body) &&
-    Number.isSafeInteger(body.restorableItemCount) &&
-    typeof body.restorableItemCount === "number" &&
-    body.restorableItemCount >= 0
-      ? body.restorableItemCount
-      : undefined;
-  return new PlanningControllerError(message, code, error.status, false, count);
+  const failure = readProductHttpFailure(error, "The planning request was refused.");
+  if (!failure) return error;
+  return new PlanningControllerError(
+    failure.body.error,
+    failure.body.code,
+    failure.status,
+    false,
+    failure.body.restorableItemCount,
+  );
 }
 
 async function sendOperation(
