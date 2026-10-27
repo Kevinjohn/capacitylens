@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { parseDocument } from "yaml";
 import { gateCommands } from "./gateCommands.mjs";
-import { verifyDependabotConfiguration } from "./check-dependabot.mjs";
+import { verifyDependabotConfiguration, verifyDependencyUpdatePolicy } from "./check-dependabot.mjs";
 
 const entry = (changes = {}) => ({
   "package-ecosystem": "npm",
@@ -32,6 +32,42 @@ test("accepts the checked-in YAML and the existing three schedule choices", () =
   assert.equal(
     verifyDependabotConfiguration(JSON.stringify(config([entry({ directory: "", "package-ecosystem": "" })]))),
     1,
+  );
+});
+
+test("checks the weekly grouped npm policy and preserves monthly patch-only infrastructure updates", () => {
+  const source = readFileSync(new URL("../.github/dependabot.yml", import.meta.url), "utf8");
+  assert.equal(verifyDependencyUpdatePolicy(source), true);
+
+  const document = parseDocument(source);
+  const updates = document.toJS().updates;
+  updates[0].groups.minor["update-types"] = ["patch"];
+  assert.throws(
+    () => verifyDependencyUpdatePolicy(JSON.stringify({ version: 2, updates })),
+    /group minor updates separately/,
+  );
+
+  updates[0].groups.minor["update-types"] = ["minor"];
+  updates[0].groups.major = { "update-types": ["version-update:semver-major"] };
+  assert.throws(
+    () => verifyDependencyUpdatePolicy(JSON.stringify({ version: 2, updates })),
+    /only separate patch and minor/,
+  );
+  delete updates[0].groups.major;
+  updates[0]["open-pull-requests-limit"] = 5;
+  assert.throws(() => verifyDependencyUpdatePolicy(JSON.stringify({ version: 2, updates })), /must be 2/);
+  updates[0]["open-pull-requests-limit"] = 2;
+  updates[0].ignore[0]["update-types"].push("version-update:semver-minor");
+  assert.throws(
+    () => verifyDependencyUpdatePolicy(JSON.stringify({ version: 2, updates })),
+    /ignore only automatic major/,
+  );
+
+  updates[0].ignore[0]["update-types"] = ["version-update:semver-major"];
+  updates[1].schedule.interval = "weekly";
+  assert.throws(
+    () => verifyDependencyUpdatePolicy(JSON.stringify({ version: 2, updates })),
+    /github-actions updates must remain monthly/,
   );
 });
 
@@ -97,8 +133,8 @@ test("CLI reports success and fails on invalid content, missing files and extra 
     spawnSync(process.execPath, [cli, ...args], { cwd: directory, encoding: "utf8", timeout: 10_000 });
   const current = run();
   assert.equal(current.status, 0, current.stderr);
-  assert.match(current.stdout, /3 update entries verified/);
-  writeFileSync(path, JSON.stringify(config()));
+  assert.match(current.stdout, /3 update entries and repository policy verified/);
+  writeFileSync(path, readFileSync(new URL("../.github/dependabot.yml", import.meta.url), "utf8"));
   assert.equal(run(path).status, 0);
   writeFileSync(path, "version: 1");
   const invalid = run(path);
@@ -115,7 +151,7 @@ test("CLI reports success and fails on invalid content, missing files and extra 
 
 test("the application gate owns configuration validation and its regressions in CI", () => {
   const commands = gateCommands("app");
-  for (const command of ["policy:dependabot", "policy:dependabot:test"]) {
+  for (const command of ["policy:dependabot", "policy:dependabot:test", "dependency:major-report:test"]) {
     assert.equal(commands.filter((args) => args.join(" ") === `run ${command}`).length, 1);
   }
   const workflow = parseDocument(

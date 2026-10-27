@@ -386,7 +386,16 @@ This is the short, present-tense record of decisions that constrain future work.
   intentionally process-heavy suite an explicit, required isolation boundary.
 - CodeQL runs in the public-repository security workflow. Private-repository runner/upload
   limitations are no longer part of the active CI policy.
-- Dependabot continues its monthly root-workspace updates independently of the runner policy.
+- Dependabot proposes npm patch and minor updates weekly in separate groups and ignores automatic
+  major updates. GitHub Actions and Docker updates remain monthly and patch-only. A monthly
+  workflow reports newer major versions for installed direct workspace dependencies in one
+  standing issue; it uses the pinned Node/pnpm toolchain, makes no dependency changes, and closes
+  the issue when no newer majors remain.
+- Transitive security overrides are conditional floors for affected version ranges and preserve
+  consumers' supported major lines. VitePress 1.x declares Vite 5 while its Vue plugin accepts
+  Vite 6, so its documentation build uses the patched Vite 6 line. The `qs` floor addresses GHSA-q8mj-m7cp-5q26, GHSA-4mjr-xmp4-gh2g and GHSA-x5fp-wj9c-mxmx, all fixed by 6.16.0, because `typed-rest-client@2.3.1` requests vulnerable
+  `qs@6.15.1` exactly. The server's Nodemailer floor addresses three parser advisories within its
+  declared `^10.0.16` range.
 
 ## Maintainable module boundaries
 

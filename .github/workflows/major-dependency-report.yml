@@ -1,0 +1,70 @@
+name: Monthly major dependency report
+
+on:
+  schedule:
+    - cron: "17 6 1 * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: major-dependency-report
+  cancel-in-progress: false
+
+jobs:
+  report:
+    name: Report newer major releases
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Compare installed workspace versions with npm latest versions
+        env:
+          MAJOR_DEPENDENCY_REPORT_FILE: ${{ runner.temp }}/major-dependency-report.md
+        run: pnpm run dependency:major-report
+      - name: Update the standing report issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          REPORT_FILE: ${{ runner.temp }}/major-dependency-report.md
+        run: |
+          set -euo pipefail
+          label="major-updates"
+          title="Monthly major dependency report"
+          gh label create "$label" --repo "$REPOSITORY" --color "1d76db" \
+            --description "Monthly report of available direct dependency major versions" --force
+
+          issues="$(gh issue list --repo "$REPOSITORY" --state all --label "$label" \
+            --json number,state,title)"
+          issue_count="$(jq 'length' <<<"$issues")"
+          if [ "$issue_count" -gt 1 ]; then
+            echo "Expected one standing issue labelled $label; found $issue_count." >&2
+            exit 1
+          fi
+
+          if [ "$issue_count" -eq 0 ]; then
+            issue_url="$(gh issue create --repo "$REPOSITORY" --title "$title" \
+              --assignee "$OWNER" --label "$label" --body-file "$REPORT_FILE")"
+            issue_number="${issue_url##*/}"
+            issue_state="OPEN"
+          else
+            issue_number="$(jq -r '.[0].number' <<<"$issues")"
+            issue_state="$(jq -r '.[0].state' <<<"$issues")"
+            gh issue edit "$issue_number" --repo "$REPOSITORY" --title "$title" \
+              --add-assignee "$OWNER" --add-label "$label" --body-file "$REPORT_FILE"
+          fi
+
+          if grep -q '^| Package |' "$REPORT_FILE"; then
+            if [ "$issue_state" = "CLOSED" ]; then
+              gh issue reopen "$issue_number" --repo "$REPOSITORY"
+            fi
+          elif [ "$issue_state" = "OPEN" ]; then
+            gh issue close "$issue_number" --repo "$REPOSITORY"
+          fi
