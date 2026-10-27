@@ -1,3 +1,4 @@
+import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors'
 import type { HttpContext } from '@adonisjs/core/http'
 import accountKit from 'adonisjs-account-kit/services/main'
 import {
@@ -43,7 +44,7 @@ const committed = {
   error: 'Your password was changed, but a follow-up step failed. Sign in with the new password.',
   code: 'CREDENTIAL_UPDATE_COMMITTED',
   committed: true,
-}
+} satisfies ProductHttpErrorBody
 
 export default class CredentialController {
   async requestReset(ctx: HttpContext) {

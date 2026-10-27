@@ -1,3 +1,5 @@
+import { RestorationConfirmationError } from '#services/planning_operations/restoration'
+import { errors as vineErrors } from '@vinejs/vine'
 import { test } from '@japa/runner'
 import type { HttpContext } from '@adonisjs/core/http'
 import { ThrottledError, PostCommitError, accountErrorResponse } from 'adonisjs-account-kit'
@@ -88,5 +90,31 @@ test.group('product error adapters', () => {
     await new HttpExceptionHandler().handle(error, ctx)
     assert.equal(result.status, 400)
     assert.equal((result.body as { code: string }).code, 'VALIDATION_ERROR')
+  })
+  test('Vine validation is flat status 400 rather than the generated default 422', async ({
+    assert,
+  }) => {
+    const error = new vineErrors.E_VALIDATION_ERROR([
+      { message: 'Email is required.', field: 'email', rule: 'required' },
+    ])
+    const { ctx, result } = context(error)
+    await new HttpExceptionHandler().handle(error, ctx)
+    assert.equal(result.status, 400)
+    assert.deepEqual(result.body, { error: 'Email is required.', code: 'VALIDATION_ERROR' })
+  })
+  test('planning restoration failures retain both typed count-bearing variants', async ({
+    assert,
+  }) => {
+    for (const stale of [false, true]) {
+      const error = new RestorationConfirmationError(3, stale)
+      const { ctx, result } = context(error)
+      await new PlanningController().lookup(ctx)
+      assert.equal(result.status, 409)
+      assert.deepEqual(result.body, {
+        error: error.message,
+        code: stale ? 'RESTORATION_CONFIRMATION_STALE' : 'RESTORATION_CONFIRMATION_REQUIRED',
+        restorableItemCount: 3,
+      })
+    }
   })
 })
