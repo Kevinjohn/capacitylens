@@ -56,8 +56,19 @@ test.group('Backup diagnostics', (group) => {
       .first()
     assert.isDefined(index?.sql)
     await db.rawQuery(`DROP INDEX "${String(index!.name)}"`)
+    const errors: unknown[][] = []
+    const originalError = logger.error
+    logger.error = ((...args: unknown[]) => {
+      errors.push(args)
+    }) as typeof logger.error
     try {
       const response = await client.get('/health/ready')
+      assert.deepEqual(errors, [
+        [
+          { reason: 'Database schema drift: projects.client_id index is missing' },
+          'Database readiness check failed',
+        ],
+      ])
       assert.equal(response.status(), 503)
       assert.isFalse(response.body().isHealthy)
       const check = response
@@ -67,6 +78,7 @@ test.group('Backup diagnostics', (group) => {
       assert.equal(check.message, 'Database readiness check failed')
       assert.notInclude(JSON.stringify(response.body()), String(index!.name))
     } finally {
+      logger.error = originalError
       await db.rawQuery(String(index!.sql))
     }
   })
