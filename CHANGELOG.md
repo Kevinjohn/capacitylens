@@ -13,6 +13,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Hide a placeholder from active views when its bound project or that project's client is archived or deleted.
 - Preserve caller cancellation when generated API requests pass through the request timeout handler.
 - Validate the public origin consistently for emailed account links, cookies and transport security; reject malformed operator limits and retire unused configuration declarations.
 - Show unexpected error details only in development; test and production responses stay generic.
@@ -62,6 +63,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Keep a newer allocation target selection when inline activity creation finishes after the user changes it.
 - Refuse allocation restoration when current references or resource availability are incompatible, keeping the deletion available for retry.
 
 ### Added
