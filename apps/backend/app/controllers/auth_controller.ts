@@ -57,15 +57,22 @@ function logSignInOutcome(ctx: HttpContext, outcome: 'success' | 'failure' | 'th
 
 /** Signs in through the Account Kit and records the observed sign-in for tracked companies. */
 export async function signInWithPassword(ctx: HttpContext, email: string, password: string) {
-  await accountKit.authentication.login(
-    {
-      email,
-      password,
-      clientKey: ctx.request.ip(),
-      sessionLabel: ctx.request.header('user-agent')?.slice(0, 200),
-    },
-    sessionGuard(ctx)
-  )
+  try {
+    await accountKit.authentication.login(
+      {
+        email,
+        password,
+        clientKey: ctx.request.ip(),
+        sessionLabel: ctx.request.header('user-agent')?.slice(0, 200),
+      },
+      sessionGuard(ctx)
+    )
+  } catch (error) {
+    if (error instanceof InvalidCredentialsError) logSignInOutcome(ctx, 'failure')
+    if (error instanceof ThrottledError) logSignInOutcome(ctx, 'throttled')
+    throw error
+  }
+  logSignInOutcome(ctx, 'success')
   return withActor(
     ctx,
     async (actor, trx) => {
@@ -126,14 +133,11 @@ export default class AuthController {
     const { email } = body
     try {
       const user = await signInWithPassword(ctx, email, body.password)
-      logSignInOutcome(ctx, 'success')
       return ctx.response.ok({ user })
     } catch (error) {
       if (error instanceof InvalidCredentialsError) {
-        logSignInOutcome(ctx, 'failure')
         return ctx.response.unauthorized({ error: 'Invalid email or password.' })
       }
-      if (error instanceof ThrottledError) logSignInOutcome(ctx, 'throttled')
       throw error
     }
   }

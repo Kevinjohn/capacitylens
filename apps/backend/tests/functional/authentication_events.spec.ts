@@ -3,9 +3,15 @@ import { LoggerFactory } from '@adonisjs/logger/factories'
 import logger from '@adonisjs/core/services/logger'
 import loggerConfig from '#config/logger'
 import env from '#start/env'
+import db from '@adonisjs/lucid/services/db'
+import accountKit from 'adonisjs-account-kit/services/main'
+import type { AccountUser } from 'adonisjs-account-kit/types'
+import { DateTime } from 'luxon'
 import { freshDatabase } from '../helpers/fresh_database.js'
 import { createIdentity, clearIdentities } from '../helpers/identities.js'
+import { createFixtureCompanyForOwner } from '../helpers/authenticated_data_fixture.js'
 import limiter from '@adonisjs/limiter/services/main'
+import { resetState } from '#services/state_repository'
 
 const email = 'bruce.wayne@wayne.example'
 const password = 'batman-secret-2026'
@@ -40,6 +46,7 @@ test.group('authentication outcome events', (group) => {
   group.setup(() => freshDatabase())
   group.setup(() => env.set('CAPACITYLENS_LOG', '1'))
   group.each.setup(async () => {
+    await resetState(false)
     await clearIdentities()
     await limiter.clear()
   })
@@ -116,8 +123,121 @@ test.group('authentication outcome events', (group) => {
     })
 
     assert.equal(result.status(), 429)
-    assert.include(lines.join('\n'), '"outcome":"throttled"')
+    const entries = lines.map((line) => JSON.parse(line))
+    const authEvents = entries.filter((entry) => entry.event === 'auth.sign_in')
+    assert.lengthOf(authEvents, 6)
+    assert.deepEqual(
+      authEvents.map((entry) => entry.outcome),
+      ['failure', 'failure', 'failure', 'failure', 'failure', 'throttled']
+    )
+    const throttled = authEvents[5]
+    assert.match(throttled.correlationId, /^[a-z0-9]+-[a-z0-9]+$/)
+    assert.isTrue(
+      entries.some(
+        (entry) =>
+          entry.event === 'http.request.completed' &&
+          entry.correlationId === throttled.correlationId &&
+          entry.status === 429
+      ),
+      'throttle event shares its 429 request completion correlation ID'
+    )
     assert.notInclude(lines.join('\n'), 'private-throttle@example.test')
     assert.notInclude(lines.join('\n'), 'never-store-this-password')
+  })
+
+  test('records Account Kit login for automatic sign-in after registration', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    const ownerId = await createIdentity('bruce.wayne@wayne.example', {
+      name: 'Bruce Wayne',
+      password,
+    })
+    await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio')
+    const signupEmail = 'clark.kent@wayne.example'
+    await createIdentity(signupEmail, { name: 'Clark Kent', password })
+
+    const previousSignup = env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP')
+    const originalRegister = accountKit.registration.register
+    env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', true)
+    accountKit.registration.register = async () =>
+      ({
+        id: 'test-registration',
+        email: signupEmail,
+        unverifiedEmail: null,
+        hasPassword: true,
+        emailVerifiedAt: DateTime.now(),
+      }) satisfies AccountUser
+    cleanup(() => {
+      env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', previousSignup)
+      accountKit.registration.register = originalRegister
+    })
+
+    const { lines, result } = await captureLogs(async () =>
+      client
+        .post('/api/auth/sign-up')
+        .json({ email: signupEmail, password, name: 'Clark Kent' })
+        .send()
+    )
+
+    result.assertStatus(201)
+    const entries = lines.map((line) => JSON.parse(line))
+    const authEvent = entries.find((entry) => entry.event === 'auth.sign_in')
+    assert.isDefined(authEvent)
+    assert.equal(authEvent.outcome, 'success')
+    assert.isTrue(
+      entries.some(
+        (entry) =>
+          entry.event === 'http.request.completed' &&
+          entry.correlationId === authEvent.correlationId &&
+          entry.status === 201
+      )
+    )
+    assert.notInclude(lines.join('\n'), signupEmail)
+    assert.notInclude(lines.join('\n'), password)
+  })
+
+  test('keeps the successful login event when post-login tracking fails', async ({
+    client,
+    assert,
+  }) => {
+    const userId = await createIdentity(email, { name: 'Bruce Wayne', password })
+    await createFixtureCompanyForOwner(userId, 'Wayne Enterprises', 'a-studio')
+    const now = new Date().toISOString()
+    await db.table('company_settings').insert({
+      id: 'test-sign-in-tracking',
+      account_id: 'a-studio',
+      key: 'member-sign-in-tracking',
+      value: JSON.stringify(true),
+      created_at: now,
+      updated_at: now,
+    })
+    await db.rawQuery(`
+      CREATE TRIGGER fail_sign_in_tracking
+      BEFORE INSERT ON company_settings
+      WHEN NEW.key LIKE 'member-sign-in:%'
+      BEGIN SELECT RAISE(ABORT, 'sign-in tracking failure'); END
+    `)
+
+    const { lines, result } = await captureLogs(() =>
+      client.post('/api/auth/sign-in').json({ email, password }).send()
+    )
+
+    result.assertStatus(500)
+    const entries = lines.map((line) => JSON.parse(line))
+    const authEvent = entries.find((entry) => entry.event === 'auth.sign_in')
+    assert.isDefined(authEvent)
+    assert.equal(authEvent.outcome, 'success')
+    assert.isTrue(
+      entries.some(
+        (entry) =>
+          entry.event === 'http.request.completed' &&
+          entry.correlationId === authEvent.correlationId &&
+          entry.status === 500
+      )
+    )
+    assert.notInclude(lines.join('\n'), email)
+    assert.notInclude(lines.join('\n'), password)
   })
 })
