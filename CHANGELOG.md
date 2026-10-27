@@ -14,16 +14,21 @@ new features and **patch** versions carry fixes.
 ### Fixed
 
 - Record bounded password sign-in outcomes, including automatic sign-in after registration.
+- Pull the pinned Node container base from Docker Hub so replacement CI avoids the anonymous ECR Public quota.
+
 - Hide a placeholder from active views when its bound project or that project's client is archived or deleted.
 - Preserve caller cancellation when generated API requests pass through the request timeout handler.
 - Validate the public origin consistently for emailed account links, cookies and transport security; reject malformed operator limits and retire unused configuration declarations.
 - Show unexpected error details only in development; test and production responses stay generic.
 - Load company and planning data correctly when opening or refreshing nested app URLs.
 - Explain when a password update succeeded but follow-up cleanup failed, clear obsolete form values, and give recovery guidance when the response is uncertain.
+- Remove the unaudited Account Kit reset-link command; operator-issued Owner recovery continues through the audited stopped-server command.
 
 - Align remaining security-header and first-company guides with native setup and the supported Google provider.
 
 ### Changed
+
+- Set new and password-replacement hashes to the OWASP-minimum scrypt profile for the 16 MiB memory target. Legacy hashes remain verifiable, but sign-in does not automatically rehash them.
 
 - Update Account Kit to 0.1.3; account behavior, configuration and the database schema are unchanged.
 - Product API error codes now use uppercase consistently, and export queries reject unsupported fields.

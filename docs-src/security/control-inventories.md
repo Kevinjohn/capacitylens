@@ -18,7 +18,7 @@ substitute for deployment-specific data classification, key inventory or log-ret
 | Sign-in credentials | Email and password in bounded JSON | Account Kit with application auth routes | Generic invalid-credential response and authentication throttling |
 | Registration, invitation, address-confirmation and reset links | Bounded JSON/path/header values; invitation 7 days, other emailed links 1 hour | Account Kit plus application routes and admission policy | One-time links are stored as SHA-256 digests; address confirmation and admission are checked before product access |
 | Action-proof request | Password plus bounded action/intent payload | Application route and `action_proof.ts` | Owner authority is checked in the current Kit transaction; the five-minute proof binds user, session, company, action and intent and is consumed with the mutation |
-| Operator commands | Shell arguments and current SQLite state | Registered Account Kit/operator commands | Bootstrap issues the first invitation; `owner:reset-password` requires a stopped server and eligible sole Owner. Other registered Kit commands run with host operator authority |
+| Operator commands | Shell arguments and current SQLite state | Registered Account Kit/operator commands (excluding `account-kit:reset-link`) | Bootstrap issues the first invitation; `owner:reset-password` requires a stopped server and eligible sole Owner and writes an audit row before displaying its link |
 | CORS, origin and forwarding headers | HTTP headers | Root middleware and configured proxy trust | Exact origin policy, unsafe cross-site rejection and configured trusted-proxy handling |
 | Environment and numeric settings | Process environment | Startup parsers and configuration provider | Bounded integers, explicit boolean grammar and production guards |
 
@@ -48,7 +48,7 @@ retaining its URL path.
 
 | Purpose | Primitive/library | Key/material | Lifecycle and migration |
 | --- | --- | --- | --- |
-| Password storage | Node scrypt, `N=2^14`, `r=8`, `p=1`; 16-byte salt and 64-byte derived result | Password-derived; random salt | Current profile is below the OWASP Password Storage Cheat Sheet recommendation at the same memory target; see the ASVS ledger; this open code gap is tracked in [issue #1627](https://github.com/Kevinjohn/capacitylens/issues/1627) |
+| Password storage | Node scrypt, `N=2^14`, `r=8`, `p=5`; 16-byte salt and 64-byte derived result | Password-derived; random salt | New and password-replacement hashes meet the OWASP Password Storage Cheat Sheet minimum profile for the 16 MiB memory target. Legacy hashes remain verifiable and Adonis detects their older profile with `needsReHash`, but Account Kit sign-in only verifies hashes and does not automatically rehash them; they remain unchanged until password replacement |
 | Password verifier comparison | Adonis scrypt hasher | Stored and derived verifier | Uses framework verification; test coverage is in Account Kit password-flow tests |
 | Invitation and reset lookup | Account Kit SHA-256 token digest | Random one-time token shown to the recipient | Expiring, single-use rows are removed or invalidated by the Kit flow |
 | Session registry handle | Account Kit random token and SHA-256 digest | Raw token remains in the server session; registry stores the digest | Database-backed session with sliding idle expiry; no maximum simultaneous-session count is configured |
