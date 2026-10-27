@@ -35,6 +35,7 @@ test("backend source or shared package changes run the full backend suite", () =
     assert.deepEqual(step(steps, "test: backend suite").args, ["--dir", "apps/backend", "test"], path);
     assert.equal(step(steps, "test: 1 backend spec"), undefined, path);
     assert.ok(step(steps, "prepare: build @capacitylens/shared"), path);
+    assert.equal(step(steps, "prepare: build backend client types"), undefined, path);
   }
 });
 
@@ -47,6 +48,11 @@ test("frontend and shared source run related frontend tests, lint and the type-c
   assert.deepEqual(step(steps, "lint: frontend").args.slice(-1), ["src/App.tsx"]);
   assert.deepEqual(step(steps, "lint: 1 file").args.slice(-1), ["packages/shared/src/lib/color.ts"]);
   assert.ok(step(steps, "prepare: compile messages"));
+  assert.deepEqual(step(steps, "prepare: build backend client types").args, [
+    "--dir",
+    "apps/backend",
+    "typecheck:client",
+  ]);
   assert.ok(step(steps, "typecheck"));
 });
 

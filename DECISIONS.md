@@ -214,6 +214,45 @@ This is the short, present-tense record of decisions that constrain future work.
   password resets only.
 - Errors on data paths are surfaced, not swallowed.
 
+### Action-proof capability audit (26 October 2026)
+
+Retain the product proof for ownership transfer, import and company-wide people anonymisation. The installed
+Account Kit 0.1.2 has recent-password proofs, but its public contract does not provide all the
+bindings and caller-owned transactional consumption needed by these operations. A time-based
+confirmation or a different proof purpose is not an equivalent replacement.
+
+This source audit checked application revision `f52bee5fe75604b33c1191294a80259825461aba` and
+[`vendor/adonisjs-account-kit/adonisjs-account-kit-0.1.2.tgz`](vendor/adonisjs-account-kit/adonisjs-account-kit-0.1.2.tgz)
+(SHA-256 `18696d27971605dbbada54ccb9066260499fc9ab3f258cd7684ed6098dacf573`).
+The archive's `build/src/account_kit.d.ts`, `social_enums.d.ts`, `social_proofs.d.ts`, package
+exports and bundled proof implementation establish the Kit column below. This is not a claim that
+Kit runtime parity tests passed.
+
+| Required guarantee                                          | Product implementation                                                                                                                                               | Installed Kit contract                                                                                                                 |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Confirm the real principal's current password               | Verifies the password, then rechecks the live principal and password before issuing                                                                                  | `socialAuthentication.provePassword` accepts the current principal, password and purpose; that optional capability is not enabled here |
+| Bind the intended operation                                 | Binds `transfer-ownership`, `import` or `anonymise`                                                                                                                  | Fixed purposes cover social linking/unlinking, password/email changes and account export/deletion; not these product operations        |
+| Bind the principal                                          | Stores and conditionally matches `user_id`                                                                                                                           | Stores and conditionally matches `user_id`                                                                                             |
+| Bind the current session and company                        | Stores and conditionally matches both identifiers                                                                                                                    | No session or company binding in the inspected proof issuance/consumption contract                                                     |
+| Reject a proof after its session ends                       | The session foreign key deletes its proofs; spending through `withActor` also rejects an ended session                                                               | Checks credential revision but has no issuing-session binding; credential invalidation is not session-specific revocation              |
+| Bind the exact contents without storing the import document | Matches a SHA-256 hash of the action, company and canonical intent                                                                                                   | No exact-intent argument or stored binding in the inspected proof contract                                                             |
+| Expiry and conditional single use                           | Five-minute expiry and one conditional spend                                                                                                                         | Internal implementation has expiry, single-use consumption and credential-revision checking; these alone do not establish full parity  |
+| Spend with mutation and audit, rolling all back together    | Uses the caller's Lucid transaction                                                                                                                                  | Internal helpers accept a transaction, but they are not a supported exported caller-transaction API for arbitrary product mutations    |
+| Recheck authority and refuse view-as                        | Requires a live Owner and refuses masquerade at issuance and before a new protected mutation; a committed ownership-transfer receipt may still replay after demotion | Product membership, role and projection policy must remain product-owned; no equivalent combined product operation is established      |
+
+The owning product code is
+[`action_proof.ts`](apps/backend/app/services/auth/action_proof.ts) and
+[`action_proofs_controller.ts`](apps/backend/app/controllers/action_proofs_controller.ts).
+Existing regression sources cover the protected mutation boundaries in
+[`transfer_apply.spec.ts`](apps/backend/tests/functional/transfer_apply.spec.ts),
+[`ownership_transfer.spec.ts`](apps/backend/tests/functional/membership/ownership_transfer.spec.ts)
+and [`anonymise.spec.ts`](apps/backend/tests/functional/anonymise.spec.ts), including refusal and
+audit-failure rollback paths. Inspecting those sources is not new runtime validation.
+
+The result for [#1597](https://github.com/Kevinjohn/capacitylens/issues/1597) is **no migration**.
+Reassess when a supported Kit release exposes equivalent principal/session/company/action/intent
+binding and transactional consumption. Internal declarations are not an integration contract.
+
 ## AdonisJS framework departures
 
 The AdonisJS documentation is the structural reference. These choices deliberately differ from
