@@ -15,7 +15,7 @@ the current application has not been validated; see [Install with Docker](/self-
 
 ### Which Node version should I use?
 
-Use Node 24 within the supported 24.x line. The service needs this runtime on the host.
+Use Node 24.19.0 or later within the 24.x line. The service needs this runtime on the host.
 
 ### Is the local demo an installation route?
 
