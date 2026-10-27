@@ -1,6 +1,6 @@
-import type { ResponseOf } from "@tuyau/core/types";
+import type { RequestArgs, ResponseOf } from "@tuyau/core/types";
 import type { registry } from "@capacitylens/backend/registry";
-import { apiRouteUrl } from "@/api/queryClient";
+import { client, apiRouteUrl } from "@/api/queryClient";
 import { apiFetch } from "@/data/requestTimeout";
 
 export interface AuthApiError {
@@ -14,10 +14,7 @@ export interface AuthApiResult<T> {
   error: AuthApiError | null;
 }
 
-interface PasswordCredentials {
-  email: string;
-  password: string;
-}
+type PasswordCredentials = RequestArgs<(typeof registry.routes)["api.auth.sign-in"]>["body"];
 
 interface PasswordChangeInput {
   currentPassword: string;
@@ -37,9 +34,12 @@ function readErrorMessage(value: unknown, status: number): AuthApiError {
 }
 
 type ProductRoutes = typeof registry.routes;
-type AuthRoute = Extract<
-  keyof ProductRoutes,
-  `api.auth.${string}` | "api.admission.show" | "api.admission.request" | "api.admission.complete"
+type AuthRoute = Exclude<
+  Extract<
+    keyof ProductRoutes,
+    `api.auth.${string}` | "api.admission.show" | "api.admission.request" | "api.admission.complete"
+  >,
+  "api.auth.sign-in" | "api.auth.sign-up"
 >;
 
 async function request<Name extends AuthRoute>(
@@ -58,14 +58,42 @@ async function request<Name extends AuthRoute>(
   return { data: payload as ResponseOf<ProductRoutes[Name]>, error: null };
 }
 
-// These controllers validate bodies manually, so their generated registry has no request body.
-// Keep the raw fetch boundary until it can describe those inputs, while deriving successes from it.
+// The remaining credential controllers validate bodies manually. Keep their existing transport
+// until their generated registry describes those inputs, while deriving successes from it.
 const post = <Name extends AuthRoute>(name: Name, body: unknown) => request("POST", name, body);
 
 /** Typed browser client for the product's session, credential, confirmation and admission endpoints. */
 export const authClient = {
   signIn: {
-    email: (input: PasswordCredentials) => post("api.auth.sign-in", input),
+    email: async (input: PasswordCredentials) => {
+      const received: { response?: { ok: boolean; status: number; payload: unknown } } = {};
+      const [data, error] = await client
+        .request("api.auth.sign-in", {
+          body: input,
+          responseType: "json",
+          hooks: {
+            afterResponse: [
+              async (_request, _options, response) => {
+                // Ky supplies a clone: retain the original JSON-read fallback and HTTP status
+                // even when Tuyau's later success/error decoding cannot read the body.
+                received.response = {
+                  ok: response.ok,
+                  status: response.status,
+                  payload: await response.json().catch(() => null),
+                };
+              },
+            ],
+          },
+        })
+        .safe();
+      if (received.response && !received.response.ok)
+        return { data: null, error: readErrorMessage(received.response.payload, received.response.status) };
+      if (!error) return { data, error: null };
+      if (received.response) return { data: null, error: null };
+      // Before a response, callers still receive the native fetch or abort failure.
+      if (error.kind === "network") throw error.cause;
+      throw error;
+    },
   },
   signOut: () => post("api.auth.sign-out", {}),
   requestPasswordReset: (email: string) => post("api.auth.request-reset", { email }),
