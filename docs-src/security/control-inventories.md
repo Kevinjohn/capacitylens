@@ -48,7 +48,7 @@ retaining its URL path.
 
 | Purpose | Primitive/library | Key/material | Lifecycle and migration |
 | --- | --- | --- | --- |
-| Password storage | Node scrypt, `N=2^14`, `r=8`, `p=1`; 16-byte salt and 64-byte derived result | Password-derived; random salt | Current profile is below the OWASP Password Storage Cheat Sheet recommendation at the same memory target; see the ASVS ledger; this open code gap is tracked in [issue #1627](https://github.com/Kevinjohn/capacitylens/issues/1627) |
+| Password storage | Node scrypt, `N=2^14`, `r=8`, `p=5`; 16-byte salt and 64-byte derived result | Password-derived; random salt | Meets the OWASP Password Storage Cheat Sheet minimum profile for the 16 MiB memory target; existing hashes verify and are marked for rehash on successful authentication |
 | Password verifier comparison | Adonis scrypt hasher | Stored and derived verifier | Uses framework verification; test coverage is in Account Kit password-flow tests |
 | Invitation and reset lookup | Account Kit SHA-256 token digest | Random one-time token shown to the recipient | Expiring, single-use rows are removed or invalidated by the Kit flow |
 | Session registry handle | Account Kit random token and SHA-256 digest | Raw token remains in the server session; registry stores the digest | Database-backed session with sliding idle expiry; no maximum simultaneous-session count is configured |

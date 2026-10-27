@@ -21,10 +21,8 @@ const hashConfig = defineConfig({
        * Work factor (Node alias: N / cost).
        * Higher values increase security and CPU+memory usage.
        *
-       * Tuning guideline:
-       * - Start with 16384.
-       * - Increase gradually (for example 32768) and benchmark login/signup latency.
-       * - Keep values practical for your slowest production machine.
+       * This product uses the OWASP scrypt profile N=2^14, r=8, p=5.
+       * Keep this aligned with the documented 16 MiB memory target.
        *
        * Node constraint: value must be a power of two greater than 1.
        */
@@ -43,12 +41,9 @@ const hashConfig = defineConfig({
       /**
        * Parallelization (Node alias: p / parallelization).
        * Controls how many independent computations are performed.
-       *
-       * Tuning guideline:
-       * - Keep 1 for most applications.
-       * - Increase only after load testing if your infrastructure benefits from it.
+       * The OWASP minimum at the selected 16 MiB memory target uses 5.
        */
-      parallelization: 1,
+      parallelization: 5,
 
       /**
        * Maximum memory limit in bytes (Node alias: maxmem / maxMemory).
