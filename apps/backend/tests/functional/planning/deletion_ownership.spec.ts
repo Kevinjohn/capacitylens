@@ -417,7 +417,6 @@ test.group('planning deletion ownership', (suite) => {
         .from('clients')
         .where('id', client.id)
         .update({ deleted_at: new Date().toISOString() })
-      await db.manager.close('sqlite')
       const purged = await Client.query()
         .onlyTrashed()
         .withScopes((scopes) => scopes.forCompany('a-studio'))
