@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
+import type { ProductHttpErrorBody } from "@capacitylens/shared/api/httpErrors";
 import { accountClient } from "@/account/accountClient";
 import { InviteAccept } from "./InviteAccept";
 
@@ -44,5 +45,32 @@ describe("InviteAccept outcomes", () => {
     expect(await screen.findByTestId("invite-uncertain")).toBeInTheDocument();
     expect(screen.queryByTestId("invite-password")).not.toBeInTheDocument();
     expect(signup).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the form and shows existing-account guidance for EMAIL_REGISTERED", async () => {
+    const registered = {
+      error: "An account already uses this email. Sign in instead.",
+      code: "EMAIL_REGISTERED",
+    } satisfies ProductHttpErrorBody;
+    vi.spyOn(accountClient, "previewInvitation").mockResolvedValue(Response.json(preview));
+    const signup = vi
+      .spyOn(accountClient, "signupWithInvitation")
+      .mockResolvedValue(Response.json(registered, { status: 409 }));
+    renderPage();
+    fireEvent.change(await screen.findByTestId("invite-name"), { target: { value: "Clark Kent" } });
+    fireEvent.change(screen.getByTestId("invite-password"), {
+      target: { value: "invitation-password-2026" },
+    });
+    fireEvent.click(screen.getByTestId("invite-submit"));
+
+    expect(await screen.findByText("An account already exists for this address. Sign in instead.")).toBeInTheDocument();
+    expect(screen.getByTestId("invite-name")).toBeInTheDocument();
+    expect(screen.getByTestId("invite-password")).toBeInTheDocument();
+    expect(screen.getByTestId("invite-submit")).toBeEnabled();
+    expect(screen.queryByTestId("invite-uncertain")).not.toBeInTheDocument();
+    expect(signup).toHaveBeenCalledWith("single-use-token", {
+      name: "Clark Kent",
+      password: "invitation-password-2026",
+    });
   });
 });

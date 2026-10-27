@@ -35,6 +35,7 @@ export function closestForm(control: HTMLElement): HTMLFormElement {
 export const ACC = DEFAULT_ACCOUNT_ID;
 const originalAddAllocation = useStore.getState().addAllocation;
 const originalAddAllocations = useStore.getState().addAllocations;
+const originalAddActivity = useStore.getState().addActivity;
 
 /** Builds the base account data for allocation modal tests. */
 export function base(): AppData {
@@ -51,11 +52,15 @@ export function base(): AppData {
   });
 }
 
-/** Restores original allocation actions after a test replaces them. */
+/** Restores original allocation and activity actions after a test replaces them. */
 export function restoreStoreAllocationActions(): void {
   // Zustand state writes replace the state object while retaining action references. Restore these
   // explicitly so a spy installed in one test cannot survive on a later state object.
-  useStore.setState({ addAllocation: originalAddAllocation, addAllocations: originalAddAllocations });
+  useStore.setState({
+    addAllocation: originalAddAllocation,
+    addAllocations: originalAddAllocations,
+    addActivity: originalAddActivity,
+  });
 }
 
 /** Resets allocation modal fixtures and patched actions between tests. */

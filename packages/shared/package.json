@@ -187,6 +187,11 @@
       "development": "./src/domain/placement.ts",
       "types": "./src/domain/placement.ts",
       "default": "./dist/domain/placement.js"
+    },
+    "./api/httpErrors": {
+      "development": "./src/api/httpErrors.ts",
+      "types": "./src/api/httpErrors.ts",
+      "default": "./dist/api/httpErrors.js"
     }
   },
   "dependencies": {
