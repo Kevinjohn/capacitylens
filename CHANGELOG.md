@@ -9,7 +9,7 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
-- `pnpm run check:changed` runs only the formatting, lint, type-check, test and documentation checks that a branch's changed files need (#1603).
+- `pnpm run check:changed` runs only the formatting, lint, type-check, test and documentation checks that a branch's changed files need (#1603). `--static` leaves whole test suites to one combined run, and a fresh worktree builds the application its backend tests read (#1657).
 
 ### Fixed
 

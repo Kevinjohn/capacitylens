@@ -165,6 +165,85 @@ test("backend lint allows warnings like its own lint script; the others refuse t
   assert.ok(step(steps, "lint: 1 file").args.includes("--max-warnings"));
 });
 
+const staticOnly = { staticOnly: true };
+const skipped = (steps) => steps.filter((candidate) => candidate.skip).map((candidate) => candidate.label);
+
+test("--static runs changed test files on their own and skips every whole suite", () => {
+  const steps = planChecks(
+    [
+      "pnpm-lock.yaml",
+      "apps/backend/app/services/planning.ts",
+      "apps/backend/tests/unit/b.spec.ts",
+      "apps/frontend/src/App.test.tsx",
+      "packages/shared/src/lib/color.test.ts",
+    ],
+    everything,
+    noImporters,
+    staticOnly,
+  );
+  assert.deepEqual(step(steps, "test: 1 backend spec").args, [
+    "--dir",
+    "apps/backend",
+    "test",
+    "--files",
+    "tests/unit/b.spec.ts",
+  ]);
+  assert.deepEqual(step(steps, "test: 2 frontend test").args, [
+    "--dir",
+    "apps/frontend",
+    "exec",
+    "vitest",
+    "run",
+    "src/App.test.tsx",
+    "packages/shared/src/lib/color.test.ts",
+  ]);
+  assert.deepEqual(skipped(steps), ["test: frontend suite", "test: backend suite"]);
+  assert.ok(step(steps, "typecheck"));
+  assert.ok(step(steps, "format"));
+});
+
+test("--static skips the related-test lookup for source but not the source's lint and type-check", () => {
+  const steps = planChecks(["apps/frontend/src/App.tsx"], everything, noImporters, staticOnly);
+  assert.deepEqual(skipped(steps), ["test: frontend tests related to changes"]);
+  assert.ok(step(steps, "lint: frontend"));
+  assert.ok(step(steps, "typecheck"));
+  assert.equal(skipped(planChecks(["apps/frontend/src/App.test.tsx"], everything, noImporters, staticOnly)).length, 0);
+});
+
+test("backend tests build the application first when its output is missing, with CI's build environment", () => {
+  const missingBuild = (path) => path !== "apps/backend/public/assets";
+  for (const [paths, options] of [
+    [["apps/backend/app/services/planning.ts"], {}],
+    [["apps/backend/tests/unit/b.spec.ts"], staticOnly],
+  ]) {
+    const steps = planChecks(paths, missingBuild, noImporters, options);
+    const build = step(steps, "prepare: build application");
+    assert.deepEqual(build?.args, ["run", "build"], paths[0]);
+    assert.equal(build.env.NODE_ENV, "production");
+    assert.equal(build.env.SESSION_DRIVER, "memory");
+    assert.ok(
+      labels(steps).indexOf("prepare: build application") <
+        labels(steps).findIndex((label) => label.startsWith("test:")),
+    );
+  }
+  assert.equal(step(planChecks(["apps/backend/app/a.ts"], everything), "prepare: build application"), undefined);
+  assert.equal(step(planChecks(["apps/frontend/src/App.tsx"], missingBuild), "prepare: build application"), undefined);
+  assert.equal(
+    step(planChecks(["apps/backend/app/a.ts"], missingBuild, noImporters, staticOnly), "prepare: build application"),
+    undefined,
+  );
+});
+
+test("a step's own environment reaches the process it starts", async () => {
+  const result = await runStep({
+    label: "test: environment",
+    command: "node",
+    args: ["-e", "process.stdout.write(process.env.CHECK_CHANGED_PROBE ?? 'missing')"],
+    env: { CHECK_CHANGED_PROBE: "present" },
+  });
+  assert.equal(result.output, "present");
+});
+
 test("a renamed file is listed under both its old and new paths", (t) => {
   const repo = mkdtempSync(join(tmpdir(), "check-changed-"));
   t.after(() => rmSync(repo, { recursive: true, force: true }));
