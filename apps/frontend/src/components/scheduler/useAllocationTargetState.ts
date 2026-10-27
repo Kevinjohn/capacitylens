@@ -240,7 +240,8 @@ function useAddInlineActivity({
         });
       });
       if (selectionVersion.current === selectionVersionAtStart) setActivityId(activity.value.id);
-      setNewActivityName("");
+      // A name typed while the request was pending belongs to the next activity, so keep it.
+      setNewActivityName((current) => (current === newActivityName ? "" : current));
     } catch (error) {
       // Report inline-creation failure without treating the new target as successfully selected.
       fail(null, error instanceof Error ? error.message : m.form_allocation_err_save_failed());

@@ -92,6 +92,50 @@ describe("AllocationModal inline activity creation pref", () => {
     );
   });
 
+  it("keeps a new activity name typed while an earlier inline creation is pending", async () => {
+    const resourceId = await addInlineActivityTestPerson();
+    await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
+    const user = userEvent.setup();
+    let finishCreation!: () => void;
+    const creationPending = new Promise<void>((resolve) => {
+      finishCreation = resolve;
+    });
+    const addActivity = useStore.getState().addActivity;
+    let pendingCreation: ReturnType<typeof addActivity> | undefined;
+    vi.spyOn(useStore.getState(), "addActivity").mockImplementation((draft) => {
+      pendingCreation = (async () => {
+        await creationPending;
+        return addActivity(draft);
+      })();
+      return pendingCreation;
+    });
+
+    render(
+      <AllocationModal
+        kind="create"
+        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await chooseOption(user, "Project", "Ferris / Other");
+    const nameInput = screen.getByLabelText("New activity name");
+    await user.type(nameInput, "Late activity");
+    await user.click(screen.getByRole("button", { name: "Add activity" }));
+    const activityCreation = pendingCreation;
+    if (!activityCreation) throw new Error("Expected inline activity creation to be pending.");
+    await user.clear(nameInput);
+    await user.type(nameInput, "Next activity");
+
+    await act(async () => {
+      finishCreation();
+      await activityCreation;
+    });
+
+    expect(useStore.getState().data.activities.some(({ name }) => name === "Late activity")).toBe(true);
+    expect(screen.getByLabelText("New activity name")).toHaveValue("Next activity");
+  });
+
   it('renders the inline "Add activity" input + button when explicitly enabled', async () => {
     const resourceId = await addInlineActivityTestPerson();
     await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
