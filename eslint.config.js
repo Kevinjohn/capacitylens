@@ -284,6 +284,9 @@ export default defineConfig([
   // in-memory lookups return undefined and database lookups return null.
   {
     files: ['apps/frontend/src/**/*.{ts,tsx}', 'packages/shared/src/**/*.{ts,tsx,mts,cts}'],
+    // The shadcn primitives are registry-owned text pinned by `pnpm run ui:check`; they are not
+    // hand-edited to satisfy repository rules.
+    ignores: ['apps/frontend/src/components/ui/**'],
     plugins: { unicorn },
     rules: {
       curly: ['error', 'multi-line'],

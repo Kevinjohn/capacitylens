@@ -1,7 +1,7 @@
-import * as React from 'react';
-import { Popover as PopoverPrimitive } from 'radix-ui';
+import * as React from "react";
+import { Popover as PopoverPrimitive } from "radix-ui";
 
-import { cn } from '@/lib/cn';
+import { cn } from "@/lib/cn";
 
 /** Provides the root state for a popover. */
 function Popover({
@@ -20,7 +20,7 @@ function PopoverTrigger({
 /** Renders the popover panel. */
 function PopoverContent({
   className,
-  align = 'center',
+  align = "center",
   sideOffset = 4,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
@@ -32,7 +32,7 @@ function PopoverContent({
         sideOffset={sideOffset}
         className={cn(
           // Local layer deviation: floating content uses the repository's named z-index scale.
-          'bg-popover text-popover-foreground z-(--z-index-popover) w-72 origin-(--radix-popover-content-transform-origin) rounded-md border p-4 shadow-md outline-hidden',
+          "bg-popover text-popover-foreground z-(--z-index-popover) w-72 origin-(--radix-popover-content-transform-origin) rounded-md border p-4 shadow-md outline-hidden",
           className,
         )}
         {...props}
