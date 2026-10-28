@@ -1,3 +1,4 @@
+import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
 import { useState } from 'react';
 import { todayISO } from '@capacitylens/shared/lib/dateMath';
 import type { Closure } from '@capacitylens/shared/types/entities';
@@ -66,7 +67,14 @@ function ClosureFormFields(props: ClosureFormFieldsProps) {
 }
 
 /** Creates or edits a company closure with guarded date fields. */
-export function ClosureForm({ closure, onClose }: { closure?: Closure; onClose: () => void }) {
+export function ClosureForm({
+  closure,
+  onClose: close,
+}: {
+  closure?: Closure;
+  onClose: () => void;
+}) {
+  const onClose = useFormLifetimeClose(close);
   const add = useStore((state) => state.addClosure);
   const update = useStore((state) => state.updateClosure);
   const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));

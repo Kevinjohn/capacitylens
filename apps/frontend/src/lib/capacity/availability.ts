@@ -16,7 +16,7 @@ import type {
   TimeOff,
   Weekday,
 } from '@capacitylens/shared/types/entities';
-import { hasAllocationLoadOnDay, warnOnNonFiniteCapacity } from './primitives';
+import { addCapacityHours, hasAllocationLoadOnDay, warnOnNonFiniteCapacity } from './primitives';
 
 /** Checks whether a date belongs to the effective working week. */
 export function isWorkingDay(effectiveWeek: EffectiveWorkingWeek, date: ISODate): boolean {
@@ -198,18 +198,19 @@ interface ResolveAllocatedHoursForWeekdayInput {
 }
 
 /** Totals a resource’s allocated hours for one weekday. */
-export function resolveAllocatedHoursForWeekday({
+export function resolveAllocationLoadForWeekday({
   resource,
   date,
   allocations,
   weekday,
   effectiveWeek,
-}: ResolveAllocatedHoursForWeekdayInput): number {
+}: ResolveAllocatedHoursForWeekdayInput): { hours: number; components: readonly number[] } {
   // Derive the working-weekday flag once per day: it's invariant across the loop, only the
   // allocation's `ignoreWeekends` varies (and isWeekendAware is parse-free), so this keeps the
   // render-time over-marker hot path off a per-allocation parseISO.
   const dayIsWorking = effectiveWeekIncludes(effectiveWeek, weekday);
   let sum = 0;
+  let components: number[] = [];
   for (const allocation of allocations) {
     if (
       allocation.resourceId !== resource.id ||
@@ -229,8 +230,17 @@ export function resolveAllocatedHoursForWeekday({
     ) {
       continue;
     }
-    sum += allocation.hoursPerDay;
+    const hoursPerDay = allocation.hoursPerDay;
+    sum += hoursPerDay;
+    components = addCapacityHours(components, hoursPerDay);
   }
   warnOnNonFiniteCapacity(sum);
-  return sum;
+  return { hours: sum, components };
+}
+
+/** Allocated hours for one resource-day; the detailed traversal also retains exact comparison components. */
+export function resolveAllocatedHoursForWeekday(
+  input: ResolveAllocatedHoursForWeekdayInput,
+): number {
+  return resolveAllocationLoadForWeekday(input).hours;
 }

@@ -17,8 +17,8 @@ Invite one person as Admin to run the company day to day. You stay the Owner.
 1. Open **Team & access** and select **Invite someone**.
 2. Set **Role** to **Admin** and enter their email.
 3. Select **Create invite**. CapacityLens emails them the invitation; it lasts seven days.
-4. When they have accepted, their address appears under **Waiting for approval**. Select
-   **Approve**.
+4. After accepting, they select **Ask for access**. Their address then appears under **Waiting for
+   approval**; select **Approve**.
 
 An invitation gives sign-in access; it does not put anyone on the schedule. If the email does not
 arrive, select **Resend** under **Outstanding invites**.

@@ -24,7 +24,7 @@ People take holidays, get sick and book unpaid days. The manager records that on
 
 ## Acceptance criteria
 
-- ✅ After Save, the dialog closes and a `timeoff-row` for **Clark Kent** appears in the Time off list, reading **Clark Kent · Wed 17th Jun · 3 days**. (The list is deliberately terse — the end date, the type and any note are stored and shown on the timeline block, not in this row; see US-TOF-04.)
+- ✅ After Save, the dialog closes and a `timeoff-row` for **Clark Kent** appears in the Time off list, reading **Clark Kent · Wed 17th Jun · 3 days**. (The list is deliberately terse. The timeline shows the absence span and type; the note remains stored and is visible only in views available to roles authorized to read it; see US-TOF-04.)
 - ✅ On the Schedule (click **Today**, **Weeks visible** = **1 week**), Clark's lane shows a labelled `timeoff-block` over 17–19 June carrying the type label (the block label renders once a column is wide enough — use 1 week).
 - ✅ Those days read as unavailable: each covered day in Clark's lane is greyed (`data-testid="unavailable-day"`), reflecting 0 available hours.
 - ✅ Saving with **no Resource** selected keeps the dialog open and is rejected with the inline error "Choose a resource." (`aria-invalid` on the Resource field).

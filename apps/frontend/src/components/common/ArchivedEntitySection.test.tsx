@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PermissionContext } from '@/auth/permissionContext';
 import {
   DEFAULT_ACCOUNT_ID,
@@ -43,12 +44,32 @@ describe('archived resource actions', () => {
     expect(useStore.getState().data.resources[0]?.avatarUrl).toBeNull();
   });
 
-  it('does not expose archived resource data to an Editor', () => {
+  it('lets an Editor recover an identity without inactive details or anonymisation', () => {
     render(
-      <PermissionContext.Provider value={{ role: 'editor', status: 'resolved' }}>
-        <ArchivedEntitySection entity="resources" />
-      </PermissionContext.Provider>,
+      <QueryClientProvider client={new QueryClient()}>
+        <PermissionContext.Provider value={{ role: 'editor', status: 'resolved' }}>
+          <ArchivedEntitySection entity="resources" />
+        </PermissionContext.Provider>
+      </QueryClientProvider>,
     );
-    expect(screen.queryByTestId('archived-resources-section')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Restore Diana Prince' })).toBeInTheDocument();
+    expect(screen.queryByText('Designer')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Anonymise/ })).not.toBeInTheDocument();
+  });
+  it('restores an Editor identity through the existing volatile typed command', async () => {
+    await useStore.getState().refreshPlanning();
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <PermissionContext.Provider value={{ role: 'editor', status: 'resolved' }}>
+          <ArchivedEntitySection entity="resources" />
+        </PermissionContext.Provider>
+      </QueryClientProvider>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Restore Diana Prince' }));
+    await waitFor(() =>
+      expect(screen.queryByTestId('archived-resources-section')).not.toBeInTheDocument(),
+    );
+    expect(useStore.getState().data.resources[0]?.archivedAt).toBeNull();
   });
 });

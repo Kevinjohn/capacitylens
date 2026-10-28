@@ -102,9 +102,8 @@ function registerStoreCrudEntity3(): void {
     expect(s().data.disciplines).toHaveLength(0);
   });
 
-  // Clients/projects/resources have no immediate hard-delete action, removal goes through the
-  // Active → Archived → Soft-deleted → Purged lifecycle (see useStore.lifecycle.test.ts). These
-  // cover the add/update half of their CRUD; the lifecycle suite covers their removal.
+  // Clients/projects/resources use archive/restore rather than immediate hard deletion. These
+  // cover add/update; lifecycle tests cover archive/restore separately.
 }
 
 function registerStoreCrudEntity4(): void {
@@ -644,7 +643,7 @@ function registerDateRangeGuard1(): void {
 }
 
 function registerDateRangeGuard2(): void {
-  it('clamps allocation hoursPerDay to a real working day (<= 24) on add and update', async () => {
+  it('preserves valid 24-hour allocations and rejects excessive updates', async () => {
     const { r, t } = await seedAlloc();
     const a = requireCreated(
       await s().addAllocation({
@@ -652,12 +651,12 @@ function registerDateRangeGuard2(): void {
         activityId: t.id,
         startDate: '2026-06-01',
         endDate: '2026-06-03',
-        hoursPerDay: 200,
+        hoursPerDay: 24,
         status: 'confirmed',
       }),
     );
     expect(a.hoursPerDay).toBe(24);
-    await s().updateAllocation(a.id, { hoursPerDay: 99 });
+    await expect(s().updateAllocation(a.id, { hoursPerDay: 99 })).rejects.toThrow(/hours/i);
     expect(s().data.allocations[0]?.hoursPerDay).toBe(24);
   });
 }
@@ -996,6 +995,7 @@ function registerMergedRow3(): void {
     const data: AppData = makeAppData({ resources: [ext], timeOff: [timeOff] });
     s().replaceAll(data);
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
+    await s().refreshPlanning();
 
     await expect(s().updateTimeOff(timeOff.id, { startDate: '2026-06-11' })).rejects.toThrow(
       /external.*3rd-party/i,
@@ -1038,6 +1038,7 @@ function registerMergedRow4(): void {
     });
     s().replaceAll(data);
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
+    await s().refreshPlanning();
 
     await expect(s().updateResource(ext.id, { name: 'Outsource Co Ltd' })).rejects.toThrow(
       /work and time off before making it external/i,
@@ -1124,8 +1125,10 @@ function registerColourSnap2(): void {
     await s().updateResource(resource.id, { color: NON_PRESET });
     expect(s().data.resources.find((r) => r.id === resource.id)?.color).toBe(NEAREST_PRESET);
 
-    await s().updateAccount(DEFAULT_ACCOUNT_ID, { color: NON_PRESET });
-    expect(s().data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID)?.color).toBe(NEAREST_PRESET);
+    await expect(s().updateAccount(DEFAULT_ACCOUNT_ID, { color: NON_PRESET })).rejects.toThrow(
+      /colour/i,
+    );
+    expect(s().data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID)?.color).not.toBe(NON_PRESET);
   });
 }
 
@@ -1194,4 +1197,13 @@ describe('colour snapping: shared helper, nearest-preset (not fixed fallback), n
   registerColourSnap5();
   registerColourSnap6();
   registerColourSnap7();
+});
+
+it('rejects invalid supplied company colours before publishing a new entity', () => {
+  const before = s().data;
+  for (const color of ['#123456', '#1', '', 'blue']) {
+    expect(() => s().addAccount({ name: 'Wayne', color })).toThrow(/colour/i);
+    expect(s().data).toBe(before);
+  }
+  expect(s().addAccount({ name: 'Wayne', color: ' #2D75DA ' })?.color).toBe('#2d75da');
 });

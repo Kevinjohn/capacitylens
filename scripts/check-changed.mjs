@@ -55,8 +55,7 @@ const relativeTo = (prefix) => (path) => path.slice(prefix.length);
 /** List the script test files that import `scripts/<name>.mjs`, whatever they are called. */
 function scriptTestsImporting(path) {
   const scripts = new URL('scripts/', pathToFileURL(root));
-  // Prettier keeps every import specifier single-quoted, so the closing quote is part of the match.
-  const specifier = `./${path.slice('scripts/'.length)}'`;
+  const specifier = `./${path.slice('scripts/'.length)}"`;
   return readdirSync(scripts)
     .filter(
       (name) =>
@@ -104,6 +103,13 @@ export function planChecks(
   const frontendSuite =
     workspaceChanged ||
     sharedMetadataChanged ||
+    paths.some(
+      (path) =>
+        path.startsWith('apps/frontend/src/') &&
+        codeFile.test(path) &&
+        !frontendTest.test(path) &&
+        !present.includes(path),
+    ) ||
     paths.some(
       (path) =>
         path.startsWith('apps/frontend/') &&

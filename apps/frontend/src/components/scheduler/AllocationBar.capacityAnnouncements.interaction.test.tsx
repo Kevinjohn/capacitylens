@@ -89,6 +89,8 @@ function registerCapacityAnnouncementTests() {
   it('ignores retained allocations hidden beneath an archived client', async () => {
     useStore.setState((s) => ({ ui: { ...s.ui, originDate: '2026-06-01', rangeDays: 14 } }));
     const visible = await seedVisibleAllocationWithHiddenCapacity();
+    // Adopt the helper's direct archive fixture before sending an allocation edit.
+    await useStore.getState().refreshPlanning();
     render(
       <AllocationBar
         bar={barFor(visible)}
@@ -214,6 +216,8 @@ function registerCapacityAnnouncementSuite() {
 function registerCapacityAdviceTests() {
   it('excludes retained hidden allocations from pointer capacity advice', async () => {
     const visible = await seedVisibleAllocationWithHiddenCapacity();
+    // Adopt the helper's direct archive fixture before sending an allocation edit.
+    await useStore.getState().refreshPlanning();
     render(
       <AllocationBar
         bar={barFor(visible)}
@@ -228,7 +232,11 @@ function registerCapacityAdviceTests() {
     document.dispatchEvent(new MouseEvent('pointerup', { clientX: 98, bubbles: true }));
     await settlePlanning();
 
-    expect(useStore.getState().notice?.message).not.toMatch(/over capacity/i);
+    expect(getStoredAllocation(visible.id)).toMatchObject({
+      startDate: '2026-06-02',
+      endDate: '2026-06-03',
+    });
+    expect(useStore.getState().notice?.message ?? '').not.toMatch(/over capacity/i);
   });
 
   it('pins the dragged row (draggingAllocationId) on the first move and clears it on commit', async () => {

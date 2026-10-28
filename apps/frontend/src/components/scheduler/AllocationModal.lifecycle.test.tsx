@@ -175,6 +175,139 @@ describe('AllocationModal lifecycle', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps an edit drafted at the older canonical revision instead of overwriting a refreshed field', async () => {
+    const resource = await addPerson();
+    const allocation = requireCreated(
+      await useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: 't1',
+        startDate: '2026-06-01',
+        endDate: '2026-06-03',
+        hoursPerDay: 8,
+        status: 'confirmed',
+      }),
+    );
+    const onClose = vi.fn();
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
+    fireEvent.change(screen.getByLabelText('End'), { target: { value: '2026-06-05' } });
+    const revision = useStore.getState().planning.revision;
+    await act(async () => {
+      useStore.setState((state) => ({
+        data: {
+          ...state.data,
+          allocations: state.data.allocations.map((row) =>
+            row.id === allocation.id
+              ? { ...row, hoursPerDay: 4, updatedAt: '2026-06-04T12:00:00Z' }
+              : row,
+          ),
+        },
+      }));
+      await useStore.getState().refreshPlanning();
+    });
+    expect(useStore.getState().planning.revision).toBe((revision ?? 0) + 1);
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.getByRole('alert')).toHaveTextContent(/changed/);
+    expect(screen.getByLabelText('End')).toHaveValue('2026-06-05');
+    expect(
+      useStore.getState().data.allocations.find((row) => row.id === allocation.id),
+    ).toMatchObject({
+      endDate: '2026-06-03',
+      hoursPerDay: 4,
+    });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(useStore.getState().planning.revision).toBe((revision ?? 0) + 1);
+  });
+
+  it.each(['none', 'before', 'during'] as const)(
+    'saves after its own inline activity only when canonical allocation remains current (concurrent edit: %s)',
+    async (concurrent) => {
+      const resource = await addPerson();
+      await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
+      const allocation = requireCreated(
+        await useStore.getState().addAllocation({
+          resourceId: resource.id,
+          activityId: 't1',
+          startDate: '2026-06-01',
+          endDate: '2026-06-03',
+          hoursPerDay: 8,
+          status: 'confirmed',
+        }),
+      );
+      const original = useStore.getState().addActivity;
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let creation: ReturnType<typeof original> | undefined;
+      let acknowledged = false;
+      const addActivity = vi
+        .spyOn(useStore.getState(), 'addActivity')
+        .mockImplementation((draft) => {
+          creation = (async () => {
+            const result = await original(draft);
+            acknowledged = true;
+            await held;
+            return result;
+          })();
+          return creation;
+        });
+      const onClose = vi.fn();
+      render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
+      fireEvent.change(screen.getByLabelText('End'), { target: { value: '2026-06-05' } });
+      fireEvent.change(screen.getByLabelText('New activity name'), {
+        target: { value: 'Gotham review' },
+      });
+      if (concurrent === 'before') {
+        await act(async () => {
+          await useStore.getState().updateAllocation(allocation.id, { hoursPerDay: 4 });
+        });
+      }
+      fireEvent.click(screen.getByRole('button', { name: 'Add activity' }));
+      try {
+        await vi.waitFor(() => expect(acknowledged).toBe(true));
+        if (concurrent === 'during') {
+          await act(async () => {
+            await useStore.getState().updateAllocation(allocation.id, { hoursPerDay: 4 });
+          });
+        }
+        await act(async () => {
+          release();
+          await creation;
+        });
+        expect(screen.getByRole('combobox', { name: 'Activity' })).toHaveTextContent(
+          'Gotham review',
+        );
+        const revision = useStore.getState().planning.revision;
+        await userEvent.setup().click(screen.getByRole('button', { name: 'Save' }));
+        const row = useStore.getState().data.allocations.find((row) => row.id === allocation.id);
+        if (concurrent !== 'none') {
+          expect(screen.getByRole('alert')).toHaveTextContent(/changed/);
+          expect(screen.getByLabelText('End')).toHaveValue('2026-06-05');
+          expect(row).toMatchObject({ endDate: '2026-06-03', hoursPerDay: 4, activityId: 't1' });
+          expect(onClose).not.toHaveBeenCalled();
+          expect(useStore.getState().planning.revision).toBe(revision);
+        } else {
+          expect(row).toMatchObject({
+            endDate: '2026-06-05',
+            hoursPerDay: 8,
+            activityId: useStore
+              .getState()
+              .data.activities.find((activity) => activity.name === 'Gotham review')?.id,
+          });
+          expect(onClose).toHaveBeenCalledOnce();
+          expect(useStore.getState().planning.revision).toBe((revision ?? 0) + 1);
+        }
+      } finally {
+        await act(async () => {
+          release();
+          await creation;
+        });
+        addActivity.mockRestore();
+        useStore.setState({ addActivity: original });
+      }
+    },
+  );
+
   it('preserves a partially edited draft across equivalent parent props', async () => {
     const resource = await requireCreated(useStore.getState().addResource(person('Barbara')));
     const onClose = vi.fn();

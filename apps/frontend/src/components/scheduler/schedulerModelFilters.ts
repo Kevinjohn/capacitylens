@@ -24,10 +24,8 @@ function createResourceVisibility({
     if (!externalEnabled && isExternalResource(resource)) return false;
     if (filteredDisciplineId && resource.disciplineId !== filteredDisciplineId) return false;
     if (!search) return true;
-    const fields = [resolveResourceDisplayName(resource), resource.name, resource.role].map(
-      (field) => foldForSearch(field ?? ''),
-    );
-    return fields.some((field) => field.includes(search));
+    const text = [resolveResourceDisplayName(resource), resource.name, resource.role].join(' ');
+    return foldForSearch(text).includes(search);
   };
 }
 

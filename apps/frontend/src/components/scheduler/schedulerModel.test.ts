@@ -780,7 +780,7 @@ function registerBuildSchedulerModelTest23() {
 }
 
 function registerBuildSchedulerModelTest24() {
-  it('folds resource-name diacritics but does not match a phrase across field boundaries', () => {
+  it('folds resource-name diacritics and matches a phrase across field boundaries', () => {
     const d = dataset();
     const firstResource = d.resources[0];
     expect(firstResource).toBeDefined();
@@ -800,7 +800,8 @@ function registerBuildSchedulerModelTest24() {
         .map((row) => row.resource.id);
 
     expect(search('jose alvarez')).toContain('r1');
-    expect(search('alvarez research')).not.toContain('r1');
+    expect(search('alvarez research')).toContain('r1');
+    expect(search('alvarez engineer')).not.toContain('r1');
   });
 }
 
@@ -1467,11 +1468,12 @@ function registerMovedSchedulerTests14852(
 }
 
 function registerMovedSchedulerTests14853(
+  buildInternal: () => AppData,
   internalId: string,
   internalBarIds: (model: GroupModel[]) => string[],
 ) {
   it('does not misclassify an activity with a dangling project reference as project-less Internal work', () => {
-    const data = withInternal();
+    const data = buildInternal();
     data.projects = data.projects.filter((project) => project.id !== 'pInt');
     const model = buildSchedulerModel({
       data,
@@ -1488,9 +1490,9 @@ function registerMovedSchedulerTests14853(
 }
 
 type BuildDanglingOptions = { filters?: ReturnType<typeof buildEmptyFilters> };
-function registerMovedSchedulerTests14854(internalId: string) {
+function registerMovedSchedulerTests14854(buildInternal: () => AppData, internalId: string) {
   it('does not bucket an unattributed dangling-activity allocation under any client or project', () => {
-    const data = withInternal();
+    const data = buildInternal();
     data.allocations.push(
       {
         ...NULLABLE_FIELDS.allocations,
@@ -1584,9 +1586,9 @@ describe('built-in Internal client bucketing + filter', () => {
 
   registerMovedSchedulerTests14852(buildInternal, internalBarIds);
 
-  registerMovedSchedulerTests14853(internalId, internalBarIds);
+  registerMovedSchedulerTests14853(withInternal, internalId, internalBarIds);
 
-  registerMovedSchedulerTests14854(internalId);
+  registerMovedSchedulerTests14854(withInternal, internalId);
 });
 
 function buildInternalAndRepeatableData(): AppData {
@@ -1819,3 +1821,21 @@ describe(
   'buildSchedulerModel(activeOnly(data), …) — non-active resources vanish (P2.4)',
   registerActiveOnlySchedulerTests,
 );
+
+it('uses a neutral unassigned scheduler band while preserving stored resource colour', () => {
+  const d = dataset();
+  const template = requireValue(d.resources[0], 'resource template');
+  d.resources = [{ ...template, id: 'unassigned', disciplineId: null, color: '#2d75da' }];
+  const model = buildSchedulerModel({
+    data: d,
+    geom,
+    days,
+    visibleWindow: { start, end },
+    overSoonWindow: { start, end },
+    filters: buildEmptyFilters(),
+    preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
+  });
+  const group = model.find((g) => g.rows.some((r) => r.resource.id === 'unassigned'));
+  expect(group?.color).toBe('#9ca3af');
+  expect(d.resources[0]?.color).toBe('#2d75da');
+});

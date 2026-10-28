@@ -1,10 +1,10 @@
-/** Window event used to publish a server audit warning. */
+/** Window event used to publish a supplementary server logging warning. */
 export const AUDIT_WARNING_EVENT = 'capacitylens:audit-warning';
 
-/** The response header an API server sets when audit delivery became degraded. */
+/** The response header an API server sets when supplementary server logging failed after the change committed. */
 export const AUDIT_WARNING_HEADER = 'x-capacitylens-audit-warning';
 
-/** Notify mounted operational-warning surfaces that audit delivery became degraded. */
+/** Notify mounted operational-warning surfaces that supplementary server logging failed after the change committed. */
 export function announceAuditWarning(): void {
   const dispatchTarget = globalThis as { dispatchEvent?: (event: Event) => boolean };
   if (typeof dispatchTarget.dispatchEvent === 'function') {
@@ -12,8 +12,8 @@ export function announceAuditWarning(): void {
   }
 }
 
-/** Announces a response audit warning. defer waits one macrotask so a direct action
- * success notice cannot overwrite the persistent warning; background sync announces
+/** Announces a response audit warning. defer waits one macrotask to follow immediate action feedback. Actions
+ * awaiting further work must also retain this response fact in their final notice. Background sync announces
  * synchronously because it has no competing success notice.
  */
 export function noteAuditWarning(

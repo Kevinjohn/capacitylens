@@ -427,3 +427,29 @@ it('uses semantic group identity and numeric-aware pinned-locale ordering', () =
     { value: 'project-2', label: 'Workshop 2', groupKey: 'project', groupLabel: 'All projects' },
   ]);
 });
+
+it('reserves literal labels before allocating duplicate suffixes', () => {
+  const activities: Activity[] = ['Workshop', 'Workshop', 'Workshop / Internal (1)'].map(
+    (name, index) => ({
+      ...NULLABLE_FIELDS.activities,
+      ...row,
+      id: `a-${index}`,
+      kind: 'internal',
+      name,
+    }),
+  );
+  const options = buildActivityOptions({ activities, phases: [], projects: [], kind: 'internal' });
+  expect(options.map((option) => option.label)).toEqual([
+    'Workshop / Internal (1)',
+    'Workshop / Internal (2)',
+    'Workshop / Internal (3)',
+  ]);
+  expect(
+    buildActivityOptions({
+      activities: activities.toReversed(),
+      phases: [],
+      projects: [],
+      kind: 'internal',
+    }),
+  ).toEqual(options);
+});

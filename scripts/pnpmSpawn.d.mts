@@ -2,6 +2,8 @@ import type {
   ChildProcess,
   SpawnOptions,
   SpawnSyncOptions,
+  SpawnSyncOptionsWithStringEncoding,
+  SpawnSyncOptionsWithBufferEncoding,
   SpawnSyncReturns,
 } from 'node:child_process';
 
@@ -22,8 +24,16 @@ export function spawnPnpm(args: readonly string[], options?: SpawnOptions): Chil
  */
 export function spawnPnpmSync(
   args: readonly string[],
-  options?: SpawnSyncOptions,
+  options: SpawnSyncOptionsWithStringEncoding,
+): SpawnSyncReturns<string>;
+export function spawnPnpmSync(
+  args: readonly string[],
+  options?: SpawnSyncOptionsWithBufferEncoding,
 ): SpawnSyncReturns<Buffer>;
+export function spawnPnpmSync(
+  args: readonly string[],
+  options?: SpawnSyncOptions,
+): SpawnSyncReturns<string | Buffer>;
 
 /**
  * Describes exit status and failure details from a synchronous child process.

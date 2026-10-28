@@ -67,8 +67,8 @@ export async function apiFetch(
     ...(headers === undefined ? {} : { headers }),
     signal: createRequestSignal(requestOptions.signal, timeoutMs),
   });
-  // Defer until the direct action's own success notice has run; otherwise that notice immediately
-  // overwrites the more important persistent audit warning in the single-notice store.
+  // Follow immediate action feedback; actions with later asynchronous work also retain this header
+  // when choosing their final notice.
   noteAuditWarning(response, { defer: true });
   if (!response.ok) {
     const code = await readMasqueradeErrorCode(response);

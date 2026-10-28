@@ -62,6 +62,10 @@ Select the bar to open **Edit allocation**. Change the assignee, project, activi
 status, task or note, then select **Save**. Select **Duplicate** to copy the booking, or **Delete**
 to remove it. Repeat occurrences can't be duplicated.
 
+If another session changes the schedule while the form is open, Save is refused: **The schedule
+changed while you were editing. Close and reopen the form, then re-apply your changes.** This keeps
+your edits from overwriting the newer schedule.
+
 Select **Undo** in the toolbar, or press **Ctrl+Z** (**⌘Z** on macOS), if you change or remove the wrong booking.
 
 ### If a project is archived or deleted

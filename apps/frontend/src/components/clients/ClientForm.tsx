@@ -1,3 +1,4 @@
+import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
 import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelledError';
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
@@ -66,7 +67,8 @@ function ClientFormFields({
 }
 
 /** Add (no `client`) or edit a client: name + preset colour. `onClose` fires on save or cancel. */
-export function ClientForm({ client, onClose }: { client?: Client; onClose: () => void }) {
+export function ClientForm({ client, onClose: close }: { client?: Client; onClose: () => void }) {
+  const onClose = useFormLifetimeClose(close);
   const addClient = useStore((state) => state.addClient);
   const updateClient = useStore((state) => state.updateClient);
   const [name, setName] = useState(client?.name ?? '');

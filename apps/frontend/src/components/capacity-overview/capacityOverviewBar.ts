@@ -77,7 +77,7 @@ export function computeCapacityCellFill({
 /** Ink for a week's committed percentage: danger once tentative work would push it to 90%. */
 export type CapacityTotalsTone = 'danger' | 'ink' | 'muted';
 
-/** Aggregated capacity, overbooked, unassigned, and tentative day counts. */
+/** Aggregated capacity, free, committed, overbooked and tentative day counts for the people shown. */
 export interface CapacityPeriodTotals {
   capacityDays: number;
   freeDays: number;

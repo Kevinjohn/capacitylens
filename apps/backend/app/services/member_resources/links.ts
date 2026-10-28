@@ -97,7 +97,11 @@ export async function clearMemberResourceLink(
   input: { accountId: string; userId: string; expectedRevision: string }
 ) {
   const { accountId, userId, expectedRevision } = input;
-  await assertEligibleMember(trx, accountId, userId);
+  const member = await trx
+    .from('memberships')
+    .where({ account_id: accountId, user_id: userId })
+    .first();
+  if (!member) conflictingAdmission('The company member no longer exists.');
   const changed = await trx
     .from('account_member_resources')
     .where({ account_id: accountId, user_id: userId, revision: expectedRevision })

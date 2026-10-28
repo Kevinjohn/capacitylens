@@ -41,10 +41,14 @@ export default class ExportsController {
           if (accountId) throw new IdentityAuthorityError('Forbidden.');
           continue;
         }
+        const mayReadInactive = can(role, 'manageMembers');
+        if (includeInactive === '1' && !mayReadInactive) {
+          throw new IdentityAuthorityError('Forbidden.');
+        }
         const state = await readStateWithClient(
           trx,
           id,
-          accountId === undefined || includeInactive === '1'
+          mayReadInactive && (accountId === undefined || includeInactive === '1')
         );
         const slice = transformState(state, id, role);
         for (const key of APP_DATA_KEYS) combined[key].push(...(slice[key] as never[]));

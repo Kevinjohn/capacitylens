@@ -90,7 +90,10 @@ function useInvitePreview(token: string | undefined) {
           setState(
             preview
               ? { kind: 'form', preview }
-              : { kind: 'failed', message: m.invite_err_invalid() },
+              : {
+                  kind: 'failed',
+                  message: response.ok ? m.invite_err_unavailable() : m.invite_err_invalid(),
+                },
           );
         }
       })

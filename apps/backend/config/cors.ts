@@ -15,8 +15,8 @@ const corsConfig = defineConfig({
 
   /**
    * Use the configured origins (or the documented local development origins).
-   * Production defaults to the same explicit local list; configure the public
-   * frontend origin with CAPACITYLENS_CORS_ORIGIN when deploying elsewhere.
+   * Production has no cross-origin defaults; configure the public frontend origin
+   * with CAPACITYLENS_CORS_ORIGIN when deploying it separately.
    */
   origin: corsOrigins,
 

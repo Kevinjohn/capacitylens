@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import YAML from 'yaml';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -235,4 +237,15 @@ test('a repeat failure comments on the oldest open report and closes visible dup
   assert.match(github.issues.get(41).comments.join('\n'), /runs\/103/);
   assert.equal(github.issues.get(42).open, false);
   assert.match(github.issues.get(42).comments.join('\n'), /in favor of #41/);
+});
+
+test('security reporter includes every upstream job outcome', () => {
+  const workflow = YAML.parse(
+    readFileSync(new URL('../.github/workflows/security.yml', import.meta.url), 'utf8'),
+  );
+  const notify = workflow.jobs.notify;
+  const mapping = notify.steps.find((step) => step.env?.RESULTS)?.env.RESULTS;
+  assert.ok(notify.needs.includes('dependency-review'));
+  for (const job of notify.needs)
+    assert.ok(mapping.includes(`${job}=\${{ needs.${job}.result }}`), job);
 });

@@ -18,7 +18,7 @@ When a piece of work is dropped, the manager wants the activity and everything s
 2. Go to **Activities**. On the **Wireframes** row, click the **Archive** (trash) icon. The "Archive activity?" confirmation dialog opens.
 3. Confirm by clicking **Archive**. The dialog closes and Wireframes appears under **Archived activities**.
 4. Return to the **Schedule** (`/`, click **Today**) to inspect.
-5. Press **⌘Z**. Wireframes stays archived: Undo and Redo currently cover booking changes only.
+5. Use **Undo** if the acknowledged archive is still in the current page's history; **Redo** reapplies it.
 
 ## Acceptance criteria
 
@@ -26,4 +26,4 @@ When a piece of work is dropped, the manager wants the activity and everything s
 - ✅ After confirming, **Wireframes** is gone from the Activities list.
 - ✅ The allocation bars for **Wireframes** are gone from the schedule.
 - ✅ Other activities of _Project Watchtower_ (_Visual Design_, _CMS Review_) and their bars are untouched; the project and its client are untouched.
-- ✅ **Restore Wireframes** in Archived activities restores the activity and its allocation bars; **⌘Z** leaves the archive in place.
+- ✅ **Restore Wireframes** in Archived activities restores the activity and its allocation bars. An eligible acknowledged archive or restore can also be reversed from page-local Undo/Redo history.

@@ -108,9 +108,9 @@ test.group('M5 documentation and policy contracts', () => {
 
     for (const target of links) {
       const [path, fragment] = target.split('#', 2);
-      const absolute = resolve(ROOT, path ?? '');
+      const absolute = resolve(ROOT, path);
       assert.isTrue(existsSync(absolute), `Missing README target ${target}`);
-      if (!fragment || !/\.md$/i.test(path ?? '')) continue;
+      if (!fragment || !/\.md$/i.test(path)) continue;
       const headings = markdownHeadings(readFileSync(absolute, 'utf8'));
       const slugs = new Set([...headings].map(markdownSlug));
       assert.isTrue(slugs.has(decodeURIComponent(fragment)), `Missing README fragment ${target}`);
@@ -329,7 +329,7 @@ test.group('M5 documentation and policy contracts', () => {
 
   test('keeps the product name and literal plural marker out of localized copy', ({ assert }) => {
     const brand = read('packages/shared/src/brand.ts').match(
-      /export const APP_NAME = '([^']+)'/
+      /export const APP_NAME = "([^"]+)"/
     )?.[1];
     assert.isDefined(brand, 'Expected the shared brand module to export APP_NAME');
     const messages = Object.values(

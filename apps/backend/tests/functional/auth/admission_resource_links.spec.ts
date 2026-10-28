@@ -332,5 +332,52 @@ test.group('direct member resource association', (group) => {
     });
     const occupied = await put(otherId, 'r-barry', null);
     occupied.assertStatus(409);
+    const clear = (userId: string, expectedRevision: string) =>
+      withSession(
+        client
+          .delete(`/api/accounts/a-studio/members/${userId}/resource-link`)
+          .header('sec-fetch-site', 'same-origin'),
+        ownerCookie
+      )
+        .json({ expectedRevision })
+        .send();
+    const ownerCleared = await clear(ownerId, second.body().revision);
+    ownerCleared.assertStatus(204);
+    await db
+      .from('memberships')
+      .where({ account_id: 'a-studio', user_id: ownerId })
+      .update({ role: 'admin' });
+    for (const unavailable of ['inactive', 'restricted']) {
+      await db
+        .from('memberships')
+        .where({ account_id: 'a-studio', user_id: otherId })
+        .update({ status: 'active' });
+      await db
+        .from('account_access_restrictions')
+        .where({ account_id: 'a-studio', principal_id: otherId })
+        .delete();
+      const link = await put(otherId, 'r-barry', null);
+      link.assertStatus(200);
+      const expected = link.body().revision;
+      if (unavailable === 'inactive')
+        await db
+          .from('memberships')
+          .where({ account_id: 'a-studio', user_id: otherId })
+          .update({ status: 'inactive' });
+      else
+        await db.table('account_access_restrictions').insert({
+          id: crypto.randomUUID(),
+          account_id: 'a-studio',
+          principal_id: otherId,
+          role: 'viewer',
+          created_at: now,
+        });
+      const refusedSet = await put(otherId, 'r-barry', expected);
+      refusedSet.assertStatus(unavailable === 'inactive' ? 409 : 403);
+      const clearedUnavailable = await clear(otherId, expected);
+      clearedUnavailable.assertStatus(204);
+      const clearedMissing = await clear(otherId, expected);
+      clearedMissing.assertStatus(409);
+    }
   });
 });

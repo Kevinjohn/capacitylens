@@ -54,7 +54,8 @@ the Owner or installation guides.
 
 The **Getting started** checklist on Schedule ticks off steps 2 to 4 as you go, in any order.
 If the Owner kept the example data, those steps may already be done. The example records are
-ordinary: delete them from Resources, Clients and Projects when you no longer need them.
+ordinary editable records: archive them from Resources, Clients and Projects when you no longer
+need them. Archived rows remain stored and can be restored from their archived section.
 
 ## Who gets which role
 

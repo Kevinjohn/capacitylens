@@ -1,3 +1,4 @@
+import { NEUTRAL_COLOR } from '@/lib/palette';
 import { useMemo } from 'react';
 import { isExternalResource } from '@capacitylens/shared/types/entities';
 import type { Resource } from '@capacitylens/shared/types/entities';
@@ -74,7 +75,10 @@ export function useResourceListModel() {
   const resolveSwatchColor = (resource: Resource) =>
     (disciplinesEnabled && resource.disciplineId
       ? disciplinesById.get(resource.disciplineId)?.color
-      : undefined) ?? resource.color;
+      : undefined) ??
+    (disciplinesEnabled && resource.kind === 'person' && !resource.disciplineId
+      ? NEUTRAL_COLOR
+      : resource.color);
   const buildMetadata = (resource: Resource) =>
     [resource.role, disciplinesEnabled ? resolveDisciplineName(resource.disciplineId) : undefined]
       .filter(Boolean)

@@ -23,7 +23,7 @@ This is the short, present-tense record of decisions that constrain future work.
 - Shared role and status badges use a compact pill silhouette. Their semantic colours continue to
   distinguish brand/default, neutral, warning, danger and outline states.
 - Employment type is recorded for people but does not add a visual badge to the schedule or roster.
-- Product orientation is non-blocking and permanently reopenable from the sidebar. Dismissal is a
+- Product orientation is non-blocking and shown automatically to eligible users until dismissed; there is no sidebar reopen action. Dismissal is a
   versioned device preference scoped to the signed-in person and company (with stable demo, local
   and no-company scopes), never company data or export data. A copy change may bump the version to
   show materially changed guidance again.
@@ -77,8 +77,9 @@ This is the short, present-tense record of decisions that constrain future work.
 - SQLite is the only product database. One process owns one database file through a pool of one
   connection. Missing API access is an error, never a silent browser-storage fallback.
 - Every scoped row carries its company id. The server authorises every tenant read and write from
-  session membership; client scoping is UI hygiene, not authorisation. Cross-tenant references are
-  refused by database triggers. One production installation holds one company; the demo may hold
+  session membership; client scoping is UI hygiene, not authorisation. Database triggers reject
+  cross-company references within the scheduling graph; control links are checked transactionally
+  against the member and resource. One production installation holds one company; the demo may hold
   several.
 - Planning reads return current authority, one integer company revision and the complete,
   confidentially projected company slice from one transaction. Every typed mutation carries the

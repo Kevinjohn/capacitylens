@@ -63,6 +63,30 @@ describe('volatile planning transport', () => {
     await expect(transport.read(context, signal)).resolves.toHaveProperty('revision', first + 1);
   });
 
+  it('refuses the captured base after an external edit even without an intervening read', async () => {
+    const { transport, read, write } = harness(makeAppData({ allocations: [makeAllocation()] }));
+    const { revision } = await transport.read(context, signal);
+    const changed = { ...read(), allocations: [makeAllocation({ note: 'Concurrent edit' })] };
+    write(changed);
+    await expect(
+      transport.execute(
+        context,
+        {
+          mutationId: 'stale-no-read',
+          baseRevision: revision,
+          intent: { operation: 'allocation.delete', id: 'a1' },
+        },
+        signal,
+      ),
+    ).rejects.toMatchObject({ code: 'STALE_REVISION', status: 409 });
+    expect(read()).toEqual(changed);
+    expect(await transport.lookup(context, 'stale-no-read', signal)).toEqual({
+      status: 'unknown',
+      mutationId: 'stale-no-read',
+    });
+    await expect(transport.read(context, signal)).resolves.toHaveProperty('revision', revision + 1);
+  });
+
   it('answers a lookup with the commitment and restoration handle of a committed write', async () => {
     const { transport, run } = harness(makeAppData({ allocations: [makeAllocation()] }));
     const receipt = await run('m1', { operation: 'allocation.delete', id: 'a1' });

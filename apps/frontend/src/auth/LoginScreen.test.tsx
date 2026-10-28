@@ -157,7 +157,12 @@ describe('LoginScreen — before company setup (needsSetup)', () => {
 describe('LoginScreen — degraded 401 body notice', () => {
   it('shows the non-terminal advisory above the form when degraded is true', () => {
     render(<LoginScreen degraded onSignedIn={vi.fn()} />);
-    expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Sign-in configuration could not be loaded. Try again shortly or contact your administrator.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/single sign-on|fallback/i)).not.toBeInTheDocument();
 
     expect(screen.getByLabelText('Email')).toBeInTheDocument();
     expect(screen.getByLabelText('Password')).toBeInTheDocument();

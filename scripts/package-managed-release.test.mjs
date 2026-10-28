@@ -463,3 +463,33 @@ test('writes checksums in sha256sum format', async (context) => {
     'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
   );
 });
+
+for (const filename of ['db.sqlite3', 'db.sqlite3-wal', 'db.sqlite3-shm']) {
+  test(`rejects nested operator database ${filename}`, async (context) => {
+    const root = await mkdtemp(join(tmpdir(), 'capacitylens-database-test-'));
+    context.after(() => rm(root, { recursive: true, force: true }));
+    await mkdir(join(root, 'nested'));
+    await writeFile(join(root, 'nested', filename), 'inert fixture');
+    await assert.rejects(() => inspectArchiveTree(root), /database file/);
+  });
+}
+
+test('all shipped nginx configs suppress browser bearer routes', async () => {
+  for (const path of [
+    'nginx.conf',
+    'nginx.client.conf.template',
+    'packaging/release/capacitylens.nginx.conf',
+  ]) {
+    const conf = await readFile(join(repositoryRoot, path), 'utf8');
+    const locations = [...conf.matchAll(/location\s+~\s+([^\s{]+)\s*\{([^}]+)\}/g)];
+    for (const route of [
+      '/invite/opaque-bearer',
+      '/reset-password/opaque-bearer',
+      '/verify-email/opaque-bearer',
+    ]) {
+      const location = locations.find((match) => new RegExp(match[1]).test(route));
+      assert.ok(location, `${path}: ${route}`);
+      assert.match(location[2], /access_log off;/);
+    }
+  }
+});

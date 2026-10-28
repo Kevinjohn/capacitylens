@@ -63,8 +63,8 @@ draggable/resizable.
 - For an **Owner/Admin/Editor**: every permitted affordance is shown, and where the company block
   renders it displays the effective pill-shaped role badge; only Viewer adds the **View only**
   qualifier.
-- The **server 403** is the authoritative backstop: a direct scheduling write as a Viewer
-  (`PUT /api/<entity>/<id>` with the account's `accountId`, write tier = editor+) is **403** even if
+- The **server 403** is the authoritative backstop: a direct typed scheduling write as a Viewer
+  (`POST /api/accounts/:accountId/clients` with a `catalogue.create` intent) is **403** even if
   the UI is bypassed. As a second local guard, the store no-ops a viewer's `add*`/`update*`/`delete*`/
   `importData` and surfaces _"Read-only — you don't have edit access."_
 - The in-memory demo has no persisted badge or membership role and remains editable; it identifies

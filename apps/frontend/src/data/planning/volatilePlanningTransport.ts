@@ -26,7 +26,7 @@ import {
   normalizeAccountWorkingDays,
   isWeekdaySet,
 } from '@capacitylens/shared/lib/accountWorkingDays';
-import { NEUTRAL_COLOR, snapToPresetColor } from '@capacitylens/shared/lib/color';
+import { NEUTRAL_COLOR, isPresetColor, snapToPresetColor } from '@capacitylens/shared/lib/color';
 import type { Activity, Allocation, Resource, TimeOff } from '@capacitylens/shared/types/entities';
 import { isServerConfigured } from '@/data/apiConfig';
 import { stamp, touchAfter } from '@/store/revisions';
@@ -87,6 +87,9 @@ function normalizeColor(key: AppDataKey, fields: object, current?: Row): object 
     throw invalid('A colour must be selected from the available swatches.');
   }
   const kind = 'kind' in fields ? fields.kind : current?.kind;
+  if (key === 'accounts' && !isPresetColor(color)) {
+    throw invalid('A colour must be selected from the available swatches.');
+  }
   return {
     ...fields,
     color:
@@ -569,6 +572,7 @@ export function createVolatilePlanningTransport(readData: () => AppData): Planni
       const visible = slice(readData(), context.companyId);
       if (!company.pendingRefetch && JSON.stringify(visible) !== JSON.stringify(company.data)) {
         company.data = visible;
+        company.revision += 1;
       }
       if (commitments.has(execution.mutationId)) {
         throw new PlanningControllerError(

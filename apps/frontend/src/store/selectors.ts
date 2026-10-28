@@ -164,8 +164,9 @@ export interface DisciplineGroup {
  */
 export const byDisciplineOrder = (a: Discipline, b: Discipline): number => {
   const orderDifference = a.sortOrder - b.sortOrder;
-  if (orderDifference !== 0 || a.name === b.name) return orderDifference;
-  return a.name < b.name ? -1 : 1;
+  if (orderDifference !== 0) return orderDifference;
+  if (a.name !== b.name) return a.name < b.name ? -1 : 1;
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 };
 
 /** The trailing external / 3rd-party band (neutral, always last), or null when there are none. The

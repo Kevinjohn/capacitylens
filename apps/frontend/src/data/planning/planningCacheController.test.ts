@@ -755,6 +755,15 @@ describe('planning reconciliation races', () => {
       revision: 3,
       data: { ...emptyAppData(), accounts: [{ id: 'company-1', name: 'Unverified' }] },
     },
+    { revision: 4, canWrite: true, data: { ...canonicalData(), accounts: [] } },
+    {
+      revision: 5,
+      canWrite: true,
+      data: {
+        ...canonicalData(),
+        accounts: [...canonicalData().accounts, ...canonicalData().accounts],
+      },
+    },
   ])('surfaces invalid canonical reads instead of remaining loading: %j', async (snapshot) => {
     const read = vi.fn<PlanningTransport['read']>().mockResolvedValue(snapshot as PlanningSnapshot);
     const h = harness({ execute: vi.fn(), lookup: vi.fn(), read });

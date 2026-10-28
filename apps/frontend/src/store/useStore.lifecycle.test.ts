@@ -58,6 +58,7 @@ describe('volatile lifecycle', () => {
       makeAppData({ resources: [resource], allocations: [allocation], timeOff: [timeOff] }),
     );
     s().setActiveAccount(accountId);
+    await s().refreshPlanning();
     await s().sendPlanningCommand({
       intent: { operation: 'resource.archive', id: resource.id },
       inverse: { operation: 'resource.unarchive', id: resource.id },
@@ -94,6 +95,7 @@ describe('volatile lifecycle', () => {
       makeAppData({ resources: [target, other], allocations: [privateBooking, otherBooking] }),
     );
     s().setActiveAccount(accountId);
+    await s().refreshPlanning();
     await s().deleteAllocation(privateBooking.id);
     await s().deleteAllocation(otherBooking.id);
     const retained = s()
@@ -114,6 +116,7 @@ describe('volatile lifecycle', () => {
     const resource = makeResource({ id: 'r-racing', accountId, name: 'Diana Prince' });
     s().replaceAll(makeAppData({ resources: [resource] }));
     s().setActiveAccount(accountId);
+    await s().refreshPlanning();
     const pending = s().sendPlanningCommand({
       intent: { operation: 'resource.archive', id: resource.id },
       inverse: { operation: 'resource.unarchive', id: resource.id },

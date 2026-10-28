@@ -4,7 +4,9 @@
 
 ## Goal
 
-Show only the allocations whose activity's project belongs to a chosen client, while capacity cues still reflect all of a person's work.
+Show allocations attributable to a chosen client through its projects, while capacity cues still
+reflect all of a person's work. Projectless Internal allocations are attributed to the built-in
+Internal client when that client is selected.
 
 ## Why
 
@@ -21,7 +23,7 @@ For a client review or billing check, the manager wants to see just that client'
 
 - ✅ The options put **Internal** first, followed by the other clients alphabetically.
 - ✅ Choosing **Queen Consolidated** collapses the schedule to the allocations on _Project Watchtower_ activities (e.g. _Wireframes_, _Visual Design_, _CMS Review_) — resources with no Queen Consolidated work are **hidden by default**. Ticking **Show unallocated** (off by default) brings them back **visible but dimmed**, still showing their full real utilisation (so you can see who's free to staff).
-- ✅ While **Queen Consolidated** is selected, **Filter by project** offers **All projects** followed only by that client's eligible projects. Switching to another client refreshes the project choices; a client with no eligible projects leaves **All projects** as the only project option.
+- ✅ While **Queen Consolidated** is selected, **Filter by project** offers **All projects** followed by that client's eligible projects. A previously selected project that has become ineligible remains visible so the user can clear or correct it; switching to another client clears a project that does not belong to that client. A client with no eligible projects offers **All projects** plus any retained stale selection.
 - ✅ Capacity stays truthful: **over-markers** (`over-marker`) and the per-resource **utilisation %** (`utilization`) still reflect **all** of each resource's work, not just the filtered-in bars.
 - ✅ Setting the select back to **All clients** restores every bar.
 - ✅ Setting the select back to **All clients** restores the usual eligible project choices.

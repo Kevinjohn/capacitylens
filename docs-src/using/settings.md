@@ -98,7 +98,7 @@ Owners and Admins can open it. Only an Owner or Admin can change it.
 
 ## Scheduling features
 
-The **Company features** section holds the company-wide switches. **Use disciplines** starts on;
+The **Company features** section holds the company-wide switches. New production companies start with **Use disciplines** off;
 the others start off. Turning a switch off hides the feature without deleting data, and turning
 it back on restores it.
 
@@ -204,8 +204,8 @@ Owners and Admins can copy build details and a support report from
 
 <span id="your-personal-account"></span>
 
-Your sign-in, password, company login and **Sign out** are on the [Account](/using/account) page
-at the bottom of the left menu, not in Settings.
+Your signed-in identity, password controls and **Sign out** are on the
+[Account](/using/account) page at the bottom of the left menu, not in Settings.
 
 ## If a company won't load
 

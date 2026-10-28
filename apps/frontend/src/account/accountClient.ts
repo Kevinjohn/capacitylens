@@ -1,3 +1,4 @@
+import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
 import { apiFetch } from '@/data/requestTimeout';
 import type { BrowserAccountCommand } from './accountCommands';
 import type { MembershipStatus, Role } from '@capacitylens/shared/account/types';
@@ -232,14 +233,26 @@ export const accountClient = {
     body: CreateInvitationBody,
     command?: BrowserAccountCommand,
   ): Promise<Response> {
-    const accountId = body.accountId;
+    const capturedContext = getMasqueradeContextToken();
+    const payload = { ...body };
+    const accountId = payload.accountId;
+    const operationKey = await buildPayloadOperationKey(`invitation-create:${accountId}`, payload);
+    if (getMasqueradeContextToken() !== capturedContext) {
+      return Response.json(
+        {
+          error: 'The action context changed. Review the invitation before trying again.',
+          code: 'MASQUERADE_CONTEXT_CHANGED',
+        },
+        { status: 409 },
+      );
+    }
     return runCommand({
-      operationKey: await buildPayloadOperationKey(`invitation-create:${accountId}`, body),
+      operationKey,
       explicit: command,
       request: (resolved) =>
         apiFetch(
           apiRouteUrl('api.invites.create', {}),
-          buildJsonCommandRequestInit('POST', body, resolved),
+          buildJsonCommandRequestInit('POST', payload, resolved),
         ),
     });
   },

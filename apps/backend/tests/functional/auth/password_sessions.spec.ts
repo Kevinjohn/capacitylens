@@ -9,7 +9,8 @@ import {
   createFixtureCompanyForOwner,
 } from '../../helpers/authenticated_data_fixture.js';
 import { clearIdentities, createIdentity, signIn, expectStatus } from '../../helpers/identities.js';
-import { commitUnderWriteLock } from '../../helpers/write_lock.js';
+import { requestBarrier } from '../../helpers/request_barrier.js';
+import { masqueradeService } from '#services/auth/masquerade';
 
 const email = 'bruce.wayne@wayne.example';
 const password = 'batman-secret-2026';
@@ -21,6 +22,7 @@ const planning = (client: ApiClient, cookie: string) =>
   asDataOwner(client.get(`/api/accounts/${accountId}/planning`), cookie).send();
 const dismiss = (client: ApiClient, cookie: string) =>
   asDataOwner(client.put(`/api/accounts/${accountId}/getting-started`), cookie)
+    .timeout({ response: 10000, deadline: 15000 })
     .json({ dismissed: true })
     .send();
 const dismissals = () => db.from('account_getting_started_dismissals');
@@ -142,19 +144,37 @@ test.group('password sign-in and sessions', (group) => {
     await expectStatus(accounts(client, removed.cookie), 401);
   });
 
-  test('a revocation committed while a write waits for the lock refuses that write', async ({
+  test('a session revoked after request admission refuses the protected write', async ({
     client,
     assert,
   }) => {
     const userId = await owner();
     const { cookie } = await signIn(client, email, password);
-    const released = await commitUnderWriteLock([
-      ['DELETE FROM account_sessions WHERE user_id = ?', userId],
-    ]);
-    const refused = await dismiss(client, cookie);
-    await released;
-    refused.assertStatus(401);
-    assert.lengthOf(await dismissals(), 0);
+    const service = await masqueradeService();
+    const original = service.resolve.bind(service);
+    const barrier = requestBarrier();
+    service.resolve = async (request) => {
+      const resolved = await original(request);
+      if (request.request.url().endsWith('/getting-started')) await barrier.pause();
+      return resolved;
+    };
+    const audits = await db.from('audit_entries');
+    const revisions = await db.from('company_planning_revisions');
+    const pending = dismiss(client, cookie);
+    try {
+      await barrier.entered();
+      await db.from('account_sessions').where('user_id', userId).delete();
+      barrier.release();
+      const refused = await pending;
+      refused.assertStatus(401);
+      assert.lengthOf(await dismissals(), 0);
+      assert.deepEqual(await db.from('audit_entries'), audits);
+      assert.deepEqual(await db.from('company_planning_revisions'), revisions);
+    } finally {
+      barrier.release();
+      service.resolve = original;
+      await pending;
+    }
   });
 
   test('a write that commits before a revocation stands, and the next one is refused', async ({

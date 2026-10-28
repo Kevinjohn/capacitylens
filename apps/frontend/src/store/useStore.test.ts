@@ -39,6 +39,7 @@ function registerStoreCrudPart1(): void {
         row.id === client.id ? { ...row, updatedAt: '+275760-09-12T23:59:59.999Z' } : row,
       ),
     });
+    await s().refreshPlanning();
     await s().updateClient(client.id, { name: 'Last successor' });
     expect(s().data.clients.find((row) => row.id === client.id)?.updatedAt).toBe(
       '+275760-09-13T00:00:00.000Z',
@@ -51,6 +52,7 @@ function registerStoreCrudPart1(): void {
         row.id === client.id ? { ...row, updatedAt: '+275760-09-13T00:00:00.000Z' } : row,
       ),
     });
+    await s().refreshPlanning();
 
     await expect(s().updateClient(client.id, { name: 'Must be refused' })).rejects.toThrow(
       /no representable successor/i,

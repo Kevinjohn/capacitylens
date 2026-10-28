@@ -1,3 +1,4 @@
+import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
 import { useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useStore } from '@/store/useStore';
@@ -151,7 +152,8 @@ function useCanEditTimeOffNote(): boolean {
 }
 
 /** Creates or edits time off for an authorised resource. */
-export function TimeOffForm({ timeOff, defaults, onClose }: TimeOffFormProps) {
+export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormProps) {
+  const onClose = useFormLifetimeClose(close);
   const add = useStore((state) => state.addTimeOff);
   const addMany = useStore((state) => state.addTimeOffs);
   const update = useStore((state) => state.updateTimeOff);

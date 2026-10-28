@@ -26,7 +26,7 @@ export default class ExampleDataController {
     const accountId = params.accountId;
     try {
       const added = await withActor(ctx, async (_actor, trx) => {
-        const actor = await assertCompanyAction(accountId, 'write', trx);
+        const actor = await assertCompanyAction(accountId, 'manageMembers', trx);
         const state = await readStateWithClient(trx, accountId, true);
         const account = state.accounts.at(0);
         if (!account) throw new BatchRequestError('Company not found.', 404);

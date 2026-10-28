@@ -26,9 +26,9 @@ open the app in a build with `VITE_CAPACITYLENS_DEMO=1`.
 1. Click **Diagnostics** below **Settings** in the sidebar (or choose it in the command palette).
    The URL is `/diagnostics`.
 2. Review the **Support report**: the **Snapshot observed** ISO timestamp, the app version, build
-   revision, deployment mode and export schema; the server connectivity, database, persistence and
-   backup values that are available; this browser session's save counters; and
-   the browser's user agent, viewport, time zone and language.
+   revision, deployment mode and export schema; server connectivity, database status, the latest
+   schema migration and newest snapshot file time; and the browser's viewport, time zone and
+   language. The user-agent field is always **Unknown** because caller-controlled text is omitted.
 3. Click **Copy diagnostics**. A generic success message confirms that the report was copied.
 4. Paste the report into a private support note and confirm it contains no company data,
    credentials, private paths, hostnames, personal information or raw error text.
@@ -42,11 +42,10 @@ open the app in a build with `VITE_CAPACITYLENS_DEMO=1`.
 - The page shows the report text exactly as **Copy diagnostics** copies it.
 - The server values are a point-in-time snapshot: the client records **Snapshot observed** when the
   server response arrives, or when its failure is observed. Copying does not request it again.
-  The save counters are this browser session's running totals.
-- Unknown, offline, shallow-health, deep-health, missing-backup and error cases stay explicitly
-  labelled and never fall back to a browser schema constant as the server schema. Demo mode keeps
-  client facts and marks server values unavailable. The native backend leaves backup status
-  unavailable; recovery checks use service logs and completed snapshots rather than a health latch.
+- Unknown, offline and error cases stay explicitly labelled and never fall back to a browser schema
+  constant as the server schema. Demo mode keeps client facts and marks server values unavailable.
+  The newest snapshot file time is not a backup-health check: recovery still uses service logs and
+  completed snapshots rather than a health latch.
 - Secret-like unknown fields, malformed types, raw errors, private paths/hostnames, names, email
   addresses and identifiers are ignored. A browser value outside its expected shape is reported
   as **Unknown**.

@@ -17,12 +17,12 @@ Small agencies need a direct path from installation setup to planning. Keeping t
 1. Sign in to an installation with a provisioned company and an active membership. The company opens on Schedule.
 2. Reload the page and sign in again if prompted. The server's company summary opens the same company and preserves the requested route.
 3. Confirm the production interface has no company picker or switch-company action. If the server reports more than one stored company, the app explains that an administrator must resolve the installation; it never offers a choice.
-4. On an empty installation, create the initial identity through normal sign-in setup. On **Set up your company**, enter **Company name** and select **Create company**. Schedule opens with that identity as Owner; the service keeps running.
-5. In the in-memory demo, sign in and use its picker to switch between fictional companies or create another temporary one.
+4. On an empty installation, create the initial identity through normal sign-in setup. On **Set up your company**, enter **Company name**, choose **Week starts on** and **Timezone**, then select **Create company**. The name accepts up to 100 Unicode code points and rejects unsupported characters; invalid text is refused instead of truncated. Schedule opens with that identity as Owner; the service keeps running.
+5. In the in-memory demo, choose a fictional company from its picker or create another temporary one. The demo has no sign-in flow.
 
 ## Acceptance criteria
 
-- ✅ First-company setup is available in the browser to the initial authenticated identity only while the installation has no company or membership. One company-name field creates canonical defaults, Internal client and one active Owner atomically, leaves credentials and admission unchanged, and refuses competing or second initialization. A failed save keeps the draft and visible retry feedback.
+- ✅ First-company setup is available in the browser to the initial authenticated identity only while the installation has no company or membership. Company name, week start, and IANA time zone choices create canonical defaults, Internal client and one active Owner atomically, leave credentials and admission unchanged, and refuse competing or second initialization. The form defaults to Monday and `Etc/GMT`. A failed save keeps the draft and visible retry feedback.
 - ✅ Before the first company exists, open signup cannot create a second identity, even when enabled in configuration or requested concurrently. The controlled first identity can sign in and finish company setup. After setup, the configured signup policy applies.
 - ✅ Server company-creation and generic batch write routes are retired and return 404.
 - ✅ Production asks the server for the installation company. Exactly one accessible company opens automatically; zero companies offer first-run setup only to the initial authenticated identity; other identities show the empty access state; multiple stored companies fail closed with an actionable error and no company list.

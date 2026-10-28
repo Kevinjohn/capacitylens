@@ -11,12 +11,14 @@ check** otherwise — so the manual scripts and the suite stay in lock-step.
   `data-testid`s, the first-run seed data, and domain rules. Read this first.
 - **[TEMPLATE.md](TEMPLATE.md)** — the story shape + a fully-worked exemplar.
 
-**How to run a manual pass:** `pnpm run dev:demo`, open <http://localhost:5173>, then work
-through the areas below ticking each ✅. Reload to reset the in-memory demo to its seed. Use
+**How to run a manual pass:** `pnpm run dev:demo`, open the URL Vite prints (5173 is the
+lane-zero example; use the printed port when another lane is selected), then work through the areas
+below ticking each ✅. Reload to reset the in-memory demo to its seed. Use
 `pnpm run dev` when the story specifically covers server persistence or authentication.
 
 **How to run the automated coverage:** `pnpm run e2e` (Playwright drives the real app),
-`pnpm test` (Vitest unit/component), and the axe a11y oracle in `e2e/a11y.spec.ts`.
+`pnpm test` (the workspace's frontend/shared Vitest suites and backend tests), and the axe a11y
+oracle in `e2e/a11y.spec.ts`.
 
 132 stories across 17 areas. The **Automated coverage** column names the spec file(s) whose
 tests assert the story's acceptance criteria; some intrinsically-visual or environment-only
@@ -101,10 +103,10 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 
 ## Privacy & confidential names — `privacy/`
 
-| Story                                                                   | Title                                            | Automated coverage                                   |
-| ----------------------------------------------------------------------- | ------------------------------------------------ | ---------------------------------------------------- |
-| [US-PRI-01](privacy/US-PRI-01-role-safe-private-name-display.md)        | Role-safe private-name display across the app    | server authz + component tests; cross-surface manual |
-| [US-PRI-02](privacy/US-PRI-02-preserve-private-identities-on-writes.md) | Preserve private identities across server writes | `operations.spec.ts`                                 |
+| Story                                                                   | Title                                            | Automated coverage                                          |
+| ----------------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------- |
+| [US-PRI-01](privacy/US-PRI-01-role-safe-private-name-display.md)        | Role-safe private-name display across the app    | server authz + component tests; cross-surface manual        |
+| [US-PRI-02](privacy/US-PRI-02-preserve-private-identities-on-writes.md) | Preserve private identities across server writes | `apps/backend/tests/functional/planning/operations.spec.ts` |
 
 ## Activities — `activities/`
 
@@ -241,6 +243,6 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 
 ## Installation — `installation/`
 
-| Story                                                     | Title                               | Automated coverage                                                        |
-| --------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------- |
-| [US-INS-01](installation/US-INS-01-install-one-agency.md) | Install CapacityLens for one agency | gate `release-package-smoke` + `static_fallback.spec.ts`; manual per host |
+| Story                                                     | Title                               | Automated coverage                                                                                       |
+| --------------------------------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| [US-INS-01](installation/US-INS-01-install-one-agency.md) | Install CapacityLens for one agency | `gate` → `packaged` job + `apps/backend/tests/functional/state/static_fallback.spec.ts`; manual per host |

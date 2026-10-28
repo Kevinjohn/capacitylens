@@ -32,7 +32,7 @@ import {
 
 const uuid = () => vine.string().uuid();
 // Existing rows retain their stable identifiers during the transport transition.
-const entityId = () => vine.string().regex(/^[A-Za-z0-9][A-Za-z0-9._~-]{0,127}$/);
+const entityId = () => vine.string().regex(/^[A-Za-z0-9][A-Za-z0-9._~:-]{0,127}$/);
 const number = () => vine.number({ strict: true });
 const boolean = () => vine.boolean({ strict: true });
 const userText = (multiline = false, required = false) =>
@@ -965,7 +965,7 @@ export const planningMutationFailureValidator = vine.compile(
 );
 export type PlanningMutationFailureInput = Infer<typeof planningMutationFailureValidator>;
 
-/** A pre-transaction check only; callers must read and compare under the write transaction. */
+/** A stale-revision conflict; the authoritative comparison occurs under the write transaction. */
 export class StalePlanningRevisionError extends Error {
   readonly statusCode = 409;
   readonly code = 'STALE_REVISION' as const;
