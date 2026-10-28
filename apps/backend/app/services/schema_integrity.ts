@@ -205,6 +205,44 @@ export async function assertSchemaIntegrity() {
   )
   for (const table of ['account_getting_started_dismissals', 'account_access_restrictions'])
     await assertIndex(table, 'account_id')
+  for (const table of ['allocations', 'time_off', 'closures', 'phases', 'disciplines']) {
+    const columns = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>
+    if (
+      !columns.some((column) => column.name === 'deleted_at') ||
+      !columns.some((column) => column.name === 'deletion_group_id')
+    )
+      throw new Error(`Database schema drift: ${table} deletion ownership columns are missing`)
+    const references = (await db.rawQuery(`PRAGMA foreign_key_list(${table})`)) as Array<{
+      id: number
+      table: string
+      from: string
+      to: string
+      on_delete: string
+    }>
+    if (
+      !references.some(
+        (reference) =>
+          reference.table === 'deleted_groups' &&
+          reference.from === 'deletion_group_id' &&
+          reference.to === 'group_id' &&
+          reference.on_delete === 'CASCADE'
+      )
+    )
+      throw new Error(`Database schema drift: ${table} deletion ownership foreign key is missing`)
+    for (const operation of ['insert', 'update'])
+      await assertTrigger(
+        `${table}_deletion_group_${operation}`,
+        `CREATE TRIGGER ${table}_deletion_group_${operation} BEFORE ${operation.toUpperCase()} ON ${table} WHEN NEW.deletion_group_id IS NOT NULL AND (NEW.deleted_at IS NULL OR NOT EXISTS (SELECT 1 FROM deleted_groups WHERE group_id = NEW.deletion_group_id AND account_id = NEW.account_id)) BEGIN SELECT RAISE(ABORT, 'invalid deletion group association'); END`
+      )
+  }
+  await assertTrigger(
+    'deleted_groups_active_row_guard',
+    `CREATE TRIGGER deleted_groups_active_row_guard BEFORE DELETE ON deleted_groups WHEN ${['allocations', 'time_off', 'closures', 'phases', 'disciplines'].map((table) => `EXISTS (SELECT 1 FROM ${table} WHERE deletion_group_id = OLD.group_id AND deleted_at IS NULL)`).join(' OR ')} BEGIN SELECT RAISE(ABORT, 'active row cannot belong to deletion group'); END`
+  )
+  await assertTrigger(
+    'deleted_groups_account_immutable',
+    "CREATE TRIGGER deleted_groups_account_immutable BEFORE UPDATE OF account_id ON deleted_groups WHEN NEW.account_id <> OLD.account_id BEGIN SELECT RAISE(ABORT, 'account_id is immutable'); END"
+  )
   for (const [table, columns] of [
     [
       'deleted_groups',

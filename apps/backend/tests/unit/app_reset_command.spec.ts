@@ -57,7 +57,7 @@ test('app reset archives all account and credential state and initializes a sepa
       'action_proofs',
     ])
       assert.equal(tableCount(fresh, table), 0, table)
-    assert.equal(tableCount(fresh, 'adonis_schema'), 1)
+    assert.equal(tableCount(fresh, 'adonis_schema'), 3)
     fresh.close()
   } finally {
     f.cleanup()

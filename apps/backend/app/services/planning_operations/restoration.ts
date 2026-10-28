@@ -8,8 +8,9 @@ import {
 } from '@capacitylens/shared/domain/mutations'
 import { assertAllocationPlacement } from '@capacitylens/shared/domain/placement'
 import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays'
-import type { Allocation, AppData, AppDataKey } from '@capacitylens/shared/types/entities'
-import { encodeRow, readStateWithClient } from '#services/state_repository'
+import type { Allocation, AppData } from '@capacitylens/shared/types/entities'
+import { readStateWithClient } from '#services/state_repository'
+import { retainedQuery, isRetainedTable, type RetainedTable } from './retained_rows.js'
 import { TABLE_NAMES } from '#services/planning_operations/entity_policy'
 import { createServerRevision } from '#services/planning_operations/revision'
 import { existingRow, PlanningOperationError } from './writer.js'
@@ -21,11 +22,8 @@ export interface RestorationIdentity {
   mutationId: string
 }
 
-type DeletableTable = Extract<
-  AppDataKey,
-  'allocations' | 'phases' | 'disciplines' | 'timeOff' | 'closures'
->
-type SavedRow = { kind: 'row'; row: Record<string, unknown> }
+type DeletableTable = RetainedTable
+type SavedRow = { kind: 'row' }
 type SavedLink = { kind: 'link'; parentId: string }
 
 function conflict(): never {
@@ -36,7 +34,11 @@ function conflict(): never {
   )
 }
 
-/** Saves complete stored rows and narrow surviving-child links, then deletes only listed rows. */
+function affectedRows(result: number | unknown[]): number {
+  return Array.isArray(result) ? result.length : result
+}
+
+/** Saves expected row identities and surviving-child links, then retains the deleted rows. */
 export async function deleteRows(
   trx: TransactionClientContract,
   data: AppData,
@@ -56,7 +58,11 @@ export async function deleteRows(
     created_at: new Date().toISOString(),
     consumed_at: null,
   })
-  const links = rows.flatMap((row) =>
+  const links = rows.flatMap<{
+    entity: 'activities' | 'resources'
+    rowId: string
+    parentId: string
+  }>((row) =>
     table === 'phases'
       ? data.activities
           .filter((child) => child.phaseId === row.id)
@@ -72,7 +78,7 @@ export async function deleteRows(
       group_id: groupId,
       entity: table,
       row_id: row.id,
-      payload_json: JSON.stringify({ kind: 'row', row } satisfies SavedRow),
+      payload_json: JSON.stringify({ kind: 'row' } satisfies SavedRow),
     })),
     ...links.map((link) => ({
       group_id: groupId,
@@ -84,12 +90,27 @@ export async function deleteRows(
   // SQLite bounds compound inserts and variables; all slices remain in the caller's transaction.
   for (let start = 0; start < saved.length; start += 500)
     await trx.table('deleted_rows').multiInsert(saved.slice(start, start + 500))
-  for (let start = 0; start < ids.length; start += 500)
-    await trx
+  for (const link of links) {
+    const column = link.entity === 'activities' ? 'phase_id' : 'discipline_id'
+    const detached = await trx
+      .from(TABLE_NAMES[link.entity])
+      .where({ id: link.rowId, account_id: accountId, [column]: link.parentId })
+      .update({ [column]: null })
+    if (affectedRows(detached) !== 1) conflict()
+  }
+  for (let start = 0; start < ids.length; start += 500) {
+    const selected = ids.slice(start, start + 500)
+    const deleted = await retainedQuery(trx, accountId, table).whereIn('id', selected).softDelete()
+    if (deleted !== selected.length) conflict()
+    const attached = await trx
       .from(TABLE_NAMES[table])
       .where('account_id', accountId)
-      .whereIn('id', ids.slice(start, start + 500))
-      .delete()
+      .whereIn('id', selected)
+      .whereNotNull('deleted_at')
+      .whereNull('deletion_group_id')
+      .update({ deletion_group_id: groupId })
+    if (affectedRows(attached) !== selected.length) conflict()
+  }
   return groupId
 }
 
@@ -149,19 +170,28 @@ export async function restoreGroup(
     .from('deleted_rows')
     .where({ group_id: groupId })
     .select('entity', 'row_id', 'payload_json')
-  const rows: Array<{ entity: DeletableTable; row: Record<string, unknown> }> = []
+  const rows: Array<{ entity: DeletableTable; id: string; row: Record<string, unknown> }> = []
   const links: Array<{ entity: 'activities' | 'resources'; rowId: string; parentId: string }> = []
   for (const item of saved) {
     const payload = JSON.parse(String(item.payload_json)) as SavedRow | SavedLink
-    if (payload.kind === 'row')
-      rows.push({ entity: item.entity as DeletableTable, row: payload.row })
-    else
+    if (payload.kind === 'row') {
+      const entity = item.entity as DeletableTable
+      if (!isRetainedTable(entity)) conflict()
+      const stored = await retainedQuery(trx, accountId, entity)
+        .onlyTrashed()
+        .where('id', String(item.row_id))
+        .where('deletion_group_id', groupId)
+        .first()
+      if (!stored) conflict()
+      rows.push({ entity, id: String(item.row_id), row: stored.serialize() })
+    } else
       links.push({
         entity: item.entity as 'activities' | 'resources',
         rowId: String(item.row_id),
         parentId: payload.parentId,
       })
   }
+  if (rows.length === 0) conflict()
   const dependencies = await readStateWithClient(trx, accountId, true)
   const account = dependencies.accounts.find((row) => row.id === accountId)
   const accountWorkingDays = normalizeAccountWorkingDays(
@@ -193,13 +223,20 @@ export async function restoreGroup(
       conflict()
     }
   }
-  for (const { entity, row } of rows) {
-    if (
-      row.accountId !== accountId ||
-      (await trx.from(TABLE_NAMES[entity]).where('id', String(row.id)).first())
-    )
-      conflict()
-    await trx.table(TABLE_NAMES[entity]).insert(encodeRow(TABLE_NAMES[entity], row))
+  for (const { entity, id, row } of rows) {
+    if (row.accountId !== accountId || row.id !== id) conflict()
+    const cleared = await trx
+      .from(TABLE_NAMES[entity])
+      .where({ id, account_id: accountId, deletion_group_id: groupId })
+      .whereNotNull('deleted_at')
+      .update({ deletion_group_id: null })
+    if (affectedRows(cleared) !== 1) conflict()
+    const restored = await retainedQuery(trx, accountId, entity)
+      .onlyTrashed()
+      .where('id', id)
+      .whereNull('deletion_group_id')
+      .restore()
+    if (restored !== 1) conflict()
   }
   const current = await readStateWithClient(trx, accountId, true)
   for (const { entity, rowId, parentId } of links) {

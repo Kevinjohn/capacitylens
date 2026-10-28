@@ -15,8 +15,8 @@ const STARTUP_TIMEOUT_MS = 30_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 const RESOURCE_NAME = "Bruce Wayne Packaged Schedule";
-// The unreleased native schema is installed by one complete baseline.
-const MIGRATION_COUNT = 1;
+// The baseline is followed by planning deletion ownership and legacy recovery conversion.
+const MIGRATION_COUNT = 3;
 
 function message(error) {
   return error instanceof Error ? error.message : String(error);
