@@ -14,7 +14,7 @@ if (!registryPin || registryPin !== mcpPin) {
   process.exit(1);
 }
 // shadcn reads components.json from its working directory, so both entry points must start beside it.
-const registryDir = registryCommand.match(/cwd: fileURLToPath\(new URL\("\.\.\/([^"]+?)\/?"/)?.[1];
+const registryDir = registryCommand.match(/cwd: fileURLToPath\(new URL\('\.\.\/([^']+?)\/?'/)?.[1];
 const mcpArgs = mcpManifest.mcpServers.shadcn.args;
 const mcpDir = mcpArgs[mcpArgs.indexOf('--cwd') + 1];
 if (!registryDir || !mcpArgs.includes('--cwd') || registryDir !== mcpDir) {
