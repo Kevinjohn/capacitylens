@@ -15,6 +15,11 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Preserve a newly opened form and its unsaved draft when an earlier save finishes.
+- Refuse allocation saves based on an obsolete planning revision instead of overwriting concurrent changes.
+- Keep invitation intent and delayed member feedback within their originating principal and action context.
+- Preserve committed-operation logging warnings after the following planning refresh.
+
 - Let Editors restore archived records from a limited identity list while keeping inactive details and private names protected.
 - Keep archived planning records out of ordinary planning reads and mutation replies.
 - Enforce administrative authority for example data and inactive exports, and allow administrators to clear retained links for disabled or restricted members.

@@ -20,7 +20,7 @@ import {
   signIn,
   expectStatus,
 } from '../../helpers/identities.js'
-import { commitUnderWriteLock } from '../../helpers/write_lock.js'
+import { requestBarrier } from '../../helpers/request_barrier.js'
 
 const accountId = 'a-studio'
 const owner = 'bruce.wayne@wayne.example'
@@ -49,7 +49,10 @@ async function member(email: string, role: 'admin' | 'editor' | 'viewer') {
 }
 
 const invite = (client: ApiClient, cookie: string, email: string, role = 'editor') =>
-  asDataOwner(client.post('/api/invites'), cookie).json({ accountId, email, role }).send()
+  asDataOwner(client.post('/api/invites'), cookie)
+    .timeout({ response: 10000, deadline: 15000 })
+    .json({ accountId, email, role })
+    .send()
 
 const accept = (client: ApiClient, token: string, name = 'Clark Kent') =>
   client
@@ -284,22 +287,46 @@ test.group('company invitations', (group) => {
     assert.lengthOf(await db.from('memberships').where('account_id', accountId), 2)
   })
 
-  test('a demotion committed while an invitation waits for the lock refuses the send', async ({
+  test('a sender demoted after manager approval cannot insert or email an invitation', async ({
     client,
     assert,
     cleanup,
   }) => {
     captureMail(cleanup)
+    const send = mailService.send
+    let sent = 0
+    mailService.send = async (...args: Parameters<typeof mailService.send>) => {
+      sent += 1
+      return send.apply(mailService, args)
+    }
     await company()
     const adminId = await member('diana.prince@wayne.example', 'admin')
     const { cookie } = await signIn(client, 'diana.prince@wayne.example')
-    const demoted = await commitUnderWriteLock([
-      ['UPDATE memberships SET role = ? WHERE user_id = ?', 'viewer', adminId],
-    ])
-    const refused = await invite(client, cookie, invitee)
-    await demoted
-    refused.assertStatus(403)
-    assert.lengthOf(await db.from('account_invitations'), 0)
+    const original = accountKit.invitations.send.bind(accountKit.invitations)
+    const barrier = requestBarrier()
+    accountKit.invitations.send = async (...args) => {
+      await barrier.pause()
+      return original(...args)
+    }
+    const audits = await db.from('audit_entries')
+    const before = await revision()
+    const pending = invite(client, cookie, invitee)
+    try {
+      await barrier.entered()
+      await db.from('memberships').where('user_id', adminId).update({ role: 'viewer' })
+      barrier.release()
+      const refused = await pending
+      refused.assertStatus(403)
+      assert.lengthOf(await db.from('account_invitations'), 0)
+      assert.equal(sent, 0)
+      assert.equal(await revision(), before)
+      assert.deepEqual(await db.from('audit_entries'), audits)
+    } finally {
+      barrier.release()
+      accountKit.invitations.send = original
+      mailService.send = send
+      await pending
+    }
   })
 
   test('an address the company removed cannot rejoin through an invitation', async ({

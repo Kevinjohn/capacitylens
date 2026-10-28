@@ -943,6 +943,7 @@ function registerMergedRow3(): void {
     const data: AppData = makeAppData({ resources: [ext], timeOff: [timeOff] });
     s().replaceAll(data);
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
+    await s().refreshPlanning();
 
     await expect(s().updateTimeOff(timeOff.id, { startDate: "2026-06-11" })).rejects.toThrow(/external.*3rd-party/i);
     expect(s().data.timeOff[0]?.startDate).toBe("2026-06-10");
@@ -983,6 +984,7 @@ function registerMergedRow4(): void {
     });
     s().replaceAll(data);
     s().setActiveAccount(DEFAULT_ACCOUNT_ID);
+    await s().refreshPlanning();
 
     await expect(s().updateResource(ext.id, { name: "Outsource Co Ltd" })).rejects.toThrow(
       /work and time off before making it external/i,

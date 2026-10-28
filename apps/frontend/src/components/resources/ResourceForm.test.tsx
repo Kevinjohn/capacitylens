@@ -536,6 +536,8 @@ it("edits a placeholder bound to an archived project without forcing a reassignm
     }),
   );
   useStore.getState().archiveEntity("projects", project.id);
+  // Adopt this direct fixture edit before the form captures its canonical save revision.
+  await useStore.getState().refreshPlanning();
   render(<ResourceForm resource={placeholder} onClose={onClose} />);
 
   const select = screen.getByLabelText("Bound project");

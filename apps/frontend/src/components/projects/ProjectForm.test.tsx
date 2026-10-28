@@ -204,6 +204,8 @@ describe("ProjectForm", () => {
       useStore.getState().addProject({ name: "Alpha", clientId: client.id, color: "#ec4899" }),
     );
     useStore.getState().archiveEntity("clients", client.id);
+    // Adopt this direct fixture edit before the form captures its canonical save revision.
+    await useStore.getState().refreshPlanning();
     render(<ProjectForm project={project} onClose={onClose} />);
 
     const select = screen.getByLabelText("Client");

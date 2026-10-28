@@ -12,8 +12,8 @@ export function announceAuditWarning(): void {
   }
 }
 
-/** Announces a response audit warning. defer waits one macrotask so a direct action
- * success notice cannot overwrite the persistent warning; background sync announces
+/** Announces a response audit warning. defer waits one macrotask to follow immediate action feedback. Actions
+ * awaiting further work must also retain this response fact in their final notice. Background sync announces
  * synchronously because it has no competing success notice.
  */
 export function noteAuditWarning(

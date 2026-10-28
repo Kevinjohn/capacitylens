@@ -82,10 +82,11 @@ describe("planning authority publication", () => {
     useStore.getState().undo();
     expect(useStore.getState().past).toHaveLength(1);
     expect(useStore.getState().future).toHaveLength(1);
+    await useStore.getState().refreshPlanning();
     await seedTypedAllocation();
-    expect(useStore.getState().planning.history.past).toHaveLength(4);
-    await useStore.getState().undoPlanning();
     expect(useStore.getState().planning.history.past).toHaveLength(3);
+    await useStore.getState().undoPlanning();
+    expect(useStore.getState().planning.history.past).toHaveLength(2);
     expect(useStore.getState().planning.history.future).toHaveLength(1);
     expect(useStore.getState().past).toHaveLength(1);
     expect(useStore.getState().future).toHaveLength(1);

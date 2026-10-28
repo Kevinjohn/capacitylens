@@ -1,3 +1,4 @@
+import { useFormLifetimeClose } from "@/hooks/useFormLifetimeClose";
 import { m } from "@/i18n";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
@@ -50,12 +51,46 @@ function useSchedulingContext() {
 }
 
 function useAllocationModalContext(props: AllocationModalProps) {
-  const { onClose } = props;
+  const onClose = useFormLifetimeClose(props.onClose);
   const canEdit = useCanEdit();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const writing = useRef(false);
+  const draftBasis = useRef({
+    context: useStore.getState().planning.context,
+    revision: useStore.getState().planning.revision,
+  });
+  const isCurrentDraft = () => {
+    const planning = useStore.getState().planning;
+    return planning.context === draftBasis.current.context && planning.revision === draftBasis.current.revision;
+  };
   const data = useActiveScopedData();
   const actions = useAllocationStoreActions();
+  const addActivity: typeof actions.addActivity = async (draft) => {
+    const before = useStore.getState();
+    const canAdvance = isCurrentDraft();
+    const unchangedData = JSON.stringify(before.data);
+    const result = await actions.addActivity(draft);
+    if (canAdvance && result.kind === "created" && before.planning.revision !== null) {
+      const after = useStore.getState();
+      const acknowledgedRows = after.data.activities.filter((activity) => activity.id === result.value.id);
+      const withoutCreatedActivity = {
+        ...after.data,
+        activities: after.data.activities.filter((activity) => activity.id !== result.value.id),
+      };
+      // Only this editor's sole acknowledged addition may advance its draft. A later read or
+      // another mutation must leave the original revision stale, even if creation succeeded.
+      if (
+        after.planning.context === before.planning.context &&
+        after.planning.revision === before.planning.revision + 1 &&
+        !before.data.activities.some((activity) => activity.id === result.value.id) &&
+        acknowledgedRows.length === 1 &&
+        JSON.stringify(acknowledgedRows[0]) === JSON.stringify(result.value) &&
+        JSON.stringify(withoutCreatedActivity) === unchangedData
+      )
+        draftBasis.current = { context: after.planning.context, revision: after.planning.revision };
+    }
+    return result;
+  };
   const { mode, accountWorkingDays } = useSchedulingContext();
   // Read the active account row directly because the scoped entity projection omits accounts.
   const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
@@ -99,8 +134,10 @@ function useAllocationModalContext(props: AllocationModalProps) {
     confirmDelete,
     setConfirmDelete,
     writing,
+    isCurrentDraft,
     data,
     ...actions,
+    addActivity,
     mode,
     accountWorkingDays,
     placeholdersEnabled,
@@ -174,6 +211,7 @@ function buildModalState(
     onClose: context.onClose,
     setConfirmDelete: context.setConfirmDelete,
     writing: context.writing,
+    isCurrentDraft: context.isCurrentDraft,
     addAllocation: context.addAllocation,
     addAllocations: context.addAllocations,
     duplicateAllocation: context.duplicateAllocation,

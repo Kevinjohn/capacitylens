@@ -50,6 +50,7 @@ async function addInternalSearchItems() {
     clients: data.clients.some((client) => client.id === internal.id) ? data.clients : [...data.clients, internal],
   });
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
+  await useStore.getState().refreshPlanning();
   await useStore.getState().addProject({
     name: "Obsidian Programme",
     clientId: internal.id,

@@ -1,3 +1,4 @@
+import { useFormLifetimeClose } from "@/hooks/useFormLifetimeClose";
 import { PlanningSaveCancelledError } from "@/data/planning/PlanningSaveCancelledError";
 import { useMemo, useState } from "react";
 import { useStore } from "@/store/useStore";
@@ -21,7 +22,8 @@ type ProjectPrivacy = NonNullable<ReturnType<ReturnType<typeof usePrivateNameFie
 
 /** Add (no `project`) or edit a project: name, required client, preset colour. `onClose` fires on
  * save or cancel. */
-export function ProjectForm({ project, onClose }: { project?: Project; onClose: () => void }) {
+export function ProjectForm({ project, onClose: close }: { project?: Project; onClose: () => void }) {
+  const onClose = useFormLifetimeClose(close);
   const add = useStore((state) => state.addProject);
   const update = useStore((state) => state.updateProject);
   const data = useActiveScopedData();

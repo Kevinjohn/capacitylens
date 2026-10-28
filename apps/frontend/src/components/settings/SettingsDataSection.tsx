@@ -1,3 +1,4 @@
+import { AUDIT_WARNING_HEADER } from "@/lib/auditWarning";
 import { m } from "@/i18n";
 import { useState } from "react";
 import { accountClient } from "@/account/accountClient";
@@ -61,8 +62,15 @@ function ExampleDataSection() {
       const accepted = await useStore.getState().refreshPlanning({ fresh: true });
       if (!ownsContext()) return;
       keepBlocked = !accepted;
-      if (accepted) setNotice(m.settings_example_data_added());
-      else setNotice(m.settings_example_data_reload(), "warning");
+      if (accepted) {
+        const degradedAudit = response.headers.get(AUDIT_WARNING_HEADER) === "true";
+        setNotice(
+          degradedAudit
+            ? `${m.settings_example_data_added()} ${m.app_audit_log_warning()}`
+            : m.settings_example_data_added(),
+          degradedAudit ? "warning" : "info",
+        );
+      } else setNotice(m.settings_example_data_reload(), "warning");
     } catch (cause) {
       if (!ownsContext()) return;
       const accepted = await useStore

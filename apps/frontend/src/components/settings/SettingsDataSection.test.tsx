@@ -242,6 +242,7 @@ describe("Company-wide people anonymisation", () => {
     useStore.setState((state) => ({
       data: { ...state.data, resources: [resource], allocations: [allocation] },
     }));
+    await originalPlanning.refreshPlanning();
     await useStore.getState().deleteAllocation(allocation.id);
     expect(useStore.getState().planning.history.past.length).toBeGreaterThan(0);
     renderSection({ serverMode: false });

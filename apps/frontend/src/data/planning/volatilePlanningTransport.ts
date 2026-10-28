@@ -449,7 +449,10 @@ export function createVolatilePlanningTransport(readData: () => AppData): Planni
       // N9/N10 still mutate the demo store directly; include those page-memory edits in the
       // next typed command's validation even when no explicit planning read intervened.
       const visible = slice(readData(), context.companyId);
-      if (!company.pendingRefetch && JSON.stringify(visible) !== JSON.stringify(company.data)) company.data = visible;
+      if (!company.pendingRefetch && JSON.stringify(visible) !== JSON.stringify(company.data)) {
+        company.data = visible;
+        company.revision += 1;
+      }
       if (commitments.has(execution.mutationId))
         throw new PlanningControllerError("This planning change was already committed.", "MUTATION_ID_REUSED", 409);
       if (execution.baseRevision !== company.revision)

@@ -1,3 +1,4 @@
+import { useFormLifetimeClose } from "@/hooks/useFormLifetimeClose";
 import { useState } from "react";
 import { useStore } from "@/store/useStore";
 import { useActiveScopedData } from "@/store/useScopedData";
@@ -12,7 +13,8 @@ import { DEFAULT_COLORS } from "@/lib/palette";
 import type { Discipline } from "@capacitylens/shared/types/entities";
 
 /** Creates or edits a discipline with its name and colour, closing after save or cancel. New disciplines receive the next canonical sortOrder. */
-export function DisciplineForm({ discipline, onClose }: { discipline?: Discipline; onClose: () => void }) {
+export function DisciplineForm({ discipline, onClose: close }: { discipline?: Discipline; onClose: () => void }) {
+  const onClose = useFormLifetimeClose(close);
   const add = useStore((state) => state.addDiscipline);
   const update = useStore((state) => state.updateDiscipline);
   // Append new disciplines after the maximum sortOrder so gaps from deleted disciplines cannot collide. Edits retain the existing order.

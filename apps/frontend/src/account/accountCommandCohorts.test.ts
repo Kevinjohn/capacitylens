@@ -9,8 +9,11 @@ vi.mock("@/data/requestTimeout", () => ({
   apiFetch: mocks.apiFetch,
   API_BULK_TIMEOUT_MS: 120_000,
   createRequestSignal: vi.fn((signal?: AbortSignal) => signal),
+  setMasqueradeEndedHandler: vi.fn(),
 }));
 
+import { masqueradeController } from "@/auth/masqueradeController";
+import { setMasqueradeContextToken } from "@/auth/masqueradeContext";
 import { accountClient, bindStoredAccountCommandsToIdentity, clearStoredAccountCommands } from "./accountClient";
 
 interface Deferred<T> {
@@ -60,6 +63,43 @@ describe("implicit account command cohorts", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
+
+  it.each([true, false])(
+    "keeps the original invitation action across deferred hashing (context changes: %s)",
+    async (changed) => {
+      setMasqueradeContextToken("idle-before");
+      const original = crypto.subtle.digest.bind(crypto.subtle);
+      const held = deferred<ArrayBuffer>();
+      const digest = vi.spyOn(crypto.subtle, "digest").mockImplementationOnce(() => held.promise);
+      const body = { accountId: "a-studio", role: "viewer" as const, email: "selina@wayne.test" };
+      mocks.apiFetch.mockResolvedValueOnce(ok());
+      const pending = accountClient.createInvitation(body);
+      try {
+        await vi.waitFor(() => expect(digest).toHaveBeenCalledOnce());
+        body.email = "barbara@wayne.test";
+        await masqueradeController.adoptStatus({ active: false, contextToken: changed ? "idle-after" : "idle-before" });
+        const args = digest.mock.calls[0];
+        if (!args) throw new Error("Expected payload digest");
+        held.resolve(await original(...args));
+        if (changed) {
+          await expect(pending).resolves.toMatchObject({ status: 409 });
+          expect(mocks.apiFetch).not.toHaveBeenCalled();
+        } else {
+          await expect(pending).resolves.toMatchObject({ status: 201 });
+          expect(mocks.apiFetch).toHaveBeenCalledOnce();
+          expect(JSON.parse(String(mocks.apiFetch.mock.calls[0]?.[1]?.body))).toEqual({
+            accountId: "a-studio",
+            role: "viewer",
+            email: "selina@wayne.test",
+          });
+        }
+      } finally {
+        held.resolve(new ArrayBuffer(0));
+        await pending;
+        setMasqueradeContextToken(null);
+      }
+    },
+  );
 
   it.each([
     ["definitive first", 0, 1],

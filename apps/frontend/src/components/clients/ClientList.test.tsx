@@ -145,6 +145,7 @@ describe("ClientList archive flow", () => {
     const user = userEvent.setup();
     const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     useStore.getState().archiveEntity("clients", client.id);
+    await useStore.getState().refreshPlanning();
     render(
       <QueryClientProvider client={new QueryClient()}>
         <PermissionContext.Provider value={{ role: "editor", status: "resolved" }}>
@@ -180,6 +181,7 @@ describe("ClientList archive flow", () => {
     const user = userEvent.setup();
     const client = await requireCreated(useStore.getState().addClient({ name: "Ferris", color: "#111" }));
     useStore.getState().archiveEntity("clients", client.id);
+    await useStore.getState().refreshPlanning();
     render(<ClientList />);
 
     await user.click(screen.getByRole("button", { name: "Restore Ferris" }));

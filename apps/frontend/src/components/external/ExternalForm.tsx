@@ -1,3 +1,4 @@
+import { useFormLifetimeClose } from "@/hooks/useFormLifetimeClose";
 import { useState } from "react";
 import { useStore } from "@/store/useStore";
 import { useFieldError } from "@/hooks/useFieldError";
@@ -49,7 +50,8 @@ function ExternalFormFields(props: ExternalFormFieldsProps) {
 }
 
 /** Creates or edits an external company and optional descriptor. Externals have no capacity; neutral colour and inert capacity defaults preserve the Resource entity contract. */
-export function ExternalForm({ resource, onClose }: { resource?: Resource; onClose: () => void }) {
+export function ExternalForm({ resource, onClose: close }: { resource?: Resource; onClose: () => void }) {
+  const onClose = useFormLifetimeClose(close);
   const add = useStore((state) => state.addResource);
   const update = useStore((state) => state.updateResource);
   const [name, setName] = useState(resource?.name ?? "");
